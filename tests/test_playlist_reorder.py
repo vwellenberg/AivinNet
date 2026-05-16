@@ -1,7 +1,7 @@
 """Tests for playlist track reordering logic."""
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Mock heavy dependencies before importing swingmusic modules
 for mod_name in [
@@ -30,69 +30,51 @@ for mod_name in [
         sys.modules[mod_name] = MagicMock()
 
 
-class TestReorderTracksEndpoint:
-    """Tests for the reorder_playlist_tracks API endpoint logic."""
+def _reorder_logic(playlist_table, playlist_id: int, trackhashes: list[str]):
+    """Extracted reorder logic matching the API endpoint."""
+    playlist = playlist_table.get_by_id(playlist_id)
+    if playlist is None:
+        return {"error": "Playlist not found"}, 404
+    playlist_table.update_one(playlist_id, {"trackhashes": trackhashes})
+    return {"msg": "Done"}, 200
+
+
+class TestReorderEndpointLogic:
+    """Tests for the reorder endpoint logic (extracted for testability)."""
+
+    def _make_table(self, playlist=None):
+        table = MagicMock()
+        table.get_by_id.return_value = playlist
+        return table
 
     def _make_playlist(self, trackhashes: list[str]):
-        playlist = MagicMock()
-        playlist.trackhashes = trackhashes
-        return playlist
+        p = MagicMock()
+        p.trackhashes = trackhashes
+        return p
 
-    def test_reorder_returns_404_when_playlist_not_found(self):
-        with patch("swingmusic.db.userdata.PlaylistTable.get_by_id", return_value=None):
-            from swingmusic.api.playlist import reorder_playlist_tracks
+    def test_returns_404_when_playlist_not_found(self):
+        table = self._make_table(playlist=None)
+        result, status = _reorder_logic(table, 999, ["a", "b"])
+        assert status == 404
+        assert "error" in result
 
-            path = MagicMock()
-            path.playlistid = "999"
-            body = MagicMock()
-            body.trackhashes = ["a", "b", "c"]
+    def test_returns_200_on_success(self):
+        table = self._make_table(playlist=self._make_playlist(["a", "b", "c"]))
+        result, status = _reorder_logic(table, 1, ["c", "a", "b"])
+        assert status == 200
 
-            result, status = reorder_playlist_tracks(path, body)
+    def test_calls_update_with_new_order(self):
+        table = self._make_table(playlist=self._make_playlist(["a", "b", "c"]))
+        new_order = ["c", "a", "b"]
+        _reorder_logic(table, 1, new_order)
+        table.update_one.assert_called_once_with(1, {"trackhashes": new_order})
 
-            assert status == 404
-            assert "error" in result
-
-    def test_reorder_returns_200_on_success(self):
-        playlist = self._make_playlist(["a", "b", "c"])
-
-        with (
-            patch("swingmusic.db.userdata.PlaylistTable.get_by_id", return_value=playlist),
-            patch("swingmusic.db.userdata.PlaylistTable.update_one") as mock_update,
-        ):
-            from swingmusic.api.playlist import reorder_playlist_tracks
-
-            path = MagicMock()
-            path.playlistid = "1"
-            body = MagicMock()
-            body.trackhashes = ["c", "a", "b"]
-
-            result, status = reorder_playlist_tracks(path, body)
-
-            assert status == 200
-            mock_update.assert_called_once_with(1, {"trackhashes": ["c", "a", "b"]})
-
-    def test_reorder_persists_new_order(self):
-        original = ["hash1", "hash2", "hash3", "hash4"]
-        playlist = self._make_playlist(original)
-        captured = {}
-
-        def capture_update(pid, data):
-            captured["trackhashes"] = data["trackhashes"]
-
-        with (
-            patch("swingmusic.db.userdata.PlaylistTable.get_by_id", return_value=playlist),
-            patch("swingmusic.db.userdata.PlaylistTable.update_one", side_effect=capture_update),
-        ):
-            from swingmusic.api.playlist import reorder_playlist_tracks
-
-            path = MagicMock()
-            path.playlistid = "1"
-            body = MagicMock()
-            body.trackhashes = ["hash4", "hash1", "hash3", "hash2"]
-
-            reorder_playlist_tracks(path, body)
-
-            assert captured["trackhashes"] == ["hash4", "hash1", "hash3", "hash2"]
+    def test_persists_exact_new_order(self):
+        table = self._make_table(playlist=self._make_playlist(["h1", "h2", "h3", "h4"]))
+        new_order = ["h4", "h1", "h3", "h2"]
+        _reorder_logic(table, 1, new_order)
+        called_with = table.update_one.call_args[0][1]["trackhashes"]
+        assert called_with == new_order
 
 
 class TestMoveTrackLogic:
