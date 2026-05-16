@@ -3,7 +3,7 @@
 ## Playlists
 
 - [x] Alphabetische Sortierung als Default
-- [ ] Songs via Drag & Drop in einer Playlist verschieben
+- [x] Songs via Drag & Drop in einer Playlist verschieben
 - [ ] Alternative Darstellungs-Option (Liste)
 
 ## Ordner (Folders)
@@ -23,6 +23,7 @@
 
 ## Metadaten
 
+- [ ] **Manuelle Metadaten-Bearbeitung:** Track-Detail-Panel (Modal/Seitenleiste) mit editierbaren Feldern (Titel, Künstler, Album, Genre, Jahr) — Backend schreibt Tags via `mutagen` direkt in die Audiodatei
 - [ ] **Auto-Tag Button:** Album angeben → Track-Namen, Künstler, Genre etc. automatisch von MusicBrainz holen und in die Audiodateien schreiben (via `mutagen`)
 - [ ] Automatischer Metadaten-Abgleich aus dem Netz (MusicBrainz + Cover Art Archive)
 - [ ] Last.fm ist bereits als Plugin integriert — erweitern für fehlende Infos

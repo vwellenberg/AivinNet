@@ -388,6 +388,24 @@ def remove_tracks_from_playlist(path: PlaylistIDPath, body: RemoveTracksFromPlay
     return {"msg": "Done"}, 200
 
 
+class ReorderTracksBody(BaseModel):
+    trackhashes: list[str] = Field(..., description="The new ordered list of trackhashes")
+
+
+@api.put("/<playlistid>/reorder")
+def reorder_playlist_tracks(path: PlaylistIDPath, body: ReorderTracksBody):
+    """
+    Reorder playlist tracks
+    """
+    playlist = PlaylistTable.get_by_id(int(path.playlistid))
+
+    if playlist is None:
+        return {"error": "Playlist not found"}, 404
+
+    PlaylistTable.update_one(int(path.playlistid), {"trackhashes": body.trackhashes})
+    return {"msg": "Done"}, 200
+
+
 class SavePlaylistAsItemBody(BaseModel):
     itemtype: str = Field(..., description="The type of item", example="tracks")
     playlist_name: str = Field(..., description="The name of the playlist")
