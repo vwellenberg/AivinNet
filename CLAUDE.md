@@ -79,6 +79,7 @@ sudo -n systemctl restart subspaceradio
 
 ## Was bisher gemacht wurde
 
+### Backend (SubspaceRadio)
 - Ruff Linting + Formatting (483 → 0 Issues)
 - Pre-commit Hooks (ruff + mypy)
 - CI Pipeline (GitHub Actions: Lint, Format, Mypy, Tests)
@@ -86,7 +87,35 @@ sudo -n systemctl restart subspaceradio
 - mypy strict für 4 Utils-Module
 - Alphabetische Sortierung als Default für Ordner und Playlists
 - Memory Leak Fixes (PIL Images, Watchdog, TransCodeStore, mutable default arg)
+- Download-API: `/download/track/<hash>`, `/download/album/<hash>`, `/download/playlist/<id>` (ZIP)
+  - Registriert in `app_builder.py` + `api/__init__.py`
+
+### Frontend (SubspaceRadio-Client) — AivinNet Redesign
+**Branding:**
+- App-Name: "AivinNet" (Fork von Swing Music)
+- Brand-Farben: `$brand-red: #FF284E`, `$brand-green: #1D9E75`, `$brand-purple: #7F77DD`
+- Logo: Pixel-Art Planet (`logo-subspaceradio.png`) mit pulsierendem Ring-Animation (wächst/schwindet + fade)
+- `$red` zeigt auf `$brand-red`
+
+**Spotify-Redesign (laufend):**
+- Ambient-Gradient: Album-Cover-Farbe fließt als Gradient über die gesamte Seite (AlbumView, ArtistView, PlaylistView)
+- Track-Zeilen: Thumbnail + Titel + Künstler gestapelt, Play-Overlay bei Hover, kein Drag-Handle (ganzer Row draggbar)
+- Herz-Icon ersetzt durch `+` (Plus) für nicht-favorisierte Tracks; Herz bleibt für favorisierte
+- Favorit-Button erscheint rechts bei Hover, nicht links
+- Cards (Album/Artist): größer (12rem), Play-Button grün unten rechts, Cover dimmt bei Hover
+- PlayBtn: `$brand-green` Hintergrund
+- Unten-Leiste: semi-transparent (backdrop-filter blur), Content scrollt dahinter
+- Startseite: kein "Home"-Heading, "Zuletzt gehört" immer erste Sektion
+- Suche: Suchleiste oben (Desktop), Search-Icon in mobiler Bottom-Bar
+- Sidebar: Playlist-Bibliothek als Liste mit Thumbnails
+- Download-Buttons: Track (Kontextmenü), Album (Kontextmenü), Playlist (Header-Button)
+
+**Noch zu tun / ROADMAP:**
+- Tests für neue Frontend-Komponenten schreiben (wo möglich)
+- Phase 3: Sidebar Thumbnails verfeinern
+- Phase 4: Home-Seite weiter verbessern
+- Ordner-Kacheln lesbarer, Metadata-Editing, Album-Cover via MusicBrainz
 
 ## Nächste Schritte
 
-Siehe [ROADMAP.md](ROADMAP.md). Frontend-Änderungen (Ordner-Listenansicht, Playlist Drag & Drop, Auto-Tag Button) können jetzt im Webclient-Fork gemacht werden.
+Siehe [ROADMAP.md](ROADMAP.md). Frontend-Änderungen laufen im Webclient-Fork (SubspaceRadio-Client).
