@@ -14,7 +14,7 @@
 
 ## Statistiken
 
-- [ ] Wiedergabestatistiken: was wie oft gespielt wurde (Tracks, Alben, Künstler)
+- [x] Wiedergabestatistiken: was wie oft gespielt wurde (Tracks, Alben, Künstler)
 
 ## Album-Cover
 
@@ -27,6 +27,12 @@
 - [ ] **Auto-Tag Button:** Album angeben → Track-Namen, Künstler, Genre etc. automatisch von MusicBrainz holen und in die Audiodateien schreiben (via `mutagen`)
 - [ ] Automatischer Metadaten-Abgleich aus dem Netz (MusicBrainz + Cover Art Archive)
 - [ ] Last.fm ist bereits als Plugin integriert — erweitern für fehlende Infos
+
+## DevOps / CI
+
+- [ ] **Auto-Deploy:** Self-hosted GitHub Actions Runner auf dem Server einrichten → bei Push auf master automatisch deployen (Backend: git pull + restart, Client: git pull + yarn build + copy + restart)
+- [ ] Coverage-Schwelle in CI (pytest --cov, min. 70%)
+- [ ] Frontend-Build-Check in SubspaceRadio-Client CI
 
 ## Bugs
 
