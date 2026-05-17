@@ -110,12 +110,6 @@ sudo -n systemctl restart subspaceradio
 - Sidebar: Playlist-Bibliothek als Liste mit Thumbnails
 - Download-Buttons: Track (Kontextmenü), Album (Kontextmenü), Playlist (Header-Button)
 
-**Noch zu tun / ROADMAP:**
-- Tests für neue Frontend-Komponenten schreiben (wo möglich)
-- Phase 3: Sidebar Thumbnails verfeinern
-- Phase 4: Home-Seite weiter verbessern
-- Ordner-Kacheln lesbarer, Metadata-Editing, Album-Cover via MusicBrainz
-
 ## Nächste Schritte
 
 Siehe [ROADMAP.md](ROADMAP.md). Frontend-Änderungen laufen im Webclient-Fork (SubspaceRadio-Client).
