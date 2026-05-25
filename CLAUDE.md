@@ -30,12 +30,18 @@ uvx --with xxhash --with unidecode --with pendulum --with requests pytest tests/
 uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/hashing.py src/swingmusic/utils/dates.py src/swingmusic/utils/parsers.py src/swingmusic/utils/__init__.py --config-file pyproject.toml
 ```
 
+## Branch-Workflow
+
+- **`dev`** — aktiver Entwicklungs-Branch; Features hier entwickeln
+- **`master`** — geschützt; Merge nur via PR, CI muss grün sein
+- Branch Protection: `Lint & Format` + `Tests` müssen bestehen
+
 ## Code-Qualität
 
 - **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
 - **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
-- **CI:** GitHub Actions bei jedem Push/PR — Lint, Format, Mypy, Tests
+- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests
 - **Vendored Code:** `src/swingmusic/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
 ## Architektur-Hinweise
