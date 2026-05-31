@@ -78,7 +78,7 @@ def _save_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
                 _save_all(rgb)
             finally:
                 rgb.close()
-    except Exception as e:  # noqa: BLE001 - we never want this to surface
+    except (OSError, ValueError) as e:
         log.warning("Saving MusicBrainz cover for %s failed: %s", albumhash, e)
         return None
     finally:
