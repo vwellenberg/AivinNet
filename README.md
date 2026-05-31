@@ -25,23 +25,23 @@ AivinNet is a Python/Flask backend that powers a personal, self-hosted music str
 
 ## Server Deployment
 
-The backend runs as a **systemd service** on a home server at `192.168.0.4`.
+The backend runs as a **systemd service** named `aivinnet` on a home server at `192.168.0.4`.
 
 ```
-Server path: ~/SubspaceRadio   (legacy folder name — rename pending)
-Service:     subspaceradio     (legacy service name — rename pending)
+Server path: ~/AivinNet
+Service:     aivinnet
 ```
 
 Useful commands:
 
 ```sh
 # Start / stop / restart
-sudo systemctl start subspaceradio
-sudo systemctl stop subspaceradio
-sudo systemctl restart subspaceradio
+sudo systemctl start aivinnet
+sudo systemctl stop aivinnet
+sudo systemctl restart aivinnet
 
 # View logs
-journalctl -u subspaceradio -f
+journalctl -u aivinnet -f
 ```
 
 ---
