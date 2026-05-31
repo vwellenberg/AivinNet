@@ -6,7 +6,6 @@ from pathlib import Path
 
 from flask import send_file, send_from_directory
 from flask_openapi3 import APIBlueprint, Tag
-
 from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema, TrackHashSchema

@@ -60,7 +60,7 @@ class TestReorderEndpointLogic:
 
     def test_returns_200_on_success(self):
         table = self._make_table(playlist=self._make_playlist(["a", "b", "c"]))
-        result, status = _reorder_logic(table, 1, ["c", "a", "b"])
+        _, status = _reorder_logic(table, 1, ["c", "a", "b"])
         assert status == 200
 
     def test_calls_update_with_new_order(self):
