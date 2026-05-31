@@ -25,11 +25,11 @@ AivinNet is a Python/Flask backend that powers a personal, self-hosted music str
 
 ## Server Deployment
 
-The backend runs as a **systemd service** named `subspaceradio` on a home server at `192.168.0.4`.
+The backend runs as a **systemd service** on a home server at `192.168.0.4`.
 
 ```
-Server path: ~/SubspaceRadio
-Service:     systemctl status subspaceradio
+Server path: ~/SubspaceRadio   (legacy folder name — rename pending)
+Service:     subspaceradio     (legacy service name — rename pending)
 ```
 
 Useful commands:
