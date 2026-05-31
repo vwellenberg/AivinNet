@@ -41,9 +41,7 @@ def download_track(path: TrackHashSchema):
 def download_album(path: AlbumHashSchema):
     """Download all tracks in an album as a ZIP file."""
     tracks = [
-        group.get_best()
-        for group in TrackStore.trackhashmap.values()
-        if group.get_best().albumhash == path.albumhash
+        group.get_best() for group in TrackStore.trackhashmap.values() if group.get_best().albumhash == path.albumhash
     ]
 
     if not tracks:
@@ -82,11 +80,7 @@ def download_playlist(path: PlaylistIDPath):
     if playlist is None:
         return {"msg": "Playlist not found"}, 404
 
-    tracks = [
-        TrackStore.trackhashmap[h].get_best()
-        for h in playlist.trackhashes
-        if h in TrackStore.trackhashmap
-    ]
+    tracks = [TrackStore.trackhashmap[h].get_best() for h in playlist.trackhashes if h in TrackStore.trackhashmap]
 
     if not tracks:
         return {"msg": "Playlist is empty"}, 404
