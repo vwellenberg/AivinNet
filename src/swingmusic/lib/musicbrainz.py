@@ -36,6 +36,16 @@ _mb_lock = threading.Lock()
 _mb_last_request_ts: float = 0.0
 
 
+def _lucene_escape(s: str) -> str:
+    """
+    Escape a string for safe inclusion inside a Lucene double-quoted phrase.
+
+    Backslashes MUST be escaped first so that the backslashes we then add
+    in front of the double quotes are not themselves doubled.
+    """
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _mb_throttle() -> None:
     """Block (briefly) so we do not exceed 1 req/sec against MusicBrainz."""
     global _mb_last_request_ts
@@ -55,10 +65,12 @@ def _search_release_group_mbid(album_title: str, artist_name: str) -> str | None
     if not album_title:
         return None
 
-    # INFO: Lucene-style query. Quote values to be safe with whitespace.
-    query_parts = [f'releasegroup:"{album_title}"']
+    # INFO: Lucene-style query. Quote values to be safe with whitespace,
+    # and escape any embedded backslashes / double quotes so titles like
+    # `Say "Hello"` do not break the parser or inject extra terms.
+    query_parts = [f'releasegroup:"{_lucene_escape(album_title)}"']
     if artist_name:
-        query_parts.append(f'artist:"{artist_name}"')
+        query_parts.append(f'artist:"{_lucene_escape(artist_name)}"')
     query = " AND ".join(query_parts)
 
     params = {
