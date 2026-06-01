@@ -139,10 +139,13 @@ def fetch_cover(body: FetchCoverBody):
 
 class FetchMissingBody(BaseModel):
     limit: int = Field(
-        default=50,
-        ge=1,
-        le=500,
-        description="Maximum number of albums to process in this batch.",
+        default=0,
+        ge=0,
+        le=100000,
+        description=(
+            "Maximum number of albums to process in this batch. "
+            "0 (the default) means process ALL albums without a cover."
+        ),
     )
 
 
@@ -189,11 +192,12 @@ def fetch_missing_covers(body: FetchMissingBody):
             "status": status_snapshot(),
         }, 409
 
+    # limit == 0 means "all missing"; otherwise cap the queue at `limit`.
     missing: list[str] = []
     for albumhash in AlbumStore.albummap:
         if not _album_has_cover(albumhash):
             missing.append(albumhash)
-            if len(missing) >= body.limit:
+            if body.limit and len(missing) >= body.limit:
                 break
 
     if not missing:
@@ -202,6 +206,22 @@ def fetch_missing_covers(body: FetchMissingBody):
     status_reset(total=len(missing))
     _fetch_missing_in_background(missing)
     return {"success": True, "queued": len(missing)}
+
+
+@api.get("/missing-count")
+def missing_count():
+    """
+    Return how many albums currently have no cover on disk, plus the total
+    album count. The frontend uses this to label the batch button.
+    """
+    total = 0
+    missing = 0
+    for albumhash in AlbumStore.albummap:
+        total += 1
+        if not _album_has_cover(albumhash):
+            missing += 1
+
+    return {"total": total, "missing": missing}
 
 
 @api.get("/status")
