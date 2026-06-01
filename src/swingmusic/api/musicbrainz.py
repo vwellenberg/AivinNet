@@ -5,6 +5,8 @@ Closes: https://github.com/vwellenberg/AivinNet-Client/issues/3
 """
 
 import logging
+import threading
+import time
 from io import BytesIO
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -139,22 +141,74 @@ class FetchMissingBody(BaseModel):
     )
 
 
+# INFO: Module-global batch status. The frontend polls /status to render a
+# progress bar. A lock guards every read/write so a polling request sees a
+# consistent snapshot (no torn values like fetched > total).
+_status_lock = threading.Lock()
+_batch_status: dict = {
+    "in_progress": False,
+    "total": 0,
+    "fetched": 0,
+    "failed": 0,
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+def _status_snapshot() -> dict:
+    with _status_lock:
+        return dict(_batch_status)
+
+
+def _status_reset(total: int) -> None:
+    with _status_lock:
+        _batch_status["in_progress"] = True
+        _batch_status["total"] = total
+        _batch_status["fetched"] = 0
+        _batch_status["failed"] = 0
+        _batch_status["started_at"] = time.time()
+        _batch_status["finished_at"] = None
+
+
+def _status_record(success: bool) -> None:
+    with _status_lock:
+        if success:
+            _batch_status["fetched"] += 1
+        else:
+            _batch_status["failed"] += 1
+
+
+def _status_finish() -> None:
+    with _status_lock:
+        _batch_status["in_progress"] = False
+        _batch_status["finished_at"] = time.time()
+
+
 @background
 def _fetch_missing_in_background(albumhashes: list[str]) -> None:
     """
     Worker that fetches covers for the given albumhashes.
     Rate limiting is enforced inside lib.musicbrainz.
     """
-    fetched = 0
-    for albumhash in albumhashes:
-        if _album_has_cover(albumhash):
-            continue
-        success, payload = _fetch_and_save_for_albumhash(albumhash)
-        if success:
-            fetched += 1
-        else:
-            log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
-    log.info("MusicBrainz batch finished: %d/%d covers fetched", fetched, len(albumhashes))
+    try:
+        for albumhash in albumhashes:
+            if _album_has_cover(albumhash):
+                # Already done by an earlier run; count as success without a fetch.
+                _status_record(True)
+                continue
+            success, payload = _fetch_and_save_for_albumhash(albumhash)
+            _status_record(success)
+            if not success:
+                log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
+    finally:
+        _status_finish()
+        snap = _status_snapshot()
+        log.info(
+            "MusicBrainz batch finished: %d ok, %d failed (of %d)",
+            snap["fetched"],
+            snap["failed"],
+            snap["total"],
+        )
 
 
 @api.post("/fetch-missing-covers")
@@ -163,7 +217,17 @@ def fetch_missing_covers(body: FetchMissingBody):
     Kick off a background job that iterates over albums without a cover and
     tries to fetch one from MusicBrainz/CAA. Returns immediately with the
     number of queued albums.
+
+    If a batch is already running, returns 409 with the current status.
     """
+    with _status_lock:
+        if _batch_status["in_progress"]:
+            return {
+                "success": False,
+                "error": "A batch is already running",
+                "status": dict(_batch_status),
+            }, 409
+
     missing: list[str] = []
     for albumhash in AlbumStore.albummap:
         if not _album_has_cover(albumhash):
@@ -174,5 +238,15 @@ def fetch_missing_covers(body: FetchMissingBody):
     if not missing:
         return {"success": True, "queued": 0, "message": "No albums without covers"}
 
+    _status_reset(total=len(missing))
     _fetch_missing_in_background(missing)
     return {"success": True, "queued": len(missing)}
+
+
+@api.get("/status")
+def get_status():
+    """
+    Return a snapshot of the running (or last completed) batch job.
+    Frontend polls this every ~2s while in_progress is true.
+    """
+    return _status_snapshot()
