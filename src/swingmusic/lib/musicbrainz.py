@@ -22,6 +22,57 @@ import requests
 
 log = logging.getLogger(__name__)
 
+
+# INFO: Module-global batch status. The frontend polls GET /musicbrainz/status
+# to render a progress bar. A lock guards every read/write so a polling
+# request sees a consistent snapshot (no torn values like fetched > total).
+# Lives in this lib (not the api module) so it can be tested without Flask
+# or pydantic on PATH.
+_status_lock = threading.Lock()
+_batch_status: dict = {
+    "in_progress": False,
+    "total": 0,
+    "fetched": 0,
+    "failed": 0,
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+def status_snapshot() -> dict:
+    with _status_lock:
+        return dict(_batch_status)
+
+
+def status_reset(total: int) -> None:
+    with _status_lock:
+        _batch_status["in_progress"] = True
+        _batch_status["total"] = total
+        _batch_status["fetched"] = 0
+        _batch_status["failed"] = 0
+        _batch_status["started_at"] = time.time()
+        _batch_status["finished_at"] = None
+
+
+def status_record(success: bool) -> None:
+    with _status_lock:
+        if success:
+            _batch_status["fetched"] += 1
+        else:
+            _batch_status["failed"] += 1
+
+
+def status_finish() -> None:
+    with _status_lock:
+        _batch_status["in_progress"] = False
+        _batch_status["finished_at"] = time.time()
+
+
+def status_is_running() -> bool:
+    with _status_lock:
+        return _batch_status["in_progress"]
+
+
 # INFO: MusicBrainz mandates a contact-identifying User-Agent.
 USER_AGENT = "AivinNet/1.0 (https://github.com/vwellenberg/AivinNet)"
 
