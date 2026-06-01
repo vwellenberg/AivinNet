@@ -12,7 +12,14 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema
-from swingmusic.lib.musicbrainz import fetch_cover_for_album
+from swingmusic.lib.musicbrainz import (
+    fetch_cover_for_album,
+    status_finish,
+    status_is_running,
+    status_record,
+    status_reset,
+    status_snapshot,
+)
 from swingmusic.settings import Defaults, Paths
 from swingmusic.store.albums import AlbumStore
 from swingmusic.utils.threading import background
@@ -145,16 +152,25 @@ def _fetch_missing_in_background(albumhashes: list[str]) -> None:
     Worker that fetches covers for the given albumhashes.
     Rate limiting is enforced inside lib.musicbrainz.
     """
-    fetched = 0
-    for albumhash in albumhashes:
-        if _album_has_cover(albumhash):
-            continue
-        success, payload = _fetch_and_save_for_albumhash(albumhash)
-        if success:
-            fetched += 1
-        else:
-            log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
-    log.info("MusicBrainz batch finished: %d/%d covers fetched", fetched, len(albumhashes))
+    try:
+        for albumhash in albumhashes:
+            if _album_has_cover(albumhash):
+                # Already done by an earlier run; count as success without a fetch.
+                status_record(True)
+                continue
+            success, payload = _fetch_and_save_for_albumhash(albumhash)
+            status_record(success)
+            if not success:
+                log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
+    finally:
+        status_finish()
+        snap = status_snapshot()
+        log.info(
+            "MusicBrainz batch finished: %d ok, %d failed (of %d)",
+            snap["fetched"],
+            snap["failed"],
+            snap["total"],
+        )
 
 
 @api.post("/fetch-missing-covers")
@@ -163,7 +179,16 @@ def fetch_missing_covers(body: FetchMissingBody):
     Kick off a background job that iterates over albums without a cover and
     tries to fetch one from MusicBrainz/CAA. Returns immediately with the
     number of queued albums.
+
+    If a batch is already running, returns 409 with the current status.
     """
+    if status_is_running():
+        return {
+            "success": False,
+            "error": "A batch is already running",
+            "status": status_snapshot(),
+        }, 409
+
     missing: list[str] = []
     for albumhash in AlbumStore.albummap:
         if not _album_has_cover(albumhash):
@@ -174,5 +199,15 @@ def fetch_missing_covers(body: FetchMissingBody):
     if not missing:
         return {"success": True, "queued": 0, "message": "No albums without covers"}
 
+    status_reset(total=len(missing))
     _fetch_missing_in_background(missing)
     return {"success": True, "queued": len(missing)}
+
+
+@api.get("/status")
+def get_status():
+    """
+    Return a snapshot of the running (or last completed) batch job.
+    Frontend polls this every ~2s while in_progress is true.
+    """
+    return status_snapshot()
