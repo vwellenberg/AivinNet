@@ -13,7 +13,10 @@ from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema
 from swingmusic.lib.musicbrainz import (
+    clear_failed,
     fetch_cover_for_album,
+    load_failed,
+    mark_failed,
     status_finish,
     status_is_running,
     status_record,
@@ -147,6 +150,10 @@ class FetchMissingBody(BaseModel):
             "0 (the default) means process ALL albums without a cover."
         ),
     )
+    retry_failed: bool = Field(
+        default=False,
+        description="If true, also retry albums that previously had no MusicBrainz cover.",
+    )
 
 
 @background
@@ -164,6 +171,10 @@ def _fetch_missing_in_background(albumhashes: list[str]) -> None:
             success, payload = _fetch_and_save_for_albumhash(albumhash)
             status_record(success)
             if not success:
+                # Remember "no cover on MusicBrainz" so we don't retry it every
+                # run. Transient/save errors are NOT cached (worth retrying).
+                if payload == "No cover found on MusicBrainz":
+                    mark_failed(albumhash)
                 log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
     finally:
         status_finish()
@@ -192,13 +203,20 @@ def fetch_missing_covers(body: FetchMissingBody):
             "status": status_snapshot(),
         }, 409
 
+    # Optionally give previously-hopeless albums another chance.
+    if body.retry_failed:
+        clear_failed()
+
     # limit == 0 means "all missing"; otherwise cap the queue at `limit`.
+    # Skip albums we've already failed to find a cover for.
+    failed = load_failed()
     missing: list[str] = []
     for albumhash in AlbumStore.albummap:
-        if not _album_has_cover(albumhash):
-            missing.append(albumhash)
-            if body.limit and len(missing) >= body.limit:
-                break
+        if _album_has_cover(albumhash) or albumhash in failed:
+            continue
+        missing.append(albumhash)
+        if body.limit and len(missing) >= body.limit:
+            break
 
     if not missing:
         return {"success": True, "queued": 0, "message": "No albums without covers"}
@@ -211,17 +229,29 @@ def fetch_missing_covers(body: FetchMissingBody):
 @api.get("/missing-count")
 def missing_count():
     """
-    Return how many albums currently have no cover on disk, plus the total
-    album count. The frontend uses this to label the batch button.
+    Return album cover stats so the frontend can label the batch button:
+    - total:     all albums
+    - missing:   albums with no cover on disk
+    - failed:    of those, how many we already tried and MusicBrainz had none
+    - remaining: missing minus failed = what a normal run would actually fetch
     """
+    failed_set = load_failed()
     total = 0
     missing = 0
+    failed = 0
     for albumhash in AlbumStore.albummap:
         total += 1
         if not _album_has_cover(albumhash):
             missing += 1
+            if albumhash in failed_set:
+                failed += 1
 
-    return {"total": total, "missing": missing}
+    return {
+        "total": total,
+        "missing": missing,
+        "failed": failed,
+        "remaining": missing - failed,
+    }
 
 
 @api.get("/status")

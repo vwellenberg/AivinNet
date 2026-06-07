@@ -73,6 +73,73 @@ def status_is_running() -> bool:
         return _batch_status["in_progress"]
 
 
+# INFO: Negative cache of albumhashes that MusicBrainz had no cover for. These
+# are skipped on subsequent batch runs so we don't hammer MusicBrainz with the
+# same hopeless lookups every time (most game soundtracks simply aren't there).
+# Persisted to a small JSON file so it survives restarts; load it lazily.
+_failed_lock = threading.Lock()
+_failed_cache: set[str] | None = None
+
+
+def _failed_cache_file():
+    # Imported here to avoid any import-time cost / circular import.
+    from swingmusic.settings import Paths
+
+    return Paths().config_dir / "mb_failed_covers.json"
+
+
+def _persist_failed_locked() -> None:
+    import json
+
+    try:
+        path = _failed_cache_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(sorted(_failed_cache or []), fh)
+    except OSError as e:
+        log.warning("Could not persist MusicBrainz failed-cover cache: %s", e)
+
+
+def load_failed() -> set[str]:
+    """Return (and lazily load) the set of albumhashes with no MB cover."""
+    global _failed_cache
+    import json
+
+    with _failed_lock:
+        if _failed_cache is None:
+            try:
+                with open(_failed_cache_file(), "r", encoding="utf-8") as fh:
+                    _failed_cache = set(json.load(fh))
+            except (FileNotFoundError, ValueError, OSError):
+                _failed_cache = set()
+        return set(_failed_cache)
+
+
+def is_failed(albumhash: str) -> bool:
+    return albumhash in load_failed()
+
+
+def mark_failed(albumhash: str) -> None:
+    """Record that MusicBrainz had no cover for this album, and persist."""
+    global _failed_cache
+    load_failed()  # ensure loaded
+    with _failed_lock:
+        if _failed_cache is None:
+            _failed_cache = set()
+        if albumhash in _failed_cache:
+            return
+        _failed_cache.add(albumhash)
+        _persist_failed_locked()
+
+
+def clear_failed() -> None:
+    """Forget all previously-failed albums so they get retried."""
+    global _failed_cache
+    with _failed_lock:
+        _failed_cache = set()
+        _persist_failed_locked()
+
+
 # INFO: MusicBrainz mandates a contact-identifying User-Agent.
 USER_AGENT = "AivinNet/1.0 (https://github.com/vwellenberg/AivinNet)"
 
