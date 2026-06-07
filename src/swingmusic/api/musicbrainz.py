@@ -15,7 +15,6 @@ from swingmusic.api.apischemas import AlbumHashSchema
 from swingmusic.lib.musicbrainz import (
     clear_failed,
     fetch_cover_for_album,
-    is_failed,
     load_failed,
     mark_failed,
     status_finish,
