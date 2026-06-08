@@ -1,6 +1,6 @@
 """Tests for swingmusic.lib.musicbrainz."""
 
-from swingmusic.lib.musicbrainz import _lucene_escape
+from swingmusic.lib.musicbrainz import _lucene_escape, _simplify_title
 
 
 class TestLuceneEscape:
@@ -46,3 +46,27 @@ class TestLuceneEscape:
         escaped = _lucene_escape(s)
         # 2 quotes + 1 backslash = 3 added backslashes
         assert len(escaped) == len(s) + 3
+
+
+class TestSimplifyTitle:
+    def test_plain_unchanged(self):
+        assert _simplify_title("By The Way") == "By The Way"
+
+    def test_strips_year_suffix(self):
+        assert _simplify_title("By The Way (2002)") == "By The Way"
+
+    def test_strips_soundtrack_suffix(self):
+        assert _simplify_title("Music of Towns (Kingdom Come: Deliverance Original Soundtrack)") == "Music of Towns"
+
+    def test_strips_brackets(self):
+        assert _simplify_title("Album [Remastered]") == "Album"
+
+    def test_collapses_inner_decoration(self):
+        # Decoration in the middle is removed and whitespace collapsed.
+        assert _simplify_title("Greatest (Deluxe) Hits") == "Greatest Hits"
+
+    def test_strips_trailing_punctuation(self):
+        assert _simplify_title("Title - (Bonus)") == "Title"
+
+    def test_only_decoration_becomes_empty(self):
+        assert _simplify_title("(Untitled)") == ""

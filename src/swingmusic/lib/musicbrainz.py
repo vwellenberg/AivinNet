@@ -15,6 +15,7 @@ Failures of any kind return None; this module never raises.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 
@@ -164,6 +165,22 @@ def _lucene_escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
+_DECORATION_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
+
+
+def _simplify_title(title: str) -> str:
+    """
+    Strip bracketed/parenthetical decorations from an album title so a
+    decorated tag (e.g. "By The Way (2002)", "Music of Towns (... Soundtrack)")
+    can still match MusicBrainz, whose exact-phrase search fails on the extra
+    text. Returns the cleaned title (may be empty if the title was only
+    decoration).
+    """
+    cleaned = _DECORATION_RE.sub("", title)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    return cleaned.strip(" -–—:·,")
+
+
 def _mb_throttle() -> None:
     """Block (briefly) so we do not exceed 1 req/sec against MusicBrainz."""
     global _mb_last_request_ts
@@ -266,7 +283,19 @@ def fetch_cover_for_album(album_title: str, artist_name: str) -> bytes | None:
     if not album_title:
         return None
 
-    mbid = _search_release_group_mbid(album_title.strip(), (artist_name or "").strip())
+    title = album_title.strip()
+    artist = (artist_name or "").strip()
+
+    mbid = _search_release_group_mbid(title, artist)
+
+    # Many real albums fail the exact-phrase search only because the tag title
+    # carries decorations (year, "Original Soundtrack", "Remastered", ...).
+    # Retry once with those stripped before giving up.
+    if not mbid:
+        simplified = _simplify_title(title)
+        if simplified and simplified.casefold() != title.casefold():
+            mbid = _search_release_group_mbid(simplified, artist)
+
     if not mbid:
         return None
 
