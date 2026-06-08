@@ -56,10 +56,7 @@ class TestSimplifyTitle:
         assert _simplify_title("By The Way (2002)") == "By The Way"
 
     def test_strips_soundtrack_suffix(self):
-        assert (
-            _simplify_title("Music of Towns (Kingdom Come: Deliverance Original Soundtrack)")
-            == "Music of Towns"
-        )
+        assert _simplify_title("Music of Towns (Kingdom Come: Deliverance Original Soundtrack)") == "Music of Towns"
 
     def test_strips_brackets(self):
         assert _simplify_title("Album [Remastered]") == "Album"
