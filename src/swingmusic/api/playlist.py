@@ -406,6 +406,29 @@ def reorder_playlist_tracks(path: PlaylistIDPath, body: ReorderTracksBody):
     return {"msg": "Done"}, 200
 
 
+class RenamePlaylistBody(BaseModel):
+    name: str = Field(..., description="The new playlist name")
+
+
+@api.put("/<playlistid>/rename")
+def rename_playlist(path: PlaylistIDPath, body: RenamePlaylistBody):
+    """
+    Rename a playlist (name only, no image upload). Convenience endpoint for
+    automation / the MCP server; the form-based /update keeps the image flow.
+    """
+    db_playlist = PlaylistTable.get_by_id(int(path.playlistid))
+
+    if db_playlist is None:
+        return {"error": "Playlist not found"}, 404
+
+    name = body.name.strip()
+    if not name:
+        return {"error": "Name must not be empty"}, 400
+
+    PlaylistTable.update_one(int(path.playlistid), {"name": name, "last_updated": create_new_date()})
+    return {"msg": "Done", "name": name}, 200
+
+
 class SavePlaylistAsItemBody(BaseModel):
     itemtype: str = Field(..., description="The type of item", example="tracks")
     playlist_name: str = Field(..., description="The name of the playlist")
