@@ -230,7 +230,10 @@ def get_playlist(path: PlaylistIDPath, query: GetPlaylistQuery):
         return {"msg": "Playlist not found"}, 404
 
     if query.limit == -1:
-        query.limit = len(playlist.trackhashes) - 1
+        # -1 means "all remaining tracks". Must be the full length: using
+        # len - 1 dropped the LAST track (off-by-one), so e.g. a 5-track
+        # playlist returned only 4 and the MCP/sort silently lost the last one.
+        query.limit = len(playlist.trackhashes)
 
     tracks = TrackStore.get_tracks_by_trackhashes(playlist.trackhashes[query.start : query.start + query.limit])
     duration = sum(t.duration for t in tracks)
