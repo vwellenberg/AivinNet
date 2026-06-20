@@ -363,7 +363,14 @@ def remove_playlist(path: PlaylistIDPath):
     """
     Delete playlist
     """
-    PlaylistTable.remove_one(path.playlistid)
+    # playlistid arrives as a string; remove_one expects an int (passing the
+    # string raised a 500 and broke deletion entirely).
+    try:
+        pid = int(path.playlistid)
+    except (TypeError, ValueError):
+        return {"error": "Invalid playlist id"}, 400
+
+    PlaylistTable.remove_one(pid)
     playlistlib.cleanup_playlist_images()
     return {"msg": "Done"}, 200
 
