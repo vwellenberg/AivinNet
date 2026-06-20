@@ -126,7 +126,26 @@ def sort_playlist_tracks(playlist_id: int, by: str = "title", reverse: bool = Fa
     r = _api("GET", f"/playlists/{playlist_id}?no_tracks=false&start=0&limit=-1")
     if not r.ok:
         return {"error": f"Could not load playlist (HTTP {r.status_code})"}
-    tracks = r.json().get("tracks", [])
+    j = r.json()
+    tracks = j.get("tracks", [])
+    stored = (j.get("info") or {}).get("count")
+
+    # SAFETY: /reorder REPLACES the stored trackhash list with exactly what we
+    # send. The API only returns tracks that still resolve, so a playlist with
+    # orphaned/missing entries returns fewer tracks than it stores. Reordering
+    # with only the resolved hashes would PERMANENTLY DROP the unresolved ones.
+    # We can't see those hashes via the API, so refuse rather than lose data.
+    if stored is not None and len(tracks) < stored:
+        return {
+            "error": (
+                f"Refusing to sort: playlist stores {stored} tracks but only "
+                f"{len(tracks)} resolve (orphaned/missing entries). Sorting would "
+                f"drop the {stored - len(tracks)} unresolved track(s). Clean up the "
+                f"playlist first."
+            ),
+            "stored": stored,
+            "resolved": len(tracks),
+        }
 
     ordered = sorted(tracks, key=keyfn, reverse=reverse)
     hashes = [t.get("trackhash") for t in ordered if t.get("trackhash")]
