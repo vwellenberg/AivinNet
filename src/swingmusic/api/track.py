@@ -5,6 +5,7 @@ Track editing routes.
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
+from swingmusic.api.auth import admin_required
 from swingmusic.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags
 from swingmusic.serializers.track import serialize_track
 
@@ -26,6 +27,7 @@ class EditTagsBody(BaseModel):
 
 
 @api.put("/<trackhash>/tags")
+@admin_required()
 def edit_tags(path: TrackHashPath, body: EditTagsBody):
     """
     Edit a track's metadata tags.
@@ -33,6 +35,8 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     Writes the new tags to the audio file, reindexes the track and repoints
     playlist/favorite/history references to the track's new identity (editing
     title/album/artist changes the trackhash). Returns the updated track.
+
+    Admin only — this rewrites files on disk and migrates references for all users.
     """
     fields = body.model_dump(exclude_none=True)
 
