@@ -32,6 +32,77 @@ def parse_album_art(filepath: str):
     return None
 
 
+# INFO: Conventional cover-image basenames that sit next to the audio files in
+# an album folder. Checked in this priority order (case-insensitive). Many
+# albums — especially ripped CDs and downloaded game soundtracks — ship the
+# artwork as a sibling file instead of embedding it in every track.
+_FOLDER_COVER_NAMES = (
+    "cover",
+    "folder",
+    "front",
+    "album",
+    "albumart",
+    "albumartsmall",
+    "thumb",
+)
+
+# INFO: Image extensions accepted for a folder cover, in preference order. We
+# re-encode to webp anyway, so a lossless source is fine.
+_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
+
+
+def _read_image_file(path: str) -> bytes | None:
+    """Read a file's bytes, returning None on any error or if empty."""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None
+
+    return data or None
+
+
+def find_folder_cover(folder: str) -> bytes | None:
+    """
+    Look for a cover image sitting next to the audio file (e.g. ``cover.jpg``
+    or ``folder.jpg``) and return its raw bytes.
+
+    Used as a fallback when a track has no embedded album art, so a local
+    image is used before falling back to a remote MusicBrainz lookup. A
+    conventionally-named file wins; if none matches but the folder holds
+    exactly one image, that lone image is used as a last resort.
+
+    Returns ``None`` on any error so callers can fall back gracefully.
+    """
+    try:
+        images = [
+            entry
+            for entry in os.scandir(folder)
+            if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
+        ]
+    except OSError:
+        return None
+
+    if not images:
+        return None
+
+    # 1. Preferred, conventionally-named cover files (basename then extension).
+    by_lower = {entry.name.lower(): entry for entry in images}
+    for base in _FOLDER_COVER_NAMES:
+        for ext in _IMAGE_EXTS:
+            entry = by_lower.get(base + ext)
+            if entry is not None:
+                data = _read_image_file(entry.path)
+                if data is not None:
+                    return data
+
+    # 2. Fallback: a lone image in the folder is almost certainly the cover.
+    if len(images) == 1:
+        return _read_image_file(images[0].path)
+
+    return None
+
+
 def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths = None) -> bool:
     """
     Extracts the thumbnail from an audio file.
@@ -71,6 +142,12 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
             return True
 
     album_art = parse_album_art(filepath)
+
+    # INFO: No embedded art — fall back to a cover image sitting in the track's
+    # folder (cover.jpg / folder.jpg / …) before giving up. The remote
+    # MusicBrainz lookup only fires for albums that still have no art after this.
+    if album_art is None:
+        album_art = find_folder_cover(os.path.dirname(filepath))
 
     if album_art is not None:
         try:
