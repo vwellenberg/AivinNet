@@ -49,8 +49,21 @@ class TestReplaceTrackhashInList:
 
 
 class TestFavoriteMigrationAction:
-    def test_drop_when_new_already_favorited(self):
-        assert favorite_migration_action(True) == "drop"
+    def test_noop_when_old_not_favorited(self):
+        # Nothing favorited the old identity -> nothing to migrate.
+        assert favorite_migration_action(None, None) == "noop"
+        assert favorite_migration_action(None, 1) == "noop"
 
     def test_rename_when_new_not_favorited(self):
-        assert favorite_migration_action(False) == "rename"
+        # The old identity is favorited and the new one is free -> repoint it.
+        assert favorite_migration_action(1, None) == "rename"
+
+    def test_drop_when_same_user_already_favorited_new(self):
+        # Same user favorited both identities -> the old row is redundant.
+        assert favorite_migration_action(1, 1) == "drop"
+
+    def test_keep_when_different_user_owns_new(self):
+        # A DIFFERENT user already owns the new hash. The global UNIQUE(hash)
+        # forbids a second row, so the old favorite must be KEPT, never deleted
+        # (deleting it would silently destroy user 1's favorite).
+        assert favorite_migration_action(1, 2) == "keep"
