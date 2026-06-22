@@ -14,7 +14,9 @@ splits them back into the intended list.
 
 from __future__ import annotations
 
-import mutagen
+# mutagen is imported lazily inside ``write_tags`` so the pure helpers in this
+# module (and their tests) don't require the dependency to be installed — the
+# CI test job runs without it. See ``reference_migration`` for the same pattern.
 
 # Our field name -> mutagen "easy" tag key. Easy mode gives a uniform mapping
 # across MP3 (EasyID3), FLAC/OGG (VComment) and MP4 (EasyMP4).
@@ -68,6 +70,8 @@ def write_tags(filepath: str, fields: dict) -> None:
     :raises TagWriteError: If the file is unsupported/unreadable or a required
         field is empty.
     """
+    import mutagen
+
     _validate(fields)
 
     try:
