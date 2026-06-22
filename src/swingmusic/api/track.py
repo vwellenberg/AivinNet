@@ -8,8 +8,9 @@ from pydantic import BaseModel, Field
 from swingmusic.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags
 from swingmusic.serializers.track import serialize_track
 
+# NOTE: blueprint name must be unique — stream.py already registers one named "track".
 tag = Tag(name="Track", description="Edit track metadata")
-api = APIBlueprint("track", __name__, url_prefix="/track", abp_tags=[tag])
+api = APIBlueprint("trackedit", __name__, url_prefix="/track", abp_tags=[tag])
 
 
 class TrackHashPath(BaseModel):

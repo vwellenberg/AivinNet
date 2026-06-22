@@ -155,8 +155,11 @@ def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
         for artisthash in old_artist_hashes | new_artist_hashes:
             _reconcile_artist(artisthash)
 
-        # Repoint playlist/favorite/history references (no-op if hash is unchanged).
-        migrate_track_references(old_trackhash, new_trackhash)
+        # Repoint references only when the old identity is fully gone. If other
+        # files still share the old trackhash (duplicate tracks), the old hash
+        # stays valid and its references must not be moved to the edited file.
+        if new_trackhash != old_trackhash and old_trackhash not in TrackStore.trackhashmap:
+            migrate_track_references(old_trackhash, new_trackhash)
     except Exception as exc:
         log.error("Track edit failed for %s: %s", filepath, exc)
         _rollback(filepath, backup_path, old_albumhash, old_artist_hashes, new_albumhash, new_artist_hashes)
