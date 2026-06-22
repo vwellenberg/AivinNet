@@ -32,9 +32,12 @@ uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/has
 
 ## Branch-Workflow
 
-- **`dev`** — aktiver Entwicklungs-Branch; Features hier entwickeln
-- **`master`** — geschützt; Merge nur via PR, CI muss grün sein
-- Branch Protection: `Lint & Format` + `Tests` müssen bestehen
+Pro Aufgabe/Issue:
+- **Worktree + Feature-Branch** (`fix/...`, `feat/...`) von `origin/master` — NICHT direkt auf `master`.
+- **PR** öffnen → **Self-Review** (`/code-review`), Findings fixen, erneut prüfen.
+- **Autonom (squash) mergen, sobald Review sauber** — kein manuelles Gate. CI läuft, gatet aber nicht.
+- Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen.
+- Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
 ## Code-Qualität
 
