@@ -21,6 +21,7 @@ import shutil
 
 from swingmusic.config import UserConfig
 from swingmusic.db.libdata import TrackTable
+from swingmusic.db.utils import track_to_dataclass
 from swingmusic.lib import tag_writer
 from swingmusic.lib.reference_migration import migrate_track_references
 from swingmusic.lib.tagger import create_albums, create_artists
@@ -111,11 +112,20 @@ def _index_file(filepath: str) -> None:
     if tags is None or tags["bitrate"] == 0 or tags["duration"] == 0:
         raise TrackEditError("Reindexed file has no readable audio stream")
 
-    TrackTable.insert_one(tags)
+    result = TrackTable.insert_one(tags)
     extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=True)
 
-    track = Track(**tags)
-    TrackStore.add_track(track)
+    # Build the Track via the canonical DB-load path. get_tags() does NOT include
+    # id/lastplayed/playcount/playduration/config, so Track(**tags) (as the dead
+    # watchdogg.add_track does) raises a TypeError — fill those in here.
+    track_dict = {
+        **tags,
+        "id": getattr(result, "lastrowid", 0) or 0,
+        "lastplayed": 0,
+        "playcount": 0,
+        "playduration": 0,
+    }
+    TrackStore.add_track(track_to_dataclass(track_dict, config))
 
 
 def _reindex_file(filepath: str) -> None:
@@ -187,7 +197,11 @@ def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
             migrate_track_references(old_trackhash, new_trackhash)
     except Exception as exc:
         log.error("Track edit failed for %s: %s", filepath, exc)
-        _rollback(filepath, backup_path, old_albumhash, old_artist_hashes, new_albumhash, new_artist_hashes)
+        # Rollback must never mask the original failure with a fresh exception.
+        try:
+            _rollback(filepath, backup_path, old_albumhash, old_artist_hashes, new_albumhash, new_artist_hashes)
+        except Exception as rollback_exc:
+            log.error("Rollback failed for %s: %s", filepath, rollback_exc)
         if isinstance(exc, TrackEditError):
             raise
         raise TrackEditError(str(exc)) from exc
