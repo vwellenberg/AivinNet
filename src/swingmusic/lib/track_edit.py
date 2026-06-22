@@ -19,11 +19,12 @@ from __future__ import annotations
 import os
 import shutil
 
+from swingmusic.config import UserConfig
 from swingmusic.db.libdata import TrackTable
 from swingmusic.lib import tag_writer
 from swingmusic.lib.reference_migration import migrate_track_references
 from swingmusic.lib.tagger import create_albums, create_artists
-from swingmusic.lib.watchdogg import add_track
+from swingmusic.lib.taglib import extract_thumb, get_tags
 from swingmusic.logger import log
 from swingmusic.models import Track
 from swingmusic.store.albums import AlbumStore
@@ -93,10 +94,34 @@ def _reconcile_artist(artisthash: str) -> None:
     # else: still referenced only as an album artist elsewhere -> keep existing entry
 
 
+def _index_file(filepath: str) -> None:
+    """
+    Index a single file into the DB and in-memory track store.
+
+    This is a self-contained equivalent of ``watchdogg.add_track``'s core. We do
+    NOT import watchdogg: it has a broken top-level import in this fork
+    (``BaseObserverSubclassCallable`` no longer exists in watchdog) and is dead
+    code that nothing else imports. The album/artist maps are reconciled
+    separately by the caller from store truth.
+    """
+    TrackStore.remove_track_by_filepath(filepath)
+
+    config = UserConfig()
+    tags = get_tags(filepath, config)
+    if tags is None or tags["bitrate"] == 0 or tags["duration"] == 0:
+        raise TrackEditError("Reindexed file has no readable audio stream")
+
+    TrackTable.insert_one(tags)
+    extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=True)
+
+    track = Track(**tags)
+    TrackStore.add_track(track)
+
+
 def _reindex_file(filepath: str) -> None:
-    """Delete the old DB row (filepath is UNIQUE) then re-add the file from disk."""
+    """Delete the old DB row (filepath is UNIQUE) then re-index the file from disk."""
     TrackTable.remove_tracks_by_filepaths({filepath})
-    add_track(filepath)
+    _index_file(filepath)
 
 
 def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
