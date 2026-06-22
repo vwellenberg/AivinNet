@@ -2,17 +2,20 @@
 
 ``track_edit`` imports heavy store/db/tagger modules at import time (and
 ``swingmusic.db.__init__`` builds a SQLAlchemy declarative ``Base`` that cannot be
-constructed against a mocked sqlalchemy). We therefore mock both the third-party
-deps AND the heavy ``swingmusic`` leaf modules ``track_edit`` imports, so their
-bodies never run. The rollback logic under test uses only ``os``/``shutil`` and
-does not touch any mocked module on the failure paths it exercises.
+constructed against a mocked sqlalchemy). Third-party deps are mocked globally
+(same pattern as ``test_album_model``); the heavy ``swingmusic`` leaf modules are
+mocked only for the duration of the import via ``patch.dict`` so we do NOT shadow
+the real modules for other test files in the same pytest session. The rollback
+logic under test uses only ``os``/``shutil`` and touches no mocked module on the
+failure paths it exercises.
 """
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-# Third-party deps not installed in the CI test job.
-_THIRD_PARTY = [
+# Third-party deps not installed in the CI test job — mocked globally (other
+# tests rely on these being mocked too; none of the CI tests use the real libs).
+for _mod in [
     "flask_jwt_extended",
     "flask",
     "flask_cors",
@@ -36,32 +39,32 @@ _THIRD_PARTY = [
     "pystray",
     "rapidfuzz",
     "mutagen",
-]
-
-# Heavy swingmusic modules track_edit imports — mocked so their module bodies
-# (and swingmusic.db.__init__'s declarative Base) never execute. tag_writer and
-# reference_migration are left real because they are light (no heavy top-level
-# imports).
-_SWING = [
-    "swingmusic.config",
-    "swingmusic.db",
-    "swingmusic.db.libdata",
-    "swingmusic.db.utils",
-    "swingmusic.lib.tagger",
-    "swingmusic.lib.taglib",
-    "swingmusic.models",
-    "swingmusic.store",
-    "swingmusic.store.albums",
-    "swingmusic.store.artists",
-    "swingmusic.store.tracks",
-]
-
-for _mod in _THIRD_PARTY + _SWING:
+]:
     sys.modules.setdefault(_mod, MagicMock())
 
-import os  # noqa: E402
+# Heavy swingmusic leaf modules track_edit imports. Scoped to the import only so
+# the real modules stay available to the rest of the suite.
+_SWING_MOCKS = {
+    name: MagicMock()
+    for name in [
+        "swingmusic.config",
+        "swingmusic.db",
+        "swingmusic.db.libdata",
+        "swingmusic.db.utils",
+        "swingmusic.lib.tagger",
+        "swingmusic.lib.taglib",
+        "swingmusic.models",
+        "swingmusic.store",
+        "swingmusic.store.albums",
+        "swingmusic.store.artists",
+        "swingmusic.store.tracks",
+    ]
+}
 
-from swingmusic.lib import track_edit  # noqa: E402
+with patch.dict(sys.modules, _SWING_MOCKS):
+    from swingmusic.lib import track_edit
+
+import os  # noqa: E402
 
 
 def _seed(tmp_path):
