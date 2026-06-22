@@ -229,8 +229,16 @@ def _rollback(
     try:
         shutil.copy2(backup_path, filepath)
     except OSError as exc:
-        log.error("CRITICAL: failed to restore backup %s -> %s: %s", backup_path, filepath, exc)
-        _remove_backup(backup_path)
+        # Do NOT delete the backup here: the restore failed, so this ``.bak`` is
+        # the only intact copy of the original file. Keep it and surface its path
+        # so the file can be recovered manually.
+        log.error(
+            "CRITICAL: failed to restore backup %s -> %s: %s. Backup KEPT at %s for manual recovery.",
+            backup_path,
+            filepath,
+            exc,
+            backup_path,
+        )
         return
 
     try:
