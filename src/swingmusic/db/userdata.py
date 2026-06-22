@@ -29,6 +29,7 @@ from swingmusic.db.utils import (
     tracklog_to_dataclass,
     user_to_dataclass,
 )
+from swingmusic.lib.playlist_maintenance import merge_trackhashes
 from swingmusic.models.mix import Mix
 from swingmusic.utils.auth import get_current_userid, hash_password
 
@@ -389,7 +390,9 @@ class PlaylistTable(Base):
     @classmethod
     def append_to_playlist(cls, id: int, trackhashes: list[str]):
         dbtrackhashes = cls.get_trackhashes(id) or []
-        trackhashes = list(set(dbtrackhashes).union(set(trackhashes)))
+        # Order-preserving de-dup: keep existing order, append new hashes at the
+        # end. The old set().union() reshuffled the whole playlist on every add.
+        trackhashes = merge_trackhashes(dbtrackhashes, trackhashes)
 
         return next(
             cls.execute(

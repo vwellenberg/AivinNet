@@ -155,6 +155,22 @@ def sort_playlist_tracks(playlist_id: int, by: str = "title", reverse: bool = Fa
 
 
 @mcp.tool()
+def prune_orphan_tracks(playlist_id: int) -> dict:
+    """
+    Remove orphan tracks from a playlist — entries whose track no longer exists
+    in the library (deleted/re-scanned). They inflate the playlist's count and
+    show up as a missing/blank row in the UI. Order of the surviving tracks is
+    preserved. Run this to clean up before sorting a playlist that reports more
+    stored tracks than resolve.
+    """
+    r = _api("POST", f"/playlists/{playlist_id}/prune-orphans")
+    if not r.ok:
+        return {"ok": False, "status": r.status_code}
+    j = r.json()
+    return {"ok": True, "removed": j.get("removed", 0), "count": j.get("count")}
+
+
+@mcp.tool()
 def create_playlist(name: str) -> dict:
     """Create a new, empty playlist."""
     r = _api("POST", "/playlists/new", json={"name": name})
