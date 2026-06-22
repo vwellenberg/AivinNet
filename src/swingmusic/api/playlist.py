@@ -19,6 +19,7 @@ from swingmusic.lib import playlistlib
 from swingmusic.lib.albumslib import sort_by_track_no
 from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
+from swingmusic.lib.playlist_maintenance import prune_orphan_trackhashes
 from swingmusic.lib.sortlib import sort_tracks
 from swingmusic.models.playlist import Playlist
 from swingmusic.serializers.playlist import serialize_for_card
@@ -414,6 +415,41 @@ def reorder_playlist_tracks(path: PlaylistIDPath, body: ReorderTracksBody):
 
     PlaylistTable.update_one(int(path.playlistid), {"trackhashes": body.trackhashes})
     return {"msg": "Done"}, 200
+
+
+@api.post("/<playlistid>/prune-orphans")
+def prune_playlist_orphans(path: PlaylistIDPath):
+    """
+    Prune orphan trackhashes.
+
+    Removes trackhashes that no longer resolve to a track in the library
+    (e.g. the file was deleted or re-scanned to a different hash). These
+    orphans inflate the playlist's count and can desync the UI. The order of
+    the surviving tracks is preserved.
+
+    Maintenance-only: this is the only place that drops hashes on purpose; the
+    read path (GET) never mutates the stored list.
+    """
+    playlist = PlaylistTable.get_by_id(int(path.playlistid))
+
+    if playlist is None:
+        return {"error": "Playlist not found"}, 404
+
+    # Safety: if the track store is empty (e.g. a library rescan just reset it
+    # with `trackhashmap = dict()` and is still repopulating), EVERY hash would
+    # look like an orphan and we'd wipe the playlist. Refuse rather than lose
+    # data — the caller can retry once the store is loaded.
+    if not TrackStore.trackhashmap:
+        return {"error": "Track store not ready; try again shortly"}, 503
+
+    original = playlist.trackhashes
+    kept = prune_orphan_trackhashes(original, TrackStore.trackhashmap)
+    removed = len(original) - len(kept)
+
+    if removed:
+        PlaylistTable.update_one(int(path.playlistid), {"trackhashes": kept})
+
+    return {"msg": "Done", "removed": removed, "count": len(kept)}, 200
 
 
 class RenamePlaylistBody(BaseModel):
