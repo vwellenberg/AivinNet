@@ -16,6 +16,7 @@ and the in-memory map cleanup are done explicitly here instead.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 
@@ -26,11 +27,14 @@ from swingmusic.lib import tag_writer
 from swingmusic.lib.reference_migration import migrate_track_references
 from swingmusic.lib.tagger import create_albums, create_artists
 from swingmusic.lib.taglib import extract_thumb, get_tags
-from swingmusic.logger import log
 from swingmusic.models import Track
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.artists import ArtistMapEntry, ArtistStore
 from swingmusic.store.tracks import TrackStore
+
+# NOTE: do not use `from swingmusic.logger import log` — that global is None until
+# setup_logger() runs and the imported name never picks up the reassignment.
+log = logging.getLogger(__name__)
 
 # Fields accepted from the API. tag_writer ignores anything it doesn't recognise.
 EDITABLE_FIELDS = {"title", "artists", "albumartists", "album", "track"}
