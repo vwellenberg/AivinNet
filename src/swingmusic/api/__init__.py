@@ -23,6 +23,7 @@ from swingmusic.api import (
     search,
     settings,
     stream,
+    track,
 )
 from swingmusic.api.plugins import lyrics as lyrics_plugin
 from swingmusic.api.plugins import mixes as mixes_plugin
@@ -50,4 +51,5 @@ __all__ = [
     "search",
     "settings",
     "stream",
+    "track",
 ]
