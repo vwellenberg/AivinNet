@@ -32,18 +32,14 @@ def merge_trackhashes(existing: list[str], new: Iterable[str]) -> list[str]:
 def prune_orphan_trackhashes(trackhashes: Iterable[str], resolvable: Container[str]) -> list[str]:
     """
     Return only the trackhashes that still resolve to a track in the library
-    (i.e. are present in `resolvable`), preserving order and dropping duplicates.
+    (i.e. are present in `resolvable`), preserving order.
 
     "Orphan" trackhashes are ones whose track no longer exists in the library
     (file removed / re-scanned to a different hash). They inflate a playlist's
     count and can desync the UI, so this lets a maintenance routine drop them.
+
+    Only orphans are removed — resolvable entries (including any intentional
+    duplicates) are kept untouched. De-duplication is the job of
+    `merge_trackhashes` on append, not of an orphan prune.
     """
-    seen: set[str] = set()
-    kept: list[str] = []
-
-    for trackhash in trackhashes:
-        if trackhash in resolvable and trackhash not in seen:
-            seen.add(trackhash)
-            kept.append(trackhash)
-
-    return kept
+    return [trackhash for trackhash in trackhashes if trackhash in resolvable]

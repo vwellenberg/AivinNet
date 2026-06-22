@@ -15,6 +15,7 @@ repos:
           src/swingmusic/utils/dates.py,
           src/swingmusic/utils/parsers.py,
           src/swingmusic/utils/__init__.py,
+          src/swingmusic/lib/playlist_maintenance.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]

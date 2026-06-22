@@ -17,9 +17,9 @@ from swingmusic.api.apischemas import GenericLimitSchema
 from swingmusic.db.userdata import PlaylistTable
 from swingmusic.lib import playlistlib
 from swingmusic.lib.albumslib import sort_by_track_no
-from swingmusic.lib.playlist_maintenance import prune_orphan_trackhashes
 from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
+from swingmusic.lib.playlist_maintenance import prune_orphan_trackhashes
 from swingmusic.lib.sortlib import sort_tracks
 from swingmusic.models.playlist import Playlist
 from swingmusic.serializers.playlist import serialize_for_card
@@ -434,6 +434,13 @@ def prune_playlist_orphans(path: PlaylistIDPath):
 
     if playlist is None:
         return {"error": "Playlist not found"}, 404
+
+    # Safety: if the track store is empty (e.g. a library rescan just reset it
+    # with `trackhashmap = dict()` and is still repopulating), EVERY hash would
+    # look like an orphan and we'd wipe the playlist. Refuse rather than lose
+    # data — the caller can retry once the store is loaded.
+    if not TrackStore.trackhashmap:
+        return {"error": "Track store not ready; try again shortly"}, 503
 
     original = playlist.trackhashes
     kept = prune_orphan_trackhashes(original, TrackStore.trackhashmap)

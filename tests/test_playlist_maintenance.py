@@ -43,8 +43,10 @@ class TestPruneOrphanTrackhashes:
     def test_all_orphans_yields_empty(self):
         assert prune_orphan_trackhashes(["x", "y"], {"a"}) == []
 
-    def test_dedupes_survivors(self):
-        assert prune_orphan_trackhashes(["a", "a", "b"], {"a", "b"}) == ["a", "b"]
+    def test_preserves_resolvable_duplicates(self):
+        # Prune removes only orphans; de-dup is merge_trackhashes' job, so a
+        # resolvable duplicate is kept rather than silently reported as removed.
+        assert prune_orphan_trackhashes(["a", "a", "b"], {"a", "b"}) == ["a", "a", "b"]
 
     def test_resolvable_can_be_a_dict_like_trackhashmap(self):
         # The endpoint passes TrackStore.trackhashmap (a dict) directly; `in`
