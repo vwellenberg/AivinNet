@@ -153,10 +153,13 @@ class TrackStore:
 
         filecount = len(filepaths)
 
-        for trackhash in cls.trackhashmap:
+        # Iterate over copies: the loop deletes from trackhashmap (empty groups)
+        # and removes from group.tracks, which would otherwise raise
+        # "dictionary changed size during iteration" / skip elements.
+        for trackhash in list(cls.trackhashmap):
             group = cls.trackhashmap[trackhash]
 
-            for track in group.tracks:
+            for track in list(group.tracks):
                 if track.filepath in filepaths:
                     group.remove(track)
 
