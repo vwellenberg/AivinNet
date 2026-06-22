@@ -75,11 +75,12 @@ def find_folder_cover(folder: str) -> bytes | None:
     Returns ``None`` on any error so callers can fall back gracefully.
     """
     try:
-        images = [
-            entry
-            for entry in os.scandir(folder)
-            if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
-        ]
+        with os.scandir(folder) as it:
+            images = [
+                entry
+                for entry in it
+                if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
+            ]
     except OSError:
         return None
 
