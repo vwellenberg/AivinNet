@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema, AlbumLimitSchema, ArtistHashSchema
 from swingmusic.config import UserConfig
-from swingmusic.db.userdata import SimilarArtistTable
+from swingmusic.db.userdata import FavoritesTable, SimilarArtistTable
+from swingmusic.db.utils import favorites_to_dataclass
 from swingmusic.lib.albumslib import sort_by_track_no
 from swingmusic.models.album import Album
 from swingmusic.serializers.album import serialize_for_card_many
@@ -23,6 +24,11 @@ from swingmusic.utils.stats import get_track_group_stats
 
 bp_tag = Tag(name="Album", description="Single album")
 api = APIBlueprint("album", __name__, url_prefix="/album", abp_tags=[bp_tag])
+
+# Albums are not user-owned DB rows, so "pin" state is stored in the generic
+# per-user FavoritesTable under a dedicated type. Pinned albums surface in the
+# library sidebar next to pinned playlists.
+PINNED_ALBUM_TYPE = "pinned_album"
 
 
 class GetAlbumVersionsBody(BaseModel):
@@ -90,6 +96,7 @@ def get_album_tracks_and_info(body: GetAlbumInfoBody):
         "info": {
             **asdict(album),
             "is_favorite": album.is_favorite,
+            "is_pinned": FavoritesTable.check_exists(albumhash, PINNED_ALBUM_TYPE),
         },
         "extra": {
             # INFO: track_total is the sum of a set of track_total values from each track
@@ -118,6 +125,42 @@ def get_album_tracks(path: AlbumHashSchema):
     tracks = sort_by_track_no(tracks)
 
     return serialize_tracks(tracks)
+
+
+@api.get("/pinned")
+def get_pinned_albums():
+    """
+    Get pinned albums
+
+    Returns the current user's pinned albums (most recently pinned first),
+    serialized as cards for the library sidebar.
+    """
+    pinned, _ = FavoritesTable.get_all_of_type(PINNED_ALBUM_TYPE, 0, -1)
+    hashes = [p.hash for p in favorites_to_dataclass(pinned)]
+    albums = AlbumStore.get_albums_by_hashes(hashes)
+
+    return {"albums": serialize_for_card_many(albums)}
+
+
+@api.post("/<albumhash>/pin_unpin")
+def pin_unpin_album(path: AlbumHashSchema):
+    """
+    Pin/unpin an album
+
+    Toggles whether the album appears in the library sidebar. Returns the new
+    pinned state.
+    """
+    albumhash = path.albumhash
+
+    if AlbumStore.albummap.get(albumhash) is None:
+        return {"error": "Album not found"}, 404
+
+    if FavoritesTable.check_exists(albumhash, PINNED_ALBUM_TYPE):
+        FavoritesTable.remove_item({"hash": albumhash, "type": PINNED_ALBUM_TYPE})
+        return {"pinned": False}, 200
+
+    FavoritesTable.insert_item({"hash": albumhash, "type": PINNED_ALBUM_TYPE, "extra": {}})
+    return {"pinned": True}, 200
 
 
 @api.post("/from-artist")
