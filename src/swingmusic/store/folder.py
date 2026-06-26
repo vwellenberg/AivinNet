@@ -101,12 +101,15 @@ class FolderStore:
         resolving the special "$home" entry to the user's home directory.
         """
         # Imported lazily to avoid a circular import at module load time.
+        from swingmusic import settings
         from swingmusic.config import UserConfig
 
         roots: list[str] = []
         for root_dir in UserConfig().rootDirs:
             if root_dir == "$home":
-                roots.append(pathlib.Path.home().as_posix())
+                # Use the exact source the indexer scans (tagger.py), i.e. the
+                # *resolved* home dir, so the prefixes match track filepaths.
+                roots.append(settings.Paths().USER_HOME_DIR.as_posix())
             else:
                 roots.append(pathlib.Path(root_dir).as_posix())
 
