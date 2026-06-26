@@ -1,21 +1,6 @@
 """Tests for folder-search index derivation (issue #64)."""
 
-import sys
-from unittest.mock import MagicMock
-
-# Importing swingmusic.store.folder pulls in SQLAlchemy-backed modules that are
-# not installed in the test environment (and would hit a metaclass conflict
-# under mocked SQLAlchemy). derive_folder_paths is pure (pathlib only), so stub
-# those heavy modules out before importing it.
-for mod_name in [
-    "sortedcontainers",
-    "swingmusic.db",
-    "swingmusic.db.libdata",
-    "swingmusic.store.tracks",
-]:
-    sys.modules.setdefault(mod_name, MagicMock())
-
-from swingmusic.store.folder import derive_folder_paths  # noqa: E402
+from swingmusic.lib.folder_index import derive_folder_paths
 
 FILEPATHS = [
     "/music/Pink Floyd/The Wall/01 - In the Flesh.flac",
