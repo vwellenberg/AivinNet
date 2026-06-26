@@ -3,34 +3,17 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock heavy/optional dependencies before importing swingmusic modules, so the
-# pure derive_folder_paths logic can be imported without a full install.
+# Importing swingmusic.store.folder pulls in SQLAlchemy-backed modules that are
+# not installed in the test environment (and would hit a metaclass conflict
+# under mocked SQLAlchemy). derive_folder_paths is pure (pathlib only), so stub
+# those heavy modules out before importing it.
 for mod_name in [
-    "flask_jwt_extended",
-    "flask",
-    "flask_cors",
-    "flask_compress",
-    "flask_openapi3",
-    "PIL",
-    "colorgram",
-    "tqdm",
-    "tinytag",
-    "psutil",
-    "show_in_file_manager",
-    "tabulate",
-    "setproctitle",
-    "locust",
-    "watchdog",
-    "sqlalchemy",
-    "sqlalchemy.orm",
     "sortedcontainers",
-    "ffmpeg",
-    "schedule",
-    "pystray",
-    "rapidfuzz",
+    "swingmusic.db",
+    "swingmusic.db.libdata",
+    "swingmusic.store.tracks",
 ]:
-    if mod_name not in sys.modules:
-        sys.modules[mod_name] = MagicMock()
+    sys.modules.setdefault(mod_name, MagicMock())
 
 from swingmusic.store.folder import derive_folder_paths  # noqa: E402
 
