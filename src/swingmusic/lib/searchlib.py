@@ -8,6 +8,7 @@ from unidecode import unidecode
 from swingmusic import models
 from swingmusic.models.album import Album
 from swingmusic.models.artist import Artist
+from swingmusic.models.folder import Folder
 from swingmusic.models.playlist import Playlist
 from swingmusic.models.track import Track
 from swingmusic.serializers.album import serialize_for_card as serialize_album
@@ -16,6 +17,7 @@ from swingmusic.serializers.artist import serialize_for_card, serialize_for_card
 from swingmusic.serializers.track import serialize_track, serialize_tracks
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.artists import ArtistStore
+from swingmusic.store.folder import FolderStore
 from swingmusic.store.tracks import TrackStore
 from swingmusic.utils.remove_duplicates import remove_duplicates
 
@@ -32,6 +34,7 @@ class Cutoff:
     albums: int = 50
     artists: int = 50
     playlists: int = 50
+    folders: int = 50
 
 
 class Limit:
@@ -43,6 +46,7 @@ class Limit:
     albums: int = 150
     artists: int = 150
     playlists: int = 150
+    folders: int = 150
 
 
 class SearchTracks:
@@ -160,6 +164,37 @@ class SearchPlaylists:
             playlists.append(playlist)
 
         return playlists
+
+
+class SearchFolders:
+    def __init__(self, query: str) -> None:
+        self.query = query
+        # (name, path) for every directory containing tracks, from the index.
+        self.folders = FolderStore.get_folder_index()
+
+    def __call__(self, limit: int = Limit.folders) -> list[Folder]:
+        """
+        Gets all folders whose name fuzzily matches the query.
+        """
+        choices = [unidecode(name).lower() for name, _ in self.folders]
+        results = process.extract(
+            self.query,
+            choices,
+            score_cutoff=Cutoff.folders,
+            limit=limit,
+            processor=utils.default_process,
+            scorer=fuzz.WRatio,
+        )
+
+        # Only compute track counts for the matched folders (cheap, in-memory).
+        matched = [self.folders[item[2]] for item in results]
+        counts = FolderStore.count_tracks_containing_paths([path for _, path in matched])
+        count_map = {c["path"]: c["trackcount"] for c in counts}
+
+        return [
+            Folder(name=name, path=path, trackcount=count_map.get(path, 0))
+            for name, path in matched
+        ]
 
 
 _type = models.Track | models.Album | models.Artist

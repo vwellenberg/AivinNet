@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from sortedcontainers import SortedSet
 
 from swingmusic.db.libdata import TrackTable
+from swingmusic.lib.folder_index import derive_folder_paths
 from swingmusic.store.tracks import TrackStore
 
 
@@ -70,6 +71,49 @@ class FolderStore:
             results = [{"path": path, "trackcount": count} for path, count in zip(paths, res, strict=False)]
 
         return results
+
+    # ── Folder search index ───────────────────────────────────────────────
+    # A cached list of (name, path) for every directory that (recursively)
+    # contains tracks, within the configured root dirs. Derived from the
+    # in-memory `filepaths` index so folder search never walks the filesystem.
+    _folder_index: list[tuple[str, str]] = []
+    _folder_index_size: int = -1
+
+    @classmethod
+    def get_folder_index(cls) -> list[tuple[str, str]]:
+        """
+        Returns the cached folder index as a list of (name, path) tuples,
+        rebuilding it when the number of indexed filepaths has changed
+        (i.e. the library was rescanned).
+        """
+        if cls._folder_index and cls._folder_index_size == len(cls.filepaths):
+            return cls._folder_index
+
+        roots = cls._resolve_root_dirs()
+        cls._folder_index = derive_folder_paths(cls.filepaths, roots)
+        cls._folder_index_size = len(cls.filepaths)
+        return cls._folder_index
+
+    @staticmethod
+    def _resolve_root_dirs() -> list[str]:
+        """
+        Returns the configured root directories as posix path strings,
+        resolving the special "$home" entry to the user's home directory.
+        """
+        # Imported lazily to avoid a circular import at module load time.
+        from swingmusic import settings
+        from swingmusic.config import UserConfig
+
+        roots: list[str] = []
+        for root_dir in UserConfig().rootDirs:
+            if root_dir == "$home":
+                # Use the exact source the indexer scans (tagger.py), i.e. the
+                # *resolved* home dir, so the prefixes match track filepaths.
+                roots.append(settings.Paths().USER_HOME_DIR.as_posix())
+            else:
+                roots.append(pathlib.Path(root_dir).as_posix())
+
+        return roots
 
 
 def get_index_of_first_match(paths: list[str], prefix: str) -> int:
