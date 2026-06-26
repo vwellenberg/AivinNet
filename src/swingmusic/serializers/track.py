@@ -28,7 +28,9 @@ def serialize_track(track: Track, to_remove: set | None = None, remove_disc: boo
         "artist_hashes",
         "created_date",
         "fav_userids",
-        "playcount",
+        # NOTE: "playcount" is intentionally kept in the payload so clients can
+        # show per-track play counts (e.g. the "Plays" column on artist Top
+        # Tracks). "playduration"/"lastplayed" remain stripped to save bandwidth.
         "genrehashes",
         "id",
         "lastplayed",
