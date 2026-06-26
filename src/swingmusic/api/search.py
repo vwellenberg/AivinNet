@@ -38,7 +38,7 @@ class TopResultsQuery(SearchQuery):
 
 
 class SearchLoadMoreQuery(SearchQuery):
-    itemtype: Literal["tracks", "albums", "artists"] = Field(
+    itemtype: Literal["tracks", "albums", "artists", "folders"] = Field(
         description="The type of search",
         json_schema_extra={"example": "tracks"},
     )
@@ -69,6 +69,12 @@ class Search:
         the search term. Then adds them to the `SearchResults` store.
         """
         return searchlib.TopResults().search(self.query, albums_only=True)
+
+    def search_folders(self):
+        """Calls :class:`SearchFolders` which returns the folders whose name
+        fuzzily matches the search term.
+        """
+        return searchlib.SearchFolders(self.query)()
 
     def get_top_results(
         self,
@@ -105,8 +111,10 @@ def search_items(query: SearchLoadMoreQuery):
             results = Search(query.q).search_albums()
         case "artists":
             results = Search(query.q).search_artists()
+        case "folders":
+            results = Search(query.q).search_folders()
         case _:
-            return {"error": "Invalid item type. Valid types are 'tracks', 'albums' and 'artists'"}, 400
+            return {"error": "Invalid item type. Valid types are 'tracks', 'albums', 'artists' and 'folders'"}, 400
 
     return {
         "results": results[query.start : query.start + query.limit],
