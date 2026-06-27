@@ -94,6 +94,21 @@ def save_user_image(image: FileStorage, userid: int) -> str:
     return filename
 
 
+def delete_user_image_file(filename: str) -> None:
+    """
+    Remove a stored profile image from disk (no-op if empty/missing). Keeps the
+    images/users dir from accumulating orphans when an avatar is replaced or
+    cleared — mirrors the playlist cover cleanup.
+    """
+    if not filename:
+        return
+
+    try:
+        (Paths().user_img_path / filename).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 class LoginBody(BaseModel):
     username: str = Field(description="The username", example="user0")
     password: str = Field(description="The password", example="password0")
@@ -261,6 +276,7 @@ def update_profile_image(form: UpdateAvatarForm):
         return {"msg": "Cannot update guest user"}, 400
 
     userid = current_user["id"]
+    old_image = current_user["image"]
 
     try:
         filename = save_user_image(form.image, userid)
@@ -268,6 +284,11 @@ def update_profile_image(form: UpdateAvatarForm):
         return {"error": "Failed: Invalid image"}, 400
 
     UserTable.update_one({"id": userid, "image": filename})
+
+    # drop the previous file so replacements don't pile up orphans
+    if old_image and old_image != filename:
+        delete_user_image_file(old_image)
+
     return UserTable.get_by_id(userid).todict()
 
 
@@ -280,7 +301,11 @@ def delete_profile_image():
         return {"msg": "Cannot update guest user"}, 400
 
     userid = current_user["id"]
+    old_image = current_user["image"]
+
     UserTable.update_one({"id": userid, "image": ""})
+    delete_user_image_file(old_image)
+
     return UserTable.get_by_id(userid).todict()
 
 
