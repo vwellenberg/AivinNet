@@ -51,14 +51,16 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      # Minimal, hand-picked dependency set. The heavy deps (Flask / SQLAlchemy /
-      # mutagen / Pillow) are mocked at import time by the test modules
-      # themselves, so they are intentionally NOT installed here. Coverage uses a
-      # stable whole-package denominator (see [tool.coverage.run] in
-      # pyproject.toml); the floor only guards against gross test removal.
+      # Hand-picked dependency set. The truly heavy deps (Flask / SQLAlchemy /
+      # Pillow) are mocked at import time by the test modules themselves, so they
+      # are intentionally NOT installed. mutagen + tinytag ARE installed: they are
+      # pure-Python (no libev/bjoern build) and the real-bytes tag round-trip test
+      # needs them. conftest pre-imports them so the sibling fallback mocks no-op.
+      # Coverage uses a stable whole-package denominator (see [tool.coverage.run]
+      # in pyproject.toml); the floor only guards against gross test removal.
       - name: Run unit tests
         run: >-
           uvx --with xxhash --with unidecode --with pendulum --with requests
-          --with pytest-cov
+          --with 'mutagen<2' --with 'tinytag<3' --with pytest-cov
           pytest tests/ -v
           --cov --cov-report=term-missing --cov-fail-under=10
