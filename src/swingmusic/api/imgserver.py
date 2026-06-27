@@ -238,6 +238,18 @@ def send_playlist_image(path: PlaylistImagePath):
     return send_file_or_fallback(folder, path.imgpath, "playlist.svg")
 
 
+@api.get("/user/<imgpath>")
+def send_user_image(path: ImagePath):
+    """
+    Get a user's profile image
+
+    Images are constructed as '{user_id}{random}.webp'. Missing files return
+    404 so the client can fall back to its generated avatar.
+    """
+    folder = Paths().user_img_path
+    return send_file_or_fallback(folder, path.imgpath, "default.webp")
+
+
 # MIXES
 @api.get("/mix/medium/<imgpath>")
 def send_md_mix_image(path: ImagePath):
