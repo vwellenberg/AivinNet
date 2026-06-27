@@ -40,7 +40,8 @@ uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/has
 Pro Aufgabe/Issue:
 - **Worktree + Feature-Branch** (`fix/...`, `feat/...`) von `origin/master` — NICHT direkt auf `master`.
 - **PR** öffnen → **Self-Review** (`/code-review`), Findings fixen, erneut prüfen.
-- **Autonom (squash) mergen, sobald Review sauber** — kein manuelles Gate. CI läuft, gatet aber nicht.
+- **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
+- **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` / `Integration Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
 - Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen.
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
