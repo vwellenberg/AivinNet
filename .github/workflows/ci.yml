@@ -51,65 +51,14 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      # Fast lane: a minimal, hand-picked dependency set. The heavy deps
-      # (Flask / SQLAlchemy / mutagen / Pillow) are mocked at import time by the
-      # test modules themselves, so they are intentionally NOT installed here.
-      # `--ignore=tests/integration` keeps the un-mocked integration tests out of
-      # collection (their top-level heavy imports would ImportError here, and
-      # their real libs would clash with this job's sys.modules mocks); `-m "not
-      # integration"` is the belt-and-suspenders for any stray marker in tests/.
-      # Coverage uses a stable whole-package denominator (see [tool.coverage.run]
-      # in pyproject.toml); the floor only guards against gross test removal and
-      # is ratcheted upward over time.
+      # Minimal, hand-picked dependency set. The heavy deps (Flask / SQLAlchemy /
+      # mutagen / Pillow) are mocked at import time by the test modules
+      # themselves, so they are intentionally NOT installed here. Coverage uses a
+      # stable whole-package denominator (see [tool.coverage.run] in
+      # pyproject.toml); the floor only guards against gross test removal.
       - name: Run unit tests
         run: >-
           uvx --with xxhash --with unidecode --with pendulum --with requests
           --with pytest-cov
-          pytest tests/ -v -m "not integration" --ignore=tests/integration
+          pytest tests/ -v
           --cov --cov-report=term-missing --cov-fail-under=10
-
-  integration:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.11
-
-      # bjoern (the non-Windows WSGI server, a runtime dependency) is a C
-      # extension that needs libev's ev.h to build. Without it `uv sync` fails on
-      # Linux — this is exactly why the fast unit job uses uvx instead of a full
-      # install. The integration lane wants the *real* full backend, so install
-      # the system header here.
-      - name: Install system build deps (libev for bjoern)
-        run: sudo apt-get update && sudo apt-get install -y libev-dev
-
-      # Full backend installed (Flask / SQLAlchemy / mutagen / Pillow, plus
-      # pytest from the dev group) so file-mutating and endpoint tests can run
-      # against the real libraries. uv sync installs the project + default
-      # (dev) dependency-group.
-      - name: Install full backend
-        run: uv sync
-
-      # Collects only tests/integration (kept separate from the mock-injecting
-      # unit tests). No integration tests exist yet — they arrive with the
-      # app/DB fixture in the next roadmap step — so the job validates the
-      # full-install toolchain today and tolerates pytest's "no tests collected"
-      # exit code (5) until then. Any other non-zero exit still fails the job.
-      - name: Run integration tests
-        run: |
-          set +e
-          uv run pytest tests/integration -v -m integration
-          code=$?
-          set -e
-          if [ "$code" -eq 5 ]; then
-            echo "No integration tests collected yet (marker 'integration' unused) — tolerated."
-            exit 0
-          fi
-          exit $code

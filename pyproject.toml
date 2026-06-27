@@ -82,9 +82,6 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-markers = [
-    "integration: needs the full backend installed (Flask/SQLAlchemy/mutagen/Pillow); runs in the dedicated CI integration job, not the fast unit job.",
-]
 
 [tool.coverage.run]
 # Path-based source so EVERY module under the package counts toward the
