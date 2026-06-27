@@ -23,8 +23,13 @@ uv sync
 uvx ruff check src/ tests/
 uvx ruff format src/ tests/
 
-# Tests (brauchen extra deps wegen bjoern build-Problem lokal)
-uvx --with xxhash --with unidecode --with pendulum --with requests pytest tests/ -v --ignore=tests/test_split_artists.py
+# Unit-Tests (schnell; minimale deps, heavy deps werden in den Tests gemockt)
+uvx --with xxhash --with unidecode --with pendulum --with requests --with pytest-cov \
+  pytest tests/ -v -m "not integration" --ignore=tests/integration \
+  --cov --cov-report=term-missing --cov-fail-under=10
+
+# Integration-Tests (voller Backend-Stack via uv sync; eigenes Verzeichnis)
+uv sync && uv run pytest tests/integration -v -m integration
 
 # Type checking (nur strikte Module)
 uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/hashing.py src/swingmusic/utils/dates.py src/swingmusic/utils/parsers.py src/swingmusic/utils/__init__.py --config-file pyproject.toml
@@ -44,15 +49,14 @@ Pro Aufgabe/Issue:
 - **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
 - **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
-- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests
+- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Unit-Tests (mit Coverage-Floor) + Integration-Tests. Jobs: `Lint & Format`, `Unit Tests`, `Integration Tests`.
 - **Vendored Code:** `src/swingmusic/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
 ## Architektur-Hinweise
 
 - `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen
-- `tests/test_split_artists.py` — alter unittest-Test, wird in CI ignoriert (dupliziert durch test_parsers.py)
-- `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher CI-Tests mit `uvx` statt `uv run`
-- Tests mit schweren Dependencies nutzen `sys.modules` Mocking (siehe `test_album_model.py`, `test_sortlib.py`)
+- `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher der schnelle Unit-Job CI-Tests mit `uvx` (minimale deps) statt `uv run` fährt
+- **Unit- vs. Integration-Tests:** Schnelle Unit-Tests liegen direkt in `tests/` und mocken schwere Dependencies via `sys.modules` (siehe `test_album_model.py`, `test_sortlib.py`). Tests, die das echte Backend brauchen (Flask/SQLAlchemy/mutagen, App/DB-Fixture), gehören in `tests/integration/` und tragen `@pytest.mark.integration`. **Strikt trennen:** Das `sys.modules`-Mocking der Unit-Tests vergiftet beim gemeinsamen Collecten die echten Libs — daher ignoriert der Unit-Job `tests/integration` und der Integration-Job sammelt nur dieses Verzeichnis.
 
 ## Server-Deployment
 

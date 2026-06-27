@@ -50,6 +50,25 @@ class TestSplitArtists:
         result = split_artists("AC/DC; Queen", config_no_ignore)
         assert result == ["AC", "DC", "Queen"]
 
+    def test_multiple_ignored_artists(self, config):
+        # Two separate ignore-list entries preserved within the same string.
+        result = split_artists("AC/DC; Earth, Wind & Fire; Queen", config)
+        assert result == ["AC/DC", "Earth, Wind & Fire", "Queen"]
+
+    def test_ignore_list_at_start(self, config):
+        result = split_artists("AC/DC; Beatles", config)
+        assert result == ["AC/DC", "Beatles"]
+
+    def test_ignore_list_at_end(self, config):
+        result = split_artists("Beatles; AC/DC", config)
+        assert result == ["Beatles", "AC/DC"]
+
+    def test_ignore_list_multiword_case_insensitive(self, config_multiword_ignore):
+        # Ignore entry is lowercase and multi-word; the input differs in case.
+        # The original input casing must be preserved in the output.
+        result = split_artists("Bob marley & The wailers; Beatles", config_multiword_ignore)
+        assert result == ["Bob marley & The wailers", "Beatles"]
+
 
 class TestRemoveProd:
     def test_no_prod(self):

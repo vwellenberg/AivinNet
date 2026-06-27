@@ -74,9 +74,32 @@ dev = [
     "mypy",
     "pre-commit",
     "pytest",
+    "pytest-cov",
     "ruff",
     "twine>=6.1.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "integration: needs the full backend installed (Flask/SQLAlchemy/mutagen/Pillow); runs in the dedicated CI integration job, not the fast unit job.",
+]
+
+[tool.coverage.run]
+# Path-based source so EVERY module under the package counts toward the
+# denominator (un-imported modules report as 0%), keeping the coverage
+# percentage stable. With `--cov=swingmusic` only imported modules count, so
+# importing a large untested module in a new test would *lower* the number and
+# block merges spuriously — exactly what a regression gate must not do.
+source = ["src/swingmusic"]
+omit = [
+    "src/swingmusic/lib/pydub/*",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.ruff]
 target-version = "py311"

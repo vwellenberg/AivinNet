@@ -4,6 +4,13 @@
 venv
 .venv
 
+# test / coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+
 # Editor directories and files
 .idea
 .vscode
