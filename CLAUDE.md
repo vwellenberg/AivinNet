@@ -23,9 +23,12 @@ uv sync
 uvx ruff check src/ tests/
 uvx ruff format src/ tests/
 
-# Tests (schnell; minimale deps, heavy deps werden in den Tests gemockt)
+# Tests (schnell; schwere deps Flask/SQLAlchemy/Pillow werden in den Tests gemockt).
+# mutagen + tinytag sind pure-Python und MÜSSEN dabei sein (Real-Bytes-Tag-Round-Trip);
+# conftest importiert sie vorab, damit die Fallback-Mocks der Geschwister no-op'en.
 # Lokal möglich (uv liegt unter ~/.local/bin/uv.exe, ggf. vollen Pfad nutzen).
-uvx --with xxhash --with unidecode --with pendulum --with requests --with pytest-cov \
+uvx --with xxhash --with unidecode --with pendulum --with requests \
+  --with mutagen --with tinytag --with pytest-cov \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur strikte Module)
