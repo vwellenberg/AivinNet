@@ -13,7 +13,8 @@ from flask_jwt_extended import (
     jwt_required,
     set_access_cookies,
 )
-from flask_openapi3 import APIBlueprint, FileStorage as _FileStorage, Tag
+from flask_openapi3 import APIBlueprint, Tag
+from flask_openapi3 import FileStorage as _FileStorage
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field, GetCoreSchemaHandler
 from pydantic_core import core_schema
