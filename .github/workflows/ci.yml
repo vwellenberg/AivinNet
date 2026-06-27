@@ -15,6 +15,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.11
@@ -35,17 +37,68 @@ jobs:
           src/swingmusic/lib/playlist_maintenance.py
           --config-file pyproject.toml
 
-  test:
-    name: Tests
+  unit:
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Run tests
-        run: uvx --with xxhash --with unidecode --with pendulum --with requests pytest tests/ -v --ignore=tests/test_split_artists.py
+      # Fast lane: a minimal, hand-picked dependency set. The heavy deps
+      # (Flask / SQLAlchemy / mutagen / Pillow) are mocked at import time by the
+      # test modules themselves, so they are intentionally NOT installed here.
+      # Excludes the `integration` marker — those tests need the full backend
+      # (see the integration job). Coverage uses a stable whole-package
+      # denominator (see [tool.coverage.run] in pyproject.toml); the floor only
+      # guards against gross test removal and is ratcheted upward over time.
+      - name: Run unit tests
+        run: >-
+          uvx --with xxhash --with unidecode --with pendulum --with requests
+          --with pytest-cov
+          pytest tests/ -v -m "not integration"
+          --cov --cov-report=term-missing --cov-fail-under=10
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      # Full backend installed (Flask / SQLAlchemy / mutagen / Pillow, plus
+      # pytest from the dev group) so file-mutating and endpoint tests can run
+      # against the real libraries. uv sync installs the project + default
+      # (dev) dependency-group.
+      - name: Install full backend
+        run: uv sync
+
+      # Runs only the `integration` marker. No integration tests exist yet —
+      # they arrive with the app/DB fixture in the next roadmap step — so the
+      # job validates the full-install toolchain today and tolerates pytest's
+      # "no tests collected" exit code (5) until then. Any other non-zero exit
+      # still fails the job.
+      - name: Run integration tests
+        run: |
+          set +e
+          uv run pytest tests/ -v -m integration
+          code=$?
+          set -e
+          if [ "$code" -eq 5 ]; then
+            echo "No integration tests collected yet (marker 'integration' unused) — tolerated."
+            exit 0
+          fi
+          exit $code

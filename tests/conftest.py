@@ -33,3 +33,11 @@ def config():
 @pytest.fixture
 def config_no_ignore():
     return MockUserConfig(artistSplitIgnoreList=set())
+
+
+@pytest.fixture
+def config_multiword_ignore():
+    # Multi-word, case-insensitive ignore entry (a band name that itself contains
+    # a separator). Used to verify split_artists matches case-insensitively but
+    # preserves the original input casing of the match.
+    return MockUserConfig(artistSplitIgnoreList={"AC/DC", "Bob marley & the wailers"})
