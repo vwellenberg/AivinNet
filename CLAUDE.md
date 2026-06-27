@@ -28,7 +28,7 @@ uvx ruff format src/ tests/
 # conftest importiert sie vorab, damit die Fallback-Mocks der Geschwister no-op'en.
 # Lokal möglich (uv liegt unter ~/.local/bin/uv.exe, ggf. vollen Pfad nutzen).
 uvx --with xxhash --with unidecode --with pendulum --with requests \
-  --with mutagen --with tinytag --with pytest-cov \
+  --with 'mutagen<2' --with 'tinytag<3' --with pytest-cov \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur strikte Module)
@@ -57,7 +57,8 @@ Pro Aufgabe/Issue:
 
 - `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen
 - `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher CI-Tests mit `uvx` (minimale deps) statt `uv run`/voller Installation
-- **Tests mocken schwere Dependencies** via `sys.modules` (siehe `test_album_model.py`, `test_sortlib.py`), damit sie ohne vollen Backend-Stack laufen. Falls je Tests gegen das echte Backend nötig sind (z.B. Track-Tag-Editing, das echte Dateien schreibt): in eigenes Verzeichnis legen und in getrenntem CI-Job mit `uv sync` fahren — das `sys.modules`-Mocking würde sonst beim gemeinsamen Collecten die echten Libs vergiften.
+- **Tests mocken schwere Dependencies** via `sys.modules`, damit sie ohne vollen Backend-Stack laufen. **WICHTIG — geguardete Form Pflicht:** immer `if name not in sys.modules: sys.modules[name] = MagicMock()` (bzw. `setdefault`), NIE unbedingtes `sys.modules[name] = MagicMock()`. Grund: `conftest.py` importiert die echten `mutagen`+`tinytag` vorab (wenn installiert); die geguardete Form no-op't dann und der Real-Bytes-Test `test_tag_writer_roundtrip.py` sieht die echten Libs. Ein unbedingtes Mock würde die echten Libs überschreiben und diesen Test brechen.
+- **Real-Bytes-Tag-Test ko-loziert** in `tests/` (kein eigener Job): `mutagen`+`tinytag` sind pure-Python → laufen in der schnellen `uvx`-Lane mit (Versionen gepinnt: `mutagen<2`, `tinytag<3`, passend zum Prod-Major). Nur Tests, die den **vollen** Stack brauchen (Flask/SQLAlchemy → `uv sync`), bräuchten ein eigenes Verzeichnis + getrennten Job.
 
 ## Server-Deployment
 

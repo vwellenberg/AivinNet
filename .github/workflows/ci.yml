@@ -61,6 +61,6 @@ jobs:
       - name: Run unit tests
         run: >-
           uvx --with xxhash --with unidecode --with pendulum --with requests
-          --with mutagen --with tinytag --with pytest-cov
+          --with 'mutagen<2' --with 'tinytag<3' --with pytest-cov
           pytest tests/ -v
           --cov --cov-report=term-missing --cov-fail-under=10
