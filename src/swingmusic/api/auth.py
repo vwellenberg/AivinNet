@@ -1,5 +1,8 @@
+import random
 import sqlite3
+import string
 from functools import wraps
+from typing import Any
 
 from flask import current_app, jsonify
 from flask_jwt_extended import (
@@ -11,10 +14,14 @@ from flask_jwt_extended import (
     set_access_cookies,
 )
 from flask_openapi3 import APIBlueprint, Tag
-from pydantic import BaseModel, Field
+from flask_openapi3 import FileStorage as _FileStorage
+from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, Field, GetCoreSchemaHandler
+from pydantic_core import core_schema
 
 from swingmusic.config import UserConfig
 from swingmusic.db.userdata import UserTable
+from swingmusic.settings import Paths
 from swingmusic.store.homepage import HomepageStore
 from swingmusic.utils.auth import check_password, hash_password
 
@@ -52,6 +59,55 @@ def create_new_token(user: dict):
         "refreshtoken": create_refresh_token(identity=user),
         "maxage": max_age,
     }
+
+
+class FileStorage(_FileStorage):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, _source: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        return core_schema.with_info_plain_validator_function(cls.validate)
+
+
+def save_user_image(image: FileStorage, userid: int) -> str:
+    """
+    Save a user's profile image as a square `.webp` and return the filename.
+
+    The image is centre-cropped to a square and capped at 512px since avatars
+    are only ever shown small; the filename embeds the user id plus a random
+    suffix so replacing an avatar busts any client-side cache.
+    """
+    img = Image.open(image)
+
+    # Normalise exotic modes (P, CMYK, L, …) so webp encoding never fails.
+    if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGB")
+
+    width, height = img.size
+    side = min(width, height)
+    left = (width - side) // 2
+    top = (height - side) // 2
+    img = img.crop((left, top, left + side, top + side))
+    img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+
+    random_str = "".join(random.choices(string.ascii_letters + string.digits, k=5))
+    filename = f"{userid}{random_str}.webp"
+    img.save(Paths().user_img_path / filename, "webp")
+
+    return filename
+
+
+def delete_user_image_file(filename: str) -> None:
+    """
+    Remove a stored profile image from disk (no-op if empty/missing). Keeps the
+    images/users dir from accumulating orphans when an avatar is replaced or
+    cleared — mirrors the playlist cover cleanup.
+    """
+    if not filename:
+        return
+
+    try:
+        (Paths().user_img_path / filename).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 class LoginBody(BaseModel):
@@ -203,6 +259,55 @@ def update_profile(body: UpdateProfileBody):
         return UserTable.get_by_id(user["id"]).todict()
     except sqlite3.IntegrityError:
         return {"msg": "Username already exists"}, 400
+
+
+class UpdateAvatarForm(BaseModel):
+    image: FileStorage = Field(description="The profile image file")
+
+
+@api.put("/profile/image")
+def update_profile_image(form: UpdateAvatarForm):
+    """
+    Upload or replace the current user's profile image.
+
+    No JWT refresh is needed: the user_lookup_loader re-reads the user from the
+    DB on every request, so GET /auth/user reflects the new image immediately.
+    """
+    if current_user["username"] == "guest":
+        return {"msg": "Cannot update guest user"}, 400
+
+    userid = current_user["id"]
+    old_image = current_user["image"]
+
+    try:
+        filename = save_user_image(form.image, userid)
+    except UnidentifiedImageError:
+        return {"error": "Failed: Invalid image"}, 400
+
+    UserTable.update_one({"id": userid, "image": filename})
+
+    # drop the previous file so replacements don't pile up orphans
+    if old_image and old_image != filename:
+        delete_user_image_file(old_image)
+
+    return UserTable.get_by_id(userid).todict()
+
+
+@api.delete("/profile/image")
+def delete_profile_image():
+    """
+    Remove the current user's profile image (revert to the generated avatar).
+    """
+    if current_user["username"] == "guest":
+        return {"msg": "Cannot update guest user"}, 400
+
+    userid = current_user["id"]
+    old_image = current_user["image"]
+
+    UserTable.update_one({"id": userid, "image": ""})
+    delete_user_image_file(old_image)
+
+    return UserTable.get_by_id(userid).todict()
 
 
 @api.post("/profile/create")

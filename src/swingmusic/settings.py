@@ -314,6 +314,7 @@ class Paths(metaclass=Singleton):
             "",  # `swingmusic` or `.swingmusic`
             "plugins/lyrics",
             "images/playlists",
+            "images/users",
             "images/thumbnails/small",
             "images/thumbnails/large",
             "images/thumbnails/medium",
@@ -410,6 +411,10 @@ class Paths(metaclass=Singleton):
     @property
     def playlist_img_path(self) -> pathlib.Path:
         return self.img_path / "playlists"
+
+    @property
+    def user_img_path(self) -> pathlib.Path:
+        return self.img_path / "users"
 
     @property
     def assets_path(self) -> pathlib.Path:
