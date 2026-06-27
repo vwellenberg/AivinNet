@@ -54,15 +54,18 @@ jobs:
       # Fast lane: a minimal, hand-picked dependency set. The heavy deps
       # (Flask / SQLAlchemy / mutagen / Pillow) are mocked at import time by the
       # test modules themselves, so they are intentionally NOT installed here.
-      # Excludes the `integration` marker — those tests need the full backend
-      # (see the integration job). Coverage uses a stable whole-package
-      # denominator (see [tool.coverage.run] in pyproject.toml); the floor only
-      # guards against gross test removal and is ratcheted upward over time.
+      # `--ignore=tests/integration` keeps the un-mocked integration tests out of
+      # collection (their top-level heavy imports would ImportError here, and
+      # their real libs would clash with this job's sys.modules mocks); `-m "not
+      # integration"` is the belt-and-suspenders for any stray marker in tests/.
+      # Coverage uses a stable whole-package denominator (see [tool.coverage.run]
+      # in pyproject.toml); the floor only guards against gross test removal and
+      # is ratcheted upward over time.
       - name: Run unit tests
         run: >-
           uvx --with xxhash --with unidecode --with pendulum --with requests
           --with pytest-cov
-          pytest tests/ -v -m "not integration"
+          pytest tests/ -v -m "not integration" --ignore=tests/integration
           --cov --cov-report=term-missing --cov-fail-under=10
 
   integration:
@@ -86,15 +89,15 @@ jobs:
       - name: Install full backend
         run: uv sync
 
-      # Runs only the `integration` marker. No integration tests exist yet —
-      # they arrive with the app/DB fixture in the next roadmap step — so the
-      # job validates the full-install toolchain today and tolerates pytest's
-      # "no tests collected" exit code (5) until then. Any other non-zero exit
-      # still fails the job.
+      # Collects only tests/integration (kept separate from the mock-injecting
+      # unit tests). No integration tests exist yet — they arrive with the
+      # app/DB fixture in the next roadmap step — so the job validates the
+      # full-install toolchain today and tolerates pytest's "no tests collected"
+      # exit code (5) until then. Any other non-zero exit still fails the job.
       - name: Run integration tests
         run: |
           set +e
-          uv run pytest tests/ -v -m integration
+          uv run pytest tests/integration -v -m integration
           code=$?
           set -e
           if [ "$code" -eq 5 ]; then
