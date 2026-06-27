@@ -243,11 +243,17 @@ def send_user_image(path: ImagePath):
     """
     Get a user's profile image
 
-    Images are constructed as '{user_id}{random}.webp'. Missing files return
-    404 so the client can fall back to its generated avatar.
+    Images are constructed as '{user_id}{random}.webp'. A missing file returns
+    404 (rather than a generic default) so the client falls back to its own
+    generated avatar — consistent with users who never set a picture.
     """
     folder = Paths().user_img_path
-    return send_file_or_fallback(folder, path.imgpath, "default.webp")
+    fpath = Path(folder) / path.imgpath
+
+    if fpath.exists():
+        return send_from_directory(folder, path.imgpath)
+
+    return "", 404
 
 
 # MIXES
