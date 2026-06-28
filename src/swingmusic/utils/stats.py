@@ -91,6 +91,31 @@ def get_tracks_in_period(start_time: int, end_time: int, userid: int | None = No
     return list(tracks.values()), total, duration
 
 
+def get_playlists_in_period(start_time: int | float, end_time: int | float, userid: int | None = None):
+    """
+    Aggregate plays per playlist in the given period.
+
+    Unlike albums/artists (derived from track metadata), a playlist is only
+    credited when the play was started from it — i.e. the scrobble source is
+    ``pl:<id>``. Returns a list of ``{"playlistid", "playcount", "playduration"}``
+    dicts sorted by playduration, descending.
+    """
+    scrobbles = ScrobbleTable.get_all_in_period(start_time, end_time, userid)
+    playlists: Any = defaultdict(lambda: {"playcount": 0, "playduration": 0})
+
+    for scrobble in scrobbles:
+        if scrobble.type != "playlist" or not scrobble.type_src:
+            continue
+
+        playlistid = scrobble.type_src
+        playlists[playlistid]["playlistid"] = playlistid
+        playlists[playlistid]["playcount"] += 1
+        playlists[playlistid]["playduration"] += scrobble.duration
+
+    playlists = list(playlists.values())
+    return sorted(playlists, key=lambda x: x["playduration"], reverse=True)
+
+
 T = TypeVar("T")
 
 
@@ -142,6 +167,14 @@ def calculate_artist_trend(
 
 def calculate_track_trend(track: Track, current_tracks: list[Track], previous_tracks: list[Track]):
     return calculate_trend(track, current_tracks, previous_tracks, lambda t: t.trackhash)
+
+
+def calculate_playlist_trend(
+    playlist: dict[str, Any],
+    current_playlists: list[dict[str, Any]],
+    previous_playlists: list[dict[str, Any]],
+):
+    return calculate_trend(playlist, current_playlists, previous_playlists, lambda p: p["playlistid"])
 
 
 def calculate_scrobble_trend(current_scrobbles: int, previous_scrobbles: int) -> str:
