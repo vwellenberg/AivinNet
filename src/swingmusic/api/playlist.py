@@ -339,26 +339,30 @@ def pin_unpin_playlist(path: PlaylistIDPath):
     return {"msg": "Done"}, 200
 
 
+class PlaylistPosition(BaseModel):
+    id: int = Field(description="Playlist id")
+    position: int = Field(description="New position in the shared sidebar order")
+
+
 class ReorderPlaylistsBody(BaseModel):
-    ids: list[int] = Field(description="Playlist ids in the desired library-sidebar order")
+    positions: list[PlaylistPosition] = Field(description="Explicit playlist positions")
 
 
 @api.post("/sidebar-order")
 def reorder_sidebar_playlists(body: ReorderPlaylistsBody):
     """
-    Set the manual library-sidebar order of playlists.
-
-    Each playlist's settings.position is set to its index in `ids`, so the
-    client can sort the sidebar by it. Unlisted playlists keep their position.
+    Set each playlist's settings.position explicitly. Positions share one space
+    with folder positions so folders and pinned playlists interleave freely in
+    the library sidebar. Unlisted playlists keep their position.
     """
-    for position, pid in enumerate(body.ids):
-        playlist = PlaylistTable.get_by_id(pid)
+    for item in body.positions:
+        playlist = PlaylistTable.get_by_id(item.id)
         if playlist is None:
             continue
 
         settings = playlist.settings
-        settings["position"] = position
-        PlaylistTable.update_settings(pid, settings)
+        settings["position"] = item.position
+        PlaylistTable.update_settings(item.id, settings)
 
     return {"msg": "Done"}, 200
 

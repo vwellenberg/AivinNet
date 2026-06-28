@@ -112,16 +112,23 @@ def move_playlist(body: MovePlaylistBody):
     return PlaylistFolderTable.get_by_id(body.folder_id)
 
 
+class FolderPosition(BaseModel):
+    id: int = Field(description="Folder id")
+    position: int = Field(description="New position in the shared sidebar order")
+
+
 class ReorderFoldersBody(BaseModel):
-    ids: list[int] = Field(description="Folder ids in the desired order")
+    positions: list[FolderPosition] = Field(description="Explicit folder positions")
 
 
 @api.post("/reorder")
 def reorder_folders(body: ReorderFoldersBody):
     """
-    Set the order of folders in the sidebar.
+    Set folder positions. Positions live in the same space as playlist
+    settings.position so folders and pinned playlists can be freely interleaved
+    in the library sidebar.
     """
-    for position, folder_id in enumerate(body.ids):
-        PlaylistFolderTable.update_one(folder_id, {"position": position})
+    for item in body.positions:
+        PlaylistFolderTable.update_one(item.id, {"position": item.position})
 
     return {"message": "Folders reordered"}
