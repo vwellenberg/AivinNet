@@ -6,8 +6,6 @@ Flat folders (no nesting). A folder holds an ordered list of playlist ids
 folder never deletes its playlists — they simply return to the top level.
 """
 
-from typing import Optional
-
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
@@ -82,7 +80,7 @@ def delete_folder(path: FolderIdPath):
 
 class MovePlaylistBody(BaseModel):
     playlist_id: int = Field(description="The playlist to move")
-    folder_id: Optional[int] = Field(default=None, description="Target folder id, or null for the top level")
+    folder_id: int | None = Field(default=None, description="Target folder id, or null for the top level")
     position: int = Field(default=-1, description="Insert position in the target folder (-1 = append)")
 
 
