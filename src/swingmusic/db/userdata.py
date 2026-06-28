@@ -661,3 +661,71 @@ class CollectionTable(Base):
                 commit=True,
             )
         )
+
+
+class PlaylistFolderTable(Base):
+    """
+    A user-created folder for grouping playlists in the library sidebar.
+
+    Flat (no nesting) for v1. `items` is the ordered list of playlist ids the
+    folder contains (manual drag order); a playlist lives in at most one folder.
+    Deleting a folder does NOT delete its playlists — they just stop being
+    referenced here and fall back to the top level.
+    """
+
+    __tablename__ = "playlistfolder"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String())
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+    items: Mapped[list[int]] = mapped_column(JSON(), default_factory=list)
+    position: Mapped[int] = mapped_column(Integer(), default=0)
+
+    @classmethod
+    def to_dict(cls, entry: Any) -> dict[str, Any]:
+        return {
+            "id": entry.id,
+            "name": entry.name,
+            "items": entry.items or [],
+            "position": entry.position,
+        }
+
+    @classmethod
+    def get_all(cls):
+        result = cls.execute(select(cls).where(cls.userid == get_current_userid()).order_by(cls.position))
+
+        for i in next(result).scalars():
+            yield cls.to_dict(i)
+
+    @classmethod
+    def get_by_id(cls, id: int):
+        result = cls.execute(select(cls).where(and_(cls.id == id, cls.userid == get_current_userid())))
+        res = next(result).scalar()
+
+        if res:
+            return cls.to_dict(res)
+
+    @classmethod
+    def create(cls, name: str, position: int):
+        result = cls.insert_one(
+            {"name": name, "userid": get_current_userid(), "items": [], "position": position}
+        )
+        return result.lastrowid
+
+    @classmethod
+    def delete_by_id(cls, id: int):
+        return next(
+            cls.execute(
+                delete(cls).where(and_(cls.id == id, cls.userid == get_current_userid())),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def update_one(cls, id: int, values: dict[str, Any]):
+        return next(
+            cls.execute(
+                update(cls).where(and_(cls.id == id, cls.userid == get_current_userid())).values(values),
+                commit=True,
+            )
+        )

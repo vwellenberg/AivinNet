@@ -73,6 +73,7 @@ def load_endpoints(web: OpenAPI):
         web.register_api(swing_api.search.api)
         web.register_api(swing_api.folder.api)
         web.register_api(swing_api.playlist.api)
+        web.register_api(swing_api.playlistfolders.api)
         web.register_api(swing_api.favorites.api)
         web.register_api(swing_api.track.api)
         web.register_api(swing_api.imgserver.api)
