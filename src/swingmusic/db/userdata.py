@@ -707,9 +707,7 @@ class PlaylistFolderTable(Base):
 
     @classmethod
     def create(cls, name: str, position: int):
-        result = cls.insert_one(
-            {"name": name, "userid": get_current_userid(), "items": [], "position": position}
-        )
+        result = cls.insert_one({"name": name, "userid": get_current_userid(), "items": [], "position": position})
         return result.lastrowid
 
     @classmethod
