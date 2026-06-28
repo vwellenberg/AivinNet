@@ -7,7 +7,8 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import TrackHashSchema
-from swingmusic.db.userdata import FavoritesTable, ScrobbleTable
+from swingmusic.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
+from swingmusic.lib import playlistlib
 from swingmusic.lib.extras import get_extra_info
 from swingmusic.lib.recipes.recents import RecentlyPlayed
 from swingmusic.models.album import Album
@@ -16,6 +17,7 @@ from swingmusic.models.track import Track
 from swingmusic.plugins.lastfm import LastFmPlugin
 from swingmusic.serializers.album import serialize_for_card as serialize_for_album_card
 from swingmusic.serializers.artist import serialize_for_card
+from swingmusic.serializers.playlist import serialize_for_card as serialize_for_playlist_card
 from swingmusic.serializers.track import serialize_track
 from swingmusic.settings import Defaults
 from swingmusic.store.albums import AlbumStore
@@ -32,10 +34,12 @@ from swingmusic.utils.stats import (
     calculate_artist_trend,
     calculate_new_albums,
     calculate_new_artists,
+    calculate_playlist_trend,
     calculate_scrobble_trend,
     calculate_track_trend,
     get_albums_in_period,
     get_artists_in_period,
+    get_playlists_in_period,
     get_tracks_in_period,
 )
 
@@ -276,6 +280,70 @@ def get_top_albums(query: ChartItemsQuery):
 
 def sort_albums(albums: list[Album], order_by: Literal["playcount", "playduration"]):
     return sorted(albums, key=lambda x: getattr(x, order_by), reverse=True)
+
+
+@api.get("/top-playlists")
+def get_top_playlists(query: ChartItemsQuery):
+    """
+    Get the top N playlists played within a given duration.
+
+    A playlist is credited only for plays started from it (scrobble source
+    ``pl:<id>``). Dynamic/custom playlists (non-numeric ids) are skipped.
+    """
+    start_time, end_time = get_date_range(query.duration)
+    previous_start_time = start_time - get_duration_in_seconds(query.duration)
+
+    current_period_playlists = get_playlists_in_period(start_time, end_time)
+    previous_period_playlists = get_playlists_in_period(previous_start_time, start_time)
+
+    scrobble_trend = calculate_scrobble_trend(len(current_period_playlists), len(previous_period_playlists))
+
+    sorted_playlists = sort_playlists(current_period_playlists, query.order_by)
+
+    response = []
+    for entry in sorted_playlists:
+        try:
+            playlist = PlaylistTable.get_by_id(int(entry["playlistid"]))
+        except (ValueError, TypeError):
+            # Non-numeric id (e.g. a dynamic playlist like "recentlyadded").
+            continue
+
+        if playlist is None:
+            # Playlist was deleted; old scrobbles still carry its id.
+            continue
+
+        trend = calculate_playlist_trend(entry, current_period_playlists, previous_period_playlists)
+
+        if not playlist.has_image:
+            playlist.images = playlistlib.get_first_4_images(trackhashes=playlist.trackhashes)
+        playlist.clear_lists()
+
+        response.append(
+            {
+                **serialize_for_playlist_card(playlist),
+                "trend": trend,
+                "help_text": get_help_text(entry["playcount"], entry["playduration"], query.order_by),
+                "extra": {
+                    "playcount": entry["playcount"],
+                },
+            }
+        )
+
+        if len(response) >= query.limit:
+            break
+
+    return {
+        "playlists": response,
+        "scrobbles": {
+            "text": f"{len(current_period_playlists)} playlist{'' if len(current_period_playlists) == 1 else 's'} played",
+            "trend": scrobble_trend,
+            "dates": format_date(start_time, end_time),
+        },
+    }, 200
+
+
+def sort_playlists(playlists: list[dict], order_by: Literal["playcount", "playduration"]):
+    return sorted(playlists, key=lambda x: x[order_by], reverse=True)
 
 
 @api.get("/stats")
