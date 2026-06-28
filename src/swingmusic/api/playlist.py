@@ -339,6 +339,30 @@ def pin_unpin_playlist(path: PlaylistIDPath):
     return {"msg": "Done"}, 200
 
 
+class ReorderPlaylistsBody(BaseModel):
+    ids: list[int] = Field(description="Playlist ids in the desired library-sidebar order")
+
+
+@api.post("/sidebar-order")
+def reorder_sidebar_playlists(body: ReorderPlaylistsBody):
+    """
+    Set the manual library-sidebar order of playlists.
+
+    Each playlist's settings.position is set to its index in `ids`, so the
+    client can sort the sidebar by it. Unlisted playlists keep their position.
+    """
+    for position, pid in enumerate(body.ids):
+        playlist = PlaylistTable.get_by_id(pid)
+        if playlist is None:
+            continue
+
+        settings = playlist.settings
+        settings["position"] = position
+        PlaylistTable.update_settings(pid, settings)
+
+    return {"msg": "Done"}, 200
+
+
 @api.delete("/<playlistid>/remove-img")
 def remove_playlist_image(path: PlaylistIDPath):
     """
