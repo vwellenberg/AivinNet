@@ -133,13 +133,42 @@ def get_pinned_albums():
     Get pinned albums
 
     Returns the current user's pinned albums (most recently pinned first),
-    serialized as cards for the library sidebar.
+    serialized as cards for the library sidebar. Each card carries the
+    album's explicit sidebar `position` (or None when never reordered) so
+    pinned albums share one ordering space with folders and playlists.
     """
     pinned, _ = FavoritesTable.get_all_of_type(PINNED_ALBUM_TYPE, 0, -1)
-    hashes = [p.hash for p in favorites_to_dataclass(pinned)]
-    albums = AlbumStore.get_albums_by_hashes(hashes)
+    favs = favorites_to_dataclass(pinned)
+    positions = {f.hash: (f.extra or {}).get("position") for f in favs}
+    albums = AlbumStore.get_albums_by_hashes([f.hash for f in favs])
 
-    return {"albums": serialize_for_card_many(albums)}
+    cards = serialize_for_card_many(albums)
+    for card in cards:
+        card["position"] = positions.get(card["albumhash"])
+
+    return {"albums": cards}
+
+
+class PinnedAlbumPosition(BaseModel):
+    albumhash: str = Field(description="Album hash")
+    position: int = Field(description="Explicit sidebar position")
+
+
+class ReorderPinnedAlbumsBody(BaseModel):
+    positions: list[PinnedAlbumPosition] = Field(description="Explicit pinned-album positions")
+
+
+@api.post("/pinned/order")
+def reorder_pinned_albums(body: ReorderPinnedAlbumsBody):
+    """
+    Set each pinned album's sidebar position explicitly. Positions share one
+    space with folder and playlist positions so all three interleave freely
+    in the library sidebar. Unlisted albums keep their position.
+    """
+    for item in body.positions:
+        FavoritesTable.set_extra(item.albumhash, PINNED_ALBUM_TYPE, {"position": item.position})
+
+    return {"msg": "Done"}, 200
 
 
 @api.post("/<albumhash>/pin_unpin")
