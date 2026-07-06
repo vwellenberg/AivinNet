@@ -229,6 +229,26 @@ class FavoritesTable(Base):
         return next(result).scalars().all()
 
     @classmethod
+    def set_extra(cls, hash: str, type: str, extra_updates: dict[str, Any]):
+        """
+        Merge the given keys into the `extra` JSON of the current user's
+        favorite entry (e.g. the sidebar position of a pinned album).
+        """
+        result = cls.execute(
+            select(cls).where(
+                and_(
+                    cls.type == type,
+                    cls.userid == get_current_userid(),
+                    (cls.hash == hash) | (cls.hash == f"{type}_{hash}"),
+                )
+            )
+        )
+
+        for row in next(result).scalars().all():
+            new_extra = {**(row.extra or {}), **extra_updates}
+            next(cls.execute(update(cls).where(cls.id == row.id).values(extra=new_extra), commit=True))
+
+    @classmethod
     def get_all_of_type(cls, type: str, start: int, limit: int):
         result = cls.execute(
             select(cls)
