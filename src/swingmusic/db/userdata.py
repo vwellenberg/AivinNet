@@ -460,9 +460,7 @@ class PlaylistTable(Base):
 
             return next(
                 cls.execute(
-                    update(cls)
-                    .where((cls.id == id) & (cls.userid == get_current_userid()))
-                    .values(values),
+                    update(cls).where((cls.id == id) & (cls.userid == get_current_userid())).values(values),
                     commit=True,
                 )
             )
