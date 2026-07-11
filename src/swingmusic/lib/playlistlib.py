@@ -2,9 +2,12 @@
 This library contains all the functions related to playlists.
 """
 
+import hashlib
 import logging
+import os
 import random
 import string
+from functools import lru_cache
 
 from PIL import Image, ImageSequence
 
@@ -108,10 +111,51 @@ def duplicate_images(images: list):
     return images
 
 
+@lru_cache(maxsize=4096)
+def _file_md5(path: str, mtime_ns: int, size: int) -> str:
+    """
+    md5 of a file's bytes, cached per (path, mtime, size) so each cover
+    thumbnail is only read once until it changes on disk.
+    """
+    with open(path, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
+
+
+def get_cover_content_key(image: str) -> str:
+    """
+    Returns an identity key for an album cover image based on the *content*
+    of its small thumbnail file.
+
+    Different albums can carry byte-identical cover art (e.g. a compilation
+    split into per-disc albums), in which case their albumhashes differ but
+    the cover files are the same. Hashing the thumbnail bytes lets callers
+    detect those duplicates.
+
+    When the thumbnail file is missing (e.g. not extracted yet), we fall back
+    to the filename (which encodes the albumhash), i.e. no cross-album dedupe.
+    """
+    path = settings.Paths().sm_thumb_path / image
+
+    try:
+        stat = os.stat(path)
+        return "md5:" + _file_md5(str(path), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        return "file:" + image
+
+
 # TODO: mutable var in param.
 def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) -> list[dict["str", str]]:
     """
-    Returns images of the first 4 albums that appear in the track list.
+    Returns images of the first 4 albums with distinct covers that appear
+    in the track list, in track-list order.
+
+    Candidate albums are deduplicated by albumhash first, then by the content
+    hash of the cover thumbnail itself (see get_cover_content_key), so
+    byte-identical covers on different albums don't yield duplicate images.
+
+    If fewer than 4 distinct covers exist, the list is padded with duplicates
+    (see duplicate_images). Clients use that to tell "4 genuinely different
+    covers" (collage-worthy) apart from padded results.
 
     When tracks are not passed, trackhashes need to be passed.
     Tracks are then resolved from the store.
@@ -119,26 +163,33 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
     if len(trackhashes) > 0:
         tracks = TrackStore.get_tracks_by_trackhashes(trackhashes)
 
-    albums = []
+    albumhashes = []
+    seen_hashes = set()
 
     for track in tracks:
-        if track.albumhash not in albums:
-            albums.append(track.albumhash)
+        if track.albumhash not in seen_hashes:
+            seen_hashes.add(track.albumhash)
+            albumhashes.append(track.albumhash)
 
-            if len(albums) == 4:
-                break
+    images = []
+    seen_covers = set()
 
-    albums = AlbumStore.get_albums_by_hashes(albums)
-    images = [
-        {
-            "image": album.image,
-            "color": album.color,
-        }
-        for album in albums
-    ]
+    for album in AlbumStore.get_albums_by_hashes(albumhashes):
+        key = get_cover_content_key(album.image)
 
-    if len(images) == 4:
-        return images
+        if key in seen_covers:
+            continue
+
+        seen_covers.add(key)
+        images.append(
+            {
+                "image": album.image,
+                "color": album.color,
+            }
+        )
+
+        if len(images) == 4:
+            return images
 
     return duplicate_images(images)
 
