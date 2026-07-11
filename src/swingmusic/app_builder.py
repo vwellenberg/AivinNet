@@ -84,6 +84,7 @@ def load_endpoints(web: OpenAPI):
         web.register_api(swing_api.collections.api)
         web.register_api(swing_api.download.api)
         web.register_api(swing_api.musicbrainz.api)
+        web.register_api(swing_api.coverart.api)
 
         # Logger
         web.register_api(swing_api.scrobble.api)
