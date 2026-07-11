@@ -1,4 +1,5 @@
 import datetime
+import time
 from collections.abc import Iterable
 from dataclasses import asdict
 from typing import Any, Literal
@@ -29,7 +30,7 @@ from swingmusic.db.utils import (
     tracklog_to_dataclass,
     user_to_dataclass,
 )
-from swingmusic.lib.playlist_maintenance import merge_trackhashes
+from swingmusic.lib.playlist_maintenance import merge_trackhashes, prune_added_at, record_added_at
 from swingmusic.models.mix import Mix
 from swingmusic.utils.auth import get_current_userid, hash_password
 
@@ -412,13 +413,19 @@ class PlaylistTable(Base):
         dbtrackhashes = cls.get_trackhashes(id) or []
         # Order-preserving de-dup: keep existing order, append new hashes at the
         # end. The old set().union() reshuffled the whole playlist on every add.
-        trackhashes = merge_trackhashes(dbtrackhashes, trackhashes)
+        merged = merge_trackhashes(dbtrackhashes, trackhashes)
+
+        # Record when each (genuinely new) track was added, keyed by trackhash
+        # in the `extra` JSON. Older entries without a timestamp stay absent
+        # (clients render a placeholder for them).
+        extra = cls.get_extra(id) or {}
+        extra["added_at"] = record_added_at(extra.get("added_at"), dbtrackhashes, merged, int(time.time()))
 
         return next(
             cls.execute(
                 update(cls)
                 .where((cls.id == id) & (cls.userid == get_current_userid()))
-                .values(trackhashes=trackhashes),
+                .values(trackhashes=merged, extra=extra),
                 commit=True,
             )
         )
@@ -426,6 +433,11 @@ class PlaylistTable(Base):
     @classmethod
     def get_trackhashes(cls, id: int):
         result = cls.execute(select(cls.trackhashes).where((cls.id == id) & (cls.userid == get_current_userid())))
+        return next(result).scalar()
+
+    @classmethod
+    def get_extra(cls, id: int):
+        result = cls.execute(select(cls.extra).where((cls.id == id) & (cls.userid == get_current_userid())))
         return next(result).scalar()
 
     @classmethod
@@ -437,11 +449,20 @@ class PlaylistTable(Base):
                 if dbtrackhashes.index(item["trackhash"]) == item["index"]:
                     dbtrackhashes.remove(item["trackhash"])
 
+            values: dict[str, Any] = {"trackhashes": dbtrackhashes}
+
+            # Keep the added_at map in sync so removed hashes don't linger
+            # (and a later re-add gets a fresh timestamp).
+            extra = cls.get_extra(id)
+            if extra and extra.get("added_at"):
+                extra["added_at"] = prune_added_at(extra["added_at"], dbtrackhashes)
+                values["extra"] = extra
+
             return next(
                 cls.execute(
                     update(cls)
                     .where((cls.id == id) & (cls.userid == get_current_userid()))
-                    .values(trackhashes=dbtrackhashes),
+                    .values(values),
                     commit=True,
                 )
             )

@@ -29,6 +29,38 @@ def merge_trackhashes(existing: list[str], new: Iterable[str]) -> list[str]:
     return merged
 
 
+def record_added_at(
+    added_at: dict[str, int] | None,
+    existing: Iterable[str],
+    merged: Iterable[str],
+    timestamp: int,
+) -> dict[str, int]:
+    """
+    Return a new `added_at` map (trackhash -> unix timestamp) with `timestamp`
+    recorded for every hash in `merged` that is not in `existing`.
+
+    Re-added hashes get a fresh timestamp (Spotify semantics: removing and
+    re-adding a track resets its "date added").
+    """
+    result = dict(added_at or {})
+    known = set(existing)
+
+    for trackhash in merged:
+        if trackhash not in known:
+            result[trackhash] = timestamp
+
+    return result
+
+
+def prune_added_at(added_at: dict[str, int] | None, remaining: Iterable[str]) -> dict[str, int]:
+    """
+    Drop `added_at` entries whose trackhash is no longer in `remaining`, so the
+    map does not accumulate stale keys after removals/orphan prunes.
+    """
+    keep = set(remaining)
+    return {trackhash: ts for trackhash, ts in (added_at or {}).items() if trackhash in keep}
+
+
 def prune_orphan_trackhashes(trackhashes: Iterable[str], resolvable: Container[str]) -> list[str]:
     """
     Return only the trackhashes that still resolve to a track in the library

@@ -19,7 +19,7 @@ from swingmusic.lib import playlistlib
 from swingmusic.lib.albumslib import sort_by_track_no
 from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
-from swingmusic.lib.playlist_maintenance import prune_orphan_trackhashes
+from swingmusic.lib.playlist_maintenance import prune_added_at, prune_orphan_trackhashes
 from swingmusic.lib.sortlib import sort_tracks
 from swingmusic.models.playlist import Playlist
 from swingmusic.serializers.playlist import serialize_for_card
@@ -243,9 +243,21 @@ def get_playlist(path: PlaylistIDPath, query: GetPlaylistQuery):
     playlist.images = playlistlib.get_first_4_images(tracks)
     playlist.clear_lists()
 
+    # Per-track "date added" (unix timestamp), recorded on append. Entries
+    # predating the feature have no timestamp -> null (clients show a
+    # placeholder). The map is stripped from `info` to avoid duplicating it.
+    added_at_map = (playlist.extra or {}).get("added_at") or {}
+    playlist.extra = {k: v for k, v in (playlist.extra or {}).items() if k != "added_at"}
+
+    serialized_tracks = []
+    if not no_tracks:
+        serialized_tracks = serialize_tracks(tracks)
+        for track in serialized_tracks:
+            track["added_at"] = added_at_map.get(track["trackhash"])
+
     return {
         "info": playlist,
-        "tracks": serialize_tracks(tracks) if not no_tracks else [],
+        "tracks": serialized_tracks,
     }
 
 
@@ -475,7 +487,15 @@ def prune_playlist_orphans(path: PlaylistIDPath):
     removed = len(original) - len(kept)
 
     if removed:
-        PlaylistTable.update_one(int(path.playlistid), {"trackhashes": kept})
+        values: dict[str, Any] = {"trackhashes": kept}
+
+        # Keep the per-track added_at map free of orphaned keys too.
+        extra = playlist.extra or {}
+        if extra.get("added_at"):
+            extra["added_at"] = prune_added_at(extra["added_at"], kept)
+            values["extra"] = extra
+
+        PlaylistTable.update_one(int(path.playlistid), values)
 
     return {"msg": "Done", "removed": removed, "count": len(kept)}, 200
 
