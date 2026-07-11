@@ -53,6 +53,13 @@ def save_playlist_cover(path: PlaylistIDPath, body: SaveCoverBody):
     Download the confirmed cover server-side and save it as the playlist
     image via the existing playlist image pipeline.
     """
+    # playlistid arrives as a string and may be non-numeric (e.g. the
+    # "recentlyadded" pseudo playlist) — reject those instead of a 500.
+    try:
+        int(path.playlistid)
+    except (TypeError, ValueError):
+        return {"error": "Invalid playlist id"}, 400
+
     db_playlist = PlaylistTable.get_by_id(path.playlistid)
 
     if db_playlist is None:
