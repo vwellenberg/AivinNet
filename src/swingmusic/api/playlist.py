@@ -241,13 +241,13 @@ def get_playlist(path: PlaylistIDPath, query: GetPlaylistQuery):
     playlist._last_updated = date_string_to_time_passed(playlist.last_updated)
     playlist.duration = duration
     playlist.images = playlistlib.get_first_4_images(tracks)
-    playlist.clear_lists()
 
     # Per-track "date added" (unix timestamp), recorded on append. Entries
     # predating the feature have no timestamp -> null (clients show a
-    # placeholder). The map is stripped from `info` to avoid duplicating it.
+    # placeholder). Read before clear_lists(), which strips the map from the
+    # `info` payload.
     added_at_map = (playlist.extra or {}).get("added_at") or {}
-    playlist.extra = {k: v for k, v in (playlist.extra or {}).items() if k != "added_at"}
+    playlist.clear_lists()
 
     serialized_tracks = []
     if not no_tracks:
@@ -453,7 +453,20 @@ def reorder_playlist_tracks(path: PlaylistIDPath, body: ReorderTracksBody):
     if playlist is None:
         return {"error": "Playlist not found"}, 404
 
-    PlaylistTable.update_one(int(path.playlistid), {"trackhashes": body.trackhashes})
+    values: dict[str, Any] = {"trackhashes": body.trackhashes}
+
+    # A reorder normally keeps the same track set, but if the submitted list
+    # drops hashes, keep the added_at map free of stale keys like the other
+    # write paths (remove-tracks, prune-orphans) do.
+    extra = playlist.extra or {}
+    added_at = extra.get("added_at")
+    if added_at:
+        pruned = prune_added_at(added_at, body.trackhashes)
+        if pruned != added_at:
+            extra["added_at"] = pruned
+            values["extra"] = extra
+
+    PlaylistTable.update_one(int(path.playlistid), values)
     return {"msg": "Done"}, 200
 
 

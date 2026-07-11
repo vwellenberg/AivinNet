@@ -410,7 +410,10 @@ class PlaylistTable(Base):
 
     @classmethod
     def append_to_playlist(cls, id: int, trackhashes: list[str]):
-        dbtrackhashes = cls.get_trackhashes(id) or []
+        dbtrackhashes, extra = cls.get_trackhashes_and_extra(id)
+        dbtrackhashes = dbtrackhashes or []
+        extra = extra or {}
+
         # Order-preserving de-dup: keep existing order, append new hashes at the
         # end. The old set().union() reshuffled the whole playlist on every add.
         merged = merge_trackhashes(dbtrackhashes, trackhashes)
@@ -418,7 +421,6 @@ class PlaylistTable(Base):
         # Record when each (genuinely new) track was added, keyed by trackhash
         # in the `extra` JSON. Older entries without a timestamp stay absent
         # (clients render a placeholder for them).
-        extra = cls.get_extra(id) or {}
         extra["added_at"] = record_added_at(extra.get("added_at"), dbtrackhashes, merged, int(time.time()))
 
         return next(
@@ -436,14 +438,25 @@ class PlaylistTable(Base):
         return next(result).scalar()
 
     @classmethod
-    def get_extra(cls, id: int):
-        result = cls.execute(select(cls.extra).where((cls.id == id) & (cls.userid == get_current_userid())))
-        return next(result).scalar()
+    def get_trackhashes_and_extra(cls, id: int):
+        """
+        Fetch trackhashes and extra in a single round-trip; used by the
+        mutation paths that maintain the added_at map alongside the list.
+        """
+        result = cls.execute(
+            select(cls.trackhashes, cls.extra).where((cls.id == id) & (cls.userid == get_current_userid()))
+        )
+        row = next(result).first()
+
+        if row is None:
+            return None, None
+
+        return row.trackhashes, row.extra
 
     @classmethod
     def remove_from_playlist(cls, id: int, trackhashes: list[dict[str, Any]]):
         # INFO: Get db trackhashes
-        dbtrackhashes = cls.get_trackhashes(id)
+        dbtrackhashes, extra = cls.get_trackhashes_and_extra(id)
         if dbtrackhashes:
             for item in trackhashes:
                 if dbtrackhashes.index(item["trackhash"]) == item["index"]:
@@ -453,7 +466,6 @@ class PlaylistTable(Base):
 
             # Keep the added_at map in sync so removed hashes don't linger
             # (and a later re-add gets a fresh timestamp).
-            extra = cls.get_extra(id)
             if extra and extra.get("added_at"):
                 extra["added_at"] = prune_added_at(extra["added_at"], dbtrackhashes)
                 values["extra"] = extra

@@ -49,3 +49,10 @@ class Playlist:
         over the API.
         """
         self.trackhashes = []
+
+        # The per-track added_at map (trackhash -> unix ts) scales with the
+        # playlist size and is only consumed track-by-track in the playlist
+        # tracks payload, never from `info`/card payloads. Strip it here so
+        # every "light" serialization drops it. Read it BEFORE calling this.
+        if self.extra:
+            self.extra = {k: v for k, v in self.extra.items() if k != "added_at"}
