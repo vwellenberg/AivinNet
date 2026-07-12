@@ -433,3 +433,42 @@ class TestAlbumCoverUndo:
 
         assert coverart.undo_album_cover("hash") is True
         assert paths[0].read_bytes() == b"gen-2"
+
+
+class TestSearchFallback:
+    def test_fallback_variants_cut_subtitle_then_words(self):
+        variants = coverart._fallback_queries("Might and Magic 6 - The Mandate of Heaven")
+        assert variants[0] == "Might and Magic 6"
+        assert variants[1] == "Might and Magic"
+
+    def test_fallback_variants_without_subtitle_drop_words(self):
+        variants = coverart._fallback_queries("Some Long Playlist Name")
+        assert variants == ["Some Long Playlist", "Some Long"]
+
+    def test_with_fallback_returns_first_variant_with_hits(self, monkeypatch):
+        calls = []
+
+        def fake_search(query, limit=30):
+            calls.append(query)
+            return [{"album": "hit"}] if query == "Might and Magic 6" else []
+
+        monkeypatch.setattr(coverart, "search_covers", fake_search)
+
+        used, results = coverart.search_covers_with_fallback("Might and Magic 6 - The Mandate of Heaven")
+        assert used == "Might and Magic 6"
+        assert results == [{"album": "hit"}]
+        assert calls[0] == "Might and Magic 6 - The Mandate of Heaven"
+
+    def test_with_fallback_full_query_wins_when_it_has_hits(self, monkeypatch):
+        monkeypatch.setattr(coverart, "search_covers", lambda q, limit=30: [{"album": q}])
+
+        used, results = coverart.search_covers_with_fallback("Exact Name")
+        assert used == "Exact Name"
+        assert results == [{"album": "Exact Name"}]
+
+    def test_with_fallback_exhausted_returns_original_query(self, monkeypatch):
+        monkeypatch.setattr(coverart, "search_covers", lambda q, limit=30: [])
+
+        used, results = coverart.search_covers_with_fallback("A - B C D")
+        assert used == "A - B C D"
+        assert results == []
