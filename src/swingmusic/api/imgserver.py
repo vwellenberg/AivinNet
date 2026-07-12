@@ -100,6 +100,33 @@ def send_fallback_img(filename: str = "default.webp"):
     return send_from_directory(folder, filename)
 
 
+def send_best_available_thumbnail(requested_folder: Path, filename: str):
+    """
+    Serves the same thumbnail from another size folder, largest first.
+
+    Albums whose cover art only exists embedded in the audio tags have no
+    image file in their folder, so find_thumbnail can't (re)build the
+    requested size. The scanner still extracted small/xsmall thumbnails from
+    the embedded art — serving one of those beats the placeholder image.
+    """
+    paths = Paths()
+    size_folders = [
+        paths.lg_thumb_path,
+        paths.md_thumb_path,
+        paths.sm_thumb_path,
+        paths.xsm_thumb_path,
+    ]
+
+    for folder in size_folders:
+        if folder == requested_folder:
+            continue
+
+        if (folder / filename).exists():
+            return send_from_directory(folder, filename)
+
+    return None
+
+
 def send_file_or_fallback(folder: str, filename: str, fallback: str = "default.webp", pathhash: str = ""):
     """
     Returns the file from the folder or the fallback image.
@@ -122,6 +149,12 @@ def send_file_or_fallback(folder: str, filename: str, fallback: str = "default.w
         if file is not None and parent is not None:
             cache_thumbnails(parent / file, albumhash)
             return send_from_directory(parent, file)
+
+        # INFO: No original cover file on disk (embedded-art-only album):
+        # degrade to the best available extracted thumbnail size.
+        response = send_best_available_thumbnail(Path(folder), filename)
+        if response is not None:
+            return response
 
     return send_fallback_img(fallback)
 
