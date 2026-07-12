@@ -43,6 +43,15 @@ def _album(albumhash: str):
     return SimpleNamespace(albumhash=albumhash, image=f"{albumhash}.webp", color=f"color-{albumhash}")
 
 
+def _album_with_pathhash(albumhash: str):
+    """Album.image as the real model builds it: with a cache-busting query suffix."""
+    return SimpleNamespace(
+        albumhash=albumhash,
+        image=f"{albumhash}.webp?pathhash=ph-{albumhash}",
+        color=f"color-{albumhash}",
+    )
+
+
 class _FakeAlbumStore:
     def __init__(self, albums):
         self._map = {a.albumhash: a for a in albums}
@@ -175,6 +184,26 @@ def test_mixed_coverless_pads_with_real_covers_only(monkeypatch, tmp_path):
     images = playlistlib.get_first_4_images(tracks=tracks)
 
     assert _image_names(images) == ["c.webp"] * 4
+
+
+def test_image_query_suffix_is_stripped_for_file_lookup(monkeypatch, tmp_path):
+    # Album.image is "<albumhash>.webp?pathhash=..." (models.album appends a
+    # cache-busting suffix); the file on disk is plain "<albumhash>.webp".
+    # The suffix must not make albums look coverless, and content dedupe must
+    # still work ("a" and "b" share bytes).
+    albums = [_album_with_pathhash(h) for h in ["a", "b", "c", "d"]]
+    covers = {"a": b"same", "b": b"same", "c": b"c-art", "d": b"d-art"}
+    _setup(monkeypatch, tmp_path, albums, covers)
+
+    tracks = [_track(h) for h in ["a", "b", "c", "d"]]
+    images = playlistlib.get_first_4_images(tracks=tracks)
+
+    assert _image_names(images) == [
+        "a.webp?pathhash=ph-a",
+        "c.webp?pathhash=ph-c",
+        "d.webp?pathhash=ph-d",
+        "a.webp?pathhash=ph-a",
+    ]
 
 
 def test_content_key_tracks_file_changes(monkeypatch, tmp_path):
