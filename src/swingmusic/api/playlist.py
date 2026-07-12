@@ -56,10 +56,20 @@ def insert_playlist(name: str, image: str | None = None):
 
 def get_path_trackhashes(path: str, tracksortby: str, reverse: bool):
     """
-    Returns a list of trackhashes in a folder.
+    Returns a list of trackhashes in a folder, in the order the folder view
+    shows them.
     """
     tracks = TrackStore.get_tracks_in_path(path)
-    tracks = sort_tracks(tracks, key=tracksortby, reverse=reverse)
+
+    # The folder view lists files by modification time when no explicit sort
+    # is set (see folderslib.get_files_and_dirs), while the store returns
+    # tracks in arbitrary map order and sort_tracks("default") is a no-op —
+    # saving a folder as a playlist scrambled the visible order.
+    if tracksortby == "default":
+        tracks = sorted(tracks, key=lambda t: t.last_mod)
+    else:
+        tracks = sort_tracks(tracks, key=tracksortby, reverse=reverse)
+
     return [t.trackhash for t in tracks]
 
 
