@@ -28,8 +28,21 @@ _EASY_KEYS = {
     "track": "tracknumber",
 }
 
-# Fields that must not be written empty (they feed the trackhash / album identity).
-_REQUIRED_NON_EMPTY = {"title", "album", "artists"}
+# Fields that must not be written empty (they feed the trackhash identity).
+# Album is intentionally NOT required: clearing it removes the tag and the
+# indexer falls back to the filename (same as any untagged file).
+_REQUIRED_NON_EMPTY = {"title", "artists"}
+
+# Raw ID3 frame classes per field, for containers where mutagen ignores
+# easy=True (WAVE/AIFF): their .tags is a plain mutagen.id3.ID3 that only
+# accepts Frame instances.
+_ID3_FRAME_NAMES = {
+    "title": "TIT2",
+    "album": "TALB",
+    "artists": "TPE1",
+    "albumartists": "TPE2",
+    "track": "TRCK",
+}
 
 
 class TagWriteError(Exception):
@@ -88,14 +101,38 @@ def write_tags(filepath: str, fields: dict) -> None:
         except Exception as exc:
             raise TagWriteError(f"Could not initialise tags: {exc}") from exc
 
+    # WAVE/AIFF ignore easy=True: their .tags is a raw mutagen.id3.ID3 that
+    # only accepts Frame instances, so those need real ID3 frames.
+    from mutagen.id3 import ID3, Frames
+
+    raw_id3 = isinstance(audio.tags, ID3)
+
     wrote_any = False
     for field, value in fields.items():
         key = _EASY_KEYS.get(field)
         if key is None:
             continue
 
+        values = _easy_value(field, value)
+        # Empty optional value (e.g. a cleared album): remove the tag so the
+        # indexer applies its untagged-file fallbacks.
+        clear = not values or not values[0]
+
         try:
-            audio[key] = _easy_value(field, value)
+            if raw_id3:
+                frame_name = _ID3_FRAME_NAMES[field]
+                if clear:
+                    audio.tags.delall(frame_name)
+                else:
+                    frame_cls = Frames[frame_name]
+                    audio.tags.setall(frame_name, [frame_cls(encoding=3, text=values)])
+            elif clear:
+                try:
+                    del audio[key]
+                except KeyError:
+                    pass  # tag wasn't set — nothing to clear
+            else:
+                audio[key] = values
         except Exception as exc:
             raise TagWriteError(f"Could not set '{field}': {exc}") from exc
 

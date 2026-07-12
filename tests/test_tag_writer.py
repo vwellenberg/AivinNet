@@ -41,9 +41,10 @@ class TestValidate:
         with pytest.raises(TagWriteError):
             _validate({"title": "   "})
 
-    def test_empty_album_is_rejected(self):
-        with pytest.raises(TagWriteError):
-            _validate({"album": ""})
+    def test_empty_album_is_allowed(self):
+        # Album is optional: clearing it removes the tag and the indexer
+        # falls back to the filename (untagged-file semantics).
+        _validate({"album": ""})  # must not raise
 
     def test_empty_artists_list_is_rejected(self):
         with pytest.raises(TagWriteError):
