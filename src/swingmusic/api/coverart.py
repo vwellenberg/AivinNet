@@ -13,8 +13,6 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from swingmusic import models
-from swingmusic.api.musicbrainz import _save_cover_bytes
-from swingmusic.api.playlist import PlaylistIDPath
 from swingmusic.db.userdata import PlaylistTable
 from swingmusic.lib import coverart as coverartlib
 from swingmusic.lib import playlistlib
@@ -47,19 +45,19 @@ class SaveCoverBody(BaseModel):
     url: str = Field(..., description="The confirmed cover image URL")
 
 
+class CoverPlaylistPath(BaseModel):
+    # INFO: int (unlike the shared str-typed PlaylistIDPath): pseudo playlists
+    # like "recentlyadded" have no stored image, so pydantic can reject them
+    # with a validation error instead of a manual guard.
+    playlistid: int = Field(..., description="The ID of the playlist")
+
+
 @api.post("/playlist/<playlistid>")
-def save_playlist_cover(path: PlaylistIDPath, body: SaveCoverBody):
+def save_playlist_cover(path: CoverPlaylistPath, body: SaveCoverBody):
     """
     Download the confirmed cover server-side and save it as the playlist
     image via the existing playlist image pipeline.
     """
-    # playlistid arrives as a string and may be non-numeric (e.g. the
-    # "recentlyadded" pseudo playlist) — reject those instead of a 500.
-    try:
-        int(path.playlistid)
-    except (TypeError, ValueError):
-        return {"error": "Invalid playlist id"}, 400
-
     db_playlist = PlaylistTable.get_by_id(path.playlistid)
 
     if db_playlist is None:
@@ -71,35 +69,38 @@ def save_playlist_cover(path: PlaylistIDPath, body: SaveCoverBody):
 
     try:
         pil_image = Image.open(BytesIO(content))
-    except UnidentifiedImageError:
+        filename = playlistlib.save_p_image(pil_image, path.playlistid)
+    except (UnidentifiedImageError, OSError, ValueError):
         return {"error": "Failed: Invalid image"}, 400
-
-    playlistid = path.playlistid
-    filename = playlistlib.save_p_image(pil_image, playlistid)
 
     settings = db_playlist.settings
     settings["has_gif"] = False
-    settings["square_img"] = True
 
-    # Mirrors update_playlist_info: dict value order matches the
-    # models.Playlist positional constructor.
+    # Online covers are square album art: default new images to the square
+    # layout, but never override a banner choice the user already made.
+    if not db_playlist.has_image:
+        settings["square_img"] = True
+
     playlist = {
-        "id": int(playlistid),
+        "id": path.playlistid,
         "image": filename,
         "last_updated": create_new_date(),
         "name": db_playlist.name,
         "settings": settings,
     }
 
-    p_tuple = (*playlist.values(),)
-
-    PlaylistTable.update_one(playlistid, playlist)
+    PlaylistTable.update_one(path.playlistid, playlist)
     playlistlib.cleanup_playlist_images()
 
-    playlist = models.Playlist(*p_tuple)
-    playlist.last_updated = date_string_to_time_passed(playlist.last_updated)
+    updated = models.Playlist(
+        id=path.playlistid,
+        image=filename,
+        last_updated=date_string_to_time_passed(playlist["last_updated"]),
+        name=db_playlist.name,
+        settings=settings,
+    )
 
-    return {"data": playlist}
+    return {"data": updated}
 
 
 class SaveAlbumCoverBody(BaseModel):
@@ -120,7 +121,7 @@ def save_album_cover(body: SaveAlbumCoverBody):
     if content is None:
         return {"error": "Image could not be downloaded"}, 400
 
-    filename = _save_cover_bytes(body.albumhash, content)
+    filename = coverartlib.save_album_cover_bytes(body.albumhash, content)
     if not filename:
         return {"error": "Cover could not be saved"}, 400
 

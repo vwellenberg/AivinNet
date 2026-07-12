@@ -6,7 +6,8 @@ artwork matching a free-text query, merges and dedupes the results and hands
 back a list of candidate image URLs with a little metadata. Also provides the
 server-side download helper used when the user confirms a suggestion (browsers
 generally cannot pull the foreign image URLs as blobs due to CORS, so the
-download happens here).
+download happens here) and the thumbnail persistence helper shared with the
+MusicBrainz cover fetcher.
 
 Failures of any kind degrade gracefully: a failing source contributes zero
 results, a failing download returns None. This module never raises.
@@ -17,17 +18,24 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from itertools import zip_longest
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import requests
+from PIL import Image, UnidentifiedImageError
+
+from swingmusic.lib.musicbrainz import USER_AGENT
 
 log = logging.getLogger(__name__)
 
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
 DEEZER_SEARCH_URL = "https://api.deezer.com/search/album"
 
-USER_AGENT = "swingmusic/aivinnet (cover art search)"
+# How many results to request from each source. The merged list is cached
+# per query and sliced to the caller's limit on the way out.
+FETCH_LIMIT_PER_SOURCE = 25
 
 # INFO: Hosts we are willing to download a confirmed cover from. The save
 # endpoints accept a URL from the client, so without this allowlist they
@@ -39,6 +47,8 @@ ALLOWED_HOST_SUFFIXES = (".mzstatic.com", ".dzcdn.net", ".deezer.com")
 
 # Covers are album art; anything beyond this is not a cover image.
 MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
+DOWNLOAD_CHUNK_SIZE = 64 * 1024
+MAX_REDIRECTS = 4
 
 CACHE_TTL_SECONDS = 10 * 60
 CACHE_MAX_ENTRIES = 64
@@ -161,28 +171,34 @@ def search_covers(query: str, limit: int = 30) -> list[dict]:
     if not query:
         return []
 
-    cache_key = f"{query.casefold()}|{limit}"
+    cache_key = query.casefold()
     cached = _cache_get(cache_key)
     if cached is not None:
-        return cached
+        # Copy so callers can't mutate the cached list.
+        return list(cached[:limit])
 
-    per_source = max(1, limit // 2)
-
-    itunes = _parse_itunes(
-        _fetch_json(
+    # The two sources are independent; fetch them in parallel so a slow
+    # source doesn't stack on top of the other one's latency.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        itunes_future = pool.submit(
+            _fetch_json,
             ITUNES_SEARCH_URL,
-            {"term": query, "entity": "album", "media": "music", "limit": per_source},
+            {"term": query, "entity": "album", "media": "music", "limit": FETCH_LIMIT_PER_SOURCE},
         )
-    )
-    deezer = _parse_deezer(_fetch_json(DEEZER_SEARCH_URL, {"q": query, "limit": per_source}))
+        deezer_future = pool.submit(_fetch_json, DEEZER_SEARCH_URL, {"q": query, "limit": FETCH_LIMIT_PER_SOURCE})
 
-    results = _merge(itunes, deezer)[:limit]
+        itunes_payload = itunes_future.result()
+        deezer_payload = deezer_future.result()
 
-    # Don't cache total failure; the next attempt should retry the sources.
-    if results:
+    results = _merge(_parse_itunes(itunes_payload), _parse_deezer(deezer_payload))
+
+    # Only cache when BOTH sources answered (an empty dict means the fetch
+    # failed). A partial or total outage must not pin a degraded result set
+    # for the whole TTL; a legitimate "no hits" answer may be cached.
+    if itunes_payload and deezer_payload:
         _cache_put(cache_key, results)
 
-    return results
+    return list(results[:limit])
 
 
 def is_allowed_cover_url(url: str) -> bool:
@@ -203,31 +219,118 @@ def download_cover(url: str) -> bytes | None:
     """
     Download a confirmed cover image server-side. Returns the raw bytes,
     or None if the URL is not allowed or the download fails.
-    """
-    if not is_allowed_cover_url(url):
-        log.warning("Refusing to download cover from disallowed URL: %s", url)
-        return None
 
+    Redirects are followed manually so EVERY hop is validated against the
+    host allowlist BEFORE it is requested — with allow_redirects=True an
+    open redirect on an allowed host could make the server fetch an
+    internal URL (SSRF) even if the final response were discarded.
+    """
     try:
-        res = requests.get(
-            url,
-            headers={"User-Agent": USER_AGENT},
-            timeout=15,
-            allow_redirects=True,
-        )
+        res = None
+        for _ in range(MAX_REDIRECTS + 1):
+            if not is_allowed_cover_url(url):
+                log.warning("Refusing to download cover from disallowed URL: %s", url)
+                return None
+
+            res = requests.get(
+                url,
+                headers={"User-Agent": USER_AGENT},
+                timeout=15,
+                allow_redirects=False,
+                stream=True,
+            )
+
+            if res.is_redirect or res.is_permanent_redirect:
+                location = res.headers.get("Location")
+                res.close()
+                res = None
+                if not location:
+                    return None
+                url = urljoin(url, location)
+                continue
+
+            break
+
+        if res is None:
+            log.warning("Cover download exceeded %d redirects", MAX_REDIRECTS)
+            return None
+
         res.raise_for_status()
+
+        declared = res.headers.get("Content-Length")
+        if declared and declared.isdigit() and int(declared) > MAX_DOWNLOAD_BYTES:
+            log.warning("Cover download from %s rejected: declares %s bytes", url, declared)
+            return None
+
+        # Stream with a running cap so an oversized (or lying) response
+        # never gets fully buffered in memory.
+        chunks: list[bytes] = []
+        total = 0
+        for chunk in res.iter_content(DOWNLOAD_CHUNK_SIZE):
+            total += len(chunk)
+            if total > MAX_DOWNLOAD_BYTES:
+                log.warning("Cover download from %s rejected: exceeds %d bytes", url, MAX_DOWNLOAD_BYTES)
+                return None
+            chunks.append(chunk)
     except requests.RequestException as e:
         log.warning("Cover download from %s failed: %s", url, e)
         return None
 
-    # Redirects must also land on an allowed host.
-    if res.url and not is_allowed_cover_url(res.url):
-        log.warning("Cover download redirected to disallowed URL: %s", res.url)
+    content = b"".join(chunks)
+    return content or None
+
+
+def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
+    """
+    Persist a downloaded album cover as a webp in all thumbnail sizes used
+    by the image server. Shared by the MusicBrainz fetcher and the online
+    cover search.
+
+    Returns the filename ('<albumhash>.webp') on success, otherwise None.
+    """
+    # INFO: Imported lazily so this module stays importable in lightweight
+    # unit tests that only exercise the search/download helpers.
+    from swingmusic.settings import Defaults, Paths
+
+    try:
+        img = Image.open(BytesIO(image_bytes))
+    except (UnidentifiedImageError, OSError) as e:
+        log.warning("Cover for %s could not be decoded: %s", albumhash, e)
         return None
 
-    content = res.content
-    if not content or len(content) > MAX_DOWNLOAD_BYTES:
-        log.warning("Cover download from %s rejected: %d bytes", url, len(content))
-        return None
+    filename = f"{albumhash}.webp"
+    paths = Paths()
+    targets = [
+        (paths.lg_thumb_path / filename, Defaults.LG_THUMB_SIZE),
+        (paths.md_thumb_path / filename, Defaults.MD_THUMB_SIZE),
+        (paths.sm_thumb_path / filename, Defaults.SM_THUMB_SIZE),
+        (paths.xsm_thumb_path / filename, Defaults.XSM_THUMB_SIZE),
+    ]
 
-    return content
+    try:
+        width, height = img.size
+        ratio = (width / height) if height else 1.0
+
+        def _save_all(source: Image.Image) -> None:
+            for path, size in targets:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                resized = source.resize((size, max(1, int(size / ratio))), Image.Resampling.LANCZOS)
+                resized.save(path, "webp")
+                resized.close()
+
+        try:
+            _save_all(img)
+        except OSError:
+            # INFO: webp can fail on RGBA/P-mode source images; fall back to RGB.
+            rgb = img.convert("RGB")
+            try:
+                _save_all(rgb)
+            finally:
+                rgb.close()
+    except (OSError, ValueError) as e:
+        log.warning("Saving cover for %s failed: %s", albumhash, e)
+        return None
+    finally:
+        img.close()
+
+    return filename

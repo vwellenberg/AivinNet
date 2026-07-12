@@ -119,6 +119,32 @@ class TestMerge:
         assert [r["album"] for r in merged] == ["A1", "B1", "B2", "B3"]
 
 
+def _itunes_payload(count: int = 1) -> dict:
+    return {
+        "results": [
+            {
+                "artworkUrl100": f"https://x.mzstatic.com/{i}/100x100bb.jpg",
+                "collectionName": f"iTunes Album {i}",
+                "artistName": "A",
+            }
+            for i in range(count)
+        ]
+    }
+
+
+def _deezer_payload(count: int = 1) -> dict:
+    return {
+        "data": [
+            {
+                "cover_xl": f"https://cdn-images.dzcdn.net/{i}/1000x1000.jpg",
+                "title": f"Deezer Album {i}",
+                "artist": {"name": "B"},
+            }
+            for i in range(count)
+        ]
+    }
+
+
 class TestSearchCovers:
     def test_empty_query_returns_empty(self, monkeypatch):
         called = []
@@ -131,36 +157,43 @@ class TestSearchCovers:
 
         def fake_fetch(url, params):
             calls.append(url)
-            if "itunes" in url:
-                return {
-                    "results": [
-                        {
-                            "artworkUrl100": "https://x.mzstatic.com/a/100x100bb.jpg",
-                            "collectionName": "Discovery",
-                            "artistName": "Daft Punk",
-                        }
-                    ]
-                }
-            return {
-                "data": [
-                    {
-                        "cover_xl": "https://cdn-images.dzcdn.net/c/1000x1000.jpg",
-                        "title": "Homework",
-                        "artist": {"name": "Daft Punk"},
-                    }
-                ]
-            }
+            return _itunes_payload() if "itunes" in url else _deezer_payload()
 
         monkeypatch.setattr(coverart, "_fetch_json", fake_fetch)
 
         results = coverart.search_covers("daft punk")
-        assert [r["album"] for r in results] == ["Discovery", "Homework"]
+        assert [r["album"] for r in results] == ["iTunes Album 0", "Deezer Album 0"]
         assert len(calls) == 2
 
-        # Second call: served from cache, no new fetches.
+        # Second call (case-insensitive): served from cache, no new fetches.
         again = coverart.search_covers("Daft Punk")
         assert again == results
         assert len(calls) == 2
+
+    def test_cache_serves_any_limit(self, monkeypatch):
+        calls = []
+
+        def fake_fetch(url, params):
+            calls.append(url)
+            return _itunes_payload(5) if "itunes" in url else _deezer_payload(5)
+
+        monkeypatch.setattr(coverart, "_fetch_json", fake_fetch)
+
+        assert len(coverart.search_covers("q", limit=30)) == 10
+        assert len(coverart.search_covers("q", limit=3)) == 3
+        # The second call must not refetch.
+        assert len(calls) == 2
+
+    def test_cached_list_is_copied(self, monkeypatch):
+        monkeypatch.setattr(
+            coverart,
+            "_fetch_json",
+            lambda url, params: _itunes_payload() if "itunes" in url else _deezer_payload(),
+        )
+
+        first = coverart.search_covers("q")
+        first.clear()
+        assert len(coverart.search_covers("q")) == 2
 
     def test_total_failure_not_cached(self, monkeypatch):
         calls = []
@@ -171,22 +204,41 @@ class TestSearchCovers:
         # Two searches, two sources each: all four hit the network (no caching).
         assert len(calls) == 4
 
-    def test_limit_applied(self, monkeypatch):
+    def test_partial_failure_not_cached(self, monkeypatch):
+        calls = []
+
         def fake_fetch(url, params):
-            if "itunes" in url:
-                return {
-                    "results": [
-                        {
-                            "artworkUrl100": f"https://x.mzstatic.com/{i}/100x100bb.jpg",
-                            "collectionName": f"Album {i}",
-                            "artistName": "A",
-                        }
-                        for i in range(10)
-                    ]
-                }
-            return {}
+            calls.append(url)
+            return _itunes_payload() if "itunes" in url else {}
 
         monkeypatch.setattr(coverart, "_fetch_json", fake_fetch)
+
+        assert len(coverart.search_covers("q")) == 1
+        assert len(coverart.search_covers("q")) == 1
+        # Deezer failed, so the (degraded) result must not be pinned in cache.
+        assert len(calls) == 4
+
+    def test_empty_but_successful_answer_is_cached(self, monkeypatch):
+        calls = []
+
+        def fake_fetch(url, params):
+            calls.append(url)
+            # Non-empty payloads (HTTP success) with zero usable results.
+            return {"resultCount": 0, "results": []} if "itunes" in url else {"data": [], "total": 0}
+
+        monkeypatch.setattr(coverart, "_fetch_json", fake_fetch)
+
+        assert coverart.search_covers("hopeless") == []
+        assert coverart.search_covers("hopeless") == []
+        # Second search must be served from cache.
+        assert len(calls) == 2
+
+    def test_limit_applied(self, monkeypatch):
+        monkeypatch.setattr(
+            coverart,
+            "_fetch_json",
+            lambda url, params: _itunes_payload(10) if "itunes" in url else {},
+        )
         assert len(coverart.search_covers("q", limit=4)) == 4
 
 
@@ -213,6 +265,28 @@ class TestAllowedCoverUrl:
         assert not coverart.is_allowed_cover_url("")
 
 
+class FakeResponse:
+    """Minimal stand-in for a streamed requests.Response."""
+
+    def __init__(self, content=b"imagebytes", headers=None, redirect_to=None):
+        self._content = content
+        self.headers = dict(headers or {})
+        self.is_redirect = redirect_to is not None
+        self.is_permanent_redirect = False
+        if redirect_to is not None:
+            self.headers["Location"] = redirect_to
+
+    def raise_for_status(self):
+        pass
+
+    def iter_content(self, chunk_size):
+        for i in range(0, len(self._content), chunk_size):
+            yield self._content[i : i + chunk_size]
+
+    def close(self):
+        pass
+
+
 class TestDownloadCover:
     def test_disallowed_url_never_fetches(self, monkeypatch):
         def boom(*a, **kw):  # pragma: no cover - must not be called
@@ -222,36 +296,52 @@ class TestDownloadCover:
         assert coverart.download_cover("https://evil.com/a.jpg") is None
 
     def test_downloads_allowed_url(self, monkeypatch):
-        class FakeResponse:
-            url = "https://is1-ssl.mzstatic.com/a.jpg"
-            content = b"imagebytes"
-
-            def raise_for_status(self):
-                pass
-
         monkeypatch.setattr(coverart.requests, "get", lambda *a, **kw: FakeResponse())
         assert coverart.download_cover("https://is1-ssl.mzstatic.com/a.jpg") == b"imagebytes"
 
+    def test_follows_allowed_redirect(self, monkeypatch):
+        seen = []
+
+        def fake_get(url, **kw):
+            seen.append(url)
+            if url == "https://api.deezer.com/album/1/image":
+                return FakeResponse(redirect_to="https://cdn-images.dzcdn.net/c/1000x1000.jpg")
+            return FakeResponse(content=b"cdnbytes")
+
+        monkeypatch.setattr(coverart.requests, "get", fake_get)
+        assert coverart.download_cover("https://api.deezer.com/album/1/image") == b"cdnbytes"
+        assert seen == [
+            "https://api.deezer.com/album/1/image",
+            "https://cdn-images.dzcdn.net/c/1000x1000.jpg",
+        ]
+
     def test_rejects_redirect_to_disallowed_host(self, monkeypatch):
-        class FakeResponse:
-            url = "https://evil.com/a.jpg"
-            content = b"imagebytes"
+        seen = []
 
-            def raise_for_status(self):
-                pass
+        def fake_get(url, **kw):
+            seen.append(url)
+            return FakeResponse(redirect_to="https://evil.internal/a.jpg")
 
-        monkeypatch.setattr(coverart.requests, "get", lambda *a, **kw: FakeResponse())
+        monkeypatch.setattr(coverart.requests, "get", fake_get)
+        assert coverart.download_cover("https://api.deezer.com/album/1/image") is None
+        # The disallowed hop must never be requested.
+        assert seen == ["https://api.deezer.com/album/1/image"]
+
+    def test_rejects_redirect_loop(self, monkeypatch):
+        def fake_get(url, **kw):
+            return FakeResponse(redirect_to="https://api.deezer.com/album/1/image")
+
+        monkeypatch.setattr(coverart.requests, "get", fake_get)
         assert coverart.download_cover("https://api.deezer.com/album/1/image") is None
 
+    def test_rejects_declared_oversize(self, monkeypatch):
+        headers = {"Content-Length": str(coverart.MAX_DOWNLOAD_BYTES + 1)}
+        monkeypatch.setattr(coverart.requests, "get", lambda *a, **kw: FakeResponse(headers=headers))
+        assert coverart.download_cover("https://is1-ssl.mzstatic.com/a.jpg") is None
+
     def test_rejects_oversized_content(self, monkeypatch):
-        class FakeResponse:
-            url = "https://is1-ssl.mzstatic.com/a.jpg"
-            content = b"x" * (coverart.MAX_DOWNLOAD_BYTES + 1)
-
-            def raise_for_status(self):
-                pass
-
-        monkeypatch.setattr(coverart.requests, "get", lambda *a, **kw: FakeResponse())
+        content = b"x" * (coverart.MAX_DOWNLOAD_BYTES + 1)
+        monkeypatch.setattr(coverart.requests, "get", lambda *a, **kw: FakeResponse(content=content))
         assert coverart.download_cover("https://is1-ssl.mzstatic.com/a.jpg") is None
 
     def test_request_exception_returns_none(self, monkeypatch):
@@ -260,3 +350,8 @@ class TestDownloadCover:
 
         monkeypatch.setattr(coverart.requests, "get", boom)
         assert coverart.download_cover("https://is1-ssl.mzstatic.com/a.jpg") is None
+
+
+class TestSaveAlbumCoverBytes:
+    def test_garbage_bytes_return_none(self):
+        assert coverart.save_album_cover_bytes("abc123", b"definitely not an image") is None

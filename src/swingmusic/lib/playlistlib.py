@@ -151,22 +151,29 @@ def cleanup_playlist_images() -> None:
     # Import here to avoid circular import
     from swingmusic.db.userdata import PlaylistTable
 
-    playlists = PlaylistTable.get_all()
+    # INFO: The image folder is shared by all users, so the linked set must
+    # cover ALL users' playlists — scoping to the current user would treat
+    # everyone else's covers as orphans and delete them.
+    playlists = PlaylistTable.get_all(current_user=False)
     linked_images = {p.image for p in playlists if p.image and p.image != "None"}
 
     playlist_dir = settings.Paths().playlist_img_path
 
-    # Find unlinked images (including thumbnails)
+    # Delete files (including thumbnails) that no playlist links anymore.
+    # NOTE: The previous version compared the Path object against the set of
+    # filename strings (never a member) and had the keep/delete branches
+    # inverted — it deleted every LINKED image and kept the orphans.
     for file in playlist_dir.iterdir():
         if not file.is_file():
             continue
 
-        name = file.name  # not stem. PlaylistTable saves with extension
-        if file not in linked_images:
-            if name.removeprefix("thumb_") not in linked_images:
-                continue
+        # not stem: PlaylistTable saves with extension; thumbnails are
+        # prefixed with "thumb_".
+        name = file.name.removeprefix("thumb_")
+        if name in linked_images:
+            continue
 
-            try:
-                file.unlink(missing_ok=True)
-            except OSError as e:
-                logger.exception("could not delete file", exc_info=e)
+        try:
+            file.unlink(missing_ok=True)
+        except OSError as e:
+            logger.exception("could not delete file", exc_info=e)
