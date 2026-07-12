@@ -121,18 +121,16 @@ def _file_md5(path: str, mtime_ns: int, size: int) -> str:
         return hashlib.md5(f.read()).hexdigest()
 
 
-def get_cover_content_key(image: str) -> str:
+def get_cover_content_key(image: str) -> str | None:
     """
     Returns an identity key for an album cover image based on the *content*
-    of its small thumbnail file.
+    of its small thumbnail file, or None when the thumbnail file is missing
+    (e.g. the album has no extractable cover art).
 
     Different albums can carry byte-identical cover art (e.g. a compilation
     split into per-disc albums), in which case their albumhashes differ but
     the cover files are the same. Hashing the thumbnail bytes lets callers
     detect those duplicates.
-
-    When the thumbnail file is missing (e.g. not extracted yet), we fall back
-    to the filename (which encodes the albumhash), i.e. no cross-album dedupe.
     """
     path = settings.Paths().sm_thumb_path / image
 
@@ -140,7 +138,7 @@ def get_cover_content_key(image: str) -> str:
         stat = os.stat(path)
         return "md5:" + _file_md5(str(path), stat.st_mtime_ns, stat.st_size)
     except OSError:
-        return "file:" + image
+        return None
 
 
 # TODO: mutable var in param.
@@ -152,6 +150,9 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
     Candidate albums are deduplicated by albumhash first, then by the content
     hash of the cover thumbnail itself (see get_cover_content_key), so
     byte-identical covers on different albums don't yield duplicate images.
+    Albums whose cover thumbnail is missing on disk can only render as a
+    placeholder tile, so they are skipped entirely — except as a last-resort
+    fallback when no album in the playlist has a cover at all.
 
     If fewer than 4 distinct covers exist, the list is padded with duplicates
     (see duplicate_images). Clients use that to tell "4 genuinely different
@@ -173,9 +174,15 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
 
     images = []
     seen_covers = set()
+    coverless_fallback = None
 
     for album in AlbumStore.get_albums_by_hashes(albumhashes):
         key = get_cover_content_key(album.image)
+
+        if key is None:
+            if coverless_fallback is None:
+                coverless_fallback = {"image": album.image, "color": album.color}
+            continue
 
         if key in seen_covers:
             continue
@@ -190,6 +197,9 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
 
         if len(images) == 4:
             return images
+
+    if not images and coverless_fallback is not None:
+        images.append(coverless_fallback)
 
     return duplicate_images(images)
 
