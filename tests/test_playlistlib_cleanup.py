@@ -5,8 +5,15 @@ Regression: the original implementation compared the Path object against a
 set of filename strings (never a member) and had the keep/delete branches
 inverted — it deleted every LINKED playlist image (and its thumbnail) while
 keeping the orphans it was supposed to remove.
+
+INFO: cleanup_playlist_images imports PlaylistTable lazily, so instead of
+importing the real swingmusic.db.userdata (whose sqlalchemy/store import
+chain clashes with the MagicMock stubs other test modules leave in
+sys.modules during a shared session), these tests install a fake module via
+monkeypatch.setitem — automatically restored after each test.
 """
 
+import sys
 from types import SimpleNamespace
 
 from swingmusic.lib import playlistlib
@@ -14,6 +21,16 @@ from swingmusic.lib import playlistlib
 
 def _fake_playlist(image: str | None):
     return SimpleNamespace(image=image)
+
+
+def _install_fake_userdata(monkeypatch, playlists: list, seen_kwargs: dict | None = None):
+    def fake_get_all(current_user=True):
+        if seen_kwargs is not None:
+            seen_kwargs["current_user"] = current_user
+        return iter(playlists)
+
+    fake_module = SimpleNamespace(PlaylistTable=SimpleNamespace(get_all=fake_get_all))
+    monkeypatch.setitem(sys.modules, "swingmusic.db.userdata", fake_module)
 
 
 def test_cleanup_deletes_only_orphans(tmp_path, monkeypatch):
@@ -25,15 +42,12 @@ def test_cleanup_deletes_only_orphans(tmp_path, monkeypatch):
 
     monkeypatch.setattr(playlistlib.settings, "Paths", lambda: SimpleNamespace(playlist_img_path=tmp_path))
 
-    from swingmusic.db.userdata import PlaylistTable
-
-    seen_kwargs = {}
-
-    def fake_get_all(current_user=True):
-        seen_kwargs["current_user"] = current_user
-        return iter([_fake_playlist("1abcde.webp"), _fake_playlist(None), _fake_playlist("None")])
-
-    monkeypatch.setattr(PlaylistTable, "get_all", fake_get_all)
+    seen_kwargs: dict = {}
+    _install_fake_userdata(
+        monkeypatch,
+        [_fake_playlist("1abcde.webp"), _fake_playlist(None), _fake_playlist("None")],
+        seen_kwargs,
+    )
 
     playlistlib.cleanup_playlist_images()
 
@@ -53,13 +67,7 @@ def test_cleanup_keeps_all_linked_images(tmp_path, monkeypatch):
 
     monkeypatch.setattr(playlistlib.settings, "Paths", lambda: SimpleNamespace(playlist_img_path=tmp_path))
 
-    from swingmusic.db.userdata import PlaylistTable
-
-    monkeypatch.setattr(
-        PlaylistTable,
-        "get_all",
-        lambda current_user=True: iter([_fake_playlist("a.webp"), _fake_playlist("b.gif")]),
-    )
+    _install_fake_userdata(monkeypatch, [_fake_playlist("a.webp"), _fake_playlist("b.gif")])
 
     playlistlib.cleanup_playlist_images()
 
