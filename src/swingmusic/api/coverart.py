@@ -32,13 +32,16 @@ class CoverSearchQuery(BaseModel):
 def search_covers(query: CoverSearchQuery):
     """
     Search iTunes and Deezer for album covers matching the query.
-    Results are merged, deduped and cached briefly per query.
+    Results are merged, deduped and cached briefly per query. When the full
+    query has no hits, progressively shortened variants are tried; the
+    response's `query` field is the variant that produced the results.
     """
     q = query.q.strip()
     if not q:
         return {"error": "Query is empty"}, 400
 
-    return {"query": q, "results": coverartlib.search_covers(q, query.limit)}
+    used, results = coverartlib.search_covers_with_fallback(q, query.limit)
+    return {"query": used, "results": results}
 
 
 class SaveCoverBody(BaseModel):

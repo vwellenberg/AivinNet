@@ -224,6 +224,56 @@ def search_covers(query: str, limit: int = 30) -> list[dict]:
     return list(results[:limit])
 
 
+def _fallback_queries(query: str) -> list[str]:
+    """
+    Progressively shortened variants of a query that found nothing.
+
+    Playlist names often carry a subtitle the stores don't know
+    ("Might and Magic 6 - The Mandate of Heaven"): first cut at the
+    " - " separator, then drop trailing words down to two.
+    """
+    variants: list[str] = []
+
+    base = query
+    if " - " in base:
+        base = base.split(" - ")[0].strip()
+        if base:
+            variants.append(base)
+
+    words = base.split()
+    while len(words) > 2:
+        words = words[:-1]
+        variants.append(" ".join(words))
+
+    # Preserve order, drop duplicates and the original query.
+    seen = {query.casefold()}
+    unique: list[str] = []
+    for v in variants:
+        key = v.casefold()
+        if key not in seen:
+            seen.add(key)
+            unique.append(v)
+
+    return unique
+
+
+def search_covers_with_fallback(query: str, limit: int = 30) -> tuple[str, list[dict]]:
+    """
+    search_covers, retrying with progressively shortened queries when the
+    full one has no hits. Returns (query_that_produced_the_results, results).
+    """
+    results = search_covers(query, limit)
+    if results:
+        return query, results
+
+    for variant in _fallback_queries(query):
+        results = search_covers(variant, limit)
+        if results:
+            return variant, results
+
+    return query, []
+
+
 def is_allowed_cover_url(url: str) -> bool:
     """Only https URLs on the known artwork CDNs may be downloaded."""
     try:
