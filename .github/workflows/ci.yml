@@ -64,3 +64,31 @@ jobs:
           --with 'mutagen<2' --with 'tinytag<3' --with pytest-cov
           pytest tests/ -v
           --cov --cov-report=term-missing --cov-fail-under=10
+
+  api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      # bjoern (WSGI server) is a hard dependency and needs libev to build.
+      - name: Install libev
+        run: sudo apt-get update && sudo apt-get install -y libev-dev
+
+      - name: Install dependencies
+        run: uv sync
+
+      # Full-stack request-cycle tests (real flask_openapi3, real request
+      # models). This lane exists because the request-model layer broke twice
+      # in one day (#36 -> #167/#39) in ways no mocked unit test could see:
+      # multipart optionality and file mapping only misbehave in real requests.
+      - name: Run API tests
+        run: uv run --with pytest pytest tests_api/ -v

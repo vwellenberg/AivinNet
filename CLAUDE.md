@@ -33,12 +33,23 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
 
 # Type checking (nur strikte Module)
 uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/hashing.py src/swingmusic/utils/dates.py src/swingmusic/utils/parsers.py src/swingmusic/utils/__init__.py --config-file pyproject.toml
+
+# API-Tests (voller Stack, echter flask_openapi3-Request-Zyklus; eigener CI-Job).
+# Lokal auf Windows NICHT lauffähig (bjoern braucht libev) — stattdessen auf dem
+# Server gegen dessen venv laufen lassen:
+#   scp -r tests_api vwellenberg@192.168.0.4:/tmp/ && \
+#   ssh vwellenberg@192.168.0.4 'cd ~/AivinNet && ~/.local/bin/uv run --with pytest pytest /tmp/tests_api -v'
 ```
 
 ## Branch-Workflow
 
 Pro Aufgabe/Issue:
 - **Worktree + Feature-Branch** (`fix/...`, `feat/...`) von `origin/master` — NICHT direkt auf `master`.
+- **Tests gehören in denselben PR (Pflicht):**
+  - **Bugfix ⇒ Regressionstest**, der den Bug reproduziert (vor dem Fix rot, danach grün). Kein Bugfix-PR ohne Test.
+  - **Neue/geänderte Endpoints oder Request-Modelle ⇒ `tests_api/`-Abdeckung** des echten Request-Zyklus (multipart-Optionalität und flask_openapi3-File-Mapping brechen NUR dort sichtbar — zweimal live passiert: #36→#167/#39).
+  - Neue Lib-Logik ⇒ Unit-Test in `tests/` (fast lane).
+  - Realistische Fixtures verwenden — z. B. trägt `Album.image` den `?pathhash=`-Suffix; ein Test mit geschöntem `hash.webp` hat #34 übersehen.
 - **PR** öffnen → **Self-Review** (`/code-review`), Findings fixen, erneut prüfen.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
@@ -50,7 +61,7 @@ Pro Aufgabe/Issue:
 - **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
 - **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
-- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`.
+- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`).
 - **Vendored Code:** `src/swingmusic/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
 ## Architektur-Hinweise
