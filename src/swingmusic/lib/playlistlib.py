@@ -132,7 +132,11 @@ def get_cover_content_key(image: str) -> str | None:
     the cover files are the same. Hashing the thumbnail bytes lets callers
     detect those duplicates.
     """
-    path = settings.Paths().sm_thumb_path / image
+    # Album.image carries a cache-busting query suffix
+    # ("<albumhash>.webp?pathhash=..."): strip it for the filesystem lookup,
+    # otherwise every album looks coverless.
+    filename = image.split("?", 1)[0]
+    path = settings.Paths().sm_thumb_path / filename
 
     try:
         stat = os.stat(path)
