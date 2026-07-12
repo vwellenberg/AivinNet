@@ -103,6 +103,24 @@ def save_playlist_cover(path: CoverPlaylistPath, body: SaveCoverBody):
     return {"data": updated}
 
 
+class AlbumHashBody(BaseModel):
+    albumhash: str = Field(..., description="The album hash")
+
+
+@api.post("/album/undo")
+def undo_album_cover(body: AlbumHashBody):
+    """
+    Restore the album cover that was replaced by the last save (one level).
+    """
+    if AlbumStore.albummap.get(body.albumhash) is None:
+        return {"error": "Album not found"}, 404
+
+    if not coverartlib.undo_album_cover(body.albumhash):
+        return {"error": "Nothing to undo"}, 404
+
+    return {"success": True}
+
+
 class SaveAlbumCoverBody(BaseModel):
     albumhash: str = Field(..., description="The album hash")
     url: str = Field(..., description="The confirmed cover image URL")

@@ -379,3 +379,57 @@ class TestDownloadCover:
 class TestSaveAlbumCoverBytes:
     def test_garbage_bytes_return_none(self):
         assert coverart.save_album_cover_bytes("abc123", b"definitely not an image") is None
+
+
+class TestAlbumCoverUndo:
+    def _install_paths(self, monkeypatch, tmp_path):
+        paths = [tmp_path / size / "hash.webp" for size in ("lg", "md", "sm", "xsm")]
+        monkeypatch.setattr(coverart, "_album_cover_paths", lambda albumhash: paths)
+        return paths
+
+    def test_backup_and_undo_restore_previous_state(self, monkeypatch, tmp_path):
+        paths = self._install_paths(monkeypatch, tmp_path)
+
+        # Two sizes had a cover before, two didn't (typical for this library).
+        for path in paths[2:]:
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"old-cover")
+
+        coverart.backup_album_cover("hash")
+
+        # Simulate the new cover being written in all sizes.
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"new-cover")
+
+        assert coverart.undo_album_cover("hash") is True
+
+        # Previously missing sizes are gone again, existing ones restored.
+        assert not paths[0].exists()
+        assert not paths[1].exists()
+        assert paths[2].read_bytes() == b"old-cover"
+        assert paths[3].read_bytes() == b"old-cover"
+
+        # The snapshot is consumed: a second undo has nothing to do.
+        assert coverart.undo_album_cover("hash") is False
+
+    def test_undo_without_snapshot_is_a_noop(self, monkeypatch, tmp_path):
+        paths = self._install_paths(monkeypatch, tmp_path)
+        paths[0].parent.mkdir(parents=True)
+        paths[0].write_bytes(b"current")
+
+        assert coverart.undo_album_cover("hash") is False
+        assert paths[0].read_bytes() == b"current"
+
+    def test_new_backup_replaces_old_snapshot(self, monkeypatch, tmp_path):
+        paths = self._install_paths(monkeypatch, tmp_path)
+        paths[0].parent.mkdir(parents=True)
+        paths[0].write_bytes(b"gen-1")
+
+        coverart.backup_album_cover("hash")
+        paths[0].write_bytes(b"gen-2")
+        coverart.backup_album_cover("hash")
+        paths[0].write_bytes(b"gen-3")
+
+        assert coverart.undo_album_cover("hash") is True
+        assert paths[0].read_bytes() == b"gen-2"
