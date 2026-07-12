@@ -55,6 +55,7 @@ Pro Aufgabe/Issue:
 
 ## Architektur-Hinweise
 
+- **⚠️ IPv6 des Servers ist kaputt (DS-Lite) — gilt auch für Python!** Outbound-`requests` hängen minutenlang, weil urllib3 alle aufgelösten Adressen (AAAA zuerst) sequenziell mit vollem Connect-Timeout probiert; `timeout=` deckt das nicht. Und weil bjoern evented/single-threaded ist, friert dabei die GESAMTE App ein (auch `/`). Fix: `utils/net.py::prefer_ipv4()` wird in `app_builder.config_app` aufgerufen (Pendant zu `NODE_OPTIONS=--dns-result-order=ipv4first` für node). Neue Outbound-Calls zusätzlich mit harter Deadline um Futures absichern (siehe `lib/coverart.py::search_covers`, `FETCH_DEADLINE_SECONDS`) und Pools mit `shutdown(wait=False)` schließen.
 - `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen
 - `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher CI-Tests mit `uvx` (minimale deps) statt `uv run`/voller Installation
 - **Tests mocken schwere Dependencies** via `sys.modules`, damit sie ohne vollen Backend-Stack laufen. **WICHTIG — geguardete Form Pflicht:** immer `if name not in sys.modules: sys.modules[name] = MagicMock()` (bzw. `setdefault`), NIE unbedingtes `sys.modules[name] = MagicMock()`. Grund: `conftest.py` importiert die echten `mutagen`+`tinytag` vorab (wenn installiert); die geguardete Form no-op't dann und der Real-Bytes-Test `test_tag_writer_roundtrip.py` sieht die echten Libs. Ein unbedingtes Mock würde die echten Libs überschreiben und diesen Test brechen.

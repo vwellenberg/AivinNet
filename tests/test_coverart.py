@@ -204,6 +204,30 @@ class TestSearchCovers:
         # Two searches, two sources each: all four hit the network (no caching).
         assert len(calls) == 4
 
+    def test_hanging_source_hits_deadline_instead_of_blocking(self, monkeypatch):
+        # A stuck fetch (e.g. connect attempts across unroutable addresses)
+        # must not block the caller past the deadline — with an evented WSGI
+        # server a blocked handler freezes the whole app.
+        import time as _time
+
+        def hanging_fetch(url, params):
+            _time.sleep(5)
+            return _itunes_payload()
+
+        monkeypatch.setattr(coverart, "_fetch_json", hanging_fetch)
+        monkeypatch.setattr(coverart, "FETCH_DEADLINE_SECONDS", 0.2)
+
+        start = _time.monotonic()
+        results = coverart.search_covers("stuck")
+        elapsed = _time.monotonic() - start
+
+        assert results == []
+        assert elapsed < 2
+
+        # The timed-out (degraded) result must not be cached.
+        with coverart._cache_lock:
+            assert coverart._cache == {}
+
     def test_partial_failure_not_cached(self, monkeypatch):
         calls = []
 

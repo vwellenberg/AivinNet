@@ -37,6 +37,12 @@ DEEZER_SEARCH_URL = "https://api.deezer.com/search/album"
 # per query and sliced to the caller's limit on the way out.
 FETCH_LIMIT_PER_SOURCE = 25
 
+# Hard ceiling on how long search_covers waits for its sources. The requests
+# timeout does not cover everything (e.g. connect attempts across many
+# unroutable addresses), and with an evented single-threaded WSGI server a
+# stuck handler freezes the whole app — so the wait is bounded here too.
+FETCH_DEADLINE_SECONDS = 12
+
 # INFO: Hosts we are willing to download a confirmed cover from. The save
 # endpoints accept a URL from the client, so without this allowlist they
 # would be an SSRF vector (fetch arbitrary internal URLs server-side).
@@ -178,8 +184,11 @@ def search_covers(query: str, limit: int = 30) -> list[dict]:
         return list(cached[:limit])
 
     # The two sources are independent; fetch them in parallel so a slow
-    # source doesn't stack on top of the other one's latency.
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    # source doesn't stack on top of the other one's latency. Both waits
+    # share one deadline, and shutdown must not join stuck workers — either
+    # would block the request handler past FETCH_DEADLINE_SECONDS.
+    pool = ThreadPoolExecutor(max_workers=2)
+    try:
         itunes_future = pool.submit(
             _fetch_json,
             ITUNES_SEARCH_URL,
@@ -187,8 +196,21 @@ def search_covers(query: str, limit: int = 30) -> list[dict]:
         )
         deezer_future = pool.submit(_fetch_json, DEEZER_SEARCH_URL, {"q": query, "limit": FETCH_LIMIT_PER_SOURCE})
 
-        itunes_payload = itunes_future.result()
-        deezer_payload = deezer_future.result()
+        deadline = time.monotonic() + FETCH_DEADLINE_SECONDS
+        itunes_payload: dict = {}
+        deezer_payload: dict = {}
+
+        try:
+            itunes_payload = itunes_future.result(timeout=max(0.0, deadline - time.monotonic()))
+        except TimeoutError:
+            log.warning("iTunes cover search timed out after %ss", FETCH_DEADLINE_SECONDS)
+
+        try:
+            deezer_payload = deezer_future.result(timeout=max(0.0, deadline - time.monotonic()))
+        except TimeoutError:
+            log.warning("Deezer cover search timed out after %ss", FETCH_DEADLINE_SECONDS)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
     results = _merge(_parse_itunes(itunes_payload), _parse_deezer(deezer_payload))
 

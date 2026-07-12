@@ -21,6 +21,7 @@ from swingmusic.api.plugins import mixes as mixes_plugin
 from swingmusic.config import UserConfig
 from swingmusic.db.userdata import UserTable
 from swingmusic.settings import Metadata, Paths
+from swingmusic.utils.net import prefer_ipv4
 from swingmusic.utils.paths import get_client_files_extensions
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,10 @@ log = logging.getLogger(__name__)
 
 
 def config_app(web):
+    # OUTBOUND HTTP: IPv6 routing is broken on the deployment host — trying
+    # AAAA addresses first blocks outbound requests (and the evented server).
+    prefer_ipv4()
+
     # CORS
     CORS(web, origins="*", supports_credentials=True)
 
