@@ -16,6 +16,7 @@ results, a failing download returns None. This module never raises.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -302,11 +303,73 @@ def download_cover(url: str) -> bytes | None:
     return content or None
 
 
+def _album_cover_paths(albumhash: str) -> list:
+    """The album's cover file in every thumbnail size folder."""
+    from swingmusic.settings import Paths
+
+    filename = f"{albumhash}.webp"
+    paths = Paths()
+    return [
+        paths.lg_thumb_path / filename,
+        paths.md_thumb_path / filename,
+        paths.sm_thumb_path / filename,
+        paths.xsm_thumb_path / filename,
+    ]
+
+
+def backup_album_cover(albumhash: str) -> None:
+    """
+    Snapshot the album's current cover files for a one-level undo.
+
+    For each size: an existing file is copied to '<file>.undo'; a missing
+    file leaves a zero-byte '<file>.undo' marker meaning "there was no cover
+    here — delete on restore". A later save overwrites the snapshot.
+    """
+    import shutil
+
+    for path in _album_cover_paths(albumhash):
+        undo = path.with_name(path.name + ".undo")
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if path.exists():
+            shutil.copy2(path, undo)
+        else:
+            undo.write_bytes(b"")
+
+
+def undo_album_cover(albumhash: str) -> bool:
+    """
+    Restore the cover snapshot taken by backup_album_cover.
+
+    Returns True when a snapshot existed and was restored, False when there
+    is nothing to undo.
+    """
+    restored = False
+
+    for path in _album_cover_paths(albumhash):
+        undo = path.with_name(path.name + ".undo")
+        if not undo.exists():
+            continue
+
+        restored = True
+        if undo.stat().st_size == 0:
+            # Marker: no cover existed before the save.
+            path.unlink(missing_ok=True)
+            undo.unlink()
+        else:
+            os.replace(undo, path)
+
+    return restored
+
+
 def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
     """
     Persist a downloaded album cover as a webp in all thumbnail sizes used
     by the image server. Shared by the MusicBrainz fetcher and the online
     cover search.
+
+    The previous cover files are snapshotted first (see backup_album_cover),
+    so the save can be reverted once via undo_album_cover.
 
     Returns the filename ('<albumhash>.webp') on success, otherwise None.
     """
@@ -328,6 +391,8 @@ def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
         (paths.sm_thumb_path / filename, Defaults.SM_THUMB_SIZE),
         (paths.xsm_thumb_path / filename, Defaults.XSM_THUMB_SIZE),
     ]
+
+    backup_album_cover(albumhash)
 
     try:
         width, height = img.size
