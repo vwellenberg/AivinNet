@@ -84,6 +84,74 @@ def test_roundtrip_via_tinytag(audio_file):
     assert str(tag.track) == "7"
 
 
+def _make_wav(path) -> None:
+    # Minimal valid RIFF/WAVE: mono 16-bit 44.1 kHz with a few silent samples.
+    import wave
+
+    with wave.open(str(path), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(44100)
+        f.writeframes(b"\x00\x00" * 16)
+
+
+def test_wav_roundtrip_writes_real_id3_frames(tmp_path):
+    # mutagen ignores easy=True for WAVE: its .tags is a raw mutagen.id3.ID3
+    # that only accepts Frame instances. Assigning easy-style strings raised
+    # "['...'] not a Frame instance" — the writer must emit real frames there.
+    path = tmp_path / "sample.wav"
+    _make_wav(path)
+
+    write_tags(str(path), NEW_TAGS)
+
+    import mutagen
+
+    audio = mutagen.File(str(path))
+    assert audio.tags.getall("TIT2")[0].text == ["New Title"]
+    assert audio.tags.getall("TALB")[0].text == ["New Album"]
+    assert audio.tags.getall("TPE1")[0].text == ["Alpha, Beta"]
+    assert audio.tags.getall("TPE2")[0].text == ["Gamma"]
+    assert audio.tags.getall("TRCK")[0].text == ["7"]
+
+    # tinytag is the app's read path (trackhash stability).
+    from tinytag import TinyTag
+
+    tag = TinyTag.get(str(path))
+    assert tag.title == "New Title"
+    assert tag.album == "New Album"
+
+
+def test_wav_clearing_album_removes_frame(tmp_path):
+    path = tmp_path / "sample.wav"
+    _make_wav(path)
+    write_tags(str(path), NEW_TAGS)
+
+    write_tags(str(path), {"album": ""})
+
+    import mutagen
+
+    audio = mutagen.File(str(path))
+    assert audio.tags.getall("TALB") == []
+    assert audio.tags.getall("TIT2")[0].text == ["New Title"]  # untouched
+
+
+def test_clearing_album_removes_easy_tag(audio_file):
+    write_tags(audio_file, NEW_TAGS)
+
+    write_tags(audio_file, {"album": ""})
+
+    import mutagen
+
+    audio = mutagen.File(audio_file, easy=True)
+    assert "album" not in audio
+    assert audio["title"] == ["New Title"]  # untouched
+
+
+def test_clearing_never_set_album_is_a_noop(audio_file):
+    # Clearing a tag that was never written must not raise.
+    write_tags(audio_file, {"album": ""})
+
+
 def test_rejects_non_audio_file(tmp_path):
     path = tmp_path / "not_audio.txt"
     path.write_text("definitely not audio")
