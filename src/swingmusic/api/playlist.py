@@ -268,10 +268,12 @@ class FileStorage(_FileStorage):
 
 
 class UpdatePlaylistForm(BaseModel):
-    # Optional: updates without a freshly selected image (rename, settings
-    # toggle) previously failed validation with a 422 — silently, because the
-    # client only surfaced 400s.
-    image: FileStorage | None = Field(None, description="The image file")
+    # Optional via the None default ONLY — the annotation must stay a plain
+    # FileStorage: with a `FileStorage | None` union, flask_openapi3 no longer
+    # recognises the field as a file field and never maps it from
+    # request.files, silently dropping real uploads. (Required, in turn, made
+    # updates without a new image fail with a 422.)
+    image: FileStorage = Field(None, description="The image file")
     name: str = Field(..., description="The name of the playlist")
     settings: str = Field(
         ...,
