@@ -268,7 +268,10 @@ class FileStorage(_FileStorage):
 
 
 class UpdatePlaylistForm(BaseModel):
-    image: FileStorage = Field(description="The image file")
+    # Optional: updates without a freshly selected image (rename, settings
+    # toggle) previously failed validation with a 422 — silently, because the
+    # client only surfaced 400s.
+    image: FileStorage | None = Field(None, description="The image file")
     name: str = Field(..., description="The name of the playlist")
     settings: str = Field(
         ...,
@@ -313,6 +316,11 @@ def update_playlist_info(path: PlaylistIDPath, form: UpdatePlaylistForm):
 
             if image.content_type == "image/gif":
                 playlist["settings"]["has_gif"] = True
+
+            # New covers default to the square layout (same as the online
+            # cover save); an existing banner choice is kept.
+            if not db_playlist.has_image:
+                playlist["settings"]["square_img"] = True
 
         except UnidentifiedImageError:
             return {"error": "Failed: Invalid image"}, 400
