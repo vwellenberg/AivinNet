@@ -143,6 +143,7 @@ module = [
     "swingmusic.utils.dates",
     "swingmusic.utils.parsers",
     "swingmusic.utils",
+    "swingmusic.lib.coverart",
 ]
 disallow_untyped_defs = true
 warn_return_any = true

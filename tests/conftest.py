@@ -9,16 +9,17 @@ import pytest
 # Add src to path so we can import swingmusic modules without full install
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# Pre-import the real audio libraries when they are installed. Several test
+# Pre-import the real libraries when they are installed. Several test
 # modules install a MagicMock into sys.modules for these ONLY as a fallback
-# (`if name not in sys.modules`), so loading the real ones first lets the
-# real-bytes tag tests (test_tag_writer_roundtrip) run in the same session
-# without those fallback mocks shadowing mutagen/tinytag. In the fast CI lane,
-# where the audio deps are not installed, these imports fail and the mocks apply
-# exactly as before.
-for _audio_lib in ("mutagen", "tinytag"):
+# (`if name not in sys.modules`), so loading the real ones first lets tests
+# that need the real thing (test_tag_writer_roundtrip for mutagen/tinytag,
+# test_playlistlib_cleanup for sqlalchemy via the store/db import chain) run
+# in the same session without those fallback mocks shadowing them. In the
+# fast CI lane, where a dep is not installed, the import fails and the mocks
+# apply exactly as before.
+for _real_lib in ("mutagen", "tinytag", "sqlalchemy"):
     try:
-        __import__(_audio_lib)
+        __import__(_real_lib)
     except ImportError:
         pass
 

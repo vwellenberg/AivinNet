@@ -5,13 +5,12 @@ Closes: https://github.com/vwellenberg/AivinNet-Client/issues/3
 """
 
 import logging
-from io import BytesIO
 
 from flask_openapi3 import APIBlueprint, Tag
-from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema
+from swingmusic.lib.coverart import save_album_cover_bytes
 from swingmusic.lib.musicbrainz import (
     clear_failed,
     fetch_cover_for_album,
@@ -23,7 +22,7 @@ from swingmusic.lib.musicbrainz import (
     status_reset,
     status_snapshot,
 )
-from swingmusic.settings import Defaults, Paths
+from swingmusic.settings import Paths
 from swingmusic.store.albums import AlbumStore
 from swingmusic.utils.threading import background
 
@@ -46,57 +45,6 @@ def _album_has_cover(albumhash: str) -> bool:
     return (Paths().lg_thumb_path / f"{albumhash}.webp").exists()
 
 
-def _save_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
-    """
-    Persist the downloaded image as a webp in all thumbnail sizes
-    used by the image server.
-
-    Returns the filename ('<albumhash>.webp') on success, otherwise None.
-    """
-    try:
-        img = Image.open(BytesIO(image_bytes))
-    except (UnidentifiedImageError, OSError) as e:
-        log.warning("MusicBrainz cover for %s could not be decoded: %s", albumhash, e)
-        return None
-
-    filename = f"{albumhash}.webp"
-    paths = Paths()
-    targets = [
-        (paths.lg_thumb_path / filename, Defaults.LG_THUMB_SIZE),
-        (paths.md_thumb_path / filename, Defaults.MD_THUMB_SIZE),
-        (paths.sm_thumb_path / filename, Defaults.SM_THUMB_SIZE),
-        (paths.xsm_thumb_path / filename, Defaults.XSM_THUMB_SIZE),
-    ]
-
-    try:
-        width, height = img.size
-        ratio = (width / height) if height else 1.0
-
-        def _save_all(source: Image.Image) -> None:
-            for path, size in targets:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                resized = source.resize((size, max(1, int(size / ratio))), Image.LANCZOS)
-                resized.save(path, "webp")
-                resized.close()
-
-        try:
-            _save_all(img)
-        except OSError:
-            # INFO: webp can fail on RGBA/P-mode source images; fall back to RGB.
-            rgb = img.convert("RGB")
-            try:
-                _save_all(rgb)
-            finally:
-                rgb.close()
-    except (OSError, ValueError) as e:
-        log.warning("Saving MusicBrainz cover for %s failed: %s", albumhash, e)
-        return None
-    finally:
-        img.close()
-
-    return filename
-
-
 def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
     """
     Look up an album by hash, fetch a cover from MusicBrainz/CAA and save it.
@@ -116,7 +64,7 @@ def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
     if not image_bytes:
         return False, "No cover found on MusicBrainz"
 
-    filename = _save_cover_bytes(albumhash, image_bytes)
+    filename = save_album_cover_bytes(albumhash, image_bytes)
     if not filename:
         return False, "Cover could not be saved"
 
