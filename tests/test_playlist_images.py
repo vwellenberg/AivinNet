@@ -138,16 +138,43 @@ def test_empty_tracklist_returns_empty(monkeypatch, tmp_path):
     assert playlistlib.get_first_4_images(tracks=[]) == []
 
 
-def test_missing_thumbnail_falls_back_to_filename_identity(monkeypatch, tmp_path):
-    # No cover files on disk at all: no byte info, so all albums stay distinct
-    # (albumhash-level dedupe only).
+def test_all_covers_missing_falls_back_to_first_album(monkeypatch, tmp_path):
+    # No cover files on disk at all: coverless albums can't render a tile, so
+    # instead of a placeholder collage the first album is returned padded
+    # (single-cover fallback, same shape as before).
     albums = [_album(h) for h in ["a", "b", "c", "d"]]
     _setup(monkeypatch, tmp_path, albums, covers={})
 
     tracks = [_track(h) for h in ["a", "b", "c", "d"]]
     images = playlistlib.get_first_4_images(tracks=tracks)
 
-    assert _image_names(images) == ["a.webp", "b.webp", "c.webp", "d.webp"]
+    assert _image_names(images) == ["a.webp"] * 4
+
+
+def test_coverless_albums_do_not_count_as_collage_candidates(monkeypatch, tmp_path):
+    # "b" and "d" have no cover file: they must not fill collage slots with
+    # placeholder tiles. Later albums with real covers take their place.
+    albums = [_album(h) for h in ["a", "b", "c", "d", "e", "f"]]
+    covers = {h: f"bytes-{h}".encode() for h in ["a", "c", "e", "f"]}
+    _setup(monkeypatch, tmp_path, albums, covers)
+
+    tracks = [_track(h) for h in ["a", "b", "c", "d", "e", "f"]]
+    images = playlistlib.get_first_4_images(tracks=tracks)
+
+    assert _image_names(images) == ["a.webp", "c.webp", "e.webp", "f.webp"]
+
+
+def test_mixed_coverless_pads_with_real_covers_only(monkeypatch, tmp_path):
+    # Only one album has a real cover: result is that cover padded to 4, so
+    # the client renders the real cover instead of a placeholder-heavy collage.
+    albums = [_album(h) for h in ["a", "b", "c", "d"]]
+    covers = {"c": b"real-artwork"}
+    _setup(monkeypatch, tmp_path, albums, covers)
+
+    tracks = [_track(h) for h in ["a", "b", "c", "d"]]
+    images = playlistlib.get_first_4_images(tracks=tracks)
+
+    assert _image_names(images) == ["c.webp"] * 4
 
 
 def test_content_key_tracks_file_changes(monkeypatch, tmp_path):
@@ -161,7 +188,7 @@ def test_content_key_tracks_file_changes(monkeypatch, tmp_path):
     assert key_before.startswith("md5:")
 
 
-def test_missing_file_key_uses_filename(monkeypatch, tmp_path):
+def test_missing_file_key_is_none(monkeypatch, tmp_path):
     _setup(monkeypatch, tmp_path, [], {})
 
-    assert playlistlib.get_cover_content_key("nope.webp") == "file:nope.webp"
+    assert playlistlib.get_cover_content_key("nope.webp") is None
