@@ -72,6 +72,17 @@ Pro Aufgabe/Issue:
 - **Tests mocken schwere Dependencies** via `sys.modules`, damit sie ohne vollen Backend-Stack laufen. **WICHTIG — geguardete Form Pflicht:** immer `if name not in sys.modules: sys.modules[name] = MagicMock()` (bzw. `setdefault`), NIE unbedingtes `sys.modules[name] = MagicMock()`. Grund: `conftest.py` importiert die echten `mutagen`+`tinytag` vorab (wenn installiert); die geguardete Form no-op't dann und der Real-Bytes-Test `test_tag_writer_roundtrip.py` sieht die echten Libs. Ein unbedingtes Mock würde die echten Libs überschreiben und diesen Test brechen.
 - **Real-Bytes-Tag-Test ko-loziert** in `tests/` (kein eigener Job): `mutagen`+`tinytag` sind pure-Python → laufen in der schnellen `uvx`-Lane mit (Versionen gepinnt: `mutagen<2`, `tinytag<3`, passend zum Prod-Major). Nur Tests, die den **vollen** Stack brauchen (Flask/SQLAlchemy → `uv sync`), bräuchten ein eigenes Verzeichnis + getrennten Job.
 
+## Empfehlungen / Mixes (woher kommen die Vorschläge?)
+
+Alle Personalisierung basiert auf der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus der eigenen Bibliothek; einzige externe Quelle ist der **Swing-Music-Cloud-Server**. Ablauf:
+
+- **Cron `mixes`** (`crons/mixes.py`, alle 12h): erst `ArtistMixes`, dann `BecauseYouListened` (nutzt die Artist-Mix-Ergebnisse).
+- **Artist-Mixes** (`plugins/mixes.py` + `lib/recipes/artistmixes.py`): Meistgehörte Artists nach `playduration` aus vier Zeitfenstern (heute / 2 Tage / 7 Tage / Monat; max. 4/3/4/4 Mixe, unbelegte Slots wandern ins nächste Fenster). Pro Artist gehen die **Top-5-Tracks (Titel/Artists/Album als Klartext!)** per `POST {server}/radio` an `https://smcloud.mungaist.com`; der antwortet mit ähnlichen Track-**Weakhashes** + ähnlichen Alben/Artists. Gematcht wird ausschließlich gegen die **eigene Bibliothek** (bei Weakhash-Duplikaten gewinnt die höchste Bitrate), aufgefüllt aus lokalen Tracks der ähnlichen Alben/Artists (`fallback_create_artist_mix`), dann `balance_mix`. Qualitäts-Gates: min. 15 Tracks und min. 4 verschiedene Artists, sonst wird der Mix verworfen. `sourcehash` (Top-5-Hashes) dedupliziert gegen `MixTable`.
+- **„Mixes for you"** = aus den Artist-Mixen abgeleitete Track-Mixe (`get_track_mix`); **„Because you listened …"/„Artists you might like"** speisen sich aus den im Mix-`extra` gespeicherten similar artists/albums der Cloud-Antwort.
+- **Top artists week/month, Stats, Recently played** = reine lokale Scrobble-Aggregation (`utils/stats.py`, sortiert nach `playduration`); **Recently added** = Library-Timestamps. Kein Cloud-Anteil.
+- **Last.fm-Plugin** (`plugins/lastfm.py`) ist NUR Scrobble-**Export** (optional), keine Empfehlungsquelle.
+- **Privacy:** Für Mixes verlassen Track-Metadaten (Titel, Artist, Album) das Haus Richtung `smcloud.mungaist.com` — sonst nichts.
+
 ## Server-Deployment
 
 ```bash
