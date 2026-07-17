@@ -22,6 +22,7 @@ from swingmusic.models import Artist, Track
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.artists import ArtistMapEntry, ArtistStore
 from swingmusic.store.tracks import TrackStore
+from swingmusic.utils.filesystem import is_hidden_path
 
 
 class Watcher:
@@ -143,6 +144,12 @@ def add_track(filepath: str) -> None:
 
     Then creates the folder, album and artist objects for the added track and adds them to the store.
     """
+
+    # The pattern matcher only checks the extension, so macOS AppleDouble
+    # sidecars (``._track.mp3``) and other hidden dot-files still reach here.
+    # Skip them so they never become ghost tracks/albums/artists.
+    if is_hidden_path(filepath):
+        return
 
     TrackStore.remove_track_by_filepath(filepath)
 
