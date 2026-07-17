@@ -4,6 +4,24 @@ from pathlib import Path
 FILES = ["flac", "mp3", "wav", "m4a", "ogg", "wma", "opus", "alac", "aiff"]
 SUPPORTED_FILES = tuple(f".{file}" for file in FILES)
 
+
+def is_hidden_path(path: str) -> bool:
+    """
+    Whether a directory/file entry should be skipped when scanning.
+
+    Excludes hidden dot-entries and ``$``-prefixed system entries. This
+    notably filters out macOS **AppleDouble** sidecar files (``._track.mp3``),
+    which share the real file's audio extension and would otherwise be indexed
+    as ghost tracks/albums/artists. Applies the same rule to files that the
+    scanner already applied to directories, so both are treated consistently.
+
+    Accepts either a bare entry name or a full path (POSIX or Windows
+    separators); only the final path component is inspected.
+    """
+    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+    return name.startswith(".") or name.startswith("$")
+
+
 # TODO: Move this to config
 # INFO: Skip these paths when scanning
 IGNORE_PATH_ENDSWITH = {
@@ -62,11 +80,11 @@ def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
 
     try:
         for entry in path.iterdir():
+            if is_hidden_path(entry.name):
+                continue  # filter out system / hidden files (incl. AppleDouble ._* sidecars)
+
             if entry.is_dir():
-                if entry.name.startswith(".") or entry.name.startswith("$"):
-                    continue  # filter out system / hidden files
-                else:
-                    subfolders.append(entry)
+                subfolders.append(entry)
 
             if entry.is_file():
                 ext = entry.suffix.lower()
