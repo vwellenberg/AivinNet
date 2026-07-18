@@ -38,6 +38,12 @@ OFFLINE_MS = 5000
 # pruned, giving a late/slow poller a chance to still observe (and dedupe) it.
 COMMAND_GRACE_MS = 5000
 
+# Targeted commands (execute_at_ms == 0, e.g. join_invite) are retained this long
+# from their creation time. A non-joined device polls at only ~5 s, so a 5 s grace
+# could drop an invite before it is ever observed once jitter is added. Clients
+# dedupe by command id, so the longer retention is safe.
+TARGETED_COMMAND_TTL_MS = 15000
+
 # Presence entries older than this are forgotten entirely (device long gone).
 PRESENCE_TTL_MS = 30 * 60 * 1000
 
@@ -112,10 +118,15 @@ class GroupSessionManager:
             return
         kept: list[dict[str, Any]] = []
         for cmd in session.pending:
-            # Targeted commands execute immediately (execute_at 0); age them from
-            # their creation time instead.
-            base = cmd["created_ms"] if cmd["execute_at_ms"] == 0 else cmd["execute_at_ms"]
-            if now > base + COMMAND_GRACE_MS:
+            if cmd["execute_at_ms"] == 0:
+                # Targeted commands execute immediately; age them from creation and
+                # keep them for the longer targeted TTL so a slow (~5 s) poller on a
+                # non-joined device still catches e.g. a join_invite.
+                expiry = cmd["created_ms"] + TARGETED_COMMAND_TTL_MS
+            else:
+                # Scheduled/transport commands: dropped a short grace past exec time.
+                expiry = cmd["execute_at_ms"] + COMMAND_GRACE_MS
+            if now > expiry:
                 continue
             kept.append(cmd)
         session.pending = kept
