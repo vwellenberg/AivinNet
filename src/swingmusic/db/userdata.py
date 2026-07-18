@@ -778,3 +778,80 @@ class PlaylistFolderTable(Base):
                 commit=True,
             )
         )
+
+
+class DeviceTable(Base):
+    """
+    A user's paired playback device (phone/desktop/…), used by the multiroom
+    "Group Session" feature for the persistent device registry.
+
+    `device_id` is a client-generated UUID (stable across reloads); the live
+    session state (who is joined, now-playing, presence) lives purely in RAM in
+    `lib.groupsession` and is intentionally NOT persisted here. Purely additive:
+    the table auto-creates via `create_all_tables()`.
+    """
+
+    __tablename__ = "device"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    device_id: Mapped[str] = mapped_column(String(), index=True)
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+    name: Mapped[str] = mapped_column(String())
+    type: Mapped[str] = mapped_column(String())
+    last_seen: Mapped[int] = mapped_column(Integer(), default=0)
+    created: Mapped[int] = mapped_column(Integer(), default=0)
+
+    @classmethod
+    def to_dict(cls, entry: Any) -> dict[str, Any]:
+        return {
+            "device_id": entry.device_id,
+            "userid": entry.userid,
+            "name": entry.name,
+            "type": entry.type,
+            "last_seen": entry.last_seen,
+            "created": entry.created,
+        }
+
+    @classmethod
+    def upsert(cls, device_id: str, userid: int, name: str, type: str):
+        """
+        Insert a new device row or, when one already exists for this
+        (device_id, userid), refresh its name/type/last_seen.
+        """
+        now = int(time.time())
+        existing = next(cls.execute(select(cls).where(and_(cls.device_id == device_id, cls.userid == userid)))).scalar()
+
+        if existing:
+            return next(
+                cls.execute(
+                    update(cls)
+                    .where(and_(cls.device_id == device_id, cls.userid == userid))
+                    .values(name=name, type=type, last_seen=now),
+                    commit=True,
+                )
+            )
+
+        return cls.insert_one(
+            {
+                "device_id": device_id,
+                "userid": userid,
+                "name": name,
+                "type": type,
+                "last_seen": now,
+                "created": now,
+            }
+        )
+
+    @classmethod
+    def get_all_for_user(cls, userid: int) -> list[dict[str, Any]]:
+        result = cls.execute(select(cls).where(cls.userid == userid).order_by(cls.created))
+        return [cls.to_dict(i) for i in next(result).scalars()]
+
+    @classmethod
+    def touch(cls, device_id: str, userid: int, timestamp: int):
+        return next(
+            cls.execute(
+                update(cls).where(and_(cls.device_id == device_id, cls.userid == userid)).values(last_seen=timestamp),
+                commit=True,
+            )
+        )
