@@ -1,3 +1,4 @@
+import logging
 import time
 
 import schedule
@@ -6,8 +7,11 @@ from swingmusic.crons.mixes import Mixes
 from swingmusic.lib.groupsession import manager as group_session_manager
 from swingmusic.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 from swingmusic.lib.recipes.topstreamed import TopArtists
-from swingmusic.logger import log
 from swingmusic.utils.threading import background
+
+# NOTE: do not use `from swingmusic.logger import log` — that global is None until
+# setup_logger() runs and the imported name never picks up the reassignment.
+log = logging.getLogger(__name__)
 
 
 def _reap_group_sessions():
