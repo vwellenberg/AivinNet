@@ -11,6 +11,7 @@ from swingmusic.lib.groupsession import (
     COMMAND_GRACE_MS,
     LEAD_MS,
     OFFLINE_MS,
+    TARGETED_COMMAND_TTL_MS,
     GroupSessionManager,
 )
 
@@ -266,6 +267,35 @@ def test_command_is_pruned_after_grace_period():
     clock["t"] = cmd["execute_at_ms"] + COMMAND_GRACE_MS + 1
     cmds_after = mgr.snapshot(USER, A, known_version=-1)["commands"]
     assert all(c["id"] != cmd["id"] for c in cmds_after)
+
+
+def test_targeted_command_survives_grace_but_expires_after_ttl():
+    """
+    A join_invite (execute_at_ms == 0) must outlive the short transport grace
+    window: a non-joined device polls at only ~5 s, so a 5 s grace could drop the
+    invite before it is ever seen. It is retained for TARGETED_COMMAND_TTL_MS
+    instead (clients dedupe by id), then pruned.
+    """
+    mgr, clock = make_manager()
+    mgr.register(USER, A, "A", "desktop")
+    mgr.register(USER, B, "B", "phone")  # presence only, never joins
+    mgr.join(USER, A)
+
+    invite = mgr.apply_targeted(USER, A, "join_invite", {}, target_device=B)
+    assert invite is not None
+    assert invite["execute_at_ms"] == 0
+
+    # Well past the transport grace window (COMMAND_GRACE_MS) but within the
+    # targeted TTL: the invite is still delivered to the non-joined target.
+    clock["t"] += TARGETED_COMMAND_TTL_MS - 5_000  # +10 s from creation
+    assert clock["t"] - invite["created_ms"] > COMMAND_GRACE_MS
+    cmds = mgr.snapshot(USER, B, known_version=0)["commands"]
+    assert any(c["id"] == invite["id"] for c in cmds)
+
+    # Push beyond the TTL -> pruned.
+    clock["t"] += 6_000  # +16 s total from creation, > TARGETED_COMMAND_TTL_MS
+    cmds_after = mgr.snapshot(USER, B, known_version=0)["commands"]
+    assert all(c["id"] != invite["id"] for c in cmds_after)
 
 
 def test_fresh_manager_reports_no_session():

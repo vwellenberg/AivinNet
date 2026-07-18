@@ -91,6 +91,9 @@ def load_endpoints(web: OpenAPI):
         web.register_api(swing_api.musicbrainz.api)
         web.register_api(swing_api.coverart.api)
 
+        # Multiroom device sync
+        web.register_api(swing_api.devicesync.api)
+
         # Logger
         web.register_api(swing_api.scrobble.api)
 
