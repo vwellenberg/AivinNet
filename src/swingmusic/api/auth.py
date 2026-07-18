@@ -162,6 +162,7 @@ def get_pair():
 
 class PairDeviceQuery(BaseModel):
     code: str = Field("", description="The code")
+    setcookie: bool = Field(False, description="Also set auth cookies on the response (for browser pairing)")
 
 
 @api.get("/pair")
@@ -175,6 +176,15 @@ def pair_with_code(query: PairDeviceQuery):
 
     if token:
         pair_token = {}
+
+        if query.setcookie:
+            # QR deep-link / browser pairing: mirror the login handler so the
+            # browser session is logged in via cookies. Same helper, same
+            # access token, same max_age as POST /auth/login.
+            res = jsonify(token)
+            set_access_cookies(res, token["accesstoken"], max_age=token["maxage"])
+            return res
+
         return token
 
     return {"msg": "Invalid code"}, 400
