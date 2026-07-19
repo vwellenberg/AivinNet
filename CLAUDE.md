@@ -151,3 +151,11 @@ sudo -n systemctl restart subspaceradio
 ## Nächste Schritte
 
 Siehe [ROADMAP.md](ROADMAP.md). Frontend-Änderungen laufen im Webclient-Fork (SubspaceRadio-Client).
+
+## Device Sync / Multiroom (Group Sessions)
+
+Geräte desselben Users können einer **Group Session** beitreten (Client v1.3.0+): alle spielen hörbar synchron, jedes steuert, Volume/Mute pro Gerät. Server = Source of Truth, komplett **im RAM** (`src/swingmusic/lib/groupsession.py`, pure Logik ohne Flask/DB — unit-testbar mit injizierter Uhr). HTTP-Adapter: `src/swingmusic/api/devicesync.py` (alle POST unter `/devicesync`: register/poll/command/queue-set/resolve/join/leave). Persistent nur die Geräte-Registry (`DeviceTable` in `db/userdata.py`).
+
+Kernmechanik: Transport-Mutationen (play/pause/seek/track_change) werden **geplant** (`execute_at = now + LEAD_MS 1500`) und wirken auf ALLE Member inkl. Initiator gleichzeitig (Clients rechnen Server-Zeit via Cristian-Offset in lokale Zeit um). Versionierter Snapshot (Delta nur bei `known_version`-Sprung), targeted Commands (`set_volume/set_mute/join_invite/play_here`) nur ans Zielgerät (TTL 15 s wegen 5-s-Solo-Kadenz). Reaper-Cron (alle 2 s) räumt Stale-Member (5 s offline) und leere Sessions; Neustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück. Pair-Redeem (`GET /auth/pair`) hat eine `setcookie`-Option für den QR-Deep-Link-Login des Webclients.
+
+**⚠️ bjoern-Disziplin:** `/devicesync/poll` (1 s pro joined Gerät) ist strikt RAM-only — KEINE DB-Writes, kein blocking I/O im Poll-Pfad (DB nur bei register/leave). Langlebige Verbindungen (WS/SSE) bleiben tabu; ein späterer Push-Kanal müsste als Sidecar laufen.
