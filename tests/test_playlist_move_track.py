@@ -118,11 +118,20 @@ class TestRemoveTrackhashes:
         assert remove_trackhashes(["a", "b", "c"], [{"trackhash": "b", "index": 1}]) == ["a", "c"]
 
     def test_removes_even_when_the_index_hint_is_stale(self):
-        # THE BUG: the client index counts resolved tracks, the stored list also
+        # THE BUG: the client index counts RESOLVED tracks, the stored list also
         # holds orphans -> the old `index()==index` guard silently removed nothing
         # while still answering 200/"Done".
+        # Stored ["orphan", "a", "b", "c"] resolves to ["a", "b", "c"], so the
+        # client sends index 1 for "b" while its stored index is 2.
         stored = ["orphan", "a", "b", "c"]
-        assert remove_trackhashes(stored, [{"trackhash": "b", "index": 2}]) == ["orphan", "a", "c"]
+        assert remove_trackhashes(stored, [{"trackhash": "b", "index": 1}]) == ["orphan", "a", "c"]
+
+    def test_orphan_shifted_index_hint_never_picks_the_wrong_track(self):
+        # The stale hint must not be trusted as a position either: index 1 points
+        # at "a" in the stored list, but the client meant "b".
+        stored = ["orphan", "a", "b", "c"]
+        result = remove_trackhashes(stored, [{"trackhash": "b", "index": 1}])
+        assert "a" in result
 
     def test_removes_several_tracks(self):
         stored = ["a", "b", "c", "d"]
