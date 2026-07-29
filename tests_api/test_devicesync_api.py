@@ -182,6 +182,52 @@ def test_queue_set_non_member_rejected_member_ok_and_delta(ds):
     assert "state" not in poll_same
 
 
+def test_queue_set_accepts_fractional_position(ds):
+    """
+    Regression: the client sends `audio.currentTime * 1000`, which is fractional.
+    A strict int field rejected it with 422, so the group queue never reached the
+    server whenever a device joined while a track was playing — every later
+    track_change then failed with "queue is empty".
+    """
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        json={
+            "device_id": "dev-a",
+            "trackhashes": ["h1", "h2"],
+            "from": {"type": "album"},
+            "currentindex": 0,
+            "playing": True,
+            "position_ms": 3213.456,
+            "repeat": "all",
+        },
+    )
+
+    assert res.status_code == 200
+    # Rounded to whole milliseconds for the anchor math.
+    assert res.get_json()["command"]["payload"]["position_ms"] == 3213
+
+    poll = _poll(ds, "dev-a", known_version=0)
+    assert poll["state"]["trackhashes"] == ["h1", "h2"]
+    assert poll["state"]["anchor"]["position_ms"] == 3213
+
+
+def test_seek_command_accepts_fractional_position(ds):
+    """Transport payload positions are fractional too — normalise, don't reject."""
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/command",
+        json={"device_id": "dev-a", "type": "seek", "payload": {"position_ms": 9876.54}},
+    )
+
+    assert res.status_code == 200
+    assert res.get_json()["command"]["payload"]["position_ms"] == 9877
+
+
 def test_queue_set_caps_trackhashes(ds):
     _register(ds, "dev-a")
     ds.client.post("/devicesync/join", json={"device_id": "dev-a"})

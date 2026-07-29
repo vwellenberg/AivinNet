@@ -72,7 +72,11 @@ class QueueSetBody(BaseModel):
     from_: dict[str, Any] = Field(alias="from", description="The client's 'from' descriptor for the queue")
     currentindex: int = Field(description="Index of the current track within the queue")
     playing: bool = Field(description="Whether playback should be playing after the swap")
-    position_ms: int = Field(0, description="Playhead position of the current track")
+    # float, NOT int: the playhead position comes from `audio.currentTime * 1000`
+    # and is fractional. A strict int field rejected every queue-set sent while
+    # a track was playing (pydantic `int_from_float` -> 422), so the group queue
+    # silently never reached the server. Accept the real shape and round here.
+    position_ms: float = Field(0, description="Playhead position of the current track (ms, may be fractional)")
     repeat: str = Field("all", description="Repeat mode ('all' / 'one' / 'off')")
 
 
@@ -122,6 +126,11 @@ def command(body: CommandBody):
     if ctype in TRANSPORT_TYPES:
         payload = dict(body.payload)
 
+        # Positions arrive from `audio.currentTime * 1000` and can be fractional;
+        # normalise so the anchor math stays in whole milliseconds.
+        if isinstance(payload.get("position_ms"), (int, float)):
+            payload["position_ms"] = round(payload["position_ms"])
+
         if ctype == "track_change":
             state = manager.snapshot(userid, body.device_id, known_version=-1).get("state")
             queue_len = len(state["trackhashes"]) if state else 0
@@ -168,7 +177,7 @@ def queue_set(body: QueueSetBody):
         body.from_,
         currentindex,
         body.playing,
-        body.position_ms,
+        round(body.position_ms),
         body.repeat,
     )
     if cmd is None:
