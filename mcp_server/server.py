@@ -108,6 +108,33 @@ def get_playlist(playlist_id: int) -> dict:
 
 
 @mcp.tool()
+def move_playlist_track(playlist_id: int, trackhash: str, before_trackhash: str | None = None) -> dict:
+    """
+    Move one track inside a playlist, anchored on its new neighbour.
+
+    The track is placed immediately BEFORE `before_trackhash`; pass
+    before_trackhash=None (the default) to move it to the end of the playlist.
+    Use `get_playlist` first to read the trackhashes and their current order.
+
+    This is the safe way to reorder: the server does the list surgery on its own
+    stored list, so unresolved/orphaned entries keep their place and nothing can
+    be dropped. It is also the exact operation the web UI's drag-and-drop
+    performs, so it doubles as a way to test that path without a browser.
+    """
+    r = _api(
+        "PUT",
+        f"/playlists/{playlist_id}/move-track",
+        json={"trackhash": trackhash, "before_trackhash": before_trackhash},
+    )
+
+    if r.ok:
+        return {"ok": True, "moved": trackhash, "before": before_trackhash}
+
+    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+    return {"ok": False, "status": r.status_code, "error": body}
+
+
+@mcp.tool()
 def sort_playlist_tracks(playlist_id: int, by: str = "title", reverse: bool = False) -> dict:
     """
     Sort a playlist's tracks and save the new order.

@@ -8,6 +8,7 @@ Lets an MCP client (e.g. Claude) manage AivinNet playlists via tools.
 | --- | --- |
 | `list_playlists` | All playlists (id, name, count, pinned) |
 | `get_playlist(playlist_id)` | Playlist info + tracks |
+| `move_playlist_track(playlist_id, trackhash, before_trackhash)` | Move one track before another (`None` = to the end) — same operation as the UI's drag-and-drop |
 | `sort_playlist_tracks(playlist_id, by, reverse)` | Sort tracks by `title`/`artist`/`album`/`duration` and save the order |
 | `create_playlist(name)` | New empty playlist |
 | `rename_playlist(playlist_id, name)` | Rename (name only) |

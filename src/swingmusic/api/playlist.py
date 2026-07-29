@@ -19,7 +19,11 @@ from swingmusic.lib import playlistlib
 from swingmusic.lib.albumslib import sort_by_track_no
 from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
-from swingmusic.lib.playlist_maintenance import prune_added_at, prune_orphan_trackhashes
+from swingmusic.lib.playlist_maintenance import (
+    TrackhashNotInPlaylist,
+    prune_orphan_trackhashes,
+    trackhash_diff,
+)
 from swingmusic.lib.sortlib import sort_tracks
 from swingmusic.models.playlist import Playlist
 from swingmusic.serializers.playlist import serialize_for_card
@@ -459,6 +463,37 @@ def remove_tracks_from_playlist(path: PlaylistIDPath, body: RemoveTracksFromPlay
     return {"msg": "Done"}, 200
 
 
+class MoveTrackBody(BaseModel):
+    trackhash: str = Field(..., description="The trackhash to move")
+    before_trackhash: str | None = Field(
+        default=None,
+        description="Move the track immediately before this trackhash. null/omitted moves it to the end.",
+    )
+
+
+@api.put("/<playlistid>/move-track")
+def move_playlist_track(path: PlaylistIDPath, body: MoveTrackBody):
+    """
+    Move one track within a playlist, anchored on its new neighbour.
+
+    Prefer this over `/reorder` for drag-and-drop: the payload is O(1) and the
+    server does the list surgery on its own stored list, so a client that has
+    only paginated in part of the playlist — and that never sees orphan
+    trackhashes at all — cannot truncate it.
+    """
+    playlist = PlaylistTable.get_by_id(int(path.playlistid))
+
+    if playlist is None:
+        return {"error": "Playlist not found"}, 404
+
+    try:
+        PlaylistTable.move_in_playlist(int(path.playlistid), body.trackhash, body.before_trackhash)
+    except TrackhashNotInPlaylist as e:
+        return {"error": str(e)}, 400
+
+    return {"msg": "Done"}, 200
+
+
 class ReorderTracksBody(BaseModel):
     trackhashes: list[str] = Field(..., description="The new ordered list of trackhashes")
 
@@ -466,27 +501,37 @@ class ReorderTracksBody(BaseModel):
 @api.put("/<playlistid>/reorder")
 def reorder_playlist_tracks(path: PlaylistIDPath, body: ReorderTracksBody):
     """
-    Reorder playlist tracks
+    Replace the playlist's track order with the submitted list.
+
+    The submission MUST be a permutation of what the playlist already stores —
+    anything else is refused with 409. This endpoint replaces the stored list
+    wholesale, so a caller that submits only the hashes it happens to know about
+    used to delete the rest silently (a paginated client cut a 120-track
+    playlist down to 44 with a single drag, and orphan hashes were invisible to
+    it entirely). Moving a single track is `/move-track`; dropping tracks on
+    purpose is `/remove-tracks` or `/prune-orphans`.
     """
     playlist = PlaylistTable.get_by_id(int(path.playlistid))
 
     if playlist is None:
         return {"error": "Playlist not found"}, 404
 
-    values: dict[str, Any] = {"trackhashes": body.trackhashes}
+    dropped, added = trackhash_diff(body.trackhashes, playlist.trackhashes)
 
-    # A reorder normally keeps the same track set, but if the submitted list
-    # drops hashes, keep the added_at map free of stale keys like the other
-    # write paths (remove-tracks, prune-orphans) do.
-    extra = playlist.extra or {}
-    added_at = extra.get("added_at")
-    if added_at:
-        pruned = prune_added_at(added_at, body.trackhashes)
-        if pruned != added_at:
-            extra["added_at"] = pruned
-            values["extra"] = extra
+    if dropped or added:
+        return {
+            "error": (
+                "Refusing to reorder: the submitted list is not a permutation of the stored one "
+                f"({len(dropped)} track(s) would be dropped, {len(added)} added). "
+                "Use /move-track to move a track, or /remove-tracks to remove tracks."
+            ),
+            "dropped": dropped,
+            "added": added,
+        }, 409
 
-    PlaylistTable.update_one(int(path.playlistid), values)
+    # Permutation-only, so the trackhash SET is unchanged and the added_at map
+    # can never go stale here.
+    PlaylistTable.update_one(int(path.playlistid), {"trackhashes": body.trackhashes})
     return {"msg": "Done"}, 200
 
 
