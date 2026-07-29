@@ -11,6 +11,7 @@ from swingmusic.lib.groupsession import (
     COMMAND_GRACE_MS,
     LEAD_MS,
     OFFLINE_MS,
+    REAP_MS,
     TARGETED_COMMAND_TTL_MS,
     GroupSessionManager,
 )
@@ -179,7 +180,7 @@ def test_reap_removes_stale_member_recomputes_leader_and_deletes_empty():
     assert mgr.compute_leader(USER) == A
 
     # Advance past OFFLINE_MS, but keep B alive via touch.
-    clock["t"] += OFFLINE_MS + 1
+    clock["t"] += REAP_MS + 1
     mgr.touch(USER, B)
     v_before = current_version(mgr, device=B)
 
@@ -191,11 +192,35 @@ def test_reap_removes_stale_member_recomputes_leader_and_deletes_empty():
     assert mgr.compute_leader(USER) == B
 
     # Now let B go stale too -> empty session is deleted.
-    clock["t"] += OFFLINE_MS + 1
+    clock["t"] += REAP_MS + 1
     removed2 = mgr.reap()
     assert (USER, B) in removed2
     assert USER not in mgr._sessions
     assert mgr.compute_leader(USER) is None
+
+
+def test_briefly_silent_device_shows_offline_but_keeps_its_membership():
+    """
+    Regression: reaping used the same 5 s window as the offline indicator, so a
+    phone whose screen turned off (browser throttles its poll timer) was kicked
+    out of the group within seconds. Presence and membership must decay on
+    different clocks.
+    """
+    mgr, clock = make_manager()
+    mgr.register(USER, A, "A", "desktop")
+    mgr.join(USER, A)
+
+    clock["t"] += OFFLINE_MS + 1000  # silent past the offline indicator...
+    assert mgr.reap() == []  # ...but nowhere near the reap window
+
+    snap = mgr.snapshot(USER, A, known_version=0)
+    assert snap["joined"] is True
+    assert snap["devices"][0]["online"] is False  # shown as offline
+    assert snap["devices"][0]["joined"] is True  # still in the group
+
+    # A poll from the woken device restores it fully.
+    mgr.touch(USER, A)
+    assert mgr.snapshot(USER, A, known_version=0)["devices"][0]["online"] is True
 
 
 def test_targeted_command_reaches_only_target_and_no_version_bump():

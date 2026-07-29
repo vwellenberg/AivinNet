@@ -31,8 +31,14 @@ from uuid import uuid4
 # simultaneously.
 LEAD_MS = 1500
 
-# A member/device is considered offline this long after its last poll.
+# A member/device is shown as offline this long after its last poll (UI only).
 OFFLINE_MS = 5000
+
+# ...but it is only DROPPED from the group after this much silence. The two are
+# deliberately different: a phone whose screen turns off (or whose tab is
+# backgrounded) gets its timers throttled hard by the browser, so a 5 s reap
+# window kicked real devices out of the group within seconds of pocketing them.
+REAP_MS = 30000
 
 # A command is kept around this long past its execution time before being
 # pruned, giving a late/slow poller a chance to still observe (and dedupe) it.
@@ -451,7 +457,7 @@ class GroupSessionManager:
 
     # --- maintenance --------------------------------------------------------
 
-    def reap(self, offline_ms: int = OFFLINE_MS) -> list[tuple[int, str]]:
+    def reap(self, offline_ms: int = REAP_MS) -> list[tuple[int, str]]:
         """
         Drop stale members (no poll within ``offline_ms``) and empty sessions,
         plus forget presence entries older than ``PRESENCE_TTL_MS``.
