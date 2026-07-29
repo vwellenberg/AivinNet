@@ -30,7 +30,14 @@ from swingmusic.db.utils import (
     tracklog_to_dataclass,
     user_to_dataclass,
 )
-from swingmusic.lib.playlist_maintenance import merge_trackhashes, prune_added_at, record_added_at
+from swingmusic.lib.playlist_maintenance import (
+    TrackhashNotInPlaylist,
+    merge_trackhashes,
+    move_trackhash,
+    prune_added_at,
+    record_added_at,
+    remove_trackhashes,
+)
 from swingmusic.models.mix import Mix
 from swingmusic.utils.auth import get_current_userid, hash_password
 
@@ -454,13 +461,38 @@ class PlaylistTable(Base):
         return row.trackhashes, row.extra
 
     @classmethod
+    def move_in_playlist(cls, id: int, trackhash: str, before_trackhash: str | None):
+        """
+        Move a single trackhash so it sits immediately before `before_trackhash`
+        (or at the end when that is None).
+
+        The trackhash SET is unchanged, so `extra["added_at"]` needs no pruning.
+        Raises `TrackhashNotInPlaylist` when either anchor is unknown.
+        """
+        dbtrackhashes = cls.get_trackhashes(id)
+
+        if not dbtrackhashes:
+            raise TrackhashNotInPlaylist(trackhash)
+
+        moved = move_trackhash(dbtrackhashes, trackhash, before_trackhash)
+
+        return next(
+            cls.execute(
+                update(cls).where((cls.id == id) & (cls.userid == get_current_userid())).values(trackhashes=moved),
+                commit=True,
+            )
+        )
+
+    @classmethod
     def remove_from_playlist(cls, id: int, trackhashes: list[dict[str, Any]]):
         # INFO: Get db trackhashes
         dbtrackhashes, extra = cls.get_trackhashes_and_extra(id)
         if dbtrackhashes:
-            for item in trackhashes:
-                if dbtrackhashes.index(item["trackhash"]) == item["index"]:
-                    dbtrackhashes.remove(item["trackhash"])
+            # Removal is by trackhash; the client-supplied index is only a hint
+            # for picking between duplicates. Matching on the index alone made
+            # every removal a silent no-op as soon as the playlist held an orphan
+            # hash (client index counts resolved tracks, the stored list doesn't).
+            dbtrackhashes = remove_trackhashes(dbtrackhashes, trackhashes)
 
             values: dict[str, Any] = {"trackhashes": dbtrackhashes}
 

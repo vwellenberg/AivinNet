@@ -30,11 +30,19 @@ for mod_name in [
         sys.modules[mod_name] = MagicMock()
 
 
+from swingmusic.lib.playlist_maintenance import trackhash_diff  # noqa: E402
+
+
 def _reorder_logic(playlist_table, playlist_id: int, trackhashes: list[str]):
     """Extracted reorder logic matching the API endpoint."""
     playlist = playlist_table.get_by_id(playlist_id)
     if playlist is None:
         return {"error": "Playlist not found"}, 404
+
+    dropped, added = trackhash_diff(trackhashes, playlist.trackhashes)
+    if dropped or added:
+        return {"error": "not a permutation", "dropped": dropped, "added": added}, 409
+
     playlist_table.update_one(playlist_id, {"trackhashes": trackhashes})
     return {"msg": "Done"}, 200
 
@@ -62,6 +70,39 @@ class TestReorderEndpointLogic:
         table = self._make_table(playlist=self._make_playlist(["a", "b", "c"]))
         _, status = _reorder_logic(table, 1, ["c", "a", "b"])
         assert status == 200
+
+    # --- data-loss regression ---------------------------------------------
+    # A paginated client submitted only the tracks it had loaded; the endpoint
+    # replaced the stored list with them and deleted the rest (120 -> 44 tracks
+    # measured on a live server). A partial submit must now be refused.
+
+    def test_truncated_submission_is_refused(self):
+        stored = [f"h{i}" for i in range(120)]
+        table = self._make_table(playlist=self._make_playlist(stored))
+        result, status = _reorder_logic(table, 1, stored[:38])
+        assert status == 409
+        assert len(result["dropped"]) == 82
+
+    def test_truncated_submission_does_not_write(self):
+        stored = [f"h{i}" for i in range(120)]
+        table = self._make_table(playlist=self._make_playlist(stored))
+        _reorder_logic(table, 1, stored[:38])
+        table.update_one.assert_not_called()
+
+    def test_submission_missing_only_an_orphan_hash_is_refused(self):
+        # The client cannot see orphan hashes at all, so a full-list submit from
+        # it is still lossy by exactly those entries.
+        stored = ["orphan", "a", "b", "c"]
+        table = self._make_table(playlist=self._make_playlist(stored))
+        result, status = _reorder_logic(table, 1, ["c", "b", "a"])
+        assert status == 409
+        assert result["dropped"] == ["orphan"]
+
+    def test_submission_with_a_foreign_hash_is_refused(self):
+        table = self._make_table(playlist=self._make_playlist(["a", "b"]))
+        result, status = _reorder_logic(table, 1, ["a", "b", "smuggled"])
+        assert status == 409
+        assert result["added"] == ["smuggled"]
 
     def test_calls_update_with_new_order(self):
         table = self._make_table(playlist=self._make_playlist(["a", "b", "c"]))
