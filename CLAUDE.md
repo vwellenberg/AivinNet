@@ -66,6 +66,15 @@ Pro Aufgabe/Issue:
 
 ## Architektur-Hinweise
 
+- **⚠️ PLAYLIST-SCHREIBPFADE: nie „ganze Liste ersetzen", nie auf Client-Indizes verlassen.** Zwei echte Datenverlust-Bugs kamen aus derselben Wurzel — der Client kennt die gespeicherte Trackhash-Liste NICHT:
+  1. Er lädt nur eine **Seite** (~38 Zeilen von 993).
+  2. Er sieht **Orphan-Hashes gar nicht** (Hashes ohne auflösbaren Track) — `GET /playlists/<id>` liefert nur auflösbare Tracks, also ist `len(tracks) < info.count`.
+
+  Daraus folgt: **jeder Client-Index ist ein Index in die aufgelöste Teilliste, nie in die gespeicherte Liste**, und jede vom Client gesendete „vollständige" Liste ist unvollständig.
+  - `PUT /<id>/reorder` ersetzte die gespeicherte Liste 1:1 → ein Drag in einer 120-Track-Playlist machte daraus **44 Tracks** (HTTP 200, „Done"). Der Endpoint lehnt jetzt alles ab, was **keine Permutation** des Gespeicherten ist (409, `trackhash_diff`).
+  - `remove_from_playlist` prüfte `dbtrackhashes.index(hash) == item["index"]` → ein einziger Orphan davor und die Löschung war ein **stiller No-op mit 200/„Done"**. Der Index ist jetzt nur noch Hinweis zur Unterscheidung von Duplikaten.
+  - **Muster für neue Mutationen:** Anker-basiert (`PUT /<id>/move-track` mit `{trackhash, before_trackhash}`) oder positions-explizit pro Item (`/sidebar-order`, `/playlistfolders/reorder` — „unlisted items keep their position"). Die Listen-Chirurgie macht der Server auf seiner eigenen Liste. Pure Helfer dafür in `lib/playlist_maintenance.py`, dort auch testen.
+  - MCP-Pendant: `move_playlist_track()` — damit ist der Drag-and-Drop-Pfad ohne Browser testbar. `sort_playlist_tracks()` verweigert bei Orphans (war die einzige Stelle, die die Falle kannte).
 - **⚠️ IPv6 des Servers ist kaputt (DS-Lite) — gilt auch für Python!** Outbound-`requests` hängen minutenlang, weil urllib3 alle aufgelösten Adressen (AAAA zuerst) sequenziell mit vollem Connect-Timeout probiert; `timeout=` deckt das nicht. Und weil bjoern evented/single-threaded ist, friert dabei die GESAMTE App ein (auch `/`). Fix: `utils/net.py::prefer_ipv4()` wird in `app_builder.config_app` aufgerufen (Pendant zu `NODE_OPTIONS=--dns-result-order=ipv4first` für node). Neue Outbound-Calls zusätzlich mit harter Deadline um Futures absichern (siehe `lib/coverart.py::search_covers`, `FETCH_DEADLINE_SECONDS`) und Pools mit `shutdown(wait=False)` schließen.
 - `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen
 - `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher CI-Tests mit `uvx` (minimale deps) statt `uv run`/voller Installation
