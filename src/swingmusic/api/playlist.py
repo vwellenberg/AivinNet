@@ -21,6 +21,7 @@ from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
 from swingmusic.lib.playlist_maintenance import (
     TrackhashNotInPlaylist,
+    prune_added_at,
     prune_orphan_trackhashes,
     trackhash_diff,
 )
