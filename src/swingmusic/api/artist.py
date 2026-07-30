@@ -4,8 +4,8 @@ Contains all the artist(s) routes.
 
 import math
 import random
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
