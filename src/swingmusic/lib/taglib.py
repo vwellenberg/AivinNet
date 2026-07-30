@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 from swingmusic.config import UserConfig
+from swingmusic.lib.albumhash import album_hash
 from swingmusic.settings import Defaults, Paths
 from swingmusic.utils.hashing import create_hash
 from swingmusic.utils.parsers import split_artists
@@ -350,22 +351,12 @@ def get_tags(filepath: str, config: UserConfig) -> dict:
 
     # generate hash
     #
-    # The album tag is what identifies an album. When a file has none, the EMPTY
-    # STRING used to go into the hash — so every untagged file sharing an album
-    # artist collapsed into a single album. Measured on a real library: 4043
-    # tracks from 208 different folders in one album, all showing one cover.
-    #
-    # The folder is the honest fallback. Files that sit together in a directory
-    # are one album far more often than they are 4043 tracks of "Unknown".
-    #
-    # Deliberately NOT `metadata["album"]`: when the tag is missing that field
-    # has already been filled in from the FILENAME a few lines above, so it
-    # holds the track's own title. Hashing it would give every untagged file an
-    # album of its own — the same error mirrored, and it would change the
-    # trackhash (which is derived from `metadata["album"]`) and with it every
-    # playlist, favourite and scrobble that points at these tracks.
-    album_key = tags.album or metadata["folder"]
-    metadata["albumhash"] = create_hash(album_key, metadata.get("albumartists", ""))
+    # The rule lives in lib/albumhash.py, not here: the repair migration has to
+    # recognise rows written by the OLD rule, and the two only stay in step if
+    # they sit next to each other.
+    metadata["albumhash"] = album_hash(
+        tags.album, metadata["folder"], metadata.get("albumartists", "")
+    )
 
     metadata["trackhash"] = create_hash(
         metadata.get("artists", ""),

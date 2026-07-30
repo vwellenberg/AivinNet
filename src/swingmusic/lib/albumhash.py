@@ -1,0 +1,47 @@
+"""
+How a track is assigned to an album.
+
+Two rules, kept in one place because they have to agree with each other: the
+scanner writes hashes with `album_hash`, and the repair migration finds rows to
+fix with `broken_album_hash`. If those two drifted apart, the migration would
+either miss affected rows or rewrite rows the scanner immediately re-breaks.
+
+Deliberately free of database imports so both the scanner and the tests can use
+it without dragging in the ORM.
+"""
+
+from swingmusic.utils.hashing import create_hash
+
+
+def album_hash(album_tag: str | None, folder: str, albumartists: str) -> str:
+    """
+    The album a track belongs to.
+
+    The album tag identifies the album. When a file has none, the FOLDER stands
+    in: files that sit together in a directory are one album far more often than
+    they are thousands of tracks called "Unknown".
+
+    What must never go in here is the track's resolved album *title*: when the
+    tag is missing, the scanner fills that field from the FILENAME, so it holds
+    the track's own title. Hashing it would give every untagged file an album of
+    its own — and it would change the trackhash (derived from the same field),
+    taking every playlist, favourite and scrobble that points at those tracks
+    with it.
+    """
+    return create_hash(album_tag or folder, albumartists)
+
+
+def broken_album_hash(albumartists: str) -> str:
+    """
+    The hash a track was given before the fallback existed: the EMPTY STRING
+    joined with the album artist.
+
+    This is the signature the repair uses to recognise an affected row. The raw
+    tag is long gone by the time a row is in the database, but the hash it
+    produced is still there — and it is unmistakable, because no real album tag
+    hashes to the same value as no tag at all.
+
+    Measured on a real library before the fix: 4718 tracks matched it, 4043 of
+    them in one album spanning 208 different folders.
+    """
+    return create_hash("", albumartists)

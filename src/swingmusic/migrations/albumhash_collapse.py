@@ -23,23 +23,13 @@ from sqlalchemy import delete, select, update
 from swingmusic.db.engine import DbEngine
 from swingmusic.db.libdata import TrackTable
 from swingmusic.db.userdata import FavoritesTable
-from swingmusic.utils.hashing import create_hash
+from swingmusic.lib.albumhash import album_hash, broken_album_hash
 
 # `swingmusic.logger.log` is None until `setup_logger()` has run. In the app it
 # has, but this repair is also useful to call from a shell against a copy of a
 # database — and there it crashed on the very last line, after the writes had
 # already been committed. A stdlib logger is never None.
 logger = logging.getLogger(__name__)
-
-
-def broken_albumhash(albumartists: str) -> str:
-    """
-    The hash a track got when its album tag was empty: the empty string joined
-    with the album artist. This is the signature that identifies an affected
-    track — the raw tag is long gone by the time it reaches the database, but
-    the hash it produced is still recognisable.
-    """
-    return create_hash("", albumartists)
 
 
 def repair_collapsed_albumhashes() -> dict[str, int]:
@@ -66,10 +56,12 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
         new_hashes: set[str] = set()
 
         for id_, albumartists, albumhash, folder in rows:
-            if albumhash != broken_albumhash(albumartists):
+            if albumhash != broken_album_hash(albumartists):
                 continue
 
-            new_hash = create_hash(folder, albumartists)
+            # No album tag, by definition of the signature above — so the
+            # scanner's rule reduces to the folder fallback.
+            new_hash = album_hash(None, folder, albumartists)
 
             # A single-folder collapse is already correct — re-hashing it would
             # only churn rows and invalidate favourites for no gain.

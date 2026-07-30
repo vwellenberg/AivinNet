@@ -16,17 +16,15 @@ repair fixes rows the scanner will re-break on the next scan:
 
 import pytest
 
-from swingmusic.migrations.albumhash_collapse import broken_albumhash
+from swingmusic.lib.albumhash import album_hash, broken_album_hash
 from swingmusic.utils.hashing import create_hash
 
 
-def scanner_albumhash(album_tag: str, folder: str, albumartists: str) -> str:
-    """
-    What `lib/taglib.py` now computes. Kept as a local mirror rather than
-    imported: taglib pulls in the tag reader and the whole config stack, and the
-    rule under test is this one line.
-    """
-    return create_hash(album_tag or folder, albumartists)
+# The real rule, not a copy of it. Both live in `lib/albumhash.py` precisely so
+# a test can reach them without importing the tag reader or the ORM — an earlier
+# draft imported them from the migration module and took the whole database
+# layer with it, which the unit-test job does not have.
+scanner_albumhash = album_hash
 
 
 class TestSignature:
@@ -40,7 +38,7 @@ class TestSignature:
 
     def test_signature_matches_what_the_old_rule_produced(self):
         for artist in ["Unknown", "Red Hot Chili Peppers", ""]:
-            assert broken_albumhash(artist) == create_hash("", artist)
+            assert broken_album_hash(artist) == create_hash("", artist)
 
     def test_signature_does_not_match_a_properly_tagged_album(self):
         """
@@ -48,7 +46,7 @@ class TestSignature:
         from touching rows it has no business touching.
         """
         tagged = scanner_albumhash("Blood Sugar Sex Magik", "/music/rhcp", "Red Hot Chili Peppers")
-        assert tagged != broken_albumhash("Red Hot Chili Peppers")
+        assert tagged != broken_album_hash("Red Hot Chili Peppers")
 
 
 class TestRegrouping:
@@ -61,8 +59,8 @@ class TestRegrouping:
 
         assert one != two
         # ...and neither is the collapsed bucket any more.
-        assert one != broken_albumhash(artist)
-        assert two != broken_albumhash(artist)
+        assert one != broken_album_hash(artist)
+        assert two != broken_album_hash(artist)
 
     def test_files_in_the_same_folder_stay_one_album(self):
         artist = "Unknown"
@@ -107,7 +105,7 @@ class TestIdempotence:
         artist = "Unknown"
         repaired = scanner_albumhash("", "/music/games/Hearthstone", artist)
 
-        assert repaired != broken_albumhash(artist)
+        assert repaired != broken_album_hash(artist)
 
     def test_a_single_folder_bucket_is_left_alone(self):
         """
@@ -118,4 +116,4 @@ class TestIdempotence:
         artist = "Unknown"
         folder = ""  # degenerate: no folder -> the fallback IS the empty string
 
-        assert scanner_albumhash("", folder, artist) == broken_albumhash(artist)
+        assert scanner_albumhash("", folder, artist) == broken_album_hash(artist)
