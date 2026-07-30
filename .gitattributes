@@ -1,0 +1,15 @@
+# This repo is edited on Windows but only ever runs on Linux (servers, CI
+# runners, the AppImage). Shell scripts and the `run:` blocks of workflows are
+# executed verbatim, so a CRLF that sneaks into the repo becomes a literal
+# carriage return in the command line — `$'\r': command not found`, or a
+# trailing \r glued to the last exec argument. Normalise text to LF on commit
+# and check it out as LF everywhere.
+* text=auto eol=lf
+
+# Binary assets must never be touched by EOL conversion.
+*.png binary
+*.ico binary
+*.webp binary
+*.svg text eol=lf
+*.zip binary
+*.db binary
