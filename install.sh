@@ -201,6 +201,9 @@ fi
 # --------------------------------------------------------------- installing ---
 
 if [ -n "$MUSIC" ]; then
+	# A quote or backslash would break the hand-written config.json below, so
+	# reject those paths instead of mis-escaping them.
+	# shellcheck disable=SC1003  # '\' is a literal backslash to match, not an escape.
 	case "$MUSIC" in
 	*'"'* | *'\'*) die "--music path must not contain quotes or backslashes." ;;
 	/*) ;;
