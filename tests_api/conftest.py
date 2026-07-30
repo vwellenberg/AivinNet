@@ -45,18 +45,29 @@ def playlist_db():
     """
     from unittest.mock import patch
 
+    from sqlalchemy import delete, insert, select
+
     from swingmusic.db import create_all_tables
     from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import PlaylistTable
+    from swingmusic.db.userdata import PlaylistTable, UserTable
 
     create_all_tables()
+
+    # `playlist.userid` is a foreign key to `user.id` and the engine runs with
+    # PRAGMA foreign_keys=ON, so a playlist cannot be inserted before its owner
+    # exists. Without this the module passed only when some OTHER test module
+    # happened to create a user first — green for the wrong reason, and red the
+    # moment it ran alone.
+    with DbEngine.manager(commit=True) as session:
+        for uid, name in ((1, "spec-user-1"), (2, "spec-user-2")):
+            exists = session.execute(select(UserTable.id).where(UserTable.id == uid)).first()
+            if not exists:
+                session.execute(insert(UserTable).values(id=uid, username=name, password="x", roles=[], extra={}))
 
     with patch("swingmusic.db.userdata.get_current_userid", return_value=1) as userid:
         yield PlaylistTable, userid
 
     # Leave no rows behind for the next test.
-    from sqlalchemy import delete
-
     with DbEngine.manager(commit=True) as session:
         session.execute(delete(PlaylistTable))
 
