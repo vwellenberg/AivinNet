@@ -20,6 +20,8 @@ is the only way to slip through, and the roster test below makes that visible to
 is its entire job.
 """
 
+import inspect
+
 import pytest
 
 from swingmusic.lib import playlist_maintenance as pm
@@ -108,10 +110,12 @@ class TestMutationRosterIsComplete:
     }
 
     def test_no_unregistered_mutation_helper(self):
+        # Functions only: the module's exception class is callable but is not a
+        # mutation helper.
         public = {
             name
-            for name in dir(pm)
-            if not name.startswith("_") and callable(getattr(pm, name)) and getattr(pm, name).__module__ == pm.__name__
+            for name, obj in vars(pm).items()
+            if not name.startswith("_") and inspect.isfunction(obj) and obj.__module__ == pm.__name__
         }
         assert public <= self.KNOWN, (
             f"New helper(s) {public - self.KNOWN} in playlist_maintenance. If it rewrites a "
