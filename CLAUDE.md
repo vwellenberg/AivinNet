@@ -162,7 +162,11 @@ sudo -n systemctl restart subspaceradio
 
 ## Nächste Schritte
 
-Siehe [ROADMAP.md](ROADMAP.md). Frontend-Änderungen laufen im Webclient-Fork (SubspaceRadio-Client).
+Der Backlog lebt **ausschließlich** in den GitHub-Issues — und zwar im **Client**-Repo, auch für
+Backend-Themen: `gh issue list --repo vwellenberg/AivinNet-Client`. Keine zweite Liste im Repo anlegen;
+die frühere `ROADMAP.md` ist genau daran gescheitert (sie führte „Manuelle Metadaten-Bearbeitung" noch als
+offen, während das Feature längst live war). Frontend-Änderungen laufen im Webclient-Fork
+(SubspaceRadio-Client).
 
 ## Device Sync / Multiroom (Group Sessions)
 
