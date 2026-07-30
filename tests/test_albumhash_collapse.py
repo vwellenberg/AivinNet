@@ -19,7 +19,6 @@ import pytest
 from swingmusic.lib.albumhash import album_hash, broken_album_hash
 from swingmusic.utils.hashing import create_hash
 
-
 # The real rule, not a copy of it. Both live in `lib/albumhash.py` precisely so
 # a test can reach them without importing the tag reader or the ORM — an earlier
 # draft imported them from the migration module and took the whole database

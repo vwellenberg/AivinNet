@@ -87,9 +87,7 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
         for new_hash, ids in by_hash.items():
             for start in range(0, len(ids), 500):
                 conn.execute(
-                    update(TrackTable)
-                    .where(TrackTable.id.in_(ids[start : start + 500]))
-                    .values(albumhash=new_hash)
+                    update(TrackTable).where(TrackTable.id.in_(ids[start : start + 500])).values(albumhash=new_hash)
                 )
 
         report["tracks"] = len(updates)
