@@ -32,7 +32,11 @@ from swingmusic.lib.playlist_maintenance import (
     remove_trackhashes,
     trackhash_diff,
 )
-from swingmusic.lib.reference_migration import migrate_added_at, replace_trackhash_in_list
+from swingmusic.lib.reference_migration import (
+    migrate_added_at,
+    playlist_migration_values,
+    replace_trackhash_in_list,
+)
 
 # A stored list as the DB holds it: resolvable tracks with an unresolvable hash
 # wedged between them, so stored indices and resolved indices disagree.
@@ -187,3 +191,45 @@ class TestAddedAtFollowsTrackhashRewrites:
         # Only the edited identity is touched; an orphan's date stays put.
         migrated = migrate_added_at({ORPHAN: 100, "b": 1000}, "b", "b-new")
         assert migrated[ORPHAN] == 100
+
+
+class TestPlaylistMigrationValues:
+    """
+    The per-playlist decision inside `migrate_track_references`. This is where the
+    bug actually lived — the list was rewritten and the parallel `added_at` map was
+    forgotten — so it is asserted at the level that writes BOTH columns, not just
+    at the level of each helper.
+    """
+
+    def test_rewrites_the_list_and_the_added_at_map_together(self):
+        values = playlist_migration_values(STORED, {"added_at": {"b": 1000}}, "b", "b-new")
+        assert values["trackhashes"] == ["a", ORPHAN, "b-new", "c", "d"]
+        assert values["extra"]["added_at"] == {"b-new": 1000}
+
+    def test_unaffected_playlist_returns_none(self):
+        assert playlist_migration_values(STORED, {"added_at": {"b": 1}}, "not-here", "new") is None
+
+    def test_empty_playlist_returns_none(self):
+        assert playlist_migration_values([], {}, "b", "b-new") is None
+        assert playlist_migration_values(None, None, "b", "b-new") is None
+
+    def test_extra_is_omitted_when_nothing_in_it_changed(self):
+        # A playlist from before the added_at feature: rewrite the list only, and
+        # do not fabricate an extra payload.
+        values = playlist_migration_values(STORED, None, "b", "b-new")
+        assert "extra" not in values
+        assert values["trackhashes"] == ["a", ORPHAN, "b-new", "c", "d"]
+
+    def test_other_extra_keys_survive_the_migration(self):
+        values = playlist_migration_values(STORED, {"added_at": {"b": 1000}, "keepme": 7}, "b", "b-new")
+        assert values["extra"]["keepme"] == 7
+
+    def test_the_orphan_survives_a_tag_edit(self):
+        values = playlist_migration_values(STORED, {"added_at": {ORPHAN: 5, "b": 1000}}, "b", "b-new")
+        assert ORPHAN in values["trackhashes"]
+        assert values["extra"]["added_at"][ORPHAN] == 5
+
+    def test_does_not_mutate_the_input_extra(self):
+        extra = {"added_at": {"b": 1000}}
+        playlist_migration_values(STORED, extra, "b", "b-new")
+        assert extra == {"added_at": {"b": 1000}}

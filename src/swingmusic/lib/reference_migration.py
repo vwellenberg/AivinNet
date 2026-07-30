@@ -72,6 +72,35 @@ def migrate_added_at(added_at: dict[str, int] | None, old: str, new: str) -> dic
     return result
 
 
+def playlist_migration_values(
+    trackhashes: Sequence[str] | None,
+    extra: dict[str, Any] | None,
+    old: str,
+    new: str,
+) -> dict[str, Any] | None:
+    """
+    The column values needed to migrate ONE playlist, or None when it is not
+    affected.
+
+    Pulled out of the DB loop so the decision — which columns change, and that
+    ``extra["added_at"]`` changes *with* ``trackhashes`` — is testable without a
+    database. The original bug was exactly here: the list was rewritten and the
+    parallel map was forgotten, which no test of the list helper alone can catch.
+    """
+    if not trackhashes or old not in trackhashes:
+        return None
+
+    values: dict[str, Any] = {"trackhashes": replace_trackhash_in_list(trackhashes, old, new)}
+
+    added_at = (extra or {}).get("added_at")
+    if added_at:
+        migrated = migrate_added_at(added_at, old, new)
+        if migrated != added_at:
+            values["extra"] = {**(extra or {}), "added_at": migrated}
+
+    return values
+
+
 def favorite_migration_action(old_userid: int | None, new_userid: int | None) -> str:
     """
     Decide how to migrate the favorite of a single track identity, given the
@@ -126,17 +155,10 @@ def migrate_track_references(old_trackhash: str, new_trackhash: str) -> None:
         # rewritten in the same statement or the track loses its "date added".
         rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
         for playlist_id, trackhashes, extra in rows:
-            if not trackhashes or old_trackhash not in trackhashes:
+            values = playlist_migration_values(trackhashes, extra, old_trackhash, new_trackhash)
+
+            if values is None:
                 continue
-
-            values: dict[str, Any] = {
-                "trackhashes": replace_trackhash_in_list(trackhashes, old_trackhash, new_trackhash)
-            }
-
-            if extra and extra.get("added_at"):
-                migrated = migrate_added_at(extra["added_at"], old_trackhash, new_trackhash)
-                if migrated != extra["added_at"]:
-                    values["extra"] = {**extra, "added_at": migrated}
 
             session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
 
