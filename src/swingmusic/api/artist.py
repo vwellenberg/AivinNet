@@ -4,8 +4,8 @@ Contains all the artist(s) routes.
 
 import math
 import random
+from collections import defaultdict
 from datetime import datetime
-from itertools import groupby
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -131,12 +131,26 @@ def get_artist_albums(path: ArtistHashSchema, query: GetArtistAlbumsQuery):
     albumdict = {a.albumhash: a for a in albums}
 
     config = UserConfig()
-    albumgroups = groupby(tracks, key=lambda t: t.albumhash)
-    for albumhash, tracks in albumgroups:
+    # `itertools.groupby` only groups CONSECUTIVE runs, so it requires input
+    # sorted by the key. `tracks` comes straight from the store and is not
+    # sorted by albumhash, so an album was split across several groups:
+    # check_type() ran repeatedly for the same album, each time with only a
+    # fragment of its tracks, and the last call won — which fragment that was
+    # depended on trackhash order, making the result effectively
+    # non-deterministic. is_single() also tests `len(tracks) == 1`, so a
+    # multi-track album could be classified as a single off a 1-track fragment.
+    #
+    # A dict groups in O(n) without sorting AND guarantees exactly one
+    # check_type() call per album.
+    album_tracks: dict[str, list] = defaultdict(list)
+    for track in tracks:
+        album_tracks[track.albumhash].append(track)
+
+    for albumhash, group in album_tracks.items():
         album = albumdict.get(albumhash)
 
         if album:
-            album.check_type(list(tracks), config.showAlbumsAsSingles)
+            album.check_type(group, config.showAlbumsAsSingles)
 
     albums = [a for a in albumdict.values()]
     all_albums = sorted(albums, key=lambda a: a.date, reverse=True)

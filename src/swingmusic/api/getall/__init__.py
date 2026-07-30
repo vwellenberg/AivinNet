@@ -19,6 +19,20 @@ from swingmusic.utils.dates import (
 bp_tag = Tag(name="Get all", description="List all items")
 api = APIBlueprint("getall", __name__, url_prefix="/getall", abp_tags=[bp_tag])
 
+DEFAULT_SORT = "created_date"
+
+# Sort keys the endpoint can actually serve, i.e. attributes that exist on the
+# serialized item. Kept next to the handler so the docstring below and the
+# validation cannot drift apart.
+_SHARED_SORT_KEYS = frozenset({"duration", "created_date", "playcount", "playduration", "lastplayed", "trackcount"})
+_ALBUM_ONLY_SORT_KEYS = frozenset({"title", "albumartists", "date"})
+_ARTIST_ONLY_SORT_KEYS = frozenset({"name", "albumcount"})
+
+
+def _valid_sort_keys(is_albums: bool) -> frozenset:
+    extra = _ALBUM_ONLY_SORT_KEYS if is_albums else _ARTIST_ONLY_SORT_KEYS
+    return _SHARED_SORT_KEYS | extra
+
 
 class GetAllItemsQuery(GenericLimitSchema):
     start: int = Field(
@@ -88,6 +102,22 @@ def get_all_items(path: GetAllItemsPath, query: GetAllItemsQuery):
 
     sort_is_artist_trackcount = is_artists and sort == "trackcount"
     sort_is_artist_albumcount = is_artists and sort == "albumcount"
+
+    # An unknown sort key used to reach `getattr(x, sort)` and raise
+    # AttributeError. The `except AttributeError` below then fell back to
+    # `lambda_sort`, which raises the SAME AttributeError — uncaught, so the
+    # endpoint answered 500 and the client rendered an empty library page.
+    # Measured before this fix: `sortby=undefined` -> 500, `sortby=bogus` -> 500.
+    #
+    # A bad sort key is a client mistake, not a server failure: fall back to the
+    # default ordering so the list still renders.
+    if sort not in _valid_sort_keys(is_albums):
+        sort = DEFAULT_SORT
+        sort_is_create_date = True
+        sort_is_count = sort_is_duration = sort_is_playcount = False
+        sort_is_playduration = sort_is_lastplayed = False
+        sort_is_date = sort_is_artist = False
+        sort_is_artist_trackcount = sort_is_artist_albumcount = False
 
     lambda_sort = lambda x: getattr(x, sort)
     lambda_sort_casefold = lambda x: getattr(x, sort).casefold()
