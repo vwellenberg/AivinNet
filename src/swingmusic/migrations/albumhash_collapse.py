@@ -15,6 +15,7 @@ It is safe to run repeatedly: a track is only touched while its stored hash
 still equals the broken one, so a second run finds nothing.
 """
 
+import logging
 from collections import defaultdict
 
 from sqlalchemy import delete, select, update
@@ -22,8 +23,13 @@ from sqlalchemy import delete, select, update
 from swingmusic.db.engine import DbEngine
 from swingmusic.db.libdata import TrackTable
 from swingmusic.db.userdata import FavoritesTable
-from swingmusic.logger import log
 from swingmusic.utils.hashing import create_hash
+
+# `swingmusic.logger.log` is None until `setup_logger()` has run. In the app it
+# has, but this repair is also useful to call from a shell against a copy of a
+# database — and there it crashed on the very last line, after the writes had
+# already been committed. A stdlib logger is never None.
+logger = logging.getLogger(__name__)
 
 
 def broken_albumhash(albumartists: str) -> str:
@@ -109,7 +115,7 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
             )
             report["dropped_favorites"] = result.rowcount or 0
 
-    log.info(
+    logger.info(
         "Repaired collapsed album hashes: %d tracks re-grouped into %d albums, %d favorites dropped",
         report["tracks"],
         report["albums"],
