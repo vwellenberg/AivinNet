@@ -20,12 +20,12 @@ starts at boot, and prints the URL plus the generated admin password.
 Options: `| bash -s -- --system` (system-wide service), `--port 1971`,
 `--music /mnt/nas/music`, `--no-autostart`, `--update`, `--uninstall`.
 
-Manual instead:
+Manual instead — download the AppImage for your architecture from the assets
+below, then:
 
 ```sh
-wget https://github.com/vwellenberg/AivinNet/releases/latest/download/aivinnet-vVERSION-x86_64.AppImage
-chmod +x aivinnet-vVERSION-x86_64.AppImage
-./aivinnet-vVERSION-x86_64.AppImage
+chmod +x aivinnet-*.AppImage
+./aivinnet-*.AppImage
 ```
 
 Then open `http://localhost:1970`, log in, and pick your music folder.

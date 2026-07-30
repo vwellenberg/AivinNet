@@ -184,10 +184,19 @@ jobs:
           path: wheels
           merge-multiple: true
 
+      # INFO: --no-index is essential. The distribution is still named
+      # `swingmusic`, and upstream publishes that name on PyPI — without it pip
+      # compares our freshly built wheel against PyPI and installs whichever
+      # version sorts higher. A tag below upstream's would silently bake the
+      # UPSTREAM backend into an AivinNet AppImage (our client, their API:
+      # device sync and the playlist endpoints would just be missing).
+      # Runtime deps come from appimage/requirements.txt, so nothing else here
+      # needs the index.
       - name: Build AppDir
         run: |
           python-appimage build app -p 3.11 appimage/ -n "aivinnet-$APPIMAGE_ARCH" -x client --no-packaging
-          pip install --target "aivinnet-$APPIMAGE_ARCH/opt/python3.11/lib/python3.11/" --no-deps --find-links=wheels/ swingmusic
+          pip install --target "aivinnet-$APPIMAGE_ARCH/opt/python3.11/lib/python3.11/" \
+            --no-deps --no-index --find-links=wheels/ swingmusic
 
       # INFO: bjoern is compiled from source against libev on this runner and
       # links to libev.so.4 dynamically. python-appimage bundles only Python +
@@ -339,8 +348,13 @@ jobs:
         run: |
           sudo apt-get install libev-dev -y > /dev/null
 
-      - name: Install swingmusic
+      # INFO: Two steps on purpose — see the --no-index comment in build-appimage.
+      # The first line pins the local wheel so PyPI's `swingmusic` can never win
+      # the version comparison; the second only pulls the dependencies (runtime
+      # + pyinstaller) for the already-installed distribution.
+      - name: Install AivinNet
         run: |
+          pip install --no-index --no-deps --find-links=wheels/ swingmusic
           pip install --find-links=wheels/ swingmusic[build]
 
       - name: Build with Pyinstaller on ${{ matrix.os }}
@@ -358,6 +372,16 @@ jobs:
     name: Uploading builds to release
     runs-on: ubuntu-latest
     needs: [build-client, build-wheels, build-pyinstaller, build-appimage]
+    # INFO: build-pyinstaller and build-appimage are skipped when binary_build
+    # is false, and a skipped `needs` skips the dependent job as well — which
+    # meant "no release at all, every job green". Accept skipped, never accept
+    # failed or cancelled.
+    if: >-
+      ${{ !cancelled()
+      && needs.build-client.result == 'success'
+      && needs.build-wheels.result == 'success'
+      && (needs.build-pyinstaller.result == 'success' || needs.build-pyinstaller.result == 'skipped')
+      && (needs.build-appimage.result == 'success' || needs.build-appimage.result == 'skipped') }}
     permissions:
       contents: write
 
@@ -387,6 +411,7 @@ jobs:
           merge-multiple: true
 
       - name: Download all Pyinstaller builds
+        if: ${{ github.event.inputs.binary_build == 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: Pyinstaller-*
@@ -394,6 +419,7 @@ jobs:
           merge-multiple: true
 
       - name: Download AppImages build
+        if: ${{ github.event.inputs.binary_build == 'true' }}
         uses: actions/download-artifact@v4
         with:
           pattern: appimage*
@@ -408,8 +434,12 @@ jobs:
           mkdir -p release
           cp client.zip release/
           cp wheels/* release/
-          cp pyinstaller/* release/
-          cp appimage/* release/
+          # Binary directories are absent on a binary_build=false run.
+          for dir in pyinstaller appimage; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release/
+            fi
+          done
           cd release
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
