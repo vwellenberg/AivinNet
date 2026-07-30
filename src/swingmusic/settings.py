@@ -58,17 +58,29 @@ class AssetHandler:
     @staticmethod
     def copy_assets_dir():
         """
-        Copies assets to the app directory.
+        Syncs the bundled assets into the app directory.
+
+        These are the app's own fallback images (the artist and album
+        placeholders, the tray icon) — the app owns this directory, it is not
+        user content.
+
+        This used to `return` early whenever the directory already existed
+        ("no need to copy what's already copied?"), which meant an updated
+        bundled asset reached **new installations only**. Every existing one
+        kept whatever it copied on its very first start, forever. Shipping a
+        fix for the near-invisible artist placeholder is what surfaced it: the
+        new file was in the wheel, the running server kept serving the old one,
+        and nothing in the logs said so.
+
+        Copying is therefore unconditional now. `copytree` overwrites files
+        that exist and leaves anything extra in the directory alone, so this
+        only ever restates what the app itself ships.
         """
 
         assets_source = imres.files("swingmusic") / "assets"
         assets_path = Paths().assets_path
         # INFO: this only works for wheels and source
         # TODO: Handle this for pyinstaller builds
-
-        if assets_path.exists():
-            # no need to copy what's already copied?
-            return
 
         if assets_source.exists():
             shutil.copytree(
