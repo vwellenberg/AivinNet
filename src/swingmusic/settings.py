@@ -48,7 +48,12 @@ class AssetHandler:
     Handles all assets configuration
     """
 
-    RELEASES_URL = "https://api.github.com/repos/swingmx/swingmusic/releases"
+    # INFO: Fallback source for the web client when no client.zip is bundled
+    # (source/wheel installs, Docker image). This MUST stay on this fork —
+    # with the upstream URL an AivinNet install silently serves the upstream
+    # UI. Guarded by tests/test_packaging_manifests.py, because an upstream
+    # merge would otherwise quietly restore the old value.
+    RELEASES_URL = "https://api.github.com/repos/vwellenberg/AivinNet/releases"
 
     @staticmethod
     def copy_assets_dir():

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AivinNet
+GenericName=Music server
+Exec=aivinnet
+Comment=A self-hosted music server running on Python {{ python-fullversion }}
+Icon=aivinnet
+Categories=AudioVideo;Music;
+Terminal=true
