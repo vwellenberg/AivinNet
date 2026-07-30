@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,61 @@ def replace_trackhash_in_list(trackhashes: Sequence[str], old: str, new: str) ->
         result.append(h)
 
     return result
+
+
+def migrate_added_at(added_at: dict[str, int] | None, old: str, new: str) -> dict[str, int]:
+    """
+    Move the ``added_at`` entry of ``old`` onto ``new``, dropping the old key.
+
+    ``added_at`` is a parallel map keyed by trackhash, so it has to follow every
+    trackhash rewrite or it silently rots: the migrated track shows "—" as its
+    date added (its entry is now keyed by a hash nobody stores) and the stale key
+    lingers forever. Fixing a typo in a title must not reset how long the track
+    has been in the playlist.
+
+    When BOTH identities carry a date — the playlist held the new hash already,
+    and ``replace_trackhash_in_list`` collapses them to one entry — the EARLIER
+    timestamp wins: that is when the track first entered the playlist.
+    """
+    result = dict(added_at or {})
+
+    if old not in result:
+        return result
+
+    old_ts = result.pop(old)
+    existing = result.get(new)
+    result[new] = min(old_ts, existing) if existing is not None else old_ts
+
+    return result
+
+
+def playlist_migration_values(
+    trackhashes: Sequence[str] | None,
+    extra: dict[str, Any] | None,
+    old: str,
+    new: str,
+) -> dict[str, Any] | None:
+    """
+    The column values needed to migrate ONE playlist, or None when it is not
+    affected.
+
+    Pulled out of the DB loop so the decision — which columns change, and that
+    ``extra["added_at"]`` changes *with* ``trackhashes`` — is testable without a
+    database. The original bug was exactly here: the list was rewritten and the
+    parallel map was forgotten, which no test of the list helper alone can catch.
+    """
+    if not trackhashes or old not in trackhashes:
+        return None
+
+    values: dict[str, Any] = {"trackhashes": replace_trackhash_in_list(trackhashes, old, new)}
+
+    added_at = (extra or {}).get("added_at")
+    if added_at:
+        migrated = migrate_added_at(added_at, old, new)
+        if migrated != added_at:
+            values["extra"] = {**(extra or {}), "added_at": migrated}
+
+    return values
 
 
 def favorite_migration_action(old_userid: int | None, new_userid: int | None) -> str:
@@ -94,17 +150,17 @@ def migrate_track_references(old_trackhash: str, new_trackhash: str) -> None:
     new_fav = f"track_{new_trackhash}"
 
     with DbEngine.manager(commit=True) as session:
-        # Playlists (all users): in-place, order-preserving replacement.
-        rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes)).all()
-        for playlist_id, trackhashes in rows:
-            if not trackhashes or old_trackhash not in trackhashes:
+        # Playlists (all users): in-place, order-preserving replacement. The
+        # `added_at` map in `extra` is keyed by trackhash, so it has to be
+        # rewritten in the same statement or the track loses its "date added".
+        rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
+        for playlist_id, trackhashes, extra in rows:
+            values = playlist_migration_values(trackhashes, extra, old_trackhash, new_trackhash)
+
+            if values is None:
                 continue
 
-            session.execute(
-                update(PlaylistTable)
-                .where(PlaylistTable.id == playlist_id)
-                .values(trackhashes=replace_trackhash_in_list(trackhashes, old_trackhash, new_trackhash))
-            )
+            session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
 
         # Favorites: `hash` carries a GLOBAL unique constraint, yet each row has
         # its own `userid`. Decide per-owner so we never delete a DIFFERENT user's
