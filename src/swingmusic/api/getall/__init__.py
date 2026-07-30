@@ -24,9 +24,7 @@ DEFAULT_SORT = "created_date"
 # Sort keys the endpoint can actually serve, i.e. attributes that exist on the
 # serialized item. Kept next to the handler so the docstring below and the
 # validation cannot drift apart.
-_SHARED_SORT_KEYS = frozenset(
-    {"duration", "created_date", "playcount", "playduration", "lastplayed", "trackcount"}
-)
+_SHARED_SORT_KEYS = frozenset({"duration", "created_date", "playcount", "playduration", "lastplayed", "trackcount"})
 _ALBUM_ONLY_SORT_KEYS = frozenset({"title", "albumartists", "date"})
 _ARTIST_ONLY_SORT_KEYS = frozenset({"name", "albumcount"})
 
