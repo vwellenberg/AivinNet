@@ -32,6 +32,65 @@ from swingmusic.lib.albumhash import album_hash, broken_album_hash
 logger = logging.getLogger(__name__)
 
 
+def _relink_favorite_extras(conn) -> int:
+    """
+    A favourited TRACK caches its album's hash in its `extra` blob, so the
+    client can link straight to the album without another lookup. Re-grouping
+    the tracks left those caches pointing at an album that no longer exists —
+    14 of them on the live library, which is how this was found.
+
+    The blob also carries the track's `filepath`, and that is what makes the
+    repair possible: the file says which album the track now belongs to.
+
+    Staleness is decided against the albums that CURRENTLY exist, not against
+    the set this run re-grouped. That matters: a library migrated by an earlier
+    version of this module still carries the broken links, and they would never
+    be reached by a check scoped to the current run — which finds nothing,
+    because the tracks were already fixed.
+    """
+    live_albums = {r[0] for r in conn.execute(select(TrackTable.albumhash).distinct()).all()}
+
+    rows = conn.execute(select(FavoritesTable.id, FavoritesTable.extra).where(FavoritesTable.type == "track")).all()
+
+    stale = [
+        (id_, extra)
+        for id_, extra in rows
+        if isinstance(extra, dict) and extra.get("album") and extra["album"] not in live_albums
+    ]
+
+    if not stale:
+        return 0
+
+    filepaths = [extra.get("filepath") for _, extra in stale if extra.get("filepath")]
+    current: dict[str, str] = {}
+
+    for start in range(0, len(filepaths), 500):
+        chunk = filepaths[start : start + 500]
+        current.update(
+            {
+                path: albumhash
+                for path, albumhash in conn.execute(
+                    select(TrackTable.filepath, TrackTable.albumhash).where(TrackTable.filepath.in_(chunk))
+                ).all()
+            }
+        )
+
+    repaired = 0
+
+    for id_, extra in stale:
+        new_hash = current.get(extra.get("filepath", ""))
+
+        # The file is gone from the library: leave the cache alone rather than
+        # inventing a target. A stale link is recoverable; a wrong one is not.
+        if not new_hash:
+            continue
+
+        conn.execute(update(FavoritesTable).where(FavoritesTable.id == id_).values(extra={**extra, "album": new_hash}))
+        repaired += 1
+
+    return repaired
+
+
 def repair_collapsed_albumhashes() -> dict[str, int]:
     """
     Re-points affected tracks at a per-folder album and cleans up favourites
@@ -39,7 +98,7 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
 
     Returns a small report so the caller can log what happened.
     """
-    report = {"tracks": 0, "albums": 0, "dropped_favorites": 0}
+    report = {"tracks": 0, "albums": 0, "dropped_favorites": 0, "relinked_favorites": 0}
 
     with DbEngine.manager(commit=True) as conn:
         rows = conn.execute(
@@ -72,9 +131,6 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
             new_hashes.add(new_hash)
             updates.append({"track_id": id_, "new_hash": new_hash})
 
-        if not updates:
-            return report
-
         # One statement per resulting album rather than per track: a collapsed
         # bucket of 4000 tracks becomes a few hundred albums, so this is a few
         # hundred updates instead of a few thousand. Ids are chunked because
@@ -105,11 +161,19 @@ def repair_collapsed_albumhashes() -> dict[str, int]:
             )
             report["dropped_favorites"] = result.rowcount or 0
 
+        # Last, and unconditionally: it compares the cached links against the
+        # albums that exist AFTER the re-grouping above, and it must also reach
+        # a library that an earlier version of this module already migrated —
+        # there the tracks are fixed and the links are still broken.
+        report["relinked_favorites"] = _relink_favorite_extras(conn)
+
     logger.info(
-        "Repaired collapsed album hashes: %d tracks re-grouped into %d albums, %d favorites dropped",
+        "Repaired collapsed album hashes: %d tracks re-grouped into %d albums, "
+        "%d favorites dropped, %d favorite album links repaired",
         report["tracks"],
         report["albums"],
         report["dropped_favorites"],
+        report["relinked_favorites"],
     )
 
     return report
