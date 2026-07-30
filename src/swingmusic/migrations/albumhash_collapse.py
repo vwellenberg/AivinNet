@@ -50,9 +50,7 @@ def _relink_favorite_extras(conn) -> int:
     """
     live_albums = {r[0] for r in conn.execute(select(TrackTable.albumhash).distinct()).all()}
 
-    rows = conn.execute(
-        select(FavoritesTable.id, FavoritesTable.extra).where(FavoritesTable.type == "track")
-    ).all()
+    rows = conn.execute(select(FavoritesTable.id, FavoritesTable.extra).where(FavoritesTable.type == "track")).all()
 
     stale = [
         (id_, extra)
