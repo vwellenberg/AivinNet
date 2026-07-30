@@ -1,16 +1,32 @@
-name: New Release (v2)
+name: Release
 run-name: Release v${{ github.event.inputs.tag }}
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Version number"
+        description: "Version number (without leading v)"
         required: true
-        default: "0.0.0"
+        default: "2026.7.0"
       binary_build:
-        description: "Build binaries"
+        description: "Build binaries (AppImage + PyInstaller)"
         required: true
         default: "true"
+        type: choice
+        options:
+          - true
+          - false
+      is_draft:
+        description: "Keep the release as a draft"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - true
+          - false
+      prerelease:
+        description: "Mark as pre-release (use for -rcN test runs)"
+        required: true
+        default: "false"
         type: choice
         options:
           - true
@@ -31,17 +47,13 @@ on:
         options:
           - true
           - false
-      publish_pypi:
-        description: "Publish to PyPI"
-        required: true
-        type: choice
-        default: "false"
-        options:
-          - true
-          - false
 
 env:
   PIP_USE_PEP517: true
+  # INFO: The web client lives in its own repo and is built fresh for every
+  # release. This MUST stay on the fork — pointing it at swingmx/webclient
+  # ships the upstream UI instead of the AivinNet redesign.
+  CLIENT_REPO: "vwellenberg/AivinNet-Client"
 
 jobs:
   build-client:
@@ -51,8 +63,8 @@ jobs:
       - name: Clone client
         uses: actions/checkout@v4
         with:
-          repository: "swingmx/webclient"
-          path: swingmusic-client
+          repository: ${{ env.CLIENT_REPO }}
+          path: aivinnet-client
 
       - name: Setup Node 20
         uses: actions/setup-node@v3
@@ -65,7 +77,7 @@ jobs:
 
       - name: Install dependencies & Build client
         run: |
-          cd swingmusic-client
+          cd aivinnet-client
           yarn install
           yarn build --outDir ../client
           cd ..
@@ -83,7 +95,7 @@ jobs:
     needs: [build-client]
 
     steps:
-      - name: Checkout swingmusic
+      - name: Checkout AivinNet
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -113,7 +125,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          # name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
           compression-level: 0
           name: "wheels"
@@ -121,7 +132,10 @@ jobs:
   build-appimage:
     name: Build Appimage
     runs-on: ${{ matrix.os }}
-    needs: [build-client]
+    # INFO: build-wheels is a hard dependency — this job downloads the `wheels`
+    # artifact below. With `needs: [build-client]` only, it raced ahead and died
+    # with "Unable to find any artifacts for the associated workflow".
+    needs: [build-client, build-wheels]
     if: ${{ github.event.inputs.binary_build == 'true' }}
 
     strategy:
@@ -137,7 +151,7 @@ jobs:
       - name: Install linux dependencies
         run: sudo apt-get install libev-dev libfuse-dev -y > /dev/null
 
-      - name: Checkout swingmusic
+      - name: Checkout AivinNet
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -170,17 +184,39 @@ jobs:
           path: wheels
           merge-multiple: true
 
-      - name: Build appimage
+      - name: Build AppDir
         run: |
-          python-appimage build app -p 3.11 appimage/ -n "swingmusic-$APPIMAGE_ARCH" -x client --no-packaging
-          pip install --target "swingmusic-$APPIMAGE_ARCH/opt/python3.11/lib/python3.11/" --no-deps --find-links=wheels/ swingmusic
-          ./appimagetool-$APPIMAGE_ARCH.AppImage --no-appstream "swingmusic-$APPIMAGE_ARCH" "swingmusic-v${{inputs.tag}}-$APPIMAGE_ARCH.AppImage"
+          python-appimage build app -p 3.11 appimage/ -n "aivinnet-$APPIMAGE_ARCH" -x client --no-packaging
+          pip install --target "aivinnet-$APPIMAGE_ARCH/opt/python3.11/lib/python3.11/" --no-deps --find-links=wheels/ swingmusic
+
+      # INFO: bjoern is compiled from source against libev on this runner and
+      # links to libev.so.4 dynamically. python-appimage bundles only Python +
+      # site-packages, NOT system libraries — without this step the AppImage
+      # dies with an ImportError unless the user installs libev4 themselves.
+      # appimage/entrypoint.sh puts $APPDIR/usr/lib on LD_LIBRARY_PATH so this
+      # copy is the one that gets loaded.
+      - name: Bundle libev into the AppDir
+        run: |
+          libev="$(ldconfig -p | awk '/libev\.so\.4/ {print $NF; exit}')"
+          if [ -z "$libev" ]; then
+            echo "::error::libev.so.4 not found on the runner — cannot bundle it"
+            exit 1
+          fi
+          mkdir -p "aivinnet-$APPIMAGE_ARCH/usr/lib"
+          cp -Lv "$libev" "aivinnet-$APPIMAGE_ARCH/usr/lib/libev.so.4"
+
+      - name: Package AppImage
+        run: |
+          ./appimagetool-$APPIMAGE_ARCH.AppImage --no-appstream \
+            "aivinnet-$APPIMAGE_ARCH" \
+            "aivinnet-v${{ github.event.inputs.tag }}-$APPIMAGE_ARCH.AppImage"
 
       - uses: actions/upload-artifact@v4
         with:
-          path: ./swing*.AppImage
+          path: ./aivinnet-*.AppImage
           compression-level: 0
           name: appimage-${{ env.APPIMAGE_ARCH }}
+          if-no-files-found: error
 
   docker:
     name: Build and push Docker image
@@ -196,8 +232,17 @@ jobs:
       - name: Create version.txt
         run: echo ${{ github.event.inputs.tag }} > version.txt
 
-      - name: Download artifact
-        uses: actions/download-artifact@v4
+      # INFO: Container registries reject upper-case image names, and this repo
+      # is `vwellenberg/AivinNet` — using ${{ github.repository }} verbatim
+      # makes the push fail.
+      - name: Compute image tags
+        run: |
+          image="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          tags="$image:v${{ github.event.inputs.tag }}"
+          if [ "${{ github.event.inputs.is_latest }}" = "true" ]; then
+            tags="$tags,$image:latest"
+          fi
+          echo "IMAGE_TAGS=$tags" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -213,26 +258,16 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker meta
-        id: meta # you'll use this in the next step
-        uses: docker/metadata-action@v3
-        with:
-          # list of Docker images to use as base name for tags
-          images: |
-            ghcr.io/${{ github.repository }}
-
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64, linux/arm64 #,linux/arm
           push: true
-          tags: ghcr.io/${{github.repository}}:${{format('v{0}', github.event.inputs.tag)}}, ${{env.LATEST_TAG}}
-          labels: org.opencontainers.image.title=Docker
+          tags: ${{ env.IMAGE_TAGS }}
+          labels: org.opencontainers.image.title=AivinNet
           build-args: |
             app_version=${{github.event.inputs.tag}}
-        env:
-          LATEST_TAG: ${{ github.event.inputs.is_latest == 'true' && format('ghcr.io/{0}:latest', github.repository) || '' }}
 
   build-pyinstaller:
     name: Build binary on ${{ matrix.os }}
@@ -254,7 +289,7 @@ jobs:
           ]
 
     steps:
-      - name: Checkout swingmusic
+      - name: Checkout AivinNet
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -315,16 +350,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Pyinstaller-${{ matrix.os }}
-          path: ./dist/swingmusic_*
+          path: ./dist/aivinnet_*
           compression-level: 0
+          if-no-files-found: error
 
   upload-builds:
     name: Uploading builds to release
     runs-on: ubuntu-latest
     needs: [build-client, build-wheels, build-pyinstaller, build-appimage]
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout swingmusic
+      - name: Checkout AivinNet
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -362,37 +400,31 @@ jobs:
           path: appimage
           merge-multiple: true
 
+      # INFO: Everything ends up in one flat directory so SHA256SUMS lists bare
+      # asset names — install.sh downloads a single asset and verifies it
+      # against this file, so the names have to match the release assets.
+      - name: Collect assets and generate SHA256SUMS
+        run: |
+          mkdir -p release
+          cp client.zip release/
+          cp wheels/* release/
+          cp pyinstaller/* release/
+          cp appimage/* release/
+          cd release
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
       - name: Upload artifacts to GitHub Release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          draft: true
+          draft: ${{ github.event.inputs.is_draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           name: ${{ format('v{0}',github.event.inputs.tag) }}
           tag: ${{ format('v{0}',github.event.inputs.tag) }}
           bodyFile: .github/changelog.md
           artifactErrorsFailBuild: true
           commit: ${{ github.sha }}
           makeLatest: ${{github.event.inputs.is_latest == 'true'}}
-          artifacts: "client.zip,wheels/*,pyinstaller/*,appimage/*"
-          token: ${{ secrets.PAT }}
-
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    needs: [build-wheels]
-    if: ${{ github.event.inputs.publish_pypi == 'true' }}
-    permissions:
-      id-token: write
-
-    steps:
-      - name: Download wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: wheels
-          path: dist
-          merge-multiple: true
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          verbose: true
+          artifacts: "release/*"
+          token: ${{ secrets.GITHUB_TOKEN }}

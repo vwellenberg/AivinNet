@@ -35,7 +35,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name=f'swingmusic_{system().lower()}_{machine().lower()}',
+    name=f'aivinnet_{system().lower()}_{machine().lower()}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -48,15 +48,13 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=[pathlib.Path('src\\swingmusic\\assets\\logo-fill.light.ico')],
+    # NOTE: forward slashes on purpose — Windows accepts them, and the old
+    # backslash literal was a non-existent filename on Linux/macOS.
+    icon=[pathlib.Path('src/swingmusic/assets/logo-fill.light.ico')],
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='name_test',
-)
+# INFO: No COLLECT block. `EXE(...)` above already receives a.binaries and
+# a.datas, which makes this a ONEFILE build landing at `dist/aivinnet_<os>_<arch>`.
+# The COLLECT that used to sit here (with the leftover name 'name_test') turned
+# the output into `dist/name_test/`, so the release workflow's `dist/aivinnet_*`
+# upload glob matched nothing and the release failed.

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+	<id>aivinnet</id>
+	<metadata_license>MIT</metadata_license>
+	<project_license>AGPL-3.0</project_license>
+	<name>AivinNet</name>
+	<summary>Music server for your files running on Python {{ python-fullversion }}</summary>
+	<description>
+		<p>
+            AivinNet is a fast, self-hosted music server for your local audio files —
+            a Spotify-style web player that streams your own library.
+            Start the app and open it in a web browser.
+            Based on Swing Music (https://swingmx.com/).
+        </p>
+	</description>
+	<launchable type="desktop-id">aivinnet.desktop</launchable>
+	<url type="homepage">https://github.com/vwellenberg/AivinNet</url>
+	<screenshots>
+		<screenshot type="default">
+			<image>https://raw.githubusercontent.com/vwellenberg/AivinNet-Client/master/docs/screenshots/home.png</image>
+		</screenshot>
+	</screenshots>
+	<provides>
+		<id>aivinnet.desktop</id>
+	</provides>
+</component>

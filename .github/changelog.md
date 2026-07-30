@@ -1,63 +1,57 @@
-##
+# AivinNet
 
-The Docker container for this release is available here:
+Self-hosted music server with a Spotify-style web player for your own library.
+Based on [Swing Music](https://github.com/swingmx/swingmusic) (AGPL-3.0), with a
+redesigned web client and extended playlist, track-editing and multiroom features.
 
-https://github.com/orgs/swingmx/packages/container/swingmusic/329450410?tag=v2.0.0.beta10
+> [!NOTE]
+> This body is the release-notes template used by the release workflow.
+> Edit `.github/changelog.md` before cutting a release.
 
-Get the Android client APK here: https://github.com/swingmx/android/releases
+## Install (Linux)
 
-Join our community on Telegram: https://t.me/+9n61PFcgKhozZDE0
+```sh
+curl -fsSL https://raw.githubusercontent.com/vwellenberg/AivinNet/master/install.sh | bash
+```
 
-## What's new?
+Installs the AppImage to `~/.local/bin/aivinnet`, sets up a systemd service that
+starts at boot, and prints the URL plus the generated admin password.
 
-Here are the new features, improvements and bug fixes since `v1.4.8`:
+Options: `| bash -s -- --system` (system-wide service), `--port 1971`,
+`--music /mnt/nas/music`, `--no-autostart`, `--update`, `--uninstall`.
 
-1. Authentication and multi-user system
+Manual instead:
 
-> [!IMPORTANT]
-> The default password for the admin account is `admin`. Please change it after logging in.
+```sh
+wget https://github.com/vwellenberg/AivinNet/releases/latest/download/aivinnet-vVERSION-x86_64.AppImage
+chmod +x aivinnet-vVERSION-x86_64.AppImage
+./aivinnet-vVERSION-x86_64.AppImage
+```
 
-2. Mixes generated based on your listening activity (experimental, only works with libraries with similar music)
-3. Last.fm integration
-4. Defaulting to alternate layout on the web client
-5. A pairing mechanism for use with the Android client
-6. Listening statistics:
-   - Charts data showing your top 10 albums, artists and track over periods of the last week, month, or year
-   - Various data and play statistics in albums and artists, at the bottom of the page
-7. More homepage items:
-   - Mixes for you
-   - Artist mixes
-   - Because you listened to artist (album recommendations)
-   - Artists you might like
-   - Top artists this week (shown at the end of the week)
-   - Top artists this month (shown at the middle and end of the month)
-8. Collections: Group together albums/artists like a playlist. Collections are shown in the homepage.
-9. Native arm64 builds
-10. Use folder images for tracks without embedded album art
-11. Tracks with an explicit tag now show an `E` label next to the track title
-12. You can prevent artist names from being split by manually editing the `settings.json` file in the config directory
-13. You can now use an inline favorite icon by enabling it on the settings
-13. More undocumented features, improvements and bug fixes
+Then open `http://localhost:1970`, log in, and pick your music folder.
 
-## Bug fixes
+## Assets
 
-1. Background playback on mobile browsers thanks to @Type-Delta via swingmx/webclient#38
-1. Fix: playback issue when track is ~30 seconds to end
-1. More undocumented features, improvements and bug fixes
+| Asset | For |
+| --- | --- |
+| `aivinnet-v*-x86_64.AppImage` | Linux (Intel/AMD) — recommended |
+| `aivinnet-v*-aarch64.AppImage` | Linux ARM64 (Raspberry Pi 4/5) |
+| `aivinnet_linux_*`, `aivinnet_windows_*.exe`, `aivinnet_darwin_arm64` | single-file binaries |
+| `swingmusic-*.whl` | pip/uv install (needs Python 3.11+, and a compiler for `bjoern` on Linux) |
+| `client.zip` | built web client on its own |
+| `SHA256SUMS` | checksums for every asset above |
 
-## New Contributors
+Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
-Shout out to the following people who made various contributions towards this release:
+## What's new
 
-- @Ericgacoki (Android client 🔥🎊)
-- @Simonh2o (Web client)
-- @jensgrunzer1 (automated Arm64 builds)
-- @Type-Delta (Web client)
-- @skilletfun (Web client)
+- _fill in per release_
 
-> [!WARNING]
-> Starting `v2.0.0` (this release) releases are not compatible with older releases. If you point this releases to the config directory of `v14.8`, you will loose all your playlists and favorites.
->
-> Please set up this release in a separate config folder if you want to keep your old data . You can do so by passing the `--config <folder>` flag. eg. `./swingmusic --config ~/temp`.
+## Notes
 
-Have fun guys!
+- Data lives in `~/.config/swingmusic/` (database, covers, playlists) — back this
+  up, it is the only copy.
+- `ffmpeg` is optional and only needed for transcoding.
+- Reach it from outside your LAN via Tailscale or a VPN — do not port-forward it.
+- Mix/recommendation features send track, artist and album names to
+  `smcloud.mungaist.com` (upstream's service) to look up similar music.
