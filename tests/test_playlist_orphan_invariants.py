@@ -49,9 +49,7 @@ MUTATIONS = {
     "move up": lambda s: move_trackhash(s, "d", "b"),
     "move to end": lambda s: move_trackhash(s, "a", None),
     "remove one (POST /<id>/remove-tracks)": lambda s: remove_trackhashes(s, [{"trackhash": "b", "index": 1}]),
-    "remove several": lambda s: remove_trackhashes(
-        s, [{"trackhash": "b", "index": 1}, {"trackhash": "d", "index": 3}]
-    ),
+    "remove several": lambda s: remove_trackhashes(s, [{"trackhash": "b", "index": 1}, {"trackhash": "d", "index": 3}]),
     "track edit rewrite (repoint_track_references)": lambda s: replace_trackhash_in_list(s, "b", "b-new"),
 }
 
