@@ -27,6 +27,41 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 @pytest.fixture()
+def playlist_db():
+    """
+    A real SQLite database with the real PlaylistTable, wiped between tests.
+
+    The playlist write paths are the least covered and the most dangerous code in
+    the app: two data-loss bugs shipped from them (AivinNet#51), and the ~760
+    lines of tests that exist all cover the *pure list helpers* — nothing
+    exercised PlaylistTable against an actual database. So the SQL is where the
+    coverage was zero and the incidents came from.
+
+    The module-level XDG_CONFIG_HOME above already points the app at a temp
+    directory, so DbEngine opens a throwaway file and no test can reach a real
+    library. `get_current_userid` is patched rather than faking a JWT context —
+    the subject under test is the table, not auth — but it stays a *parameter*
+    of the fixture so multi-user isolation can be tested too.
+    """
+    from unittest.mock import patch
+
+    from swingmusic.db import create_all_tables
+    from swingmusic.db.engine import DbEngine
+    from swingmusic.db.userdata import PlaylistTable
+
+    create_all_tables()
+
+    with patch("swingmusic.db.userdata.get_current_userid", return_value=1) as userid:
+        yield PlaylistTable, userid
+
+    # Leave no rows behind for the next test.
+    from sqlalchemy import delete
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(PlaylistTable))
+
+
+@pytest.fixture()
 def form_app():
     """
     A minimal flask_openapi3 app exposing endpoints built from the REAL
