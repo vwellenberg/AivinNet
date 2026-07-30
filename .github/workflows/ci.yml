@@ -37,6 +37,15 @@ jobs:
           src/swingmusic/lib/playlist_maintenance.py
           --config-file pyproject.toml
 
+      # These two shell scripts are shipped, not internal tooling: install.sh is
+      # what users pipe into bash, and entrypoint.sh is the AppImage's first
+      # instruction. Neither is exercised by the Python test suite, so lint them
+      # here (shellcheck is pre-installed on the runner image).
+      - name: Shellcheck shipped scripts
+        run: |
+          shellcheck install.sh
+          shellcheck --shell=sh appimage/entrypoint.sh
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest

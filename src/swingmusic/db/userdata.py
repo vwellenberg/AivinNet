@@ -40,6 +40,7 @@ from swingmusic.lib.playlist_maintenance import (
 )
 from swingmusic.models.mix import Mix
 from swingmusic.utils.auth import get_current_userid, hash_password
+from swingmusic.utils.bootstrap import initial_admin_password
 
 
 class UserTable(Base):
@@ -61,9 +62,13 @@ class UserTable(Base):
 
     @classmethod
     def insert_default_user(cls):
+        # INFO: Runs once, on the very first start (setup_sqlite only calls this
+        # when no user exists). The password comes from AIVINNET_ADMIN_PASSWORD
+        # when set, so a fresh install does not have to sit on the well-known
+        # admin/admin while listening on the LAN. See utils/bootstrap.py.
         user = {
             "username": "admin",
-            "password": hash_password("admin"),
+            "password": hash_password(initial_admin_password()),
             "roles": ["admin"],
         }
 
