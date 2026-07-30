@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 from swingmusic.config import UserConfig
+from swingmusic.lib.albumhash import album_hash
 from swingmusic.settings import Defaults, Paths
 from swingmusic.utils.hashing import create_hash
 from swingmusic.utils.parsers import split_artists
@@ -349,8 +350,13 @@ def get_tags(filepath: str, config: UserConfig) -> dict:
             metadata[prop] = 1
 
     # generate hash
-    # create albumhash using og_album
-    metadata["albumhash"] = create_hash(tags.album or "", metadata.get("albumartists", ""))
+    #
+    # The rule lives in lib/albumhash.py, not here: the repair migration has to
+    # recognise rows written by the OLD rule, and the two only stay in step if
+    # they sit next to each other.
+    metadata["albumhash"] = album_hash(
+        tags.album, metadata["folder"], metadata.get("albumartists", "")
+    )
 
     metadata["trackhash"] = create_hash(
         metadata.get("artists", ""),
