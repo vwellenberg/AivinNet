@@ -559,3 +559,137 @@ class TestSearchFallback:
         used, results = coverart.search_covers_with_fallback("A - B C D")
         assert used == "A - B C D"
         assert results == []
+
+
+class TestFetchVerifiedCover:
+    """
+    The unattended store lookup. Nobody confirms these, so every candidate has
+    to clear the same gate the MusicBrainz path uses — that is the whole reason
+    this function exists next to `search_covers` instead of just calling it.
+    """
+
+    @staticmethod
+    def _patch(monkeypatch, results, image=b"IMG"):
+        """Wire search_covers/download_cover and record what they were asked."""
+        queries: list[str] = []
+        downloads: list[str] = []
+
+        def fake_search(query, limit=30):
+            queries.append(query)
+            return list(results.get(query, []))
+
+        def fake_download(url):
+            downloads.append(url)
+            return image
+
+        monkeypatch.setattr(coverart, "search_covers", fake_search)
+        monkeypatch.setattr(coverart, "download_cover", fake_download)
+        return queries, downloads
+
+    def test_accepts_an_exact_match(self, monkeypatch):
+        results = {
+            "Daft Punk Discovery": [
+                {"url": "https://x.mzstatic.com/a.jpg", "source": "itunes", "album": "Discovery", "artist": "Daft Punk"}
+            ]
+        }
+        queries, downloads = self._patch(monkeypatch, results)
+
+        assert coverart.fetch_verified_cover("Discovery", "Daft Punk") == b"IMG"
+        assert queries == ["Daft Punk Discovery"]
+        assert downloads == ["https://x.mzstatic.com/a.jpg"]
+
+    def test_walks_past_a_candidate_that_fails_the_gate(self, monkeypatch):
+        results = {
+            "Daft Punk Discovery": [
+                # Right title, wrong artist — the classic wrong cover.
+                {"url": "https://wrong.mzstatic.com/a.jpg", "source": "itunes", "album": "Discovery", "artist": "Mika"},
+                {
+                    "url": "https://right.dzcdn.net/a.jpg",
+                    "source": "deezer",
+                    "album": "Discovery",
+                    "artist": "Daft Punk",
+                },
+            ]
+        }
+        _, downloads = self._patch(monkeypatch, results)
+
+        assert coverart.fetch_verified_cover("Discovery", "Daft Punk") == b"IMG"
+        # The rejected candidate was never even downloaded.
+        assert downloads == ["https://right.dzcdn.net/a.jpg"]
+
+    def test_returns_none_when_nothing_matches(self, monkeypatch):
+        results = {
+            "Daft Punk Discovery": [
+                {"url": "https://x.mzstatic.com/a.jpg", "source": "itunes", "album": "Homework", "artist": "Daft Punk"},
+                {"url": "https://y.dzcdn.net/a.jpg", "source": "deezer", "album": "Discovery", "artist": "Pink Floyd"},
+            ]
+        }
+        _, downloads = self._patch(monkeypatch, results)
+
+        assert coverart.fetch_verified_cover("Discovery", "Daft Punk") is None
+        assert downloads == []
+
+    @pytest.mark.parametrize("artist", ["", "   ", "Unknown", "unknown artist"])
+    def test_skips_an_album_whose_artist_says_nothing(self, monkeypatch, artist):
+        # Same rule as MusicBrainz: no verifiable artist, no cover from ANY
+        # source. A new source must not become a way around the gate.
+        queries, downloads = self._patch(monkeypatch, {})
+
+        assert coverart.fetch_verified_cover("Greatest Hits", artist) is None
+        assert queries == []
+        assert downloads == []
+
+    def test_retries_once_with_the_decorations_stripped(self, monkeypatch):
+        results = {
+            "Kate Bush The Red Shoes": [
+                {
+                    "url": "https://x.dzcdn.net/a.jpg",
+                    "source": "deezer",
+                    "album": "The Red Shoes",
+                    "artist": "Kate Bush",
+                }
+            ]
+        }
+        queries, downloads = self._patch(monkeypatch, results)
+
+        assert coverart.fetch_verified_cover("CD3: The Red Shoes (Remastered)", "Kate Bush") == b"IMG"
+        assert queries == [
+            "Kate Bush CD3: The Red Shoes (Remastered)",
+            "Kate Bush The Red Shoes",
+        ]
+        assert downloads == ["https://x.dzcdn.net/a.jpg"]
+
+    def test_a_failed_download_falls_through_to_the_next_candidate(self, monkeypatch):
+        results = {
+            "Daft Punk Discovery": [
+                {
+                    "url": "https://dead.mzstatic.com/a.jpg",
+                    "source": "itunes",
+                    "album": "Discovery",
+                    "artist": "Daft Punk",
+                },
+                {
+                    "url": "https://live.dzcdn.net/a.jpg",
+                    "source": "deezer",
+                    "album": "Discovery",
+                    "artist": "Daft Punk",
+                },
+            ]
+        }
+        downloads: list[str] = []
+
+        def fake_download(url):
+            downloads.append(url)
+            return None if "dead" in url else b"IMG"
+
+        monkeypatch.setattr(coverart, "search_covers", lambda q, limit=30: list(results.get(q, [])))
+        monkeypatch.setattr(coverart, "download_cover", fake_download)
+
+        assert coverart.fetch_verified_cover("Discovery", "Daft Punk") == b"IMG"
+        assert downloads == ["https://dead.mzstatic.com/a.jpg", "https://live.dzcdn.net/a.jpg"]
+
+    def test_an_empty_title_asks_nobody(self, monkeypatch):
+        queries, _ = self._patch(monkeypatch, {})
+
+        assert coverart.fetch_verified_cover("", "Daft Punk") is None
+        assert queries == []
