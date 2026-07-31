@@ -1,6 +1,6 @@
 from typing import Any
 
-from swingmusic.db.userdata import CollectionTable
+from swingmusic.db.userdata import CollectionTable, MixTable
 from swingmusic.lib.pagelib import recover_page_items
 from swingmusic.store.homepageentries import (
     BecauseYouListenedToArtistHomepageEntry,
@@ -11,6 +11,7 @@ from swingmusic.store.homepageentries import (
     RecentlyPlayedHomepageEntry,
 )
 from swingmusic.utils.auth import get_current_userid
+from swingmusic.utils.mixes import latest_mix_per_artist
 
 
 class HomepageStore:
@@ -57,6 +58,46 @@ class HomepageStore:
     def set_mixes(cls, items: list[Any], entrykey: str, userid: int | None = None):
         idmap = {item.id: item for item in items}
         cls.entries[entrykey].items[userid or get_current_userid()] = idmap
+
+    @classmethod
+    def load_mixes_from_db(cls):
+        """
+        Seed the mix entries from the database at startup.
+
+        Without this the mix rows exist only in RAM, filled by the `mixes` cron
+        — and that cron is registered with `schedule.every(12).hours`, which
+        fires the FIRST time twelve hours after boot, never at boot. Every
+        restart therefore blanked the mix rows on the homepage for up to half a
+        day. On a server that restarts with each deploy, the rows were never
+        seen at all: the data was in the database the whole time, the path to
+        the homepage was simply cut.
+
+        Runs per user, because there is no request context at startup and so no
+        `get_current_userid()` to lean on.
+
+        Cheap on purpose: `MixTable.get_all()` is one indexed query, and
+        `get_track_mix` only reads TrackStore. Nothing here touches the network
+        — the recommendation server is a blocking call in a single-threaded
+        server, and a slow one would hold up the whole boot.
+        """
+        # Deferred, and NOT because of an import cycle (plugins.mixes does not
+        # import this module): the plugin pulls in PIL and requests, and this
+        # store is imported early and widely. Keeping that weight out of the
+        # import chain of everything that touches HomepageStore is the point.
+        from swingmusic.plugins.mixes import MixesPlugin
+
+        by_user: dict[int, list[Any]] = {}
+
+        # get_all() yields newest first, which is what latest_mix_per_artist expects.
+        for mix in MixTable.get_all():
+            by_user.setdefault(mix.userid, []).append(mix)
+
+        for userid, mixes in by_user.items():
+            mixes = latest_mix_per_artist(mixes)
+            cls.set_mixes(mixes, entrykey="artist_mixes", userid=userid)
+
+            custom_mixes = [m for m in (MixesPlugin.get_track_mix(mix) for mix in mixes) if m]
+            cls.set_mixes(custom_mixes, entrykey="custom_mixes", userid=userid)
 
     @classmethod
     def get_mix(cls, mixkey: str, mixid: str):
