@@ -367,6 +367,53 @@ def _album_cover_paths(albumhash: str) -> list:
     ]
 
 
+def _cached_album_cover_paths(albumhash: str) -> list:
+    """
+    The album's cover in the image server's derived cache.
+
+    ``imgserver.cache_thumbnails`` copies a folder cover into
+    ``<image_cache>/<size>/<albumhash>.webp`` and ``send_file_or_fallback``
+    prefers that copy over rebuilding. A removal that ignored the cache would
+    keep serving the very cover it was supposed to drop.
+    """
+    from swingmusic.settings import Paths
+
+    filename = f"{albumhash}.webp"
+    cache = Paths().image_cache_path
+    return [cache / size / filename for size in ("large", "medium", "small", "xsmall")]
+
+
+def _album_cover_tombstone(albumhash: str, paths=None):
+    """
+    Marker recording that the user deliberately removed this album's cover.
+
+    Deleting the four thumbnails is not enough on its own, because two
+    mechanisms rebuild a missing album thumbnail from scratch:
+    ``imgserver.find_thumbnail`` serves a cover image sitting next to the audio
+    files, and ``taglib.extract_thumb`` re-extracts the embedded art on the next
+    library scan. Both would quietly bring the rejected cover straight back, so
+    the removal needs a record that outlives the files it deleted.
+
+    Lives in the thumbnails ROOT, which otherwise holds nothing but the four
+    size directories — so it can never collide with a '<albumhash>.webp'.
+
+    :param paths: A ``Paths`` instance. The scanner runs multithreaded and
+        passes its own (see ``taglib.extract_thumb``); everything else lets
+        this resolve the singleton itself.
+    """
+    if paths is None:
+        from swingmusic.settings import Paths
+
+        paths = Paths()
+
+    return paths.thumbs_path / f"{albumhash}.removed"
+
+
+def album_cover_removed(albumhash: str, paths=None) -> bool:
+    """Whether the user removed this album's cover (see _album_cover_tombstone)."""
+    return _album_cover_tombstone(albumhash, paths).exists()
+
+
 def backup_album_cover(albumhash: str) -> None:
     """
     Snapshot the album's current cover files for a one-level undo.
@@ -374,6 +421,9 @@ def backup_album_cover(albumhash: str) -> None:
     For each size: an existing file is copied to '<file>.undo'; a missing
     file leaves a zero-byte '<file>.undo' marker meaning "there was no cover
     here — delete on restore". A later save overwrites the snapshot.
+
+    The tombstone is part of the snapshot: "the user removed this cover" is a
+    state like any other, so undoing a save that cleared it must bring it back.
     """
     import shutil
 
@@ -385,6 +435,12 @@ def backup_album_cover(albumhash: str) -> None:
             shutil.copy2(path, undo)
         else:
             undo.write_bytes(b"")
+
+    tombstone = _album_cover_tombstone(albumhash)
+    tombstone_undo = tombstone.with_name(tombstone.name + ".undo")
+    tombstone.parent.mkdir(parents=True, exist_ok=True)
+    # Same convention as above: zero bytes mean "there was no tombstone".
+    tombstone_undo.write_bytes(b"1" if tombstone.exists() else b"")
 
 
 def undo_album_cover(albumhash: str) -> bool:
@@ -409,7 +465,35 @@ def undo_album_cover(albumhash: str) -> bool:
         else:
             os.replace(undo, path)
 
+    tombstone = _album_cover_tombstone(albumhash)
+    tombstone_undo = tombstone.with_name(tombstone.name + ".undo")
+    if tombstone_undo.exists():
+        restored = True
+        if tombstone_undo.stat().st_size == 0:
+            tombstone.unlink(missing_ok=True)
+        else:
+            tombstone.write_bytes(b"")
+        tombstone_undo.unlink()
+
     return restored
+
+
+def remove_album_cover(albumhash: str) -> None:
+    """
+    Drop an album's cover: delete the four thumbnails, drop the derived cache
+    entries and record the removal so nothing regenerates it.
+
+    Snapshotted first, so ``undo_album_cover`` reverts a removal exactly the
+    way it reverts a save.
+    """
+    backup_album_cover(albumhash)
+
+    for path in _album_cover_paths(albumhash) + _cached_album_cover_paths(albumhash):
+        path.unlink(missing_ok=True)
+
+    tombstone = _album_cover_tombstone(albumhash)
+    tombstone.parent.mkdir(parents=True, exist_ok=True)
+    tombstone.write_bytes(b"")
 
 
 def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
@@ -469,5 +553,9 @@ def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
         return None
     finally:
         img.close()
+
+    # Setting a cover overrides an earlier removal. backup_album_cover above
+    # snapshotted the tombstone, so an undo still restores the removed state.
+    _album_cover_tombstone(albumhash).unlink(missing_ok=True)
 
     return filename

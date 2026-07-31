@@ -5,6 +5,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from PIL import Image
 from pydantic import BaseModel, Field
 
+from swingmusic.lib.coverart import album_cover_removed
 from swingmusic.settings import Defaults, Paths
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.tracks import TrackStore
@@ -137,6 +138,13 @@ def send_file_or_fallback(folder: str, filename: str, fallback: str = "default.w
         return send_from_directory(folder, filename)
 
     if pathhash != "":
+        # INFO: `pathhash` is only ever set for ALBUM thumbnails, so everything
+        # below is the album recovery path. A cover the user removed on purpose
+        # must not sneak back in through it — the folder lookup further down
+        # would happily serve the very cover.jpg that was rejected.
+        if album_cover_removed(filename.replace(".webp", "")):
+            return send_fallback_img(fallback)
+
         # INFO: Check if the image is in the cache
         cache_path = Paths().image_cache_path / fpath.parent.name / filename
         if cache_path.exists():

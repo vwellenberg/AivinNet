@@ -143,6 +143,16 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
         if img_size > 0:
             return True
 
+    # INFO: The user removed this album's cover on purpose. Without this check
+    # the very next library scan would re-extract the embedded art (or the
+    # folder cover) and hand the rejected image straight back. Imported inside
+    # the function: this runs on the multithreaded scan path, where module
+    # imports are not cached, and `lib.coverart` drags in requests/PIL.
+    from swingmusic.lib.coverart import album_cover_removed
+
+    if album_cover_removed(webp_path.replace(".webp", ""), paths):
+        return False
+
     album_art = parse_album_art(filepath)
 
     # INFO: No embedded art — fall back to a cover image sitting in the track's
