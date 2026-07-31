@@ -29,6 +29,7 @@ from io import BytesIO
 from swingmusic.lib.cover_writer import CoverWriteError, UnsupportedCoverFormatError, supports, write_cover
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.tracks import TrackStore
+from swingmusic.utils.threading import background
 
 # NOTE: do not use `from swingmusic.logger import log` — that global is None
 # until setup_logger() runs and the imported name never picks up the reassignment.
@@ -222,3 +223,48 @@ def embed_album_cover(albumhash: str) -> dict:
             written += 1
 
     return {"total": len(filepaths), "written": written, "failed": failed}
+
+
+@background
+def write_cover_through(albumhash: str) -> None:
+    """
+    Carry a just-changed cover into the album's files, in the background.
+
+    This is what makes the write IMPLICIT: changing an album's cover changes
+    the files too, with no second action to remember. `embed_album_cover` above
+    stays the explicit, reporting variant.
+
+    Background, not inline, and that is not a preference. The server is
+    single-threaded (bjoern), `embed_album_cover` is synchronous, and it copies
+    then rewrites every file of the album — a 30-track album inline would hold
+    the WHOLE app still for as long as that takes. The same shape froze the app
+    once before over a hanging HTTP request.
+
+    The trade is that nobody sees a per-file verdict. That is why this never
+    raises and logs instead: the cover in the library is already saved and
+    correct at this point, and a file that would not take it must not turn a
+    successful save into an error the user cannot act on. The explicit action
+    is where a report belongs.
+    """
+    from swingmusic.config import UserConfig
+
+    if not UserConfig().writeCoverToFiles:
+        return
+
+    try:
+        result = embed_album_cover(albumhash)
+    except AlbumCoverError as exc:
+        log.warning("Cover for %s not written through to its files: %s", albumhash, exc)
+        return
+
+    if result["failed"]:
+        log.warning(
+            "Cover for %s written to %d of %d files; %d could not take it (first: %s)",
+            albumhash,
+            result["written"],
+            result["total"],
+            len(result["failed"]),
+            result["failed"][0]["error"],
+        )
+    else:
+        log.info("Cover for %s written into all %d of its files", albumhash, result["written"])
