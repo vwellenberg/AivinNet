@@ -116,7 +116,7 @@ def load_failed() -> set[str]:
     with _failed_lock:
         if _failed_cache is None:
             try:
-                with open(_failed_cache_file(), "r", encoding="utf-8") as fh:
+                with open(_failed_cache_file(), encoding="utf-8") as fh:
                     _failed_cache = set(json.load(fh))
             except (FileNotFoundError, ValueError, OSError):
                 _failed_cache = set()
@@ -174,16 +174,28 @@ def _lucene_escape(s: str) -> str:
 
 _DECORATION_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 
+# A leading disc marker: "CD3: ", "Disc 2 - ", "Disk 1 ". Multi-disc rips carry
+# it in the album tag of every track, and MusicBrainz stores the WORK under its
+# own title with the discs as media inside it — so an exact-phrase search for
+# "CD3: The Red Shoes" returns zero results while "The Red Shoes" is right
+# there. Measured on this library: the Kate Bush disc that has a cover today is
+# the only one of five sampled control albums the gate could not re-find, and
+# this prefix was the whole reason.
+_DISC_PREFIX_RE = re.compile(r"^\s*(?:cd|disc|disk)\s*\d+\s*[:\-–—.]?\s*", re.IGNORECASE)
+
 
 def _simplify_title(title: str) -> str:
     """
-    Strip bracketed/parenthetical decorations from an album title so a
-    decorated tag (e.g. "By The Way (2002)", "Music of Towns (... Soundtrack)")
-    can still match MusicBrainz, whose exact-phrase search fails on the extra
-    text. Returns the cleaned title (may be empty if the title was only
-    decoration).
+    Strip decorations from an album title so a decorated tag (e.g.
+    "By The Way (2002)", "CD3: The Red Shoes (Remastered)") can still match
+    MusicBrainz, whose exact-phrase search fails on the extra text. Returns the
+    cleaned title (may be empty if the title was only decoration).
+
+    Only ever used for a RETRY after the verbatim title found nothing — the
+    stripped form is a weaker claim, so it must not be what we search first.
     """
     cleaned = _DECORATION_RE.sub("", title)
+    cleaned = _DISC_PREFIX_RE.sub("", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return cleaned.strip(" -–—:·,")
 
@@ -444,13 +456,11 @@ def _search_release_group_mbid(album_title: str, artist_name: str) -> str | None
         _mb_throttle()
         resp = requests.get(MB_SEARCH_URL, params=params, headers=headers, timeout=10)
         if resp.status_code != 200:
-            log.debug("MusicBrainz search returned HTTP %s for %r / %r",
-                      resp.status_code, album_title, artist_name)
+            log.debug("MusicBrainz search returned HTTP %s for %r / %r", resp.status_code, album_title, artist_name)
             return None
         data = resp.json()
     except (requests.RequestException, ValueError) as e:
-        log.debug("MusicBrainz search failed for %r / %r: %s",
-                  album_title, artist_name, e)
+        log.debug("MusicBrainz search failed for %r / %r: %s", album_title, artist_name, e)
         return None
 
     groups = data.get("release-groups") or []

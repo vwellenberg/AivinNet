@@ -324,3 +324,40 @@ class TestFetchCoverForAlbum:
 
         assert mb.fetch_cover_for_album("Abbey Road (2019 Remaster)", "The Beatles") == b"JPEGBYTES"
         assert len(search.calls) == 2
+
+
+class TestDiscPrefix:
+    """
+    Multi-disc rips carry "CD3: " in the album tag of every track, while
+    MusicBrainz stores the work under its own title with the discs as media
+    inside it. The verbatim search therefore finds nothing at all — measured:
+    zero results for "CD3: The Red Shoes (Remastered)" by Kate Bush, and it was
+    the only one of five sampled albums WITH a cover that the gate could not
+    re-find.
+    """
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("CD3: The Red Shoes (Remastered)", "The Red Shoes"),
+            ("CD1 - Greatest Hits", "Greatest Hits"),
+            ("Disc 2: Live in Berlin", "Live in Berlin"),
+            ("disk 10 Encore", "Encore"),
+        ],
+    )
+    def test_a_leading_disc_marker_is_stripped(self, raw, expected):
+        assert mb._simplify_title(raw) == expected
+
+    @pytest.mark.parametrize(
+        "title",
+        [
+            # Not a disc marker: a real title that merely starts similarly.
+            "CDs and Cassettes",
+            "Discovery",
+            "Disco 2000",
+            # A number that is part of the name, not a disc index.
+            "1999",
+        ],
+    )
+    def test_it_does_not_eat_a_real_title(self, title):
+        assert mb._simplify_title(title) == title
