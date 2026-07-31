@@ -101,7 +101,7 @@ def _remap_references(conn, mapping: dict[str, str]) -> dict[str, int]:
         updated = [mapping.get(h, h) for h in hashes]
 
         if updated != hashes:
-            moved["playlists"] += sum(1 for a, b in zip(hashes, updated) if a != b)
+            moved["playlists"] += sum(1 for a, b in zip(hashes, updated, strict=True) if a != b)
             conn.execute(update(PlaylistTable).where(PlaylistTable.id == pid).values(trackhashes=updated))
 
     # Favourite hashes carry a `track_` prefix — comparing the raw column
