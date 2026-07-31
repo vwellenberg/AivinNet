@@ -64,6 +64,46 @@ Pro Aufgabe/Issue:
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`).
 - **Vendored Code:** `src/swingmusic/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
+## Dokumentation & Learnings (verbindlich)
+
+**Jede Session, die etwas Nicht-Offensichtliches herausfindet, schreibt es auf.** Ein Learning,
+das nur im Chat steht, ist beim nächsten Kontextfenster weg.
+
+Wohin — nach Umfang und Lesehäufigkeit:
+
+| Was | Wohin | Warum |
+|---|---|---|
+| Falle, die schon mal Zeit gekostet hat; Konvention, die von der Tool-Voreinstellung abweicht; Befehl, den man ständig braucht | **direkt in diese `CLAUDE.md`** | wird in *jede* Session geladen |
+| Bauplan, Modul-Landkarte, Datenfluss, Ablaufdiagramme | **[docs/architecture.md](docs/architecture.md)**, hier nur ein Zeiger | wird nur gelesen, wenn nötig |
+| Persönliche Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
+| Offene Arbeit, Bug, Idee | GitHub-Issue im **Client**-Repo | einzige Backlog-Quelle, siehe unten |
+
+Regeln dazu:
+
+- **Verweisen, nicht importieren.** Verlinke Zusatzdokumente als normalen Markdown-Link
+  (`[docs/architecture.md](docs/architecture.md)`). Ein `@pfad`-Import würde die Datei bei
+  **jedem** Sessionstart vollständig in den Kontext laden und damit den Zweck der Auslagerung
+  aufheben.
+- **Diese Datei soll kurz bleiben** (Richtwert ~200 Zeilen). Wächst ein Abschnitt zur Abhandlung,
+  wandert der Inhalt nach `docs/` und hier bleibt ein Zweizeiler mit Link. Was bleibt: Fallen,
+  Begründungen, Konventionen. Was geht: Verzeichnisbäume, Modulübersichten, Abläufe.
+- **Am Ende der Aufgabe, nicht „irgendwann":** Doku-Änderung gehört in denselben PR wie die
+  Änderung, die sie beschreibt.
+- **Ein Learning wird als Ursache formuliert, nicht als Symptom** — dazu, woran man es erkennt
+  und was stattdessen zu tun ist. Vorbilder stehen unten in der Fallen-Liste.
+
+## Architektur
+
+**Bauplan, Schichten und Datenfluss: [docs/architecture.md](docs/architecture.md).** Kurzfassung:
+Ein Flask-Prozess serviert API *und* Client; die komplette Bibliothek wird beim Start aus SQLite
+in RAM-Stores (`store/*.py`) geladen und von dort gelesen; Alben und Artists sind **abgeleitet**,
+nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
+
+**Zwei Konsequenzen, die man dauernd braucht:**
+- **DB-Schreiben ohne Store-Update ist bis zum Neustart ein No-op.** Store nachziehen oder
+  `lib/index.py::index_everything()` auslösen.
+- **Nichts Blockierendes im Request-Pfad** — ein hängender Aufruf friert die *ganze* App ein.
+
 ## Architektur-Hinweise
 
 - **⚠️ PLAYLIST-SCHREIBPFADE: nie „ganze Liste ersetzen", nie auf Client-Indizes verlassen.** Zwei echte Datenverlust-Bugs kamen aus derselben Wurzel — der Client kennt die gespeicherte Trackhash-Liste NICHT:
@@ -143,39 +183,6 @@ sudo -n systemctl restart subspaceradio
 ```
 
 **Wichtig:** Server hat IPv6-Problem — yarn/npm brauchen `NODE_OPTIONS='--dns-result-order=ipv4first'`.
-
-## Was bisher gemacht wurde
-
-### Backend (SubspaceRadio)
-- Ruff Linting + Formatting (483 → 0 Issues)
-- Pre-commit Hooks (ruff + mypy)
-- CI Pipeline (GitHub Actions: Lint, Format, Mypy, Tests)
-- 86 pytest Tests (Hashing, Parsers, Dates, Utils, Album-Model, Folder-Sorting)
-- mypy strict für 4 Utils-Module
-- Alphabetische Sortierung als Default für Ordner und Playlists
-- Memory Leak Fixes (PIL Images, Watchdog, TransCodeStore, mutable default arg)
-- Download-API: `/download/track/<hash>`, `/download/album/<hash>`, `/download/playlist/<id>` (ZIP)
-  - Registriert in `app_builder.py` + `api/__init__.py`
-
-### Frontend (SubspaceRadio-Client) — AivinNet Redesign
-**Branding:**
-- App-Name: "AivinNet" (Fork von Swing Music)
-- Brand-Farben: `$brand-red: #FF284E`, `$brand-green: #1D9E75`, `$brand-purple: #7F77DD`
-- Logo: Pixel-Art Planet (`logo-subspaceradio.png`) mit pulsierendem Ring-Animation (wächst/schwindet + fade)
-- `$red` zeigt auf `$brand-red`
-
-**Spotify-Redesign (laufend):**
-- Ambient-Gradient: Album-Cover-Farbe fließt als Gradient über die gesamte Seite (AlbumView, ArtistView, PlaylistView)
-- Track-Zeilen: Thumbnail + Titel + Künstler gestapelt, Play-Overlay bei Hover, kein Drag-Handle (ganzer Row draggbar)
-- Herz-Icon ersetzt durch `+` (Plus) für nicht-favorisierte Tracks; Herz bleibt für favorisierte
-- Favorit-Button erscheint rechts bei Hover, nicht links
-- Cards (Album/Artist): größer (12rem), Play-Button grün unten rechts, Cover dimmt bei Hover
-- PlayBtn: `$brand-green` Hintergrund
-- Unten-Leiste: semi-transparent (backdrop-filter blur), Content scrollt dahinter
-- Startseite: kein "Home"-Heading, "Zuletzt gehört" immer erste Sektion
-- Suche: Suchleiste oben (Desktop), Search-Icon in mobiler Bottom-Bar
-- Sidebar: Playlist-Bibliothek als Liste mit Thumbnails
-- Download-Buttons: Track (Kontextmenü), Album (Kontextmenü), Playlist (Header-Button)
 
 ## Nächste Schritte
 
