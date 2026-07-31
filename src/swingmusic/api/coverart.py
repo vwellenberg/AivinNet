@@ -17,8 +17,8 @@ from swingmusic import models
 from swingmusic.api.auth import admin_required
 from swingmusic.api.formfields import FileStorage
 from swingmusic.db.userdata import PlaylistTable
+from swingmusic.lib import album_cover_edit, playlistlib
 from swingmusic.lib import coverart as coverartlib
-from swingmusic.lib import playlistlib
 from swingmusic.lib.album_cover_edit import AlbumCoverError, embed_album_cover
 from swingmusic.store.albums import AlbumStore
 from swingmusic.utils.dates import create_new_date, date_string_to_time_passed
@@ -182,6 +182,11 @@ def upload_album_cover(form: UploadAlbumCoverForm):
     if not filename:
         return {"error": "Failed: Invalid image"}, 400
 
+    # Changing a cover changes the files too — no second action to remember.
+    # Background, because the server is single-threaded and rewriting a
+    # 30-track album inline would hold the whole app still.
+    album_cover_edit.write_cover_through(form.albumhash)
+
     return {"success": True, "image": filename}
 
 
@@ -229,5 +234,11 @@ def save_album_cover(body: SaveAlbumCoverBody):
     filename = coverartlib.save_album_cover_bytes(body.albumhash, content)
     if not filename:
         return {"error": "Cover could not be saved"}, 400
+
+    # See the upload route: a deliberate cover change writes through to the
+    # files. The MusicBrainz BATCH deliberately does not — it changes hundreds
+    # of albums at once, and rewriting thousands of files off one button press
+    # is a different thing from changing one album's picture.
+    album_cover_edit.write_cover_through(body.albumhash)
 
     return {"success": True, "image": filename}

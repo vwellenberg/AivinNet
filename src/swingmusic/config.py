@@ -74,6 +74,15 @@ class UserConfig(metaclass=Singleton):
     mergeAlbums: bool = False
     cleanAlbumTitle: bool = True
     showAlbumsAsSingles: bool = False
+    # Changing an album's cover also writes it into that album's audio files,
+    # so the files agree with the library and are right in every other program
+    # that opens them.
+    #
+    # On by default: a cover the app shows but the files do not carry is the
+    # thing this exists to fix. Still a switch, because it is the one setting
+    # in here that MODIFIES the user's files — anyone who keeps their tags
+    # under another program's control needs to be able to say no.
+    writeCoverToFiles: bool = True
 
     # misc
     enablePeriodicScans: bool = False
