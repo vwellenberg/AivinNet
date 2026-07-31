@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from swingmusic.db.userdata import MixTable
 from swingmusic.plugins.mixes import MixesPlugin
 from swingmusic.store.homepage import HomepageStore
+from swingmusic.utils.mixes import latest_mix_per_artist
 
 bp_tag = Tag(name="Mixes Plugin", description="Mixes plugin hehe")
 api = APIBlueprint("mixesplugin", __name__, url_prefix="/plugins/mixes", abp_tags=[bp_tag])
@@ -17,7 +18,11 @@ class GetMixesBody(BaseModel):
 
 @api.get("/<mixtype>")
 def get_artist_mixes(path: GetMixesBody):
-    srcmixes = MixTable.get_all(with_userid=True)
+    # One mix per artist, newest first. The table keeps every generation an
+    # artist has ever had (a new top-track set means a new sourcehash means a
+    # new row), so the raw list was six "Frank Klepacki Radio" entries out of
+    # nine. Saved mixes survive the collapse — see latest_mix_per_artist.
+    srcmixes = latest_mix_per_artist(list(MixTable.get_all(with_userid=True)))
     mixes = []
 
     if path.mixtype == "artists":

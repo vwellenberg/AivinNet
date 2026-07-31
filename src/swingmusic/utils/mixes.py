@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import Any
 
 from swingmusic.models.track import Track
 
@@ -101,3 +102,43 @@ def balance_mix(tracks: list[Track]) -> list[Track]:
 
     # Convert the dictionary back to a list, preserving the new order
     return [balanced_mix[i] for i in sorted(balanced_mix.keys())]
+
+
+def latest_mix_per_artist(mixes: list[Any]) -> list[Any]:
+    """
+    Collapse a mix list to one mix per artist, newest first — but never drop a
+    mix the user saved.
+
+    Artist mixes accumulate in the database, one row per cron run: the mix's
+    `sourcehash` is derived from the artist's current top tracks, so as soon as
+    listening habits shift the same artist produces a new hash and a new row.
+    Nine rows for three artists is a normal steady state, and showing them raw
+    means six near-identical "Frank Klepacki Radio" tiles in one row.
+
+    Saved mixes are exempt on purpose. Saving is an explicit statement that this
+    particular mix should stick around; silently collapsing it into a newer
+    generation of the same artist would throw away exactly what the user asked
+    to keep.
+
+    Expects the input ordered newest first (which is what `MixTable.get_all()`
+    yields) and preserves that order. Mixes without an artisthash are passed
+    through untouched — they are not artist mixes and have nothing to collapse
+    against.
+    """
+    seen_artists: set[str] = set()
+    result = []
+
+    for mix in mixes:
+        artisthash = (mix.extra or {}).get("artisthash")
+
+        if mix.saved or not artisthash:
+            result.append(mix)
+            continue
+
+        if artisthash in seen_artists:
+            continue
+
+        seen_artists.add(artisthash)
+        result.append(mix)
+
+    return result
