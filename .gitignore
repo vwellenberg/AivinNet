@@ -48,3 +48,5 @@ nohup.out
 client.zip
 *.whl
 .pypirc
+# Die Agent-Konfiguration ist Projektgut und muss trotz "*s.json" mitkommen.
+!.claude/settings.json

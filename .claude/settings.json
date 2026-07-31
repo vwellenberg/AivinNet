@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sed -n 's/.*\"file_path\":\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.py) \"$HOME/.local/bin/uvx.exe\" ruff check --fix --force-exclude \"$f\" >/dev/null 2>&1; \"$HOME/.local/bin/uvx.exe\" ruff format --force-exclude \"$f\" >/dev/null 2>&1 ;; esac; } 2>/dev/null || true",
+            "statusMessage": "ruff",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "b=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$b\" = \"master\" ] || [ \"$b\" = \"main\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Commit direkt auf %s. Die CLAUDE.md verlangt Worktree + eigenen Branch + PR: git worktree add -b <prefix>/<slug> ../_wt-<slug> origin/master\"}}' \"$b\"; fi",
+            "statusMessage": "Branch-Guard",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "command": "b=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$b\" = \"master\" ] || [ \"$b\" = \"main\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Push direkt von %s. Aenderungen gehoeren auf einen eigenen Branch und durch einen PR.\"}}' \"$b\"; fi",
+            "statusMessage": "Branch-Guard",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
