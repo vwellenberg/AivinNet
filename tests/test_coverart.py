@@ -381,10 +381,26 @@ class TestSaveAlbumCoverBytes:
         assert coverart.save_album_cover_bytes("abc123", b"definitely not an image") is None
 
 
+def install_cover_paths(monkeypatch, tmp_path):
+    """
+    Redirect every filesystem location an album cover lives in to tmp_path.
+
+    Returns (thumbnail_paths, cached_paths, tombstone).
+    """
+    paths = [tmp_path / size / "hash.webp" for size in ("lg", "md", "sm", "xsm")]
+    cached = [tmp_path / "cache" / size / "hash.webp" for size in ("lg", "md", "sm", "xsm")]
+    tombstone = tmp_path / "hash.removed"
+
+    monkeypatch.setattr(coverart, "_album_cover_paths", lambda albumhash: paths)
+    monkeypatch.setattr(coverart, "_cached_album_cover_paths", lambda albumhash: cached)
+    monkeypatch.setattr(coverart, "_album_cover_tombstone", lambda albumhash, paths=None: tombstone)
+
+    return paths, cached, tombstone
+
+
 class TestAlbumCoverUndo:
     def _install_paths(self, monkeypatch, tmp_path):
-        paths = [tmp_path / size / "hash.webp" for size in ("lg", "md", "sm", "xsm")]
-        monkeypatch.setattr(coverart, "_album_cover_paths", lambda albumhash: paths)
+        paths, _, _ = install_cover_paths(monkeypatch, tmp_path)
         return paths
 
     def test_backup_and_undo_restore_previous_state(self, monkeypatch, tmp_path):
@@ -433,6 +449,77 @@ class TestAlbumCoverUndo:
 
         assert coverart.undo_album_cover("hash") is True
         assert paths[0].read_bytes() == b"gen-2"
+
+
+class TestRemoveAlbumCover:
+    def test_removes_thumbnails_cache_and_marks_the_album(self, monkeypatch, tmp_path):
+        paths, cached, tombstone = install_cover_paths(monkeypatch, tmp_path)
+
+        for path in paths + cached:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"wrong-cover")
+
+        coverart.remove_album_cover("hash")
+
+        # The derived cache matters as much as the thumbnails: the image server
+        # prefers it over rebuilding, so a leftover cache entry would keep
+        # serving the cover that was just removed.
+        for path in paths + cached:
+            assert not path.exists()
+
+        assert tombstone.exists()
+        assert coverart.album_cover_removed("hash") is True
+
+    def test_removal_is_undoable(self, monkeypatch, tmp_path):
+        paths, _, tombstone = install_cover_paths(monkeypatch, tmp_path)
+
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"the-cover")
+
+        coverart.remove_album_cover("hash")
+        assert coverart.undo_album_cover("hash") is True
+
+        for path in paths:
+            assert path.read_bytes() == b"the-cover"
+
+        # Undo must lift the marker too, otherwise the restored files would be
+        # served but the image server would still answer with the placeholder.
+        assert not tombstone.exists()
+        assert coverart.album_cover_removed("hash") is False
+
+    def test_removing_an_album_that_had_no_cover_still_marks_it(self, monkeypatch, tmp_path):
+        # Covers can come from a cover.jpg next to the audio files, in which case
+        # there are no thumbnails to delete but the album still shows an image.
+        _, _, tombstone = install_cover_paths(monkeypatch, tmp_path)
+
+        coverart.remove_album_cover("hash")
+
+        assert tombstone.exists()
+
+    def test_undo_of_that_removal_leaves_no_cover_behind(self, monkeypatch, tmp_path):
+        paths, _, tombstone = install_cover_paths(monkeypatch, tmp_path)
+
+        coverart.remove_album_cover("hash")
+        assert coverart.undo_album_cover("hash") is True
+
+        assert not tombstone.exists()
+        for path in paths:
+            assert not path.exists()
+
+    def test_a_fresh_backup_records_the_marker_state(self, monkeypatch, tmp_path):
+        # The save path snapshots before it clears the marker, so an undo of a
+        # save that overwrote a removal has to land back on "removed" — not on
+        # whatever cover existed before that. (The full save/undo cycle needs
+        # real Pillow and is covered in tests_api/test_coverart_api.py.)
+        _, _, tombstone = install_cover_paths(monkeypatch, tmp_path)
+
+        coverart.remove_album_cover("hash")
+        coverart.backup_album_cover("hash")
+        tombstone.unlink()
+
+        assert coverart.undo_album_cover("hash") is True
+        assert tombstone.exists()
 
 
 class TestSearchFallback:
