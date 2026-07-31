@@ -9,6 +9,7 @@ from swingmusic.db import create_all_tables
 from swingmusic.db.engine import DbEngine
 from swingmusic.db.userdata import UserTable
 from swingmusic.migrations import apply_migrations
+from swingmusic.migrations.album_title_from_folder import rename_albums_after_their_folder
 from swingmusic.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from swingmusic.settings import Paths
 
@@ -21,10 +22,14 @@ def run_migrations():
 
     # Not part of `apply_migrations` because that mechanism is currently inert
     # (its module list is empty and its apply loop is commented out), so a
-    # migration registered there would never run. This one is safe to call on
-    # every start instead of being versioned: it only rewrites a track whose
-    # stored hash still equals the broken one, so the second run finds nothing.
+    # migration registered there would never run. Both are safe to call on
+    # every start instead of being versioned: each only touches rows that still
+    # carry the old shape, so the second run finds nothing.
+    #
+    # Order matters. The rename below identifies its rows by the FOLDER-derived
+    # album hash, which is exactly what the repair above writes.
     repair_collapsed_albumhashes()
+    rename_albums_after_their_folder()
 
 
 def setup_sqlite():

@@ -1,14 +1,16 @@
 """
-How a track is assigned to an album.
+How a track is assigned to an album, and what that album is called.
 
-Two rules, kept in one place because they have to agree with each other: the
-scanner writes hashes with `album_hash`, and the repair migration finds rows to
-fix with `broken_album_hash`. If those two drifted apart, the migration would
-either miss affected rows or rewrite rows the scanner immediately re-breaks.
+The rules live together because they have to agree with each other: the scanner
+writes rows with them, and the repair migrations find rows to fix with them. If
+those drifted apart, a migration would either miss affected rows or rewrite rows
+the scanner immediately re-breaks.
 
 Deliberately free of database imports so both the scanner and the tests can use
 it without dragging in the ORM.
 """
+
+import os
 
 from swingmusic.utils.hashing import create_hash
 
@@ -29,6 +31,27 @@ def album_hash(album_tag: str | None, folder: str, albumartists: str) -> str:
     with it.
     """
     return create_hash(album_tag or folder, albumartists)
+
+
+def album_title(album_tag: str | None, folder: str) -> str | None:
+    """
+    What the album is CALLED when the file carries no album tag.
+
+    The folder's own name — `…/700-Games/Hearthstone` becomes "Hearthstone".
+
+    Before this, a missing album tag fell back to the parsed FILENAME, i.e. the
+    track's own title. That was already wrong on its own (an album named after
+    one of its tracks) and became conspicuous once the hash started grouping by
+    folder: hundreds of correctly grouped albums, each named after whichever
+    track happened to be first.
+
+    Returns None when there is nothing usable, leaving the caller's existing
+    "Unknown" fallback in charge.
+    """
+    if album_tag:
+        return album_tag
+
+    return os.path.basename(folder.rstrip("/\\")) or None
 
 
 def broken_album_hash(albumartists: str) -> str:

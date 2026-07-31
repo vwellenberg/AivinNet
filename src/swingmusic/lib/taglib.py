@@ -11,7 +11,7 @@ from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 from swingmusic.config import UserConfig
-from swingmusic.lib.albumhash import album_hash
+from swingmusic.lib.albumhash import album_hash, album_title
 from swingmusic.settings import Defaults, Paths
 from swingmusic.utils.hashing import create_hash
 from swingmusic.utils.parsers import split_artists
@@ -300,14 +300,17 @@ def get_tags(filepath: str, config: UserConfig) -> dict:
 
     parse_data = None
 
-    # INFO: If title or album is empty, extract the album and title from the filename
-    to_filename = ["title", "album"]
-    for tag in to_filename:
-        p = metadata[tag]
-        if p == "" or p is None:
-            parse_data = extract_artist_title(filename, config)
-            title = parse_data.title.replace("_", " ")
-            metadata[tag] = title
+    # INFO: If the title is empty, extract it from the filename
+    if not metadata["title"]:
+        parse_data = extract_artist_title(filename, config)
+        metadata["title"] = parse_data.title.replace("_", " ")
+
+    # The album falls back to the FOLDER, not the filename. It used to take the
+    # same parsed filename as the title above, which named an album after one of
+    # its own tracks — invisible while every untagged file shared one album, and
+    # conspicuous once the hash started grouping them by folder.
+    if not metadata["album"]:
+        metadata["album"] = album_title(None, metadata["folder"])
 
     # INFO: If artist or albumartist is empty
     # extract the artist and albumartist from the filename
