@@ -136,17 +136,17 @@ class TestArtistTokens:
 class TestIsUsableAlbumartist:
     @pytest.mark.parametrize("name", ["Radiohead", "Various Artists", "坂本龍一"])
     def test_real_names_are_usable(self, name):
-        assert mb._is_usable_albumartist(name) is True
+        assert mb.is_usable_albumartist(name) is True
 
     @pytest.mark.parametrize("name", ["", "   ", "Unknown", "unknown", "UNKNOWN", "Unknown Artist"])
     def test_placeholders_are_not_usable(self, name):
-        assert mb._is_usable_albumartist(name) is False
+        assert mb.is_usable_albumartist(name) is False
 
     def test_various_artists_is_deliberately_usable(self):
         # "Various Artists" states something true about the album (it is a
         # compilation) and MusicBrainz credits compilations to an artist of that
         # name, unlike "Unknown", which only says our tags are empty.
-        assert mb._is_usable_albumartist("Various Artists") is True
+        assert mb.is_usable_albumartist("Various Artists") is True
 
 
 class TestArtistMatches:
@@ -346,7 +346,7 @@ class TestDiscPrefix:
         ],
     )
     def test_a_leading_disc_marker_is_stripped(self, raw, expected):
-        assert mb._simplify_title(raw) == expected
+        assert mb.simplify_title(raw) == expected
 
     @pytest.mark.parametrize(
         "title",
@@ -360,4 +360,81 @@ class TestDiscPrefix:
         ],
     )
     def test_it_does_not_eat_a_real_title(self, title):
-        assert mb._simplify_title(title) == title
+        assert mb.simplify_title(title) == title
+
+
+class TestTitleMatches:
+    """
+    The half of the gate that only the fuzzy sources need.
+
+    MusicBrainz is searched by exact phrase, so it has already asserted the
+    title; iTunes and Deezer take free text and answer with something for any
+    query, so this is where "it is actually this album" gets decided.
+    """
+
+    @pytest.mark.parametrize(
+        "ours,theirs",
+        [
+            ("Discovery", "Discovery"),
+            # Folding: case, accents, punctuation, "&".
+            ("discovery", "DISCOVERY"),
+            ("Sigur Rós Live", "Sigur Ros Live"),
+            ("Songs of Love & Hate", "Songs of Love and Hate"),
+            ("Sgt. Pepper's", "Sgt Peppers"),
+            # Decorations on either side.
+            ("By The Way (2002)", "By The Way"),
+            ("By The Way", "By The Way (Deluxe Edition)"),
+            ("CD3: The Red Shoes", "The Red Shoes"),
+        ],
+    )
+    def test_accepts_the_same_album_spelled_differently(self, ours, theirs):
+        assert mb.title_matches(ours, theirs) is True
+
+    @pytest.mark.parametrize(
+        "ours,theirs",
+        [
+            # The subset trap. `_artist_matches` accepts a subset on purpose;
+            # doing that here would hand "Greatest Hits" the cover of an
+            # entirely different record.
+            ("Greatest Hits", "Greatest Hits Vol. 2"),
+            ("Greatest Hits Vol. 2", "Greatest Hits"),
+            ("Live", "Live in Tokyo"),
+            ("Discovery", "Discovery Two"),
+            ("Discovery", "Homework"),
+        ],
+    )
+    def test_rejects_a_merely_similar_title(self, ours, theirs):
+        assert mb.title_matches(ours, theirs) is False
+
+    def test_a_ligature_is_not_expanded(self):
+        # A known limit, written down so it stays a decision rather than a
+        # surprise: NFKD decomposes accents but not ligatures, so "æ" and "ae"
+        # remain different characters. Expanding them would mean a second,
+        # hand-kept table, and the cost of the miss is one album without a
+        # cover — which is the outcome this whole gate prefers anyway.
+        assert mb.title_matches("Agætis byrjun", "Agaetis byrjun") is False
+
+    def test_a_title_that_folds_to_nothing_never_matches(self):
+        # "(Untitled)" is all decoration: there is nothing left to compare, and
+        # an empty string must not silently equal another empty string.
+        assert mb.title_matches("(Untitled)", "(Untitled)") is False
+        assert mb.title_matches("", "") is False
+
+
+class TestAlbumMatches:
+    """Both halves together — what a store candidate has to clear."""
+
+    def test_accepts_when_title_and_artist_both_match(self):
+        assert mb.album_matches("Discovery", "Daft Punk", "Discovery", ["Daft Punk"]) is True
+
+    def test_rejects_the_right_title_by_the_wrong_artist(self):
+        # The exact failure mode the gate exists for: "Discovery" is also an
+        # album by several other acts.
+        assert mb.album_matches("Discovery", "Daft Punk", "Discovery", ["Pink Floyd"]) is False
+
+    def test_rejects_the_right_artist_with_the_wrong_album(self):
+        assert mb.album_matches("Discovery", "Daft Punk", "Homework", ["Daft Punk"]) is False
+
+    def test_accepts_a_guest_credit_on_the_store_side(self):
+        # Artist folding still applies: "feat." is dropped before comparing.
+        assert mb.album_matches("Smooth", "Santana", "Smooth", ["Santana feat. Rob Thomas"]) is True

@@ -27,7 +27,12 @@ from urllib.parse import urljoin, urlsplit
 import requests
 from PIL import Image, UnidentifiedImageError
 
-from swingmusic.lib.musicbrainz import USER_AGENT
+from swingmusic.lib.musicbrainz import (
+    USER_AGENT,
+    simplify_title,
+    album_matches,
+    is_usable_albumartist,
+)
 
 log = logging.getLogger(__name__)
 
@@ -272,6 +277,74 @@ def search_covers_with_fallback(query: str, limit: int = 30) -> tuple[str, list[
             return variant, results
 
     return query, []
+
+
+def fetch_verified_cover(album_title: str, artist_name: str) -> bytes | None:
+    """
+    Find a cover for an album on iTunes/Deezer WITHOUT a human confirming it.
+
+    This is the unattended sibling of `search_covers`: the interactive "Find
+    cover online" hands the user a gallery and lets them judge, and there is
+    nobody to judge here. So every candidate has to pass the same gate the
+    MusicBrainz path uses (`lib/musicbrainz.album_matches`) — the title must
+    match after folding and the artist must cross-check — and an album whose
+    own album artist says nothing verifiable is skipped before a request is
+    even made.
+
+    Without that, hanging these two sources into the automatic chain would undo
+    the confidence gate rather than extend it: both take free text and answer
+    with *something* for almost any query, so "first result" is a wrong cover
+    with extra steps.
+
+    Returns the image bytes of the first candidate that clears the gate, or
+    None. None is a perfectly good outcome.
+    """
+    title = (album_title or "").strip()
+    artist = (artist_name or "").strip()
+
+    if not title:
+        return None
+
+    if not is_usable_albumartist(artist):
+        log.info(
+            "Store covers: skipped %r — album artist %r says nothing we could verify a match against",
+            title,
+            artist_name,
+        )
+        return None
+
+    # Queries to try, in order of how strong a claim they make. The simplified
+    # title is a weaker claim, so it is only a retry — same reasoning as the
+    # MusicBrainz path, where a decorated tag ("… (Original Soundtrack)")
+    # regularly hides an album the store does have.
+    queries = [f"{artist} {title}"]
+    simplified = simplify_title(title)
+    if simplified and simplified.casefold() != title.casefold():
+        queries.append(f"{artist} {simplified}")
+
+    for query in queries:
+        for candidate in search_covers(query, limit=FETCH_LIMIT_PER_SOURCE):
+            if not album_matches(title, artist, candidate.get("album", ""), [candidate.get("artist", "")]):
+                continue
+
+            image = download_cover(candidate["url"])
+            if image:
+                log.info(
+                    "Store covers: %r by %r matched %r by %r on %s",
+                    title,
+                    artist,
+                    candidate.get("album", ""),
+                    candidate.get("artist", ""),
+                    candidate.get("source", "?"),
+                )
+                return image
+
+            # An accepted match whose download failed is worth one more
+            # candidate rather than the whole album being written off.
+            log.info("Store covers: download failed for %s, trying the next candidate", candidate["url"])
+
+    log.info("Store covers: nothing matched %r by %r", title, artist)
+    return None
 
 
 def is_allowed_cover_url(url: str) -> bool:

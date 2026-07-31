@@ -184,7 +184,7 @@ _DECORATION_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 _DISC_PREFIX_RE = re.compile(r"^\s*(?:cd|disc|disk)\s*\d+\s*[:\-–—.]?\s*", re.IGNORECASE)
 
 
-def _simplify_title(title: str) -> str:
+def simplify_title(title: str) -> str:
     """
     Strip decorations from an album title so a decorated tag (e.g.
     "By The Way (2002)", "CD3: The Red Shoes (Remastered)") can still match
@@ -248,6 +248,10 @@ _FEATURED_RE = re.compile(r"\s(?:(?:feat|feats|featuring|ft)\b\.?|w/).*$", re.IG
 # reduce those names to the empty string and reject every one of them.
 _NON_WORD_RE = re.compile(r"[\W_]+", re.UNICODE)
 
+# Straight and typographic apostrophes, plus the modifier letter Apple and
+# several stores use. See where it is applied for why it is not a separator.
+_APOSTROPHE_RE = re.compile(r"['‘’ʼ]")
+
 
 def _normalise_artist(name: str) -> str:
     """
@@ -269,6 +273,13 @@ def _normalise_artist(name: str) -> str:
     text = _DECORATION_RE.sub(" ", text)
     text = _FEATURED_RE.sub(" ", text)
     text = text.replace("&", " and ")
+    # Apostrophes are REMOVED, not turned into a separator like every other
+    # non-word character. Inside a word the separator is wrong in a way that
+    # only shows up when the two sides spell it differently: "Sgt. Pepper's"
+    # folds to "sgt pepper s" and no longer equals "Sgt Peppers". Dropping it
+    # gives "peppers" from both, and leaves the cases where it stands alone
+    # untouched ("Guns N' Roses" folds the same either way).
+    text = _APOSTROPHE_RE.sub("", text)
     text = _NON_WORD_RE.sub(" ", text)
 
     return " ".join(text.split())
@@ -286,7 +297,7 @@ def _artist_tokens(normalised: str) -> frozenset[str]:
     return frozenset(stripped or tokens)
 
 
-def _is_usable_albumartist(artist_name: str) -> bool:
+def is_usable_albumartist(artist_name: str) -> bool:
     """
     Whether our own album artist says anything a match can be verified against.
 
@@ -315,6 +326,10 @@ def _is_usable_albumartist(artist_name: str) -> bool:
     noticed, and quietly misrepresents the library — and it also poisons the
     negative cache in the opposite direction, because it counts as a success.
     The first error is recoverable, the second is not. So: fail the check.
+
+    Public, because the store lookup in `lib/coverart.py` turns on the same
+    decision: an album we cannot verify a match for gets no cover from ANY
+    source. Adding a source must never become a way around the gate.
     """
     normalised = _normalise_artist(artist_name)
     return bool(normalised) and normalised not in _PLACEHOLDER_ARTISTS
@@ -395,6 +410,59 @@ def _artist_matches(artist_name: str, candidates: Iterable[str]) -> bool:
             return True
 
     return False
+
+
+def _normalise_title(title: str) -> str:
+    """
+    Reduce an album title to a form that can be compared across sources.
+
+    Deliberately runs the title through `_normalise_artist`: what that function
+    actually does is fold a NAME (accents, case, punctuation, "&", bracketed
+    additions), and both sides of a comparison must be folded by exactly the
+    same rules or the comparison means nothing. `simplify_title` runs first so
+    a disc prefix ("CD3: ") disappears too.
+    """
+    return _normalise_artist(simplify_title(title))
+
+
+def title_matches(album_title: str, candidate_title: str) -> bool:
+    """
+    Whether a candidate album title denotes the same album as ours.
+
+    Equality after folding, and nothing looser. The subset rule that
+    `_artist_matches` uses would be wrong here: album titles are frequently
+    prefixes of unrelated ones ("Greatest Hits" is a subset of "Greatest Hits
+    Vol. 2", "Live" of "Live in Tokyo"), so a subset match would accept the
+    wrong record of the right artist — the exact failure this gate exists to
+    prevent.
+
+    Folding still absorbs the differences that are only spelling: decorations
+    ("By The Way (2002)"), disc prefixes, accents, punctuation and "&"/"and".
+    """
+    ours = _normalise_title(album_title)
+    if not ours:
+        return False
+
+    return ours == _normalise_title(candidate_title)
+
+
+def album_matches(
+    album_title: str,
+    artist_name: str,
+    candidate_title: str,
+    candidate_artists: Iterable[str],
+) -> bool:
+    """
+    Whether a candidate from a FUZZY source is plausibly this exact album.
+
+    Used by the store lookup in `lib/coverart.py`, which is why the title is
+    checked here but not in the MusicBrainz path: that one searches with an
+    exact-phrase title query, so MusicBrainz has already done this half of the
+    job and its score expresses how well. iTunes and Deezer take free text and
+    always answer with *something* — for them, "the title actually matches" has
+    to be asserted on this side or not at all.
+    """
+    return title_matches(album_title, candidate_title) and _artist_matches(artist_name, candidate_artists)
 
 
 def _result_score(group: dict) -> int:
@@ -546,7 +614,7 @@ def fetch_cover_for_album(album_title: str, artist_name: str) -> bytes | None:
     Cover Art Archive.
 
     Returns None whenever the match cannot be verified — see
-    _is_usable_albumartist and _search_release_group_mbid.
+    is_usable_albumartist and _search_release_group_mbid.
 
     :param album_title: The album title to search for.
     :param artist_name: The (primary) album artist name. May be empty.
@@ -558,7 +626,7 @@ def fetch_cover_for_album(album_title: str, artist_name: str) -> bytes | None:
     title = album_title.strip()
     artist = (artist_name or "").strip()
 
-    if not _is_usable_albumartist(artist):
+    if not is_usable_albumartist(artist):
         # No result could ever clear the artist cross-check, so skip the lookup
         # rather than spend a rate-limited second (1.1s each, ~350 albums in the
         # pending batch) on a result we would throw away anyway.
@@ -575,7 +643,7 @@ def fetch_cover_for_album(album_title: str, artist_name: str) -> bytes | None:
     # carries decorations (year, "Original Soundtrack", "Remastered", ...).
     # Retry once with those stripped before giving up.
     if not mbid:
-        simplified = _simplify_title(title)
+        simplified = simplify_title(title)
         if simplified and simplified.casefold() != title.casefold():
             mbid = _search_release_group_mbid(simplified, artist)
 

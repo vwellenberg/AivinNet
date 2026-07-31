@@ -10,7 +10,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from swingmusic.api.apischemas import AlbumHashSchema
-from swingmusic.lib.coverart import save_album_cover_bytes
+from swingmusic.lib.coverart import fetch_verified_cover, save_album_cover_bytes
 from swingmusic.lib.musicbrainz import (
     clear_failed,
     fetch_cover_for_album,
@@ -45,9 +45,24 @@ def _album_has_cover(albumhash: str) -> bool:
     return (Paths().lg_thumb_path / f"{albumhash}.webp").exists()
 
 
+# INFO: The one outcome that is worth remembering between runs — "we looked
+# everywhere and there is nothing". A constant rather than a literal because the
+# batch worker below compares against it to decide whether to write the negative
+# cache: as two separate string literals, adding a source to the chain would
+# have silently stopped that cache from ever being written again.
+NO_COVER_FOUND = "No cover found online"
+
+
 def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
     """
-    Look up an album by hash, fetch a cover from MusicBrainz/CAA and save it.
+    Look up an album by hash, fetch a cover online and save it.
+
+    The chain is MusicBrainz/CAA first, then the iTunes/Deezer stores. That
+    order is deliberate: MusicBrainz is searched by exact-phrase title and
+    answers with a relevance score, so a hit there is the better-evidenced one.
+    The stores answer with *something* for almost any query, which is why they
+    come second and why their candidates have to clear an explicit title+artist
+    check (see lib/coverart.fetch_verified_cover) rather than a score.
 
     Returns (success, message_or_filename).
     """
@@ -60,9 +75,14 @@ def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
     if album.albumartists:
         artist_name = album.albumartists[0].get("name", "") or ""
 
-    image_bytes = fetch_cover_for_album(album.og_title or album.title, artist_name)
+    title = album.og_title or album.title
+
+    image_bytes = fetch_cover_for_album(title, artist_name)
     if not image_bytes:
-        return False, "No cover found on MusicBrainz"
+        image_bytes = fetch_verified_cover(title, artist_name)
+
+    if not image_bytes:
+        return False, NO_COVER_FOUND
 
     filename = save_album_cover_bytes(albumhash, image_bytes)
     if not filename:
@@ -119,9 +139,10 @@ def _fetch_missing_in_background(albumhashes: list[str]) -> None:
             success, payload = _fetch_and_save_for_albumhash(albumhash)
             status_record(success)
             if not success:
-                # Remember "no cover on MusicBrainz" so we don't retry it every
-                # run. Transient/save errors are NOT cached (worth retrying).
-                if payload == "No cover found on MusicBrainz":
+                # Remember "no source had a cover we could verify" so we don't
+                # retry it every run. Transient/save errors are NOT cached
+                # (worth retrying).
+                if payload == NO_COVER_FOUND:
                     mark_failed(albumhash)
                 log.debug("MusicBrainz batch: %s -> %s", albumhash, payload)
     finally:
