@@ -75,7 +75,7 @@ Wohin — nach Umfang und Lesehäufigkeit:
 |---|---|---|
 | Falle oder Konvention, die **überall** gilt; Befehl, den man ständig braucht | **diese `CLAUDE.md`** | in *jeder* Session |
 | Falle oder Konvention, die nur **einen Bereich** betrifft | **`.claude/rules/<thema>.md`** mit `paths:`-Frontmatter | nur wenn eine passende Datei gelesen wird |
-| Etwas, das **zwingend** passieren muss (nicht nur beraten) | **`.claude/settings.json`** als Hook | deterministisch beim Event |
+| Etwas, das **zwingend** passieren muss und sonst echten Schaden anrichtet | **`.claude/settings.json`** als Hook | deterministisch beim Event — sparsam einsetzen, siehe unten |
 | Bauplan, Modul-Landkarte, Datenfluss | **[docs/architecture.md](docs/architecture.md)**, hier nur ein Zeiger | nur auf Anforderung |
 | Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
 | Offene Arbeit, Bug, Idee | GitHub-Issue im **Client**-Repo | einzige Backlog-Quelle, siehe unten |
@@ -85,19 +85,14 @@ Bestehende Bereichsregeln: `api-endpoints` · `database` · `device-sync` · `pa
 `paths:`-Glob im Frontmatter; ohne `paths` lädt sie unbedingt und ist damit nur CLAUDE.md unter
 anderem Namen.
 
-**Aktive Hooks** (`.claude/settings.json`, mit `/hooks` einsehbar):
-- Nach jedem Write/Edit an einer `.py` läuft `ruff check --fix` + `ruff format` auf genau dieser
-  Datei (`--force-exclude`, damit das vendorte pydub ausgenommen bleibt).
-- `git commit` und `git push` werden **abgelehnt**, solange der aktuelle Branch `master`/`main` ist.
-  Die Worktree-Regel unten ist damit erzwungen statt nur aufgeschrieben. Erkannt wird auch
-  `git -C <repo> commit` — dann wird der Branch **dieses** Repos geprüft.
-  ⚠️ Der Guard liest den Kommando**text**. Er schlägt deshalb auch an, wenn „git commit" nur als
-  Zeichenkette im Befehl vorkommt (z. B. in einem Heredoc oder Testdaten). Das ist bewusst
-  konservativ; im Zweifel den Text umformulieren.
+**Aktiver Hook** (`.claude/settings.json`, mit `/hooks` einsehbar): Nach jedem Write/Edit an einer
+`.py` läuft `ruff check --fix` + `ruff format` auf genau dieser Datei (`--force-exclude`, damit
+das vendorte pydub ausgenommen bleibt). Das ist alles — ein Branch-Guard war kurzzeitig da und
+wurde wieder entfernt: Er hat mehr behindert als geschützt, und die Worktree-Regel unten wurde
+ohnehin nie gebrochen.
 
 ⚠️ Hooks greifen nur, wenn Claude Code **in diesem Verzeichnis** gestartet wurde — Projekt-Settings
-kommen aus dem Arbeitsverzeichnis, nicht aus Unterordnern. Wer eine Ebene höher arbeitet, braucht
-sie dort zusätzlich.
+kommen aus dem Arbeitsverzeichnis, nicht aus Unterordnern.
 
 Regeln dazu:
 
