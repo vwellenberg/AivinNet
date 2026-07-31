@@ -4,14 +4,18 @@ Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic) — ein sel
 
 ## Projekt-Setup
 
-- **Repo:** https://github.com/vwellenberg/SubspaceRadio
-- **Python:** >=3.11
-- **Package Manager:** uv (nicht pip!)
-- **Server:** 192.168.0.4, Port 1970, systemd Service `subspaceradio`
-- **SSH:** `ssh vwellenberg@192.168.0.4` (ed25519 Key)
-- **Webclient:** https://github.com/vwellenberg/SubspaceRadio-Client (Vue.js, yarn, vite)
-- **Webclient lokal:** /tmp/SubspaceRadio-Client
-- **Webclient auf Server:** ~/SubspaceRadio-Client, deployed nach ~/.config/swingmusic/client/
+⚠️ **Der lokale Ordner heißt noch `SubspaceRadio`, alles andere heißt `AivinNet`.** Repo, Server-Checkout
+und systemd-Unit wurden umbenannt — wer die alten Namen tippt, bekommt „Unit not found" bzw. „No such file".
+
+| | |
+|---|---|
+| **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)) |
+| **Client-Repo** | `vwellenberg/AivinNet-Client` — dort liegen auch **alle Issues**, auch die Backend-Themen |
+| **Python / Paketmanager** | >=3.11, **uv** (nicht pip) |
+| **Server** | `192.168.0.4`, Port 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
+| **SSH** | `ssh -i /c/Users/vwell/.ssh/id_ed25519 vwellenberg@192.168.0.4` |
+| **Backend auf dem Server** | `~/AivinNet` |
+| **Client auf dem Server** | `~/AivinNet-Client`, gebaut nach `~/.config/swingmusic/client/` |
 
 ## Entwicklung
 
@@ -23,23 +27,19 @@ uv sync
 uvx ruff check src/ tests/
 uvx ruff format src/ tests/
 
-# Tests (schnell; schwere deps Flask/SQLAlchemy/Pillow werden in den Tests gemockt).
-# mutagen + tinytag sind pure-Python und MÜSSEN dabei sein (Real-Bytes-Tag-Round-Trip);
-# conftest importiert sie vorab, damit die Fallback-Mocks der Geschwister no-op'en.
-# Lokal möglich (uv liegt unter ~/.local/bin/uv.exe, ggf. vollen Pfad nutzen).
+# Unit-Tests (schnelle Lane; läuft lokal, uv liegt unter ~/.local/bin/uv.exe)
 uvx --with xxhash --with unidecode --with pendulum --with requests \
   --with 'mutagen<2' --with 'tinytag<3' --with pytest-cov \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
-# Type checking (nur strikte Module)
+# Type checking (nur die strikten Module)
 uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/hashing.py src/swingmusic/utils/dates.py src/swingmusic/utils/parsers.py src/swingmusic/utils/__init__.py --config-file pyproject.toml
-
-# API-Tests (voller Stack, echter flask_openapi3-Request-Zyklus; eigener CI-Job).
-# Lokal auf Windows NICHT lauffähig (bjoern braucht libev) — stattdessen auf dem
-# Server gegen dessen venv laufen lassen:
-#   scp -r tests_api vwellenberg@192.168.0.4:/tmp/ && \
-#   ssh vwellenberg@192.168.0.4 'cd ~/AivinNet && ~/.local/bin/uv run --with pytest pytest /tmp/tests_api -v'
 ```
+
+⚠️ **Die API-Tests (`tests_api/`) laufen auf Windows nicht** — bjoern braucht libev. Sie gehören
+auf den Server. Der Befehl dafür und die Test-Konventionen (was in welchen PR gehört, die
+`sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt automatisch, sobald eine
+Testdatei gelesen wird.
 
 ## Branch-Workflow
 
@@ -71,26 +71,36 @@ das nur im Chat steht, ist beim nächsten Kontextfenster weg.
 
 Wohin — nach Umfang und Lesehäufigkeit:
 
-| Was | Wohin | Warum |
+| Was | Wohin | Wann es geladen wird |
 |---|---|---|
-| Falle, die schon mal Zeit gekostet hat; Konvention, die von der Tool-Voreinstellung abweicht; Befehl, den man ständig braucht | **direkt in diese `CLAUDE.md`** | wird in *jede* Session geladen |
-| Bauplan, Modul-Landkarte, Datenfluss, Ablaufdiagramme | **[docs/architecture.md](docs/architecture.md)**, hier nur ein Zeiger | wird nur gelesen, wenn nötig |
-| Persönliche Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
+| Falle oder Konvention, die **überall** gilt; Befehl, den man ständig braucht | **diese `CLAUDE.md`** | in *jeder* Session |
+| Falle oder Konvention, die nur **einen Bereich** betrifft | **`.claude/rules/<thema>.md`** mit `paths:`-Frontmatter | nur wenn eine passende Datei gelesen wird |
+| Bauplan, Modul-Landkarte, Datenfluss | **[docs/architecture.md](docs/architecture.md)**, hier nur ein Zeiger | nur auf Anforderung |
+| Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
 | Offene Arbeit, Bug, Idee | GitHub-Issue im **Client**-Repo | einzige Backlog-Quelle, siehe unten |
+
+Bestehende Bereichsregeln: `api-endpoints` · `database` · `device-sync` · `packaging-release` ·
+`playlist-writes` · `recommendations` · `tests`. Neue Regel = neue Datei in `.claude/rules/` mit
+`paths:`-Glob im Frontmatter; ohne `paths` lädt sie unbedingt und ist damit nur CLAUDE.md unter
+anderem Namen.
 
 Regeln dazu:
 
-- **Verweisen, nicht importieren.** Verlinke Zusatzdokumente als normalen Markdown-Link
-  (`[docs/architecture.md](docs/architecture.md)`). Ein `@pfad`-Import würde die Datei bei
-  **jedem** Sessionstart vollständig in den Kontext laden und damit den Zweck der Auslagerung
-  aufheben.
-- **Diese Datei soll kurz bleiben** (Richtwert ~200 Zeilen). Wächst ein Abschnitt zur Abhandlung,
-  wandert der Inhalt nach `docs/` und hier bleibt ein Zweizeiler mit Link. Was bleibt: Fallen,
-  Begründungen, Konventionen. Was geht: Verzeichnisbäume, Modulübersichten, Abläufe.
+- **Verweisen, nicht importieren.** Zusatzdokumente als normalen Markdown-Link einbinden. Ein
+  `@pfad`-Import würde die Datei bei **jedem** Sessionstart vollständig in den Kontext laden und
+  damit den Zweck der Auslagerung aufheben. Nur `paths`-gescopte Rules laden wirklich bedarfsweise.
+- **Diese Datei soll kurz bleiben** (Richtwert ~200 Zeilen). Wächst ein Abschnitt zur Abhandlung:
+  betrifft er einen abgrenzbaren Pfad → Rule; ist er reine Beschreibung → `docs/`. Hier bleibt ein
+  Zweizeiler mit Zeiger. Was bleibt: Fallen, Begründungen, Konventionen. Was geht:
+  Verzeichnisbäume, Modulübersichten, Abläufe, Historie.
 - **Am Ende der Aufgabe, nicht „irgendwann":** Doku-Änderung gehört in denselben PR wie die
   Änderung, die sie beschreibt.
 - **Ein Learning wird als Ursache formuliert, nicht als Symptom** — dazu, woran man es erkennt
   und was stattdessen zu tun ist. Vorbilder stehen unten in der Fallen-Liste.
+- **⚠️ Namen gegen die Wirklichkeit prüfen, bevor man sie aufschreibt.** Diese Datei behauptete
+  über Monate den systemd-Dienst `subspaceradio` und die Pfade `~/SubspaceRadio*` — beides
+  existiert nicht (korrekt: `aivinnet`, `~/AivinNet*`). Wer Servicenamen, Pfade oder Repo-URLs
+  dokumentiert, verifiziert sie einmal auf dem Server.
 
 ## Architektur
 
@@ -100,109 +110,101 @@ in RAM-Stores (`store/*.py`) geladen und von dort gelesen; Alben und Artists sin
 nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
 
 **Zwei Konsequenzen, die man dauernd braucht:**
-- **DB-Schreiben ohne Store-Update ist bis zum Neustart ein No-op.** Store nachziehen oder
-  `lib/index.py::index_everything()` auslösen.
-- **Nichts Blockierendes im Request-Pfad** — ein hängender Aufruf friert die *ganze* App ein.
+
+1. **DB-Schreiben ohne Store-Update ist bis zum Neustart ein No-op.** Store nachziehen oder
+   `lib/index.py::index_everything()` auslösen.
+2. **⚠️ Der Server verarbeitet genau EINEN Request gleichzeitig — nichts Blockierendes im
+   Request-Pfad.** Auf Linux läuft die App unter **bjoern**, einem evented, single-threaded
+   WSGI-Server (`pyproject.toml`: bjoern auf allem außer win32, waitress nur unter Windows;
+   nachgeprüft am 2026-07-31 im laufenden Prozess). Es gibt keinen Thread-Pool, der einen
+   hängenden Handler auffängt: **ein blockierender Aufruf hält die gesamte App an, auch `/`.**
+   Daraus folgt konkret:
+   - Ausgehendes HTTP nur mit IPv4-Präferenz **und** harter Deadline (siehe IPv6-Punkt unten).
+   - Häufig gepollte Endpoints RAM-only halten — kein DB-Write, kein Datei-I/O
+     (Vorbild: `/devicesync/poll`, 1 s pro Gerät).
+   - **Keine langlebigen Verbindungen** (WebSocket, SSE). Ein Push-Kanal müsste als eigener
+     Prozess neben der App laufen.
+   - Langlaufendes gehört in einen Thread (`utils/threading.py::background`) oder Prozess-Pool,
+     nie in den Handler.
 
 ## Architektur-Hinweise
 
-- **⚠️ PLAYLIST-SCHREIBPFADE: nie „ganze Liste ersetzen", nie auf Client-Indizes verlassen.** Zwei echte Datenverlust-Bugs kamen aus derselben Wurzel — der Client kennt die gespeicherte Trackhash-Liste NICHT:
-  1. Er lädt nur eine **Seite** (~38 Zeilen von 993).
-  2. Er sieht **Orphan-Hashes gar nicht** (Hashes ohne auflösbaren Track) — `GET /playlists/<id>` liefert nur auflösbare Tracks, also ist `len(tracks) < info.count`.
+- **⚠️ PLAYLIST-SCHREIBPFADE: nie „ganze Liste ersetzen", nie auf Client-Indizes verlassen.**
+  Der Client kennt die gespeicherte Trackhash-Liste nicht (er lädt nur eine Seite und sieht
+  Orphan-Hashes gar nicht) — daraus kamen **zwei echte Datenverlust-Bugs**. Neue Mutationen
+  anker-basiert oder positions-explizit bauen, die Listen-Chirurgie macht der Server.
+  Volle Begründung, Muster und Sicherheitsnetz: `.claude/rules/playlist-writes.md`
+  (lädt automatisch, sobald eine Playlist-Datei gelesen wird).
+- **⚠️ IPv6 des Servers ist kaputt (DS-Lite) — gilt auch für Python.** Outbound-`requests`
+  hängen minutenlang, weil urllib3 alle aufgelösten Adressen (AAAA zuerst) sequenziell mit
+  vollem Connect-Timeout probiert; `timeout=` deckt das **nicht** ab. Zusammen mit dem
+  single-threaded Server friert dabei die ganze App ein. `utils/net.py::prefer_ipv4()` läuft
+  global in `app_builder.config_app`; neue Outbound-Calls zusätzlich mit harter Deadline um
+  Futures absichern (`lib/coverart.py::search_covers`) und Pools mit `shutdown(wait=False)`
+  schließen.
+- `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen.
 
-  Daraus folgt: **jeder Client-Index ist ein Index in die aufgelöste Teilliste, nie in die gespeicherte Liste**, und jede vom Client gesendete „vollständige" Liste ist unvollständig.
-  - `PUT /<id>/reorder` ersetzte die gespeicherte Liste 1:1 → ein Drag in einer 120-Track-Playlist machte daraus **44 Tracks** (HTTP 200, „Done"). Der Endpoint lehnt jetzt alles ab, was **keine Permutation** des Gespeicherten ist (409, `trackhash_diff`).
-  - `remove_from_playlist` prüfte `dbtrackhashes.index(hash) == item["index"]` → ein einziger Orphan davor und die Löschung war ein **stiller No-op mit 200/„Done"**. Der Index ist jetzt nur noch Hinweis zur Unterscheidung von Duplikaten.
-  - **Muster für neue Mutationen:** Anker-basiert (`PUT /<id>/move-track` mit `{trackhash, before_trackhash}`) oder positions-explizit pro Item (`/sidebar-order`, `/playlistfolders/reorder` — „unlisted items keep their position"). Die Listen-Chirurgie macht der Server auf seiner eigenen Liste. Pure Helfer dafür in `lib/playlist_maintenance.py`, dort auch testen.
-  - MCP-Pendant: `move_playlist_track()` — damit ist der Drag-and-Drop-Pfad ohne Browser testbar. `sort_playlist_tracks()` verweigert bei Orphans (war die einzige Stelle, die die Falle kannte).
-  - **Audit-Ergebnis (#53):** alle übrigen Schreibpfade sind sauber — `/add` (`merge_trackhashes` startet an der gespeicherten Liste), `/update` (schreibt `trackhashes` nie), `/save-item` (neue Playlist), `/sidebar-order` + `/playlistfolders/*` (Position pro Item, „unlisted keep position"), Favoriten (`/favorites/add|remove` sind hash+typ-basiert, nie Index). Einzige gefundene Lücke war `repoint_track_references`: Trackhash-Rewrite bei Tag-Edit ohne Migration des `added_at`-Maps.
-  - **⚠️ `extra["added_at"]` ist ein Parallel-Map mit Trackhash-Keys.** Jeder Pfad, der `trackhashes` umschreibt, muss das Map mitziehen (`migrate_added_at`) oder aufräumen (`prune_added_at`) — sonst zeigt der Track „—" als Datum und ein Key verrottet für immer. Die Pro-Playlist-Entscheidung liegt bewusst als pure Funktion `playlist_migration_values()` neben der DB-Schleife, weil der Bug NICHT in einem Listen-Helfer saß, sondern in der Schleife, die nur eine der zwei Spalten schrieb.
-  - **Sicherheitsnetz:** `tests/test_playlist_orphan_invariants.py` formuliert die Orphan-Garantien EINMAL, parametrisiert über alle Mutations-Helfer (`MUTATIONS`-Roster). Neue Helfer erben sie; ein Roster-Test schlägt an, wenn ein neuer listen-umschreibender Helfer nicht registriert ist. Nur `prune_orphan_trackhashes` darf Orphans absichtlich verwerfen.
-- **⚠️ IPv6 des Servers ist kaputt (DS-Lite) — gilt auch für Python!** Outbound-`requests` hängen minutenlang, weil urllib3 alle aufgelösten Adressen (AAAA zuerst) sequenziell mit vollem Connect-Timeout probiert; `timeout=` deckt das nicht. Und weil bjoern evented/single-threaded ist, friert dabei die GESAMTE App ein (auch `/`). Fix: `utils/net.py::prefer_ipv4()` wird in `app_builder.config_app` aufgerufen (Pendant zu `NODE_OPTIONS=--dns-result-order=ipv4first` für node). Neue Outbound-Calls zusätzlich mit harter Deadline um Futures absichern (siehe `lib/coverart.py::search_covers`, `FETCH_DEADLINE_SECONDS`) und Pools mit `shutdown(wait=False)` schließen.
-- `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen
-- `bjoern` (WSGI-Server) braucht `libev-dev` + `python3-dev` zum Bauen — fehlt in vielen Umgebungen, daher CI-Tests mit `uvx` (minimale deps) statt `uv run`/voller Installation
-- **Tests mocken schwere Dependencies** via `sys.modules`, damit sie ohne vollen Backend-Stack laufen. **WICHTIG — geguardete Form Pflicht:** immer `if name not in sys.modules: sys.modules[name] = MagicMock()` (bzw. `setdefault`), NIE unbedingtes `sys.modules[name] = MagicMock()`. Grund: `conftest.py` importiert die echten `mutagen`+`tinytag` vorab (wenn installiert); die geguardete Form no-op't dann und der Real-Bytes-Test `test_tag_writer_roundtrip.py` sieht die echten Libs. Ein unbedingtes Mock würde die echten Libs überschreiben und diesen Test brechen.
-- **Real-Bytes-Tag-Test ko-loziert** in `tests/` (kein eigener Job): `mutagen`+`tinytag` sind pure-Python → laufen in der schnellen `uvx`-Lane mit (Versionen gepinnt: `mutagen<2`, `tinytag<3`, passend zum Prod-Major). Nur Tests, die den **vollen** Stack brauchen (Flask/SQLAlchemy → `uv sync`), bräuchten ein eigenes Verzeichnis + getrennten Job.
+Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
+`.claude/rules/api-endpoints.md` · `database.md` · `playlist-writes.md` · `tests.md`.
 
 ## Auslieferung an Dritte (Release + Installer)
 
-Freunde installieren per **AppImage**, nicht per Quell-Checkout: `install.sh` (Repo-Root) lädt das Release-Asset, prüft die Checksumme, **entpackt** es nach `~/.local/share/aivinnet` (kein FUSE/`libfuse2` nötig) und legt einen systemd-Dienst an (User-Dienst + `enable-linger` als Default, `--system` für systemweit). Flags: `--system`, `--no-autostart`, `--port`, `--host`, `--music`, `--version`, `--update`, `--uninstall`.
+Freunde installieren per **AppImage** (`install.sh` im Repo-Root), gebaut vom Workflow `Release`
+(`.github/workflows/build.yml`, `workflow_dispatch`). Vorher `.github/changelog.md` anpassen —
+das ist der Release-Body.
 
-Release ziehen: Workflow **`Release`** (`.github/workflows/build.yml`, `workflow_dispatch`) → baut Client aus `AivinNet-Client`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-Binaries, `SHA256SUMS`. Vorher `.github/changelog.md` anpassen (ist der Release-Body). Für Testläufe `prerelease=true` + `is_latest=false` und mit `install.sh --version <tag>` installieren (`/releases/latest` überspringt Prereleases; **Drafts** sind über die API gar nicht sichtbar).
+⚠️ Dort lauern mehrere Fallen, die schon zugeschlagen haben — allen voran, dass ein
+`pip install swingmusic` das **Upstream**-Paket von PyPI ziehen und damit still deren Backend
+mit unserem Client ausliefern kann. Details: `.claude/rules/packaging-release.md` (lädt beim
+Anfassen von `install.sh`, `appimage/**`, den Workflows oder `settings.py`).
 
-**⚠️ Fallen, die dort schon zugeschlagen haben oder es fast hätten:**
+## Empfehlungen / Mixes
 
-- **`pip install --find-links=wheels/ swingmusic` zieht ggf. das UPSTREAM-Paket von PyPI.** Die Distribution heißt weiterhin `swingmusic` und Upstream veröffentlicht sie dort; pip nimmt die höhere Version. Ein Tag unter Upstreams Version hätte still deren Backend mit unserem Client ausgeliefert (UI korrekt, Endpoints wie Device-Sync/`move-track` fehlen). Deshalb `--no-index` bzw. lokales Wheel zuerst pinnen.
-- **`appimage/requirements.txt` ist ein Handduplikat von `[project].dependencies`** (das AppImage installiert `swingmusic` mit `--no-deps`). Fehlender Eintrag = ImportError erst beim Start, CI grün. Gesichert durch `tests/test_packaging_manifests.py` — bei neuer Dependency mitpflegen.
-- **`settings.py::AssetHandler.RELEASES_URL`** muss auf den Fork zeigen, sonst lädt ein Wheel-/Docker-Install den Upstream-Client. Ein Upstream-Merge stellt den alten Wert stillschweigend wieder her → derselbe Test wacht darüber.
-- **`libev.so.4` wird in den AppDir kopiert** (`bjoern` linkt dynamisch, python-appimage bündelt keine System-Libs); `appimage/entrypoint.sh` setzt dafür `LD_LIBRARY_PATH`.
-- **Ein übersprungenes `needs`-Job überspringt den abhängigen Job** — mit `binary_build=false` entstand früher gar kein Release, bei grüner Übersicht. `upload-builds` prüft die Job-Results jetzt explizit.
-- **Musikordner auf externem Mount ⇒ `RequiresMountsFor=` in der Unit.** Startet der Dienst vor dem Mount, entfernt der Scan alle „fehlenden" Tracks aus der DB ([`lib/tagger.py`](src/swingmusic/lib/tagger.py) `remove_tracks_by_filepaths`) → Playlists voller Waisen. `install.sh --music` setzt das.
-- **Erst-Admin-Passwort** kommt aus `AIVINNET_ADMIN_PASSWORD` (`utils/bootstrap.py`, greift nur beim Erzeugen des Default-Users). Bewusst **Env statt CLI-Flag**: Prozess-Argumente sind über `/proc/<pid>/cmdline` für alle lesbar.
-- **Shellcheck läuft in CI** über `install.sh` + `appimage/entrypoint.sh` (Job `Lint & Format`) — beides ausgelieferte Skripte, die kein Python-Test abdeckt.
+Alle Personalisierung kommt aus der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus der
+eigenen Bibliothek. Einzige externe Quelle ist `smcloud.mungaist.com`, und zwar nur für
+Artist-Mixe — dorthin gehen Track-Metadaten (Titel, Artist, Album) im **Klartext**. Sonst
+verlässt nichts das Haus. Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
 
-## Empfehlungen / Mixes (woher kommen die Vorschläge?)
-
-Alle Personalisierung basiert auf der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus der eigenen Bibliothek; einzige externe Quelle ist der **Swing-Music-Cloud-Server**. Ablauf:
-
-- **Cron `mixes`** (`crons/mixes.py`, alle 12h): erst `ArtistMixes`, dann `BecauseYouListened` (nutzt die Artist-Mix-Ergebnisse).
-- **Artist-Mixes** (`plugins/mixes.py` + `lib/recipes/artistmixes.py`): Meistgehörte Artists nach `playduration` aus vier Zeitfenstern (heute / 2 Tage / 7 Tage / Monat; max. 4/3/4/4 Mixe, unbelegte Slots wandern ins nächste Fenster). Pro Artist gehen die **Top-5-Tracks (Titel/Artists/Album als Klartext!)** per `POST {server}/radio` an `https://smcloud.mungaist.com`; der antwortet mit ähnlichen Track-**Weakhashes** + ähnlichen Alben/Artists. Gematcht wird ausschließlich gegen die **eigene Bibliothek** (bei Weakhash-Duplikaten gewinnt die höchste Bitrate), aufgefüllt aus lokalen Tracks der ähnlichen Alben/Artists (`fallback_create_artist_mix`), dann `balance_mix`. Qualitäts-Gates: min. 15 Tracks und min. 4 verschiedene Artists, sonst wird der Mix verworfen. `sourcehash` (Top-5-Hashes) dedupliziert gegen `MixTable`.
-- **„Mixes for you"** = aus den Artist-Mixen abgeleitete Track-Mixe (`get_track_mix`); **„Because you listened …"/„Artists you might like"** speisen sich aus den im Mix-`extra` gespeicherten similar artists/albums der Cloud-Antwort.
-- **Top artists week/month, Stats, Recently played** = reine lokale Scrobble-Aggregation (`utils/stats.py`, sortiert nach `playduration`); **Recently added** = Library-Timestamps. Kein Cloud-Anteil.
-- **Last.fm-Plugin** (`plugins/lastfm.py`) ist NUR Scrobble-**Export** (optional), keine Empfehlungsquelle.
-- **Privacy:** Für Mixes verlassen Track-Metadaten (Titel, Artist, Album) das Haus Richtung `smcloud.mungaist.com` — sonst nichts.
+Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommendations.md`.
 
 ## Server-Deployment
 
 ```bash
-# Auf dem Server (192.168.0.4):
-cd ~/SubspaceRadio
-git pull
-sudo -n systemctl restart subspaceradio
+# Backend deployen (eine Sitzung, vom Arbeitsrechner aus):
+ssh -i /c/Users/vwell/.ssh/id_ed25519 vwellenberg@192.168.0.4 \
+  "cd ~/AivinNet && NODE_OPTIONS='--dns-result-order=ipv4first' git pull -q && \
+   ~/.local/bin/uv sync && sudo -n systemctl restart aivinnet && \
+   sleep 4 && systemctl is-active aivinnet"
 
-# Status (kein sudo nötig):
-systemctl status subspaceradio
-journalctl -u subspaceradio -f
+# Status + Logs (kein sudo nötig):
+systemctl status aivinnet
+journalctl -u aivinnet -f      # erfolgreicher Start endet mit „Loading tracks/albums/artists... Done!"
 
-# Memory beobachten:
+# Speicher beobachten:
 ps aux | grep swingmusic | grep -v grep | awk '{print $6/1024"MB"}'
 ```
 
-Passwordless sudo ist konfiguriert für `systemctl restart/stop/start subspaceradio`.
+- Passwortloses sudo gilt für `systemctl restart/stop/start aivinnet` — **ohne** `.service`,
+  sonst greift die sudoers-Regel nicht.
+- **`uv` liegt nicht im PATH der nicht-interaktiven SSH-Shell** → vollen Pfad `~/.local/bin/uv`.
+- Der Server hat ein **IPv6-Problem** (DS-Lite): git/yarn brauchen
+  `NODE_OPTIONS='--dns-result-order=ipv4first'`, Python deckt `utils/net.py::prefer_ipv4()` ab.
 
-### Webclient deployen
-
-```bash
-cd ~/SubspaceRadio-Client
-git pull
-NODE_OPTIONS='--dns-result-order=ipv4first' yarn install --network-timeout 120000
-NODE_OPTIONS='--dns-result-order=ipv4first' yarn build
-rm -rf ~/.config/swingmusic/client
-cp -r dist ~/.config/swingmusic/client
-sudo -n systemctl restart subspaceradio
-```
-
-**Wichtig:** Server hat IPv6-Problem — yarn/npm brauchen `NODE_OPTIONS='--dns-result-order=ipv4first'`.
+Der **Client** wird aus seinem eigenen Repo deployt (`~/AivinNet-Client`, `scripts/deploy-client.sh`),
+serviert aber derselbe Dienst — die Anleitung steht in der CLAUDE.md des Clients.
 
 ## Nächste Schritte
 
 Der Backlog lebt **ausschließlich** in den GitHub-Issues — und zwar im **Client**-Repo, auch für
 Backend-Themen: `gh issue list --repo vwellenberg/AivinNet-Client`. Keine zweite Liste im Repo anlegen;
 die frühere `ROADMAP.md` ist genau daran gescheitert (sie führte „Manuelle Metadaten-Bearbeitung" noch als
-offen, während das Feature längst live war). Frontend-Änderungen laufen im Webclient-Fork
-(SubspaceRadio-Client).
+offen, während das Feature längst live war).
 
 ## Device Sync / Multiroom (Group Sessions)
 
-Geräte desselben Users können einer **Group Session** beitreten (Client v1.3.0+): alle spielen hörbar synchron, jedes steuert, Volume/Mute pro Gerät. Server = Source of Truth, komplett **im RAM** (`src/swingmusic/lib/groupsession.py`, pure Logik ohne Flask/DB — unit-testbar mit injizierter Uhr). HTTP-Adapter: `src/swingmusic/api/devicesync.py` (alle POST unter `/devicesync`: register/poll/command/queue-set/resolve/join/leave). Persistent nur die Geräte-Registry (`DeviceTable` in `db/userdata.py`).
+Geräte desselben Users spielen synchron, jedes kann steuern. **Der Server ist die Quelle der
+Wahrheit und hält alles im RAM** (`lib/groupsession.py` = pure Logik, `api/devicesync.py` = HTTP);
+persistent ist nur die Geräte-Registry. Transport-Befehle werden **geplant** statt sofort
+ausgeführt (`execute_at = now + 1500 ms`), damit sie überall gleichzeitig wirken.
 
-Kernmechanik: Transport-Mutationen (play/pause/seek/track_change) werden **geplant** (`execute_at = now + LEAD_MS 1500`) und wirken auf ALLE Member inkl. Initiator gleichzeitig (Clients rechnen Server-Zeit via Cristian-Offset in lokale Zeit um). Versionierter Snapshot (Delta nur bei `known_version`-Sprung), targeted Commands (`set_volume/set_mute/join_invite/play_here`) nur ans Zielgerät (TTL 15 s wegen 5-s-Solo-Kadenz). Reaper-Cron (alle 2 s) räumt Stale-Member (5 s offline) und leere Sessions; Neustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück. Pair-Redeem (`GET /auth/pair`) hat eine `setcookie`-Option für den QR-Deep-Link-Login des Webclients.
-
-**⚠️ bjoern-Disziplin:** `/devicesync/poll` (1 s pro joined Gerät) ist strikt RAM-only — KEINE DB-Writes, kein blocking I/O im Poll-Pfad (DB nur bei register/leave). Langlebige Verbindungen (WS/SSE) bleiben tabu; ein späterer Push-Kanal müsste als Sidecar laufen.
-
-### ⚠️ Device-Sync: Feld-Bugs aus v1.3.0 (behoben)
-
-- **Positionsfelder tolerant typisieren.** Der Client liefert `audio.currentTime * 1000` — einen Float. `position_ms: int` ließ jedes `queue-set` während laufender Wiedergabe mit **422 `int_from_float`** auflaufen; die Session behielt eine leere Queue und jedes `track_change` wurde mit 400 abgelehnt. Jetzt `float` + `round()` serverseitig (auch für Transport-Payloads).
-- **Reap-Fenster ≠ Offline-Anzeige.** Beide bei 5 s zu koppeln warf Handys aus der Gruppe, sobald der Bildschirm ausging (gedrosselte Timer). `OFFLINE_MS` (5 s) steuert nur den Anzeige-Punkt, `REAP_MS` (30 s) den Rauswurf.
-- **⚠️ `Base.execute` gibt das Result aus einem BEREITS GESCHLOSSENEN Session-Scope zurück.** Wer dort eine gemappte Entity materialisiert (`select(cls)` + `.scalar()`), bekommt „identity map is no longer valid". `DeviceTable.upsert` tat genau das → **jede Wiederholungs-Registrierung eines bekannten Geräts = HTTP 500**. Für Lookups **Spalten** selektieren (`select(cls.id)`), nicht die Entity — siehe `count()` als Vorbild.
-- **Mocks verstecken echte DB-Bugs:** `tests_api/test_devicesync_api.py` mockt `DeviceTable` weg, deshalb blieb der 500er grün. Für Tabellen-Logik gehört ein Test gegen die **echten** SQLite-Tabellen dazu (`tests_api/test_device_table.py`), inklusive FK-Usern im Fixture.
+Mechanik, Timing-Konstanten und die vier Feld-Bugs aus v1.3.0: `.claude/rules/device-sync.md`.
