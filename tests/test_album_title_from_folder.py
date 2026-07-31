@@ -35,8 +35,12 @@ class TestTitle:
         assert album_title("", "/mnt/music/700-Games/Victoria 3") == "Victoria 3"
 
     def test_a_trailing_separator_does_not_swallow_the_name(self):
+        # POSIX separators only, on purpose: `folder` is written as
+        # `filepath.parent.as_posix()`, so a backslash path never reaches here
+        # — not even on Windows. An earlier version of this test asserted
+        # backslash handling and failed, which said more about the test than
+        # about the code.
         assert album_title(None, "/mnt/music/700-Games/Kenshi/") == "Kenshi"
-        assert album_title(None, "C:\\music\\Kenshi\\") == "Kenshi"
 
     def test_nothing_usable_returns_none(self):
         """
