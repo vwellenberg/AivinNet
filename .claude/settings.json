@@ -19,15 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit *)",
-            "command": "b=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$b\" = \"master\" ] || [ \"$b\" = \"main\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Commit direkt auf %s. Die CLAUDE.md verlangt Worktree + eigenen Branch + PR: git worktree add -b <prefix>/<slug> ../_wt-<slug> origin/master\"}}' \"$b\"; fi",
-            "statusMessage": "Branch-Guard",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Bash(git push *)",
-            "command": "b=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$b\" = \"master\" ] || [ \"$b\" = \"main\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Push direkt von %s. Aenderungen gehoeren auf einen eigenen Branch und durch einen PR.\"}}' \"$b\"; fi",
+            "command": "p=$(cat); c=$(printf '%s' \"$p\" | sed -n 's/.*\"command\"[[:space:]]*:[[:space:]]*\"\\(.*\\)\"[,}].*/\\1/p'); a=$(printf '%s' \"$c\" | grep -oE '(^|[;&|] *)git( +-C +[^ ]+)? +(commit|push)' | tail -1); [ -n \"$a\" ] || exit 0; d=$(printf '%s' \"$a\" | sed -n 's/.*-C  *\\([^ ]*\\).*/\\1/p'); [ -n \"$d\" ] || d=.; b=$(git -C \"$d\" rev-parse --abbrev-ref HEAD 2>/dev/null); [ \"$b\" = master ] || [ \"$b\" = main ] || exit 0; v=$(printf '%s' \"$a\" | grep -oE '(commit|push)$'); printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git %s direkt auf %s (%s). Die CLAUDE.md verlangt Worktree + eigenen Branch + PR: git worktree add -b <prefix>/<slug> ../_wt-<slug> origin/master\"}}' \"$v\" \"$b\" \"$d\"",
             "statusMessage": "Branch-Guard",
             "timeout": 10
           }

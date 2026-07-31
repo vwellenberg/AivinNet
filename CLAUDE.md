@@ -89,7 +89,11 @@ anderem Namen.
 - Nach jedem Write/Edit an einer `.py` läuft `ruff check --fix` + `ruff format` auf genau dieser
   Datei (`--force-exclude`, damit das vendorte pydub ausgenommen bleibt).
 - `git commit` und `git push` werden **abgelehnt**, solange der aktuelle Branch `master`/`main` ist.
-  Die Worktree-Regel unten ist damit erzwungen statt nur aufgeschrieben.
+  Die Worktree-Regel unten ist damit erzwungen statt nur aufgeschrieben. Erkannt wird auch
+  `git -C <repo> commit` — dann wird der Branch **dieses** Repos geprüft.
+  ⚠️ Der Guard liest den Kommando**text**. Er schlägt deshalb auch an, wenn „git commit" nur als
+  Zeichenkette im Befehl vorkommt (z. B. in einem Heredoc oder Testdaten). Das ist bewusst
+  konservativ; im Zweifel den Text umformulieren.
 
 ⚠️ Hooks greifen nur, wenn Claude Code **in diesem Verzeichnis** gestartet wurde — Projekt-Settings
 kommen aus dem Arbeitsverzeichnis, nicht aus Unterordnern. Wer eine Ebene höher arbeitet, braucht
