@@ -21,9 +21,12 @@ matches rows that still carry a `mix:` source, so a second run finds nothing.
 
 import logging
 
-from sqlalchemy import text
-
-from swingmusic.db.engine import DbEngine
+# NOTE: sqlalchemy and the db layer are imported INSIDE the function, not here.
+# The unit-test lane runs with sqlalchemy replaced by a MagicMock, and importing
+# `swingmusic.db` under that mock builds its declarative Base from the mock's
+# metaclass — the module is then poisoned for the rest of the session with a
+# "metaclass conflict" on every later import. Keeping this module's top level
+# free of the ORM is what lets a test read the statements below at all.
 
 # `swingmusic.logger.log` is None until `setup_logger()` has run, and migrations
 # also get called from a shell against a copy of a database — where that global
@@ -50,6 +53,10 @@ def drop_mix_data() -> dict[str, int]:
 
     Returns a small report so the caller can log what happened.
     """
+    from sqlalchemy import text
+
+    from swingmusic.db.engine import DbEngine
+
     report = {"mixes": 0, "scrobbles_unlabelled": 0}
 
     with DbEngine.manager(commit=True) as conn:
