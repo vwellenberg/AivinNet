@@ -21,41 +21,30 @@ matches rows that still carry a `mix:` source, so a second run finds nothing.
 
 import logging
 
-# NOTE: sqlalchemy and the db layer are imported INSIDE the function, not here.
-# The unit-test lane runs with sqlalchemy replaced by a MagicMock, and importing
-# `swingmusic.db` under that mock builds its declarative Base from the mock's
-# metaclass — the module is then poisoned for the rest of the session with a
-# "metaclass conflict" on every later import. Keeping this module's top level
-# free of the ORM is what lets a test read the statements below at all.
+from sqlalchemy import text
+
+from swingmusic.db.engine import DbEngine
+from swingmusic.utils.mix_cleanup import (
+    SQL_COUNT_MIXES,
+    SQL_DROP_TABLE,
+    SQL_FIND_TABLE,
+    SQL_UNLABEL_SCROBBLES,
+)
 
 # `swingmusic.logger.log` is None until `setup_logger()` has run, and migrations
 # also get called from a shell against a copy of a database — where that global
 # is never set. A module logger works in both.
 log = logging.getLogger(__name__)
 
-# The statements as data, so a test can check WHAT they do without importing the
-# database layer. That constraint is real: the unit-test lane runs with sqlalchemy
-# mocked out, and a test that reaches for a connection takes the whole ORM with it
-# (`test_albumhash_collapse.py` says the same thing about its own migration).
-#
-# The distinction below is the one worth guarding: the table is DROPPED, the
-# scrobbles are only UNLABELLED. Turning that second statement into a DELETE
-# would silently shorten the listening history.
-SQL_FIND_TABLE = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mix'"
-SQL_COUNT_MIXES = "SELECT COUNT(*) FROM mix"
-SQL_DROP_TABLE = "DROP TABLE IF EXISTS mix"
-SQL_UNLABEL_SCROBBLES = "UPDATE scrobble SET source = '' WHERE source LIKE 'mix:%'"
-
 
 def drop_mix_data() -> dict[str, int]:
     """
     Drop the `mix` table and unlabel scrobbles that pointed at a mix.
 
-    Returns a small report so the caller can log what happened.
+    Returns a small report so the caller can log what happened. The statements
+    themselves live in `utils/mix_cleanup.py` — see there for why they are not
+    in this file.
     """
-    from sqlalchemy import text
-
-    from swingmusic.db.engine import DbEngine
 
     report = {"mixes": 0, "scrobbles_unlabelled": 0}
 
