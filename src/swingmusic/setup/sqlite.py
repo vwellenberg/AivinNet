@@ -11,6 +11,7 @@ from swingmusic.db.userdata import UserTable
 from swingmusic.migrations import apply_migrations
 from swingmusic.migrations.album_title_from_folder import rename_albums_after_their_folder
 from swingmusic.migrations.albumhash_collapse import repair_collapsed_albumhashes
+from swingmusic.migrations.drop_mixes import drop_mix_data
 from swingmusic.settings import Paths
 
 
@@ -30,6 +31,11 @@ def run_migrations():
     # album hash, which is exactly what the repair above writes.
     repair_collapsed_albumhashes()
     rename_albums_after_their_folder()
+
+    # Same reasoning: idempotent, so it rides along on every start instead of
+    # being versioned. Clears out what the removed mixes feature left in the
+    # database (see the module docstring for why the scrobbles are kept).
+    drop_mix_data()
 
 
 def setup_sqlite():
