@@ -295,5 +295,3 @@ def send_user_image(path: ImagePath):
         return send_from_directory(folder, path.imgpath)
 
     return "", 404
-
-
