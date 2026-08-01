@@ -30,6 +30,19 @@ from swingmusic.db.engine import DbEngine
 # is never set. A module logger works in both.
 log = logging.getLogger(__name__)
 
+# The statements as data, so a test can check WHAT they do without importing the
+# database layer. That constraint is real: the unit-test lane runs with sqlalchemy
+# mocked out, and a test that reaches for a connection takes the whole ORM with it
+# (`test_albumhash_collapse.py` says the same thing about its own migration).
+#
+# The distinction below is the one worth guarding: the table is DROPPED, the
+# scrobbles are only UNLABELLED. Turning that second statement into a DELETE
+# would silently shorten the listening history.
+SQL_FIND_TABLE = "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mix'"
+SQL_COUNT_MIXES = "SELECT COUNT(*) FROM mix"
+SQL_DROP_TABLE = "DROP TABLE IF EXISTS mix"
+SQL_UNLABEL_SCROBBLES = "UPDATE scrobble SET source = '' WHERE source LIKE 'mix:%'"
+
 
 def drop_mix_data() -> dict[str, int]:
     """
@@ -40,17 +53,15 @@ def drop_mix_data() -> dict[str, int]:
     report = {"mixes": 0, "scrobbles_unlabelled": 0}
 
     with DbEngine.manager(commit=True) as conn:
-        table_exists = conn.execute(
-            text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mix'")
-        ).first()
+        table_exists = conn.execute(text(SQL_FIND_TABLE)).first()
 
         if table_exists:
-            report["mixes"] = conn.execute(text("SELECT COUNT(*) FROM mix")).scalar() or 0
-            conn.execute(text("DROP TABLE IF EXISTS mix"))
+            report["mixes"] = conn.execute(text(SQL_COUNT_MIXES)).scalar() or 0
+            conn.execute(text(SQL_DROP_TABLE))
 
         # The scrobble table is the one place a removed feature can still make a
         # visible mess: the stats read `source` to say what a play came from.
-        result = conn.execute(text("UPDATE scrobble SET source = '' WHERE source LIKE 'mix:%'"))
+        result = conn.execute(text(SQL_UNLABEL_SCROBBLES))
         report["scrobbles_unlabelled"] = result.rowcount or 0
 
     if report["mixes"] or report["scrobbles_unlabelled"]:

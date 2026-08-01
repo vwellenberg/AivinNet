@@ -5,18 +5,11 @@ from unittest.mock import MagicMock
 
 # Mock heavy dependencies that are not installed in the lightweight test
 # environment before importing swingmusic modules (see test_album_model.py).
-_installed: list[str] = []
 for mod_name in ["PIL", "tinytag"]:
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
-        _installed.append(mod_name)
 
 from swingmusic.lib.taglib import find_folder_cover  # noqa: E402
-
-# Drop the temporary mocks again — pytest imports every test module at
-# collection, so one left behind is inherited by every module collected later.
-for _mod in _installed:
-    sys.modules.pop(_mod, None)
 
 
 def _write(path, content=b"IMG"):
