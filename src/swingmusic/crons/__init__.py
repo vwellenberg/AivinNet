@@ -46,7 +46,14 @@ def start_cron_jobs():
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)
 
-    # Trigger all CRON jobs when the app is started.
+    # Trigger all CRON jobs when the app is started. This is what makes `hours`
+    # on a CronJob an INTERVAL rather than a delay before the first run — the
+    # job classes themselves cannot show that, so it is spelled out there too.
+    #
+    # Note for anyone debugging an empty homepage row right after boot: this
+    # whole function runs in a background thread (@background), and the mixes
+    # job talks to a remote service with a 30s-per-request timeout. "Empty one
+    # second after start" therefore means nothing on its own.
     schedule.run_all()
 
     # Run all CRON jobs on a loop.

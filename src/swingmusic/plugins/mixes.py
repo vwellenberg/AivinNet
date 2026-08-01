@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 import time
 from gettext import ngettext
@@ -21,6 +22,10 @@ from swingmusic.utils.dates import get_date_range, get_duration_ago
 from swingmusic.utils.hashing import create_hash
 from swingmusic.utils.mixes import balance_mix
 from swingmusic.utils.stats import get_artists_in_period
+
+# NOTE: not `from swingmusic.logger import log` — that global is None until
+# setup_logger() runs and an imported name never picks up the reassignment.
+log = logging.getLogger(__name__)
 
 
 class MixAlreadyExists(Exception):
@@ -58,7 +63,12 @@ class MixesPlugin(Plugin):
                 requests.get(self.server, timeout=10)
                 return True
             except Exception:
-                print(f"Failed to connect to the recommendation server (attempt {attempt + 1}/{max_retries})")
+                log.warning(
+                    "Could not reach the recommendation server at %s (attempt %s/%s)",
+                    self.server,
+                    attempt + 1,
+                    max_retries,
+                )
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
                 continue
@@ -91,13 +101,21 @@ class MixesPlugin(Plugin):
         try:
             response = requests.post(f"{self.server}/radio", json=queries, timeout=30)
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
-            print("Failed to connect to recommendation server")
+            log.warning("Could not reach the recommendation server at %s — no mix data this round", self.server)
             return [], [], []
 
         try:
             results = response.json()
         except json.JSONDecodeError:
-            print("Failed to decode JSON response from recommendation server")
+            # The service answering with an HTML error page (502 has happened)
+            # lands here, not in the branch above: the request succeeded, the
+            # body is just not JSON. Log the status, or the two cases are
+            # indistinguishable in the journal.
+            log.warning(
+                "Recommendation server at %s answered HTTP %s with a non-JSON body — no mix data this round",
+                self.server,
+                response.status_code,
+            )
             return [], [], []
 
         trackhashes: list[str] = results.get("tracks", [])
