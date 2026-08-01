@@ -35,10 +35,13 @@ class ArtistMixes(HomepageRoutine):
                 # is a store that looks exactly as if the job had never run.
                 # That misreading cost a full diagnosis once — the journal said
                 # nothing, so the scheduler was blamed instead of the 502.
+                # Points at the MODULE, not at a wording: the message it refers
+                # to was reworded in the very commit that added this pointer,
+                # which is how stale cross-references start.
                 log.warning(
-                    "No artist mixes generated for user %s — the homepage row will keep "
-                    "whatever was seeded from the database. Check the lines above for "
-                    "'Failed to connect/decode ... recommendation server'.",
+                    "No artist mixes generated for user %s — the homepage row keeps whatever "
+                    "was seeded from the database. The reason is logged just above by "
+                    "swingmusic.plugins.mixes.",
                     user.id,
                 )
                 continue
