@@ -312,7 +312,6 @@ class Paths(metaclass=Singleton):
             │   │   ├───large
             │   │   ├───medium
             │   │   └───small
-            │   ├───mixes
             │   │   ├───medium
             │   │   ├───original
             │   │   └───small
@@ -339,10 +338,6 @@ class Paths(metaclass=Singleton):
             "images/artists/medium",
             "images/artists/small",
             "images/artists/large",
-            "images/mixes/",
-            "images/mixes/original",
-            "images/mixes/medium",
-            "images/mixes/small",
         ]
 
         for folder in dirs:
@@ -448,26 +443,6 @@ class Paths(metaclass=Singleton):
     @property
     def config_file_path(self) -> pathlib.Path:
         return self.config_dir / "settings.json"
-
-    @property
-    def mixes_img_path(self) -> pathlib.Path:
-        return self.img_path / "mixes"
-
-    @property
-    def artist_mixes_img_path(self) -> pathlib.Path:
-        return self.mixes_img_path / "artists"
-
-    @property
-    def og_mixes_img_path(self) -> pathlib.Path:
-        return self.mixes_img_path / "original"
-
-    @property
-    def md_mixes_img_path(self) -> pathlib.Path:
-        return self.mixes_img_path / "medium"
-
-    @property
-    def sm_mixes_img_path(self) -> pathlib.Path:
-        return self.mixes_img_path / "small"
 
     @property
     def image_cache_path(self) -> pathlib.Path:

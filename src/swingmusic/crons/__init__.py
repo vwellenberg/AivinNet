@@ -3,7 +3,6 @@ import time
 
 import schedule
 
-from swingmusic.crons.mixes import Mixes
 from swingmusic.lib.groupsession import manager as group_session_manager
 from swingmusic.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 from swingmusic.lib.recipes.topstreamed import TopArtists
@@ -41,7 +40,6 @@ def start_cron_jobs():
     # Initialized CRON jobs
     TopArtists()
     TopArtists(duration="week")
-    Mixes()
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)
@@ -51,9 +49,9 @@ def start_cron_jobs():
     # job classes themselves cannot show that, so it is spelled out there too.
     #
     # Note for anyone debugging an empty homepage row right after boot: this
-    # whole function runs in a background thread (@background), and the mixes
-    # job talks to a remote service with a 30s-per-request timeout. "Empty one
-    # second after start" therefore means nothing on its own.
+    # whole function runs in a background thread (@background). A job that talks
+    # to anything slow has not necessarily finished, so "empty one second after
+    # start" means nothing on its own.
     schedule.run_all()
 
     # Run all CRON jobs on a loop.

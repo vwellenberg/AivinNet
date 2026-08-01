@@ -1,5 +1,5 @@
 """
-Recipes are a way to create mixes.
+Recipes build the rows of the homepage.
 """
 
 from abc import ABC, abstractmethod
@@ -19,7 +19,7 @@ class HomepageRoutine(ABC):
        untouched. That is deliberate (better stale than blank), but it makes an
        empty result look identical to a routine that never ran. **If you add such
        an early return, log it** — otherwise the next person reads the scheduler
-       instead of the actual cause. See `ArtistMixes.run` for the shape.
+       instead of the actual cause. That misreading cost a full diagnosis once.
     """
 
     @property

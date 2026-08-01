@@ -104,7 +104,6 @@ def backup():
 
 
 class RestoreBackup:
-    # TODO: BACKUP AND RESTORE MIXES!
     # TODO: IMPROVE UX WHEN WAITING FOR RESTORE TO COMPLETE!
 
     def __init__(self, backup_dir: Path):

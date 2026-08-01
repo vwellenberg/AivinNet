@@ -17,7 +17,6 @@ from swingmusic.setup.sqlite import run_migrations, setup_sqlite
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.artists import ArtistStore
 from swingmusic.store.folder import FolderStore
-from swingmusic.store.homepage import HomepageStore
 from swingmusic.store.tracks import TrackStore
 from swingmusic.utils.generators import get_random_str
 
@@ -54,8 +53,3 @@ def load_into_mem():
     map_favorites()
     map_artist_colors()
     map_album_colors()
-
-    # INFO: Last, because the mixes reference tracks: seeding them needs
-    # TrackStore already populated. See load_mixes_from_db() for why the
-    # homepage went blank without this on every restart.
-    HomepageStore.load_mixes_from_db()
