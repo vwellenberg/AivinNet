@@ -4,6 +4,7 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock heavy dependencies before importing swingmusic modules
+_installed: list[str] = []
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -29,9 +30,15 @@ for mod_name in [
 ]:
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
+        _installed.append(mod_name)
 
 from swingmusic.lib.sortlib import sort_folders  # noqa: E402
 from swingmusic.models.folder import Folder  # noqa: E402
+
+# Drop the temporary mocks again — pytest imports every test module at
+# collection, so one left behind is inherited by every module collected later.
+for _mod in _installed:
+    sys.modules.pop(_mod, None)
 
 
 def make_folder(name: str, trackcount: int = 5) -> Folder:

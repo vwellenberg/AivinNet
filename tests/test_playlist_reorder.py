@@ -4,6 +4,7 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock heavy dependencies before importing swingmusic modules
+_installed: list[str] = []
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -28,9 +29,15 @@ for mod_name in [
 ]:
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
+        _installed.append(mod_name)
 
 
 from swingmusic.lib.playlist_maintenance import trackhash_diff  # noqa: E402
+
+# Drop the temporary mocks again — pytest imports every test module at
+# collection, so one left behind is inherited by every module collected later.
+for _mod in _installed:
+    sys.modules.pop(_mod, None)
 
 
 def _reorder_logic(playlist_table, playlist_id: int, trackhashes: list[str]):

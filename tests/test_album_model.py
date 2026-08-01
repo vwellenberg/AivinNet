@@ -4,6 +4,7 @@ import sys
 from unittest.mock import MagicMock
 
 # Mock heavy dependencies before importing swingmusic modules
+_installed: list[str] = []
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -29,9 +30,19 @@ for mod_name in [
 ]:
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
+        _installed.append(mod_name)
 
 from swingmusic.models.album import Album  # noqa: E402
 from swingmusic.utils.hashing import create_hash  # noqa: E402
+
+# The imports above have bound what they need; drop the temporary mocks again.
+# pytest imports EVERY test module at collection, so a mock left in sys.modules
+# is inherited by every module collected later — which then silently tests
+# against a MagicMock instead of the real library. Real cost: the sqlalchemy
+# stand-in installed here reached test_drop_mixes.py and made a migration test
+# that passes alone fail in the suite.
+for _mod in _installed:
+    sys.modules.pop(_mod, None)
 
 
 def make_album(title: str, albumartists: list[str] | None = None, trackcount: int = 10) -> Album:
