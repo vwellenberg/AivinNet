@@ -2,7 +2,6 @@ import os
 import pathlib
 
 from swingmusic.db.userdata import PlaylistTable
-from swingmusic.lib.home import find_mix
 from swingmusic.lib.home.recentlyadded import get_recently_added_playlist
 from swingmusic.lib.home.recentlyplayed import get_recently_played_playlist
 from swingmusic.models.logger import TrackLog
@@ -16,7 +15,6 @@ def create_items(entries: list[TrackLog], limit: int):
     TODO: rework so that returns a dict with
     {
         "recently_played": ...,
-        "artist_mixes_for_you": ...
     }
     also keep in mind that the web-ui is beeing translated.
     """
@@ -36,32 +34,6 @@ def create_items(entries: list[TrackLog], limit: int):
             continue
 
         added.add(entry.source)
-
-        if entry.type == "mix":
-            if not entry.type_src:
-                continue
-
-            splits = entry.type_src.split(".")
-
-            try:
-                mixid = splits[0]
-                sourcehash = splits[1]
-            except IndexError:
-                continue
-
-            # INFO: Get mix from homepage store
-            mix = find_mix(mixid, sourcehash)
-            if not mix:
-                continue
-
-            items.append(
-                {
-                    "type": "mix",
-                    "hash": entry.type_src,
-                    "timestamp": entry.timestamp,
-                }
-            )
-            continue
 
         if entry.type == "album":
             album = AlbumStore.albummap.get(entry.type_src)

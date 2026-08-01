@@ -17,7 +17,6 @@ from flask_openapi3 import Info, OpenAPI
 
 from swingmusic import api as swing_api
 from swingmusic.api.plugins import lyrics as lyrics_plugin
-from swingmusic.api.plugins import mixes as mixes_plugin
 from swingmusic.config import UserConfig
 from swingmusic.db.userdata import UserTable
 from swingmusic.settings import Metadata, Paths
@@ -110,7 +109,6 @@ def load_plugins(web: OpenAPI):
     # Plugins
     web.register_api(swing_api.plugins.api)
     web.register_api(lyrics_plugin.api)
-    web.register_api(mixes_plugin.api)
 
 
 # # # # # # # # # # #

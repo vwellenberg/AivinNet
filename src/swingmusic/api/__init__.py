@@ -29,7 +29,6 @@ from swingmusic.api import (
     track,
 )
 from swingmusic.api.plugins import lyrics as lyrics_plugin
-from swingmusic.api.plugins import mixes as mixes_plugin
 
 __all__ = [
     "album",
@@ -48,7 +47,6 @@ __all__ = [
     "imgserver",
     "lyrics",
     "lyrics_plugin",
-    "mixes_plugin",
     "musicbrainz",
     "playlist",
     "playlistfolders",

@@ -295,22 +295,3 @@ def send_user_image(path: ImagePath):
         return send_from_directory(folder, path.imgpath)
 
     return "", 404
-
-
-# MIXES
-@api.get("/mix/medium/<imgpath>")
-def send_md_mix_image(path: ImagePath):
-    """
-    Get medium mix image
-    """
-    folder = Paths().md_mixes_img_path
-    return send_file_or_fallback(folder, path.imgpath, "playlist.svg")
-
-
-@api.get("/mix/small/<imgpath>")
-def send_sm_mix_image(path: ImagePath):
-    """
-    Get small mix image
-    """
-    folder = Paths().sm_mixes_img_path
-    return send_file_or_fallback(folder, path.imgpath, "playlist.svg")
