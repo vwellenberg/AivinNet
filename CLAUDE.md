@@ -81,7 +81,7 @@ Wohin — nach Umfang und Lesehäufigkeit:
 | Offene Arbeit, Bug, Idee | GitHub-Issue im **Client**-Repo | einzige Backlog-Quelle, siehe unten |
 
 Bestehende Bereichsregeln: `api-endpoints` · `database` · `device-sync` · `packaging-release` ·
-`playlist-writes` · `recommendations` · `tests`. Neue Regel = neue Datei in `.claude/rules/` mit
+`playlist-writes` · `recommendations` · `tests` · `track-tags`. Neue Regel = neue Datei in `.claude/rules/` mit
 `paths:`-Glob im Frontmatter; ohne `paths` lädt sie unbedingt und ist damit nur CLAUDE.md unter
 anderem Namen.
 
@@ -152,10 +152,17 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   global in `app_builder.config_app`; neue Outbound-Calls zusätzlich mit harter Deadline um
   Futures absichern (`lib/coverart.py::search_covers`) und Pools mit `shutdown(wait=False)`
   schließen.
+- **⚠️ TRACKHASH HÄNGT AN DEN TAGS, NICHT AN DER DATEI** (`create_hash(title, album, *artists)`):
+  ein Formatwechsel ändert **keinen** Hash, eine Tag-Korrektur **jeden** betroffenen — Playlists,
+  Favoriten und Scrobbles zeigen danach ins Leere und müssen mitgezogen werden. Zweite Falle: die
+  Hashes **in der Datenbank** stammen teils noch aus der SHA1-Ära, der laufende Server rechnet
+  xxh3 — Hashes immer aus der API holen, nie aus `swingmusic.db`. Ableitungsregeln,
+  Platzhalter-Fallstricke, MusicBrainz-Abgleich, Indexer-Blindstellen: `.claude/rules/track-tags.md`.
 - `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen.
 
 Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
-`.claude/rules/api-endpoints.md` · `database.md` · `playlist-writes.md` · `tests.md`.
+`.claude/rules/api-endpoints.md` · `database.md` · `playlist-writes.md` · `track-tags.md` ·
+`tests.md`.
 
 ## Auslieferung an Dritte (Release + Installer)
 
