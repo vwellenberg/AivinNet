@@ -39,6 +39,24 @@ Umgekehrt gilt: Wer selbst `sys.modules` mockt, muss die eigenen Mocks danach wi
 pytest importiert **alle** Testmodule beim Collecten, sonst sieht ein später kollektiertes Modul
 den Mock statt des echten Moduls.
 
+## ⚠️ Die Mocks vergiften die ganze pytest-Session (Client-Issue #418)
+
+pytest importiert bei der Collection **alle** Testmodule in einem Prozess, und die Mehrheit der
+Modul-Level-Mocks wird nie gepoppt — am Ende eines Laufs sind ~20 `sys.modules`-Einträge
+MagicMocks (Fremdlibs wie `flask`/`PIL`/`sqlalchemy.orm`, aber auch `swingmusic.db.libdata`).
+Konsequenzen für neue Tests in `tests/`:
+
+- **`swingmusic.db` und die Store-/DB-Kette (`store/*`, `lib/tagger`, …) nie echt importieren.**
+  In der schnellen Bahn bricht das die gesamte Collection mit einem kryptischen
+  `TypeError: metaclass conflict`, dessen Traceback nicht auf die Ursache zeigt. Tests, die
+  echtes DB-/Store-Verhalten brauchen, gehören nach `tests_api/` — ein Import kann dort auch
+  **gelingen** und trotzdem still Mock-Attribute liefern (z.B. `store.tracks.TrackTable`).
+- `conftest.py` importiert deshalb `sqlalchemy.orm` vorab (nicht nur `sqlalchemy`):
+  SQLAlchemy 2.0 registriert das Submodul bei `import sqlalchemy` **nicht**, der Mock-Guard
+  eines Testmoduls griffe sonst trotz installierter Lib.
+- **`pytest tests/ tests_api/` in einem Aufruf geht nicht** — die Trennung (eigene CI-Jobs,
+  `testpaths` in `pyproject.toml`) ist Absicht, genau wegen dieser Mocks.
+
 ## ⚠️ Mocks verstecken echte DB-Bugs
 
 `tests_api/test_devicesync_api.py` mockt `DeviceTable` weg — deshalb blieb ein HTTP-500 bei
