@@ -217,15 +217,23 @@ def get_top_artists(query: ChartItemsQuery):
     scrobble_trend = calculate_scrobble_trend(len(current_period_artists), len(previous_period_artists))
 
     sorted_artists = sort_artists(current_period_artists, query.order_by)
-    top_artists, total = paginate_window(sorted_artists, query.offset, query.limit)
 
-    response = []
-    for artist in top_artists:
-        trend = calculate_artist_trend(artist, current_period_artists, previous_period_artists)
+    # Resolve validity BEFORE windowing (like the playlists endpoint): an
+    # artist that left the library must not inflate `total` or thin a page.
+    valid_artists = []
+    for artist in sorted_artists:
         db_artist = ArtistStore.get_artist_by_hash(artist["artisthash"])
 
         if db_artist is None:
             continue
+
+        valid_artists.append((artist, db_artist))
+
+    top_artists, total = paginate_window(valid_artists, query.offset, query.limit)
+
+    response = []
+    for artist, db_artist in top_artists:
+        trend = calculate_artist_trend(artist, current_period_artists, previous_period_artists)
 
         artist = {
             **serialize_for_card(db_artist),
