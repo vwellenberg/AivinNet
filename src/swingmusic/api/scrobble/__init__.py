@@ -124,8 +124,17 @@ class ChartItemsQuery(BaseModel):
         "year",
         description="Duration to fetch data for",
     )
-    limit: int = Field(10, description="Number of top tracks to return")
+    limit: int = Field(10, ge=1, description="Number of top tracks to return")
+    offset: int = Field(0, ge=0, description="Number of items to skip (pagination)")
     order_by: Literal["playcount", "playduration"] = Field("playduration", description="Property to order by")
+
+
+def paginate_window(items: list, offset: int, limit: int) -> tuple[list, int]:
+    """
+    Slice one page out of a fully sorted chart list and report the
+    pre-slice total, so clients can render pagination controls.
+    """
+    return items[offset : offset + limit], len(items)
 
 
 # SECTION: STATS
@@ -165,7 +174,7 @@ def get_top_tracks(query: ChartItemsQuery):
     )
 
     sorted_tracks = sort_tracks(current_period_tracks, query.order_by)
-    top_tracks = sorted_tracks[: query.limit]
+    top_tracks, total = paginate_window(sorted_tracks, query.offset, query.limit)
 
     response = []
     for track in top_tracks:
@@ -180,6 +189,7 @@ def get_top_tracks(query: ChartItemsQuery):
 
     return {
         "tracks": response,
+        "total": total,
         "scrobbles": {
             "text": f"{current_period_scrobbles} total play{'' if current_period_scrobbles == 1 else 's'} ({seconds_to_time_string(duration)})",
             "trend": scrobble_trend,
@@ -207,7 +217,7 @@ def get_top_artists(query: ChartItemsQuery):
     scrobble_trend = calculate_scrobble_trend(len(current_period_artists), len(previous_period_artists))
 
     sorted_artists = sort_artists(current_period_artists, query.order_by)
-    top_artists = sorted_artists[: query.limit]
+    top_artists, total = paginate_window(sorted_artists, query.offset, query.limit)
 
     response = []
     for artist in top_artists:
@@ -229,6 +239,7 @@ def get_top_artists(query: ChartItemsQuery):
 
     return {
         "artists": response,
+        "total": total,
         "scrobbles": {
             "text": f"{new_artists} {'new' if query.duration != 'alltime' else ''} {ngettext('artist', 'artists', new_artists)}",
             "trend": scrobble_trend,
@@ -256,7 +267,7 @@ def get_top_albums(query: ChartItemsQuery):
     scrobble_trend = calculate_scrobble_trend(len(current_period_albums), len(previous_period_albums))
 
     sorted_albums = sort_albums(current_period_albums, query.order_by)
-    top_albums = sorted_albums[: query.limit]
+    top_albums, total = paginate_window(sorted_albums, query.offset, query.limit)
 
     response = []
     for album in top_albums:
@@ -270,6 +281,7 @@ def get_top_albums(query: ChartItemsQuery):
 
     return {
         "albums": response,
+        "total": total,
         "scrobbles": {
             "text": f"{new_albums} new album{'' if new_albums == 1 else 's'} played",
             "trend": scrobble_trend,
@@ -300,18 +312,26 @@ def get_top_playlists(query: ChartItemsQuery):
 
     sorted_playlists = sort_playlists(current_period_playlists, query.order_by)
 
-    response = []
+    # Resolve validity BEFORE windowing: dynamic playlists (non-numeric ids
+    # like "recentlyadded") and deleted playlists are invisible to the client,
+    # so they must not count towards `total` or shift the offset window.
+    valid_playlists = []
     for entry in sorted_playlists:
         try:
             playlist = PlaylistTable.get_by_id(int(entry["playlistid"]))
         except (ValueError, TypeError):
-            # Non-numeric id (e.g. a dynamic playlist like "recentlyadded").
             continue
 
         if playlist is None:
             # Playlist was deleted; old scrobbles still carry its id.
             continue
 
+        valid_playlists.append((entry, playlist))
+
+    window, total = paginate_window(valid_playlists, query.offset, query.limit)
+
+    response = []
+    for entry, playlist in window:
         trend = calculate_playlist_trend(entry, current_period_playlists, previous_period_playlists)
 
         if not playlist.has_image:
@@ -329,11 +349,9 @@ def get_top_playlists(query: ChartItemsQuery):
             }
         )
 
-        if len(response) >= query.limit:
-            break
-
     return {
         "playlists": response,
+        "total": total,
         "scrobbles": {
             "text": f"{len(current_period_playlists)} playlist{'' if len(current_period_playlists) == 1 else 's'} played",
             "trend": scrobble_trend,
