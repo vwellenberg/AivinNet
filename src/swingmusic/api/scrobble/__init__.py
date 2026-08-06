@@ -153,6 +153,26 @@ def get_help_text(playcount: int, playduration: int, order_by: Literal["playcoun
         return seconds_to_time_string(playduration)
 
 
+def chart_item_extra(playcount: int, playduration: int, extra: dict | None = None) -> dict:
+    """
+    The per-item stats payload every chart endpoint attaches as `extra`.
+
+    The client's leaderboard meter needs the RAW seconds next to the
+    preformatted `help_text` — additive, so older clients simply ignore it.
+    `extra` merges endpoint-specific fields already living there (the artist
+    and playlist charts exposed `playcount` this way before).
+    """
+    return {**(extra or {}), "playcount": playcount, "playduration": playduration}
+
+
+def max_playduration(durations) -> int:
+    """
+    The period's #1 play duration — the 100% reference for the client's
+    leaderboard meters. 0 means "no data" and hides the meters.
+    """
+    return max(durations, default=0)
+
+
 # DISCLAIMER: Code beyond this point was partially written by Claude 3.5 Sonnet in Cursor.
 # TODO: Refactor, group and clean up
 
@@ -179,10 +199,12 @@ def get_top_tracks(query: ChartItemsQuery):
     response = []
     for track in top_tracks:
         trend = calculate_track_trend(track, current_period_tracks, previous_period_tracks)
+        serialized = serialize_track(track)
         track = {
-            **serialize_track(track),
+            **serialized,
             "trend": trend,
             "help_text": get_help_text(track.playcount, track.playduration, query.order_by),
+            "extra": chart_item_extra(track.playcount, track.playduration, serialized.get("extra")),
         }
 
         response.append(track)
@@ -190,6 +212,7 @@ def get_top_tracks(query: ChartItemsQuery):
     return {
         "tracks": response,
         "total": total,
+        "max_playduration": max_playduration(t.playduration for t in sorted_tracks),
         "scrobbles": {
             "text": f"{current_period_scrobbles} total play{'' if current_period_scrobbles == 1 else 's'} ({seconds_to_time_string(duration)})",
             "trend": scrobble_trend,
@@ -239,15 +262,14 @@ def get_top_artists(query: ChartItemsQuery):
             **serialize_for_card(db_artist),
             "trend": trend,
             "help_text": get_help_text(artist["playcount"], artist["playduration"], query.order_by),
-            "extra": {
-                "playcount": artist["playcount"],
-            },
+            "extra": chart_item_extra(artist["playcount"], artist["playduration"]),
         }
         response.append(artist)
 
     return {
         "artists": response,
         "total": total,
+        "max_playduration": max_playduration(entry["playduration"] for entry, _ in valid_artists),
         "scrobbles": {
             "text": f"{new_artists} {'new' if query.duration != 'alltime' else ''} {ngettext('artist', 'artists', new_artists)}",
             "trend": scrobble_trend,
@@ -284,12 +306,14 @@ def get_top_albums(query: ChartItemsQuery):
             **serialize_for_album_card(album),
             "trend": trend,
             "help_text": get_help_text(album.playcount, album.playduration, query.order_by),
+            "extra": chart_item_extra(album.playcount, album.playduration),
         }
         response.append(album)
 
     return {
         "albums": response,
         "total": total,
+        "max_playduration": max_playduration(a.playduration for a in sorted_albums),
         "scrobbles": {
             "text": f"{new_albums} new album{'' if new_albums == 1 else 's'} played",
             "trend": scrobble_trend,
@@ -351,15 +375,14 @@ def get_top_playlists(query: ChartItemsQuery):
                 **serialize_for_playlist_card(playlist),
                 "trend": trend,
                 "help_text": get_help_text(entry["playcount"], entry["playduration"], query.order_by),
-                "extra": {
-                    "playcount": entry["playcount"],
-                },
+                "extra": chart_item_extra(entry["playcount"], entry["playduration"]),
             }
         )
 
     return {
         "playlists": response,
         "total": total,
+        "max_playduration": max_playduration(entry["playduration"] for entry, _ in valid_playlists),
         "scrobbles": {
             "text": f"{len(current_period_playlists)} playlist{'' if len(current_period_playlists) == 1 else 's'} played",
             "trend": scrobble_trend,
