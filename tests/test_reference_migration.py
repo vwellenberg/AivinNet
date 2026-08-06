@@ -63,7 +63,9 @@ class TestFavoriteMigrationAction:
         assert favorite_migration_action(1, 1) == "drop"
 
     def test_keep_when_different_user_owns_new(self):
-        # A DIFFERENT user already owns the new hash. The global UNIQUE(hash)
-        # forbids a second row, so the old favorite must be KEPT, never deleted
-        # (deleting it would silently destroy user 1's favorite).
+        # Two DIFFERENT users. The caller groups by user before asking, so this
+        # combination no longer reaches the function — but the answer must stay
+        # "keep": whatever a caller does with another user's row, it must never
+        # be a delete. (Under the old global UNIQUE(hash) this was a real
+        # outcome and left the old favorite dangling.)
         assert favorite_migration_action(1, 2) == "keep"

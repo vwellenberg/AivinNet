@@ -46,3 +46,36 @@ Zeilen über den Ordner-Albumhash, den die Reparatur davor schreibt.
 
 Wer eine neue Migration ergänzt: entweder denselben idempotenten Weg gehen, oder den
 versionierten Mechanismus zuerst reaktivieren. Nicht registrieren und hoffen.
+
+## ⚠️ Schema-Änderungen erreichen bestehende DBs NICHT
+
+`create_all` legt nur fehlende Tabellen an — es **ändert keine vorhandene**. Ein geändertes
+`mapped_column` (Constraint, Typ, Nullability) wirkt deshalb nur auf frischen Installationen;
+die Datenbank des Servers behält ihr altes Schema für immer. SQLite kann Constraints außerdem
+nicht per `ALTER TABLE` entfernen: **die Tabelle muss neu gebaut werden** (neue Tabelle, Zeilen
+kopieren, alte droppen). Vorbild und Baumuster: `migrations/favorites_unique_per_user.py`.
+
+Drei Punkte, an denen dieser Umbau schiefgeht:
+
+- **Erkennung über die Struktur, nicht über eine Versionsnummer** — `PRAGMA index_list` /
+  `index_info` fragen, ob die Tabelle noch die alte Form trägt. Das macht die Reparatur
+  automatisch idempotent (zweiter Lauf findet nichts) und braucht keinen Migrationsstand.
+- **Indizes wandern beim `RENAME` mit und behalten ihre Namen** → vor dem Umbau die per
+  `CREATE INDEX` angelegten (`PRAGMA index_list`, `origin == "c"`) droppen, sonst scheitert die
+  neue Tabelle an „index ix_… already exists".
+- **`PRAGMA foreign_keys` wirkt nur außerhalb einer Transaktion.** sqlite3 öffnet vor dem ersten
+  INSERT implizit eine — also `isolation_level = None` setzen und `BEGIN`/`COMMIT` selbst fahren.
+  Ohne ausgeschaltete FKs kippt der Umbau an Alt-Zeilen, deren User es nicht mehr gibt.
+
+Das Ziel-Schema aus dem Modell kompilieren (`CreateTable(Model.__table__)`), nicht als DDL-String
+danebenlegen — sonst driften Reparatur und `create_all` auseinander. Der Test dazu vergleicht
+beide Tabellen strukturell (`tests_api/test_favorites_table_roundtrip.py`).
+
+## ⚠️ Nutzergebundene Tabellen: der `userid`-Filter fehlt schnell
+
+In `db/userdata.py` hat jede Zeile einen `userid` — aber der Filter steht **nicht** automatisch
+in der Query. `FavoritesTable` zeigte alle drei Spielarten des Fehlers gleichzeitig
+(AivinNet-Client#435): ein globales `unique=True` auf `hash` (Zweit-User → IntegrityError → 500),
+ein `DELETE … WHERE hash` ohne User (löschte fremde Zeilen) und Lookups/Zähler, die die Daten
+aller User zusammenwarfen. Wer eine Methode dort anfasst, prüft alle Geschwister-Methoden mit:
+`unique=True` gehört bei diesen Tabellen in ein `UniqueConstraint(<spalte>, "userid")`.

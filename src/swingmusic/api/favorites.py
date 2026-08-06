@@ -1,3 +1,4 @@
+import logging
 from typing import TypeVar
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -24,6 +25,10 @@ from swingmusic.utils.dates import timestamp_to_time_passed
 bp_tag = Tag(name="Favorites", description="Your favorite items")
 api = APIBlueprint("favorites", __name__, url_prefix="/favorites", abp_tags=[bp_tag])
 
+# A handler crash reaches the journal as a single line without a traceback
+# (.claude/rules/api-endpoints.md), so the failures below are logged with one.
+log = logging.getLogger(__name__)
+
 
 T = TypeVar("T")
 
@@ -41,27 +46,37 @@ class FavoritesAddBody(BaseModel):
     type: str = Field(description="The type of the item")
 
 
-def toggle_fav(type: str, hash: str):
+def get_store_entry(type: str, hash: str):
     """
-    Toggles a favorite item.
+    The RAM-store entry for a favorited item, or None if the library does not
+    hold it (an edited tag or a deleted file leaves favorites pointing nowhere).
     """
     if type == FavType.track:
-        entry = TrackStore.trackhashmap.get(hash)
-        if entry is not None:
-            entry.toggle_favorite_user()
+        return TrackStore.trackhashmap.get(hash)
 
-    elif type == FavType.album:
-        entry = AlbumStore.albummap.get(hash)
+    if type == FavType.album:
+        return AlbumStore.albummap.get(hash)
 
-        if entry is not None:
-            entry.toggle_favorite_user()
-    elif type == FavType.artist:
-        entry = ArtistStore.artistmap.get(hash)
+    if type == FavType.artist:
+        return ArtistStore.artistmap.get(hash)
 
-        if entry is not None:
-            entry.toggle_favorite_user()
+    return None
 
-    return {"msg": "Added to favorites"}
+
+def set_fav_in_store(type: str, hash: str, favorited: bool):
+    """
+    Bring the RAM store in line with what the database now holds.
+
+    The store used to be TOGGLED after the write, which let the two truths drift
+    apart in both directions and stay that way until a restart: a failed insert
+    still flipped the heart on, and a repeated "add" flipped it back OFF while
+    the row stayed. Setting an explicit state makes the call idempotent, so the
+    store can simply be told the outcome of the write.
+    """
+    entry = get_store_entry(type, hash)
+
+    if entry is not None:
+        entry.set_favorite_user(favorited)
 
 
 @api.post("/add")
@@ -71,13 +86,17 @@ def toggle_favorite(body: FavoritesAddBody):
     """
     extra = get_extra_info(body.hash, body.type)
 
+    # INFO: The database write comes FIRST and the store is only updated on
+    # success — see set_fav_in_store. Adding the same favorite twice is a no-op
+    # (FavoritesTable.insert_item), not a 500: the client fires this endpoint on
+    # every heart click and reports any non-2xx to the user as an error.
     try:
         FavoritesTable.insert_item({"hash": body.hash, "type": body.type, "extra": extra})
-    except Exception as e:
-        print(e)
+    except Exception:
+        log.exception("Failed to add favorite %s %s", body.type, body.hash)
         return {"msg": "Failed! An error occured"}, 500
 
-    toggle_fav(body.type, body.hash)
+    set_fav_in_store(body.type, body.hash, True)
 
     return {"msg": "Added to favorites"}
 
@@ -89,11 +108,11 @@ def remove_favorite(body: FavoritesAddBody):
     """
     try:
         FavoritesTable.remove_item({"hash": body.hash, "type": body.type})
-    except Exception as e:
-        print(e)
+    except Exception:
+        log.exception("Failed to remove favorite %s %s", body.type, body.hash)
         return {"msg": "Failed! An error occured"}, 500
 
-    toggle_fav(body.type, body.hash)
+    set_fav_in_store(body.type, body.hash, False)
 
     return {"msg": "Removed from favorites"}
 
