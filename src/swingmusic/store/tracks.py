@@ -52,6 +52,21 @@ class TrackGroup:
         for track in self.tracks:
             track.toggle_favorite_user(userid)
 
+    def set_favorite_user(self, favorited: bool, userid: int | None = None):
+        """
+        Set the favorite state of the group explicitly, instead of flipping it.
+
+        A toggle cannot express "make this match the database": repeating a
+        write that the database treats as a no-op would flip the store away from
+        it. Callers that know the outcome of a write use this.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        for track in self.tracks:
+            if (userid in track.fav_userids) != favorited:
+                track.toggle_favorite_user(userid)
+
     def get_best(self):
         """
         Returns the track with higest bitrate.

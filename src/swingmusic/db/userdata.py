@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     and_,
     delete,
     func,
@@ -187,8 +188,21 @@ class SimilarArtistTable(Base):
 class FavoritesTable(Base):
     __tablename__ = "favorite"
 
+    # A favorite belongs to exactly ONE user, so the same item may legitimately
+    # be favorited by several users. `hash` used to carry a GLOBAL `unique=True`,
+    # which turned the second user's insert into an IntegrityError -> HTTP 500
+    # (AivinNet-Client#435). The uniqueness that was actually meant is "one row
+    # per item PER USER".
+    #
+    # `create_all` never alters an existing table, so databases created before
+    # this change are rebuilt on startup by
+    # `migrations/favorites_unique_per_user.py`.
+    __table_args__ = (UniqueConstraint("hash", "userid", name="uq_favorite_hash_userid"),)
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    hash: Mapped[str] = mapped_column(String(), unique=True)
+    # No `index=True`: the unique constraint above already creates an index
+    # whose leftmost column is `hash`, which serves the hash lookups below.
+    hash: Mapped[str] = mapped_column(String())
     type: Mapped[str] = mapped_column(String(), index=True)
     timestamp: Mapped[int] = mapped_column(Integer(), index=True)
     userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), default=1, index=True)
@@ -216,26 +230,81 @@ class FavoritesTable(Base):
         if item.get("userid") is None:
             item["userid"] = get_current_userid()
 
+        # Favoriting the same item twice is a no-op, not an error. The client
+        # fires /favorites/add on every heart click and treats ANY non-2xx as a
+        # failure (client `src/requests/favorite.ts`), so a duplicate must never
+        # surface as a 500 — and with the constraint now per user it would be an
+        # IntegrityError instead of silently hitting another user's row.
+        if cls.row_id(item["hash"], item["userid"]) is not None:
+            return None
+
         return next(cls.execute(insert(cls).values(item), commit=True))
 
     @classmethod
+    def row_id(cls, hash: str, userid: int) -> int | None:
+        """
+        The row id of an already type-prefixed `hash` for `userid`, or None.
+
+        Selects the id column, not the entity: `Base.execute` hands the result
+        out of a session scope, and materializing a mapped entity from it is the
+        "identity map is no longer valid" trap (see .claude/rules/database.md).
+        """
+        result = cls.execute(select(cls.id).where(and_(cls.hash == hash, cls.userid == userid)))
+
+        return next(result).scalar()
+
+    @classmethod
     def remove_item(cls, item: dict[str, Any]):
+        # INFO: The userid filter is not optional. Without it, one user removing
+        # a favorite deleted the row of EVERY user who had favorited the same
+        # item (AivinNet-Client#435).
+        userid = item.get("userid")
+
+        if userid is None:
+            userid = get_current_userid()
+
         return next(
             cls.execute(
-                delete(cls).where((cls.hash == item["hash"]) | (cls.hash == f"{item['type']}_{item['hash']}")),
+                delete(cls).where(
+                    and_(
+                        cls.userid == userid,
+                        (cls.hash == item["hash"]) | (cls.hash == f"{item['type']}_{item['hash']}"),
+                    )
+                ),
                 commit=True,
             )
         )
 
     @classmethod
     def check_exists(cls, hash: str, type: str):
-        result = cls.execute(select(cls).where((cls.hash == hash) | (cls.hash == f"{type}_{hash}")))
+        """
+        Whether the CURRENT user has favorited this item.
+
+        Without the user filter this answered "somebody favorited it" — which is
+        what made `/favorites/check` show a filled heart on another user's
+        favorite, and made album pin/unpin operate on a foreign row.
+        """
+        result = cls.execute(
+            select(cls.id).where(
+                and_(
+                    cls.userid == get_current_userid(),
+                    (cls.hash == hash) | (cls.hash == f"{type}_{hash}"),
+                )
+            )
+        )
 
         return next(result).scalar() is not None
 
     @classmethod
     def get_by_hash(cls, hash: str, type: str):
-        result = cls.execute(select(cls).where((cls.hash == hash) | (cls.hash == f"{type}_{hash}")))
+        result = cls.execute(
+            select(cls).where(
+                and_(
+                    cls.userid == get_current_userid(),
+                    (cls.hash == hash) | (cls.hash == f"{type}_{hash}"),
+                )
+            )
+        )
 
         return next(result).scalars().all()
 
@@ -314,13 +383,21 @@ class FavoritesTable(Base):
 
     @classmethod
     def count_tracks(cls):
-        result = cls.execute(select(func.count(cls.id)).where(cls.type == "track"))
+        # Both of these feed the "favorites" card on the home page, which is a
+        # per-user view — unfiltered they counted every user's favorites.
+        result = cls.execute(
+            select(func.count(cls.id)).where(and_(cls.type == "track", cls.userid == get_current_userid()))
+        )
 
         return next(result).scalar()
 
     @classmethod
     def get_last_trackhash(cls):
-        result = cls.execute(select(cls.hash).where(cls.type == "track").order_by(cls.timestamp.desc()))
+        result = cls.execute(
+            select(cls.hash)
+            .where(and_(cls.type == "track", cls.userid == get_current_userid()))
+            .order_by(cls.timestamp.desc())
+        )
 
         return next(result).scalar()
 

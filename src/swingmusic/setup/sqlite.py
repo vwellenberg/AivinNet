@@ -12,6 +12,7 @@ from swingmusic.migrations import apply_migrations
 from swingmusic.migrations.album_title_from_folder import rename_albums_after_their_folder
 from swingmusic.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from swingmusic.migrations.drop_mixes import drop_mix_data
+from swingmusic.migrations.favorites_unique_per_user import repair_favorites_unique_constraint
 from swingmusic.settings import Paths
 
 
@@ -27,6 +28,13 @@ def run_migrations():
     # every start instead of being versioned: each only touches rows that still
     # carry the old shape, so the second run finds nothing.
     #
+    # Runs FIRST, and before any row-level repair: it is a SCHEMA rebuild of the
+    # `favorite` table (global UNIQUE(hash) -> UNIQUE(hash, userid)). The two
+    # repairs below rewrite favorite HASHES, which is exactly the write the old
+    # constraint could reject once two users share a favorite — so the constraint
+    # has to be the right one before they run.
+    repair_favorites_unique_constraint()
+
     # Order matters. The rename below identifies its rows by the FOLDER-derived
     # album hash, which is exactly what the repair above writes.
     repair_collapsed_albumhashes()

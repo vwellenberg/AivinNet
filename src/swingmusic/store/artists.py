@@ -26,6 +26,17 @@ class ArtistMapEntry:
 
         self.artist.toggle_favorite_user(userid)
 
+    def set_favorite_user(self, favorited: bool, userid: int | None = None):
+        """
+        Set the favorite state explicitly instead of flipping it — see
+        `TrackGroup.set_favorite_user` for why the toggle is not enough.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        if (userid in self.artist.fav_userids) != favorited:
+            self.artist.toggle_favorite_user(userid)
+
     def set_color(self, color: str):
         self.artist.color = color
 

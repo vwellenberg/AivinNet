@@ -103,9 +103,11 @@ def playlist_migration_values(
 
 def favorite_migration_action(old_userid: int | None, new_userid: int | None) -> str:
     """
-    Decide how to migrate the favorite of a single track identity, given the
-    global ``UNIQUE(hash)`` constraint on ``FavoritesTable`` (each row still has
-    its own ``userid``).
+    Decide how to migrate the favorite of a single track identity for ONE user.
+
+    ``FavoritesTable`` is unique per ``(hash, userid)``, so the decision is made
+    per owner: renaming user A's row can never collide with user B's row for the
+    same hash.
 
     :param old_userid: Owner of the favorite on the OLD hash, or ``None`` if the
         old identity is not favorited.
@@ -117,10 +119,12 @@ def favorite_migration_action(old_userid: int | None, new_userid: int | None) ->
         - ``"drop"``   – the SAME user already favorited the new identity, so the
           old row is redundant and is removed (renaming would hit the unique
           constraint).
-        - ``"keep"``   – a DIFFERENT user already owns the new hash. The global
-          unique constraint forbids a second row, so the old favorite is kept
-          intact (left dangling) rather than silently deleting another user's
-          data. Proper long-term fix: ``UNIQUE(userid, hash)``.
+        - ``"keep"``   – the two rows belong to DIFFERENT users. The caller below
+          never asks that question anymore (it groups by user first), but the
+          branch stays: it is the answer that must never turn into a delete, and
+          keeping it here means an unscoped caller cannot destroy another user's
+          favorite by accident. Under the old GLOBAL ``UNIQUE(hash)`` this was a
+          real outcome and left the old favorite dangling.
     """
     if old_userid is None:
         return "noop"
@@ -162,36 +166,48 @@ def migrate_track_references(old_trackhash: str, new_trackhash: str) -> None:
 
             session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
 
-        # Favorites: `hash` carries a GLOBAL unique constraint, yet each row has
-        # its own `userid`. Decide per-owner so we never delete a DIFFERENT user's
-        # favorite when the new identity is already favorited (see
-        # favorite_migration_action).
-        old_row = session.execute(
-            select(FavoritesTable.id, FavoritesTable.userid).where(FavoritesTable.hash == old_fav)
-        ).first()
-        new_row = session.execute(
-            select(FavoritesTable.id, FavoritesTable.userid).where(FavoritesTable.hash == new_fav)
-        ).first()
+        # Favorites: one row per user per hash, so the same track can be
+        # favorited by several people and each row has to be decided on its own.
+        # A single blanket UPDATE would hit the (hash, userid) constraint for
+        # every user who had already favorited the new identity.
+        old_owners = {
+            row.userid
+            for row in session.execute(
+                select(FavoritesTable.userid).where(FavoritesTable.hash == old_fav)
+            ).all()
+        }
+        new_owners = {
+            row.userid
+            for row in session.execute(
+                select(FavoritesTable.userid).where(FavoritesTable.hash == new_fav)
+            ).all()
+        }
 
-        action = favorite_migration_action(
-            old_row.userid if old_row else None,
-            new_row.userid if new_row else None,
-        )
-        if action == "rename":
-            session.execute(update(FavoritesTable).where(FavoritesTable.hash == old_fav).values(hash=new_fav))
-        elif action == "drop":
-            session.execute(delete(FavoritesTable).where(FavoritesTable.hash == old_fav))
-        elif action == "keep":
-            log.warning(
-                "Track edit %s -> %s: favorite for the old hash (user %s) not migrated because the "
-                "new hash is already favorited by a different user (user %s) and FavoritesTable.hash "
-                "is globally unique. Old favorite kept intact to avoid deleting another user's data.",
+        for userid in old_owners:
+            action = favorite_migration_action(userid, userid if userid in new_owners else None)
+
+            if action == "rename":
+                session.execute(
+                    update(FavoritesTable)
+                    .where(FavoritesTable.hash == old_fav, FavoritesTable.userid == userid)
+                    .values(hash=new_fav)
+                )
+            elif action == "drop":
+                # This user already favorited the new identity, so their old row
+                # is redundant — and renaming it would collide with their own.
+                session.execute(
+                    delete(FavoritesTable).where(
+                        FavoritesTable.hash == old_fav, FavoritesTable.userid == userid
+                    )
+                )
+
+        if old_owners:
+            log.info(
+                "Track edit %s -> %s: carried the favorite across for %s user(s)",
                 old_trackhash,
                 new_trackhash,
-                old_row.userid,
-                new_row.userid,
+                len(old_owners),
             )
-        # "noop": the old identity was not favorited; nothing to do.
 
         # Play history / scrobbles (all users): plain indexed trackhash column.
         session.execute(
