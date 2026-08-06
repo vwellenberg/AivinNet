@@ -50,7 +50,8 @@ Pro Aufgabe/Issue:
   - **Neue/geänderte Endpoints oder Request-Modelle ⇒ `tests_api/`-Abdeckung** des echten Request-Zyklus (multipart-Optionalität und flask_openapi3-File-Mapping brechen NUR dort sichtbar — zweimal live passiert: #36→#167/#39).
   - Neue Lib-Logik ⇒ Unit-Test in `tests/` (fast lane).
   - Realistische Fixtures verwenden — z. B. trägt `Album.image` den `?pathhash=`-Suffix; ein Test mit geschöntem `hash.webp` hat #34 übersehen.
-- **PR** öffnen → **Self-Review** (`/code-review`), Findings fixen, erneut prüfen.
+- **Self-Review — VOR dem PR, nicht danach.** `/code-review` auf den Arbeits-Diff laufen lassen, Findings fixen, erneut prüfen — erst dann den PR öffnen. Die Reihenfolge ist der Punkt: Steht der Schritt hinter „PR öffnen", entfällt er in der Praxis (sobald der PR offen ist und die CI grün läuft, sieht das Paket fertig aus — so sind im Client 5 PRs ohne Review durchgerutscht). **Grüne CI ist kein Review.** Fallback ohne `/code-review`: den eigenen Diff `git diff origin/master...HEAD` vollständig lesen und im PR-Text vermerken, dass das Tool-Review nicht lief.
+- **PR** öffnen.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
 - Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen.
