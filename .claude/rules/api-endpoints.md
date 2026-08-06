@@ -46,6 +46,20 @@ So gefunden: der `Paths`-Property-Crash in `save_item_as_playlist` (#82) — Alb
 „already exists"). Beim Aufräumen solcher Trümmer: leere `trackhashes` **plus**
 `image = <hash>.webp` ist die Signatur; von Hand angelegte Playlists haben kein Bild.
 
+## ⚠️ Erst prüfen, dann mutieren — der Fehlerpfad darf nichts zerstören
+
+Zweimal derselbe Bug: ein Handler macht seinen Seiteneffekt und validiert danach. Der Aufrufer
+bekommt einen sauberen Fehlercode und merkt nicht, dass schon etwas kaputt ist.
+
+- `save_item_as_playlist` (#82) crashte **nach** `insert_playlist` → pro Versuch eine leere
+  Playlist als Trümmer, der Retry lief in 409 „already exists".
+- `move_playlist` (Client#436) entfernte die Playlist aus **allen** Ordnern und prüfte erst
+  danach, ob der Zielordner existiert → 404, und die Ordner-Zuordnung war weg.
+
+Regel: Alle 404/400-Prüfungen an den **Anfang** des Handlers, vor die erste Schreiboperation.
+Ein Test dazu heißt nicht „gibt 404" sondern „gibt 404 **und** der Zustand ist unverändert" —
+nur die zweite Hälfte hätte beide Bugs gefunden.
+
 ## Auth
 
 `app_builder.check_auth_need()` ist die Allowlist — alles, was nicht dort steht, braucht ein

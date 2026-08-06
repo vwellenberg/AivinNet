@@ -32,6 +32,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 SPEC_USERS = ((1, "spec-user-1"), (2, "spec-user-2"))
 
 
+def _register_all_models():
+    """
+    Import every module that declares a table BEFORE `create_all_tables()`.
+
+    `Base.metadata` only knows the models that have actually been imported, and
+    `create_all` writes nothing for the rest. A fixture that imports just what it
+    needs therefore creates a partial database, and whether a table exists ends
+    up depending on which OTHER test module pytest collected first — the whole
+    suite is green, the single module is `no such table: user`.
+    """
+    importlib.import_module("swingmusic.db.libdata")
+    importlib.import_module("swingmusic.db.metadata")
+    importlib.import_module("swingmusic.db.userdata")
+
+
 def _create_spec_users():
     from sqlalchemy import insert, select
 
@@ -158,10 +173,12 @@ def api_client():
     from unittest.mock import patch
 
     from flask_openapi3 import OpenAPI
+    from sqlalchemy import inspect
 
     from swingmusic.db import Base, create_all_tables
     from swingmusic.db.engine import DbEngine
 
+    _register_all_models()
     create_all_tables()
     _create_spec_users()
 
@@ -186,10 +203,13 @@ def api_client():
     finally:
         userid_patch.stop()
         # Reverse dependency order so a child table goes before its parent.
-        # `user` survives: it is fixture scaffolding, not test data.
+        # `user` survives: it is fixture scaffolding, not test data. Only tables
+        # that really exist are touched — a model imported after
+        # `create_all_tables()` ran is in the metadata but not in the file.
+        existing = set(inspect(DbEngine.engine).get_table_names())
         with DbEngine.manager(commit=True) as session:
             for table in reversed(Base.metadata.sorted_tables):
-                if table.name != "user":
+                if table.name != "user" and table.name in existing:
                     session.execute(table.delete())
 
 
