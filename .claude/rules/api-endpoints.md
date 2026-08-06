@@ -60,6 +60,19 @@ Regel: Alle 404/400-Prüfungen an den **Anfang** des Handlers, vor die erste Sch
 Ein Test dazu heißt nicht „gibt 404" sondern „gibt 404 **und** der Zustand ist unverändert" —
 nur die zweite Hälfte hätte beide Bugs gefunden.
 
+## ⚠️ `basis / name_vom_client` ist keine Eingrenzung
+
+`Path`-Join prüft nichts. Zwei Auswege stecken drin, und beide standen live in
+`DELETE /backup/delete` direkt vor einem `shutil.rmtree` (Client#437):
+
+- `"../.config/swingmusic"` läuft aus dem Basisverzeichnis heraus,
+- ein **absoluter** Name wirft die Basis komplett weg — `Path("/a") / "/etc"` ist `/etc`.
+
+Muster (`api/backup_and_restore.py::resolve_backup_dir`): Kandidat und Basis beide `resolve()`n,
+dann `candidate.is_relative_to(root)`; zusätzlich die Basis **selbst** und leere Namen ablehnen,
+weil beide auf etwas zeigen, das der Aufrufer nicht benannt hat. Bei Verstoß 400, nicht 404 —
+der Unterschied zwischen „gibt's nicht" und „darfst du nicht fragen" ist die Diagnose wert.
+
 ## Auth
 
 `app_builder.check_auth_need()` ist die Allowlist — alles, was nicht dort steht, braucht ein
