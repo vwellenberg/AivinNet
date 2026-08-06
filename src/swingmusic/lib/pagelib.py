@@ -1,42 +1,19 @@
-import json
+"""
+Rendering helpers for stored collection ("page") items.
+
+Only the READ half is left: the write helpers (`validate_page_items`,
+`remove_page_items`) had exactly one caller, the `/collections` blueprint, and
+went with it. Existing collection rows are still rendered on the homepage
+(`store/homepage.py`) and still travel in backups, which is why this file and
+`CollectionTable` stay.
+"""
+
 from typing import Any
 
 from swingmusic.serializers.album import serialize_for_card
 from swingmusic.serializers.artist import serialize_for_card as serialize_artist
 from swingmusic.store.albums import AlbumStore
 from swingmusic.store.artists import ArtistStore
-from swingmusic.utils.hashing import create_hash
-
-
-def validate_page_items(items: list[dict[str, str]], existing: list[dict[str, str]]):
-    """
-    Validate the items in a page before adding them to the database.
-    """
-    validated: list[dict[str, str]] = []
-    indexed = set(create_hash(json.dumps(item)) for item in existing)
-
-    for item in items:
-        if create_hash(json.dumps(item)) in indexed:
-            continue
-
-        if item["type"] == "album":
-            album = AlbumStore.albummap.get(item["hash"])
-
-            if album is not None:
-                validated.append(item)
-        elif item["type"] == "artist":
-            artist = ArtistStore.artistmap.get(item["hash"])
-
-            if artist is not None:
-                validated.append(item)
-        else:
-            raise ValueError(f"Invalid item type: {item['type']}")
-
-    return validated
-
-
-def remove_page_items(existing: list[dict[str, str]], item: dict[str, str]):
-    return [i for i in existing if create_hash(json.dumps(i)) != create_hash(json.dumps(item))]
 
 
 def recover_page_items(items: list[dict[str, str]], for_homepage: bool = False):
