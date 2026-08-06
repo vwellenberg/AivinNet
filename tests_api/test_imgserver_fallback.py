@@ -103,9 +103,10 @@ def _make_track(**overrides):
     fields = dict(
         id=1,
         album="Naruto Original Soundtrack II",
-        albumartists=[{"name": "Toshiro Masuda", "artisthash": "ah1"}],
+        # artists arrive as raw tag strings; __post_init__ splits them.
+        albumartists="Toshiro Masuda",
         albumhash="alb1",
-        artists=[{"name": "Toshiro Masuda", "artisthash": "ah1"}],
+        artists="Toshiro Masuda",
         bitrate=320,
         copyright="",
         date=1032739200,
