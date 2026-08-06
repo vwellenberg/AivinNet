@@ -154,9 +154,7 @@ class TestRemove:
         assert _stored(filled) == [ORPHAN, "a", "c"]
 
     def test_removing_several_at_once(self, filled):
-        PlaylistTable.remove_from_playlist(
-            filled, [{"trackhash": "a", "index": 0}, {"trackhash": "c", "index": 2}]
-        )
+        PlaylistTable.remove_from_playlist(filled, [{"trackhash": "a", "index": 0}, {"trackhash": "c", "index": 2}])
         assert _stored(filled) == [ORPHAN, "b"]
 
     def test_the_orphan_is_not_collateral(self, filled):

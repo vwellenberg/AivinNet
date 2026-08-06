@@ -11,6 +11,7 @@ The app config dir is pointed at a temp directory BEFORE anything from
 swingmusic is imported, so no test ever touches a real library.
 """
 
+import importlib
 import os
 import sys
 import tempfile
@@ -24,6 +25,24 @@ os.environ["XDG_CONFIG_HOME"] = _config_root
 os.environ.setdefault("SWINGMUSIC_CLIENT_DIR", _config_root)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# The two owners every foreign key in the user tables points at. They are
+# created once per test and kept across the between-tests wipe, because
+# PRAGMA foreign_keys=ON refuses an insert whose owner does not exist yet.
+SPEC_USERS = ((1, "spec-user-1"), (2, "spec-user-2"))
+
+
+def _create_spec_users():
+    from sqlalchemy import insert, select
+
+    from swingmusic.db.engine import DbEngine
+    from swingmusic.db.userdata import UserTable
+
+    with DbEngine.manager(commit=True) as session:
+        for uid, name in SPEC_USERS:
+            exists = session.execute(select(UserTable.id).where(UserTable.id == uid)).first()
+            if not exists:
+                session.execute(insert(UserTable).values(id=uid, username=name, password="x", roles=[], extra={}))
 
 
 @pytest.fixture()
@@ -45,11 +64,11 @@ def playlist_db():
     """
     from unittest.mock import patch
 
-    from sqlalchemy import delete, insert, select
+    from sqlalchemy import delete
 
     from swingmusic.db import create_all_tables
     from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import PlaylistTable, UserTable
+    from swingmusic.db.userdata import PlaylistTable
 
     create_all_tables()
 
@@ -58,11 +77,7 @@ def playlist_db():
     # exists. Without this the module passed only when some OTHER test module
     # happened to create a user first — green for the wrong reason, and red the
     # moment it ran alone.
-    with DbEngine.manager(commit=True) as session:
-        for uid, name in ((1, "spec-user-1"), (2, "spec-user-2")):
-            exists = session.execute(select(UserTable.id).where(UserTable.id == uid)).first()
-            if not exists:
-                session.execute(insert(UserTable).values(id=uid, username=name, password="x", roles=[], extra={}))
+    _create_spec_users()
 
     with patch("swingmusic.db.userdata.get_current_userid", return_value=1) as userid:
         yield PlaylistTable, userid
@@ -70,6 +85,112 @@ def playlist_db():
     # Leave no rows behind for the next test.
     with DbEngine.manager(commit=True) as session:
         session.execute(delete(PlaylistTable))
+
+
+class ApiHandle:
+    """What `api_client` hands a test: a Flask test client plus the knobs the
+    handlers read from outside the request (currently only the acting user)."""
+
+    def __init__(self, client, app, userid_mock):
+        self.client = client
+        self.app = app
+        self._userid_mock = userid_mock
+
+    @property
+    def userid(self) -> int:
+        return self._userid_mock.return_value
+
+    @userid.setter
+    def userid(self, value: int):
+        self._userid_mock.return_value = value
+
+    def get(self, *args, **kwargs):
+        return self.client.get(*args, **kwargs)
+
+    def post(self, *args, **kwargs):
+        return self.client.post(*args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        return self.client.put(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return self.client.delete(*args, **kwargs)
+
+
+@pytest.fixture()
+def api_client():
+    """
+    Build a real flask_openapi3 app around REAL API blueprints, talking to a
+    real (throwaway) SQLite database.
+
+    Use it as a factory inside the test::
+
+        def test_something(api_client):
+            api = api_client("swingmusic.api.playlist")
+            assert api.put("/playlists/1/reorder", json={...}).status_code == 200
+
+    Why a full request cycle and not a direct handler call: the handler is only
+    half the endpoint. Pydantic validation, flask_openapi3's body/path mapping
+    and the status code an error tuple actually produces live in the framework,
+    and each of those has already shipped a bug that a direct call could not see
+    (AivinNet#36 -> #167/#39). Why a real database and not mocks: mocking the
+    table hid a 500 on every repeat device registration for a whole release
+    (AivinNet#43) — see `.claude/rules/tests.md`.
+
+    Deliberately NOT included:
+
+    - **No auth hooks.** `app_builder.build()` installs the JWT before-request
+      guard; here the blueprints are registered bare, so tests exercise handler
+      behaviour instead of re-testing flask-jwt-extended. `get_current_userid`
+      (as the DB layer imports it) is patched to user 1; `handle.userid = 2`
+      switches actor mid-test for isolation checks. An endpoint behind
+      `@admin_required()` still needs its own patch of
+      `swingmusic.api.auth.current_user` — that decorator is applied at import
+      time and cannot be undone by a fixture.
+    - **No RAM stores.** The library stores stay empty on purpose, so a test that
+      needs them patches the store attribute *on the API module under test*
+      (`monkeypatch.setattr(playlist_api.TrackStore, ...)`). Filling them here
+      would make every test depend on a global the app populates only at boot.
+
+    Every table except `user` is wiped after each test, so state cannot leak
+    between tests in either direction.
+    """
+    from unittest.mock import patch
+
+    from flask_openapi3 import OpenAPI
+
+    from swingmusic.db import Base, create_all_tables
+    from swingmusic.db.engine import DbEngine
+
+    create_all_tables()
+    _create_spec_users()
+
+    userid_patch = patch("swingmusic.db.userdata.get_current_userid", return_value=1)
+    userid_mock = userid_patch.start()
+
+    def build_app(*blueprints: str, userid: int = 1) -> ApiHandle:
+        """`blueprints` are module paths whose `api` attribute is the blueprint,
+        e.g. "swingmusic.api.playlist"."""
+        app = OpenAPI(__name__)
+        app.config["TESTING"] = True
+
+        with app.app_context():
+            for module_path in blueprints:
+                app.register_api(importlib.import_module(module_path).api)
+
+        userid_mock.return_value = userid
+        return ApiHandle(app.test_client(), app, userid_mock)
+
+    try:
+        yield build_app
+    finally:
+        userid_patch.stop()
+        # Reverse dependency order so a child table goes before its parent.
+        # `user` survives: it is fixture scaffolding, not test data.
+        with DbEngine.manager(commit=True) as session:
+            for table in reversed(Base.metadata.sorted_tables):
+                if table.name != "user":
+                    session.execute(table.delete())
 
 
 @pytest.fixture()
