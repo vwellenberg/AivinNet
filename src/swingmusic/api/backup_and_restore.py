@@ -18,6 +18,40 @@ bp_tag = Tag(name="Backup and Restore", description="Backup and Restore")
 api = APIBlueprint("backup_and_restore", __name__, url_prefix="/backup", abp_tags=[bp_tag])
 
 
+def get_backup_root() -> Path:
+    """
+    The one directory every backup lives in. A single definition so the guard
+    below and its callers cannot disagree about what "inside" means.
+    """
+    return Path("~").expanduser() / "swingmusic.backup"
+
+
+def resolve_backup_dir(name: str) -> Path | None:
+    """
+    Resolve a client-supplied backup name inside the backup root, or return
+    None if it points anywhere else.
+
+    `root / name` is not a containment check — it is string surgery with two
+    escapes. `"../.config/swingmusic"` walks out of the root, and an ABSOLUTE
+    name makes pathlib discard the root entirely (`Path("/a") / "/etc"` is
+    `/etc`). The endpoint downstream is `shutil.rmtree`, so either one deletes a
+    directory of the caller's choosing (AivinNet-Client#437).
+
+    Rejected: names that escape the root, the root itself, and empty names —
+    each of those resolves to something the caller did not name.
+    """
+    if not name.strip():
+        return None
+
+    root = get_backup_root().resolve()
+    candidate = (root / name).resolve()
+
+    if candidate == root or not candidate.is_relative_to(root):
+        return None
+
+    return candidate
+
+
 @api.post("/create")
 @admin_required()
 def backup():
@@ -25,7 +59,7 @@ def backup():
     Create a backup file of your favorites, playlists, scrobble data, and collections.
     """
     backup_name = f"backup.{int(time())}"
-    backup_dir = Path("~").expanduser() / "swingmusic.backup" / backup_name
+    backup_dir = get_backup_root() / backup_name
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     backup_file = backup_dir / "data.json"
@@ -196,12 +230,15 @@ def restore(body: RestoreBackupBody):
     """
     Restore your favorites, playlists, scrobble data, and collections from a specified backup or all backups.
     """
-    backup_base_dir = Path("~").expanduser() / "swingmusic.backup"
+    backup_base_dir = get_backup_root()
     backups = []
 
     if body.backup_dir:
         # Restore from a specific backup
-        specified_backup_dir = backup_base_dir / body.backup_dir
+        specified_backup_dir = resolve_backup_dir(body.backup_dir)
+        if specified_backup_dir is None:
+            return {"msg": f"Invalid backup name '{body.backup_dir}'"}, 400
+
         if not specified_backup_dir.exists() or not specified_backup_dir.is_dir():
             return {"msg": f"Backup '{body.backup_dir}' not found"}, 404
 
@@ -233,7 +270,7 @@ def list_backups():
     """
     List all backups with detailed information.
     """
-    backup_dir = Path("~").expanduser() / "swingmusic.backup"
+    backup_dir = get_backup_root()
     backups = []
 
     entries = []
@@ -286,8 +323,10 @@ def delete_backup(body: DeleteBackupBody):
     """
     Delete a backup.
     """
-    backup_dir = Path("~").expanduser() / "swingmusic.backup"
-    backup_dir = backup_dir / body.backup_dir
+    backup_dir = resolve_backup_dir(body.backup_dir)
+    if backup_dir is None:
+        return {"msg": f"Invalid backup name '{body.backup_dir}'"}, 400
+
     if not backup_dir.exists() or not backup_dir.is_dir():
         return {"msg": f"Backup '{body.backup_dir}' not found"}, 404
 
