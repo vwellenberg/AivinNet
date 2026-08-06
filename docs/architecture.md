@@ -108,10 +108,14 @@ CordinateMedia()                    lib/populate.py
  └ FetchSimilarArtistsLastFM        ähnliche Artists → SimilarArtistTable
 ```
 
-Im laufenden Betrieb reagiert `lib/watchdogg.py` (watchdog-Observer) auf Dateiänderungen und
-ruft `create_albums`/`create_artists` für die betroffenen Hashes nach.
-⚠️ `remove_track` ist in diesem Fork laut Modulkopf defekt — vor Features, die auf Umbenennen
-oder Löschen aufbauen, erst dort nachsehen.
+⚠️ **Es gibt keinen Datei-Watcher.** Der Upstream hatte einen (`lib/watchdogg.py`); in diesem
+Fork war er seit dem watchdog-Upgrade nicht einmal importierbar (`BaseObserverSubclassCallable`
+existiert in watchdog 6 nicht mehr), lief also nie, und wurde 2026-08 entfernt. Die Bibliothek
+zieht ausschließlich per **explizitem Scan** nach: `index_everything()` aus
+`GET /notsettings/trigger-scan`, beim Hinzufügen/Entfernen eines Ordners und nach einem Restore.
+Kein Cron, kein Scan beim Start. Wer eine Datei außerhalb der App ändert, sieht sie bis zum
+nächsten Scan nicht; Tag-Edits **aus** der App ziehen die Stores selbst nach
+(`lib/track_edit.py`).
 
 **Migrationen:** `migrations/` hat einen versionierten Mechanismus, der **derzeit inert** ist
 (leere Modulliste, Apply-Schleife auskommentiert). Die beiden echten Reparaturen
