@@ -88,21 +88,26 @@ class MovePlaylistBody(BaseModel):
 def move_playlist(body: MovePlaylistBody):
     """
     Move a playlist into a folder (or out to the top level) at a position. Also
-    used to reorder a playlist within its folder. The playlist is first removed
-    from every folder so it lives in at most one.
+    used to reorder a playlist within its folder. The playlist is removed from
+    every folder so it lives in at most one — but only once the target is known
+    to exist: this used to evict first and validate second, so a move into a
+    deleted folder answered 404 *and* dropped the playlist out of the folder it
+    was happily sitting in (AivinNet-Client#436, same shape as #82).
     """
     pid = body.playlist_id
+
+    target = None
+    if body.folder_id is not None:
+        target = PlaylistFolderTable.get_by_id(body.folder_id)
+        if target is None:
+            return {"error": "Folder not found"}, 404
 
     for folder in list(PlaylistFolderTable.get_all()):
         if pid in folder["items"]:
             PlaylistFolderTable.update_one(folder["id"], {"items": [i for i in folder["items"] if i != pid]})
 
-    if body.folder_id is None:
-        return {"message": "Playlist moved to top level"}
-
-    target = PlaylistFolderTable.get_by_id(body.folder_id)
     if target is None:
-        return {"error": "Folder not found"}, 404
+        return {"message": "Playlist moved to top level"}
 
     items = [i for i in target["items"] if i != pid]
     pos = body.position if 0 <= body.position <= len(items) else len(items)
