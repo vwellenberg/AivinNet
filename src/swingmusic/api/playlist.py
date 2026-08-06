@@ -3,7 +3,6 @@ All playlist-related routes.
 """
 
 import json
-import pathlib
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -656,8 +655,11 @@ def save_item_as_playlist(body: SavePlaylistAsItemBody):
     if itemtype != "folder" and itemtype != "tracks":
         filename = itemhash + ".webp"
 
-        base_path = Paths().lg_artist_img_path if itemtype == "artist" else Paths().lg_thumb_path()
-        img_path = pathlib.Path(base_path + "/" + filename)
+        # Both are pathlib.Path properties since the Paths refactor — calling
+        # or string-concatenating them raises TypeError, which 500'd every
+        # album/artist save AFTER the empty playlist row was already inserted.
+        base_path = Paths().lg_artist_img_path if itemtype == "artist" else Paths().lg_thumb_path
+        img_path = base_path / filename
 
         if img_path.exists():
             img = Image.open(img_path)
