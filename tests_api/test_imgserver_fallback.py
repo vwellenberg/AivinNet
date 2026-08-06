@@ -129,7 +129,7 @@ def _make_track(**overrides):
     return Track(**fields)
 
 
-def test_track_image_carries_the_entity(img_client):
+def test_track_image_carries_the_entity():
     track = _make_track()
     assert track.image == f"alb1.webp?pathhash={track.pathhash}&fb=track"
 
