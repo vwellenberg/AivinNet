@@ -179,6 +179,22 @@ class ImageQuery(BaseModel):
         description="The path hash used to find the thumbnail",
         default="",
     )
+    fb: str = Field(
+        description="Fallback entity when the cover is missing: 'track' serves "
+        "the note placeholder instead of the record (album) one",
+        default="",
+    )
+
+
+def thumbnail_fallback(query: ImageQuery) -> str:
+    """
+    Picks the placeholder for a missing cover.
+
+    The thumbnail URL is the same file for a track and its album, so the
+    entity has to travel with the URL: the track serializer appends
+    `fb=track`, album images carry nothing and keep the record placeholder.
+    """
+    return "track.webp" if query.fb == "track" else "default.webp"
 
 
 # @api.get("/t/o/<imgpath>")
@@ -202,7 +218,7 @@ def send_lg_thumbnail(path: ImagePath, query: ImageQuery):
     Get large thumbnail (500 x 500)
     """
     folder = Paths().lg_thumb_path
-    return send_file_or_fallback(folder, path.imgpath, pathhash=query.pathhash)
+    return send_file_or_fallback(folder, path.imgpath, thumbnail_fallback(query), pathhash=query.pathhash)
 
 
 @api.get("/thumbnail/xsmall/<imgpath>")
@@ -211,7 +227,7 @@ def send_xsm_thumbnail(path: ImagePath, query: ImageQuery):
     Get extra small thumbnail (64px)
     """
     folder = Paths().xsm_thumb_path
-    return send_file_or_fallback(folder, path.imgpath, pathhash=query.pathhash)
+    return send_file_or_fallback(folder, path.imgpath, thumbnail_fallback(query), pathhash=query.pathhash)
 
 
 @api.get("/thumbnail/small/<imgpath>")
@@ -220,7 +236,7 @@ def send_sm_thumbnail(path: ImagePath, query: ImageQuery):
     Get small thumbnail (96px)
     """
     folder = Paths().sm_thumb_path
-    return send_file_or_fallback(folder, path.imgpath, pathhash=query.pathhash)
+    return send_file_or_fallback(folder, path.imgpath, thumbnail_fallback(query), pathhash=query.pathhash)
 
 
 @api.get("/thumbnail/medium/<imgpath>")
@@ -229,7 +245,7 @@ def send_md_thumbnail(path: ImagePath, query: ImageQuery):
     Get medium thumbnail (256px)
     """
     folder = Paths().md_thumb_path
-    return send_file_or_fallback(folder, path.imgpath, pathhash=query.pathhash)
+    return send_file_or_fallback(folder, path.imgpath, thumbnail_fallback(query), pathhash=query.pathhash)
 
 
 # ARTISTS

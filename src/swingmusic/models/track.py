@@ -94,7 +94,10 @@ class Track:
         else:
             self.explicit = bool(explicit_tag)
 
-        self.image = self.albumhash + ".webp" + "?pathhash=" + self.pathhash
+        # Same file as Album.image — the entity travels as a query param so the
+        # image server can fall back to the note placeholder instead of the
+        # record one (imgserver.thumbnail_fallback).
+        self.image = self.albumhash + ".webp" + "?pathhash=" + self.pathhash + "&fb=track"
         # self.extra = {
         #     "disc_total": self.extra.get("disc_total", 0),
         #     "track_total": self.extra.get("track_total", 0),
