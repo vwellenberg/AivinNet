@@ -32,6 +32,20 @@ Session behielt eine leere Queue, jedes `track_change` wurde mit 400 abgelehnt. 
 Nutzer: „gleicher Song wird angezeigt, aber nichts startet" — und scheinbar sporadisch, weil ein
 Join bei Position exakt 0 (gültiger int) funktionierte. Also `float` + `round()` serverseitig.
 
+## ⚠️ Ein 500 im Journal hat keinen Traceback — Handler direkt aufrufen
+
+`journalctl -u aivinnet` zeigt bei einem Handler-Crash nur die eine Zeile
+`[ERROR] Exception on /pfad [POST]`, den Traceback schluckt die Log-Konfiguration. Nicht im
+Journal weitersuchen, sondern den Handler **direkt** reproduzieren — auf dem Server in
+`~/AivinNet` per `~/.local/bin/uv run python`, Request-Body als Pydantic-Modell bauen,
+Handler-Funktion aufrufen, `traceback.print_exc()`. Store-Lookups dabei stubben (der
+Nebenprozess hat leere RAM-Stores) und angelegte DB-Zeilen im `finally` wieder entfernen.
+So gefunden: der `Paths`-Property-Crash in `save_item_as_playlist` (#82) — Album/Artist →
+„New playlist" 500te seit dem Upstream-Refactor e7706065, und weil der Crash **nach**
+`insert_playlist` lag, blieb pro Versuch eine leere Playlist zurück (Retry → 409
+„already exists"). Beim Aufräumen solcher Trümmer: leere `trackhashes` **plus**
+`image = <hash>.webp` ist die Signatur; von Hand angelegte Playlists haben kein Bild.
+
 ## Auth
 
 `app_builder.check_auth_need()` ist die Allowlist — alles, was nicht dort steht, braucht ein
