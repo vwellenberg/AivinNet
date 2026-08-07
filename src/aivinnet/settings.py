@@ -20,6 +20,7 @@ from pathlib import Path
 
 import requests
 
+from aivinnet import legacy_paths
 from aivinnet.utils import classproperty
 
 log = logging.getLogger(__name__)
@@ -219,7 +220,10 @@ class Paths(metaclass=Singleton):
     """
 
     USER_HOME_DIR = Path.home().resolve()
-    APP_DB_NAME = "swingmusic.db"
+    # The database file name is resolved per install (see app_db_path) because
+    # pre-rename installations still carry `swingmusic.db`. This constant is
+    # the name a FRESH install gets.
+    APP_DB_NAME = legacy_paths.DB_NAME
     USER_DATA_DB_NAME = "userdata.db"
 
     def __init__(
@@ -253,6 +257,14 @@ class Paths(metaclass=Singleton):
             self.config_parent = Paths.get_default_config_parent_dir()
 
         if multiprocessing.current_process().name == "MainProcess":
+            # INFO: Must run before anything reads `config_dir` (the client path
+            # below already does) and before setup_config_dirs() creates
+            # directories — otherwise a fresh, empty `aivinnet` folder appears
+            # next to the real data and the library looks lost. MainProcess only:
+            # two processes renaming the same directory is a race with no winner.
+            legacy_paths.migrate_config_dir(self.config_parent, dotted=self.config_parent == self.USER_HOME_DIR)
+            legacy_paths.migrate_db_files(self.config_dir)
+
             # INFO: Setup client path
             env_client_dir = os.environ.get("SWINGMUSIC_CLIENT_DIR")
             if client_dir is not None:
@@ -363,20 +375,14 @@ class Paths(metaclass=Singleton):
     @property
     def config_folder_name(self) -> str:
         """
-        return the name of the config folder.
+        Name of the config folder: `aivinnet`, or `.aivinnet` directly in $HOME.
 
-        When the base path is the same as the home dir,
-        it returns `.swingmusic` else `swingmusic`.
-
-        NOTE: this deliberately still says swingmusic while the package is
-        called aivinnet. The directory holds the database, covers and
-        playlists of every existing installation — renaming it without a
-        migration makes the app come up with an empty library.
+        RESOLVED, not assumed. Installations created before the rename keep
+        their data in `swingmusic`/`.swingmusic`; `migrate_config_dir()` moves
+        it on startup, but if that move ever fails the library must still be
+        reachable. See legacy_paths for why that fallback is the point.
         """
-        if self.config_parent == self.USER_HOME_DIR:
-            return ".swingmusic"
-        else:
-            return "swingmusic"
+        return legacy_paths.resolve_config_dir_name(self.config_parent, dotted=self.config_parent == self.USER_HOME_DIR)
 
     @property
     def config_dir(self) -> Path:
@@ -455,7 +461,10 @@ class Paths(metaclass=Singleton):
 
     @property
     def app_db_path(self):
-        return Paths().config_dir / self.APP_DB_NAME
+        # Resolved like the directory above: prefers aivinnet.db, keeps using
+        # swingmusic.db when only that exists.
+        config_dir = Paths().config_dir
+        return config_dir / legacy_paths.resolve_db_name(config_dir)
 
     @property
     def userdata_db_path(self):
