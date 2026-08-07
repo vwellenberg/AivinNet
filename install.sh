@@ -26,8 +26,16 @@ SHARE_DIR="${HOME}/.local/share/${APP}"
 BIN_PATH="${HOME}/.local/bin/${APP}"
 CONF_DIR="${HOME}/.config/${APP}"
 ENV_FILE="${CONF_DIR}/${APP}.env"
-# The server itself still uses the upstream config directory name.
-DATA_DIR="${HOME}/.config/swingmusic"
+# Library data. The app moves `swingmusic` to `aivinnet` on its first start
+# after the rename, but this script runs BEFORE that — so it has to look for
+# both. Preferring the new name means a migrated install is reported correctly;
+# falling back to the old one means an install that has not started yet is
+# still recognised as existing (otherwise the installer would announce a fresh
+# setup and print a new admin password for a library that is already there).
+DATA_DIR="${HOME}/.config/aivinnet"
+if [ ! -d "$DATA_DIR" ] && [ -d "${HOME}/.config/swingmusic" ]; then
+	DATA_DIR="${HOME}/.config/swingmusic"
+fi
 USER_UNIT_DIR="${HOME}/.config/systemd/user"
 SYSTEM_UNIT_PATH="/etc/systemd/system/${APP}.service"
 
@@ -74,7 +82,7 @@ Options:
   --update            Alias for a plain run: fetches the newest release and
                       replaces the installed copy, keeping your data.
   --uninstall         Remove the service and program files. Your library data
-                      in ~/.config/swingmusic is kept.
+                      in ~/.config/aivinnet is kept.
   -h, --help          This text.
 EOF
 }
@@ -301,8 +309,10 @@ chmod +x "$BIN_PATH"
 
 # ------------------------------------------------------------- config + env ---
 
+# Either database name means a library already exists — the file is renamed on
+# the app's first start after the package rename, and this runs before that.
 fresh_install=1
-if [ -f "${DATA_DIR}/swingmusic.db" ]; then
+if [ -f "${DATA_DIR}/aivinnet.db" ] || [ -f "${DATA_DIR}/swingmusic.db" ]; then
 	fresh_install=0
 fi
 
