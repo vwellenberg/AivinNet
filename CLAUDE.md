@@ -180,8 +180,15 @@ Anfassen von `install.sh`, `appimage/**`, den Workflows oder `settings.py`).
 
 Alle Personalisierung kommt aus der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus der
 eigenen Bibliothek. Einzige externe Quelle ist `smcloud.mungaist.com`, und zwar nur für
-Artist-Mixe — dorthin gehen Track-Metadaten (Titel, Artist, Album) im **Klartext**. Sonst
-verlässt nichts das Haus. Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
+Artist-Mixe — dorthin gehen Track-Metadaten (Titel, Artist, Album) im **Klartext**. Das
+Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
+
+**Zweite externe Quelle (seit 2026-08-06): der Lyrics-Finder.** Das Plugin `lyrics_finder`
+(Musixmatch, inoffizielle Desktop-API) ist **ab Werk aktiv** inklusive `auto_download` — beim
+Öffnen der Lyrics-Seite ohne lokale Lyrics gehen **Titel + Artist im Klartext** an
+`apic-desktop.musixmatch.com`; gefundene Lyrics werden als `.lrc` neben die Audiodatei
+geschrieben. Abschaltbar in den Settings; ein Opt-out überlebt Neustarts (Marker-Mechanik in
+`plugins/register.py`). Sonst verlässt nichts das Haus.
 
 Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommendations.md`.
 

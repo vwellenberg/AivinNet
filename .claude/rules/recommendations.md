@@ -10,7 +10,9 @@ paths:
 # Empfehlungen / Mixes — woher die Vorschläge kommen
 
 Alle Personalisierung basiert auf der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus
-der eigenen Bibliothek. Einzige externe Quelle ist der Swing-Music-Cloud-Server.
+der eigenen Bibliothek. Externe Quellen: der Swing-Music-Cloud-Server (Mixes) und — außerhalb
+der Empfehlungen — der ab Werk aktive Lyrics-Finder (Musixmatch, siehe CLAUDE.md
+„Empfehlungen / Mixes"-Abschnitt und `plugins/register.py`).
 
 - **Cron `mixes`** (`crons/mixes.py`, alle 12 h): erst `ArtistMixes`, dann `BecauseYouListened`
   (nutzt die Artist-Mix-Ergebnisse).
