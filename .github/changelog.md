@@ -1,8 +1,10 @@
 # AivinNet
 
-Self-hosted music server with a Spotify-style web player for your own library.
-Based on [Swing Music](https://github.com/swingmx/swingmusic) (AGPL-3.0), with a
-redesigned web client and extended playlist, track-editing and multiroom features.
+Self-hosted music server for your own library, with a web player of its own —
+bold 90s/Memphis shapes and colours, in light and dark.
+
+Originally forked from [Swing Music](https://github.com/swingmx/swingmusic) and
+licensed AGPL-3.0; developed independently since June 2025.
 
 <!--
   This file IS the release body (`bodyFile` in .github/workflows/build.yml), so

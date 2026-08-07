@@ -8,9 +8,9 @@
 	<description>
 		<p>
             AivinNet is a fast, self-hosted music server for your local audio files —
-            a Spotify-style web player that streams your own library.
+            a web player with a look of its own, streaming your own library.
             Start the app and open it in a web browser.
-            Based on Swing Music (https://swingmx.com/).
+            Originally forked from Swing Music (https://swingmx.com/), AGPL-3.0.
         </p>
 	</description>
 	<launchable type="desktop-id">aivinnet.desktop</launchable>
