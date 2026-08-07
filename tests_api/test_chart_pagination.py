@@ -81,3 +81,58 @@ def test_paginate_window_slices_and_reports_total():
     beyond, total = paginate_window(items, 30, 10)
     assert beyond == []
     assert total == 23
+
+
+# --- Leaderboard meter fields (extra.playduration + max_playduration) --------
+#
+# The client's charts screen draws a play-duration meter per row, scaled
+# against the period's #1. Both fields are ADDITIVE payload: every chart item
+# carries the raw numbers in `extra`, and every response root reports the
+# pre-window maximum. The helpers are covered directly; the census below
+# pins that all four endpoints actually attach them — the realistic failure
+# mode is a fifth endpoint (or a refactor) dropping one of the four.
+
+
+def test_chart_item_extra_carries_raw_numbers():
+    from swingmusic.api.scrobble import chart_item_extra
+
+    assert chart_item_extra(354, 64_764) == {"playcount": 354, "playduration": 64_764}
+
+
+def test_chart_item_extra_merges_existing_extra_without_losing_it():
+    from swingmusic.api.scrobble import chart_item_extra
+
+    merged = chart_item_extra(12, 3_600, {"weakhash": "abc", "playduration": 1})
+    assert merged["weakhash"] == "abc"
+    # The chart's own numbers win over stale serializer leftovers.
+    assert merged["playduration"] == 3_600
+    assert merged["playcount"] == 12
+
+
+def test_max_playduration_over_generator_and_empty_period():
+    from swingmusic.api.scrobble import max_playduration
+
+    assert max_playduration(d for d in [120, 64_764, 3_600]) == 64_764
+    # Empty period (no scrobbles): 0 hides the meters instead of crashing.
+    assert max_playduration(iter([])) == 0
+
+
+def test_all_four_chart_endpoints_attach_the_meter_fields():
+    """
+    Census over the module source: each of the four /top-* response builders
+    must attach `chart_item_extra(...)` per item and `max_playduration` on the
+    response root. A source census (instead of four full request cycles) keeps
+    this in the no-stores lane of this file — the field wiring is what broke
+    conceptually, not the HTTP layer.
+    """
+    import inspect
+
+    from swingmusic.api import scrobble
+
+    source = inspect.getsource(scrobble)
+
+    # 4 call sites + the definition itself.
+    assert source.count("chart_item_extra(") == 5
+    # 4 response roots + the definition + the docstring mention do not matter:
+    # count only the response-key form.
+    assert source.count('"max_playduration": max_playduration(') == 4
