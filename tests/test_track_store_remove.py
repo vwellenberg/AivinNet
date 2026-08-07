@@ -8,22 +8,22 @@ iteration" — which broke every track edit that reindexed a unique track.
 import sys
 from unittest.mock import MagicMock
 
-# Mock heavy / unavailable deps before importing swingmusic modules (the CI test
+# Mock heavy / unavailable deps before importing aivinnet modules (the CI test
 # job installs only a handful of packages).
 for _mod in [
     "sqlalchemy",
     "sqlalchemy.orm",
     "flask_jwt_extended",
     "flask",
-    "swingmusic.db.libdata",
-    "swingmusic.models",
-    "swingmusic.utils.auth",
-    "swingmusic.utils.remove_duplicates",
+    "aivinnet.db.libdata",
+    "aivinnet.models",
+    "aivinnet.utils.auth",
+    "aivinnet.utils.remove_duplicates",
 ]:
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 
-from swingmusic.store.tracks import TrackGroup, TrackStore  # noqa: E402
+from aivinnet.store.tracks import TrackGroup, TrackStore  # noqa: E402
 
 
 class _Track:

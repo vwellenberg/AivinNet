@@ -18,7 +18,7 @@ def chart_query_app():
     """
     from flask_openapi3 import OpenAPI
 
-    from swingmusic.api.scrobble import ChartItemsQuery
+    from aivinnet.api.scrobble import ChartItemsQuery
 
     app = OpenAPI(__name__)
 
@@ -66,7 +66,7 @@ def test_zero_limit_is_rejected(chart_query_app):
 
 
 def test_paginate_window_slices_and_reports_total():
-    from swingmusic.api.scrobble import paginate_window
+    from aivinnet.api.scrobble import paginate_window
 
     items = list(range(23))
 
@@ -94,13 +94,13 @@ def test_paginate_window_slices_and_reports_total():
 
 
 def test_chart_item_extra_carries_raw_numbers():
-    from swingmusic.api.scrobble import chart_item_extra
+    from aivinnet.api.scrobble import chart_item_extra
 
     assert chart_item_extra(354, 64_764) == {"playcount": 354, "playduration": 64_764}
 
 
 def test_chart_item_extra_merges_existing_extra_without_losing_it():
-    from swingmusic.api.scrobble import chart_item_extra
+    from aivinnet.api.scrobble import chart_item_extra
 
     merged = chart_item_extra(12, 3_600, {"weakhash": "abc", "playduration": 1})
     assert merged["weakhash"] == "abc"
@@ -110,7 +110,7 @@ def test_chart_item_extra_merges_existing_extra_without_losing_it():
 
 
 def test_max_playduration_over_generator_and_empty_period():
-    from swingmusic.api.scrobble import max_playduration
+    from aivinnet.api.scrobble import max_playduration
 
     assert max_playduration(d for d in [120, 64_764, 3_600]) == 64_764
     # Empty period (no scrobbles): 0 hides the meters instead of crashing.
@@ -127,7 +127,7 @@ def test_all_four_chart_endpoints_attach_the_meter_fields():
     """
     import inspect
 
-    from swingmusic.api import scrobble
+    from aivinnet.api import scrobble
 
     source = inspect.getsource(scrobble)
 

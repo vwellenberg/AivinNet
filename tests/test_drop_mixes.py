@@ -26,7 +26,7 @@ import re
 
 import pytest
 
-from swingmusic.utils.mix_cleanup import (
+from aivinnet.utils.mix_cleanup import (
     SQL_COUNT_MIXES,
     SQL_DROP_TABLE,
     SQL_FIND_TABLE,

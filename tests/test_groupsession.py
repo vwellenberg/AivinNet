@@ -1,13 +1,13 @@
 """
 Pure unit tests for the multiroom group-session core.
 
-These only import `swingmusic.lib.groupsession` (stdlib-only, no Flask/DB), so
+These only import `aivinnet.lib.groupsession` (stdlib-only, no Flask/DB), so
 they run in the fast `uvx` lane with a deterministic injected clock.
 """
 
 from itertools import pairwise
 
-from swingmusic.lib.groupsession import (
+from aivinnet.lib.groupsession import (
     COMMAND_GRACE_MS,
     LEAD_MS,
     OFFLINE_MS,

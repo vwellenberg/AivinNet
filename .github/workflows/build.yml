@@ -106,11 +106,11 @@ jobs:
           name: client
           path: client
 
-      - name: Compress client and copy to src/swingmusic/client.zip
+      - name: Compress client and copy to src/aivinnet/client.zip
         run: |
           zip -r client.zip client
           rm -r client
-          cp client.zip src/swingmusic/client.zip
+          cp client.zip src/aivinnet/client.zip
 
       - uses: actions/setup-python@v5
         with:
@@ -184,21 +184,22 @@ jobs:
           path: wheels
           merge-multiple: true
 
-      # INFO: --no-index is essential. The distribution is still named
-      # `swingmusic`, and upstream publishes that name on PyPI — without it pip
-      # compares our freshly built wheel against PyPI and installs whichever
-      # version sorts higher. A tag below upstream's would silently bake the
-      # UPSTREAM backend into an AivinNet AppImage (our client, their API:
-      # device sync and the playlist endpoints would just be missing).
-      # Runtime deps come from appimage/requirements.txt, so nothing else here
-      # needs the index.
+      # INFO: --no-index keeps this build offline-deterministic. While the
+      # distribution was still called `swingmusic`, this flag was load-bearing:
+      # upstream publishes that name on PyPI, pip compared our fresh wheel
+      # against theirs and took whichever version sorted higher, so a tag below
+      # theirs silently baked the UPSTREAM backend into an AivinNet AppImage —
+      # our client, their API, no device sync and no playlist endpoints. Since
+      # the rename to `aivinnet` there is no such package on PyPI (checked:
+      # 404), but the name is unclaimed and anyone could take it, so the flag
+      # stays. Runtime deps come from appimage/requirements.txt.
       #
       # INFO: The AppDir path is DISCOVERED, never spelled out. python-appimage
       # names it after `Name=` in appimage/aivinnet.desktop (-> AivinNet-x86_64),
       # not after -n (-> aivinnet-x86_64). Writing the lower-case name here made
       # `pip install --target` create a SECOND, empty directory, so appimagetool
       # got one without a desktop file and aborted with "Desktop file not found"
-      # while the real AppDir sat next to it, missing both swingmusic and libev.
+      # while the real AppDir sat next to it, missing both aivinnet and libev.
       # Renaming the app in the .desktop file would break it again — an AppDir is
       # identified by containing AppRun, so that is what we look for.
       - name: Build AppDir
@@ -215,7 +216,7 @@ jobs:
           echo "Using AppDir: $APPDIR"
 
           pip install --target "$APPDIR/opt/python3.11/lib/python3.11/" \
-            --no-deps --no-index --find-links=wheels/ swingmusic
+            --no-deps --no-index --find-links=wheels/ aivinnet
 
       # INFO: bjoern is compiled from source against libev on this runner and
       # links to libev.so.4 dynamically. python-appimage bundles only Python +
@@ -244,8 +245,8 @@ jobs:
           # check was meant to be.
           ls "$APPDIR"/*.desktop >/dev/null 2>&1 \
             || { echo "::error::no .desktop in $APPDIR"; exit 1; }
-          test -d "$APPDIR/opt/python3.11/lib/python3.11/swingmusic" \
-            || { echo "::error::swingmusic not installed into $APPDIR"; exit 1; }
+          test -d "$APPDIR/opt/python3.11/lib/python3.11/aivinnet" \
+            || { echo "::error::aivinnet not installed into $APPDIR"; exit 1; }
           test -f "$APPDIR/usr/lib/libev.so.4" \
             || { echo "::error::libev not bundled into $APPDIR"; exit 1; }
           test -d "$APPDIR/client" || { echo "::error::web client missing from $APPDIR"; exit 1; }
@@ -339,8 +340,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            swingmusic.spec
-            src/swingmusic/assets
+            aivinnet.spec
+            src/aivinnet/assets
 
       - name: Install Python 3.11
         uses: actions/setup-python@v5
@@ -386,16 +387,16 @@ jobs:
           sudo apt-get install libev-dev -y > /dev/null
 
       # INFO: Two steps on purpose — see the --no-index comment in build-appimage.
-      # The first line pins the local wheel so PyPI's `swingmusic` can never win
-      # the version comparison; the second only pulls the dependencies (runtime
-      # + pyinstaller) for the already-installed distribution.
+      # The first line installs the local wheel with the index switched off, so
+      # nothing from PyPI can win the version comparison; the second only pulls
+      # the dependencies (runtime + pyinstaller) for that installed distribution.
       - name: Install AivinNet
         run: |
-          pip install --no-index --no-deps --find-links=wheels/ swingmusic
-          pip install --find-links=wheels/ swingmusic[build]
+          pip install --no-index --no-deps --find-links=wheels/ aivinnet
+          pip install --find-links=wheels/ aivinnet[build]
 
       - name: Build with Pyinstaller on ${{ matrix.os }}
-        run: pyinstaller swingmusic.spec
+        run: pyinstaller aivinnet.spec
 
       - name: upload artifact
         uses: actions/upload-artifact@v4

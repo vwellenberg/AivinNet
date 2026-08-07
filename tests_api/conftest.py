@@ -8,7 +8,7 @@ required-vs-optional multipart fields and flask_openapi3's file mapping only
 misbehave inside a real request.
 
 The app config dir is pointed at a temp directory BEFORE anything from
-swingmusic is imported, so no test ever touches a real library.
+aivinnet is imported, so no test ever touches a real library.
 """
 
 import importlib
@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-# Must happen before any swingmusic import resolves Paths.
-_config_root = tempfile.mkdtemp(prefix="swingmusic-apitests-")
+# Must happen before any aivinnet import resolves Paths.
+_config_root = tempfile.mkdtemp(prefix="aivinnet-apitests-")
 os.environ["XDG_CONFIG_HOME"] = _config_root
 os.environ.setdefault("SWINGMUSIC_CLIENT_DIR", _config_root)
 
@@ -42,16 +42,16 @@ def _register_all_models():
     up depending on which OTHER test module pytest collected first — the whole
     suite is green, the single module is `no such table: user`.
     """
-    importlib.import_module("swingmusic.db.libdata")
-    importlib.import_module("swingmusic.db.metadata")
-    importlib.import_module("swingmusic.db.userdata")
+    importlib.import_module("aivinnet.db.libdata")
+    importlib.import_module("aivinnet.db.metadata")
+    importlib.import_module("aivinnet.db.userdata")
 
 
 def _create_spec_users():
     from sqlalchemy import insert, select
 
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import UserTable
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import UserTable
 
     with DbEngine.manager(commit=True) as session:
         for uid, name in SPEC_USERS:
@@ -81,9 +81,9 @@ def playlist_db():
 
     from sqlalchemy import delete
 
-    from swingmusic.db import create_all_tables
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import PlaylistTable
+    from aivinnet.db import create_all_tables
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import PlaylistTable
 
     create_all_tables()
 
@@ -94,7 +94,7 @@ def playlist_db():
     # moment it ran alone.
     _create_spec_users()
 
-    with patch("swingmusic.db.userdata.get_current_userid", return_value=1) as userid:
+    with patch("aivinnet.db.userdata.get_current_userid", return_value=1) as userid:
         yield PlaylistTable, userid
 
     # Leave no rows behind for the next test.
@@ -141,7 +141,7 @@ def api_client():
     Use it as a factory inside the test::
 
         def test_something(api_client):
-            api = api_client("swingmusic.api.playlist")
+            api = api_client("aivinnet.api.playlist")
             assert api.put("/playlists/1/reorder", json={...}).status_code == 200
 
     Why a full request cycle and not a direct handler call: the handler is only
@@ -160,7 +160,7 @@ def api_client():
       (as the DB layer imports it) is patched to user 1; `handle.userid = 2`
       switches actor mid-test for isolation checks. An endpoint behind
       `@admin_required()` still needs its own patch of
-      `swingmusic.api.auth.current_user` — that decorator is applied at import
+      `aivinnet.api.auth.current_user` — that decorator is applied at import
       time and cannot be undone by a fixture.
     - **No RAM stores.** The library stores stay empty on purpose, so a test that
       needs them patches the store attribute *on the API module under test*
@@ -175,19 +175,19 @@ def api_client():
     from flask_openapi3 import OpenAPI
     from sqlalchemy import inspect
 
-    from swingmusic.db import Base, create_all_tables
-    from swingmusic.db.engine import DbEngine
+    from aivinnet.db import Base, create_all_tables
+    from aivinnet.db.engine import DbEngine
 
     _register_all_models()
     create_all_tables()
     _create_spec_users()
 
-    userid_patch = patch("swingmusic.db.userdata.get_current_userid", return_value=1)
+    userid_patch = patch("aivinnet.db.userdata.get_current_userid", return_value=1)
     userid_mock = userid_patch.start()
 
     def build_app(*blueprints: str, userid: int = 1) -> ApiHandle:
         """`blueprints` are module paths whose `api` attribute is the blueprint,
-        e.g. "swingmusic.api.playlist"."""
+        e.g. "aivinnet.api.playlist"."""
         app = OpenAPI(__name__)
         app.config["TESTING"] = True
 
@@ -222,7 +222,7 @@ def form_app():
     """
     from flask_openapi3 import OpenAPI
 
-    from swingmusic.api.playlist import PlaylistIDPath, UpdatePlaylistForm
+    from aivinnet.api.playlist import PlaylistIDPath, UpdatePlaylistForm
 
     app = OpenAPI(__name__)
 

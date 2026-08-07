@@ -30,11 +30,11 @@ jobs:
       - name: Mypy type check (strict modules)
         run: >-
           uvx --with xxhash --with unidecode --with pendulum mypy
-          src/swingmusic/utils/hashing.py
-          src/swingmusic/utils/dates.py
-          src/swingmusic/utils/parsers.py
-          src/swingmusic/utils/__init__.py
-          src/swingmusic/lib/playlist_maintenance.py
+          src/aivinnet/utils/hashing.py
+          src/aivinnet/utils/dates.py
+          src/aivinnet/utils/parsers.py
+          src/aivinnet/utils/__init__.py
+          src/aivinnet/lib/playlist_maintenance.py
           --config-file pyproject.toml
 
       # These two shell scripts are shipped, not internal tooling: install.sh is

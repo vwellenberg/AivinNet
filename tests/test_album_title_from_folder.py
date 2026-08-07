@@ -14,8 +14,8 @@ favourite and scrobble points at trackhashes.
 
 import pytest
 
-from swingmusic.lib.albumhash import album_hash, album_title
-from swingmusic.utils.hashing import create_hash
+from aivinnet.lib.albumhash import album_hash, album_title
+from aivinnet.utils.hashing import create_hash
 
 
 def scanner_trackhash(artists: str, album: str, title: str) -> str:

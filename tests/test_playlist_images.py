@@ -17,16 +17,16 @@ from unittest.mock import MagicMock
 _added = []
 for _mod in [
     "PIL",
-    "swingmusic.settings",
-    "swingmusic.models.track",
-    "swingmusic.store.albums",
-    "swingmusic.store.tracks",
+    "aivinnet.settings",
+    "aivinnet.models.track",
+    "aivinnet.store.albums",
+    "aivinnet.store.tracks",
 ]:
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
         _added.append(_mod)
 
-from swingmusic.lib import playlistlib  # noqa: E402
+from aivinnet.lib import playlistlib  # noqa: E402
 
 # playlistlib has bound its references; drop the temporary mocks so they don't
 # leak into later-collected test modules.

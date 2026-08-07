@@ -13,7 +13,7 @@ import pytest
 
 @pytest.fixture()
 def folders_api(api_client):
-    return api_client("swingmusic.api.playlistfolders")
+    return api_client("aivinnet.api.playlistfolders")
 
 
 def _create_folder(api, name: str) -> int:

@@ -1,6 +1,6 @@
-"""Tests for swingmusic.utils.hashing."""
+"""Tests for aivinnet.utils.hashing."""
 
-from swingmusic.utils.hashing import create_hash
+from aivinnet.utils.hashing import create_hash
 
 
 class TestCreateHash:

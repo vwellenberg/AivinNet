@@ -1,7 +1,7 @@
 ---
 paths:
-  - "src/swingmusic/lib/groupsession.py"
-  - "src/swingmusic/api/devicesync.py"
+  - "src/aivinnet/lib/groupsession.py"
+  - "src/aivinnet/api/devicesync.py"
   - "tests/test_groupsession*.py"
   - "tests_api/test_device*.py"
 ---

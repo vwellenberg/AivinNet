@@ -19,4 +19,4 @@ COPY src/ ./src/
 # Install the package and its dependencies
 RUN pip install --no-cache-dir .
 
-ENTRYPOINT ["python", "-m", "swingmusic", "--host", "0.0.0.0", "--config", "/config"]
+ENTRYPOINT ["python", "-m", "aivinnet", "--host", "0.0.0.0", "--config", "/config"]

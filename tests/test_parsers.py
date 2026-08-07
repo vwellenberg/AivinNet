@@ -1,6 +1,6 @@
-"""Tests for swingmusic.utils.parsers."""
+"""Tests for aivinnet.utils.parsers."""
 
-from swingmusic.utils.parsers import (
+from aivinnet.utils.parsers import (
     clean_title,
     get_base_album_title,
     parse_feat_from_title,

@@ -43,10 +43,10 @@ den Mock statt des echten Moduls.
 
 pytest importiert bei der Collection **alle** Testmodule in einem Prozess, und die Mehrheit der
 Modul-Level-Mocks wird nie gepoppt — am Ende eines Laufs sind ~20 `sys.modules`-Einträge
-MagicMocks (Fremdlibs wie `flask`/`PIL`/`sqlalchemy.orm`, aber auch `swingmusic.db.libdata`).
+MagicMocks (Fremdlibs wie `flask`/`PIL`/`sqlalchemy.orm`, aber auch `aivinnet.db.libdata`).
 Konsequenzen für neue Tests in `tests/`:
 
-- **`swingmusic.db` und die Store-/DB-Kette (`store/*`, `lib/tagger`, …) nie echt importieren.**
+- **`aivinnet.db` und die Store-/DB-Kette (`store/*`, `lib/tagger`, …) nie echt importieren.**
   In der schnellen Bahn bricht das die gesamte Collection mit einem kryptischen
   `TypeError: metaclass conflict`, dessen Traceback nicht auf die Ursache zeigt. Tests, die
   echtes DB-/Store-Verhalten brauchen, gehören nach `tests_api/` — ein Import kann dort auch

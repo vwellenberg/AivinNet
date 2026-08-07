@@ -1,7 +1,7 @@
 """
 The cover lookup chain: MusicBrainz first, the iTunes/Deezer stores second.
 
-Lives in this lane because `swingmusic.api.musicbrainz` imports flask_openapi3
+Lives in this lane because `aivinnet.api.musicbrainz` imports flask_openapi3
 and the stores, which the fast lane does not have. The subject under test is the
 ORDER and the fall-through, not the sources themselves — those are covered by
 tests/test_coverart.py and tests/test_musicbrainz_confidence.py.
@@ -19,7 +19,7 @@ def chain(monkeypatch):
 
     Yields (module, calls) where `calls` records which sources were asked.
     """
-    from swingmusic.api import musicbrainz as api_mb
+    from aivinnet.api import musicbrainz as api_mb
 
     album = SimpleNamespace(
         title="Discovery",

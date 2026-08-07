@@ -1,7 +1,7 @@
 """Request-cycle tests for the multiroom device-sync HTTP adapter.
 
 This lane runs the real flask_openapi3 request cycle against the REAL
-``swingmusic.api.devicesync`` blueprint. The core (`lib.groupsession`) has its
+``aivinnet.api.devicesync`` blueprint. The core (`lib.groupsession`) has its
 own pure unit tests; here we assert the thin adapter wires bodies to the manager
 correctly and shapes responses/status codes as the client expects.
 
@@ -15,7 +15,7 @@ real database.
 import pytest
 from flask_openapi3 import OpenAPI
 
-from swingmusic.lib.groupsession import LEAD_MS
+from aivinnet.lib.groupsession import LEAD_MS
 
 USERID = 42
 
@@ -23,8 +23,8 @@ USERID = 42
 @pytest.fixture()
 def ds(monkeypatch):
     """Build a minimal app around the real devicesync blueprint + a fresh core."""
-    from swingmusic.api import devicesync
-    from swingmusic.lib.groupsession import GroupSessionManager
+    from aivinnet.api import devicesync
+    from aivinnet.lib.groupsession import GroupSessionManager
 
     clock = {"t": 1_000_000}
     fresh_manager = GroupSessionManager(now_ms=lambda: clock["t"])
@@ -325,7 +325,7 @@ def test_targeted_set_volume_reaches_only_target(ds):
 
 
 def test_resolve_preserves_order_drops_missing_and_caps(ds, monkeypatch):
-    from swingmusic.api import devicesync
+    from aivinnet.api import devicesync
 
     class FakeTrack:
         def __init__(self, trackhash):

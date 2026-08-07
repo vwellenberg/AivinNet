@@ -3,7 +3,7 @@
 Unlike test_tag_writer.py (which only exercises the pure helpers with mutagen
 mocked), these write tags into REAL audio files with REAL mutagen and read them
 back — once with mutagen and once with tinytag, the library the app actually
-reads with (swingmusic.lib.taglib.get_tags). That second read guards the
+reads with (aivinnet.lib.taglib.get_tags). That second read guards the
 mutagen-writes / tinytag-reads asymmetry the comma-join in write_tags relies on,
 and exercises the only code path that mutates a user's files irreversibly.
 
@@ -16,7 +16,7 @@ import struct
 
 import pytest
 
-from swingmusic.lib.tag_writer import TagWriteError, write_tags
+from aivinnet.lib.tag_writer import TagWriteError, write_tags
 
 NEW_TAGS = {
     "title": "New Title",

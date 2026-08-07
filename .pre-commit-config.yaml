@@ -11,11 +11,11 @@ repos:
       - id: mypy
         pass_filenames: false
         args: [
-          src/swingmusic/utils/hashing.py,
-          src/swingmusic/utils/dates.py,
-          src/swingmusic/utils/parsers.py,
-          src/swingmusic/utils/__init__.py,
-          src/swingmusic/lib/playlist_maintenance.py,
+          src/aivinnet/utils/hashing.py,
+          src/aivinnet/utils/dates.py,
+          src/aivinnet/utils/parsers.py,
+          src/aivinnet/utils/__init__.py,
+          src/aivinnet/lib/playlist_maintenance.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]

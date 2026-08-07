@@ -3,7 +3,7 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock heavy dependencies before importing swingmusic modules
+# Mock heavy dependencies before importing aivinnet modules
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -30,8 +30,8 @@ for mod_name in [
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
 
-from swingmusic.models.album import Album  # noqa: E402
-from swingmusic.utils.hashing import create_hash  # noqa: E402
+from aivinnet.models.album import Album  # noqa: E402
+from aivinnet.utils.hashing import create_hash  # noqa: E402
 
 
 def make_album(title: str, albumartists: list[str] | None = None, trackcount: int = 10) -> Album:

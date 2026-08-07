@@ -1,10 +1,10 @@
 ---
 paths:
-  - "src/swingmusic/api/playlist.py"
-  - "src/swingmusic/api/playlistfolders.py"
-  - "src/swingmusic/api/favorites.py"
-  - "src/swingmusic/lib/playlist*.py"
-  - "src/swingmusic/lib/reference_migration.py"
+  - "src/aivinnet/api/playlist.py"
+  - "src/aivinnet/api/playlistfolders.py"
+  - "src/aivinnet/api/favorites.py"
+  - "src/aivinnet/lib/playlist*.py"
+  - "src/aivinnet/lib/reference_migration.py"
   - "tests/test_playlist*.py"
 ---
 

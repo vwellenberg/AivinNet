@@ -43,7 +43,7 @@ Then open `http://localhost:1970`, log in, and pick your music folder.
 | `aivinnet-v*-x86_64.AppImage` | Linux (Intel/AMD) — recommended |
 | `aivinnet-v*-aarch64.AppImage` | Linux ARM64 (Raspberry Pi 4/5) |
 | `aivinnet_linux_*`, `aivinnet_windows_*.exe`, `aivinnet_darwin_arm64` | single-file binaries |
-| `swingmusic-*.whl` | pip/uv install (needs Python 3.11+, and a compiler for `bjoern` on Linux) |
+| `aivinnet-*.whl` | pip/uv install (needs Python 3.11+, and a compiler for `bjoern` on Linux) |
 | `client.zip` | built web client on its own |
 | `SHA256SUMS` | checksums for every asset above |
 

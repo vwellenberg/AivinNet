@@ -16,8 +16,8 @@ repair fixes rows the scanner will re-break on the next scan:
 
 import pytest
 
-from swingmusic.lib.albumhash import album_hash, broken_album_hash
-from swingmusic.utils.hashing import create_hash
+from aivinnet.lib.albumhash import album_hash, broken_album_hash
+from aivinnet.utils.hashing import create_hash
 
 # The real rule, not a copy of it. Both live in `lib/albumhash.py` precisely so
 # a test can reach them without importing the tag reader or the ORM — an earlier

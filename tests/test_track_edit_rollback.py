@@ -3,7 +3,7 @@
 ``track_edit`` imports heavy store/db/tagger modules at import time (and
 ``swingmusic.db.__init__`` builds a SQLAlchemy declarative ``Base`` that cannot be
 constructed against a mocked sqlalchemy). Third-party deps are mocked globally
-(same pattern as ``test_album_model``); the heavy ``swingmusic`` leaf modules are
+(same pattern as ``test_album_model``); the heavy ``aivinnet`` leaf modules are
 mocked only for the duration of the import via ``patch.dict`` so we do NOT shadow
 the real modules for other test files in the same pytest session. The rollback
 logic under test uses only ``os``/``shutil`` and touches no mocked module on the
@@ -42,27 +42,27 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-# Heavy swingmusic leaf modules track_edit imports. Scoped to the import only so
+# Heavy aivinnet leaf modules track_edit imports. Scoped to the import only so
 # the real modules stay available to the rest of the suite.
 _SWING_MOCKS = {
     name: MagicMock()
     for name in [
-        "swingmusic.config",
-        "swingmusic.db",
-        "swingmusic.db.libdata",
-        "swingmusic.db.utils",
-        "swingmusic.lib.tagger",
-        "swingmusic.lib.taglib",
-        "swingmusic.models",
-        "swingmusic.store",
-        "swingmusic.store.albums",
-        "swingmusic.store.artists",
-        "swingmusic.store.tracks",
+        "aivinnet.config",
+        "aivinnet.db",
+        "aivinnet.db.libdata",
+        "aivinnet.db.utils",
+        "aivinnet.lib.tagger",
+        "aivinnet.lib.taglib",
+        "aivinnet.models",
+        "aivinnet.store",
+        "aivinnet.store.albums",
+        "aivinnet.store.artists",
+        "aivinnet.store.tracks",
     ]
 }
 
 with patch.dict(sys.modules, _SWING_MOCKS):
-    from swingmusic.lib import track_edit
+    from aivinnet.lib import track_edit
 
 import os  # noqa: E402
 

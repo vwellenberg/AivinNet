@@ -5,4 +5,4 @@
 # libev4 installed.
 export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH:-}"
 
-exec "${APPDIR}/usr/bin/python" -m swingmusic --client "${APPDIR}/client" "$@"
+exec "${APPDIR}/usr/bin/python" -m aivinnet --client "${APPDIR}/client" "$@"

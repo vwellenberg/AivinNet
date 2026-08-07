@@ -23,7 +23,7 @@ def img_client(monkeypatch, tmp_path):
     """
     from flask_openapi3 import OpenAPI
 
-    from swingmusic.api import imgserver
+    from aivinnet.api import imgserver
 
     assets = tmp_path / "assets"
     assets.mkdir()
@@ -97,8 +97,8 @@ def test_unknown_fb_value_falls_back_to_the_record(img_client):
 
 
 def _make_track(**overrides):
-    from swingmusic.config import UserConfig
-    from swingmusic.models.track import Track
+    from aivinnet.config import UserConfig
+    from aivinnet.models.track import Track
 
     fields = dict(
         id=1,
@@ -136,7 +136,7 @@ def test_track_image_carries_the_entity():
 
 def test_album_image_stays_bare():
     # The album keeps the record placeholder: same file, no fb param.
-    from swingmusic.models.album import Album
+    from aivinnet.models.album import Album
 
     album = Album(
         albumartists=[{"name": "Toshiro Masuda", "artisthash": "ah1"}],

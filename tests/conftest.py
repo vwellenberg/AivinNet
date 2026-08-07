@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-# Add src to path so we can import swingmusic modules without full install
+# Add src to path so we can import aivinnet modules without full install
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Pre-import the real libraries when they are installed. Several test

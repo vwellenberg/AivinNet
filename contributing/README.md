@@ -49,9 +49,9 @@ graph TB
 ## Directory Structure
 
 ```sh
-swingmusic/
+aivinnet/
 ├── client/                   # Built Vue.js frontend (static files)
-├── swingmusic/               # Main Python package
+├── aivinnet/               # Main Python package
 │   ├── __main__.py           # CLI entry point
 │   ├── api/                  # REST API endpoints
 │   │   ├── __init__.py       # Flask app creation & blueprint registration
@@ -101,7 +101,7 @@ swingmusic/
 │   │   └── mixes.py          # Automated playlist generation
 │   ├── config.py             # Configuration management
 │   ├── settings.py           # Path and system settings
-│   └── start_swingmusic.py   # Application startup
+│   └── start_aivinnet.py   # Application startup
 ├── run.py                    # Application launcher
 ├── requirements.txt          # Python dependencies
 └── docs/                     # Documentation
@@ -225,7 +225,7 @@ sequenceDiagram
     participant Flask as Flask App
     participant BG as Background Tasks
     
-    CLI->>Main: start_swingmusic(host, port)
+    CLI->>Main: start_aivinnet(host, port)
     Main->>Setup: run_setup()
     Setup->>DB: Create directories, setup SQLite
     Setup->>DB: Run migrations
@@ -269,13 +269,13 @@ sequenceDiagram
    map_album_colors()             # Album artwork colors
    ```
 
-4. **Flask Application Setup** (`start_swingmusic.py`)
+4. **Flask Application Setup** (`start_aivinnet.py`)
    - **API Creation**: Blueprint registration, OpenAPI docs
    - **Middleware Setup**: JWT authentication, CORS, compression
    - **Static Files**: Client serving with gzip support
    - **Route Protection**: Authentication requirements
 
-5. **Background Services** (`start_swingmusic.py`)
+5. **Background Services** (`start_aivinnet.py`)
    - **Plugin Registration**: Load and initialize plugins
    - **Cron Jobs**: Periodic tasks (scanning, cleanup)
    - **Process Management**: Set process title, resource limits

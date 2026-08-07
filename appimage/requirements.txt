@@ -1,6 +1,6 @@
 # WARNING: HAND-MAINTAINED DUPLICATE of [project].dependencies in pyproject.toml.
 # python-appimage installs these into the AppDir, and the release workflow then
-# installs swingmusic itself with --no-deps — so anything missing here is simply
+# installs aivinnet itself with --no-deps — so anything missing here is simply
 # absent from the AppImage and fails as an ImportError at start, with CI green.
 # Windows-only deps (waitress) are intentionally left out.
 # tests/test_packaging_manifests.py fails if this file and pyproject.toml drift.

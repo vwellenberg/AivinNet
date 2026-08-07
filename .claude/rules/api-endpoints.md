@@ -1,6 +1,6 @@
 ---
 paths:
-  - "src/swingmusic/api/**"
+  - "src/aivinnet/api/**"
 ---
 
 # API-Endpoints

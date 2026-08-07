@@ -1,6 +1,6 @@
-"""Tests for swingmusic.utils general utilities."""
+"""Tests for aivinnet.utils general utilities."""
 
-from swingmusic.utils import flatten
+from aivinnet.utils import flatten
 
 
 class TestFlatten:

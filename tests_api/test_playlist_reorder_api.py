@@ -13,8 +13,8 @@ matters: 409 out, and the stored list byte-for-byte unchanged.
 import pytest
 from sqlalchemy import select
 
-from swingmusic.db.engine import DbEngine
-from swingmusic.db.userdata import PlaylistTable
+from aivinnet.db.engine import DbEngine
+from aivinnet.db.userdata import PlaylistTable
 
 # A hash the library cannot resolve, i.e. one the client never sees and can
 # therefore never send back. Every reorder must carry it along untouched.
@@ -22,7 +22,7 @@ ORPHAN = "0rphan00000000ff"
 
 
 def _new_playlist(trackhashes: list[str], name: str = "Reorder spec") -> int:
-    from swingmusic.utils.dates import create_new_date
+    from aivinnet.utils.dates import create_new_date
 
     playlist_id = PlaylistTable.add_one(
         {
@@ -49,7 +49,7 @@ def _stored(playlist_id: int) -> list[str]:
 
 @pytest.fixture()
 def playlists_api(api_client):
-    return api_client("swingmusic.api.playlist")
+    return api_client("aivinnet.api.playlist")
 
 
 def _reorder(api, playlist_id: int, trackhashes: list[str]):

@@ -16,7 +16,7 @@ monkeypatch.setitem — automatically restored after each test.
 import sys
 from types import SimpleNamespace
 
-from swingmusic.lib import playlistlib
+from aivinnet.lib import playlistlib
 
 
 def _fake_playlist(image: str | None):
@@ -30,7 +30,7 @@ def _install_fake_userdata(monkeypatch, playlists: list, seen_kwargs: dict | Non
         return iter(playlists)
 
     fake_module = SimpleNamespace(PlaylistTable=SimpleNamespace(get_all=fake_get_all))
-    monkeypatch.setitem(sys.modules, "swingmusic.db.userdata", fake_module)
+    monkeypatch.setitem(sys.modules, "aivinnet.db.userdata", fake_module)
 
 
 def test_cleanup_deletes_only_orphans(tmp_path, monkeypatch):

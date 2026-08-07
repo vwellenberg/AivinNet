@@ -1,8 +1,8 @@
 ---
 paths:
-  - "src/swingmusic/db/**"
-  - "src/swingmusic/migrations/**"
-  - "src/swingmusic/setup/**"
+  - "src/aivinnet/db/**"
+  - "src/aivinnet/migrations/**"
+  - "src/aivinnet/setup/**"
 ---
 
 # Datenbank
