@@ -39,6 +39,25 @@ Client aus `AivinNet-Client`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-
   stillschweigend wieder her → derselbe Test wacht darüber.
 - **`libev.so.4` wird in den AppDir kopiert** (bjoern linkt dynamisch, python-appimage bündelt
   keine System-Libs); `appimage/entrypoint.sh` setzt dafür `LD_LIBRARY_PATH`.
+- **⚠️ Der AppDir-Name kommt aus `Name=` im Desktop-File, NICHT aus `-n`.**
+  `python-appimage build app -n aivinnet-x86_64 --no-packaging` legt das Verzeichnis als
+  **`AivinNet-x86_64`** an (`Name=AivinNet` in `appimage/aivinnet.desktop`); `-n` ist der
+  *Anwendungsname* fürs Paketieren. Der Workflow schrieb den kleingeschriebenen Namen danach in
+  jeden Folgeschritt — und **`pip install --target` legt ein fehlendes Verzeichnis einfach an**,
+  also entstand ein zweites, leeres AppDir. appimagetool bekam dieses und brach mit
+  `Desktop file not found, aborting` ab, während das echte daneben lag: ohne swingmusic, ohne
+  libev. Beide AppImage-Jobs von v2026.8.0-rc1 starben daran.
+  **Deshalb wird der Pfad gesucht, nicht geschrieben:** das Verzeichnis, das ein `AppRun`
+  enthält (`find -maxdepth 1 -type d -exec test -e '{}/AppRun' \;`), Ergebnis als `$APPDIR` in
+  `$GITHUB_ENV`, und bei ≠ 1 Treffer hart abbrechen. Ein eigener Schritt prüft vor dem
+  Paketieren, dass `.desktop`, `swingmusic`, `libev.so.4` und `client` wirklich drin sind — im
+  Attrappen-Verzeichnis fehlt jedes davon. Zensus in `tests/test_packaging_manifests.py`
+  (`TestAppimageWorkflow`), weil die Kopplung unsichtbar ist: Wer die App im Desktop-File
+  umbenennt, bricht einen Workflow drei Dateien weiter.
+- **⚠️ Die Build-Toolchain ist ungepinnt** (`pip install python-appimage`, `appimagetool`
+  *continuous*). Ein Release-Lauf baut also nicht zwangsläufig mit derselben Toolchain wie der
+  letzte. Wenn ein Schritt „ohne Zutun" bricht, zuerst die Version im Log ablesen
+  (`Successfully installed …`) und gegen das PyPI-Datum halten, statt im eigenen Diff zu suchen.
 - **Ein übersprungener `needs`-Job überspringt den abhängigen Job.** Mit `binary_build=false`
   entstand früher gar kein Release, bei grüner Übersicht. `upload-builds` prüft die Job-Results
   jetzt explizit.

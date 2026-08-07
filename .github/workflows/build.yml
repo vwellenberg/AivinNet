@@ -192,10 +192,29 @@ jobs:
       # device sync and the playlist endpoints would just be missing).
       # Runtime deps come from appimage/requirements.txt, so nothing else here
       # needs the index.
+      #
+      # INFO: The AppDir path is DISCOVERED, never spelled out. python-appimage
+      # names it after `Name=` in appimage/aivinnet.desktop (-> AivinNet-x86_64),
+      # not after -n (-> aivinnet-x86_64). Writing the lower-case name here made
+      # `pip install --target` create a SECOND, empty directory, so appimagetool
+      # got one without a desktop file and aborted with "Desktop file not found"
+      # while the real AppDir sat next to it, missing both swingmusic and libev.
+      # Renaming the app in the .desktop file would break it again — an AppDir is
+      # identified by containing AppRun, so that is what we look for.
       - name: Build AppDir
         run: |
           python-appimage build app -p 3.11 appimage/ -n "aivinnet-$APPIMAGE_ARCH" -x client --no-packaging
-          pip install --target "aivinnet-$APPIMAGE_ARCH/opt/python3.11/lib/python3.11/" \
+
+          mapfile -t appdirs < <(find . -mindepth 1 -maxdepth 1 -type d -exec test -e '{}/AppRun' \; -print)
+          if [ "${#appdirs[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one AppDir (a directory containing AppRun), found ${#appdirs[@]}: ${appdirs[*]}"
+            exit 1
+          fi
+          APPDIR="${appdirs[0]}"
+          echo "APPDIR=$APPDIR" >> $GITHUB_ENV
+          echo "Using AppDir: $APPDIR"
+
+          pip install --target "$APPDIR/opt/python3.11/lib/python3.11/" \
             --no-deps --no-index --find-links=wheels/ swingmusic
 
       # INFO: bjoern is compiled from source against libev on this runner and
@@ -211,13 +230,31 @@ jobs:
             echo "::error::libev.so.4 not found on the runner — cannot bundle it"
             exit 1
           fi
-          mkdir -p "aivinnet-$APPIMAGE_ARCH/usr/lib"
-          cp -Lv "$libev" "aivinnet-$APPIMAGE_ARCH/usr/lib/libev.so.4"
+          mkdir -p "$APPDIR/usr/lib"
+          cp -Lv "$libev" "$APPDIR/usr/lib/libev.so.4"
+
+      # INFO: Proves the AppDir is the assembled one before it gets sealed into a
+      # read-only image. Both files are absent from the decoy directory that the
+      # old hard-coded path produced, so this fails loudly instead of publishing
+      # an AppImage that dies on first start.
+      - name: Verify the AppDir is complete
+        run: |
+          # `ls`, not `test -e`: an unquoted glob that matches more than once
+          # turns `test -e a b` into "binary operator expected" — a crash where a
+          # check was meant to be.
+          ls "$APPDIR"/*.desktop >/dev/null 2>&1 \
+            || { echo "::error::no .desktop in $APPDIR"; exit 1; }
+          test -d "$APPDIR/opt/python3.11/lib/python3.11/swingmusic" \
+            || { echo "::error::swingmusic not installed into $APPDIR"; exit 1; }
+          test -f "$APPDIR/usr/lib/libev.so.4" \
+            || { echo "::error::libev not bundled into $APPDIR"; exit 1; }
+          test -d "$APPDIR/client" || { echo "::error::web client missing from $APPDIR"; exit 1; }
+          echo "AppDir complete: $APPDIR"
 
       - name: Package AppImage
         run: |
           ./appimagetool-$APPIMAGE_ARCH.AppImage --no-appstream \
-            "aivinnet-$APPIMAGE_ARCH" \
+            "$APPDIR" \
             "aivinnet-v${{ github.event.inputs.tag }}-$APPIMAGE_ARCH.AppImage"
 
       - uses: actions/upload-artifact@v4
