@@ -7,17 +7,28 @@ Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic) — ein sel
 ⚠️ **Der lokale Ordner heißt noch `SubspaceRadio`, alles andere heißt `AivinNet`.** Repo, Server-Checkout
 und systemd-Unit wurden umbenannt — wer die alten Namen tippt, bekommt „Unit not found" bzw. „No such file".
 
-⚠️ **Das Python-Paket heißt seit 2026-08-07 `aivinnet`** (vorher `swingmusic`): Distribution,
-Modul (`src/aivinnet/`), Konsolenbefehl und Wheel (`aivinnet-<version>-py3-none-any.whl`).
-**Drei Dinge tragen den alten Namen weiter, und zwar mit Absicht:**
+⚠️ **Alles heißt seit 2026-08-07 `aivinnet`** (vorher `swingmusic`): Distribution, Modul
+(`src/aivinnet/`), Konsolenbefehl, Wheel (`aivinnet-<version>-py3-none-any.whl`), Config-Ordner
+(`~/.config/aivinnet/`) und Datenbank (`aivinnet.db`). Nur die `swingmx/swingmusic`-URLs bleiben
+— Upstream-Attribution, von der AGPL-3.0 verlangt.
 
-| bleibt | warum |
-|---|---|
-| `~/.config/swingmusic/` | enthält DB, Cover, Playlists **jeder** bestehenden Installation — Umbenennen ohne Migration = leere Bibliothek |
-| `swingmusic.db` | derselbe Grund (`Paths.APP_DB_NAME`) |
-| `swingmx/swingmusic`-URLs | Upstream-Attribution, von der AGPL-3.0 verlangt |
+**Der Config-Ordner wandert beim Start** (`legacy_paths.py`, aufgerufen aus `Paths.__init__`,
+**bevor** irgendetwas `config_dir` liest oder anlegt). Zwei Eigenschaften machen das sicher, und
+beide sind wichtiger als die Umbenennung selbst:
 
-Wer den Namen weiter ausräumt, muss deshalb **`swingmusic.db` (Datei) von `aivinnet.db` (Modul)
+- **Nie überschreiben:** verschoben wird nur, wenn das Ziel *nicht* existiert.
+- **Ein Fehlschlag ist folgenlos:** die Pfad-Properties **lösen auf** statt anzunehmen (neuer
+  Name bevorzugt, sonst der alte, bei Neuinstallation der neue). Scheitert das Umbenennen an
+  Rechten oder einem Lock, findet die App ihre Bibliothek trotzdem — verifiziert an einer Kopie
+  der echten 126-MB-Installation.
+
+⚠️ **Die Datenbank sind DREI Dateien.** SQLite im WAL-Modus hält `-wal` und `-shm` daneben, und
+die sind nur mit einem gleichnamigen `.db` gültig (die Live-Installation hatte eine **10,9 MB**
+große WAL). Sie wandern als Satz, **Sidecars zuerst, die DB zuletzt**, und ein Fehler rollt die
+Sidecars zurück — umgekehrt bliebe eine DB ohne das WAL zurück, das ihre jüngsten Transaktionen
+hält.
+
+Wer hier weiterarbeitet, muss **`swingmusic.db` (Datei) von `aivinnet.db` (Modul)
 unterscheiden** — genau daran ist der erste Anlauf gescheitert: eine Schutzregel für den
 Dateinamen ließ ~100 `from swingmusic.db …`-Importe stehen, und die schnelle Testbahn **mockt
 dieses Modul weg**, also blieben alle 589 Tests grün, während die App beim Start gecrasht wäre.
