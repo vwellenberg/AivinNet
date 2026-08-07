@@ -81,8 +81,46 @@ Pro Aufgabe/Issue:
 - **PR** öffnen.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
-- Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen.
+- Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
+
+### Branch-Hygiene — `--delete-branch` räumt nur die HÄLFTE
+
+Am 2026-08-07 lagen **183 tote Branches** herum (hier 51, im Client 139 — nach dem Kehren 2 bzw. 3).
+Das war keine Schlamperei, sondern drei Mechanismen, von denen nur einer Disziplin ist:
+
+- **`gh pr merge --delete-branch` löscht das REMOTE, nicht die lokale Branch.** Die überlebt den
+  Merge; sie zu löschen ist ein zweiter, separater Handgriff — und der fällt aus, sobald die Runde
+  sich fertig anfühlt.
+- **Fremde Merges hinterlassen Leichen bei DIR.** Mergt eine andere Sitzung, wird die Branch in
+  *deinem* Klon zur Leiche, ohne dass du irgendetwas falsch gemacht hättest. Dagegen hilft keine
+  eigene Disziplin — nur ein Sweep.
+- **`git fetch --prune` räumt ausschließlich die Remote-Tracking-Refs.** Es löscht `origin/foo`,
+  nie `foo`. Prunen *erzeugt* also die `[gone]`-Markierung und handelt nie danach — es fühlt sich
+  wie Aufräumen an und ist keins.
+
+```bash
+git fetch --prune
+git branch -vv | grep ': gone]' | awk '{print $1}'      # ERST ansehen
+git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -D
+```
+
+⚠️ **`[gone]` ist KEIN Beleg für einen Merge** — und `git branch -D` fragt nicht nach. Ein PR, der
+**ohne** Merge geschlossen wurde, hinterlässt dieselbe Markierung, und dann ist die lokale Branch
+die einzige verbliebene Kopie. (Dieses Repo hatte davon keinen, der Client 3 von 388 — selten
+genug, um es zu vergessen, oft genug, um Arbeit zu verlieren.) Vor einem Massenlauf gegenprüfen:
+
+```bash
+gh pr list --repo vwellenberg/AivinNet --state closed --limit 1000 \
+  --json headRefName,mergedAt --jq '.[]|select(.mergedAt==null)|.headRefName'
+```
+
+Was dort auftaucht, wird **nicht** gelöscht. `git branch -d` (klein) taugt als Schutz nicht: Bei
+Squash-Merges kennt Git die Branch nicht als „merged" und verweigert **jede**.
+
+Und: `--delete-branch` beim Merge bleibt Pflicht — es ist das, was die lokale Branch überhaupt
+erst als `[gone]` erkennbar macht. Ohne das steht sie mit lebendem Remote da und fällt durch jeden
+Sweep (so entstanden 76 der 183).
 
 ## Code-Qualität
 
