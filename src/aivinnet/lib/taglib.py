@@ -1,0 +1,407 @@
+import os
+import pathlib
+import re
+from dataclasses import dataclass
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+
+import pendulum
+from PIL import Image, UnidentifiedImageError
+from tinytag import TinyTag
+
+from aivinnet.config import UserConfig
+from aivinnet.lib.albumhash import album_hash, album_title
+from aivinnet.settings import Defaults, Paths
+from aivinnet.utils.hashing import create_hash
+from aivinnet.utils.parsers import split_artists
+
+
+def parse_album_art(filepath: str):
+    """
+    Returns the album art for a given audio file.
+
+    :params filepath: Path to file
+    :returns: `Pil.Image` if available else None
+    """
+    tags = TinyTag.get(filepath, image=True)
+    image = tags.images.any
+
+    if image:
+        return image.data
+
+    return None
+
+
+# INFO: Conventional cover-image basenames that sit next to the audio files in
+# an album folder. Checked in this priority order (case-insensitive). Many
+# albums — especially ripped CDs and downloaded game soundtracks — ship the
+# artwork as a sibling file instead of embedding it in every track.
+_FOLDER_COVER_NAMES = (
+    "cover",
+    "folder",
+    "front",
+    "album",
+    "albumart",
+    "albumartsmall",
+    "thumb",
+)
+
+# INFO: Image extensions accepted for a folder cover, in preference order. We
+# re-encode to webp anyway, so a lossless source is fine.
+_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
+
+
+def _read_image_file(path: str) -> bytes | None:
+    """Read a file's bytes, returning None on any error or if empty."""
+    try:
+        with open(path, "rb") as fh:
+            data = fh.read()
+    except OSError:
+        return None
+
+    return data or None
+
+
+def find_folder_cover(folder: str) -> bytes | None:
+    """
+    Look for a cover image sitting next to the audio file (e.g. ``cover.jpg``
+    or ``folder.jpg``) and return its raw bytes.
+
+    Used as a fallback when a track has no embedded album art, so a local
+    image is used before falling back to a remote MusicBrainz lookup. A
+    conventionally-named file wins; if none matches but the folder holds
+    exactly one image, that lone image is used as a last resort.
+
+    Returns ``None`` on any error so callers can fall back gracefully.
+    """
+    try:
+        with os.scandir(folder) as it:
+            images = [
+                entry
+                for entry in it
+                if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
+            ]
+    except OSError:
+        return None
+
+    if not images:
+        return None
+
+    # 1. Preferred, conventionally-named cover files (basename then extension).
+    by_lower = {entry.name.lower(): entry for entry in images}
+    for base in _FOLDER_COVER_NAMES:
+        for ext in _IMAGE_EXTS:
+            entry = by_lower.get(base + ext)
+            if entry is not None:
+                data = _read_image_file(entry.path)
+                if data is not None:
+                    return data
+
+    # 2. Fallback: a lone image in the folder is almost certainly the cover.
+    if len(images) == 1:
+        return _read_image_file(images[0].path)
+
+    return None
+
+
+def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths = None) -> bool:
+    """
+    Extracts the thumbnail from an audio file.
+    Returns the path to the thumbnail.
+    """
+    # this function will be run multithreaded.
+    # Modules are not cached in concurrent runs.
+    # If Paths is tried to be imported
+    if paths is None:
+        paths = Paths()
+
+    lg_img_path = paths.lg_thumb_path / webp_path
+    sm_img_path = paths.sm_thumb_path / webp_path
+    xms_img_path = paths.xsm_thumb_path / webp_path
+    md_img_path = paths.md_thumb_path / webp_path
+
+    images = [
+        (lg_img_path, Defaults.LG_THUMB_SIZE),
+        (sm_img_path, Defaults.SM_THUMB_SIZE),
+        (xms_img_path, Defaults.XSM_THUMB_SIZE),
+        (md_img_path, Defaults.MD_THUMB_SIZE),
+    ]
+
+    def save_image(img: Image.Image):
+        width, height = img.size
+        ratio = width / height
+
+        for path, size in images:
+            resized = img.resize((size, int(size / ratio)), Image.LANCZOS)
+            resized.save(path, "webp")
+            resized.close()
+
+    if not overwrite and sm_img_path.exists():
+        img_size = os.path.getsize(sm_img_path)
+
+        if img_size > 0:
+            return True
+
+    # INFO: The user removed this album's cover on purpose. Without this check
+    # the very next library scan would re-extract the embedded art (or the
+    # folder cover) and hand the rejected image straight back. Imported inside
+    # the function: this runs on the multithreaded scan path, where module
+    # imports are not cached, and `lib.coverart` drags in requests/PIL.
+    from aivinnet.lib.coverart import album_cover_removed
+
+    if album_cover_removed(webp_path.replace(".webp", ""), paths):
+        return False
+
+    album_art = parse_album_art(filepath)
+
+    # INFO: No embedded art — fall back to a cover image sitting in the track's
+    # folder (cover.jpg / folder.jpg / …) before giving up. The remote
+    # MusicBrainz lookup only fires for albums that still have no art after this.
+    if album_art is None:
+        album_art = find_folder_cover(os.path.dirname(filepath))
+
+    if album_art is not None:
+        try:
+            img = Image.open(BytesIO(album_art))
+        except (UnidentifiedImageError, OSError):
+            return False
+
+        try:
+            save_image(img)
+        except OSError:
+            try:
+                png = img.convert("RGB")
+                save_image(png)
+                png.close()
+            except:  # pylint: disable=bare-except
+                return False
+        finally:
+            img.close()
+
+        return True
+    return False
+
+
+def parse_date(date_str: str) -> int | None:
+    """
+    Extracts the date from a string and returns a timestamp.
+    """
+    try:
+        date = pendulum.parse(date_str, strict=False)
+        return int(date.timestamp())
+    except Exception:
+        return None
+
+
+def clean_filename(filename: str):
+    if "official" in filename.lower():
+        return re.sub(r"\s*\([^)]*official[^)]*\)", "", filename, flags=re.IGNORECASE)
+
+    return filename
+
+
+@dataclass
+class ParseData:
+    artist: str
+    title: str
+    config: UserConfig
+
+    def __post_init__(self):
+        self.artist = split_artists(self.artist, self.config)
+
+
+def extract_artist_title(filename: str, config: UserConfig):
+    """
+    extract data from filename with specified separators
+
+    :params filename: filename
+    :params config: UserConfig for user separators
+    """
+
+    path = Path(filename).with_suffix("")
+
+    path = clean_filename(str(path))
+    split_result = path.split(" - ")
+    split_result = [x.strip() for x in split_result]
+
+    if len(split_result) == 1:
+        return ParseData(
+            "",
+            split_result[0],
+            config,
+        )
+
+    if len(split_result) > 2:
+        try:
+            int(split_result[0])
+
+            return ParseData(
+                split_result[1],
+                " - ".join(split_result[2:]),
+                config,
+            )
+        except ValueError:
+            pass
+
+    artist = split_result[0]
+    title = split_result[1]
+    return ParseData(artist, title, config)
+
+
+def get_tags(filepath: str, config: UserConfig) -> dict:
+    """
+    Parse tags from an audio file.
+    If tag entries are missing, try getting them from the file name
+
+    :param filepath: Path to file.
+    :param config: UserConfig for ``split`` and ``splitignore`` config
+    :return: Metadata dict
+    :raise FileNotFoundError: If filepath is invalid
+    """
+
+    filepath = pathlib.Path(filepath)
+    filename = filepath.stem
+
+    if not filepath.exists():
+        raise FileNotFoundError(filepath)
+
+    last_mod = round(filepath.stat().st_mtime)
+    tags = TinyTag.get(filepath)
+
+    if hasattr(tags, "other"):
+        other = tags.other
+    else:
+        other = {}
+
+    date = parse_date(tags.year or "")
+    if date is None:
+        date = int(last_mod)
+
+    metadata: dict[str, Any] = {
+        "album": tags.album,
+        "albumartists": tags.albumartist,
+        "artists": tags.artist,
+        "title": tags.title,
+        "last_mod": last_mod,
+        "filepath": filepath.as_posix(),
+        "folder": filepath.parent.as_posix(),
+        "bitrate": tags.bitrate,
+        "duration": tags.duration,
+        "track": tags.track,
+        "disc": tags.disc,
+        "genres": tags.genre,
+        "copyright": " ".join(other.get("copyright", [])),  # INFO: Extract copyright from extra data
+        "extra": {},
+        "date": date,
+    }
+
+    # check the necessary tags and set them
+    no_albumartist: bool = (tags.albumartist == "") or (tags.albumartist is None)
+    no_artist: bool = (tags.artist == "") or (tags.artist is None)
+
+    if no_albumartist and not no_artist:
+        # INFO: If no albumartist, use the artist
+        metadata["albumartists"] = tags.artist
+
+    if no_artist and not no_albumartist:
+        # INFO: If no artist, use the albumartist
+        metadata["artists"] = tags.albumartist
+
+    parse_data = None
+
+    # INFO: If the title is empty, extract it from the filename
+    if not metadata["title"]:
+        parse_data = extract_artist_title(filename, config)
+        metadata["title"] = parse_data.title.replace("_", " ")
+
+    # The album falls back to the FOLDER, not the filename. It used to take the
+    # same parsed filename as the title above, which named an album after one of
+    # its own tracks — invisible while every untagged file shared one album, and
+    # conspicuous once the hash started grouping them by folder.
+    if not metadata["album"]:
+        metadata["album"] = album_title(None, metadata["folder"])
+
+    # INFO: If artist or albumartist is empty
+    # extract the artist and albumartist from the filename
+    parse = ["artists", "albumartists"]
+    for tag in parse:
+        p = metadata[tag]
+
+        if p == "" or p is None:
+            if not parse_data:
+                parse_data = extract_artist_title(filename, config)
+
+            artist = parse_data.artist
+
+            if artist:
+                metadata[tag] = ", ".join(artist)
+            else:
+                metadata[tag] = "Unknown"
+
+    # make values beautiful
+    # INFO: If these are empty, set to "Unknown"
+    to_check = ["album", "albumartists"]
+    for prop in to_check:
+        if not metadata[prop]:
+            metadata[prop] = "Unknown"
+
+    # INFO: Round the bitrate and duration
+    to_round = ["bitrate", "duration"]
+    for prop in to_round:
+        try:
+            metadata[prop] = int(getattr(tags, prop))
+        except TypeError:
+            metadata[prop] = 0
+
+    # INFO: Convert these to int
+    to_int = ["track", "disc"]
+    for prop in to_int:
+        try:
+            metadata[prop] = int(getattr(tags, prop))
+        except (ValueError, TypeError):
+            metadata[prop] = 1
+
+    # generate hash
+    #
+    # The rule lives in lib/albumhash.py, not here: the repair migration has to
+    # recognise rows written by the OLD rule, and the two only stay in step if
+    # they sit next to each other.
+    metadata["albumhash"] = album_hash(
+        tags.album, metadata["folder"], metadata.get("albumartists", "")
+    )
+
+    metadata["trackhash"] = create_hash(
+        metadata.get("artists", ""),
+        metadata.get("album", ""),
+        metadata.get("title", ""),
+    )
+
+    # extract extra information not already in tags
+    extra: dict[str, Any] = {k: v for k, v in tags.as_dict().items() if k not in metadata}
+
+    extra["hashinfo"] = {
+        "algo": "sha1",
+        "format": "[:5]+[-5:]",  # first 5 + last 5 chars
+    }
+
+    # REMOVE EMPTY VALUES
+    to_pop = ["filename", "artists", "albumartist", "year"]
+    for key, value in extra.items():
+        # None --bool--> False --not--> True
+        # []   --bool--> False --not--> True
+        # ""   --bool--> False --not--> True
+        # [""] --bool--> True  --not--> False
+
+        if isinstance(value, list) and not "".join(value):
+            to_pop.append(key)
+            continue
+
+        if not value:
+            to_pop.append(key)
+
+    for key in to_pop:
+        extra.pop(key, None)
+
+    metadata["extra"] = extra
+    return metadata

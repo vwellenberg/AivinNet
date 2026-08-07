@@ -1,10 +1,10 @@
 ---
 paths:
-  - "src/swingmusic/plugins/**"
-  - "src/swingmusic/lib/recipes/**"
-  - "src/swingmusic/crons/**"
-  - "src/swingmusic/store/homepage*.py"
-  - "src/swingmusic/api/home/**"
+  - "src/aivinnet/plugins/**"
+  - "src/aivinnet/lib/recipes/**"
+  - "src/aivinnet/crons/**"
+  - "src/aivinnet/store/homepage*.py"
+  - "src/aivinnet/api/home/**"
 ---
 
 # Empfehlungen / Mixes — woher die Vorschläge kommen

@@ -1,6 +1,6 @@
 """Tests for the first-run bootstrap values."""
 
-from swingmusic.utils.bootstrap import (
+from aivinnet.utils.bootstrap import (
     ADMIN_PASSWORD_ENV,
     FALLBACK_ADMIN_PASSWORD,
     initial_admin_password,

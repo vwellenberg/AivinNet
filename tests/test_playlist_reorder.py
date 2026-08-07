@@ -3,7 +3,7 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock heavy dependencies before importing swingmusic modules
+# Mock heavy dependencies before importing aivinnet modules
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -30,7 +30,7 @@ for mod_name in [
         sys.modules[mod_name] = MagicMock()
 
 
-from swingmusic.lib.playlist_maintenance import trackhash_diff  # noqa: E402
+from aivinnet.lib.playlist_maintenance import trackhash_diff  # noqa: E402
 
 
 def _reorder_logic(playlist_table, playlist_id: int, trackhashes: list[str]):

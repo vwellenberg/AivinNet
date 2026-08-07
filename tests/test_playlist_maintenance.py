@@ -1,6 +1,6 @@
 """Tests for the pure playlist trackhash maintenance helpers."""
 
-from swingmusic.lib.playlist_maintenance import merge_trackhashes, prune_orphan_trackhashes
+from aivinnet.lib.playlist_maintenance import merge_trackhashes, prune_orphan_trackhashes
 
 
 class TestMergeTrackhashes:

@@ -1,6 +1,6 @@
 """Tests for the per-track "date added" helpers (playlist added_at map)."""
 
-from swingmusic.lib.playlist_maintenance import prune_added_at, record_added_at
+from aivinnet.lib.playlist_maintenance import prune_added_at, record_added_at
 
 
 class TestRecordAddedAt:

@@ -12,7 +12,7 @@ import logging
 
 import pytest
 
-from swingmusic.lib import musicbrainz as mb
+from aivinnet.lib import musicbrainz as mb
 
 MBID = "11111111-2222-3333-4444-555555555555"
 OTHER_MBID = "99999999-8888-7777-6666-555555555555"
@@ -260,14 +260,14 @@ class TestSearchGate:
         assert search.run([]) is None
 
     def test_rejection_is_logged_with_score_and_both_names(self, search, caplog):
-        with caplog.at_level(logging.INFO, logger="swingmusic.lib.musicbrainz"):
+        with caplog.at_level(logging.INFO, logger="aivinnet.lib.musicbrainz"):
             search.run([make_group(artist="The Beach Boys", score=97)])
 
         messages = [r.getMessage() for r in caplog.records]
         assert any("The Beach Boys" in m and "The Beatles" in m and "97" in m for m in messages), messages
 
     def test_below_floor_rejection_names_the_floor(self, search, caplog):
-        with caplog.at_level(logging.INFO, logger="swingmusic.lib.musicbrainz"):
+        with caplog.at_level(logging.INFO, logger="aivinnet.lib.musicbrainz"):
             search.run([make_group(score=12)])
 
         messages = [r.getMessage() for r in caplog.records]
@@ -278,7 +278,7 @@ class TestFetchCoverForAlbum:
     def test_unknown_albumartist_never_reaches_the_network(self, search, caplog):
         # The "Unknown" decision: no cross-check is possible, so we do not fetch
         # a cover at all — and we do not even spend the rate-limited request.
-        with caplog.at_level(logging.INFO, logger="swingmusic.lib.musicbrainz"):
+        with caplog.at_level(logging.INFO, logger="aivinnet.lib.musicbrainz"):
             assert mb.fetch_cover_for_album("Greatest Hits", "Unknown") is None
 
         assert search.calls == []

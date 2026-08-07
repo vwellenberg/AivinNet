@@ -1,0 +1,57 @@
+"""
+This module combines all API blueprints into a single Flask app instance.
+"""
+
+from aivinnet.api import (
+    album,
+    artist,
+    auth,
+    backup_and_restore,
+    colors,
+    coverart,
+    devicesync,
+    download,
+    favorites,
+    folder,
+    getall,
+    home,
+    imgserver,
+    lyrics,
+    musicbrainz,
+    playlist,
+    playlistfolders,
+    plugins,
+    scrobble,
+    search,
+    settings,
+    stream,
+    track,
+)
+from aivinnet.api.plugins import lyrics as lyrics_plugin
+
+__all__ = [
+    "album",
+    "artist",
+    "auth",
+    "backup_and_restore",
+    "colors",
+    "coverart",
+    "devicesync",
+    "download",
+    "favorites",
+    "folder",
+    "getall",
+    "home",
+    "imgserver",
+    "lyrics",
+    "lyrics_plugin",
+    "musicbrainz",
+    "playlist",
+    "playlistfolders",
+    "plugins",
+    "scrobble",
+    "search",
+    "settings",
+    "stream",
+    "track",
+]

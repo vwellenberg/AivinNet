@@ -4,9 +4,9 @@ paths:
   - "appimage/**"
   - ".github/workflows/**"
   - "pyproject.toml"
-  - "src/swingmusic/settings.py"
+  - "src/aivinnet/settings.py"
   - "Dockerfile"
-  - "swingmusic.spec"
+  - "aivinnet.spec"
 ---
 
 # Auslieferung an Dritte (Release + Installer)
@@ -25,13 +25,15 @@ Client aus `AivinNet-Client`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-
 
 ## ⚠️ Fallen, die hier schon zugeschlagen haben
 
-- **`pip install --find-links=wheels/ swingmusic` zieht womöglich das UPSTREAM-Paket von PyPI.**
-  Die Distribution heißt weiterhin `swingmusic`, Upstream veröffentlicht sie dort, und pip nimmt
-  die höhere Version. Ein Tag unterhalb von Upstreams Version hätte still deren Backend mit
-  unserem Client ausgeliefert — UI korrekt, aber Endpoints wie Device-Sync und `move-track`
-  fehlen. Deshalb `--no-index` bzw. das lokale Wheel zuerst pinnen.
+- **Die PyPI-Namenskollision ist seit der Umbenennung weg — `--no-index` bleibt trotzdem.**
+  Solange die Distribution `swingmusic` hieß, konnte `pip install --find-links=wheels/ swingmusic`
+  das **Upstream**-Paket von PyPI ziehen (gleicher Name, höhere Version) und still deren Backend
+  mit unserem Client ausliefern: UI korrekt, aber Device-Sync und `move-track` fehlen. Seit sie
+  `aivinnet` heißt, gibt es auf PyPI nichts, was gewinnen könnte. Die `--no-index`-Flags im
+  Workflow bleiben als Gürtel-und-Hosenträger stehen — sie kosten nichts und halten den Build
+  offline-deterministisch.
 - **`appimage/requirements.txt` ist ein Handduplikat von `[project].dependencies`** (das AppImage
-  installiert `swingmusic` mit `--no-deps`). Ein fehlender Eintrag ergibt einen ImportError erst
+  installiert `aivinnet` mit `--no-deps`). Ein fehlender Eintrag ergibt einen ImportError erst
   beim Start, bei grüner CI. Abgesichert durch `tests/test_packaging_manifests.py` — bei jeder
   neuen Dependency mitpflegen.
 - **`settings.py::AssetHandler.RELEASES_URL` muss auf den Fork zeigen**, sonst lädt ein Wheel-
@@ -45,12 +47,12 @@ Client aus `AivinNet-Client`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-
   *Anwendungsname* fürs Paketieren. Der Workflow schrieb den kleingeschriebenen Namen danach in
   jeden Folgeschritt — und **`pip install --target` legt ein fehlendes Verzeichnis einfach an**,
   also entstand ein zweites, leeres AppDir. appimagetool bekam dieses und brach mit
-  `Desktop file not found, aborting` ab, während das echte daneben lag: ohne swingmusic, ohne
+  `Desktop file not found, aborting` ab, während das echte daneben lag: ohne aivinnet, ohne
   libev. Beide AppImage-Jobs von v2026.8.0-rc1 starben daran.
   **Deshalb wird der Pfad gesucht, nicht geschrieben:** das Verzeichnis, das ein `AppRun`
   enthält (`find -maxdepth 1 -type d -exec test -e '{}/AppRun' \;`), Ergebnis als `$APPDIR` in
   `$GITHUB_ENV`, und bei ≠ 1 Treffer hart abbrechen. Ein eigener Schritt prüft vor dem
-  Paketieren, dass `.desktop`, `swingmusic`, `libev.so.4` und `client` wirklich drin sind — im
+  Paketieren, dass `.desktop`, `aivinnet`, `libev.so.4` und `client` wirklich drin sind — im
   Attrappen-Verzeichnis fehlt jedes davon. Zensus in `tests/test_packaging_manifests.py`
   (`TestAppimageWorkflow`), weil die Kopplung unsichtbar ist: Wer die App im Desktop-File
   umbenennt, bricht einen Workflow drei Dateien weiter.

@@ -2,7 +2,7 @@
 
 ``album_cover_edit`` imports the in-memory stores at module level, which drag in
 SQLAlchemy. Same approach as ``test_track_edit_rollback``: third-party deps are
-mocked globally, the heavy swingmusic leaf modules only for the duration of the
+mocked globally, the heavy aivinnet leaf modules only for the duration of the
 import, so the real modules stay available to the rest of the session.
 
 The interesting behaviour here is what happens when a single file misbehaves:
@@ -43,22 +43,22 @@ for _mod in [
 _SWING_MOCKS = {
     name: MagicMock()
     for name in [
-        "swingmusic.db",
-        "swingmusic.db.libdata",
-        "swingmusic.store",
-        "swingmusic.store.albums",
-        "swingmusic.store.tracks",
+        "aivinnet.db",
+        "aivinnet.db.libdata",
+        "aivinnet.store",
+        "aivinnet.store.albums",
+        "aivinnet.store.tracks",
     ]
 }
 
 with patch.dict(sys.modules, _SWING_MOCKS):
-    from swingmusic.lib import album_cover_edit
+    from aivinnet.lib import album_cover_edit
 
 import os  # noqa: E402
 
 import pytest  # noqa: E402
 
-from swingmusic.lib.cover_writer import CoverWriteError, UnsupportedCoverFormatError  # noqa: E402
+from aivinnet.lib.cover_writer import CoverWriteError, UnsupportedCoverFormatError  # noqa: E402
 
 COVER = b"cover-bytes"
 

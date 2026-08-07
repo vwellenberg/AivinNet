@@ -9,7 +9,7 @@ one drag in a 120-track playlist cut it down to 44 tracks.
 
 import pytest
 
-from swingmusic.lib.playlist_maintenance import (
+from aivinnet.lib.playlist_maintenance import (
     TrackhashNotInPlaylist,
     move_trackhash,
     remove_trackhashes,

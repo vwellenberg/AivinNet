@@ -1,15 +1,15 @@
-"""Tests for the folder-based cover fallback in swingmusic.lib.taglib."""
+"""Tests for the folder-based cover fallback in aivinnet.lib.taglib."""
 
 import sys
 from unittest.mock import MagicMock
 
 # Mock heavy dependencies that are not installed in the lightweight test
-# environment before importing swingmusic modules (see test_album_model.py).
+# environment before importing aivinnet modules (see test_album_model.py).
 for mod_name in ["PIL", "tinytag"]:
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
 
-from swingmusic.lib.taglib import find_folder_cover  # noqa: E402
+from aivinnet.lib.taglib import find_folder_cover  # noqa: E402
 
 
 def _write(path, content=b"IMG"):

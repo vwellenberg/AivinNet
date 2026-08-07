@@ -6,7 +6,7 @@ CI test job (which does not install mutagen).
 
 import pytest
 
-from swingmusic.lib.tag_writer import TagWriteError, _easy_value, _validate
+from aivinnet.lib.tag_writer import TagWriteError, _easy_value, _validate
 
 
 class TestEasyValue:

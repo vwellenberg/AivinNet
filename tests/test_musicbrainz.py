@@ -1,6 +1,6 @@
-"""Tests for swingmusic.lib.musicbrainz."""
+"""Tests for aivinnet.lib.musicbrainz."""
 
-from swingmusic.lib.musicbrainz import _lucene_escape, simplify_title
+from aivinnet.lib.musicbrainz import _lucene_escape, simplify_title
 
 
 class TestLuceneEscape:

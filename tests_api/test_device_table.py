@@ -1,7 +1,7 @@
 """Real-database tests for the device registry.
 
 These deliberately use the REAL SQLite tables (the API-lane conftest points
-the config dir at a temp dir before swingmusic is imported). The devicesync
+the config dir at a temp dir before aivinnet is imported). The devicesync
 endpoint tests mock DeviceTable away, which is exactly why a broken upsert
 shipped: registering a device the second time answered 500 in production
 while every test stayed green.
@@ -13,8 +13,8 @@ import pytest
 @pytest.fixture()
 def device_table():
     """The table plus two owning users — `device.userid` is a real FK."""
-    from swingmusic.db import create_all_tables
-    from swingmusic.db.userdata import DeviceTable, UserTable
+    from aivinnet.db import create_all_tables
+    from aivinnet.db.userdata import DeviceTable, UserTable
 
     create_all_tables()
 
@@ -27,7 +27,7 @@ def device_table():
 
 @pytest.fixture()
 def user_ids(device_table):
-    from swingmusic.db.userdata import UserTable
+    from aivinnet.db.userdata import UserTable
 
     return (
         UserTable.get_by_username("devicetest-one").id,

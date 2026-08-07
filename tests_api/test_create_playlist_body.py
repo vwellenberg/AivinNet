@@ -6,7 +6,7 @@ from flask_openapi3 import OpenAPI
 
 @pytest.fixture()
 def create_app():
-    from swingmusic.api.playlist import CreatePlaylistBody
+    from aivinnet.api.playlist import CreatePlaylistBody
 
     app = OpenAPI(__name__)
 

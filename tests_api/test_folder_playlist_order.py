@@ -14,7 +14,7 @@ def _track(trackhash: str, last_mod: int, title: str = ""):
 
 
 def test_default_sort_follows_folder_view_mtime_order(monkeypatch):
-    from swingmusic.api import playlist as playlist_api
+    from aivinnet.api import playlist as playlist_api
 
     # Store order deliberately scrambled vs. mtime order.
     store_tracks = [
@@ -34,7 +34,7 @@ def test_default_sort_follows_folder_view_mtime_order(monkeypatch):
 
 
 def test_explicit_sort_key_still_applies(monkeypatch):
-    from swingmusic.api import playlist as playlist_api
+    from aivinnet.api import playlist as playlist_api
 
     store_tracks = [
         _track("b", last_mod=1, title="Bravo"),

@@ -11,7 +11,7 @@ PluginTable could not fail on any of it.
 
 import pytest
 
-from swingmusic.plugins.register import (
+from aivinnet.plugins.register import (
     LYRICS_DEFAULT_SETTINGS,
     LYRICS_PLUGIN,
     register_plugins,
@@ -23,9 +23,9 @@ def plugin_table():
     """The real table, wiped before and after so every test starts empty."""
     from sqlalchemy import delete
 
-    from swingmusic.db import create_all_tables
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import PluginTable
+    from aivinnet.db import create_all_tables
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import PluginTable
 
     create_all_tables()
 

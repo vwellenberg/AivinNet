@@ -1,6 +1,6 @@
 """Tests for folder-search index derivation (issue #64)."""
 
-from swingmusic.lib.folder_index import derive_folder_paths
+from aivinnet.lib.folder_index import derive_folder_paths
 
 FILEPATHS = [
     "/music/Pink Floyd/The Wall/01 - In the Flesh.flac",

@@ -19,9 +19,9 @@ import pytest
 @pytest.fixture()
 def backups(api_client, monkeypatch, tmp_path):
     """A backup root with one real backup, and a victim dir one level above it."""
-    from swingmusic.api import auth, backup_and_restore
+    from aivinnet.api import auth, backup_and_restore
 
-    root = tmp_path / "swingmusic.backup"
+    root = tmp_path / "aivinnet.backup"
     (root / "backup.1700000000").mkdir(parents=True)
     victim = tmp_path / ".config"
     victim.mkdir()
@@ -32,7 +32,7 @@ def backups(api_client, monkeypatch, tmp_path):
     # `current_user` as a module global, so this is the only patchable seam.
     monkeypatch.setattr(auth, "current_user", {"roles": ["admin"]})
 
-    handle = api_client("swingmusic.api.backup_and_restore")
+    handle = api_client("aivinnet.api.backup_and_restore")
     handle.root = root
     handle.victim = victim
     return handle

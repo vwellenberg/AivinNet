@@ -4,7 +4,7 @@ These are hand-maintained duplicates of information that lives elsewhere, and
 both have failed silently in a way CI could not see:
 
 * ``appimage/requirements.txt`` is a second copy of the runtime dependencies.
-  The AppImage installs ``swingmusic`` with ``--no-deps``, so a dependency that
+  The AppImage installs ``aivinnet`` with ``--no-deps``, so a dependency that
   exists only in ``pyproject.toml`` is missing from the AppImage and blows up
   as an ImportError at start — long after a green CI run.
 * ``settings.py::AssetHandler.RELEASES_URL`` decides whose web client an
@@ -56,7 +56,7 @@ class TestAppimageRequirements:
         missing = _pyproject_runtime_deps() - _appimage_deps()
         assert not missing, (
             f"Dependencies missing from appimage/requirements.txt: {sorted(missing)}. "
-            "The AppImage installs swingmusic with --no-deps, so these would be absent at runtime."
+            "The AppImage installs aivinnet with --no-deps, so these would be absent at runtime."
         )
 
     def test_no_stale_extra_dependency(self):
@@ -109,14 +109,14 @@ class TestAppimageWorkflow:
     def test_the_assembled_appdir_is_verified_before_packaging(self):
         workflow = _release_workflow()
         assert "Verify the AppDir is complete" in workflow, (
-            "Packaging an AppDir that is missing swingmusic, libev or the client "
+            "Packaging an AppDir that is missing aivinnet, libev or the client "
             "produces an AppImage that only fails at the user's first start."
         )
 
 
 class TestClientReleaseSource:
     def test_releases_url_points_at_this_fork(self):
-        from swingmusic.settings import AssetHandler
+        from aivinnet.settings import AssetHandler
 
         assert "vwellenberg/AivinNet" in AssetHandler.RELEASES_URL, (
             "The client fallback download must use this fork's releases. Pointing it at "

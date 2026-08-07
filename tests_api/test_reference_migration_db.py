@@ -19,8 +19,8 @@ BYSTANDER = "bystander0000000"
 @pytest.fixture()
 def reference_db(playlist_db):
     """playlist_db plus favorites/scrobbles, all three wiped afterwards."""
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 
     yield PlaylistTable, FavoritesTable, ScrobbleTable
 
@@ -31,7 +31,7 @@ def reference_db(playlist_db):
 
 
 def _insert_playlist(session, userid: int, name: str, trackhashes: list[str], extra: dict | None = None):
-    from swingmusic.db.userdata import PlaylistTable
+    from aivinnet.db.userdata import PlaylistTable
 
     session.execute(
         insert(PlaylistTable).values(
@@ -47,7 +47,7 @@ def _insert_playlist(session, userid: int, name: str, trackhashes: list[str], ex
 
 
 def _insert_favorite(session, userid: int, trackhash: str):
-    from swingmusic.db.userdata import FavoritesTable
+    from aivinnet.db.userdata import FavoritesTable
 
     session.execute(
         insert(FavoritesTable).values(
@@ -61,7 +61,7 @@ def _insert_favorite(session, userid: int, trackhash: str):
 
 
 def _insert_scrobble(session, userid: int, trackhash: str):
-    from swingmusic.db.userdata import ScrobbleTable
+    from aivinnet.db.userdata import ScrobbleTable
 
     session.execute(
         insert(ScrobbleTable).values(
@@ -76,15 +76,15 @@ def _insert_scrobble(session, userid: int, trackhash: str):
 
 
 def _playlists_by_name(session):
-    from swingmusic.db.userdata import PlaylistTable
+    from aivinnet.db.userdata import PlaylistTable
 
     rows = session.execute(select(PlaylistTable.name, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
     return {name: (trackhashes, extra) for name, trackhashes, extra in rows}
 
 
 def test_playlists_of_all_users_are_rewritten_and_added_at_follows(reference_db):
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.lib.reference_migration import migrate_track_references
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib.reference_migration import migrate_track_references
 
     with DbEngine.manager(commit=True) as session:
         _insert_playlist(session, 1, "mine", [BYSTANDER, OLD], extra={"added_at": {OLD: 42, BYSTANDER: 7}})
@@ -106,8 +106,8 @@ def test_playlists_of_all_users_are_rewritten_and_added_at_follows(reference_db)
 
 
 def test_a_playlist_holding_both_identities_collapses_to_one_entry(reference_db):
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.lib.reference_migration import migrate_track_references
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib.reference_migration import migrate_track_references
 
     with DbEngine.manager(commit=True) as session:
         _insert_playlist(
@@ -128,9 +128,9 @@ def test_favorites_are_decided_per_user(reference_db):
     """User 1 only holds the old identity (rename); user 2 holds both (drop the
     old row). Neither decision may touch the other user's rows — under the old
     global UNIQUE(hash) a blanket UPDATE crashed on exactly this layout."""
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import FavoritesTable
-    from swingmusic.lib.reference_migration import migrate_track_references
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib.reference_migration import migrate_track_references
 
     with DbEngine.manager(commit=True) as session:
         _insert_favorite(session, 1, OLD)
@@ -146,9 +146,9 @@ def test_favorites_are_decided_per_user(reference_db):
 
 
 def test_scrobbles_move_and_bystanders_stay(reference_db):
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import ScrobbleTable
-    from swingmusic.lib.reference_migration import migrate_track_references
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import ScrobbleTable
+    from aivinnet.lib.reference_migration import migrate_track_references
 
     with DbEngine.manager(commit=True) as session:
         _insert_scrobble(session, 1, OLD)
@@ -169,9 +169,9 @@ def test_scrobbles_move_and_bystanders_stay(reference_db):
     ids=["empty-old", "empty-new", "same-hash"],
 )
 def test_degenerate_inputs_change_nothing(reference_db, old, new):
-    from swingmusic.db.engine import DbEngine
-    from swingmusic.db.userdata import FavoritesTable
-    from swingmusic.lib.reference_migration import migrate_track_references
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib.reference_migration import migrate_track_references
 
     with DbEngine.manager(commit=True) as session:
         _insert_playlist(session, 1, "mine", [OLD], extra={"added_at": {OLD: 42}})

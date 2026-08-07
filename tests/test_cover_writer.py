@@ -15,7 +15,7 @@ import struct
 
 import pytest
 
-from swingmusic.lib.cover_writer import (
+from aivinnet.lib.cover_writer import (
     CoverWriteError,
     UnsupportedCoverFormatError,
     _write_mp4,
@@ -112,8 +112,8 @@ class TestWriteCover:
         # trackhash is create_hash(artists, album, title), so embedding a
         # picture must leave those three tags byte-identical. If this ever goes
         # red, every playlist/favourite/scrobble reference to the album breaks.
-        from swingmusic.lib.tag_writer import write_tags
-        from swingmusic.utils.hashing import create_hash
+        from aivinnet.lib.tag_writer import write_tags
+        from aivinnet.utils.hashing import create_hash
 
         write_tags(audio_file, {"title": "Song", "album": "Record", "artists": ["A", "B"]})
 

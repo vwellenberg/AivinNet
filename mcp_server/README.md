@@ -28,7 +28,7 @@ field in the backend).
 2. Get a token. Easiest: mint one on the AivinNet server (no password):
 
    ```bash
-   ssh <server> "cd ~/AivinNet && uv run python -c \"from swingmusic.app_builder import app, config_jwt; from swingmusic.db.userdata import UserTable; from flask_jwt_extended import create_access_token; config_jwt(app); app.app_context().push(); print(create_access_token(identity=list(UserTable.get_all())[0].todict()))\""
+   ssh <server> "cd ~/AivinNet && uv run python -c \"from aivinnet.app_builder import app, config_jwt; from swingmusic.db.userdata import UserTable; from flask_jwt_extended import create_access_token; config_jwt(app); app.app_context().push(); print(create_access_token(identity=list(UserTable.get_all())[0].todict()))\""
    ```
 
    (Tokens last 30 days. Alternatively set `AIVINNET_USER`/`AIVINNET_PASS`

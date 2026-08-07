@@ -12,27 +12,27 @@ from unittest.mock import MagicMock
 # fast CI lane installs only a handful of packages). We track which mocks we add
 # and remove them again right after the import so we don't shadow real modules
 # for test files collected after this one (e.g. test_track_store_remove imports
-# the *real* swingmusic.store.tracks).
+# the *real* aivinnet.store.tracks).
 _added = []
 for _mod in [
     "sqlalchemy",
     "sqlalchemy.orm",
     "flask_jwt_extended",
     "flask",
-    "swingmusic.db.userdata",
-    "swingmusic.db.libdata",
-    "swingmusic.models.album",
-    "swingmusic.models.track",
-    "swingmusic.models.stats",
-    "swingmusic.store.albums",
-    "swingmusic.store.tracks",
-    "swingmusic.utils.auth",
+    "aivinnet.db.userdata",
+    "aivinnet.db.libdata",
+    "aivinnet.models.album",
+    "aivinnet.models.track",
+    "aivinnet.models.stats",
+    "aivinnet.store.albums",
+    "aivinnet.store.tracks",
+    "aivinnet.utils.auth",
 ]:
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
         _added.append(_mod)
 
-from swingmusic.utils import stats  # noqa: E402
+from aivinnet.utils import stats  # noqa: E402
 
 # stats has bound its references; drop the temporary mocks so they don't leak.
 for _mod in _added:

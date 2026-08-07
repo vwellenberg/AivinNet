@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 
 def _run_save_item(itemtype: str, patched_lookup: str, playlist_name: str):
-    from swingmusic.api import playlist as pl
+    from aivinnet.api import playlist as pl
 
     body = pl.SavePlaylistAsItemBody(
         itemtype=itemtype,

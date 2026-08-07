@@ -16,7 +16,7 @@ from flask_openapi3 import OpenAPI
 # Cookie name flask_jwt_extended uses for the access token (config default).
 ACCESS_COOKIE = "access_token_cookie"
 
-# Shaped exactly like swingmusic.api.auth.create_new_token()'s return value.
+# Shaped exactly like aivinnet.api.auth.create_new_token()'s return value.
 # The token strings are opaque here: with JWT_COOKIE_CSRF_PROTECT off,
 # set_access_cookies never decodes them, it only copies them into the cookie.
 SEED_TOKEN = {
@@ -36,7 +36,7 @@ def pair_app():
     (app_builder.config_app): cookies+headers token location, CSRF off. This
     is what makes set_access_cookies() work inside the pair route.
     """
-    from swingmusic.api.auth import api as auth_bp
+    from aivinnet.api.auth import api as auth_bp
 
     app = OpenAPI(__name__)
     app.config["TESTING"] = True
@@ -57,7 +57,7 @@ def seed(monkeypatch):
     """Seed the module-global single-use pair-code store for one test."""
 
     def _seed():
-        from swingmusic.api import auth as auth_module
+        from aivinnet.api import auth as auth_module
 
         monkeypatch.setattr(auth_module, "pair_token", {CODE: dict(SEED_TOKEN)})
 

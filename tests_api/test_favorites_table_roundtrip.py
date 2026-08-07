@@ -17,10 +17,10 @@ out of the live server's `sqlite_master` before the fix, not invented here.
 import pytest
 from sqlalchemy import create_engine, delete, insert, select
 
-from swingmusic.db import create_all_tables
-from swingmusic.db.engine import DbEngine
-from swingmusic.db.userdata import FavoritesTable, UserTable
-from swingmusic.migrations.favorites_unique_per_user import (
+from aivinnet.db import create_all_tables
+from aivinnet.db.engine import DbEngine
+from aivinnet.db.userdata import FavoritesTable, UserTable
+from aivinnet.migrations.favorites_unique_per_user import (
     repair_favorites_unique_constraint,
     unique_index_on_hash_alone,
 )
@@ -50,7 +50,7 @@ def favorites_db():
             if not exists:
                 session.execute(insert(UserTable).values(id=uid, username=name, password="x", roles=[], extra={}))
 
-    with patch("swingmusic.db.userdata.get_current_userid", return_value=1) as userid:
+    with patch("aivinnet.db.userdata.get_current_userid", return_value=1) as userid:
         yield userid
 
     with DbEngine.manager(commit=True) as session:

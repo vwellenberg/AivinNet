@@ -44,7 +44,7 @@ Cron) läuft deshalb in Threads oder Prozess-Pools daneben.
 
 ## Start-Sequenz
 
-`__main__.py` → `start_swingmusic.py`. **Die Reihenfolge ist heikel** (steht auch als Kommentar
+`__main__.py` → `start_aivinnet.py`. **Die Reihenfolge ist heikel** (steht auch als Kommentar
 im Code):
 
 1. `config_mimetypes()` — eine kaputte Windows-Registry liefert sonst falsche MIME-Typen.
@@ -56,7 +56,7 @@ im Code):
 4. `load_into_mem()` — Tracks → Alben → Artists → Ordner, danach Scrobble-Daten, Favoriten
    und Farben auf die Store-Objekte mappen. Das ist das „Loading tracks/albums/artists… Done!"
    im Journal.
-5. `run_swingmusic()` (Thread) — Plugins registrieren, Cron-Schleife starten.
+5. `run_aivinnet()` (Thread) — Plugins registrieren, Cron-Schleife starten.
 6. `bjoern.run(...)`; Fallback `waitress`, wenn bjoern fehlt (das Bauen braucht `libev`).
 
 ## Die RAM-Stores
@@ -227,7 +227,7 @@ Tag-Verarbeitungsoptionen.
 
 ```
 config folder
-└── swingmusic
+└── aivinnet
     ├── assets            Platzhalterbilder (default.webp, artist.webp, playlist.svg)
     ├── client            der deployte Vue-Build  ← app.static_folder
     ├── images

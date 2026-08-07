@@ -1,6 +1,6 @@
 """Tests for the MusicBrainz negative (failed-cover) cache."""
 
-import swingmusic.lib.musicbrainz as mb
+import aivinnet.lib.musicbrainz as mb
 
 
 class TestFailedCache:

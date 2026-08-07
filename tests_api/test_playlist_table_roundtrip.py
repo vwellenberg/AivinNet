@@ -15,9 +15,9 @@ migration that breaks a guarantee fails here instead of in a user's library.
 import pytest
 from sqlalchemy import select
 
-from swingmusic.db.engine import DbEngine
-from swingmusic.db.userdata import PlaylistTable
-from swingmusic.lib.playlist_maintenance import TrackhashNotInPlaylist
+from aivinnet.db.engine import DbEngine
+from aivinnet.db.userdata import PlaylistTable
+from aivinnet.lib.playlist_maintenance import TrackhashNotInPlaylist
 
 # A hash the library cannot resolve. The API's read path only ever returns
 # resolvable tracks, so a client can neither see this nor index around it —
@@ -26,7 +26,7 @@ ORPHAN = "0rphan00000000ff"
 
 
 def _new_playlist(name: str = "Test") -> int:
-    from swingmusic.utils.dates import create_new_date
+    from aivinnet.utils.dates import create_new_date
 
     return PlaylistTable.add_one(
         {

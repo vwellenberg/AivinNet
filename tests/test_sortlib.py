@@ -3,7 +3,7 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock heavy dependencies before importing swingmusic modules
+# Mock heavy dependencies before importing aivinnet modules
 for mod_name in [
     "flask_jwt_extended",
     "flask",
@@ -30,8 +30,8 @@ for mod_name in [
     if mod_name not in sys.modules:
         sys.modules[mod_name] = MagicMock()
 
-from swingmusic.lib.sortlib import sort_folders  # noqa: E402
-from swingmusic.models.folder import Folder  # noqa: E402
+from aivinnet.lib.sortlib import sort_folders  # noqa: E402
+from aivinnet.models.folder import Folder  # noqa: E402
 
 
 def make_folder(name: str, trackcount: int = 5) -> Folder:

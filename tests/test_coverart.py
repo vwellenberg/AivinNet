@@ -1,8 +1,8 @@
-"""Tests for swingmusic.lib.coverart (online cover search)."""
+"""Tests for aivinnet.lib.coverart (online cover search)."""
 
 import pytest
 
-from swingmusic.lib import coverart
+from aivinnet.lib import coverart
 
 
 @pytest.fixture(autouse=True)

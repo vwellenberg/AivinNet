@@ -24,15 +24,15 @@ import inspect
 
 import pytest
 
-from swingmusic.lib import playlist_maintenance as pm
-from swingmusic.lib.playlist_maintenance import (
+from aivinnet.lib import playlist_maintenance as pm
+from aivinnet.lib.playlist_maintenance import (
     merge_trackhashes,
     move_trackhash,
     prune_orphan_trackhashes,
     remove_trackhashes,
     trackhash_diff,
 )
-from swingmusic.lib.reference_migration import (
+from aivinnet.lib.reference_migration import (
     migrate_added_at,
     playlist_migration_values,
     replace_trackhash_in_list,

@@ -1,6 +1,6 @@
-"""Tests for swingmusic.utils.dates."""
+"""Tests for aivinnet.utils.dates."""
 
-from swingmusic.utils.dates import seconds_to_time_string
+from aivinnet.utils.dates import seconds_to_time_string
 
 
 class TestSecondsToTimeString:

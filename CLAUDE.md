@@ -7,6 +7,22 @@ Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic) — ein sel
 ⚠️ **Der lokale Ordner heißt noch `SubspaceRadio`, alles andere heißt `AivinNet`.** Repo, Server-Checkout
 und systemd-Unit wurden umbenannt — wer die alten Namen tippt, bekommt „Unit not found" bzw. „No such file".
 
+⚠️ **Das Python-Paket heißt seit 2026-08-07 `aivinnet`** (vorher `swingmusic`): Distribution,
+Modul (`src/aivinnet/`), Konsolenbefehl und Wheel (`aivinnet-<version>-py3-none-any.whl`).
+**Drei Dinge tragen den alten Namen weiter, und zwar mit Absicht:**
+
+| bleibt | warum |
+|---|---|
+| `~/.config/swingmusic/` | enthält DB, Cover, Playlists **jeder** bestehenden Installation — Umbenennen ohne Migration = leere Bibliothek |
+| `swingmusic.db` | derselbe Grund (`Paths.APP_DB_NAME`) |
+| `swingmx/swingmusic`-URLs | Upstream-Attribution, von der AGPL-3.0 verlangt |
+
+Wer den Namen weiter ausräumt, muss deshalb **`swingmusic.db` (Datei) von `aivinnet.db` (Modul)
+unterscheiden** — genau daran ist der erste Anlauf gescheitert: eine Schutzregel für den
+Dateinamen ließ ~100 `from swingmusic.db …`-Importe stehen, und die schnelle Testbahn **mockt
+dieses Modul weg**, also blieben alle 589 Tests grün, während die App beim Start gecrasht wäre.
+Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
+
 | | |
 |---|---|
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)) |
@@ -33,7 +49,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy src/swingmusic/utils/hashing.py src/swingmusic/utils/dates.py src/swingmusic/utils/parsers.py src/swingmusic/utils/__init__.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py --config-file pyproject.toml
 ```
 
 ⚠️ **Die API-Tests (`tests_api/`) laufen auf Windows nicht** — bjoern braucht libev. Sie gehören
@@ -63,7 +79,7 @@ Pro Aufgabe/Issue:
 - **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`).
-- **Vendored Code:** `src/swingmusic/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
+- **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
 ## Dokumentation & Learnings (verbindlich)
 
@@ -159,7 +175,7 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   Hashes **in der Datenbank** stammen teils noch aus der SHA1-Ära, der laufende Server rechnet
   xxh3 — Hashes immer aus der API holen, nie aus `swingmusic.db`. Ableitungsregeln,
   Platzhalter-Fallstricke, MusicBrainz-Abgleich, Indexer-Blindstellen: `.claude/rules/track-tags.md`.
-- `src/swingmusic/lib/pydub/` — vendored pydub, nicht anfassen.
+- `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 
 Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
 `.claude/rules/api-endpoints.md` · `database.md` · `playlist-writes.md` · `track-tags.md` ·
@@ -171,10 +187,10 @@ Freunde installieren per **AppImage** (`install.sh` im Repo-Root), gebaut vom Wo
 (`.github/workflows/build.yml`, `workflow_dispatch`). Vorher `.github/changelog.md` anpassen —
 das ist der Release-Body.
 
-⚠️ Dort lauern mehrere Fallen, die schon zugeschlagen haben — allen voran, dass ein
-`pip install swingmusic` das **Upstream**-Paket von PyPI ziehen und damit still deren Backend
-mit unserem Client ausliefern kann. Details: `.claude/rules/packaging-release.md` (lädt beim
-Anfassen von `install.sh`, `appimage/**`, den Workflows oder `settings.py`).
+⚠️ Dort lauern mehrere Fallen, die schon zugeschlagen haben — zuletzt der AppDir-Name, an dem
+beide AppImage-Jobs des ersten Release-Versuchs starben. Details:
+`.claude/rules/packaging-release.md` (lädt beim Anfassen von `install.sh`, `appimage/**`, den
+Workflows oder `settings.py`).
 
 ## Empfehlungen / Mixes
 
@@ -206,7 +222,17 @@ systemctl status aivinnet
 journalctl -u aivinnet -f      # erfolgreicher Start endet mit „Loading tracks/albums/artists... Done!"
 
 # Speicher beobachten:
-ps aux | grep swingmusic | grep -v grep | awk '{print $6/1024"MB"}'
+ps aux | grep aivinnet | grep -v grep | awk '{print $6/1024"MB"}'
+```
+
+⚠️ **Die systemd-Unit ruft den Konsolenbefehl auf, und der heißt seit der Paket-Umbenennung
+`aivinnet`.** `ExecStart=…/uv run swingmusic …` läuft nach einem Deploy ins Leere („Failed to
+spawn: `swingmusic`"), und **passwortloses sudo deckt nur `systemctl … aivinnet` ab** — die
+Unit-Datei zu ändern braucht das Passwort und damit den Nutzer:
+
+```bash
+sudo sed -i 's/uv run swingmusic/uv run aivinnet/' /etc/systemd/system/aivinnet.service && \
+  sudo systemctl daemon-reload && sudo systemctl restart aivinnet
 ```
 
 - Passwortloses sudo gilt für `systemctl restart/stop/start aivinnet` — **ohne** `.service`,

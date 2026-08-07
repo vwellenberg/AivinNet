@@ -1,12 +1,12 @@
 ---
 paths:
-  - "src/swingmusic/models/track.py"
-  - "src/swingmusic/models/album.py"
-  - "src/swingmusic/utils/hashing.py"
-  - "src/swingmusic/lib/tag*.py"
-  - "src/swingmusic/lib/index.py"
-  - "src/swingmusic/lib/folder_index.py"
-  - "src/swingmusic/utils/filesystem.py"
+  - "src/aivinnet/models/track.py"
+  - "src/aivinnet/models/album.py"
+  - "src/aivinnet/utils/hashing.py"
+  - "src/aivinnet/lib/tag*.py"
+  - "src/aivinnet/lib/index.py"
+  - "src/aivinnet/lib/folder_index.py"
+  - "src/aivinnet/utils/filesystem.py"
 ---
 
 # Track-Tags, Titel und Hashes

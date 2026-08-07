@@ -17,7 +17,7 @@ These tests lock in that:
 import sys
 from unittest.mock import MagicMock
 
-from swingmusic.utils.filesystem import is_hidden_path, run_fast_scandir
+from aivinnet.utils.filesystem import is_hidden_path, run_fast_scandir
 
 
 class TestIsHiddenPath:
@@ -97,12 +97,12 @@ class TestRunFastScandirSkipsHidden:
 # ---------------------------------------------------------------------------
 # Cleanup path: IndexTracks.filter_modded
 #
-# ``swingmusic.lib.tagger`` pulls in the full backend stack (SQLAlchemy, Flask,
+# ``aivinnet.lib.tagger`` pulls in the full backend stack (SQLAlchemy, Flask,
 # watchdog, Pillow, ...). In the fast unit lane those are not installed, so we
 # install MagicMock stand-ins for the heavy modules *only if absent* and pop the
 # ones WE inserted again afterwards, so a later-collected test module still sees
 # the real modules (known sys.modules-pollution gotcha in this repo).
-# ``swingmusic.utils.filesystem`` is deliberately never mocked: filter_modded
+# ``aivinnet.utils.filesystem`` is deliberately never mocked: filter_modded
 # must call the real ``is_hidden_path``.
 # ---------------------------------------------------------------------------
 
@@ -118,22 +118,22 @@ _HEAVY_MODULES = [
     "watchdog.observers.api",
     "PIL",
     "PIL.Image",
-    "swingmusic.db.libdata",
-    "swingmusic.db.userdata",
-    "swingmusic.lib.taglib",
-    "swingmusic.store.folder",
-    "swingmusic.store.tracks",
-    "swingmusic.store.albums",
-    "swingmusic.store.artists",
-    "swingmusic.lib.remove_duplicates",
-    "swingmusic.utils.remove_duplicates",
+    "aivinnet.db.libdata",
+    "aivinnet.db.userdata",
+    "aivinnet.lib.taglib",
+    "aivinnet.store.folder",
+    "aivinnet.store.tracks",
+    "aivinnet.store.albums",
+    "aivinnet.store.artists",
+    "aivinnet.lib.remove_duplicates",
+    "aivinnet.utils.remove_duplicates",
 ]
 
 _inserted = [m for m in _HEAVY_MODULES if m not in sys.modules]
 for _m in _inserted:
     sys.modules[_m] = MagicMock()
 
-from swingmusic.lib import tagger  # noqa: E402
+from aivinnet.lib import tagger  # noqa: E402
 
 # Undo only the stubs we added, so real modules resolve for later test modules.
 for _m in _inserted:

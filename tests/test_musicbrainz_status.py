@@ -2,7 +2,7 @@
 
 import time
 
-from swingmusic.lib.musicbrainz import (
+from aivinnet.lib.musicbrainz import (
     _batch_status,
     status_finish,
     status_is_running,

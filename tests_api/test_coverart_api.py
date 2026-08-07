@@ -25,7 +25,7 @@ def upload_form_app():
     """
     from flask_openapi3 import OpenAPI
 
-    from swingmusic.api.coverart import UploadAlbumCoverForm
+    from aivinnet.api.coverart import UploadAlbumCoverForm
 
     app = OpenAPI(__name__)
 
@@ -90,8 +90,8 @@ def _png_bytes(color=(200, 30, 60)) -> bytes:
 @pytest.fixture()
 def album_cover_paths():
     """The four thumbnail paths + the removal marker for one throwaway album."""
-    from swingmusic.lib import coverart
-    from swingmusic.settings import Paths
+    from aivinnet.lib import coverart
+    from aivinnet.settings import Paths
 
     albumhash = "apitestalbumhash"
     paths = Paths()
@@ -116,7 +116,7 @@ def album_cover_paths():
 
 class TestCoverPipeline:
     def test_save_writes_all_four_sizes(self, album_cover_paths):
-        from swingmusic.lib import coverart
+        from aivinnet.lib import coverart
 
         albumhash, files, _ = album_cover_paths
 
@@ -125,7 +125,7 @@ class TestCoverPipeline:
             assert path.exists() and path.stat().st_size > 0
 
     def test_remove_deletes_the_files_and_marks_the_album(self, album_cover_paths):
-        from swingmusic.lib import coverart
+        from aivinnet.lib import coverart
 
         albumhash, files, tombstone = album_cover_paths
         coverart.save_album_cover_bytes(albumhash, _png_bytes())
@@ -138,7 +138,7 @@ class TestCoverPipeline:
         assert coverart.album_cover_removed(albumhash) is True
 
     def test_undo_brings_the_cover_back(self, album_cover_paths):
-        from swingmusic.lib import coverart
+        from aivinnet.lib import coverart
 
         albumhash, files, tombstone = album_cover_paths
         coverart.save_album_cover_bytes(albumhash, _png_bytes())
@@ -151,7 +151,7 @@ class TestCoverPipeline:
         assert not tombstone.exists()
 
     def test_saving_a_new_cover_lifts_an_earlier_removal(self, album_cover_paths):
-        from swingmusic.lib import coverart
+        from aivinnet.lib import coverart
 
         albumhash, files, tombstone = album_cover_paths
         coverart.remove_album_cover(albumhash)
@@ -164,7 +164,7 @@ class TestCoverPipeline:
             assert path.exists()
 
     def test_undoing_that_save_returns_to_the_removed_state(self, album_cover_paths):
-        from swingmusic.lib import coverart
+        from aivinnet.lib import coverart
 
         albumhash, files, tombstone = album_cover_paths
         coverart.remove_album_cover(albumhash)
@@ -181,8 +181,8 @@ class TestCoverPipeline:
 
 class TestEmbeddableCover:
     def test_builds_a_jpeg_from_the_stored_thumbnail(self, album_cover_paths):
-        from swingmusic.lib import coverart
-        from swingmusic.lib.album_cover_edit import build_embeddable_cover
+        from aivinnet.lib import coverart
+        from aivinnet.lib.album_cover_edit import build_embeddable_cover
 
         albumhash, _, _ = album_cover_paths
         coverart.save_album_cover_bytes(albumhash, _png_bytes())
@@ -199,7 +199,7 @@ class TestEmbeddableCover:
             assert img.size == (width, height)
 
     def test_an_album_without_a_cover_raises(self, album_cover_paths):
-        from swingmusic.lib.album_cover_edit import AlbumCoverError, build_embeddable_cover
+        from aivinnet.lib.album_cover_edit import AlbumCoverError, build_embeddable_cover
 
         albumhash, _, _ = album_cover_paths
 

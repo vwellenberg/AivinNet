@@ -1,6 +1,6 @@
 """Tests for the trackhash reference-migration logic (pure, no database)."""
 
-from swingmusic.lib.reference_migration import (
+from aivinnet.lib.reference_migration import (
     favorite_migration_action,
     replace_trackhash_in_list,
 )

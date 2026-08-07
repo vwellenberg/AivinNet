@@ -21,20 +21,20 @@ If you are interested in making a code contribution take a moment to read throug
 
 ## Development Setup
 
-This project is broken down into 2 parts. The server (this repo) and the client (which lives [here](https://github.com/swing-opensource/swingmusic-client)).
+This project is broken down into 2 parts. The server (this repo) and the client (which lives [here](https://github.com/swing-opensource/aivinnet-client)).
 
 To contribute to the server development, you need to install [uv package manager](https://docs.astral.sh/uv).
 
 Fork this repo, git clone and install the dependencies:
 
 ```sh
-git clone https://github.com/swing-opensource/swingmusic.git
+git clone https://github.com/swing-opensource/aivinnet.git
 
 # or with ssh
 
-git clone git@github.com:swing-opensource/swingmusic.git
+git clone git@github.com:swing-opensource/aivinnet.git
 
-cd swingmusic
+cd aivinnet
 uv sync
 ```
 
@@ -66,7 +66,7 @@ uv pip install bjoern
 Finally, run the server for development on port 1980.
 
 ```sh
-uv run python -m swingmusic --port 1980
+uv run python -m aivinnet --port 1980
 ```
 
 After that, checkout into a new branch and make your changes.
@@ -84,13 +84,13 @@ You need to have [yarn](https://yarnpkg.com) installed in your machine. Please c
 Fork the repo, git clone and install the dependencies:
 
 ```sh
-git clone https://github.com/swing-opensource/swingmusic-client.git
+git clone https://github.com/swing-opensource/aivinnet-client.git
 
 # or with ssh
 
-git clone git@github.com:swing-opensource/swingmusic-client.git
+git clone git@github.com:swing-opensource/aivinnet-client.git
 
-cd swingmusic-client
+cd aivinnet-client
 yarn install
 ```
 

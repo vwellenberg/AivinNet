@@ -3,8 +3,8 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "swingmusic"
-description = "Swing Music"
+name = "aivinnet"
+description = "Self-hosted music server with a web player of its own"
 readme = "README.md"
 requires-python = ">=3.11"
 dynamic = ["version"]
@@ -53,14 +53,17 @@ dependency-metadata = [
 ]
 
 [project.scripts]
-swingmusic = "swingmusic.__main__:run"
+aivinnet = "aivinnet.__main__:run"
 
 
 [project.urls]
-Homepage = "https://swingmx.com/"
-Repository = "https://github.com/swingmx/swingmusic"
-Documentation = "https://swingmx.com/guide/introduction.html"
-Issues = "https://github.com/swingmx/swingmusic/issues"
+# INFO: These pointed at swingmx.com and swingmx/swingmusic — upstream's site
+# and repo. A `pip show` on an installed AivinNet sent people to a project that
+# knows nothing about this fork's endpoints. Issues live in the CLIENT repo,
+# backend topics included.
+Homepage = "https://github.com/vwellenberg/AivinNet"
+Repository = "https://github.com/vwellenberg/AivinNet"
+Issues = "https://github.com/vwellenberg/AivinNet-Client/issues"
 
 
 [tool.setuptools_scm]
@@ -85,12 +88,12 @@ addopts = "-ra"
 [tool.coverage.run]
 # Path-based source so EVERY module under the package counts toward the
 # denominator (un-imported modules report as 0%), keeping the coverage
-# percentage stable. With `--cov=swingmusic` only imported modules count, so
+# percentage stable. With `--cov=aivinnet` only imported modules count, so
 # importing a large untested module in a new test would *lower* the number and
 # block merges spuriously — exactly what a regression gate must not do.
-source = ["src/swingmusic"]
+source = ["src/aivinnet"]
 omit = [
-    "src/swingmusic/lib/pydub/*",
+    "src/aivinnet/lib/pydub/*",
     "*/__main__.py",
 ]
 
@@ -101,7 +104,7 @@ show_missing = true
 target-version = "py311"
 line-length = 120
 src = ["src"]
-extend-exclude = ["src/swingmusic/lib"]
+extend-exclude = ["src/aivinnet/lib"]
 
 [tool.ruff.lint]
 select = [
@@ -125,7 +128,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["swingmusic"]
+known-first-party = ["aivinnet"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -133,16 +136,16 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
-exclude = ["src/swingmusic/lib/pydub"]
+exclude = ["src/aivinnet/lib/pydub"]
 
 # Strict mode for modules that are already clean
 [[tool.mypy.overrides]]
 module = [
-    "swingmusic.utils.hashing",
-    "swingmusic.utils.dates",
-    "swingmusic.utils.parsers",
-    "swingmusic.utils",
-    "swingmusic.lib.coverart",
+    "aivinnet.utils.hashing",
+    "aivinnet.utils.dates",
+    "aivinnet.utils.parsers",
+    "aivinnet.utils",
+    "aivinnet.lib.coverart",
 ]
 disallow_untyped_defs = true
 warn_return_any = true

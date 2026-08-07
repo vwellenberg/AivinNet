@@ -16,7 +16,7 @@ Most `READ` requests retrieve data from memory instead of the database. While `W
 
 ### Indexing tracks
 
-Swing music crawls the selected root dirs and finds all [supported files](https://github.com/swing-opensource/swingmusic/blob/f62fe0ac24d3cb356f43c31882fd60ba0976e28b/app/settings.py#L101). It extracts metadata such as title, artists and album from the files and stores them in the database. Along with the extracted metadata, the`trackhash` and `albumhash` properties are added to help with duplicate detection.
+Swing music crawls the selected root dirs and finds all [supported files](https://github.com/swing-opensource/aivinnet/blob/f62fe0ac24d3cb356f43c31882fd60ba0976e28b/app/settings.py#L101). It extracts metadata such as title, artists and album from the files and stores them in the database. Along with the extracted metadata, the`trackhash` and `albumhash` properties are added to help with duplicate detection.
 
 For more on how the `trackhash` and `albumhash` are generated and used, check out the page on [hashing](./hashing.md).
 
