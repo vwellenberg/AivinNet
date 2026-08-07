@@ -1,10 +1,11 @@
 # AivinNet
 
-**Self-hosted music server — fork of [Swing Music](https://github.com/swingmx/swingmusic)**
+**Self-hosted music server with a web player of its own**
 
-AivinNet streams your own audio library to a Spotify-style web player. Point it at
-a folder of music, open it in a browser, and that is the whole idea. It is a
-Python/Flask backend that serves a REST API plus the dedicated
+AivinNet streams your own audio library to a web player with a look of its own —
+bold 90s/Memphis shapes and colours, in light and dark. Point it at a folder of
+music, open it in a browser, and that is the whole idea. It is a Python/Flask
+backend that serves a REST API plus the dedicated
 [AivinNet web client](https://github.com/vwellenberg/AivinNet-Client).
 
 ---
@@ -134,12 +135,16 @@ journalctl -u aivinnet -f
 
 ---
 
-## Upstream
+## Origin and attribution
 
-This project is a fork of [swingmx/swingmusic](https://github.com/swingmx/swingmusic)
-by Mungai Njoroge. Upstream features and fixes are merged selectively, keeping
-the AivinNet branding and customisations intact. The web client fork carries its
-own MIT licence and attribution.
+AivinNet began as a fork of [swingmx/swingmusic](https://github.com/swingmx/swingmusic)
+by Mungai Njoroge, and inherits its AGPL-3.0 licence — see below.
+
+It has been developed independently since **June 2025**: the web client was
+redesigned from the ground up, and multiroom playback, track editing, playlist
+folders, the lyrics finder and the installer were built here. Upstream changes
+are no longer merged. The web client fork carries its own MIT licence and
+attribution.
 
 ---
 
