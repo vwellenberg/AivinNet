@@ -49,7 +49,7 @@ field in the backend).
          "command": "python",
          "args": ["/ABS/PATH/SubspaceRadio/mcp_server/server.py"],
          "env": {
-           "AIVINNET_URL": "http://192.168.0.4:1970",
+           "AIVINNET_URL": "http://your-server:1970",
            "AIVINNET_TOKEN": "<jwt>"
          }
        }
