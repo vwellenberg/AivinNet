@@ -40,6 +40,32 @@ class GetArtistQuery(TrackLimitSchema, GetArtistAlbumsQuery):
     albumlimit: int = Field(7, description="The number of albums to return")
 
 
+def genres_with_decade(artist) -> list[dict[str, str]]:
+    """
+    The artist's genres, with a decade chip ("80s") in front when its date says so.
+
+    Shared by the artist page and the Now Playing summary. It is one function
+    because the two must not disagree: the panel sits next to the artist page,
+    and a decade chip that appears on one and not the other reads as a bug in
+    whichever one the user looked at second.
+    """
+    # ⚠️ `date == 0` means UNKNOWN, not 1970 — and `fromtimestamp(0).year` is
+    # 1970, which the old `if year:` check happily accepted. Every artist without
+    # a date therefore got a "70s" chip it had no claim to. Checking the
+    # timestamp instead of the derived year is the whole fix.
+    if not artist.date:
+        return [*artist.genres]
+
+    try:
+        year = datetime.fromtimestamp(artist.date).year
+    except (ValueError, OverflowError, OSError):
+        # Out-of-range values come from bad tags; no chip beats a wrong one.
+        return [*artist.genres]
+
+    decade = str(math.floor(year / 10) * 10)[2:] + "s"
+    return [{"name": decade, "genrehash": decade}, *artist.genres]
+
+
 @api.get("/<string:artisthash>")
 def get_artist(path: ArtistHashSchema, query: GetArtistQuery):
     """
@@ -63,20 +89,7 @@ def get_artist(path: ArtistHashSchema, query: GetArtistQuery):
     if artist.albumcount == 0 and tcount < 10:
         limit = tcount
 
-    try:
-        year = datetime.fromtimestamp(artist.date).year
-    except ValueError:
-        year = 0
-
-    genres = [*artist.genres]
-    decade = None
-
-    if year:
-        decade = math.floor(year / 10) * 10
-        decade = str(decade)[2:] + "s"
-
-    if decade:
-        genres.insert(0, {"name": decade, "genrehash": decade})
+    genres = genres_with_decade(artist)
 
     stats = get_track_group_stats(tracks)
     duration = sum(t.duration for t in tracks) if tracks else 0
@@ -104,6 +117,53 @@ def get_artist(path: ArtistHashSchema, query: GetArtistQuery):
         "tracks": tracks,
         "albums": albums,
         "stats": stats,
+    }
+
+
+@api.get("/<string:artisthash>/summary")
+def get_artist_summary(path: ArtistHashSchema):
+    """
+    Get artist summary
+
+    The counts and genres for an artist, without its tracks or albums.
+
+    ⚠️ This exists because `GET /artist/<hash>` is expensive and the Now Playing
+    panel asks on every artist change. That route loads every track of the
+    artist, sorts them by playcount, computes group stats and fetches the albums
+    — work this server does on its ONLY thread, so a caller that just wants
+    "12 albums, 143 tracks" would block playback for everyone.
+
+    Everything here comes from the in-memory artist map: the entry itself plus
+    `len(trackhashes)`. No track objects are built.
+    """
+    entry = ArtistStore.artistmap.get(path.artisthash)
+
+    if entry is None:
+        return {"error": "Artist not found"}, 404
+
+    artist = entry.artist
+
+    return {
+        "artist": {
+            # `serialize_for_card` drops the play counters by default; the panel
+            # is the reason they are asked for, so they are included here.
+            **serialize_for_card(artist, include={"playcount", "lastplayed"}),
+            # Same list the artist page builds, decade chip included — see
+            # `genres_with_decade` for why that is not duplicated here.
+            "genres": genres_with_decade(artist),
+            # ⚠️ This counts the hashes the store INDEXED, while the artist page
+            # counts the tracks it could RESOLVE from them
+            # (`get_tracks_by_trackhashes` drops hashes it does not know). The two
+            # can differ by the dead hashes an entry keeps after a tag edit —
+            # `track_edit._reconcile_artist` leaves an entry in place while the
+            # artist is still referenced elsewhere. Resolving them here would mean
+            # loading every track, which is the one thing this route exists to
+            # avoid, so the cheap count is deliberate and may run slightly high
+            # until the next index.
+            "trackcount": len(entry.trackhashes),
+            "albumcount": artist.albumcount,
+            "is_favorite": artist.is_favorite,
+        }
     }
 
 
