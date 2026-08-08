@@ -49,13 +49,17 @@ def genres_with_decade(artist) -> list[dict[str, str]]:
     and a decade chip that appears on one and not the other reads as a bug in
     whichever one the user looked at second.
     """
+    # ⚠️ `date == 0` means UNKNOWN, not 1970 — and `fromtimestamp(0).year` is
+    # 1970, which the old `if year:` check happily accepted. Every artist without
+    # a date therefore got a "70s" chip it had no claim to. Checking the
+    # timestamp instead of the derived year is the whole fix.
+    if not artist.date:
+        return [*artist.genres]
+
     try:
         year = datetime.fromtimestamp(artist.date).year
     except (ValueError, OverflowError, OSError):
-        # A date of 0 is "unknown", and out-of-range values come from bad tags.
-        return [*artist.genres]
-
-    if not year:
+        # Out-of-range values come from bad tags; no chip beats a wrong one.
         return [*artist.genres]
 
     decade = str(math.floor(year / 10) * 10)[2:] + "s"

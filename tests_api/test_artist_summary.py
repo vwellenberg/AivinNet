@@ -216,12 +216,30 @@ def test_genres_carry_the_same_decade_chip_as_the_artist_page(artist_api, monkey
 
 
 def test_an_unknown_date_adds_no_decade_chip(artist_api):
-    """The fixture's artist has `date = 0`, which means "unknown" — not 1970."""
+    """Regression for a pre-existing bug this route surfaced.
+
+    `date == 0` means UNKNOWN, but `datetime.fromtimestamp(0).year` is 1970, and
+    the old guard was `if year:` — truthy. So every artist without a date was
+    labelled "70s" on the artist page. Nothing in this library trips it today
+    (0 of a 40-artist sample carried the chip), which is exactly why it survived.
+    """
     api, _ = artist_api
 
     artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
 
     assert artist["genres"] == [{"name": "Art Rock", "genrehash": "artrock"}]
+
+
+def test_a_broken_date_adds_no_decade_chip(artist_api, monkeypatch):
+    """Bad tags produce timestamps outside what `fromtimestamp` accepts. No chip
+    beats a wrong chip, and it must not become a 500."""
+    api, entry = artist_api
+    monkeypatch.setattr(entry.artist, "date", 10**18)
+
+    res = api.get("/artist/9d24d526ac9192b1/summary")
+
+    assert res.status_code == 200
+    assert res.get_json()["artist"]["genres"] == [{"name": "Art Rock", "genrehash": "artrock"}]
 
 
 def test_artist_dataclass_still_has_the_fields_the_route_reads():
