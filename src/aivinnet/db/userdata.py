@@ -209,7 +209,26 @@ class FavoritesTable(Base):
     extra: Mapped[dict[str, Any]] = mapped_column(JSON(), nullable=True, default_factory=dict)
 
     @classmethod
-    def get_all(cls, with_user: bool = False):
+    def get_all(cls, with_user: bool):
+        """
+        Every favorite of the current user (`with_user=True`), or of EVERY user
+        (`with_user=False`).
+
+        ⚠️ `with_user` has no default on purpose. It used to default to False —
+        the opposite of every other user-scoped table here (`PlaylistTable`
+        defaults its `current_user` to True, `ScrobbleTable` and
+        `CollectionTable` filter unconditionally) — so a caller who simply did
+        not think about it silently read everyone's rows. That is exactly what
+        happened in the backup path (AivinNet-Client#513): the backup wrote
+        foreign users' favorites into the file and the restore compared against
+        them, so one user's favorite made another user's unrestorable.
+
+        Requiring the argument turns "did not think about it" into a
+        TypeError at the call site instead of wrong rows at runtime. There is
+        one legitimate `False`: `lib/mapstuff.py::map_favorites` builds the
+        in-memory stores for all users at startup, where there is no current
+        user to ask for.
+        """
         with DbEngine.manager() as conn:
             if with_user:
                 result = conn.execute(select(cls).where(cls.userid == get_current_userid()))

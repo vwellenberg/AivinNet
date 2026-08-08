@@ -48,7 +48,10 @@ def map_favorites():
     """
     Maps favorites data to the in-memory stores.
     """
-    favorites = FavoritesTable.get_all()
+    # Every user's rows, deliberately: this runs at startup to build the
+    # in-memory stores, and `toggle_favorite_user(entry.userid)` below files
+    # each one under its owner. There is no current user to scope to here.
+    favorites = FavoritesTable.get_all(with_user=False)
 
     for entry in favorites:
         if entry.type == "album":

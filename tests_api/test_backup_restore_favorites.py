@@ -23,6 +23,7 @@ Real SQLite rather than mocks — the question is what ends up STORED.
 """
 
 from dataclasses import asdict
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -43,24 +44,46 @@ def favorites_db():
     """
     Real SQLite, real FavoritesTable, wiped between tests.
 
-    Same shape as `test_favorites_table_roundtrip.py`: user 1 has to exist
+    Same shape as `test_favorites_table_roundtrip.py`: the users have to exist
     because `favorite.userid` is a foreign key and the engine runs with
-    PRAGMA foreign_keys=ON.
+    PRAGMA foreign_keys=ON. TWO of them — the scoping bugs (#513) are invisible
+    with one, which is how they survived the first round of tests here.
+
+    `get_current_userid` is patched rather than faked through a JWT (the
+    subject is the table and the restore, not auth) but stays a parameter, so
+    a test can switch identity mid-run.
     """
     create_all_tables()
 
     with DbEngine.manager(commit=True) as session:
-        exists = session.execute(select(UserTable.id).where(UserTable.id == 1)).first()
-        if not exists:
-            session.execute(insert(UserTable).values(id=1, username="restore-user", password="x", roles=[], extra={}))
+        for uid, name in ((1, "restore-user"), (2, "other-user")):
+            exists = session.execute(select(UserTable.id).where(UserTable.id == uid)).first()
+            if not exists:
+                session.execute(insert(UserTable).values(id=uid, username=name, password="x", roles=[], extra={}))
         # Wipe on BOTH sides. Teardown alone leaves the module depending on
         # nothing else in the suite having written favorites first, and the
         # exact-equality assertions below would then fail for a reason that has
         # nothing to do with them.
         session.execute(delete(FavoritesTable))
 
-    with patch("aivinnet.db.userdata.get_current_userid", return_value=1):
-        yield
+    # ⚠️ BOTH bindings. `from … import get_current_userid` copies the name into
+    # the importing module, so patching only `db.userdata` leaves
+    # `api.backup_and_restore` calling the real one — which raises outside a
+    # request context and returns its hardcoded fallback of 1. Every assertion
+    # about "the restoring user" would then be checking a constant, and the
+    # suite would stay green with the scoping removed.
+    with (
+        patch("aivinnet.db.userdata.get_current_userid", return_value=1) as db_userid,
+        patch("aivinnet.api.backup_and_restore.get_current_userid", return_value=1) as api_userid,
+    ):
+        yield SimpleNamespace(
+            db=db_userid,
+            api=api_userid,
+            set=lambda uid: (
+                setattr(db_userid, "return_value", uid),
+                setattr(api_userid, "return_value", uid),
+            ),
+        )
 
     with DbEngine.manager(commit=True) as session:
         session.execute(delete(FavoritesTable))
@@ -80,8 +103,15 @@ def _favorite_everything():
 
 
 def _backup_payload() -> list[dict]:
-    """Exactly what `create_backup` writes: `asdict` over `get_all()`."""
-    return [asdict(entry) for entry in FavoritesTable.get_all()]
+    """
+    Exactly what `create_backup` writes: `asdict` over EVERY user's favorites.
+
+    Instance-wide on purpose — `/backup/create` is admin-only, so a personal
+    backup would leave every other user's favorites in no backup at all, and
+    they cannot make their own (#513). Per-user correctness lives in the
+    restore.
+    """
+    return [asdict(entry) for entry in FavoritesTable.get_all(with_user=False)]
 
 
 def _wipe():
@@ -199,3 +229,105 @@ def test_an_already_prefixed_hash_is_not_prefixed_twice(favorites_db):
 
     assert _stored_hashes() == [f"track_{TRACK}"]
     assert FavoritesTable.check_exists(TRACK, "track") is True
+
+
+# ---------------------------------------------------------------------------
+# Scoping (AivinNet-Client#513). Three bugs of the same shape: backup and
+# restore did not know the word "mine". Every one of them is invisible with a
+# single user in the table, which is how the first round of tests here missed
+# them — so these run with two.
+# ---------------------------------------------------------------------------
+
+
+def _rows() -> list[tuple[str, str, int]]:
+    """(hash, type, userid) straight from SQL — the dataclass hides the prefix."""
+    with DbEngine.manager() as session:
+        return sorted(
+            (r[0], r[1], r[2])
+            for r in session.execute(select(FavoritesTable.hash, FavoritesTable.type, FavoritesTable.userid)).all()
+        )
+
+
+def test_the_backup_holds_every_users_favorites(favorites_db):
+    """
+    `/backup/create` is admin-only, so it is an INSTANCE backup. Scoping it to
+    the calling admin would leave user 2's favorites in no backup at all —
+    they cannot make one themselves.
+    """
+    FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
+
+    favorites_db.set(2)
+    FavoritesTable.insert_item({"hash": ALBUM, "type": "album"})
+    favorites_db.set(1)
+
+    payload = _backup_payload()
+
+    assert sorted(entry["hash"] for entry in payload) == sorted([TRACK, ALBUM])
+    assert sorted(entry["userid"] for entry in payload) == [1, 2]
+
+
+def test_another_users_favorite_does_not_block_mine(favorites_db):
+    """
+    The reported case. User 2 favorited the track; user 1 restores a backup
+    containing it. Comparing against every user's rows made it look present.
+    """
+    favorites_db.set(2)
+    FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
+    favorites_db.set(1)
+
+    _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 1, "extra": {}}])
+
+    assert _rows() == sorted([(f"track_{TRACK}", "track", 1), (f"track_{TRACK}", "track", 2)])
+    assert FavoritesTable.check_exists(TRACK, "track") is True
+
+
+def test_a_pinned_album_does_not_block_the_album_favorite(favorites_db):
+    """
+    Same hash, different type. The old check compared the bare hash, so
+    pinning an album silently swallowed its `album` favorite on restore.
+    """
+    FavoritesTable.insert_item({"hash": ALBUM, "type": "pinned_album"})
+
+    _restore([{"hash": ALBUM, "type": "album", "timestamp": 1700000000, "userid": 1, "extra": {}}])
+
+    assert (f"album_{ALBUM}", "album", 1) in _rows()
+
+
+def test_a_known_owner_keeps_their_rows(favorites_db):
+    """
+    Restoring an instance backup on the instance it came from must put
+    everyone's rows back where they were. Re-owning them to whoever pressed
+    the button would quietly hand the admin another user's favorites.
+    """
+    _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 2, "extra": {}}])
+
+    assert _rows() == [(f"track_{TRACK}", "track", 2)]
+
+
+def test_an_unknown_owner_falls_back_to_the_restoring_user(favorites_db):
+    """
+    The cross-instance case: user 7 does not exist here. Keeping the id would
+    hit the `user.id` foreign key, and the swallowed IntegrityError would drop
+    the row while the restore still reported success — so it lands with the
+    person doing the restoring instead.
+
+    ⚠️ Restoring as user 2, not 1. `get_current_userid`'s real fallback outside
+    a request context IS 1, so asserting 1 here would pass even with the patch
+    missing or the whole fallback removed.
+    """
+    favorites_db.set(2)
+
+    _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 7, "extra": {}}])
+
+    assert _rows() == [(f"track_{TRACK}", "track", 2)]
+
+
+def test_my_own_duplicate_is_still_skipped(favorites_db):
+    """The scoping must not turn the dedup off — restoring twice stays a no-op."""
+    FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
+    payload = _backup_payload()
+
+    _restore(payload)
+    _restore(payload)
+
+    assert _rows() == [(f"track_{TRACK}", "track", 1)]

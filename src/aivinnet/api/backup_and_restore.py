@@ -9,9 +9,10 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
-from aivinnet.db.userdata import CollectionTable, FavoritesTable, PlaylistTable, ScrobbleTable
+from aivinnet.db.userdata import CollectionTable, FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib.index import index_everything
 from aivinnet.settings import Paths
+from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import timestamp_to_time_passed
 
 bp_tag = Tag(name="Backup and Restore", description="Backup and Restore")
@@ -66,7 +67,13 @@ def backup():
     img_folder = backup_dir / "images"
     img_folder_created = img_folder.exists()
 
-    favorites = FavoritesTable.get_all()
+    # EVERY user's favorites, deliberately. This endpoint is `@admin_required`,
+    # so it is an instance backup, not a personal one — scoping it to the
+    # calling admin would leave every other user's favorites in no backup at
+    # all, and they cannot make their own (same gate). The per-user correctness
+    # belongs on the restore side, where `restore_favorites` keeps each row
+    # with its owner (AivinNet-Client#513).
+    favorites = FavoritesTable.get_all(with_user=False)
     favorites = [asdict(entry) for entry in favorites]
 
     scrobbles = ScrobbleTable.get_all(start=0)
@@ -155,13 +162,43 @@ class RestoreBackup:
         pass
 
     def restore_favorites(self, favorites: list[dict]):
-        existing_favorites = FavoritesTable.get_all()
-        existing_hashes = set(fav.hash for fav in existing_favorites)
-        new_favorites = [fav for fav in favorites if fav["hash"] not in existing_hashes]
+        """
+        Put the backup's favorites back, each one under its owner.
 
-        for fav in new_favorites:
+        A favorite is identified by **(owner, type, hash)** — and every part of
+        that was missing before (AivinNet-Client#513):
+
+        - The duplicate check ignored the owner, so user 2 having favorited a
+          track made user 1's copy of it unrestorable.
+        - It compared the bare hash, which is only unique together with the
+          type. A pinned album therefore swallowed the `album` favorite of the
+          same album.
+        - `insert_item` fills `userid` only when it is missing, so an id from
+          the file that does not exist here hit the `user.id` foreign key and
+          was dropped by the `except` below — which prints and moves on, so the
+          restore reported success either way.
+
+        Ownership is KEPT where it can be. Restoring an instance backup on the
+        instance it came from has to put everyone's rows back where they were;
+        re-owning them to whoever pressed the button would quietly hand one
+        user another's favorites. Only an owner this instance does not know
+        falls back to the restoring user — that is the cross-instance case,
+        and the alternative there is dropping the row on the floor.
+        """
+        known_users = {user.id for user in UserTable.get_all()}
+        current = get_current_userid()
+
+        # Owner included: two users may legitimately favorite the same item.
+        existing = {(fav.userid, fav.type, fav.hash) for fav in FavoritesTable.get_all(with_user=False)}
+
+        for fav in favorites:
+            owner = fav.get("userid") if fav.get("userid") in known_users else current
+
+            if (owner, fav["type"], fav["hash"]) in existing:
+                continue
+
             try:
-                FavoritesTable.insert_item(fav)
+                FavoritesTable.insert_item({**fav, "userid": owner})
             except sqlalchemy.exc.IntegrityError:
                 print("Integrity error, skipping favorite")
                 print(fav)
