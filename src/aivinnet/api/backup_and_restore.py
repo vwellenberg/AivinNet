@@ -161,7 +161,13 @@ class RestoreBackup:
 
         for fav in new_favorites:
             try:
-                FavoritesTable.insert_item(fav)
+                # `insert_prefixed_item`, not `insert_item`: a backup stores the
+                # hash exactly as the column holds it, prefix included — the
+                # same reason the dedup check above compares it against the raw
+                # column. Prefixing again wrote `track_track_<hash>`, rows no
+                # lookup ever matched, so restored favorites were invisible
+                # while the restore reported success (AivinNet-Client#451).
+                FavoritesTable.insert_prefixed_item(fav)
             except sqlalchemy.exc.IntegrityError:
                 print("Integrity error, skipping favorite")
                 print(fav)
