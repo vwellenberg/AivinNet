@@ -86,8 +86,15 @@ def _favorite_everything():
 
 
 def _backup_payload() -> list[dict]:
-    """Exactly what `create_backup` writes: `asdict` over MY favorites (#513)."""
-    return [asdict(entry) for entry in FavoritesTable.get_all(with_user=True)]
+    """
+    Exactly what `create_backup` writes: `asdict` over EVERY user's favorites.
+
+    Instance-wide on purpose — `/backup/create` is admin-only, so a personal
+    backup would leave every other user's favorites in no backup at all, and
+    they cannot make their own (#513). Per-user correctness lives in the
+    restore.
+    """
+    return [asdict(entry) for entry in FavoritesTable.get_all(with_user=False)]
 
 
 def _wipe():
@@ -224,7 +231,12 @@ def _rows() -> list[tuple[str, str, int]]:
         )
 
 
-def test_the_backup_holds_only_my_favorites(favorites_db):
+def test_the_backup_holds_every_users_favorites(favorites_db):
+    """
+    `/backup/create` is admin-only, so it is an INSTANCE backup. Scoping it to
+    the calling admin would leave user 2's favorites in no backup at all —
+    they cannot make one themselves.
+    """
     FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
 
     favorites_db.return_value = 2
@@ -233,7 +245,8 @@ def test_the_backup_holds_only_my_favorites(favorites_db):
 
     payload = _backup_payload()
 
-    assert [entry["hash"] for entry in payload] == [TRACK]
+    assert sorted(entry["hash"] for entry in payload) == sorted([TRACK, ALBUM])
+    assert sorted(entry["userid"] for entry in payload) == [1, 2]
 
 
 def test_another_users_favorite_does_not_block_mine(favorites_db):
@@ -263,15 +276,25 @@ def test_a_pinned_album_does_not_block_the_album_favorite(favorites_db):
     assert (f"album_{ALBUM}", "album", 1) in _rows()
 
 
-def test_a_foreign_userid_in_the_file_does_not_travel(favorites_db):
+def test_a_known_owner_keeps_their_rows(favorites_db):
     """
-    `insert_item` fills `userid` only when it is missing, so the id from the
-    file used to survive: on a fresh instance it hit the `user.id` foreign key
-    and the row was dropped by the swallowed IntegrityError; on a shared one it
-    landed under the wrong owner. A backup is personal — restoring it means
-    "give ME these back".
+    Restoring an instance backup on the instance it came from must put
+    everyone's rows back where they were. Re-owning them to whoever pressed
+    the button would quietly hand the admin another user's favorites.
     """
     _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 2, "extra": {}}])
+
+    assert _rows() == [(f"track_{TRACK}", "track", 2)]
+
+
+def test_an_unknown_owner_falls_back_to_the_restoring_user(favorites_db):
+    """
+    The cross-instance case: user 7 does not exist here. Keeping the id would
+    hit the `user.id` foreign key, and the swallowed IntegrityError would drop
+    the row while the restore still reported success — so it lands with the
+    person doing the restoring instead.
+    """
+    _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 7, "extra": {}}])
 
     assert _rows() == [(f"track_{TRACK}", "track", 1)]
 
