@@ -221,31 +221,9 @@ class FavoritesTable(Base):
 
     @classmethod
     def insert_item(cls, item: dict[str, Any]):
-        """
-        Insert a favorite whose `hash` is the RAW item hash (trackhash,
-        albumhash, artisthash) — this adds the type prefix.
-
-        Callers that already hold a prefixed hash (a backup, a row read back
-        out of this table) want `insert_prefixed_item` instead.
-        """
         # guard against hash collisions for different item types
         item["hash"] = f"{item['type']}_{item['hash']}"
 
-        return cls.insert_prefixed_item(item)
-
-    @classmethod
-    def insert_prefixed_item(cls, item: dict[str, Any]):
-        """
-        Insert a favorite whose `hash` ALREADY carries its type prefix.
-
-        Split out from `insert_item` because prefixing and inserting are two
-        jobs, and merging them silently corrupted the restore path
-        (AivinNet-Client#451): a backup stores the hash as written — prefix
-        included — so feeding it back through `insert_item` produced rows like
-        `track_track_<hash>`. Those satisfy every constraint and no lookup ever
-        matches them again, which is why nothing failed and the restored
-        favorites were simply invisible.
-        """
         if item.get("timestamp") is None:
             item["timestamp"] = int(datetime.datetime.now().timestamp())
 
