@@ -30,7 +30,10 @@ def _artist(**overrides):
         "playcount": 184,
         "playduration": 60_000,
         "extra": {},
-        "image": "pg.webp",
+        # Whatever is passed here is discarded: `Artist.__post_init__` derives
+        # the image from the hash. Kept as a wrong value on purpose so the test
+        # below documents that, rather than agreeing with it by accident.
+        "image": "ignored.webp",
         "color": "#123456",
     }
     fields.update(overrides)
@@ -69,8 +72,18 @@ def test_returns_counts_and_genres(artist_api):
     artist = res.get_json()["artist"]
     assert artist["name"] == "Peter Gabriel"
     assert artist["albumcount"] == 12
-    assert artist["image"] == "pg.webp"
     assert artist["genres"] == [{"name": "Art Rock", "genrehash": "artrock"}]
+
+
+def test_image_is_derived_from_the_hash(artist_api):
+    """`Artist.__post_init__` sets `image = artisthash + ".webp"` and ignores
+    whatever was passed in. The panel therefore never has to guess a filename —
+    and a client that builds its own would drift the moment this changes."""
+    api, _ = artist_api
+
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
+
+    assert artist["image"] == "9d24d526ac9192b1.webp"
 
 
 def test_includes_the_play_counters_the_panel_asks_for(artist_api):
