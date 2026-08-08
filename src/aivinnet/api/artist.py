@@ -107,6 +107,44 @@ def get_artist(path: ArtistHashSchema, query: GetArtistQuery):
     }
 
 
+@api.get("/<string:artisthash>/summary")
+def get_artist_summary(path: ArtistHashSchema):
+    """
+    Get artist summary
+
+    The counts and genres for an artist, without its tracks or albums.
+
+    ⚠️ This exists because `GET /artist/<hash>` is expensive and the Now Playing
+    panel asks on every artist change. That route loads every track of the
+    artist, sorts them by playcount, computes group stats and fetches the albums
+    — work this server does on its ONLY thread, so a caller that just wants
+    "12 albums, 143 tracks" would block playback for everyone.
+
+    Everything here comes from the in-memory artist map: the entry itself plus
+    `len(trackhashes)`. No track objects are built, no database is touched.
+    """
+    entry = ArtistStore.artistmap.get(path.artisthash)
+
+    if entry is None:
+        return {"error": "Artist not found"}, 404
+
+    artist = entry.artist
+
+    return {
+        "artist": {
+            # `serialize_for_card` drops the play counters by default; the panel
+            # is the reason they are asked for, so they are included here.
+            **serialize_for_card(artist, include={"playcount", "lastplayed", "genres"}),
+            # The stored `trackcount` is derived state that the store keeps in
+            # sync; `trackhashes` is what the store actually indexed. Counting it
+            # cannot disagree with what the artist page would list.
+            "trackcount": len(entry.trackhashes),
+            "albumcount": artist.albumcount,
+            "is_favorite": artist.is_favorite,
+        }
+    }
+
+
 @api.get("/<artisthash>/albums")
 def get_artist_albums(path: ArtistHashSchema, query: GetArtistAlbumsQuery):
     """
