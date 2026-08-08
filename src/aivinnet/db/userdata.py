@@ -221,8 +221,33 @@ class FavoritesTable(Base):
 
     @classmethod
     def insert_item(cls, item: dict[str, Any]):
-        # guard against hash collisions for different item types
-        item["hash"] = f"{item['type']}_{item['hash']}"
+        # Guard against hash collisions for different item types: the column
+        # stores `<type>_<hash>`, callers pass the RAW hash.
+        #
+        # ⚠️ Prefixing here looks unsafe for the backup restore, which feeds
+        # rows that came out of this very table — and for CURRENT backups it is
+        # not, because `Favorite.__post_init__` strips the prefix on the way
+        # out. The pair only makes sense together; reading either half alone
+        # gives a confident wrong answer (AivinNet-Client#451 was filed on
+        # exactly that). Round trip pinned in
+        # tests_api/test_backup_restore_favorites.py.
+        #
+        # The prefix is applied only when it is MISSING. Not because a caller
+        # passing a prefixed hash exists today — none does, and no backup ever
+        # held one either (62097456 introduced the prefix and the strip in the
+        # same commit, so before it nothing was prefixed anywhere). It is
+        # defence in depth against the one mistake this pair keeps inviting:
+        # doubling produces `track_track_…`, which satisfies every constraint
+        # and matches no lookup, so it fails SILENTLY — the restore reports
+        # success and the favorites are simply gone. #451 was filed on that
+        # theory, and the first attempt at fixing it removed the prefixing here
+        # and would have written unprefixed rows instead.
+        #
+        # Safe rather than a guess: a raw hash is a hex digest (`create_hash`,
+        # 16 chars) and can never start with `track_`/`album_`/`artist_`.
+        prefix = f"{item['type']}_"
+        if not item["hash"].startswith(prefix):
+            item["hash"] = prefix + item["hash"]
 
         if item.get("timestamp") is None:
             item["timestamp"] = int(datetime.datetime.now().timestamp())
