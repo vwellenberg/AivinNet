@@ -66,7 +66,12 @@ def backup():
     img_folder = backup_dir / "images"
     img_folder_created = img_folder.exists()
 
-    favorites = FavoritesTable.get_all()
+    # MY favorites. Without the filter this wrote every user's rows into the
+    # file — and since each row carries its `userid`, restoring it on another
+    # instance either recreated foreign ownership or hit the `user.id` foreign
+    # key and was dropped by the swallowed IntegrityError below
+    # (AivinNet-Client#513).
+    favorites = FavoritesTable.get_all(with_user=True)
     favorites = [asdict(entry) for entry in favorites]
 
     scrobbles = ScrobbleTable.get_all(start=0)
@@ -155,13 +160,34 @@ class RestoreBackup:
         pass
 
     def restore_favorites(self, favorites: list[dict]):
-        existing_favorites = FavoritesTable.get_all()
-        existing_hashes = set(fav.hash for fav in existing_favorites)
-        new_favorites = [fav for fav in favorites if fav["hash"] not in existing_hashes]
+        """
+        Put the backup's favorites back, as the restoring user's own.
+
+        Three things were wrong here, all the same shape — the code did not
+        know the word "mine" (AivinNet-Client#513):
+
+        - The duplicate check read EVERY user's rows, so user 2 having
+          favorited a track made user 1's copy of it unrestorable.
+        - It compared the bare hash, which is only unique together with the
+          type. A pinned album therefore blocked the `album` favorite of the
+          same album — same hash, different type.
+        - `insert_item` fills `userid` only when it is missing, so the id from
+          the file survived: on a fresh instance those rows hit the `user.id`
+          foreign key and were dropped by the `except` below (which prints and
+          moves on), and on a shared one they landed under the wrong owner.
+
+        The `userid` is dropped rather than trusted. A backup is a personal
+        one — restoring it means "give ME these back", not "recreate whoever
+        owned them on the machine this file came from".
+        """
+        mine = FavoritesTable.get_all(with_user=True)
+        # `(type, hash)`, because that pair is what makes a favorite unique.
+        existing = {(fav.type, fav.hash) for fav in mine}
+        new_favorites = [fav for fav in favorites if (fav["type"], fav["hash"]) not in existing]
 
         for fav in new_favorites:
             try:
-                FavoritesTable.insert_item(fav)
+                FavoritesTable.insert_item({**fav, "userid": None})
             except sqlalchemy.exc.IntegrityError:
                 print("Integrity error, skipping favorite")
                 print(fav)
