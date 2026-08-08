@@ -180,24 +180,22 @@ def test_restore_over_a_live_library_does_not_duplicate(favorites_db):
     assert _stored_hashes() == sorted([f"track_{TRACK}", f"album_{ALBUM}", f"artist_{ARTIST}"])
 
 
-def test_a_pre_2025_backup_restores_without_doubling(favorites_db):
+def test_an_already_prefixed_hash_is_not_prefixed_twice(favorites_db):
     """
-    The one case where AivinNet-Client#451 is real.
+    `insert_item` is idempotent about the prefix.
 
-    `Favorite.__post_init__` gained its prefix strip upstream on 2025-02-25
-    (62097456). A backup written before that holds hashes that ALREADY carry
-    the prefix — and doubling them yields rows matching no lookup, so the
-    restore "succeeds" and the favorites are gone.
+    ⚠️ No caller passes a prefixed hash today, and no backup ever held one
+    (62097456 added the prefixing and the strip in the same commit, so nothing
+    was prefixed before it). This is defence in depth, not a regression test —
+    it guards the one mistake this pair keeps inviting, and the reason that
+    mistake is worth guarding is that it fails SILENTLY: `track_track_<hash>`
+    satisfies every constraint and matches no lookup, so the write succeeds
+    and the favorite is gone.
 
-    The payload below is what such a file contains, verbatim in shape.
+    #451 was filed on that theory, and the first attempt at "fixing" it went
+    the other way and would have written unprefixed rows.
     """
-    legacy_payload = [
-        {"hash": f"track_{TRACK}", "type": "track", "timestamp": 1700000000, "userid": 1, "extra": {}},
-        {"hash": f"album_{ALBUM}", "type": "album", "timestamp": 1700000000, "userid": 1, "extra": {}},
-    ]
+    FavoritesTable.insert_item({"hash": f"track_{TRACK}", "type": "track"})
 
-    _restore(legacy_payload)
-
-    assert _stored_hashes() == sorted([f"track_{TRACK}", f"album_{ALBUM}"])
+    assert _stored_hashes() == [f"track_{TRACK}"]
     assert FavoritesTable.check_exists(TRACK, "track") is True
-    assert FavoritesTable.check_exists(ALBUM, "album") is True

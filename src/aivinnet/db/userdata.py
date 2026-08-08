@@ -232,14 +232,19 @@ class FavoritesTable(Base):
         # exactly that). Round trip pinned in
         # tests_api/test_backup_restore_favorites.py.
         #
-        # The strip is younger than the app, though: it arrived upstream on
-        # 2025-02-25 (62097456). A backup written before that holds hashes that
-        # ALREADY carry the prefix, and doubling them produces rows
-        # (`track_track_…`) that satisfy every constraint while matching no
-        # lookup — the restore reports success and the favorites are gone. So
-        # the prefix is applied only when it is missing. A raw hash is a hex
-        # digest and can never start with `track_`/`album_`/`artist_`, which is
-        # what makes the test safe rather than a guess.
+        # The prefix is applied only when it is MISSING. Not because a caller
+        # passing a prefixed hash exists today — none does, and no backup ever
+        # held one either (62097456 introduced the prefix and the strip in the
+        # same commit, so before it nothing was prefixed anywhere). It is
+        # defence in depth against the one mistake this pair keeps inviting:
+        # doubling produces `track_track_…`, which satisfies every constraint
+        # and matches no lookup, so it fails SILENTLY — the restore reports
+        # success and the favorites are simply gone. #451 was filed on that
+        # theory, and the first attempt at fixing it removed the prefixing here
+        # and would have written unprefixed rows instead.
+        #
+        # Safe rather than a guess: a raw hash is a hex digest (`create_hash`,
+        # 16 chars) and can never start with `track_`/`album_`/`artist_`.
         prefix = f"{item['type']}_"
         if not item["hash"].startswith(prefix):
             item["hash"] = prefix + item["hash"]
