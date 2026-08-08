@@ -221,7 +221,15 @@ class FavoritesTable(Base):
 
     @classmethod
     def insert_item(cls, item: dict[str, Any]):
-        # guard against hash collisions for different item types
+        # Guard against hash collisions for different item types: the column
+        # stores `<type>_<hash>`, callers pass the RAW hash.
+        #
+        # ⚠️ Prefixing here looks unsafe for the backup restore, which feeds
+        # rows that came out of this very table — and it is not, because
+        # `Favorite.__post_init__` strips the prefix on the way out. The pair
+        # only makes sense together; reading either half alone gives a
+        # confident wrong answer (AivinNet-Client#451 was filed on exactly
+        # that). Round trip pinned in tests_api/test_backup_restore_favorites.py.
         item["hash"] = f"{item['type']}_{item['hash']}"
 
         if item.get("timestamp") is None:
