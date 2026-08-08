@@ -7,7 +7,7 @@ create, rename, pin).
 Auth: the AivinNet API accepts a JWT in the Authorization header
 (JWT_TOKEN_LOCATION includes "headers"). Configure via env:
 
-  AIVINNET_URL   base URL (default http://192.168.0.4:1970)
+  AIVINNET_URL   base URL (default http://localhost:1970)
   AIVINNET_TOKEN a pre-minted JWT (preferred for a quick start)
   AIVINNET_USER  / AIVINNET_PASS  used to (re)login if no/expired token
 
@@ -16,13 +16,12 @@ Run (stdio): python server.py
 
 from __future__ import annotations
 
-import json
 import os
 
 import requests
 from mcp.server.fastmcp import FastMCP
 
-BASE = os.environ.get("AIVINNET_URL", "http://192.168.0.4:1970").rstrip("/")
+BASE = os.environ.get("AIVINNET_URL", "http://localhost:1970").rstrip("/")
 USER = os.environ.get("AIVINNET_USER")
 PASS = os.environ.get("AIVINNET_PASS")
 

@@ -18,8 +18,9 @@ läuft die schnelle Lane über `uvx` statt über eine volle Installation. Die AP
 Windows **nicht** lauffähig; stattdessen auf dem Server gegen dessen venv:
 
 ```bash
-scp -r tests_api vwellenberg@192.168.0.4:/tmp/ && \
-ssh vwellenberg@192.168.0.4 'cd ~/AivinNet && ~/.local/bin/uv run --with pytest pytest /tmp/tests_api -v'
+# Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo).
+scp -r tests_api <account>@<homeserver>:/tmp/ && \
+ssh <account>@<homeserver> 'cd ~/AivinNet && ~/.local/bin/uv run --with pytest pytest /tmp/tests_api -v'
 ```
 
 ## ⚠️ `sys.modules`-Mocks nur in der geguardeten Form

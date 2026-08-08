@@ -39,8 +39,8 @@ Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)) |
 | **Client-Repo** | `vwellenberg/AivinNet-Client` — dort liegen auch **alle Issues**, auch die Backend-Themen |
 | **Python / Paketmanager** | >=3.11, **uv** (nicht pip) |
-| **Server** | `192.168.0.4`, Port 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
-| **SSH** | `ssh -i /c/Users/vwell/.ssh/id_ed25519 vwellenberg@192.168.0.4` |
+| **Server** | Homeserver im LAN, Port 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
+| **SSH** | Host, Account und Key stehen in der globalen `~/.claude/CLAUDE.md` (nicht im Repo) |
 | **Backend auf dem Server** | `~/AivinNet` |
 | **Client auf dem Server** | `~/AivinNet-Client`, gebaut nach `~/.config/swingmusic/client/` |
 
@@ -260,8 +260,9 @@ Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommen
 ## Server-Deployment
 
 ```bash
-# Backend deployen (eine Sitzung, vom Arbeitsrechner aus):
-ssh -i /c/Users/vwell/.ssh/id_ed25519 vwellenberg@192.168.0.4 \
+# Backend deployen (eine Sitzung, vom Arbeitsrechner aus).
+# Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo):
+ssh -i <key> <account>@<homeserver> \
   "cd ~/AivinNet && NODE_OPTIONS='--dns-result-order=ipv4first' git pull -q && \
    ~/.local/bin/uv sync && sudo -n systemctl restart aivinnet && \
    sleep 4 && systemctl is-active aivinnet"
