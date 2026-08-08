@@ -23,6 +23,7 @@ Real SQLite rather than mocks — the question is what ends up STORED.
 """
 
 from dataclasses import asdict
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -65,8 +66,24 @@ def favorites_db():
         # nothing to do with them.
         session.execute(delete(FavoritesTable))
 
-    with patch("aivinnet.db.userdata.get_current_userid", return_value=1) as userid:
-        yield userid
+    # ⚠️ BOTH bindings. `from … import get_current_userid` copies the name into
+    # the importing module, so patching only `db.userdata` leaves
+    # `api.backup_and_restore` calling the real one — which raises outside a
+    # request context and returns its hardcoded fallback of 1. Every assertion
+    # about "the restoring user" would then be checking a constant, and the
+    # suite would stay green with the scoping removed.
+    with (
+        patch("aivinnet.db.userdata.get_current_userid", return_value=1) as db_userid,
+        patch("aivinnet.api.backup_and_restore.get_current_userid", return_value=1) as api_userid,
+    ):
+        yield SimpleNamespace(
+            db=db_userid,
+            api=api_userid,
+            set=lambda uid: (
+                setattr(db_userid, "return_value", uid),
+                setattr(api_userid, "return_value", uid),
+            ),
+        )
 
     with DbEngine.manager(commit=True) as session:
         session.execute(delete(FavoritesTable))
@@ -239,9 +256,9 @@ def test_the_backup_holds_every_users_favorites(favorites_db):
     """
     FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
 
-    favorites_db.return_value = 2
+    favorites_db.set(2)
     FavoritesTable.insert_item({"hash": ALBUM, "type": "album"})
-    favorites_db.return_value = 1
+    favorites_db.set(1)
 
     payload = _backup_payload()
 
@@ -254,9 +271,9 @@ def test_another_users_favorite_does_not_block_mine(favorites_db):
     The reported case. User 2 favorited the track; user 1 restores a backup
     containing it. Comparing against every user's rows made it look present.
     """
-    favorites_db.return_value = 2
+    favorites_db.set(2)
     FavoritesTable.insert_item({"hash": TRACK, "type": "track"})
-    favorites_db.return_value = 1
+    favorites_db.set(1)
 
     _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 1, "extra": {}}])
 
@@ -293,10 +310,16 @@ def test_an_unknown_owner_falls_back_to_the_restoring_user(favorites_db):
     hit the `user.id` foreign key, and the swallowed IntegrityError would drop
     the row while the restore still reported success — so it lands with the
     person doing the restoring instead.
+
+    ⚠️ Restoring as user 2, not 1. `get_current_userid`'s real fallback outside
+    a request context IS 1, so asserting 1 here would pass even with the patch
+    missing or the whole fallback removed.
     """
+    favorites_db.set(2)
+
     _restore([{"hash": TRACK, "type": "track", "timestamp": 1700000000, "userid": 7, "extra": {}}])
 
-    assert _rows() == [(f"track_{TRACK}", "track", 1)]
+    assert _rows() == [(f"track_{TRACK}", "track", 2)]
 
 
 def test_my_own_duplicate_is_still_skipped(favorites_db):
