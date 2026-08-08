@@ -40,12 +40,20 @@ def _artist(**overrides):
     return Artist(**fields)
 
 
-class _Entry:
-    """Stands in for `ArtistMapEntry` — same two attributes the route reads."""
+def _entry(artist=None, trackcount=143):
+    """A REAL `ArtistMapEntry`, not a stand-in.
 
-    def __init__(self, artist, trackhashes):
-        self.artist = artist
-        self.trackhashes = trackhashes
+    An earlier version of this file used a two-attribute fake here. It passed
+    every test while binding the route to nothing: renaming `trackhashes` on the
+    real class would have kept the suite green and 500'd in production.
+    """
+    from aivinnet.store.artists import ArtistMapEntry
+
+    return ArtistMapEntry(
+        artist=artist if artist is not None else _artist(),
+        albumhashes={f"album-{i}" for i in range(12)},
+        trackhashes={f"track-{i}" for i in range(trackcount)},
+    )
 
 
 @pytest.fixture()
@@ -53,12 +61,12 @@ def artist_api(api_client, monkeypatch):
     """The real artist blueprint with a one-entry artist map."""
     import aivinnet.api.artist as artist_api_module
 
-    entry = _Entry(_artist(), {f"track-{i}" for i in range(143)})
-    monkeypatch.setattr(artist_api_module.ArtistStore, "artistmap", {"9d24d526ac9192b1": entry}, raising=False)
+    entry = _entry()
+    monkeypatch.setattr(artist_api_module.ArtistStore, "artistmap", {"9d24d526ac9192b1": entry})
 
     # No JWT context in this lane, so `is_favorite` (which reads the current
     # user) would raise. The property is on the class, so it is patched there.
-    monkeypatch.setattr(type(entry.artist), "is_favorite", property(lambda self: False), raising=False)
+    monkeypatch.setattr(type(entry.artist), "is_favorite", property(lambda self: False))
 
     return api_client("aivinnet.api.artist"), entry
 
@@ -108,25 +116,39 @@ def test_trackcount_counts_the_indexed_hashes_not_the_stored_field(artist_api):
     assert artist["trackcount"] == 143
 
 
-def test_never_loads_tracks(artist_api, monkeypatch):
-    """The whole point of the route. `GET /artist/<hash>` calls
-    `TrackStore.get_tracks_by_trackhashes` and then sorts, stats and fetches
-    albums; on a single-threaded server that is playback-blocking work for a
-    caller that only wants two numbers."""
+def test_does_none_of_the_expensive_work_the_artist_page_does(artist_api, monkeypatch):
+    """The whole point of the route.
+
+    `GET /artist/<hash>` loads the tracks, sorts them by playcount, computes
+    group stats and fetches the albums. On a single-threaded server every one of
+    those is playback-blocking work for a caller that only wants two numbers, so
+    each is asserted separately — guarding just the track load would let the
+    other three creep back in.
+    """
     import aivinnet.api.artist as artist_api_module
 
     api, _ = artist_api
-    calls = []
+    called: list[str] = []
 
     monkeypatch.setattr(
         artist_api_module.TrackStore,
         "get_tracks_by_trackhashes",
-        lambda *a, **k: calls.append(a) or [],
-        raising=False,
+        lambda *a, **k: called.append("load_tracks") or [],
+    )
+    monkeypatch.setattr(artist_api_module, "sort_tracks", lambda *a, **k: called.append("sort") or [])
+    monkeypatch.setattr(artist_api_module, "get_track_group_stats", lambda *a, **k: called.append("stats") or [])
+    # `raising=True` on purpose: with raising=False a renamed method would be
+    # patched onto nothing and this test would pass while guarding nothing.
+    # (It was written as `get_albums_by_albumhash` first — the real name is
+    # `get_albums_by_hashes`, and only the strict setattr said so.)
+    monkeypatch.setattr(
+        artist_api_module.AlbumStore,
+        "get_albums_by_hashes",
+        lambda *a, **k: called.append("load_albums") or [],
     )
 
     assert api.get("/artist/9d24d526ac9192b1/summary").status_code == 200
-    assert calls == []
+    assert called == []
 
 
 def test_unknown_artist_is_404(artist_api):
@@ -155,23 +177,51 @@ def test_a_malformed_hash_is_rejected_before_the_handler(artist_api):
     assert res.get_json()[0]["loc"] == ["artisthash"]
 
 
-def test_summary_is_a_strict_subset_of_the_full_artist_payload(artist_api):
-    """Guards against the two routes drifting into different field names for the
-    same thing — the panel and the artist page must not disagree."""
-    from aivinnet.serializers.artist import serialize_for_card
-
-    api, entry = artist_api
+def test_serves_every_field_the_panel_renders(artist_api):
+    """Named against the payload the panel actually draws, not against another
+    call to the same serializer — a test built from the implementation agrees
+    with it by construction and catches nothing."""
+    api, _ = artist_api
 
     artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
-    full_keys = set(serialize_for_card(entry.artist, include={"playcount", "lastplayed", "genres"}).keys()) | {
-        "trackcount",
-        "albumcount",
-        "is_favorite",
-    }
 
-    assert set(artist).issubset(full_keys)
-    # And the fields the panel renders are all actually there.
-    assert {"name", "image", "albumcount", "trackcount", "genres", "playcount", "lastplayed"} <= set(artist)
+    assert {
+        "name",
+        "artisthash",
+        "image",
+        "albumcount",
+        "trackcount",
+        "genres",
+        "playcount",
+        "lastplayed",
+        "is_favorite",
+    } <= set(artist)
+
+
+def test_genres_carry_the_same_decade_chip_as_the_artist_page(artist_api, monkeypatch):
+    """The artist page prepends a decade chip built from `artist.date`. The panel
+    sits next to that page, so a chip on one and not the other reads as a bug.
+    Both call `genres_with_decade`; this pins the behaviour through the route."""
+    import aivinnet.api.artist as artist_api_module
+
+    api, entry = artist_api
+    # 1986-01-01, i.e. the "80s" chip.
+    monkeypatch.setattr(entry.artist, "date", 504_921_600)
+
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
+
+    assert artist["genres"][0] == {"name": "80s", "genrehash": "80s"}
+    assert artist["genres"][1]["name"] == "Art Rock"
+    assert artist_api_module.genres_with_decade(entry.artist) == artist["genres"]
+
+
+def test_an_unknown_date_adds_no_decade_chip(artist_api):
+    """The fixture's artist has `date = 0`, which means "unknown" — not 1970."""
+    api, _ = artist_api
+
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
+
+    assert artist["genres"] == [{"name": "Art Rock", "genrehash": "artrock"}]
 
 
 def test_artist_dataclass_still_has_the_fields_the_route_reads():
