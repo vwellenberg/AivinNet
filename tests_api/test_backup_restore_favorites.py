@@ -53,6 +53,11 @@ def favorites_db():
         exists = session.execute(select(UserTable.id).where(UserTable.id == 1)).first()
         if not exists:
             session.execute(insert(UserTable).values(id=1, username="restore-user", password="x", roles=[], extra={}))
+        # Wipe on BOTH sides. Teardown alone leaves the module depending on
+        # nothing else in the suite having written favorites first, and the
+        # exact-equality assertions below would then fail for a reason that has
+        # nothing to do with them.
+        session.execute(delete(FavoritesTable))
 
     with patch("aivinnet.db.userdata.get_current_userid", return_value=1):
         yield
@@ -155,13 +160,44 @@ def test_restore_over_a_live_library_does_not_duplicate(favorites_db):
     """
     The dedup check compares the backup's RAW hash against `fav.hash` from
     `get_all()` — also raw, for the same `__post_init__` reason. Both sides
-    speak the same dialect, so restoring twice is a no-op.
+    speak the same dialect, so an item that is still favorited is skipped.
+
+    ⚠️ Asserting "still 3 rows" after restoring over a full table proves
+    nothing: `insert_item`'s own `row_id` guard and the unique constraint hold
+    that line even if the dedup comparison were broken. So this restores over a
+    PARTIAL library — one row present, two missing — and checks that the
+    survivor kept its identity while the other two came back.
     """
     _favorite_everything()
     payload = _backup_payload()
 
-    _restore(payload)
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(FavoritesTable).where(FavoritesTable.hash != f"track_{TRACK}"))
+    assert _stored_hashes() == [f"track_{TRACK}"]
+
     _restore(payload)
 
-    assert len(_stored_hashes()) == 3
-    assert len(set(_stored_hashes())) == 3
+    assert _stored_hashes() == sorted([f"track_{TRACK}", f"album_{ALBUM}", f"artist_{ARTIST}"])
+
+
+def test_a_pre_2025_backup_restores_without_doubling(favorites_db):
+    """
+    The one case where AivinNet-Client#451 is real.
+
+    `Favorite.__post_init__` gained its prefix strip upstream on 2025-02-25
+    (62097456). A backup written before that holds hashes that ALREADY carry
+    the prefix — and doubling them yields rows matching no lookup, so the
+    restore "succeeds" and the favorites are gone.
+
+    The payload below is what such a file contains, verbatim in shape.
+    """
+    legacy_payload = [
+        {"hash": f"track_{TRACK}", "type": "track", "timestamp": 1700000000, "userid": 1, "extra": {}},
+        {"hash": f"album_{ALBUM}", "type": "album", "timestamp": 1700000000, "userid": 1, "extra": {}},
+    ]
+
+    _restore(legacy_payload)
+
+    assert _stored_hashes() == sorted([f"track_{TRACK}", f"album_{ALBUM}"])
+    assert FavoritesTable.check_exists(TRACK, "track") is True
+    assert FavoritesTable.check_exists(ALBUM, "album") is True

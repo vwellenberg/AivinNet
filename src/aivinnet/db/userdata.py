@@ -225,12 +225,24 @@ class FavoritesTable(Base):
         # stores `<type>_<hash>`, callers pass the RAW hash.
         #
         # ⚠️ Prefixing here looks unsafe for the backup restore, which feeds
-        # rows that came out of this very table — and it is not, because
-        # `Favorite.__post_init__` strips the prefix on the way out. The pair
-        # only makes sense together; reading either half alone gives a
-        # confident wrong answer (AivinNet-Client#451 was filed on exactly
-        # that). Round trip pinned in tests_api/test_backup_restore_favorites.py.
-        item["hash"] = f"{item['type']}_{item['hash']}"
+        # rows that came out of this very table — and for CURRENT backups it is
+        # not, because `Favorite.__post_init__` strips the prefix on the way
+        # out. The pair only makes sense together; reading either half alone
+        # gives a confident wrong answer (AivinNet-Client#451 was filed on
+        # exactly that). Round trip pinned in
+        # tests_api/test_backup_restore_favorites.py.
+        #
+        # The strip is younger than the app, though: it arrived upstream on
+        # 2025-02-25 (62097456). A backup written before that holds hashes that
+        # ALREADY carry the prefix, and doubling them produces rows
+        # (`track_track_…`) that satisfy every constraint while matching no
+        # lookup — the restore reports success and the favorites are gone. So
+        # the prefix is applied only when it is missing. A raw hash is a hex
+        # digest and can never start with `track_`/`album_`/`artist_`, which is
+        # what makes the test safe rather than a guess.
+        prefix = f"{item['type']}_"
+        if not item["hash"].startswith(prefix):
+            item["hash"] = prefix + item["hash"]
 
         if item.get("timestamp") is None:
             item["timestamp"] = int(datetime.datetime.now().timestamp())
