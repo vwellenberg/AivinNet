@@ -19,7 +19,7 @@ def _artist(**overrides):
     fields = {
         "name": "Peter Gabriel",
         "albumcount": 12,
-        "artisthash": "pg-hash",
+        "artisthash": "9d24d526ac9192b1",
         "created_date": 0,
         "date": 0,
         "duration": 42_000,
@@ -51,7 +51,7 @@ def artist_api(api_client, monkeypatch):
     import aivinnet.api.artist as artist_api_module
 
     entry = _Entry(_artist(), {f"track-{i}" for i in range(143)})
-    monkeypatch.setattr(artist_api_module.ArtistStore, "artistmap", {"pg-hash": entry}, raising=False)
+    monkeypatch.setattr(artist_api_module.ArtistStore, "artistmap", {"9d24d526ac9192b1": entry}, raising=False)
 
     # No JWT context in this lane, so `is_favorite` (which reads the current
     # user) would raise. The property is on the class, so it is patched there.
@@ -63,7 +63,7 @@ def artist_api(api_client, monkeypatch):
 def test_returns_counts_and_genres(artist_api):
     api, _ = artist_api
 
-    res = api.get("/artist/pg-hash/summary")
+    res = api.get("/artist/9d24d526ac9192b1/summary")
 
     assert res.status_code == 200
     artist = res.get_json()["artist"]
@@ -78,7 +78,7 @@ def test_includes_the_play_counters_the_panel_asks_for(artist_api):
     requested back, so a regression there must fail here."""
     api, _ = artist_api
 
-    artist = api.get("/artist/pg-hash/summary").get_json()["artist"]
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
 
     assert artist["playcount"] == 184
     assert artist["lastplayed"] == 1_700_000_000
@@ -89,7 +89,7 @@ def test_trackcount_counts_the_indexed_hashes_not_the_stored_field(artist_api):
     143 hashes. The answer must come from what the store actually indexed."""
     api, entry = artist_api
 
-    artist = api.get("/artist/pg-hash/summary").get_json()["artist"]
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
 
     assert len(entry.trackhashes) == 143
     assert artist["trackcount"] == 143
@@ -112,17 +112,34 @@ def test_never_loads_tracks(artist_api, monkeypatch):
         raising=False,
     )
 
-    assert api.get("/artist/pg-hash/summary").status_code == 200
+    assert api.get("/artist/9d24d526ac9192b1/summary").status_code == 200
     assert calls == []
 
 
 def test_unknown_artist_is_404(artist_api):
     api, _ = artist_api
 
-    res = api.get("/artist/nope/summary")
+    # A well-formed hash that nothing is stored under.
+    res = api.get("/artist/0000000000000000/summary")
 
     assert res.status_code == 404
     assert res.get_json()["error"] == "Artist not found"
+
+
+def test_a_malformed_hash_is_rejected_before_the_handler(artist_api):
+    """`ArtistHashSchema` requires 16 characters, so a short hash never reaches
+    the handler — it is a 422 from validation, not a 404 from the store.
+
+    Written down because the first version of these tests used "pg-hash" as a
+    fixture hash and every single one failed with 422: the shape of the request
+    is part of the endpoint, and only a real request cycle shows it.
+    """
+    api, _ = artist_api
+
+    res = api.get("/artist/short/summary")
+
+    assert res.status_code == 422
+    assert res.get_json()[0]["loc"] == ["artisthash"]
 
 
 def test_summary_is_a_strict_subset_of_the_full_artist_payload(artist_api):
@@ -132,7 +149,7 @@ def test_summary_is_a_strict_subset_of_the_full_artist_payload(artist_api):
 
     api, entry = artist_api
 
-    artist = api.get("/artist/pg-hash/summary").get_json()["artist"]
+    artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
     full_keys = set(serialize_for_card(entry.artist, include={"playcount", "lastplayed", "genres"}).keys()) | {
         "trackcount",
         "albumcount",
