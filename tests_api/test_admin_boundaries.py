@@ -65,14 +65,25 @@ BLUEPRINTS = (
 
 @pytest.fixture()
 def as_role(monkeypatch):
-    """Set the acting user's roles for `admin_required()`.
+    """Set the acting user's roles, everywhere a handler reads them.
 
     The decorator resolves `current_user` from its module globals at call time,
     so replacing the module attribute is enough — no JWT context needed.
+
+    ⚠️ It has to be replaced in EVERY module that imported it, not just in
+    `api.auth`: `api.settings` holds its own reference (as `jwt_current_user`) to
+    decide who may see the Last.fm credentials. Patching one name would leave the
+    other reading the real proxy — outside a request context, that raises, and
+    the test would fail for a reason that has nothing to do with the boundary.
     """
+    targets = (
+        "aivinnet.api.auth.current_user",
+        "aivinnet.api.settings.jwt_current_user",
+    )
 
     def _set(*roles: str):
-        monkeypatch.setattr("aivinnet.api.auth.current_user", {"roles": list(roles)})
+        for target in targets:
+            monkeypatch.setattr(target, {"roles": list(roles)})
 
     return _set
 
@@ -207,6 +218,35 @@ def test_settings_response_never_carries_the_server_secret(api_client, as_role, 
     assert res.status_code == 200
     assert "serverId" not in res.get_json()
     assert sentinel not in res.get_data(as_text=True)
+
+
+def test_lastfm_credentials_go_to_admins_only(api_client, as_role, monkeypatch):
+    """They are server configuration, not something a listener needs.
+
+    The same payload already strips `serverId` and the other users' session keys;
+    these two were the remaining secrets in it. Sent as empty strings rather than
+    removed, so the response shape stays the same for the client's settings store.
+    """
+    import aivinnet.api.settings as settings_api
+    from aivinnet.config import UserConfig
+
+    monkeypatch.setattr(UserConfig(), "lastfmApiKey", "the-key")
+    monkeypatch.setattr(UserConfig(), "lastfmApiSecret", "the-secret")
+    monkeypatch.setattr(settings_api, "get_current_userid", lambda: 1)
+    monkeypatch.setattr(settings_api.Metadata, "version", "9.9.9")
+    api = api_client(*BLUEPRINTS)
+
+    as_role("user")
+    guest = api.get("/notsettings").get_json()
+
+    assert guest["lastfmApiKey"] == ""
+    assert guest["lastfmApiSecret"] == ""
+
+    as_role("admin")
+    admin = api.get("/notsettings").get_json()
+
+    assert admin["lastfmApiKey"] == "the-key"
+    assert admin["lastfmApiSecret"] == "the-secret"
 
 
 def test_a_user_cannot_rewrite_another_users_password(api_client, as_role, monkeypatch):
