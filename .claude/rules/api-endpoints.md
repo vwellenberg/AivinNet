@@ -108,6 +108,31 @@ Merkmal zum Wiedererkennen: Ein Handler, der eine fremde Zeile über einen **Bez
 Body** ändert, braucht neben dem Rollen-Check einen **Eigentümer-Check** — und der gehört vor
 die erste Schreiboperation, nicht in einen Sonderzweig, den ein fehlendes Feld überspringt.
 
+### ⚠️ Eine Kontosperre ist selbst ein Denial of Service
+
+Der erste Entwurf des Login-Schutzes sperrte ein Konto **5 Minuten** nach 8 Fehlversuchen.
+Nutzernamen sind aber öffentlich (die Login-Maske listet sie bei `usersOnLogin`), also hätten
+acht Requests pro Fenster den **einzigen Admin dauerhaft aus seinem eigenen Server** ausgesperrt
+— ohne Malice reicht ein Handy mit veraltet gespeichertem Passwort, das im Hintergrund
+weiterprobiert. Deshalb: **kurz (60 s) und nicht eskalierend**. Ziel ist, Raten aussichtslos zu
+machen, nicht zu strafen — bei 8 Versuchen/Minute ist jedes brauchbare Passwort sicher, und ein
+ausgesperrter Mensch wartet eine Minute.
+
+Zwei Mechanismen gehören dazu, beide im Review gefunden:
+
+- **Die Verdrängung darf kein Radiergummi sein.** Der Zähler ist gedeckelt (sonst ist er ein von
+  außen auslösbares Speicherleck), und „ältesten Eintrag zuerst" wirft ausgerechnet die
+  **gesperrten** Konten raus — eine Sperre *ist* der älteste Eintrag. Ein paar tausend erfundene
+  Nutzernamen hätten die Sperre des angegriffenen Kontos wieder gelöst. Gesperrte also zuletzt.
+- **„Der Server ist single-threaded" gilt nur unter Linux.** Auf win32 läuft
+  `waitress.serve(..., threads=100)`, also brauchen prozessweite Zähler ein `threading.Lock` —
+  sonst gehen Inkremente verloren und der Aufräum-Sweep kann über ein Dict stolpern, dessen Größe
+  sich unter ihm ändert (unbehandelter 500 auf `/auth/login`).
+
+Und **verweigern statt verzögern**: Ein `sleep` im Handler hielte unter bjoern die ganze App an.
+Die Absage kommt außerdem **vor** dem Passwort-Hash — 100k PBKDF2-Runden sind ~100 ms, in denen
+sonst nichts bedient wird.
+
 ### ⚠️ Ein Rechte-Test braucht einen GÜLTIGEN Body
 
 `flask_openapi3` validiert das Request-Modell **vor** der View — und damit vor

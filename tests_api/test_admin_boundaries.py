@@ -47,6 +47,10 @@ GUARDED_ROUTES = [
     ("POST", "/musicbrainz/fetch-cover", {"albumhash": ALBUM_HASH}),
     ("POST", "/musicbrainz/fetch-missing-covers", {"limit": 1}),
     ("PUT", f"/track/{TRACK_HASH}/tags", {"title": "renamed"}),
+    # ⚠️ `/folder/show-in-files` is NOT in this table: it answers 403 on its own
+    # when the path is outside the root dirs, and the fixture has none — so every
+    # entry here would pass without the decorator. It gets its own test below,
+    # where the path check is stubbed out and the 403 can only come from the guard.
 ]
 
 BLUEPRINTS = (
@@ -55,6 +59,7 @@ BLUEPRINTS = (
     "aivinnet.api.musicbrainz",
     "aivinnet.api.track",
     "aivinnet.api.auth",
+    "aivinnet.api.folder",
 )
 
 
@@ -122,6 +127,47 @@ def test_non_admin_scan_does_not_reach_the_indexer(api_client, as_role, monkeypa
 
     assert res.status_code == 403
     assert calls == [], "the indexer ran despite the request being refused"
+
+
+def test_non_admin_cannot_spawn_a_file_manager(api_client, as_role, monkeypatch, tmp_path):
+    """403 *and* no process started.
+
+    This route runs a program on the SERVER, which is meaningless for a remote
+    listener. The path check is stubbed to succeed on purpose: it returns 403 by
+    itself for anything outside the root dirs, so without the stub this test
+    would pass with the guard removed — the false green the module docstring
+    warns about, in its other shape.
+    """
+    import aivinnet.api.folder as folder_api
+
+    spawned = []
+    real_dir = tmp_path
+    monkeypatch.setattr(folder_api, "is_path_within_root_dirs", lambda *a, **k: True)
+    monkeypatch.setattr(folder_api, "show_in_file_manager", lambda *a, **k: spawned.append(1))
+    as_role("user")
+    api = api_client(*BLUEPRINTS)
+
+    res = api.get(f"/folder/show-in-files?path={real_dir}")
+
+    assert res.status_code == 403
+    assert spawned == [], "the server opened a file manager for a non-admin"
+
+
+def test_admin_may_still_spawn_a_file_manager(api_client, as_role, monkeypatch, tmp_path):
+    """The mirror image — the guard must not break the admin's own use of it."""
+    import aivinnet.api.folder as folder_api
+
+    spawned = []
+    real_dir = tmp_path
+    monkeypatch.setattr(folder_api, "is_path_within_root_dirs", lambda *a, **k: True)
+    monkeypatch.setattr(folder_api, "show_in_file_manager", lambda *a, **k: spawned.append(1))
+    as_role("admin")
+    api = api_client(*BLUEPRINTS)
+
+    res = api.get(f"/folder/show-in-files?path={real_dir}")
+
+    assert res.status_code == 200
+    assert spawned == [1]
 
 
 def test_non_admin_cover_upload_is_refused(api_client, as_role):
