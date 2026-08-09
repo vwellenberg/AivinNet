@@ -10,6 +10,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema
+from aivinnet.api.auth import admin_required
 from aivinnet.lib.coverart import fetch_verified_cover, save_album_cover_bytes
 from aivinnet.lib.musicbrainz import (
     clear_failed,
@@ -96,6 +97,7 @@ class FetchCoverBody(AlbumHashSchema):
 
 
 @api.post("/fetch-cover")
+@admin_required()
 def fetch_cover(body: FetchCoverBody):
     """
     Fetch the album cover for the given albumhash from MusicBrainz / CAA
@@ -157,6 +159,7 @@ def _fetch_missing_in_background(albumhashes: list[str]) -> None:
 
 
 @api.post("/fetch-missing-covers")
+@admin_required()
 def fetch_missing_covers(body: FetchMissingBody):
     """
     Kick off a background job that iterates over albums without a cover and

@@ -160,6 +160,12 @@ ohnehin nie gebrochen.
 ⚠️ Hooks greifen nur, wenn Claude Code **in diesem Verzeichnis** gestartet wurde — Projekt-Settings
 kommen aus dem Arbeitsverzeichnis, nicht aus Unterordnern.
 
+⚠️ **`ruff check --fix` löscht einen Import, dessen Verwender noch nicht existiert.** Wer erst den
+Import setzt und den `@decorator` im nächsten Edit, bekommt den Import zwischendurch entfernt und
+steht am Ende mit einem `NameError` beim Modul-Import da — den kein Lint anzeigt, weil die Datei
+danach wieder sauber ist. Also **Import und erste Verwendung in einem Edit** (oder Verwendung
+zuerst). Aufgefallen ist es erst, als die Testsuite gegen den kopierten Baum lief.
+
 Regeln dazu:
 
 - **Verweisen, nicht importieren.** Zusatzdokumente als normalen Markdown-Link einbinden. Ein
