@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 from dataclasses import asdict
 from pathlib import Path
@@ -14,6 +15,8 @@ from aivinnet.lib.index import index_everything
 from aivinnet.settings import Paths
 from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import timestamp_to_time_passed
+
+log = logging.getLogger(__name__)
 
 bp_tag = Tag(name="Backup and Restore", description="Backup and Restore")
 api = APIBlueprint("backup_and_restore", __name__, url_prefix="/backup", abp_tags=[bp_tag])
@@ -53,6 +56,51 @@ def resolve_backup_dir(name: str) -> Path | None:
     return candidate
 
 
+def all_scrobbles():
+    """
+    Every user's listening history.
+
+    `ScrobbleTable.get_all` has no "all users" mode — it takes a userid and
+    falls back to the current one — so this walks the user table instead of
+    widening a signature five other callers share. All of them want one user's
+    history; the instance backup is the only reader that wants everyone's.
+    """
+    for user in UserTable.get_all():
+        yield from ScrobbleTable.get_all(start=0, userid=user.id)
+
+
+def owner_resolver():
+    """
+    Decide which user a restored row belongs to.
+
+    Ownership is KEPT where it can be. Restoring an instance backup on the
+    instance it came from has to put everyone's rows back where they were;
+    re-owning them to whoever pressed the button would quietly hand one user
+    another's library. Only an owner this instance does not know falls back to
+    the restoring user — that is the cross-instance case, and the alternative
+    there is dropping the row on the floor (it would hit the `user.id` foreign
+    key and be swallowed by the `except IntegrityError` below).
+
+    ⚠️ The fallback COLLAPSES unknown owners onto one user. Restoring a foreign
+    instance's backup where users 5 and 6 each had a "Road trip" lands both on
+    the restoring user, where the second one is a duplicate of the first and
+    gets skipped. That is accepted: the alternative is inventing users or
+    renaming rows, and the honest outcome for a foreign backup is "you got one
+    of each name". Restoring an instance's OWN backup — the case this endpoint
+    exists for — never hits it, because every owner is known.
+
+    The set of known users is read ONCE per section, not per row.
+    """
+    known_users = {user.id for user in UserTable.get_all()}
+    current = get_current_userid()
+
+    def resolve(row: dict) -> int:
+        owner = row.get("userid")
+        return owner if owner in known_users else current
+
+    return resolve
+
+
 @api.post("/create")
 @admin_required()
 def backup():
@@ -67,23 +115,26 @@ def backup():
     img_folder = backup_dir / "images"
     img_folder_created = img_folder.exists()
 
-    # EVERY user's favorites, deliberately. This endpoint is `@admin_required`,
-    # so it is an instance backup, not a personal one — scoping it to the
-    # calling admin would leave every other user's favorites in no backup at
-    # all, and they cannot make their own (same gate). The per-user correctness
-    # belongs on the restore side, where `restore_favorites` keeps each row
-    # with its owner (AivinNet-Client#513).
+    # EVERY user's rows, in all four sections. This endpoint is
+    # `@admin_required`, so it is an instance backup, not a personal one —
+    # scoping it to the calling admin would leave every other user's data in no
+    # backup at all, and they cannot make their own (same gate). Favorites were
+    # widened first (AivinNet-Client#513) and the other three stayed personal,
+    # which meant a restore brought user 2's favorites back but not the
+    # playlists, history and collections they belong to (#527).
+    #
+    # The per-user correctness belongs on the restore side, where every
+    # `restore_*` puts each row back under its own owner.
     favorites = FavoritesTable.get_all(with_user=False)
     favorites = [asdict(entry) for entry in favorites]
 
-    scrobbles = ScrobbleTable.get_all(start=0)
-    scrobbles = [asdict(entry) for entry in scrobbles]
+    scrobbles = [asdict(entry) for entry in all_scrobbles()]
 
     for scrobble in scrobbles:
         del scrobble["id"]
 
     # SECTION: Playlists
-    playlists = PlaylistTable.get_all()
+    playlists = PlaylistTable.get_all(current_user=False)
     playlist_dicts = []
 
     for entry in playlists:
@@ -114,7 +165,7 @@ def backup():
     # !SECTION
 
     # SECTION: Collections
-    collections_list = list(CollectionTable.get_all())
+    collections_list = list(CollectionTable.get_all(current_user=False))
     collections_dicts = []
 
     for collection in collections_list:
@@ -144,6 +195,45 @@ def backup():
     }, 200
 
 
+class SectionReport:
+    """
+    What a restore actually did to one section.
+
+    `discarded` is the number that made these bugs survive so long: every
+    `restore_*` swallowed its `IntegrityError` into a `print`, so a restore that
+    dropped half the file still answered "Restored successfully" (#527). Counted
+    and returned, it shows up where someone reads it.
+
+    `skipped` is the healthy kind of not-restored — the row is already there.
+    """
+
+    def __init__(self):
+        self.restored = 0
+        self.skipped = 0
+        self.discarded = 0
+
+    def add(self, other: "SectionReport"):
+        self.restored += other.restored
+        self.skipped += other.skipped
+        self.discarded += other.discarded
+
+    def discard(self, section: str, row: dict, error: Exception):
+        """
+        Count a row the database refused, and say WHICH one and why.
+
+        The count alone is un-actionable — "discarded: 412" tells nobody what to
+        recover. The row and the exception go to the log at error level, the
+        number goes to the caller; the old code had the row (on stdout, via
+        `print`) and no number, which is how a restore could drop everything it
+        read and still answer "Restored successfully".
+        """
+        self.discarded += 1
+        log.error("Restore discarded a %s row: %s (%s)", section, row, error)
+
+    def asdict(self) -> dict[str, int]:
+        return {"restored": self.restored, "skipped": self.skipped, "discarded": self.discarded}
+
+
 class RestoreBackup:
     # TODO: IMPROVE UX WHEN WAITING FOR RESTORE TO COMPLETE!
 
@@ -153,15 +243,23 @@ class RestoreBackup:
         with open(self.backup_file) as f:
             self.data = json.load(f)
 
-        self.restore_favorites(self.data["favorites"])
-        self.restore_playlists(self.data["playlists"])
-        self.restore_scrobbles(self.data["scrobbles"])
-        self.restore_collections(self.data.get("collections", []))
+    def restore(self) -> dict[str, SectionReport]:
+        """
+        Restore all four sections and report what happened to each.
 
-    def restore(self):
-        pass
+        ⚠️ The work used to run in `__init__` while this method was an empty
+        `pass` — both callers already did `RestoreBackup(dir).restore()`, so
+        moving it here changes nothing about when it runs and gives the counts
+        somewhere to come out.
+        """
+        return {
+            "favorites": self.restore_favorites(self.data["favorites"]),
+            "playlists": self.restore_playlists(self.data["playlists"]),
+            "scrobbles": self.restore_scrobbles(self.data["scrobbles"]),
+            "collections": self.restore_collections(self.data.get("collections", [])),
+        }
 
-    def restore_favorites(self, favorites: list[dict]):
+    def restore_favorites(self, favorites: list[dict]) -> SectionReport:
         """
         Put the backup's favorites back, each one under its owner.
 
@@ -177,80 +275,117 @@ class RestoreBackup:
           the file that does not exist here hit the `user.id` foreign key and
           was dropped by the `except` below — which prints and moves on, so the
           restore reported success either way.
-
-        Ownership is KEPT where it can be. Restoring an instance backup on the
-        instance it came from has to put everyone's rows back where they were;
-        re-owning them to whoever pressed the button would quietly hand one
-        user another's favorites. Only an owner this instance does not know
-        falls back to the restoring user — that is the cross-instance case,
-        and the alternative there is dropping the row on the floor.
         """
-        known_users = {user.id for user in UserTable.get_all()}
-        current = get_current_userid()
+        report = SectionReport()
+        resolve_owner = owner_resolver()
 
         # Owner included: two users may legitimately favorite the same item.
         existing = {(fav.userid, fav.type, fav.hash) for fav in FavoritesTable.get_all(with_user=False)}
 
         for fav in favorites:
-            owner = fav.get("userid") if fav.get("userid") in known_users else current
+            owner = resolve_owner(fav)
 
             if (owner, fav["type"], fav["hash"]) in existing:
+                report.skipped += 1
                 continue
 
             try:
                 FavoritesTable.insert_item({**fav, "userid": owner})
-            except sqlalchemy.exc.IntegrityError:
-                print("Integrity error, skipping favorite")
-                print(fav)
+                existing.add((owner, fav["type"], fav["hash"]))
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("favorite", fav, error)
 
-    def restore_playlists(self, playlists: list[dict]):
-        existing_playlists = PlaylistTable.get_all()
-        existing_names = set(playlist.name for playlist in existing_playlists)
-        new_playlists = [playlist for playlist in playlists if playlist["name"] not in existing_names]
+        return report
 
-        for playlist in new_playlists:
+    def restore_playlists(self, playlists: list[dict]) -> SectionReport:
+        """
+        A playlist is identified by **(owner, name)**.
+
+        Comparing the name alone read every playlist in the instance as "mine",
+        so user 1 having a "Road trip" made user 2's unrestorable — and the
+        backup only held user 1's in the first place (#527).
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {(playlist.userid, playlist.name) for playlist in PlaylistTable.get_all(current_user=False)}
+
+        for playlist in playlists:
+            owner = resolve_owner(playlist)
+
+            if (owner, playlist["name"]) in existing:
+                report.skipped += 1
+                continue
+
             try:
-                if playlist.get("_score") is not None:
-                    del playlist["_score"]
+                # `_score` is a search artefact on the dataclass, not a column.
+                playlist = {key: value for key, value in playlist.items() if key != "_score"}
+                PlaylistTable.add_one({**playlist, "userid": owner})
+                existing.add((owner, playlist["name"]))
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("playlist", playlist, error)
 
-                PlaylistTable.add_one(playlist)
-            except sqlalchemy.exc.IntegrityError:
-                print("Integrity error, skipping playlist:")
-                print(playlist)
+        return report
 
-    def restore_scrobbles(self, scrobbles: list[dict]):
-        existing_scrobbles = ScrobbleTable.get_all(0)
-        existing_hashes = set(f"{scrobble.trackhash}.{scrobble.timestamp}" for scrobble in existing_scrobbles)
-        new_scrobbles = [
-            scrobble
-            for scrobble in scrobbles
-            if f"{scrobble['trackhash']}.{scrobble['timestamp']}" not in existing_hashes
-        ]
+    def restore_scrobbles(self, scrobbles: list[dict]) -> SectionReport:
+        """
+        A scrobble is identified by **(owner, trackhash, timestamp)**.
 
-        for scrobble in new_scrobbles:
+        Without the owner, one user having played a track at second X hid the
+        other user's play of it — and, as above, the backup only carried the
+        admin's history to begin with (#527).
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {(scrobble.userid, scrobble.trackhash, scrobble.timestamp) for scrobble in all_scrobbles()}
+
+        for scrobble in scrobbles:
+            owner = resolve_owner(scrobble)
+            key = (owner, scrobble["trackhash"], scrobble["timestamp"])
+
+            if key in existing:
+                report.skipped += 1
+                continue
+
             try:
-                ScrobbleTable.add(scrobble)
-            except sqlalchemy.exc.IntegrityError:
-                print("Integrity error, skipping scrobble:")
-                print(scrobble)
+                ScrobbleTable.add({**scrobble, "userid": owner})
+                existing.add(key)
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("scrobble", scrobble, error)
 
-    def restore_collections(self, collections: list[dict]):
-        existing_collections = list(CollectionTable.get_all())
-        existing_names = set(collection["name"] for collection in existing_collections)
-        new_collections = [collection for collection in collections if collection["name"] not in existing_names]
+        return report
 
-        for collection in new_collections:
+    def restore_collections(self, collections: list[dict]) -> SectionReport:
+        """
+        A collection is identified by **(owner, name)** — same shape as
+        playlists, same reason (#527).
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {
+            (collection["userid"], collection["name"]) for collection in CollectionTable.get_all(current_user=False)
+        }
+
+        for collection in collections:
+            owner = resolve_owner(collection)
+
+            if (owner, collection["name"]) in existing:
+                report.skipped += 1
+                continue
+
             try:
-                # Ensure userid is set for the collection
-                if collection.get("userid") is None:
-                    from aivinnet.utils.auth import get_current_userid
+                CollectionTable.insert_one({**collection, "userid": owner})
+                existing.add((owner, collection["name"]))
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("collection", collection, error)
 
-                    collection["userid"] = get_current_userid()
-
-                CollectionTable.insert_one(collection)
-            except sqlalchemy.exc.IntegrityError:
-                print("Integrity error, skipping collection:")
-                print(collection)
+        return report
 
 
 class RestoreBackupBody(BaseModel):
@@ -269,6 +404,11 @@ def restore(body: RestoreBackupBody):
     """
     backup_base_dir = get_backup_root()
     backups = []
+    totals = {section: SectionReport() for section in ("favorites", "playlists", "scrobbles", "collections")}
+
+    def run(directory: Path):
+        for section, report in RestoreBackup(directory).restore().items():
+            totals[section].add(report)
 
     if body.backup_dir:
         # Restore from a specific backup
@@ -279,8 +419,7 @@ def restore(body: RestoreBackupBody):
         if not specified_backup_dir.exists() or not specified_backup_dir.is_dir():
             return {"msg": f"Backup '{body.backup_dir}' not found"}, 404
 
-        restore_backup = RestoreBackup(specified_backup_dir)
-        restore_backup.restore()
+        run(specified_backup_dir)
         backups.append(body.backup_dir)
     else:
         # Restore from all backups
@@ -293,12 +432,19 @@ def restore(body: RestoreBackupBody):
             return {"msg": "No backups found"}, 404
 
         for backup_dir in sorted(backup_dirs, key=lambda x: x.name, reverse=True):
-            restore_backup = RestoreBackup(backup_dir)
-            restore_backup.restore()
+            run(backup_dir)
             backups.append(backup_dir.name)
 
     index_everything()
-    return {"msg": "Restored successfully", "backups": backups}, 200
+
+    # Per section: restored / skipped (already present) / discarded (rejected by
+    # the database). The last one used to go to stdout only — a restore could
+    # drop every row it read and still answer "Restored successfully" (#527).
+    return {
+        "msg": "Restored successfully",
+        "backups": backups,
+        "restored": {section: report.asdict() for section, report in totals.items()},
+    }, 200
 
 
 @api.get("/list")
