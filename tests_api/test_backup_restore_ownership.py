@@ -386,16 +386,23 @@ def test_my_own_collection_is_still_skipped(owners_db):
 # ---------------------------------------------------------------------------
 
 
-def test_a_row_the_database_rejects_is_counted_not_printed(owners_db):
+def test_a_row_the_database_rejects_is_counted_not_printed(owners_db, caplog):
     """
     The reason #513 and #527 stayed hidden: every `restore_*` swallowed its
     `IntegrityError` into a `print`, so a restore could drop everything it read
     and still answer "Restored successfully".
 
+    Both halves are asserted. The COUNT is what reaches the API response; the
+    LOG line is what makes it actionable — "discarded: 412" on its own tells
+    nobody which rows to recover, which is the trap of replacing a print with a
+    bare counter.
+
     A NULL name violates the column, and the resolver cannot rescue it the way
     it rescues an unknown owner — so it is the honest way to produce a discard.
     """
-    report = _restore("restore_collections", [{**_collection_dict("ok", userid=1), "name": None}])
+    with caplog.at_level("ERROR", logger="aivinnet.api.backup_and_restore"):
+        report = _restore("restore_collections", [{**_collection_dict("ok", userid=1), "name": None}])
 
     assert (report.restored, report.skipped, report.discarded) == (0, 0, 1)
     assert _collection_rows() == []
+    assert any("collection" in record.getMessage() for record in caplog.records)

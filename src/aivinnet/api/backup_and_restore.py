@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 from dataclasses import asdict
 from pathlib import Path
@@ -14,6 +15,8 @@ from aivinnet.lib.index import index_everything
 from aivinnet.settings import Paths
 from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import timestamp_to_time_passed
+
+log = logging.getLogger(__name__)
 
 bp_tag = Tag(name="Backup and Restore", description="Backup and Restore")
 api = APIBlueprint("backup_and_restore", __name__, url_prefix="/backup", abp_tags=[bp_tag])
@@ -77,6 +80,14 @@ def owner_resolver():
     the restoring user — that is the cross-instance case, and the alternative
     there is dropping the row on the floor (it would hit the `user.id` foreign
     key and be swallowed by the `except IntegrityError` below).
+
+    ⚠️ The fallback COLLAPSES unknown owners onto one user. Restoring a foreign
+    instance's backup where users 5 and 6 each had a "Road trip" lands both on
+    the restoring user, where the second one is a duplicate of the first and
+    gets skipped. That is accepted: the alternative is inventing users or
+    renaming rows, and the honest outcome for a foreign backup is "you got one
+    of each name". Restoring an instance's OWN backup — the case this endpoint
+    exists for — never hits it, because every owner is known.
 
     The set of known users is read ONCE per section, not per row.
     """
@@ -206,6 +217,19 @@ class SectionReport:
         self.skipped += other.skipped
         self.discarded += other.discarded
 
+    def discard(self, section: str, row: dict, error: Exception):
+        """
+        Count a row the database refused, and say WHICH one and why.
+
+        The count alone is un-actionable — "discarded: 412" tells nobody what to
+        recover. The row and the exception go to the log at error level, the
+        number goes to the caller; the old code had the row (on stdout, via
+        `print`) and no number, which is how a restore could drop everything it
+        read and still answer "Restored successfully".
+        """
+        self.discarded += 1
+        log.error("Restore discarded a %s row: %s (%s)", section, row, error)
+
     def asdict(self) -> dict[str, int]:
         return {"restored": self.restored, "skipped": self.skipped, "discarded": self.discarded}
 
@@ -269,8 +293,8 @@ class RestoreBackup:
                 FavoritesTable.insert_item({**fav, "userid": owner})
                 existing.add((owner, fav["type"], fav["hash"]))
                 report.restored += 1
-            except sqlalchemy.exc.IntegrityError:
-                report.discarded += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("favorite", fav, error)
 
         return report
 
@@ -300,8 +324,8 @@ class RestoreBackup:
                 PlaylistTable.add_one({**playlist, "userid": owner})
                 existing.add((owner, playlist["name"]))
                 report.restored += 1
-            except sqlalchemy.exc.IntegrityError:
-                report.discarded += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("playlist", playlist, error)
 
         return report
 
@@ -330,8 +354,8 @@ class RestoreBackup:
                 ScrobbleTable.add({**scrobble, "userid": owner})
                 existing.add(key)
                 report.restored += 1
-            except sqlalchemy.exc.IntegrityError:
-                report.discarded += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("scrobble", scrobble, error)
 
         return report
 
@@ -358,8 +382,8 @@ class RestoreBackup:
                 CollectionTable.insert_one({**collection, "userid": owner})
                 existing.add((owner, collection["name"]))
                 report.restored += 1
-            except sqlalchemy.exc.IntegrityError:
-                report.discarded += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("collection", collection, error)
 
         return report
 
