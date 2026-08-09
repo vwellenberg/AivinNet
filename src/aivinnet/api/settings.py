@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -81,6 +81,12 @@ def add_root_dirs(body: AddRootDirsBody):
     return {"root_dirs": config.rootDirs}
 
 
+# NOTE: deliberately NOT admin-gated. It would not hide anything — `GET /notsettings`
+# returns the same `rootDirs` and the client needs them from there — while breaking
+# every non-admin session: `App.vue::handleRootDirsPrompt` runs on each mount, reads a
+# 403 as "no dirs configured" and puts the first-run modal in front of a guest who
+# cannot dismiss it. Exposing the media paths to a logged-in user is a separate,
+# smaller question than letting them change the library.
 @api.get("/get-root-dirs")
 def get_root_dirs():
     """
@@ -100,6 +106,12 @@ def get_all_settings():
     for key, value in config.items():
         if isinstance(value, set):
             config[key] = sorted(list(value))
+
+    # The serverId is the JWT signing key AND the password salt (see
+    # `app_builder.config_app` and `utils.auth.hash_password`). Anyone holding it
+    # can mint a token for any user, so it must never leave the server — not even
+    # for an admin, who has no use for it in the client.
+    del config["serverId"]
 
     config["plugins"] = [p for p in PluginTable.get_all()]
     config["version"] = Metadata.version
@@ -129,6 +141,7 @@ class SetSettingBody(BaseModel):
 
 
 @api.get("/trigger-scan")
+@admin_required()
 def trigger_scan():
     """
     Triggers scan for new music
@@ -148,12 +161,37 @@ class UpdateConfigBody(BaseModel):
     )
 
 
+# Keys the generic setter must never touch. `serverId` signs every token and salts
+# every password hash, so overwriting it logs everyone out AND makes every stored
+# password wrong at the same moment — with no way back, because the old value is
+# gone. It is not a setting; it is the server's identity.
+PROTECTED_CONFIG_KEYS = frozenset({"serverId"})
+
+
+def _writable_config_keys() -> set[str]:
+    """The settings the generic setter accepts: declared, public config fields.
+
+    An allow-list rather than a deny-list, because `setattr` takes ANY name — it
+    does not have to be a setting at all. `{"key": "write_to_file"}` replaces the
+    config's own method on the process-wide singleton, and every later write in the
+    running server then raises TypeError until a restart. A name that is merely
+    unknown is no better: it silently attaches a dead attribute nobody reads, so the
+    request answers 200 and the setting never applies (that is exactly what the
+    client's `enableWatchDog` has been doing — the field is `enableWatchdog`).
+    """
+    return {f.name for f in fields(UserConfig) if not f.name.startswith("_")} - PROTECTED_CONFIG_KEYS
+
+
 @api.put("/update")
 @admin_required()
 def update_config(body: UpdateConfigBody):
     """
     Update the config file
     """
+    # Refuse before mutating anything (see .claude/rules/api-endpoints.md).
+    if body.key not in _writable_config_keys():
+        return {"msg": f"'{body.key}' is not a writable setting"}, 400
+
     config = UserConfig()
     if body.key == "artistSeparators":
         body.value = body.value.split(",")

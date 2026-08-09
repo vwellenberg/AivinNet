@@ -83,6 +83,39 @@ Beim Selbst-Prägen eines Tokens fürs Testen muss `sub` ein **Dict** sein (`{"s
 kein JSON-String — der `user_lookup_loader` macht `jwt_data["sub"]["id"]`. Sonst: HTTP 500 auf
 jedem Endpoint, während die App-Shell weiter rendert.
 
+### ⚠️ Der `serverId` darf den Server nicht verlassen
+
+Er ist **JWT-Signaturschlüssel und Passwort-Salt in einem** (`app_builder.config_app`,
+`utils.auth.hash_password`). `GET /notsettings` gab ihn über `asdict(UserConfig())` an **jeden
+eingeloggten** Nutzer heraus — womit sich jeder Gast ein Admin-Token prägen konnte und **jedes
+`@admin_required()` in der App zur Dekoration wurde**. Am laufenden Server nachgemessen, bevor es
+zu war: HTTP 200, Wert identisch mit dem Config-Secret.
+
+Daraus die Regel für jeden Handler, der Config **als Ganzes** serialisiert: geheime Felder
+explizit entfernen (wie `lastfmSessionKeys` daneben) und mit einem Test absichern, der die
+**Rohantwort** gegen einen Sentinel prüft — sonst wandert das Secret beim nächsten neuen Feld
+unter anderem Namen wieder hinaus (`tests_api/test_admin_boundaries.py`).
+
+### ⚠️ Eine `id` aus dem Body ist keine Berechtigung
+
+`PUT /auth/profile/update` nahm die Ziel-`id` aus dem Request und prüfte nirgends, ob der
+Aufrufer dieser Nutzer ist. Drei Details ergaben zusammen den vollen Rechte-Aufstieg: der
+Rollen-Zweig läuft nur, wenn `roles` **mitgeschickt** wird (Default `None`), die
+Selbst-Zuordnung greift nur bei **leerer** `id`, und `UserTable.update_one` filtert allein
+auf `id`. `{"id": <admin>, "password": "…"}` von einem beliebigen Konto genügte.
+
+Merkmal zum Wiedererkennen: Ein Handler, der eine fremde Zeile über einen **Bezeichner aus dem
+Body** ändert, braucht neben dem Rollen-Check einen **Eigentümer-Check** — und der gehört vor
+die erste Schreiboperation, nicht in einen Sonderzweig, den ein fehlendes Feld überspringt.
+
+### ⚠️ Ein Rechte-Test braucht einen GÜLTIGEN Body
+
+`flask_openapi3` validiert das Request-Modell **vor** der View — und damit vor
+`@admin_required()`. Ein unvollständiger oder zu kurzer Wert antwortet **422, nie 403**: Der Test
+ist grün, ohne dass der Decorator je gelaufen ist, und bliebe grün, wenn ihn jemand entfernt.
+Konkret gestolpert: `AlbumHashSchema` pinnt `albumhash` auf exakt `Defaults.HASH_LENGTH` (16)
+Zeichen. Also im Test auf **403** prüfen, nie auf „nicht 200".
+
 ## Tests sind Pflicht
 
 Neue oder geänderte Endpoints und Request-Modelle brauchen **`tests_api/`-Abdeckung** des echten

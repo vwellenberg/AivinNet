@@ -115,6 +115,7 @@ class AlbumHashBody(BaseModel):
 
 
 @api.post("/album/undo")
+@admin_required()
 def undo_album_cover(body: AlbumHashBody):
     """
     Restore the album cover that was replaced by the last save or removal
@@ -130,6 +131,7 @@ def undo_album_cover(body: AlbumHashBody):
 
 
 @api.post("/album/remove")
+@admin_required()
 def remove_album_cover(body: AlbumHashBody):
     """
     Remove an album's cover so it falls back to the placeholder.
@@ -154,6 +156,7 @@ class UploadAlbumCoverForm(BaseModel):
 
 
 @api.post("/album/upload")
+@admin_required()
 def upload_album_cover(form: UploadAlbumCoverForm):
     """
     Save an uploaded image file as the album's cover in all thumbnail sizes.
@@ -219,6 +222,7 @@ class SaveAlbumCoverBody(BaseModel):
 
 
 @api.post("/album")
+@admin_required()
 def save_album_cover(body: SaveAlbumCoverBody):
     """
     Download the confirmed cover server-side and persist it as the album's

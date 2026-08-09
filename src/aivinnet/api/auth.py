@@ -233,6 +233,15 @@ def update_profile(body: UpdateProfileBody):
     if not user["id"]:
         user["id"] = current_user["id"]
 
+    # ...but an id in the body means "update THAT user", and only an admin may say
+    # so. Without this check the endpoint is a complete privilege escalation: the
+    # roles branch below is skipped whenever `roles` is absent (it defaults to
+    # None), so `{"id": <admin>, "password": "..."}` from any logged-in account
+    # rewrites the admin's password and every other guard in the app becomes
+    # decorative. Self-updates keep working — that is what the profile screen sends.
+    if user["id"] != current_user["id"] and "admin" not in current_user["roles"]:
+        return {"msg": "Cannot update another user"}, 403
+
     if body.roles is not None:
         # only admins can update roles
         if "admin" not in current_user["roles"]:
