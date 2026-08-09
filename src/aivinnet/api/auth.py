@@ -21,6 +21,7 @@ from pydantic_core import core_schema
 
 from aivinnet.config import UserConfig
 from aivinnet.db.userdata import UserTable
+from aivinnet.lib import loginguard
 from aivinnet.settings import Paths
 from aivinnet.store.homepage import HomepageStore
 from aivinnet.utils.auth import check_password, hash_password
@@ -111,7 +112,12 @@ def delete_user_image_file(filename: str) -> None:
 
 
 class LoginBody(BaseModel):
-    username: str = Field(description="The username", example="user0")
+    # ⚠️ Bounded because the brute-force guard REMEMBERS this string until the
+    # account's window expires, and the app sets no MAX_CONTENT_LENGTH. Without a
+    # limit, a few thousand requests carrying megabyte-long usernames would pin
+    # gigabytes for the life of the process — retention this endpoint did not
+    # have before the guard existed. 64 is far above any real name.
+    username: str = Field(max_length=64, description="The username", example="user0")
     password: str = Field(description="The password", example="password0")
 
 
@@ -120,24 +126,38 @@ def login(body: LoginBody):
     """
     Authenticate using username and password
     """
+    # Refuse outright while an account is locked out or already has an attempt in
+    # flight — never delay the answer. bjoern serves one request at a time, so
+    # sleeping here would freeze the app for everyone else (see lib/loginguard.py).
+    wait = loginguard.begin_attempt(body.username)
+    if wait > 0:
+        return {"msg": f"Too many failed attempts. Try again in {round(wait)} seconds."}, 429
 
-    user = UserTable.get_by_username(body.username)
+    # From here the slot is held, and `finish_attempt` must run on EVERY path —
+    # an early return or a raising password check would otherwise leave the
+    # account marked busy and lock its owner out until a restart.
+    success = False
+    try:
+        user = UserTable.get_by_username(body.username)
 
-    if user is None:
-        return {"msg": "User not found"}, 404
+        if user is None:
+            # Counted as well: without this, guessing usernames is unlimited, and
+            # the 404-vs-401 split already tells an attacker which ones exist.
+            return {"msg": "User not found"}, 404
 
-    password_ok = check_password(body.password, user.password)
+        if not check_password(body.password, user.password):
+            return {"msg": "Hehe! invalid password"}, 401
 
-    if not password_ok:
-        return {"msg": "Hehe! invalid password"}, 401
+        success = True
+        res = create_new_token(user.todict())
+        token = res["accesstoken"]
+        age = res["maxage"]
+        res = jsonify(res)
+        set_access_cookies(res, token, max_age=age)
 
-    res = create_new_token(user.todict())
-    token = res["accesstoken"]
-    age = res["maxage"]
-    res = jsonify(res)
-    set_access_cookies(res, token, max_age=age)
-
-    return res
+        return res
+    finally:
+        loginguard.finish_attempt(body.username, success)
 
 
 pair_token = dict()
@@ -390,7 +410,10 @@ def create_guest_user():
 
 
 class DeleteUseBody(BaseModel):
-    username: str = Field("", description="The username")
+    # Required, not defaulted: deletion happens BY USERNAME, so an empty one
+    # matched nobody and the handler still answered 200 "User  deleted". A
+    # request that names no user is a malformed request, not a no-op.
+    username: str = Field(..., min_length=1, description="The username")
 
 
 @api.delete("/profile/delete")
@@ -401,10 +424,16 @@ def delete_user(body: DeleteUseBody):
     """
     # prevent admin from deleting themselves
     if body.username == current_user["username"]:
-        return {"msg": "Sorry! you cannot delete yourselfu"}, 400
+        return {"msg": "Sorry! you cannot delete yourself"}, 400
+
+    users = list(UserTable.get_all())
+
+    # A delete that matched nothing is not a success. Checked here, before the
+    # statement runs, so the answer describes what actually happened.
+    if not any(user.username == body.username for user in users):
+        return {"msg": f"No user named {body.username}"}, 404
 
     # prevent deleting the only admin
-    users = UserTable.get_all()
     admins = [user for user in users if "admin" in user.roles]
     if len(admins) == 1 and admins[0].username == body.username:
         return {"msg": "Cannot delete the only admin"}, 400

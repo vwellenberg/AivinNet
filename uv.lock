@@ -23,6 +23,99 @@ version = "3.0.2"
 requires-python = ">=3.11"
 
 [[package]]
+name = "aivinnet"
+source = { editable = "." }
+dependencies = [
+    { name = "bjoern", marker = "sys_platform != 'win32'" },
+    { name = "colorgram-py" },
+    { name = "ffmpeg-python" },
+    { name = "flask" },
+    { name = "flask-compress" },
+    { name = "flask-cors" },
+    { name = "flask-jwt-extended" },
+    { name = "flask-openapi3" },
+    { name = "locust" },
+    { name = "memory-profiler" },
+    { name = "mutagen" },
+    { name = "pendulum" },
+    { name = "pillow" },
+    { name = "psutil" },
+    { name = "pystray" },
+    { name = "rapidfuzz" },
+    { name = "requests" },
+    { name = "schedule" },
+    { name = "setproctitle" },
+    { name = "show-in-file-manager" },
+    { name = "sortedcontainers" },
+    { name = "sqlalchemy" },
+    { name = "tabulate" },
+    { name = "tinytag" },
+    { name = "tqdm" },
+    { name = "unidecode" },
+    { name = "waitress", marker = "sys_platform == 'win32'" },
+    { name = "xxhash" },
+]
+
+[package.optional-dependencies]
+build = [
+    { name = "pyinstaller" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "twine" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bjoern", marker = "sys_platform != 'win32'", specifier = ">=3.2.2" },
+    { name = "colorgram-py", specifier = ">=1.2.0" },
+    { name = "ffmpeg-python", specifier = ">=0.2.0" },
+    { name = "flask", specifier = ">=3.1.0" },
+    { name = "flask-compress", specifier = ">=1.13" },
+    { name = "flask-cors", specifier = ">=3.0.10" },
+    { name = "flask-jwt-extended", specifier = ">=4.6.0" },
+    { name = "flask-openapi3", specifier = "==3.0.2" },
+    { name = "locust", specifier = ">=2.20.1" },
+    { name = "memory-profiler", specifier = ">=0.61.0" },
+    { name = "mutagen", specifier = ">=1.47.0" },
+    { name = "pendulum", specifier = ">=3.0.0" },
+    { name = "pillow", specifier = ">=11.1.0" },
+    { name = "psutil", specifier = ">=5.9.4" },
+    { name = "pyinstaller", marker = "extra == 'build'" },
+    { name = "pystray", specifier = ">=0.19.5" },
+    { name = "rapidfuzz", specifier = "==3.11.0" },
+    { name = "requests", specifier = ">=2.27.1" },
+    { name = "schedule", specifier = ">=1.2.2" },
+    { name = "setproctitle", specifier = ">=1.3.2" },
+    { name = "show-in-file-manager", specifier = ">=1.1.4" },
+    { name = "sortedcontainers", specifier = ">=2.4.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.31" },
+    { name = "tabulate", specifier = ">=0.9.0" },
+    { name = "tinytag", specifier = ">=2.1.1" },
+    { name = "tqdm", specifier = ">=4.65.0" },
+    { name = "unidecode", specifier = ">=1.3.6" },
+    { name = "waitress", marker = "sys_platform == 'win32'", specifier = ">=3.0.2" },
+    { name = "xxhash", specifier = ">=3.4.1" },
+]
+provides-extras = ["build"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "twine", specifier = ">=6.1.0" },
+]
+
+[[package]]
 name = "altgraph"
 version = "0.17.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2135,99 +2228,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/27/17f143013aabbe1256dce19061eafdce0b0142465ce32168cdb9a18c04b1/SQLAlchemy-2.0.38-cp313-cp313-win32.whl", hash = "sha256:eae27ad7580529a427cfdd52c87abb2dfb15ce2b7a3e0fc29fbb63e2ed6f8120", size = 2073023, upload-time = "2025-02-06T20:25:32.861Z" },
     { url = "https://files.pythonhosted.org/packages/e2/3e/259404b03c3ed2e7eee4c179e001a07d9b61070334be91124cf4ad32eec7/SQLAlchemy-2.0.38-cp313-cp313-win_amd64.whl", hash = "sha256:b335a7c958bc945e10c522c069cd6e5804f4ff20f9a744dd38e748eb602cbbda", size = 2096908, upload-time = "2025-02-06T20:25:35.053Z" },
     { url = "https://files.pythonhosted.org/packages/aa/e4/592120713a314621c692211eba034d09becaf6bc8848fabc1dc2a54d8c16/SQLAlchemy-2.0.38-py3-none-any.whl", hash = "sha256:63178c675d4c80def39f1febd625a6333f44c0ba269edd8a468b156394b27753", size = 1896347, upload-time = "2025-02-06T22:08:29.784Z" },
-]
-
-[[package]]
-name = "swingmusic"
-source = { editable = "." }
-dependencies = [
-    { name = "bjoern", marker = "sys_platform != 'win32'" },
-    { name = "colorgram-py" },
-    { name = "ffmpeg-python" },
-    { name = "flask" },
-    { name = "flask-compress" },
-    { name = "flask-cors" },
-    { name = "flask-jwt-extended" },
-    { name = "flask-openapi3" },
-    { name = "locust" },
-    { name = "memory-profiler" },
-    { name = "mutagen" },
-    { name = "pendulum" },
-    { name = "pillow" },
-    { name = "psutil" },
-    { name = "pystray" },
-    { name = "rapidfuzz" },
-    { name = "requests" },
-    { name = "schedule" },
-    { name = "setproctitle" },
-    { name = "show-in-file-manager" },
-    { name = "sortedcontainers" },
-    { name = "sqlalchemy" },
-    { name = "tabulate" },
-    { name = "tinytag" },
-    { name = "tqdm" },
-    { name = "unidecode" },
-    { name = "waitress", marker = "sys_platform == 'win32'" },
-    { name = "xxhash" },
-]
-
-[package.optional-dependencies]
-build = [
-    { name = "pyinstaller" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "twine" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "bjoern", marker = "sys_platform != 'win32'", specifier = ">=3.2.2" },
-    { name = "colorgram-py", specifier = ">=1.2.0" },
-    { name = "ffmpeg-python", specifier = ">=0.2.0" },
-    { name = "flask", specifier = ">=3.1.0" },
-    { name = "flask-compress", specifier = ">=1.13" },
-    { name = "flask-cors", specifier = ">=3.0.10" },
-    { name = "flask-jwt-extended", specifier = ">=4.6.0" },
-    { name = "flask-openapi3", specifier = "==3.0.2" },
-    { name = "locust", specifier = ">=2.20.1" },
-    { name = "memory-profiler", specifier = ">=0.61.0" },
-    { name = "mutagen", specifier = ">=1.47.0" },
-    { name = "pendulum", specifier = ">=3.0.0" },
-    { name = "pillow", specifier = ">=11.1.0" },
-    { name = "psutil", specifier = ">=5.9.4" },
-    { name = "pyinstaller", marker = "extra == 'build'" },
-    { name = "pystray", specifier = ">=0.19.5" },
-    { name = "rapidfuzz", specifier = "==3.11.0" },
-    { name = "requests", specifier = ">=2.27.1" },
-    { name = "schedule", specifier = ">=1.2.2" },
-    { name = "setproctitle", specifier = ">=1.3.2" },
-    { name = "show-in-file-manager", specifier = ">=1.1.4" },
-    { name = "sortedcontainers", specifier = ">=2.4.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.31" },
-    { name = "tabulate", specifier = ">=0.9.0" },
-    { name = "tinytag", specifier = ">=2.1.1" },
-    { name = "tqdm", specifier = ">=4.65.0" },
-    { name = "unidecode", specifier = ">=1.3.6" },
-    { name = "waitress", marker = "sys_platform == 'win32'", specifier = ">=3.0.2" },
-    { name = "xxhash", specifier = ">=3.4.1" },
-]
-provides-extras = ["build"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "twine", specifier = ">=6.1.0" },
 ]
 
 [[package]]

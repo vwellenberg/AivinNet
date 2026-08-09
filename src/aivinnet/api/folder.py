@@ -297,12 +297,17 @@ class FolderOpenInFileManagerQuery(BaseModel):
 
 
 @api.get("/show-in-files")
+@admin_required()
 def open_in_file_manager(query: FolderOpenInFileManagerQuery):
     """
     Open in file manager
 
     Opens the given path in the file manager on the host machine.
     Path must be within configured root directories.
+
+    Admin-only: this spawns a process on the SERVER, which is meaningless for a
+    remote listener and not something a guest account should be able to trigger.
+    The path check below limits where it points, not who may fire it.
     """
     # Resolve path to prevent directory traversal
     resolved_path = Path(query.path).resolve()
