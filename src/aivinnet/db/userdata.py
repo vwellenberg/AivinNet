@@ -529,7 +529,14 @@ class PlaylistTable(Base):
 
     @classmethod
     def add_one(cls, playlist: dict[str, Any]):
-        playlist["userid"] = get_current_userid()
+        # An owner already on the dict is KEPT. Only the restore sets one, and
+        # it has to: an instance backup carries every user's playlists, and
+        # overwriting the owner here would hand them all to whoever pressed
+        # restore (AivinNet-Client#527). Same rule as `ScrobbleTable.add` and
+        # `FavoritesTable.insert_item`; no other caller passes a userid.
+        if playlist.get("userid") is None:
+            playlist["userid"] = get_current_userid()
+
         result = cls.insert_one(playlist)
 
         return result.lastrowid
@@ -714,8 +721,15 @@ class CollectionTable(Base):
         return d
 
     @classmethod
-    def get_all(cls):
-        result = cls.execute(select(cls).where(cls.userid == get_current_userid()))
+    def get_all(cls, current_user: bool = True):
+        # `current_user=False` is the instance backup (AivinNet-Client#527) and
+        # nothing else — the homepage store, the only other caller, wants the
+        # requesting user's collections, so the default stays as it was. Same
+        # shape as `PlaylistTable.get_all`.
+        if current_user:
+            result = cls.execute(select(cls).where(cls.userid == get_current_userid()))
+        else:
+            result = cls.execute(select(cls))
 
         for i in next(result).scalars():
             yield cls.to_dict(i)
