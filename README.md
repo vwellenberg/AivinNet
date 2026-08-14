@@ -59,10 +59,18 @@ automatically, the installer tells you the one command to run.
 2. Pick your music folder (skipped if you passed `--music`).
 3. Wait for the first scan — minutes to an hour, depending on library size.
 
-Everything lives in `~/.config/swingmusic/` (database, covers, playlists) — that
+Everything lives in `~/.config/aivinnet/` (database, covers, playlists) — that
 directory is the only copy of your data, so back it up. Service configuration
 (port, host) is `~/.config/aivinnet/aivinnet.env`; edit it and restart the
 service.
+
+> The directory was called `~/.config/swingmusic/` before v2026.8.0 and is moved
+> automatically on first start of a newer version. If yours still carries the old
+> name, that is the one to back up.
+
+⚠️ The database is **three** files — `aivinnet.db` plus the `-wal` and `-shm`
+sidecars SQLite keeps beside it in WAL mode. Copy them as a set, or the copy is
+missing the most recent transactions.
 
 ### Other install paths
 
@@ -76,8 +84,48 @@ service.
 
 ### Access from outside your network
 
-Use Tailscale or a VPN. Do not port-forward this to the internet: it listens
-without TLS and allows any origin, so it belongs on a trusted network.
+**Do not port-forward this to the internet.** It listens without TLS and allows
+any origin, so it belongs on a network you trust. Use a VPN — the setup below
+uses [Tailscale](https://tailscale.com), which needs no open ports, no static IP
+and no certificate of your own, and works from behind CGNAT.
+
+On the machine running AivinNet, once:
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale serve --bg 1970          # use your port if you changed it
+```
+
+`serve` puts AivinNet behind HTTPS at `https://<machine>.<tailnet>.ts.net` with a
+real Let's Encrypt certificate, reachable **only from your own tailnet**. Your own
+phones and laptops just install Tailscale, sign in, and open that URL. Access over
+the LAN is unchanged — this adds a path, it does not replace one.
+
+`tailscale status` prints the exact hostname to use.
+
+#### Letting other people in
+
+Give each person **their own account** (Settings → Accounts) rather than sharing
+one: favourites, playlists and listening history all hang off the account, and a
+shared login mixes everybody's together.
+
+For the network side, use Tailscale's **node sharing**: in the admin console,
+share the machine with their Tailscale account. They install Tailscale, accept
+the invitation, and reach that one machine — they do **not** join your tailnet and
+cannot see your other devices. Each share is revocable on its own.
+
+> ⚠️ **`serve` and `funnel` are not the same thing.** `tailscale funnel` puts the
+> same URL on the **public internet**. You almost certainly do not want that here:
+> it exposes your whole library behind a single login form. Node sharing covers
+> friends and family; funnel is for when a foreign *server* has to reach the URL.
+
+#### If you put it behind any reverse proxy
+
+The app then sees the proxy's address as the client address for every request.
+Nothing in AivinNet depends on the client IP today — the login rate limit
+deliberately counts usernames for exactly this reason — but keep it in mind before
+adding anything that does.
 
 ### Privacy note
 
