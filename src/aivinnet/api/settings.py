@@ -1,6 +1,7 @@
 from dataclasses import asdict, fields
 from typing import Any
 
+from flask_jwt_extended import current_user as jwt_current_user
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
@@ -120,6 +121,13 @@ def get_all_settings():
         # fallback to version.txt (useful for docker builds)
         with open("version.txt") as f:
             config["version"] = f.read().strip()
+
+    # The Last.fm application credentials are server configuration, not something
+    # a listener needs. They only ever mattered to the settings row that lets an
+    # admin swap in their own key — and that row is the admin's to see.
+    if "admin" not in jwt_current_user["roles"]:
+        config["lastfmApiKey"] = ""
+        config["lastfmApiSecret"] = ""
 
     # only return lastfmSessionKey for the current user
     current_user = get_current_userid()
