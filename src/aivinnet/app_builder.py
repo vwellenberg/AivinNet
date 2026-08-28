@@ -21,7 +21,6 @@ from aivinnet.config import UserConfig
 from aivinnet.db.userdata import UserTable
 from aivinnet.settings import Metadata, Paths
 from aivinnet.utils.net import prefer_ipv4
-from aivinnet.utils.paths import get_client_files_extensions
 
 log = logging.getLogger(__name__)
 # # # # # # # # # # # # # # # # # #
@@ -164,33 +163,66 @@ api_info = Info(
 app = OpenAPI(__name__, info=api_info, doc_prefix="/docs")
 
 
+# The only endpoints reachable without a token. Named exactly — an endpoint is
+# what Flask's router already resolved, so there is no prefix or suffix left to
+# get wrong.
+#
+# ⚠️ The previous version matched STRINGS against `request.path`, and it leaked
+# in three directions at once:
+#
+#   * `path.endswith(files)`, where `files` came from walking the client
+#     directory at request time. Whichever extensions happened to be on disk —
+#     .js, .css, .html, .png, .svg, .txt, .ico, .gz, .woff2, .webmanifest —
+#     switched authentication off for ANY path ending that way. Most such paths
+#     stop matching their route and land harmlessly on the static catch-all, but
+#     not all: `/getall/<itemtype>` matches `/getall/albums.js` with
+#     `itemtype="albums.js"`, so that handler really did run with no token. Which
+#     endpoints were public was decided by the contents of a build directory.
+#   * `path.startswith(urls)`, so `/docs` also covered `/docsanything` and
+#     `/auth/pair` covered `/auth/pairwhatever`.
+#   * walking that directory on EVERY request, twice (before_request and
+#     after_request), in front of a server that handles one request at a time.
+#
+# All three disappear with an exact set. `get_client_files_extensions()` has no
+# callers left.
+PUBLIC_ENDPOINTS = frozenset(
+    {
+        # The client itself: HTML, JS, CSS and fonts must load before anyone can
+        # log in. `serve_client_files` is the `/<path:path>` catch-all, so every
+        # unrouted path lands there — it only ever calls `send_static_file`,
+        # which refuses to escape the static folder.
+        "serve_client",
+        "serve_client_files",
+        "static",
+        # The login screen's own handful.
+        "auth.login",
+        "auth.logout",
+        # `auth.get_all_users` populates the user picker before login and is
+        # `@jwt_required(optional=True)`; it decides for itself what an
+        # anonymous caller may see.
+        "auth.get_all_users",
+        # Redeeming a pair code IS the authentication step, and `auth.refresh`
+        # carries `@jwt_required(refresh=True)` — it authenticates with the
+        # refresh token instead of the access token.
+        "auth.pair_with_code",
+        "auth.refresh",
+    }
+)
+
+
 def check_auth_need() -> bool:
     """
-    Check if the current request is for a static file.
-    We do not need auth for index or static images of index.
+    Whether this request may skip JWT verification.
 
-    :return: True if static file else False
+    Decided on the resolved endpoint, never on the path text.
     """
-
-    # INFO: Routes that don't need authentication
-    urls = {
-        "/auth/login",
-        "/auth/users",
-        "/auth/pair",
-        "/auth/logout",
-        "/auth/refresh",
-        "/docs",
-    }
-    files = {".webp", ".jpg", *get_client_files_extensions()}
-
-    urls = tuple(urls)
-    files = tuple(files)
-
-    if request.path == "/" or request.path.endswith(files):
+    # No endpoint means the router matched nothing. Let it through to Flask's own
+    # 404 rather than answering 401 — a token cannot make a route exist, and
+    # replying 401 to unrouted paths turns the 404 handler into an oracle.
+    if request.endpoint is None:
         return True
 
-    # if request path starts with any of the blacklisted routes, don't verify jwt
-    return bool(request.path.startswith(urls))
+    return request.endpoint in PUBLIC_ENDPOINTS
 
 
 # # # # # # # # # # # # #
