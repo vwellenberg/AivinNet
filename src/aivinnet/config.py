@@ -5,6 +5,7 @@ from typing import Any
 
 from aivinnet.data import ARTIST_SPLIT_IGNORE_LIST
 from aivinnet.settings import Paths, Singleton
+from aivinnet.utils.filesystem import restrict_to_owner
 
 
 def load_artist_ignore_list_from_file(filepath: Path) -> set[str]:
@@ -160,6 +161,13 @@ class UserConfig(metaclass=Singleton):
 
         with self._config_path.open(mode="w") as f:
             json.dump(settings, f, indent=4, default=list)
+
+        # ⚠️ Every write, not just the first. `open(mode="w")` truncates an
+        # existing file and leaves its mode alone, but a file created here takes
+        # the process umask — 0664 on the deployment host, i.e. world-readable.
+        # This file holds `serverId`, which is BOTH the JWT signing key and the
+        # password salt: anyone who can read it can mint a token for any account.
+        restrict_to_owner(self._config_path)
 
     def __setattr__(self, key: str, value: Any) -> None:
         """

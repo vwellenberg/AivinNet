@@ -101,3 +101,46 @@ def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
         return [], []
 
     return subfolders, files
+
+
+def restrict_to_owner(path: Path | str) -> None:
+    """
+    Make a file readable by its owner only (``0600``).
+
+    Called on the config file and the database, both of which are created with
+    whatever the process umask happens to be — on the deployment host that meant
+    ``0664`` and ``0644``, i.e. **world-readable**. Between them they hold the
+    JWT signing key (which is also the password salt), every user's password
+    hash, and the whole listening history. Anyone with a shell on the machine
+    could mint a token for any account.
+
+    Best-effort on purpose:
+
+    * A missing file is not an error. The sidecars SQLite keeps beside the
+      database (``-wal``, ``-shm``) exist only in WAL mode and only once it has
+      been written to, so callers pass them unconditionally.
+    * ``OSError`` is swallowed. On Windows the POSIX bits are largely
+      decorative, and on a network mount ``chmod`` can fail outright; neither is
+      a reason to refuse to start. The permissions are defence in depth, not the
+      access control itself.
+    """
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+def restrict_database_files(db_path: Path | str) -> None:
+    """
+    Apply :func:`restrict_to_owner` to a SQLite database and its WAL sidecars.
+
+    ⚠️ The database is THREE files in WAL mode, and the sidecars carry the most
+    recent transactions — locking down only the ``.db`` would leave the newest
+    rows readable.
+    """
+    db_path = Path(db_path)
+
+    restrict_to_owner(db_path)
+
+    for suffix in ("-wal", "-shm"):
+        restrict_to_owner(db_path.with_name(db_path.name + suffix))

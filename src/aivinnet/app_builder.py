@@ -14,6 +14,7 @@ from flask_jwt_extended import (
     verify_jwt_in_request,
 )
 from flask_openapi3 import Info, OpenAPI
+from PIL import Image
 
 from aivinnet import api as aivinnet_api
 from aivinnet.api.plugins import lyrics as lyrics_plugin
@@ -66,6 +67,20 @@ def config_app(web):
     web.config["COMPRESS_MIMETYPES"] = [
         "application/json",
     ]
+
+    # ⚠️ There was no limit at all. `POST /auth/login` is reachable without a
+    # token and Flask buffers the whole body in memory before any handler sees
+    # it, so a few large requests were enough to exhaust RAM on a server that
+    # handles one request at a time. Every upload this app accepts is an image
+    # (avatars, covers), so 32 MB is far above anything legitimate.
+    web.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+
+    # A decompression bomb is a small file that decodes to an enormous bitmap.
+    # Pillow warns at its own default and only raises at twice that; both are
+    # sized for image tooling, not for avatars, and the decode happens before
+    # any of our own size checks could run. 64 MP still covers an 8000x8000
+    # cover with room to spare.
+    Image.MAX_IMAGE_PIXELS = 64_000_000
 
 
 def config_jwt(web):
@@ -293,6 +308,37 @@ def build() -> OpenAPI:
             return
 
         verify_jwt_in_request()
+
+    @app.after_request
+    def add_security_headers(response: Response):
+        """
+        The headers a browser needs in order to protect the user from the page.
+
+        There were none at all. Deliberately a short list — each one here cannot
+        break a working client:
+
+        * `frame-ancestors 'none'` (with the older `X-Frame-Options` alongside it
+          for browsers that predate CSP Level 2) stops the UI being embedded in a
+          foreign page and clicked through. It matters more than usual because
+          this UI deletes data.
+        * `nosniff` keeps a browser from re-interpreting a response as HTML or a
+          script because its bytes look that way. Cover art is user-supplied and
+          served from our own origin.
+        * `Referrer-Policy` keeps playlist and album ids out of the `Referer`
+          header on outbound clicks.
+
+        ⚠️ NOT a full Content-Security-Policy. `script-src`/`style-src` for a Vue
+        SPA needs `blob:` (the QR code), `data:` and inline style attributes
+        (every `:style` binding), and getting that wrong breaks the client
+        silently in ways no test here would catch. It wants a browser session to
+        verify and belongs in its own change.
+        """
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+
+        return response
 
     @app.after_request
     def refresh_expiring_jwt(response: Response):

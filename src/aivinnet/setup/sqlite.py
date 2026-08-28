@@ -16,6 +16,7 @@ from aivinnet.migrations.favorites_unique_per_user import repair_favorites_uniqu
 from aivinnet.settings import Paths
 from aivinnet.start_info_logger import log_generated_admin_password
 from aivinnet.utils.bootstrap import initial_admin_password
+from aivinnet.utils.filesystem import restrict_database_files
 
 
 def run_migrations():
@@ -61,6 +62,12 @@ def setup_sqlite():
 
     create_all_tables()
     # create_user_tables()
+
+    # Every start, not just the first: the file is created with the process
+    # umask (0644 on the deployment host, world-readable) and it holds every
+    # user's password hash plus their whole listening history. Runs after
+    # `create_all_tables()` so the file and its WAL sidecars actually exist.
+    restrict_database_files(Paths().app_db_path)
 
     if not list(UserTable.get_all()):
         password, generated = initial_admin_password()
