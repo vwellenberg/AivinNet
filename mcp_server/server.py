@@ -1,8 +1,8 @@
 """
-AivinNet MCP server — manage playlists from an MCP client (e.g. Claude).
+AivinNet MCP server — manage a music library from an MCP client (e.g. Claude).
 
-Phase 1-3: auth + read tools (list/get) + action tools (sort tracks,
-create, rename, pin).
+Playlist tools (list/get/move/sort/prune/create/rename/pin) plus track tag
+editing (set_track_tags).
 
 Auth: the AivinNet API accepts a JWT in the Authorization header
 (JWT_TOKEN_LOCATION includes "headers"). Configure via env:
@@ -218,6 +218,63 @@ def pin_playlist(playlist_id: int) -> dict:
     """Toggle pin/unpin for a playlist (pinned playlists show at the top)."""
     r = _api("POST", f"/playlists/{playlist_id}/pin_unpin")
     return {"ok": r.ok}
+
+
+# ----------------------------------------------------------- track tag tools
+
+
+@mcp.tool()
+def set_track_tags(
+    trackhash: str,
+    artists: list[str] | None = None,
+    albumartists: list[str] | None = None,
+    title: str | None = None,
+    album: str | None = None,
+    track: int | None = None,
+) -> dict:
+    """
+    Write metadata tags to a track's file and reindex it.
+
+    Only the fields you pass are changed; omit a field to leave it alone.
+    `artists` and `albumartists` are lists (a track can have several).
+
+    IMPORTANT: the trackhash is derived from title/album/artist, so editing any
+    of those gives the track a NEW trackhash and the one you passed in stops
+    resolving. The returned `trackhash` is the new one. When tagging several
+    tracks of one playlist, read all hashes up front with `get_playlist` (an
+    edit only invalidates that track's own hash, not its neighbours').
+
+    The server writes the file on disk, reindexes it and repoints playlist,
+    favorite and history references to the new hash. Needs an admin token.
+    """
+    fields = {
+        "title": title,
+        "album": album,
+        "artists": artists,
+        "albumartists": albumartists,
+        "track": track,
+    }
+    payload = {k: v for k, v in fields.items() if v is not None}
+
+    if not payload:
+        return {"ok": False, "error": "Nothing to change: pass at least one tag field."}
+
+    r = _api("PUT", f"/track/{trackhash}/tags", json=payload)
+
+    if not r.ok:
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return {"ok": False, "status": r.status_code, "error": body}
+
+    edited = r.json().get("track") or {}
+    return {
+        "ok": True,
+        "old_trackhash": trackhash,
+        "trackhash": edited.get("trackhash"),
+        "title": edited.get("title"),
+        "artists": [a.get("name") for a in (edited.get("artists") or [])],
+        "albumartists": [a.get("name") for a in (edited.get("albumartists") or [])],
+        "album": edited.get("album"),
+    }
 
 
 if __name__ == "__main__":
