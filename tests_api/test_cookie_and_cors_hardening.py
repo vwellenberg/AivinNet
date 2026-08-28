@@ -9,6 +9,15 @@ response. So these run in the API lane and assert on the wire format.
    owner visited could read cookie-authenticated responses.
 2. The JWT cookie carried no `SameSite`, which left the browser default as the
    only thing standing between a foreign page and a state-changing request.
+
+⚠️ Scope: these build the app from `config_app`/`config_jwt` only, NOT from
+`build()`, so the `@app.before_request verify_auth` hook is absent. That means
+"an unauthenticated request is rejected" cannot be asserted here — and it is
+worth knowing that no test asserts it anywhere yet. It cannot be bolted on
+either: `/auth/user` carries no `@jwt_required` of its own and leans entirely on
+that global hook, so a fixture that reconstructs the hook would be testing the
+copy. It belongs with the rework of `check_auth_need`, which needs a full-`build()`
+fixture regardless.
 """
 
 import pytest
@@ -115,12 +124,6 @@ class TestCors:
         )
 
         assert res.headers.get("Access-Control-Allow-Origin") == "https://evil.example"
-
-    def test_an_unauthenticated_cross_origin_read_still_gets_nothing(self, hardened_client):
-        """The echo is only harmless as long as the route itself demands a token."""
-        res = hardened_client.get("/auth/user", headers={"Origin": "https://evil.example"})
-
-        assert res.status_code == 401
 
 
 class TestAuthCookie:
