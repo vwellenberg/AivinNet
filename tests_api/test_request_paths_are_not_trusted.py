@@ -20,14 +20,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from aivinnet.lib.trackslib import (
-    get_silence_paddings,
-    is_indexed_track_path,
-    resolve_track_filepath,
-)
+# Only the pre-existing function is imported at module level. The two new
+# helpers are imported inside the tests that use them, so this module still
+# COLLECTS against an unpatched tree — which is what lets the silence tests
+# below actually go red there instead of erroring out at import time. A test
+# that cannot run without the fix proves much less than one that fails with it.
+from aivinnet.lib.trackslib import get_silence_paddings
 
-KNOWN = "/music/real/song.mp3"
-OTHER_FORMAT = "/music/real/song.flac"
 HASH = "abc123def456"
 
 
@@ -63,36 +62,48 @@ def library(monkeypatch, tmp_path):
 
 
 class TestIsIndexedTrackPath:
+    @staticmethod
+    def _fn():
+        from aivinnet.lib.trackslib import is_indexed_track_path
+
+        return is_indexed_track_path
+
     def test_a_known_file_passes(self, library):
         mp3, _ = library
-        assert is_indexed_track_path(mp3) is True
+        assert self._fn()(mp3) is True
 
     @pytest.mark.parametrize("path", ["/etc/passwd", "/root/.ssh/id_ed25519", "", "/music/real/other.mp3"])
     def test_anything_else_is_refused(self, library, path):
-        assert is_indexed_track_path(path) is False
+        assert self._fn()(path) is False
 
 
 class TestResolveTrackFilepath:
+    @staticmethod
+    def _fn():
+        from aivinnet.lib.trackslib import resolve_track_filepath
+
+        return resolve_track_filepath
+
     def test_an_unknown_hash_resolves_to_nothing(self, library):
-        assert resolve_track_filepath("nosuchhash", None) is None
+        assert self._fn()("nosuchhash", None) is None
 
     def test_a_requested_path_of_that_track_is_honoured(self, library):
         """What a real client sends — it must keep working exactly as before."""
         mp3, _ = library
-        assert resolve_track_filepath(HASH, mp3) == mp3
+        assert self._fn()(HASH, mp3) == mp3
 
     def test_a_foreign_path_is_ignored_not_obeyed(self, library):
         """THE guard: the caller does not get to name the file."""
         mp3, flac = library
 
-        resolved = resolve_track_filepath(HASH, "/etc/cron.d/payload")
+        resolved = self._fn()(HASH, "/etc/cron.d/payload")
 
         assert resolved in {mp3, flac}
         assert resolved != "/etc/cron.d/payload"
 
     def test_no_request_path_falls_back_to_the_best_file(self, library):
         _, flac = library
-        assert resolve_track_filepath(HASH, None) == flac  # highest bitrate
+        assert self._fn()(HASH, None) == flac  # highest bitrate
 
 
 class TestSilencePaddings:
