@@ -145,6 +145,17 @@ class UserConfig(metaclass=Singleton):
         if not config.exists():
             self.write_to_file(asdict(self))
 
+        # ⚠️ Unconditionally, and this is the whole point of the call. Tightening
+        # the mode inside `write_to_file` only reaches installs that go on to
+        # write something — and an existing instance may not write its config for
+        # months. Verified the hard way: after deploying the permissions change,
+        # the database and its sidecars were 0600 while `settings.json` sat there
+        # at 0664 from the day it was created, still exposing `serverId`.
+        #
+        # Runs on every start, so the fix reaches an install that already exists
+        # rather than only a fresh one.
+        restrict_to_owner(config)
+
     def load_config(self, path: Path) -> dict[str, Any]:
         """
         Reads the settings from the config file.

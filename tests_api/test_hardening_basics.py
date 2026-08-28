@@ -118,3 +118,44 @@ class TestFilePermissions:
         restrict_database_files(db)  # must not raise
 
         assert stat.S_IMODE(os.stat(db).st_mode) == 0o600
+
+
+class TestExistingInstallsAreFixedToo:
+    """
+    A permissions fix that only runs on write reaches nobody who already has the
+    file. Caught after deploying: database 0600, `settings.json` still 0664 from
+    the day it was created, months earlier.
+    """
+
+    def test_setup_tightens_a_config_file_that_already_exists(self, tmp_path, monkeypatch):
+        import json
+
+        from aivinnet.config import UserConfig
+
+        existing = tmp_path / "settings.json"
+        existing.write_text(json.dumps({"serverId": "already-here"}))
+        os.chmod(existing, 0o664)
+
+        config = UserConfig()
+        monkeypatch.setattr(config, "_config_path", existing, raising=False)
+
+        config.setup_config_file()
+
+        mode = stat.S_IMODE(os.stat(existing).st_mode)
+        assert mode == 0o600, f"an existing config stayed at {oct(mode)}"
+
+    def test_the_existing_contents_are_left_alone(self, tmp_path, monkeypatch):
+        """Tightening the mode must not rewrite what is in the file."""
+        import json
+
+        from aivinnet.config import UserConfig
+
+        existing = tmp_path / "settings.json"
+        existing.write_text(json.dumps({"serverId": "already-here"}))
+
+        config = UserConfig()
+        monkeypatch.setattr(config, "_config_path", existing, raising=False)
+
+        config.setup_config_file()
+
+        assert json.loads(existing.read_text())["serverId"] == "already-here"
