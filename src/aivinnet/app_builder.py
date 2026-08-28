@@ -35,7 +35,21 @@ def config_app(web):
     prefer_ipv4()
 
     # CORS
-    CORS(web, origins="*", supports_credentials=True)
+    #
+    # ⚠️ `supports_credentials` is the dangerous half, not the wildcard. For a
+    # wildcard origin list flask-cors sends a literal `Access-Control-Allow-Origin:
+    # *` — UNLESS credentials are supported, in which case it echoes the REQUESTING
+    # origin back and adds `Access-Control-Allow-Credentials: true`
+    # (flask_cors/core.py:139-146). Browsers then let ANY site read the response of
+    # a cookie-authenticated request: every playlist, every account, every admin
+    # route, driven from a page the owner merely visited.
+    #
+    # False keeps the wildcard useful for the clients that actually need it — the
+    # mobile app and scripts authenticate with an `Authorization` header, which
+    # this flag does not touch — while the browser stops attaching the session
+    # cookie cross-origin. The web client is served by THIS process, so it is
+    # same-origin and never involves CORS at all.
+    CORS(web, origins="*", supports_credentials=False)
 
     # RESPONSE COMPRESSION
     # Only compress JSON responses
@@ -51,6 +65,23 @@ def config_jwt(web):
     web.config["JWT_SECRET_KEY"] = UserConfig().serverId
     web.config["JWT_TOKEN_LOCATION"] = ["cookies", "headers"]
     web.config["JWT_COOKIE_CSRF_PROTECT"] = False
+
+    # Strict, not Lax: under Lax the cookie still rides along on a top-level
+    # navigation, and `GET /notsettings/trigger-scan` is a state-changing GET — a
+    # link from anywhere would kick off a full library scan. The cost of Strict is
+    # that following an external link to the server looks logged out until one
+    # reload; for an app people open directly (bookmark, PWA) that is the better
+    # trade.
+    web.config["JWT_COOKIE_SAMESITE"] = "Strict"
+
+    # ⚠️ Deliberately False, and NOT to be flipped without checking how the
+    # instance is reached. The server binds 0.0.0.0 and is normally used over plain
+    # http:// on the LAN; with Secure set the browser silently DISCARDS the cookie
+    # there. Login still answers 200, so the failure looks like a broken app rather
+    # than a configuration error — an endless login loop. Turn it on only once every
+    # access path is HTTPS (e.g. everything arrives through `tailscale serve`).
+    web.config["JWT_COOKIE_SECURE"] = False
+
     web.config["JWT_SESSION_COOKIE"] = False
 
     jwt_expiry = int(dt.timedelta(days=30).total_seconds())
