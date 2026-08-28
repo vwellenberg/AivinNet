@@ -1,20 +1,26 @@
 """
 Registers the built-in plugins in the database.
 
-The lyrics finder ships ON by default: without it, tracks that carry no
-local lyrics (.lrc file, embedded tag) dead-end at "You don't have the
-lyrics for this song", and the switch to change that is buried in the
-settings. `auto_download` is on for the same reason — opening the lyrics
-page should just fetch them.
+The lyrics finder ships OFF. It talks to Musixmatch, and opening the lyrics
+page would otherwise send the track title and artist there in the clear —
+on a self-hosted server, without anyone having asked for it. A listener who
+wants online lyrics turns the plugin on in the settings, and that switch also
+carries `auto_download`.
 
-Existing databases already have the row, so the insert alone cannot roll
-the new default out. `upgrade_lyrics_plugin_row()` flips rows that are
-still in the old factory state, exactly once: the `overide_unsynced`
-settings key doubles as the rollout marker (rows written before this
-change never had it, and every write since — insert, upgrade, or the
-client's settings update, which always sends the full dict — includes
-it). A user who disables the plugin AFTER the upgrade keeps that choice
-forever, because their row already carries the marker.
+⚠️ Existing databases are left ALONE, on purpose, and that is the whole
+subtlety here. This file previously shipped the plugin ON and had an
+`upgrade_lyrics_plugin_row()` that flipped older rows to match; that function
+is gone with the default it was rolling out. What it must NOT be replaced by
+is the mirror image — a pass that switches everyone back off. The row records
+a choice, and after the earlier rollout there is no way to tell a row the user
+enabled deliberately from one the rollout enabled for them: both end up
+`active=True` carrying the marker. Reaching into a running instance to disable
+a feature someone may be using every day is its own kind of surprise, and the
+setting is one click away.
+
+So: a NEW install gets the private default, an existing one keeps whatever it
+has. The README says this out loud, because "we changed the default" and "we
+changed your setting" are different promises.
 """
 
 from sqlalchemy.exc import IntegrityError
@@ -22,27 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from aivinnet.db.userdata import PluginTable
 
 LYRICS_PLUGIN = "lyrics_finder"
-LYRICS_DEFAULT_SETTINGS = {"auto_download": True, "overide_unsynced": False}
-
-
-def upgrade_lyrics_plugin_row():
-    """
-    One-time rollout of the on-by-default lyrics finder to databases
-    created before the default changed. Idempotent: rows that carry the
-    `overide_unsynced` marker are never touched again.
-    """
-    plugin = PluginTable.get_by_name(LYRICS_PLUGIN)
-
-    if plugin is None or "overide_unsynced" in plugin.settings:
-        return
-
-    if plugin.active:
-        # The user found and enabled the plugin by hand — keep their
-        # settings, only stamp the marker so this runs exactly once.
-        PluginTable.update_settings(LYRICS_PLUGIN, {**plugin.settings, "overide_unsynced": False})
-    else:
-        PluginTable.activate(LYRICS_PLUGIN, True)
-        PluginTable.update_settings(LYRICS_PLUGIN, dict(LYRICS_DEFAULT_SETTINGS))
+LYRICS_DEFAULT_SETTINGS = {"auto_download": False, "overide_unsynced": False}
 
 
 def register_plugins():
@@ -50,7 +36,7 @@ def register_plugins():
         PluginTable.insert_one(
             {
                 "name": LYRICS_PLUGIN,
-                "active": True,
+                "active": False,
                 "settings": dict(LYRICS_DEFAULT_SETTINGS),
                 "extra": {
                     "description": "Find lyrics from the internet",
@@ -58,4 +44,5 @@ def register_plugins():
             }
         )
     except IntegrityError:
-        upgrade_lyrics_plugin_row()
+        # The row already exists — the user's choice, whatever it is. Nothing to do.
+        pass

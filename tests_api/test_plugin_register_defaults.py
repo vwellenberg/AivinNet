@@ -1,12 +1,16 @@
-"""Real-database tests for the on-by-default lyrics finder rollout.
+"""Real-database tests for the off-by-default lyrics finder.
 
-The plugin row is written exactly once per database (the insert hits the
-unique name constraint on every later boot), so changing the literal in
-`register_plugins()` alone would never reach an existing installation.
-These tests pin the three-way contract of the upgrade path: factory-state
-rows get the new default, hand-tuned rows keep their settings, and a
-post-upgrade opt-out is permanent. All against the real table — a mocked
-PluginTable could not fail on any of it.
+The plugin talks to Musixmatch, so the factory state is OFF. The interesting
+half is not the fresh install, though — it is the promise that an EXISTING row
+is never touched.
+
+That promise replaced a three-way upgrade path. The previous default was ON,
+and a rollout function flipped older rows to match. Reversing the default must
+not mean reversing the rollout: after it ran, a row the user enabled themselves
+and a row the rollout enabled for them are byte-identical, so a pass that
+switched everyone back off would silently disable a feature people use. Hence
+one rule instead of three — `register_plugins` writes a row or writes nothing —
+and these tests hold it to that against the real table.
 """
 
 import pytest
@@ -44,11 +48,13 @@ def get_lyrics_row(plugin_table):
     return row
 
 
-def test_fresh_install_ships_active_with_auto_download(plugin_table):
+def test_the_shipped_default_reaches_nobody(plugin_table):
+    """THE guard: nothing leaves the machine until someone asks for it."""
     register_plugins()
 
     row = get_lyrics_row(plugin_table)
-    assert row.active is True
+    assert row.active is False
+    assert row.settings["auto_download"] is False
     assert row.settings == LYRICS_DEFAULT_SETTINGS
 
 
@@ -57,17 +63,31 @@ def test_register_is_idempotent(plugin_table):
     register_plugins()
 
     row = get_lyrics_row(plugin_table)
-    assert row.active is True
+    assert row.active is False
     assert row.settings == LYRICS_DEFAULT_SETTINGS
 
 
-def test_old_factory_row_is_upgraded(plugin_table):
-    """A database from before the default change: row exists, never touched."""
+@pytest.mark.parametrize(
+    ("active", "settings"),
+    [
+        # Enabled with the marker: either the user chose it, or the old rollout
+        # chose for them. Indistinguishable, so both are left alone.
+        (True, {"auto_download": True, "overide_unsynced": False}),
+        # Enabled, hand-tuned.
+        (True, {"auto_download": False, "overide_unsynced": False}),
+        # Explicitly opted out after the rollout.
+        (False, {"auto_download": True, "overide_unsynced": False}),
+        # Pre-rollout shape, no marker at all.
+        (False, {"auto_download": False}),
+        (True, {}),
+    ],
+)
+def test_an_existing_row_is_never_touched(plugin_table, active, settings):
     plugin_table.insert_one(
         {
             "name": LYRICS_PLUGIN,
-            "active": False,
-            "settings": {"auto_download": False},
+            "active": active,
+            "settings": dict(settings),
             "extra": {"description": "Find lyrics from the internet"},
         }
     )
@@ -75,44 +95,26 @@ def test_old_factory_row_is_upgraded(plugin_table):
     register_plugins()
 
     row = get_lyrics_row(plugin_table)
-    assert row.active is True
-    assert row.settings == LYRICS_DEFAULT_SETTINGS
+    assert row.active is active
+    assert row.settings == settings
 
 
-def test_hand_enabled_row_keeps_its_settings(plugin_table):
-    """A user who found and enabled the plugin keeps their auto_download
-    choice — the upgrade only stamps the marker so it never runs again."""
+def test_a_running_instance_is_not_switched_off_behind_the_user(plugin_table):
+    """
+    Spelled out separately because it is the failure mode worth naming: shipping
+    a privacy default is changing what NEW installs do, not reaching into
+    someone's server and turning off the lyrics they use every day.
+    """
     plugin_table.insert_one(
         {
             "name": LYRICS_PLUGIN,
             "active": True,
-            "settings": {"auto_download": False},
-            "extra": {},
-        }
-    )
-
-    register_plugins()
-
-    row = get_lyrics_row(plugin_table)
-    assert row.active is True
-    assert row.settings["auto_download"] is False
-    assert "overide_unsynced" in row.settings
-
-
-def test_opt_out_after_upgrade_is_permanent(plugin_table):
-    """A row that carries the marker was disabled AFTER the rollout —
-    a restart must never flip it back on."""
-    plugin_table.insert_one(
-        {
-            "name": LYRICS_PLUGIN,
-            "active": False,
             "settings": {"auto_download": True, "overide_unsynced": False},
             "extra": {},
         }
     )
 
-    register_plugins()
+    for _ in range(3):  # several restarts
+        register_plugins()
 
-    row = get_lyrics_row(plugin_table)
-    assert row.active is False
-    assert row.settings == {"auto_download": True, "overide_unsynced": False}
+    assert get_lyrics_row(plugin_table).active is True

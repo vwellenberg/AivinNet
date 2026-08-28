@@ -90,6 +90,17 @@ class UserConfig(metaclass=Singleton):
     enableWatchdog: bool = False
     showPlaylistsInFolderView: bool = False
 
+    # ⚠️ Off by default, deliberately. This is the only switch that lets a scan
+    # talk to the internet on its own: artist images from Deezer and similar
+    # artists from Last.fm, both triggered by indexing rather than by anyone
+    # asking. Someone installing a SELF-HOSTED music server does not expect their
+    # library to be announced to two companies the first time it is scanned, and
+    # the Deezer request even impersonates a browser (rotating User-Agents, a
+    # forged Referer) — which is not something to do on a stranger's behalf
+    # without being asked. Explicit actions in the UI (cover-art search,
+    # MusicBrainz lookups) are unaffected: the user is asking, right then.
+    enableOnlineMetadata: bool = False
+
     # plugins
     enablePlugins: bool = True
     lastfmApiKey: str = "0553005e93f9a4b4819d835182181806"
