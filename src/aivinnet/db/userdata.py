@@ -39,7 +39,6 @@ from aivinnet.lib.playlist_maintenance import (
     remove_trackhashes,
 )
 from aivinnet.utils.auth import get_current_userid, hash_password
-from aivinnet.utils.bootstrap import initial_admin_password
 
 
 class UserTable(Base):
@@ -60,14 +59,14 @@ class UserTable(Base):
             yield user_to_dataclass(i)
 
     @classmethod
-    def insert_default_user(cls):
+    def insert_default_user(cls, password: str):
         # INFO: Runs once, on the very first start (setup_sqlite only calls this
-        # when no user exists). The password comes from AIVINNET_ADMIN_PASSWORD
-        # when set, so a fresh install does not have to sit on the well-known
-        # admin/admin while listening on the LAN. See utils/bootstrap.py.
+        # when no user exists). The plaintext password is passed IN rather than
+        # resolved here: `setup_sqlite` is the only caller that knows whether it
+        # was generated, and it is the one that has to show it to the operator.
         user = {
             "username": "admin",
-            "password": hash_password(initial_admin_password()),
+            "password": hash_password(password),
             "roles": ["admin"],
         }
 

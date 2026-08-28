@@ -14,6 +14,8 @@ from aivinnet.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from aivinnet.migrations.drop_mixes import drop_mix_data
 from aivinnet.migrations.favorites_unique_per_user import repair_favorites_unique_constraint
 from aivinnet.settings import Paths
+from aivinnet.start_info_logger import log_generated_admin_password
+from aivinnet.utils.bootstrap import initial_admin_password
 
 
 def run_migrations():
@@ -61,4 +63,11 @@ def setup_sqlite():
     # create_user_tables()
 
     if not list(UserTable.get_all()):
-        UserTable.insert_default_user()
+        password, generated = initial_admin_password()
+        UserTable.insert_default_user(password)
+
+        # Only a generated password needs announcing — an operator who set
+        # AIVINNET_ADMIN_PASSWORD already knows it, and echoing it back would
+        # put it on a second surface for no gain.
+        if generated:
+            log_generated_admin_password(password)

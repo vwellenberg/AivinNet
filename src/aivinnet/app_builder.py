@@ -35,7 +35,31 @@ def config_app(web):
     prefer_ipv4()
 
     # CORS
-    CORS(web, origins="*", supports_credentials=True)
+    #
+    # ⚠️ `supports_credentials` is the half that matters, and NOT because of the
+    # origin header. flask-cors echoes the requesting origin into
+    # `Access-Control-Allow-Origin` whenever the request carries an `Origin` at
+    # all and the origin list matches — the wildcard matches everything, and
+    # `supports_credentials` does not enter that branch (get_cors_origins, the
+    # `try_match_any` case). Turning it off does not stop the echo, and a test
+    # asserting otherwise fails; see tests_api/test_cookie_and_cors_hardening.py.
+    #
+    # What it does stop is `Access-Control-Allow-Credentials: true`, which is only
+    # emitted when the flag is set. That header is the whole attack: without it a
+    # browser refuses to attach the session cookie to a cross-origin request and
+    # refuses to hand the response of a credentialed one to the calling page. With
+    # it — as shipped — any site the owner visited could read and drive the entire
+    # API as them, since JWT_COOKIE_CSRF_PROTECT is off.
+    #
+    # The echo that remains is harmless on its own: such a request arrives with no
+    # cookie, so anything requiring auth answers 401. It does expose whatever is
+    # already reachable unauthenticated (`/auth/users`, `/docs`, `/img/**`) to
+    # cross-origin reads — those are separate defects, fixed separately.
+    #
+    # The wildcard stays because header-authenticated clients (mobile app,
+    # scripts) rely on it and are unaffected by this flag. The web client is
+    # served by THIS process, so it is same-origin and never involves CORS.
+    CORS(web, origins="*", supports_credentials=False)
 
     # RESPONSE COMPRESSION
     # Only compress JSON responses
@@ -51,6 +75,23 @@ def config_jwt(web):
     web.config["JWT_SECRET_KEY"] = UserConfig().serverId
     web.config["JWT_TOKEN_LOCATION"] = ["cookies", "headers"]
     web.config["JWT_COOKIE_CSRF_PROTECT"] = False
+
+    # Strict, not Lax: under Lax the cookie still rides along on a top-level
+    # navigation, and `GET /notsettings/trigger-scan` is a state-changing GET — a
+    # link from anywhere would kick off a full library scan. The cost of Strict is
+    # that following an external link to the server looks logged out until one
+    # reload; for an app people open directly (bookmark, PWA) that is the better
+    # trade.
+    web.config["JWT_COOKIE_SAMESITE"] = "Strict"
+
+    # ⚠️ Deliberately False, and NOT to be flipped without checking how the
+    # instance is reached. The server binds 0.0.0.0 and is normally used over plain
+    # http:// on the LAN; with Secure set the browser silently DISCARDS the cookie
+    # there. Login still answers 200, so the failure looks like a broken app rather
+    # than a configuration error — an endless login loop. Turn it on only once every
+    # access path is HTTPS (e.g. everything arrives through `tailscale serve`).
+    web.config["JWT_COOKIE_SECURE"] = False
+
     web.config["JWT_SESSION_COOKIE"] = False
 
     jwt_expiry = int(dt.timedelta(days=30).total_seconds())

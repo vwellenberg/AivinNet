@@ -135,10 +135,17 @@ the `config` volume.
 > network, rate limited — you still have the old one to move back.
 > Tracked in AivinNet-Client#551.
 
+> These paths have no installer to hand you a password, so the server generates
+> one on its first start and prints it once — watch that first log. Set
+> `AIVINNET_ADMIN_PASSWORD` beforehand to choose it yourself, or run
+> `aivinnet --password-reset` if you miss it.
+
 ### Access from outside your network
 
-**Do not port-forward this to the internet.** It listens without TLS and allows
-any origin, so it belongs on a network you trust. Use a VPN — the setup below
+**Do not port-forward this to the internet.** It listens without TLS, so it
+belongs on a network you trust. (Cross-origin requests can no longer carry your
+session cookie, but that hardens one attack — it does not make plain HTTP on an
+open port a good idea.) Use a VPN — the setup below
 uses [Tailscale](https://tailscale.com), which needs no open ports, no static IP
 and no certificate of your own, and works from behind CGNAT.
 
