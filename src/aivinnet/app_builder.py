@@ -36,19 +36,29 @@ def config_app(web):
 
     # CORS
     #
-    # ⚠️ `supports_credentials` is the dangerous half, not the wildcard. For a
-    # wildcard origin list flask-cors sends a literal `Access-Control-Allow-Origin:
-    # *` — UNLESS credentials are supported, in which case it echoes the REQUESTING
-    # origin back and adds `Access-Control-Allow-Credentials: true`
-    # (flask_cors/core.py:139-146). Browsers then let ANY site read the response of
-    # a cookie-authenticated request: every playlist, every account, every admin
-    # route, driven from a page the owner merely visited.
+    # ⚠️ `supports_credentials` is the half that matters, and NOT because of the
+    # origin header. flask-cors echoes the requesting origin into
+    # `Access-Control-Allow-Origin` whenever the request carries an `Origin` at
+    # all and the origin list matches — the wildcard matches everything, and
+    # `supports_credentials` does not enter that branch (get_cors_origins, the
+    # `try_match_any` case). Turning it off does not stop the echo, and a test
+    # asserting otherwise fails; see tests_api/test_cookie_and_cors_hardening.py.
     #
-    # False keeps the wildcard useful for the clients that actually need it — the
-    # mobile app and scripts authenticate with an `Authorization` header, which
-    # this flag does not touch — while the browser stops attaching the session
-    # cookie cross-origin. The web client is served by THIS process, so it is
-    # same-origin and never involves CORS at all.
+    # What it does stop is `Access-Control-Allow-Credentials: true`, which is only
+    # emitted when the flag is set. That header is the whole attack: without it a
+    # browser refuses to attach the session cookie to a cross-origin request and
+    # refuses to hand the response of a credentialed one to the calling page. With
+    # it — as shipped — any site the owner visited could read and drive the entire
+    # API as them, since JWT_COOKIE_CSRF_PROTECT is off.
+    #
+    # The echo that remains is harmless on its own: such a request arrives with no
+    # cookie, so anything requiring auth answers 401. It does expose whatever is
+    # already reachable unauthenticated (`/auth/users`, `/docs`, `/img/**`) to
+    # cross-origin reads — those are separate defects, fixed separately.
+    #
+    # The wildcard stays because header-authenticated clients (mobile app,
+    # scripts) rely on it and are unaffected by this flag. The web client is
+    # served by THIS process, so it is same-origin and never involves CORS.
     CORS(web, origins="*", supports_credentials=False)
 
     # RESPONSE COMPRESSION

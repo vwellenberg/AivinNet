@@ -83,26 +83,44 @@ def _access_cookie(res):
 
 
 class TestCors:
-    def test_a_foreign_origin_is_never_echoed_back(self, hardened_client):
-        res = hardened_client.options(
-            "/auth/user",
-            headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
-        )
-
-        allowed = res.headers.get("Access-Control-Allow-Origin")
-        assert allowed != "https://evil.example", (
-            "flask-cors echoes the requesting origin whenever credentials are supported; that is the whole defect"
-        )
-
     def test_credentials_are_not_advertised(self, hardened_client):
+        """THE guard. Everything else about the CORS headers is cosmetic next to this."""
         res = hardened_client.options(
             "/auth/user",
             headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
         )
 
         # Without this header a browser refuses to attach the session cookie to a
-        # cross-origin request, no matter what the origin header says.
+        # cross-origin request, and refuses to hand the response of a credentialed
+        # one to the calling page — no matter what the origin header says.
         assert res.headers.get("Access-Control-Allow-Credentials") is None
+
+    def test_the_origin_echo_remains_and_that_is_deliberate(self, hardened_client):
+        """
+        Pins the behaviour that surprised the first version of this file.
+
+        flask-cors echoes the requesting origin whenever an `Origin` header is
+        present and the origin list matches; the wildcard matches everything, and
+        `supports_credentials` never enters that branch. So the echo survives the
+        fix, and that is fine: the request arrives without a cookie, so anything
+        requiring auth answers 401.
+
+        The test exists so that a future reader who expects `*` here learns why it
+        is not, instead of "fixing" it by restricting origins and breaking the
+        header-authenticated clients.
+        """
+        res = hardened_client.options(
+            "/auth/user",
+            headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
+        )
+
+        assert res.headers.get("Access-Control-Allow-Origin") == "https://evil.example"
+
+    def test_an_unauthenticated_cross_origin_read_still_gets_nothing(self, hardened_client):
+        """The echo is only harmless as long as the route itself demands a token."""
+        res = hardened_client.get("/auth/user", headers={"Origin": "https://evil.example"})
+
+        assert res.status_code == 401
 
 
 class TestAuthCookie:
