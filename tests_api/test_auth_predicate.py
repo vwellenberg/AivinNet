@@ -36,9 +36,16 @@ def app_client():
     """
     The real app, hook and all.
 
-    An `index.html` is planted in the client directory first: `tests_api`
-    redirects the config root to a temp dir, so the static folder is empty and
-    `GET /` would 404 for reasons that have nothing to do with authentication.
+    ⚠️ A realistic client build is planted first, and that is not cosmetic. The
+    old predicate derived its allow-list by walking THIS directory, so a temp dir
+    holding only `index.html` would have made the old code look strict — `.js`
+    was never in its suffix set, `/getall/albums.js` answered 401, and the
+    regression test would have passed against the very bug it exists to catch.
+    The files below are the extensions a real `dist/` carries.
+
+    `index.html` also has to exist for its own sake: `tests_api` redirects the
+    config root to a temp dir, so `GET /` would otherwise 404 for reasons that
+    have nothing to do with authentication.
     """
     from aivinnet.app_builder import build
     from aivinnet.settings import Paths
@@ -46,6 +53,8 @@ def app_client():
     client_dir = Paths().client_path
     client_dir.mkdir(parents=True, exist_ok=True)
     (client_dir / "index.html").write_text("<!doctype html><title>test</title>")
+    for name in ("app.js", "app.css", "logo.svg", "icon.png", "robots.txt", "font.woff2"):
+        (client_dir / name).write_text("x")
 
     app = build()
     app.config["TESTING"] = True
