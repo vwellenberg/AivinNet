@@ -9,6 +9,7 @@ from requests import ConnectionError as RequestConnectionError
 from requests import ReadTimeout
 
 from aivinnet import settings
+from aivinnet.config import UserConfig
 from aivinnet.db.userdata import SimilarArtistTable
 from aivinnet.lib.artistlib import CheckArtistImages
 from aivinnet.lib.colorlib import ProcessAlbumColors, ProcessArtistColors
@@ -25,6 +26,19 @@ from aivinnet.utils.progressbar import tqdm
 log = logging.getLogger(__name__)
 
 
+def may_fetch_online_metadata() -> bool:
+    """
+    Whether a scan may reach out to third parties on its own.
+
+    Both halves matter and they answer different questions: the config says
+    whether the owner WANTS it, `has_connection()` whether it can work at all.
+    The config is checked first and short-circuits, so an instance with the
+    setting off never probes the network either — a scan on a disconnected
+    machine should not be distinguishable from a scan on a private one.
+    """
+    return UserConfig().enableOnlineMetadata and has_connection()
+
+
 class CordinateMedia:
     """
     Cordinates the extracting of thumbnails
@@ -37,13 +51,15 @@ class CordinateMedia:
 
         tried_to_download_new_images = False
 
-        if has_connection():
+        if may_fetch_online_metadata():
             tried_to_download_new_images = True
             try:
                 CheckArtistImages()
             except (RequestConnectionError, ReadTimeout) as e:
                 log.error("Internet connection lost. Downloading artist images suspended.")
                 log.error(e)  # REVIEW More informations = good
+        elif not UserConfig().enableOnlineMetadata:
+            log.info("Online metadata is off. Skipping artist images and similar artists.")
         else:
             log.warning("No internet connection. Downloading artist images suspended!")
 
@@ -51,7 +67,7 @@ class CordinateMedia:
         if tried_to_download_new_images:
             ProcessArtistColors()
 
-        if has_connection():
+        if may_fetch_online_metadata():
             print("Attempting to download similar artists...")
             FetchSimilarArtistsLastFM()
 
