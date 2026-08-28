@@ -674,6 +674,25 @@ class PlaylistTable(Base):
             )
         )
 
+    @classmethod
+    def remove_one(cls, id: int):
+        """
+        Delete a playlist — the caller's own, and only that one.
+
+        ⚠️ This override is the point. `Base.remove_one` matches on the primary
+        key alone, and playlist ids come from ONE sequence shared by every
+        account, so inheriting it meant any logged-in user could walk ids and
+        delete other people's playlists. Every other mutator in this class was
+        already scoped; this one was not, and nothing about the call site made
+        that visible.
+        """
+        return next(
+            cls.execute(
+                delete(cls).where((cls.id == id) & (cls.userid == get_current_userid())),
+                commit=True,
+            )
+        )
+
 
 class LibDataTable(Base):
     __tablename__ = "artistdata"

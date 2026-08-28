@@ -438,6 +438,13 @@ def remove_playlist(path: PlaylistIDPath):
     except (TypeError, ValueError):
         return {"error": "Invalid playlist id"}, 400
 
+    # `get_by_id` is owner-scoped, so this also answers 404 for a playlist that
+    # exists but belongs to somebody else — the caller learns nothing either way.
+    # `remove_one` is scoped too; this check is here so the response describes
+    # what happened instead of cheerfully reporting a delete that hit nothing.
+    if PlaylistTable.get_by_id(pid) is None:
+        return {"error": "Playlist not found"}, 404
+
     PlaylistTable.remove_one(pid)
     playlistlib.cleanup_playlist_images()
     return {"msg": "Done"}, 200
