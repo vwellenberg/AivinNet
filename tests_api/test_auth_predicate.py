@@ -46,7 +46,22 @@ def app_client():
     `index.html` also has to exist for its own sake: `tests_api` redirects the
     config root to a temp dir, so `GET /` would otherwise 404 for reasons that
     have nothing to do with authentication.
+
+    ⚠️ The tables are created here too. `/auth/users` reads the `user` table, and
+    without this the module passes only when some OTHER test module happened to
+    run first and create it — green in the full suite, `no such table: user` on
+    its own. `Base.metadata` only knows models that have actually been imported,
+    hence the explicit imports.
     """
+    import importlib
+
+    from aivinnet.db import create_all_tables
+
+    for module in ("aivinnet.db.libdata", "aivinnet.db.metadata", "aivinnet.db.userdata"):
+        importlib.import_module(module)
+
+    create_all_tables()
+
     from aivinnet.app_builder import build
     from aivinnet.settings import Paths
 
