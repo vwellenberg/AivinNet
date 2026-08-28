@@ -48,11 +48,16 @@ def library(monkeypatch, tmp_path):
         SimpleNamespace(filepath=str(flac), bitrate=1411, trackhash=HASH),
     ]
 
-    import aivinnet.lib.trackslib as trackslib
+    # Patched on the class where it is DEFINED, not via the attribute the
+    # module under test happens to import. That attribute does not exist on an
+    # unpatched tree, and reaching for it there would blow up in the fixture —
+    # turning the silence tests below into collection errors instead of the
+    # honest failures that show the defect.
+    from aivinnet.store.tracks import TrackStore
 
-    monkeypatch.setattr(trackslib.TrackStore, "trackhashmap", {HASH: _Group(tracks)}, raising=False)
+    monkeypatch.setattr(TrackStore, "trackhashmap", {HASH: _Group(tracks)}, raising=False)
     monkeypatch.setattr(
-        trackslib.TrackStore,
+        TrackStore,
         "get_tracks_by_filepaths",
         classmethod(lambda cls, paths: [t for t in tracks if t.filepath in paths]),
         raising=False,
