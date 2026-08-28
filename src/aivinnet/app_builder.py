@@ -173,10 +173,11 @@ app = OpenAPI(__name__, info=api_info, doc_prefix="/docs")
 #   * `path.endswith(files)`, where `files` came from walking the client
 #     directory at request time. Whichever extensions happened to be on disk —
 #     .js, .css, .html, .png, .svg, .txt, .ico, .gz, .woff2, .webmanifest —
-#     switched authentication off for ANY path ending that way. `GET /file/x.js`
-#     answered 404 (route reached, no token checked) while `GET /file/x`
-#     answered 401. Which endpoints were public was therefore decided by the
-#     contents of a build output directory.
+#     switched authentication off for ANY path ending that way. Most such paths
+#     stop matching their route and land harmlessly on the static catch-all, but
+#     not all: `/getall/<itemtype>` matches `/getall/albums.js` with
+#     `itemtype="albums.js"`, so that handler really did run with no token. Which
+#     endpoints were public was decided by the contents of a build directory.
 #   * `path.startswith(urls)`, so `/docs` also covered `/docsanything` and
 #     `/auth/pair` covered `/auth/pairwhatever`.
 #   * walking that directory on EVERY request, twice (before_request and
