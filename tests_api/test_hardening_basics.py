@@ -10,26 +10,10 @@ import stat
 import pytest
 
 
-@pytest.fixture(scope="module")
-def hardened_app():
-    import importlib
-
-    from aivinnet.app_builder import build
-    from aivinnet.db import create_all_tables
-    from aivinnet.settings import Paths
-
-    for module in ("aivinnet.db.libdata", "aivinnet.db.metadata", "aivinnet.db.userdata"):
-        importlib.import_module(module)
-    create_all_tables()
-
-    client_dir = Paths().client_path
-    client_dir.mkdir(parents=True, exist_ok=True)
-    (client_dir / "index.html").write_text("<!doctype html><title>test</title>")
-
-    app = build()
-    app.config["TESTING"] = True
-
-    return app
+@pytest.fixture()
+def hardened_app(built_app):
+    """The shared, once-built app (see `built_app` in conftest)."""
+    return built_app
 
 
 class TestBodyLimits:

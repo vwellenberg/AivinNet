@@ -1,11 +1,11 @@
 """Which endpoints may be reached without a token.
 
-The only module that builds the app through `app_builder.build()`, and it has to
-be: the `verify_auth` before_request hook is installed there, and most handlers
-carry no decorator of their own. `/auth/user` is the clearest case — nothing on
-the function requires a JWT, so the hook IS the access control. A fixture that
-registers blueprints bare (like `api_client`) cannot see any of this, which is
-why nothing covered it before.
+Runs against the fully-built app (the `built_app` fixture in conftest), and it
+has to: the `verify_auth` before_request hook is installed in
+`app_builder.build()`, and most handlers carry no decorator of their own.
+`/auth/user` is the clearest case — nothing on the function requires a JWT, so
+the hook IS the access control. A fixture that registers blueprints bare (like
+`api_client`) cannot see any of this, which is why nothing covered it before.
 
 The defect being pinned: the hook decided by matching STRINGS against
 `request.path`, and the suffix list came from walking the client directory at
@@ -31,50 +31,10 @@ executing; a test written as "not 200" would pass against a wide-open server.
 import pytest
 
 
-@pytest.fixture(scope="module")
-def app_client():
-    """
-    The real app, hook and all.
-
-    ⚠️ A realistic client build is planted first, and that is not cosmetic. The
-    old predicate derived its allow-list by walking THIS directory, so a temp dir
-    holding only `index.html` would have made the old code look strict — `.js`
-    was never in its suffix set, `/getall/albums.js` answered 401, and the
-    regression test would have passed against the very bug it exists to catch.
-    The files below are the extensions a real `dist/` carries.
-
-    `index.html` also has to exist for its own sake: `tests_api` redirects the
-    config root to a temp dir, so `GET /` would otherwise 404 for reasons that
-    have nothing to do with authentication.
-
-    ⚠️ The tables are created here too. `/auth/users` reads the `user` table, and
-    without this the module passes only when some OTHER test module happened to
-    run first and create it — green in the full suite, `no such table: user` on
-    its own. `Base.metadata` only knows models that have actually been imported,
-    hence the explicit imports.
-    """
-    import importlib
-
-    from aivinnet.db import create_all_tables
-
-    for module in ("aivinnet.db.libdata", "aivinnet.db.metadata", "aivinnet.db.userdata"):
-        importlib.import_module(module)
-
-    create_all_tables()
-
-    from aivinnet.app_builder import build
-    from aivinnet.settings import Paths
-
-    client_dir = Paths().client_path
-    client_dir.mkdir(parents=True, exist_ok=True)
-    (client_dir / "index.html").write_text("<!doctype html><title>test</title>")
-    for name in ("app.js", "app.css", "logo.svg", "icon.png", "robots.txt", "font.woff2"):
-        (client_dir / name).write_text("x")
-
-    app = build()
-    app.config["TESTING"] = True
-
-    return app.test_client()
+@pytest.fixture()
+def app_client(built_app):
+    """Client over the shared, once-built app (see `built_app` in conftest)."""
+    return built_app.test_client()
 
 
 # Real API routes. Every one of these must demand a token.

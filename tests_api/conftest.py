@@ -239,3 +239,48 @@ def form_app():
 
     app.config["TESTING"] = True
     return app.test_client()
+
+
+@pytest.fixture(scope="session")
+def built_app():
+    """
+    The one and only fully-built app: `app_builder.build()` run exactly once.
+
+    ⚠️ Session-scoped and shared because `build()` is NOT repeatable. It
+    configures and registers onto `app_builder.app`, a MODULE-LEVEL singleton, so
+    a second call lands on an app that has already served a request and Flask
+    refuses it:
+
+        AssertionError: The setup method 'before_request' can no longer be called
+        on the application.
+
+    Two modules each building their own app therefore pass alone and error
+    together — which is exactly how this fixture came to exist.
+
+    Use this for anything that needs the `verify_auth` before_request hook or the
+    security headers, i.e. behaviour that lives in `build()` rather than in a
+    blueprint. For handler-level tests use `api_client`, which registers
+    blueprints bare and can be reconfigured per test.
+    """
+
+    from aivinnet.app_builder import build
+    from aivinnet.db import create_all_tables
+    from aivinnet.settings import Paths
+
+    _register_all_models()
+    create_all_tables()
+
+    # A realistic client build. Not cosmetic: the auth predicate used to derive
+    # its allow-list by walking this directory, so a near-empty one made the old
+    # code look stricter than it was. `index.html` also has to exist for `GET /`
+    # to answer 200 at all, since the config root is a temp directory here.
+    client_dir = Paths().client_path
+    client_dir.mkdir(parents=True, exist_ok=True)
+    (client_dir / "index.html").write_text("<!doctype html><title>test</title>")
+    for name in ("app.js", "app.css", "logo.svg", "icon.png", "robots.txt", "font.woff2"):
+        (client_dir / name).write_text("x")
+
+    app = build()
+    app.config["TESTING"] = True
+
+    return app
