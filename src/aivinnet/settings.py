@@ -123,7 +123,13 @@ class AssetHandler:
         for asset in release["assets"]:
             if asset["name"] == "client.zip":
                 # download and extract client
-                clientzip = requests.get(asset["browser_download_url"])
+                # ⚠️ With a timeout: this runs BEFORE the port is bound, so a
+                # stalled connection is a server that never finishes starting —
+                # and `restart: unless-stopped` does not rescue a hang.
+                clientzip = requests.get(asset["browser_download_url"], timeout=120)
+                # ⚠️ Check the status: a 403 or 404 body is not a zip, and without
+                # this it surfaces three lines later as a baffling "ZIP ERROR".
+                clientzip.raise_for_status()
                 mem_file = io.BytesIO(clientzip.content)
                 file = zipfile.ZipFile(mem_file)
 
@@ -154,22 +160,46 @@ class AssetHandler:
 
         try:
             # INFO: downlaod the current version of the client from GitHub
-            releases = requests.get(AssetHandler.RELEASES_URL).json()
+            releases = requests.get(AssetHandler.RELEASES_URL, timeout=30).json()
+
+            # ⚠️ Not necessarily a list. An unauthenticated caller gets 60 requests
+            # an hour, and past that GitHub answers 403 with a JSON *object* —
+            # iterating that yields strings, and `release["tag_name"]` then raises
+            # TypeError, which escaped as a startup traceback. In a container under
+            # `restart: unless-stopped` that is a crash loop.
+            if not isinstance(releases, list) or not releases:
+                log.error("Release list from GitHub was not usable (rate limited?). No client could be fetched.")
+                return False
 
             # INFO: find the release for the current version
             for release in releases:
-                if release["tag_name"] == f"v{Metadata.version}":
+                if not isinstance(release, dict):
+                    continue
+
+                if release.get("tag_name") == f"v{Metadata.version}":
                     if AssetHandler.process_release(release, path):
                         return True
                     pass
 
             # INFO: if no release is found, download the latest release
+            # ⚠️ Skip pre-releases in the fallback. An -rcN run publishes a real
+            # release whose client is a test build; taking releases[0] blindly
+            # would unpack that into the persistent config directory of every
+            # container whose own version is not findable — and it stays there.
+            stable = [r for r in releases if isinstance(r, dict) and not r.get("prerelease")]
+            if not stable:
+                log.error("No stable release to take a client from.")
+                return False
+
             log.error(f"No release found for the v{Metadata.version}. Downloading latest version ...")
-            return AssetHandler.process_release(releases[0], path)
+            return AssetHandler.process_release(stable[0], path)
 
         except (
             requests.exceptions.RequestException,
             KeyError,
+            TypeError,
+            IndexError,
+            ValueError,
             requests.exceptions.ConnectionError,
         ) as e:
             log.error(

@@ -40,10 +40,17 @@ on:
           - true
           - false
       build_docker:
+        # Defaults to true since v2026.8.1: the README and the release notes
+        # offer `ghcr.io/vwellenberg/aivinnet` as one of the supported ways to
+        # install, and with this off a release quietly publishes no image at all.
+        #
+        # ⚠️ The `:latest` TAG still follows `is_latest`, which stays false by
+        # default so an -rcN test run cannot claim it. A real release therefore
+        # needs is_latest=true, or `:latest` keeps pointing at the previous one.
         description: "Build Docker image"
         required: true
         type: choice
-        default: "false"
+        default: "true"
         options:
           - true
           - false
@@ -268,11 +275,30 @@ jobs:
   docker:
     name: Build and push Docker image
     runs-on: ubuntu-latest
-    needs: [build-client, build-wheels]
+    # ⚠️ Waits for `upload-builds`, not just for the artifacts it needs. The image
+    # carries no bundled client and fetches one from the release matching its own
+    # version on first start, so the release has to exist before the image does.
+    #
+    # Ordering alone is not enough: a DRAFT release is invisible to the anonymous
+    # API, and `is_draft` defaults to true. A run that publishes an image must
+    # therefore also set **is_draft=false and is_latest=true** — otherwise the
+    # first container to start falls back to the previous release's UI, and
+    # `:latest` (which every doc points at) keeps pointing at the old image.
+    needs: [build-client, build-wheels, upload-builds]
     permissions: write-all
     if: ${{ github.event.inputs.build_docker == 'true' }}
 
     steps:
+      # ⚠️ A comment cannot enforce this, and getting it wrong is silent: the
+      # image would be published against a DRAFT release, which the anonymous
+      # GitHub API hides — so every container fetches the previous release's UI
+      # into its persistent volume and keeps it. Fail loudly instead.
+      - name: Refuse to publish an image for a hidden release
+        if: ${{ github.event.inputs.is_draft == 'true' }}
+        run: |
+          echo "::error::build_docker=true needs is_draft=false — a draft release is invisible to the API the image fetches its client from."
+          exit 1
+
       - name: Checkout into repo
         uses: actions/checkout@v3
 

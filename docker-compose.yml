@@ -1,0 +1,64 @@
+# AivinNet — self-hosted music server
+#
+#   docker compose up -d      then open http://localhost:1970
+#
+# Two directories matter and both are mounted below: your music, and the
+# directory AivinNet keeps everything else in (database, covers, playlists).
+
+services:
+  aivinnet:
+    image: ghcr.io/vwellenberg/aivinnet:latest
+    container_name: aivinnet
+    restart: unless-stopped
+
+    ports:
+      - "1970:1970"
+
+    volumes:
+      # Your music. Point the left side at your own library.
+      #
+      # NOT read-only on purpose: editing tags writes back into the files, and
+      # lyrics fetched online are saved as .lrc next to the track. Add `:ro` if
+      # you would rather have neither than let the container write there.
+      # Required, like the password below: left as a relative default Docker
+      # would silently create an empty ./music and the server would come up
+      # healthy with an empty library and nothing to explain it.
+      - ${AIVINNET_MUSIC_DIR:?point this at your music folder}:/music
+
+      # Everything AivinNet owns: database, covers, playlists, settings.
+      # ⚠️ This is the only copy of that data — back up `./config/aivinnet`.
+      # (The app creates that subdirectory itself.)
+      - ./config:/config
+
+    environment:
+      # ⚠️ Set this BEFORE the first start — it is only read while the admin
+      # account is created, and the value is then baked in for good. It is
+      # ignored from then on, so leave the line in place: removing it makes the
+      # `:?` below refuse to start a perfectly good install.
+      #
+      # Deliberately written so compose REFUSES to start until you supply one:
+      # left empty (or absent) the app falls back to the password `admin`, and a
+      # quickstart that boots with default credentials on 0.0.0.0 is worse than
+      # one that stops and asks. Either export it, put it in a `.env` file next
+      # to this one, or replace the whole line with your own value.
+      - AIVINNET_ADMIN_PASSWORD=${AIVINNET_ADMIN_PASSWORD:?set a password before the first start}
+
+      # - TZ=Europe/Berlin
+
+    # The container runs as root, so files under ./config end up owned by root.
+    #
+    # ⚠️ To run as yourself, create and chown the directories FIRST:
+    #     mkdir -p config music && sudo chown -R 1000:1000 config
+    # Docker creates a missing bind path as root:root, and a non-root container
+    # then cannot create its data directory inside it — the container crashes on
+    # start and `restart: unless-stopped` retries it for ever.
+    # user: "1000:1000"
+
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:1970/', timeout=5)\""]
+      interval: 1m
+      timeout: 10s
+      # The first start downloads the web client and scans the library, which
+      # takes a while on a big collection — don't let that count as unhealthy.
+      start_period: 10m
+      retries: 3
