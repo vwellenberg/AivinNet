@@ -34,8 +34,8 @@ def scene(api_client):
 
     handle = api_client("aivinnet.api.playlist")
 
-    PlaylistTable.add_one({"name": "mine", "userid": MINE, "settings": {}, "last_updated": 0})
-    PlaylistTable.add_one({"name": "theirs", "userid": THEIRS, "settings": {}, "last_updated": 0})
+    PlaylistTable.add_one({"name": "mine", "userid": MINE, "settings": {}, "last_updated": 0, "trackhashes": []})
+    PlaylistTable.add_one({"name": "theirs", "userid": THEIRS, "settings": {}, "last_updated": 0, "trackhashes": []})
 
     handle.userid = THEIRS
     theirs = next(p for p in PlaylistTable.get_all() if p.name == "theirs")
