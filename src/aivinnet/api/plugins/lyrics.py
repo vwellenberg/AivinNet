@@ -3,6 +3,7 @@ from pydantic import Field
 
 from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.lib.lyrics import Lyrics as Lyrics_class
+from aivinnet.lib.trackslib import resolve_track_filepath
 from aivinnet.plugins.lyrics import Lyrics
 from aivinnet.settings import Defaults
 from aivinnet.utils.hashing import create_hash
@@ -46,6 +47,17 @@ def search_lyrics(body: LyricsSearchBody):
 
         if create_hash(i_title) == create_hash(title) and create_hash(i_album) == create_hash(album):
             perfect_match = track
+
+    # ⚠️ The lyrics are written to disk as `<filepath>.lrc`, so `filepath` decides
+    # WHERE the server creates a file. Taking it from the request meant any
+    # logged-in account — the guest included — could create a file anywhere the
+    # service user can write. Honour it only when it is one of the files the
+    # named track actually resolves to; otherwise fall back to the track's own
+    # path. Legitimate clients send exactly that path and are unaffected.
+    filepath = resolve_track_filepath(trackhash, filepath)
+
+    if filepath is None:
+        return {"error": "Unknown track"}, 404
 
     track_id = perfect_match["track_id"]
     lrc = finder.download_lyrics(track_id, filepath)
