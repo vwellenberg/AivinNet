@@ -1,3 +1,4 @@
+import datetime as dt
 import random
 import sqlite3
 import string
@@ -52,7 +53,16 @@ def create_new_token(user: dict):
     Create a new token response
     """
     access_token = create_access_token(identity=user)
-    max_age: int = current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
+
+    # ⚠️ Normalised, because this value is JSON-encoded into the response and
+    # flask_jwt_extended's own default for it is a `timedelta` — which
+    # `jsonify` cannot serialise, so the login would answer 500. `config_jwt`
+    # happens to store an int, so the app never hit it; anyone setting the
+    # config the documented way (a timedelta) would have.
+    max_age = current_app.config.get("JWT_ACCESS_TOKEN_EXPIRES")
+
+    if isinstance(max_age, dt.timedelta):
+        max_age = int(max_age.total_seconds())
 
     return {
         "msg": f"Logged in as {user['username']}",
@@ -149,7 +159,12 @@ def login(body: LoginBody):
             return {"msg": "Hehe! invalid password"}, 401
 
         success = True
-        res = create_new_token(user.todict())
+        # `todict()` deliberately omits the counter (it is internal, and that
+        # method is what `/auth/user` returns), so it is added to the IDENTITY
+        # here. From there it rides along in the token and round-trips through
+        # `/auth/refresh` and the pair-code flow, both of which re-mint from
+        # `get_jwt_identity()`.
+        res = create_new_token({**user.todict(), "token_version": user.token_version})
         token = res["accesstoken"]
         age = res["maxage"]
         res = jsonify(res)
@@ -292,12 +307,45 @@ def update_profile(body: UpdateProfileBody):
     if body.roles is not None:
         clean_user["roles"] = body.roles
 
+    password_changed = bool(user["password"])
+
     try:
         # return authdb.update_user(clean_user)
         UserTable.update_one(clean_user)
-        return UserTable.get_by_id(user["id"]).todict()
     except sqlite3.IntegrityError:
         return {"msg": "Username already exists"}, 400
+
+    if not password_changed:
+        return UserTable.get_by_id(user["id"]).todict()
+
+    # A new password has to end the sessions the old one opened — otherwise
+    # "change your password" does nothing for the case people change it FOR:
+    # someone else has a token. This also covers an admin resetting another
+    # account, which should log that account out everywhere.
+    UserTable.bump_token_version(user["id"])
+    updated = UserTable.get_by_id(user["id"])
+
+    if user["id"] != current_user["id"]:
+        return updated.todict()
+
+    # ⚠️ Changing your own password would otherwise log YOU out one request
+    # later — the token you are holding now carries the old version, and every
+    # guard in the app would reject it. That reads as a broken app, not as
+    # security, so the caller is handed a fresh one in the same response. Other
+    # devices stay revoked, which is the point.
+    #
+    # Both ways, because the two kinds of client differ: the web client
+    # authenticates with the cookie, the mobile app and scripts with an
+    # `Authorization` header and cannot see a cookie at all. Handing back only
+    # the cookie would log the header clients out on the very action this branch
+    # exists to keep them signed in through. `POST /auth/login` already returns
+    # the token in its body, so the shape is nothing new.
+    minted = create_new_token({**updated.todict(), "token_version": updated.token_version})
+
+    res = jsonify({**updated.todict(), "accesstoken": minted["accesstoken"], "maxage": minted["maxage"]})
+    set_access_cookies(res, minted["accesstoken"], max_age=minted["maxage"])
+
+    return res
 
 
 class UpdateAvatarForm(BaseModel):
@@ -443,10 +491,24 @@ def delete_user(body: DeleteUseBody):
 
 
 @api.get("/logout")
+@jwt_required(optional=True)
 def logout():
     """
-    Log out and clear the access token cookie
+    Log out: clear the cookie AND end every session this account has open.
     """
+    # Deleting the cookie only ever cleaned up the browser in front of us. The
+    # token itself stayed valid for its full 30 days and renewed itself while it
+    # was used, so "log out" did not end the session in any sense that mattered
+    # to someone who had copied the token. Bumping the counter does.
+    #
+    # `optional=True` because the route is reachable without a token (the client
+    # calls it to clear a stale session): with one we revoke, without one there
+    # is simply nothing to revoke, and either way the cookie goes.
+    identity = get_jwt_identity()
+
+    if identity:
+        UserTable.bump_token_version(identity["id"])
+
     res = jsonify({"msg": "Logged out"})
     res.delete_cookie("access_token_cookie")
     return res

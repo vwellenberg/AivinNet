@@ -51,6 +51,11 @@ class UserTable(Base):
     roles: Mapped[list[str]] = mapped_column(JSON(), default_factory=lambda: [])
     extra: Mapped[dict[str, Any]] = mapped_column(JSON(), nullable=True, default_factory=dict)
 
+    # Bumped to invalidate every token minted before it. See
+    # migrations/user_token_version.py for why the column is added from
+    # setup_sqlite rather than from run_migrations.
+    token_version: Mapped[int] = mapped_column(Integer(), default=0, server_default="0")
+
     @classmethod
     def get_all(cls):
         result = cls.execute(select(cls))
@@ -101,6 +106,22 @@ class UserTable(Base):
     @classmethod
     def update_one(cls, user: dict[str, Any]):
         return next(cls.execute(update(cls).where(cls.id == user["id"]).values(user), commit=True))
+
+    @classmethod
+    def bump_token_version(cls, userid: int):
+        """
+        End every session this account has open.
+
+        Incremented in SQL rather than read-then-written, so two requests
+        revoking at the same time cannot land on the same number and leave one
+        of the two sets of tokens alive.
+        """
+        return next(
+            cls.execute(
+                update(cls).where(cls.id == userid).values(token_version=cls.token_version + 1),
+                commit=True,
+            )
+        )
 
     @classmethod
     def remove_by_username(cls, username: str):

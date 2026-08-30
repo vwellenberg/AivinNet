@@ -14,9 +14,15 @@ class User:
     # NOTE: roles: ['admin', 'user', 'curator']
     roles: list[str] = field(default_factory=lambda: ["user"])
 
+    # Bumped to end every session that was opened before it. Kept OUT of
+    # `todict()` below, next to the password: it is an internal counter, and
+    # `todict()` is what `/auth/user` and `/auth/users` return.
+    token_version: int = 0
+
     def todict(self):
         this_dict = asdict(self)
         del this_dict["password"]
+        del this_dict["token_version"]
 
         if type(this_dict["roles"]) is str:
             # INFO: this is an attempt to fix string roles!

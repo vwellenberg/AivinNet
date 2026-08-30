@@ -172,6 +172,7 @@ def api_client():
     """
     from unittest.mock import patch
 
+    from flask_jwt_extended import JWTManager
     from flask_openapi3 import OpenAPI
     from sqlalchemy import inspect
 
@@ -190,6 +191,18 @@ def api_client():
         e.g. "aivinnet.api.playlist"."""
         app = OpenAPI(__name__)
         app.config["TESTING"] = True
+
+        # A JWTManager, even though these tests send no tokens. Handlers are
+        # allowed to MINT one: changing your own password revokes your existing
+        # sessions, so `/auth/profile/update` hands the caller a fresh token in
+        # the same response — without this, that path raises "You must
+        # initialize a JWTManager with this flask application" and a test of
+        # profile updates fails for a reason that has nothing to do with
+        # profiles. The secret is a constant because nothing here verifies.
+        app.config["JWT_SECRET_KEY"] = "test-secret"
+        app.config["JWT_TOKEN_LOCATION"] = ["cookies", "headers"]
+        app.config["JWT_COOKIE_CSRF_PROTECT"] = False
+        JWTManager(app)
 
         with app.app_context():
             for module_path in blueprints:
@@ -220,6 +233,7 @@ def form_app():
     request models of the playlist API. No auth hooks, no stores, no DB —
     the subject under test is the model <-> request mapping.
     """
+    from flask_jwt_extended import JWTManager
     from flask_openapi3 import OpenAPI
 
     from aivinnet.api.playlist import PlaylistIDPath, UpdatePlaylistForm
