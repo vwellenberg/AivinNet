@@ -505,6 +505,10 @@ else
 	# is not watching.
 	printf '  Start it:\n'
 	printf '      set -a; . %s; set +a\n' "$ENV_FILE"
+	# shellcheck disable=SC2016  # $HOST/$PORT are meant to stay literal: this
+	# line is printed for the user to type, and the values come from the env
+	# file the line above sources. Expanding them here would bake in whatever
+	# this installer run happened to see.
 	printf '      %s --host "$HOST" --port "$PORT"\n' "$BIN_PATH"
 fi
 printf '  Update:  re-run this installer   Remove: ./install.sh --uninstall\n'
