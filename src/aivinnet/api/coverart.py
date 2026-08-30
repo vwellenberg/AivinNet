@@ -28,7 +28,15 @@ api = APIBlueprint("coverart", __name__, url_prefix="/coverart", abp_tags=[tag])
 
 
 class CoverSearchQuery(BaseModel):
-    q: str = Field(..., min_length=1, description="Free-text search query")
+    # ⚠️ Bounded, and the bound is load-bearing rather than cosmetic. On no
+    # hits, `search_covers_with_fallback` retries with progressively shorter
+    # queries — one outbound round to iTunes AND Deezer per word dropped. The
+    # loop itself terminates (it stops at two words), so the only thing deciding
+    # how many blocking requests one call makes was the caller's word count.
+    # A few hundred words meant a few hundred sequential round-trips on a server
+    # that answers one request at a time. 200 characters is far more than any
+    # album or artist name.
+    q: str = Field(..., min_length=1, max_length=200, description="Free-text search query")
     limit: int = Field(30, ge=1, le=50, description="Maximum number of results")
 
 
