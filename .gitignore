@@ -50,3 +50,8 @@ client.zip
 .pypirc
 # Die Agent-Konfiguration ist Projektgut und muss trotz "*s.json" mitkommen.
 !.claude/settings.json
+
+# Maintainer's own notes: anything about THIS machine or THIS server.
+# The repo is public, so host names, accounts, paths and unit names of the
+# author's own deployment belong here, never in README.md or CLAUDE.md.
+*.local.md

@@ -39,10 +39,8 @@ Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)) |
 | **Client-Repo** | `vwellenberg/AivinNet-Client` — dort liegen auch **alle Issues**, auch die Backend-Themen |
 | **Python / Paketmanager** | >=3.11, **uv** (nicht pip) |
-| **Server** | Homeserver im LAN, Port 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
-| **SSH** | Host, Account und Key stehen in der globalen `~/.claude/CLAUDE.md` (nicht im Repo) |
-| **Backend auf dem Server** | `~/AivinNet` |
-| **Client auf dem Server** | `~/AivinNet-Client`, gebaut nach `~/.config/swingmusic/client/` |
+| **Standard-Port** | 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
+| **Eigenes Deployment** | Pfade, Zugang und Server-Eigenheiten: `MAINTAINER.local.md` (gitignored) |
 
 ## Entwicklung
 
@@ -81,7 +79,7 @@ Pro Aufgabe/Issue:
 - **PR** öffnen.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
-- Danach **Deploy** (`cd ~/AivinNet && git pull && uv sync && systemctl restart aivinnet`) + verifizieren, Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
+- Danach **deployen und verifizieren** (Befehl: `MAINTAINER.local.md`), Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
 ### Branch-Hygiene — `--delete-branch` räumt nur die HÄLFTE
@@ -180,9 +178,10 @@ Regeln dazu:
 - **Ein Learning wird als Ursache formuliert, nicht als Symptom** — dazu, woran man es erkennt
   und was stattdessen zu tun ist. Vorbilder stehen unten in der Fallen-Liste.
 - **⚠️ Namen gegen die Wirklichkeit prüfen, bevor man sie aufschreibt.** Diese Datei behauptete
-  über Monate den systemd-Dienst `subspaceradio` und die Pfade `~/SubspaceRadio*` — beides
-  existiert nicht (korrekt: `aivinnet`, `~/AivinNet*`). Wer Servicenamen, Pfade oder Repo-URLs
-  dokumentiert, verifiziert sie einmal auf dem Server.
+  über Monate einen systemd-Dienst und Pfade, die es nach der Paket-Umbenennung gar nicht mehr
+  gab — und niemandem fiel es auf, weil eine Anleitung plausibel aussieht, solange sie niemand
+  ausführt. Wer Servicenamen, Pfade oder Repo-URLs dokumentiert, verifiziert sie einmal am
+  laufenden System.
 
 ## Architektur
 
@@ -217,7 +216,9 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   anker-basiert oder positions-explizit bauen, die Listen-Chirurgie macht der Server.
   Volle Begründung, Muster und Sicherheitsnetz: `.claude/rules/playlist-writes.md`
   (lädt automatisch, sobald eine Playlist-Datei gelesen wird).
-- **⚠️ IPv6 des Servers ist kaputt (DS-Lite) — gilt auch für Python.** Outbound-`requests`
+- **⚠️ Auf Anschlüssen ohne funktionierendes IPv6 (DS-Lite o. ä.) hängt ausgehendes HTTP —
+  auch in Python.** Das ist kein Sonderfall eines einzelnen Hosts, sondern der Grund, warum
+  `prefer_ipv4()` existiert; wer es entfernt, bricht genau dort. Outbound-`requests`
   hängen minutenlang, weil urllib3 alle aufgelösten Adressen (AAAA zuerst) sequenziell mit
   vollem Connect-Timeout probiert; `timeout=` deckt das **nicht** ab. Zusammen mit dem
   single-threaded Server friert dabei die ganze App ein. `utils/net.py::prefer_ipv4()` läuft
@@ -265,40 +266,19 @@ Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommen
 
 ## Server-Deployment
 
-```bash
-# Backend deployen (eine Sitzung, vom Arbeitsrechner aus).
-# Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo):
-ssh -i <key> <account>@<homeserver> \
-  "cd ~/AivinNet && NODE_OPTIONS='--dns-result-order=ipv4first' git pull -q && \
-   ~/.local/bin/uv sync && sudo -n systemctl restart aivinnet && \
-   sleep 4 && systemctl is-active aivinnet"
+⚠️ **Steht nicht mehr hier: `MAINTAINER.local.md` im Repo-Root** (per `*.local.md`
+gitignored, liegt also nur lokal).
 
-# Status + Logs (kein sudo nötig):
-systemctl status aivinnet
-journalctl -u aivinnet -f      # erfolgreicher Start endet mit „Loading tracks/albums/artists... Done!"
+Dieses Repo ist **öffentlich**. Die Deploy-Anleitung beschrieb ausschließlich den Server des
+Autors — sudoers-Regeln, dessen DS-Lite-IPv6-Problem, dessen Pfade. Für jemanden, der am Code
+mitarbeitet, ist das nutzlos, und für die Nachbarschaft ist es eine Landkarte. Alles über *diese*
+Maschine gehört in die lokale Datei, nie in `README.md` oder hierher.
 
-# Speicher beobachten:
-ps aux | grep aivinnet | grep -v grep | awk '{print $6/1024"MB"}'
-```
+Host, Account und Key stehen weiterhin in der globalen `~/.claude/CLAUDE.md` — ein Zuhause für
+Zugangsdaten, nicht zwei.
 
-⚠️ **Die systemd-Unit ruft den Konsolenbefehl auf, und der heißt seit der Paket-Umbenennung
-`aivinnet`.** `ExecStart=…/uv run swingmusic …` läuft nach einem Deploy ins Leere („Failed to
-spawn: `swingmusic`"), und **passwortloses sudo deckt nur `systemctl … aivinnet` ab** — die
-Unit-Datei zu ändern braucht das Passwort und damit den Nutzer:
-
-```bash
-sudo sed -i 's/uv run swingmusic/uv run aivinnet/' /etc/systemd/system/aivinnet.service && \
-  sudo systemctl daemon-reload && sudo systemctl restart aivinnet
-```
-
-- Passwortloses sudo gilt für `systemctl restart/stop/start aivinnet` — **ohne** `.service`,
-  sonst greift die sudoers-Regel nicht.
-- **`uv` liegt nicht im PATH der nicht-interaktiven SSH-Shell** → vollen Pfad `~/.local/bin/uv`.
-- Der Server hat ein **IPv6-Problem** (DS-Lite): git/yarn brauchen
-  `NODE_OPTIONS='--dns-result-order=ipv4first'`, Python deckt `utils/net.py::prefer_ipv4()` ab.
-
-Der **Client** wird aus seinem eigenen Repo deployt (`~/AivinNet-Client`, `scripts/deploy-client.sh`),
-serviert aber derselbe Dienst — die Anleitung steht in der CLAUDE.md des Clients.
+Der **Client** wird aus seinem eigenen Repo deployt und vom selben Dienst serviert; die
+Anleitung steht in der CLAUDE.md des Clients.
 
 ## Nächste Schritte
 
