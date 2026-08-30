@@ -1,7 +1,7 @@
 # AivinNet
 
 Self-hosted music server for your own library, with a web player of its own —
-bold 90s/Memphis shapes and colours, in light and dark.
+bold 80s/Memphis shapes and colours, in light and dark.
 
 Originally forked from [Swing Music](https://github.com/swingmx/swingmusic) and
 licensed AGPL-3.0; developed independently since June 2025.
@@ -66,104 +66,65 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
-**Security — please update.** This is almost entirely security work: two
-reviews, the second a full pre-release audit of both the server and the web
-client. Two of the defects affected **every** install by default, not just
-multi-user ones. If you are running v2026.8.0, update.
+**Security release — please update.** Two reviews, the second a full audit of
+the server and the web client before going public. Two of the defects affected
+**every** install, not just multi-user ones.
 
-### Fixed: things that needed no account at all
+**Needed no account at all**
 
-- **Every install except the one-line installer came up with the password
-  `admin`.** Docker, `pip` and source checkouts never set
-  `AIVINNET_ADMIN_PASSWORD`, and the server listens on all interfaces — so the
-  password was both well known and reachable. A fresh install now generates one
-  and prints it once, at first start. Set `AIVINNET_ADMIN_PASSWORD` beforehand
-  to choose it yourself, or use `--password-reset` if you miss it.
-- **Any website you visited while logged in could drive the API as you.** The
-  cross-origin policy let a foreign page send your session cookie *and* read the
-  answer. It cannot any more, and the cookie is now `SameSite=Strict`.
-- **Appending a file extension to a URL could switch authentication off.** The
-  list of public paths was derived from whichever file types happened to sit in
-  the web client's build folder, so what was protected depended on a build
-  output. Access is now decided per route.
-- Cover art, **profile pictures** and the API documentation page were readable
-  by anyone who could reach the port. All three need a login now.
+- Every install except the one-line installer came up with the password
+  `admin`. A fresh install now generates one and prints it once, at first start.
+- Any website you visited while logged in could drive the API as you. It cannot
+  any more; the session cookie is `SameSite=Strict`.
+- Adding a file extension to a URL could switch authentication off. Access is
+  decided per route now.
+- Cover art, profile pictures and the API docs page were readable by anyone who
+  could reach the port. All three need a login.
 
-### Fixed: things an ordinary account could do
+**An ordinary account could**
 
-- **Delete other people's playlists.** Nine of the ten playlist operations
-  checked who owned the row; the tenth — deleting — did not.
-- **Make the server read or write files outside your library.** Two endpoints
-  took a filesystem path straight from the request. They resolve it from the
-  track instead now.
+- Delete other people's playlists — nine of the ten playlist operations checked
+  the owner, the tenth did not.
+- Steer the server to read or write files outside the library. Both endpoints
+  resolve the path from the track now.
 
-### Fixed: what was sitting on disk
+**On disk**
 
-- The database, its two sidecar files and the settings file were **world
-  readable** — every password hash, and the key that signs login tokens. They
-  are owner-only now, and an existing install is tightened on its next start.
-- There was no limit on request size, so an unauthenticated request could
-  allocate as much memory as it liked. Now capped, with a matching bound on how
-  large an uploaded image may decode to.
-- Added the browser headers that were missing entirely, including the one that
-  stops the interface being embedded in a foreign page and clicked through.
+- The database, its two sidecars and the settings file were world-readable —
+  every password hash, and the key that signs login tokens. Owner-only now, and
+  an existing install is tightened on its next start.
+- Request size is capped, images have a decode limit, and the browser security
+  headers that were missing entirely are there.
 
-### Changed: nothing phones home by default any more
+**Nothing phones home by default any more.** Scanning used to send every artist
+name to Deezer and Last.fm, and the lyrics page sent title and artist to
+Musixmatch — both unasked. Now off unless you turn them on. Cover-art and
+MusicBrainz lookups are unchanged: they run when you click them.
 
-Scanning your library used to send **every artist name** to Deezer and Last.fm,
-and opening the lyrics page sent the track title and artist to Musixmatch —
-all without asking. Both are now **off** unless you turn them on
-(Settings → *Online metadata*, and the lyrics plugin).
+> **Upgrading:** the *defaults* changed, not your settings. An install with the
+> lyrics plugin already on keeps it.
 
-Cover-art and MusicBrainz lookups are unchanged: those only run when you click
-them, which is you asking.
+**From the first review** — also new since v2026.8.0: the settings endpoint
+handed the server's signing key to every logged-in account; `profile/update`
+took the target account id from the request without checking whose it was; the
+login had no rate limit; and the routes that change the shared library were not
+admin-only.
 
-> **Upgrading:** we changed the defaults, not your settings. An install that
-> already has the lyrics plugin switched on keeps it — worth a look in Settings
-> if you would rather it were off.
-
-### Earlier in this release
-
-These came from the first review and are also new since v2026.8.0.
-
-- The settings endpoint handed out the server's `serverId` to **every logged-in
-  account**. That value signs the login tokens *and* salts the passwords, so
-  anyone holding it could mint themselves an admin token — which made every
-  permission check in the app decorative. It never leaves the server now.
-- `PUT /auth/profile/update` took the target account id straight from the
-  request without checking whose it was, so any account could set the admin's
-  password. Non-admins can only update themselves now.
-- The login had **no rate limit at all**. An account now locks for 60 seconds
-  after 8 wrong attempts, refusing immediately rather than delaying (a delay
-  would stall the whole server for everyone else).
-- The routes that change the shared library — scan trigger, cover writes, the
-  MusicBrainz fetches, tag editing, and the one that opens a file manager on the
-  server — are admin-only, and the client no longer offers them to anyone else.
-
-Also: deleting a user by a name that does not exist answered "deleted" without
-deleting anything, and the Last.fm credentials went to every account.
-
-### Also new: a Docker image
-
-`ghcr.io/vwellenberg/aivinnet:latest`, amd64 and arm64, with a
-`docker-compose.yml` in the repo root. The one-line installer is unchanged —
-this is an additional way in, not a replacement.
-
-⚠️ The web interface lives in the `config` volume and is **not** replaced by
-`docker compose pull`, so a pulled image runs the new server behind the previous
-release's interface. Rename `config/aivinnet/client` (don't delete it) before
-starting the new version and it will fetch the matching one.
+**Also new: a Docker image** — `ghcr.io/vwellenberg/aivinnet`, amd64 and arm64.
+See [docs/docker.md](https://github.com/vwellenberg/AivinNet/blob/master/docs/docker.md);
+note that `docker compose pull` does not replace the bundled web interface.
 
 <details>
 <summary>What this fork adds on top of Swing Music (from the first release)</summary>
 
 **Player and library**
 
-- Redesigned web client — a bold 90s/Memphis look with light and dark themes
+- Redesigned web client — a bold 80s/Memphis look with light and dark themes
   that follow your system, and a layout built for touch as much as for desktop.
 - **Lyrics** for anything in your library: local `.lrc` files and embedded tags
-  are used first, and anything missing is fetched online automatically and saved
-  next to the track. Synced lyrics scroll along and are clickable to seek.
+  are used first, and anything missing can be fetched online and saved next to
+  the track — switch the lyrics plugin on for that. Synced lyrics scroll along
+  and are clickable to seek.
 - **Track editing** — fix titles, artists, albums and covers from inside the app,
   written straight back into the file tags.
 - **Playlists** with folders, drag-and-drop reordering that cannot lose tracks,
