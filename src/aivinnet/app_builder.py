@@ -119,8 +119,25 @@ def config_jwt(web):
         userid = identity["id"]
         user = UserTable.get_by_id(userid)
 
-        if user:
-            return user.todict()
+        if not user:
+            return None
+
+        # Revocation. Returning None makes flask_jwt_extended answer 401, the
+        # same path a deleted user already took. The counter is re-read from the
+        # database on every request, so bumping the row ends every session that
+        # carries an older number — immediately, and without the server keeping
+        # any session state of its own.
+        #
+        # ⚠️ Defaults to the token's OWN version when the claim is absent, so a
+        # token minted before this existed keeps working. Adding revocation
+        # should not log the whole household out during an upgrade; from the
+        # next login onwards every token carries the claim.
+        token_version = identity.get("token_version", user.token_version)
+
+        if token_version != user.token_version:
+            return None
+
+        return user.todict()
 
 
 def load_endpoints(web: OpenAPI):

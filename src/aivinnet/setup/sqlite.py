@@ -13,6 +13,7 @@ from aivinnet.migrations.album_title_from_folder import rename_albums_after_thei
 from aivinnet.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from aivinnet.migrations.drop_mixes import drop_mix_data
 from aivinnet.migrations.favorites_unique_per_user import repair_favorites_unique_constraint
+from aivinnet.migrations.user_token_version import add_token_version_column
 from aivinnet.settings import Paths
 from aivinnet.start_info_logger import log_generated_admin_password
 from aivinnet.utils.bootstrap import initial_admin_password
@@ -68,6 +69,13 @@ def setup_sqlite():
     # user's password hash plus their whole listening history. Runs after
     # `create_all_tables()` so the file and its WAL sidecars actually exist.
     restrict_database_files(Paths().app_db_path)
+
+    # ⚠️ BEFORE the UserTable query below, and that is the only reason this is
+    # not in `run_migrations()` with its siblings. The SELECT names every mapped
+    # column, so on a database that predates `token_version` it fails with
+    # `no such column: user.token_version` — and the app never finishes starting,
+    # long before `run_migrations()` could have added it.
+    add_token_version_column()
 
     if not list(UserTable.get_all()):
         password, generated = initial_admin_password()
