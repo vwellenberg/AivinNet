@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from unidecode import unidecode
 from aivinnet.db.userdata import PluginTable
 from aivinnet.plugins import Plugin, plugin_method
 from aivinnet.settings import Paths
+
+log = logging.getLogger(__name__)
 
 
 class LRCProvider:
@@ -109,8 +112,20 @@ class LyricsProvider(LRCProvider):
 
         res = res.json()
         if res["message"]["header"]["status_code"] == 401:
-            time.sleep(13)
-            return self._get_token()
+            # ⚠️ This used to `time.sleep(13)` and then call itself, with no
+            # depth limit — inside a request handler, on a server that serves
+            # ONE request at a time. Musixmatch answers 401 precisely when it is
+            # rate-limiting, so the condition that triggers the retry is the one
+            # that keeps triggering it: every listener, playback included, was
+            # frozen 13 seconds per round until Python's recursion limit
+            # eventually gave up hours later.
+            #
+            # Nothing is retried here now. Sleeping in a handler is never the
+            # answer on this server (same reasoning as lib/loginguard.py); the
+            # caller treats a missing token as "no lyrics available", which is
+            # the truth while we are being rate-limited.
+            log.warning("Musixmatch is rate-limiting us (401); skipping lyrics for now")
+            return None
 
         new_token = res["message"]["body"]["user_token"]
         expiration_time = current_time + 600  # 10 minutes expiration

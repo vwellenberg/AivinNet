@@ -233,7 +233,6 @@ def form_app():
     request models of the playlist API. No auth hooks, no stores, no DB —
     the subject under test is the model <-> request mapping.
     """
-    from flask_jwt_extended import JWTManager
     from flask_openapi3 import OpenAPI
 
     from aivinnet.api.playlist import PlaylistIDPath, UpdatePlaylistForm
