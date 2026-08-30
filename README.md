@@ -253,18 +253,6 @@ GitHub release. Edit `.github/changelog.md` first — it becomes the release bod
 
 ---
 
-## Maintainer's own deployment
-
-The author's instance runs as a systemd service named `aivinnet` from
-`~/AivinNet` on a home server (this is not what the installer above sets up):
-
-```sh
-sudo systemctl restart aivinnet
-journalctl -u aivinnet -f
-```
-
----
-
 ## Origin and attribution
 
 AivinNet began as a fork of [swingmx/swingmusic](https://github.com/swingmx/swingmusic)
