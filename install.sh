@@ -497,6 +497,15 @@ if [ "$service_ready" -eq 1 ]; then
 		printf '  Service: systemctl --user status|restart|disable %s\n' "$APP"
 		printf '  Logs:    journalctl --user -u %s -f\n' "$APP"
 	fi
+else
+	# Without a service there is no EnvironmentFile, so the password printed
+	# above only takes effect if the env file is loaded by hand. Say so, with
+	# the command — otherwise the installer names a password that does not
+	# work, and the server generates its own and prints it to a log the user
+	# is not watching.
+	printf '  Start it:\n'
+	printf '      set -a; . %s; set +a\n' "$ENV_FILE"
+	printf '      %s --host "$HOST" --port "$PORT"\n' "$BIN_PATH"
 fi
 printf '  Update:  re-run this installer   Remove: ./install.sh --uninstall\n'
 printf '  Backup:  %s  is the only copy of your library data.\n' "$DATA_DIR"
