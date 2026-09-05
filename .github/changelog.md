@@ -66,52 +66,61 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
-**Security release — please update.** Two reviews, the second a full audit of
-the server and the web client before going public. Two of the defects affected
-**every** install, not just multi-user ones.
+A follow-up to v2026.8.1 with four fixes that landed after it was cut. Two of
+them can stop the server, so this is worth taking.
 
-**Needed no account at all**
+- **The lyrics finder could freeze the whole server.** When Musixmatch
+  rate-limited us it answered 401, and the code met that with a 13-second sleep
+  and a call to itself — with no depth limit. Since 401 is exactly what
+  rate-limiting looks like, the retry kept re-triggering itself: everyone's
+  playback stopped, 13 seconds at a time, for hours. It no longer retries; while
+  we are rate-limited there are simply no lyrics.
+- **Downloading a big album could exhaust memory.** The ZIP was assembled in RAM
+  before anything was sent, so a 2 GB album asked for 2 GB (measured: 1921 MB
+  peak, now 35 MB). It is built on disk now, and there is a new
+  `maxDownloadSizeMB` setting — 1 GB by default, `0` to disable — that refuses an
+  oversized archive up front instead of trying and failing.
+- **Logging out now actually ends the session.** Tokens last 30 days and renew
+  themselves, so before this, logging out only cleared the browser's cookie and
+  changing your password left every older token working. Both now end every
+  session that account has open. Changing your own password keeps you signed in.
+- **The installer told you a password that did not work** if you used
+  `--no-autostart`: without a service there is no environment file, so the
+  server generated its own and printed it to a log you were not watching. It now
+  prints the two lines that start it properly.
 
-- Every install except the one-line installer came up with the password
-  `admin`. A fresh install now generates one and prints it once, at first start.
+Upgrading is safe and needs nothing from you: existing logins keep working, and
+the database gains its new column on the first start.
+
+<details>
+<summary>What v2026.8.1 fixed (the security release before this one)</summary>
+
+**Security — if you skipped v2026.8.1, read this.** Two reviews, the second a
+full audit of the server and the web client. Two of the defects affected every
+install, not just multi-user ones.
+
+- Every install except the one-line installer came up with the password `admin`.
+  A fresh install now generates one and prints it once, at first start.
 - Any website you visited while logged in could drive the API as you. It cannot
-  any more; the session cookie is `SameSite=Strict`.
-- Adding a file extension to a URL could switch authentication off. Access is
+  any more, and the session cookie is `SameSite=Strict`.
+- Appending a file extension to a URL could switch authentication off. Access is
   decided per route now.
-- Cover art, profile pictures and the API docs page were readable by anyone who
-  could reach the port. All three need a login.
-
-**An ordinary account could**
-
-- Delete other people's playlists — nine of the ten playlist operations checked
-  the owner, the tenth did not.
-- Steer the server to read or write files outside the library. Both endpoints
-  resolve the path from the track now.
-
-**On disk**
-
-- The database, its two sidecars and the settings file were world-readable —
-  every password hash, and the key that signs login tokens. Owner-only now, and
-  an existing install is tightened on its next start.
+- Cover art, profile pictures and the API documentation page were readable by
+  anyone who could reach the port. All three need a login.
+- Any account could delete other people's playlists, and two endpoints took a
+  filesystem path straight from the request.
+- The database, its sidecars and the settings file were world readable — every
+  password hash, and the key that signs login tokens. Owner-only now.
 - Request size is capped, images have a decode limit, and the browser security
   headers that were missing entirely are there.
+- **Nothing phones home by default any more.** Scanning used to send every
+  artist name to Deezer and Last.fm, and the lyrics page sent title and artist to
+  Musixmatch. Both are off unless you turn them on.
 
-**Nothing phones home by default any more.** Scanning used to send every artist
-name to Deezer and Last.fm, and the lyrics page sent title and artist to
-Musixmatch — both unasked. Now off unless you turn them on. Cover-art and
-MusicBrainz lookups are unchanged: they run when you click them.
+</details>
 
-> **Upgrading:** the *defaults* changed, not your settings. An install with the
-> lyrics plugin already on keeps it.
-
-**From the first review** — also new since v2026.8.0: the settings endpoint
-handed the server's signing key to every logged-in account; `profile/update`
-took the target account id from the request without checking whose it was; the
-login had no rate limit; and the routes that change the shared library were not
-admin-only.
-
-**Also new: a Docker image** — `ghcr.io/vwellenberg/aivinnet`, amd64 and arm64.
-See [docs/docker.md](https://github.com/vwellenberg/AivinNet/blob/master/docs/docker.md);
+**Docker** — `ghcr.io/vwellenberg/aivinnet`, amd64 and arm64. See
+[docs/docker.md](https://github.com/vwellenberg/AivinNet/blob/master/docs/docker.md);
 note that `docker compose pull` does not replace the bundled web interface.
 
 <details>
