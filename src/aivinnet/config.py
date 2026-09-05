@@ -91,6 +91,20 @@ class UserConfig(metaclass=Singleton):
     enableWatchdog: bool = False
     showPlaylistsInFolderView: bool = False
 
+    # Largest album or playlist that may be downloaded as one archive, in MB.
+    #
+    # A cap rather than "as much as you like", because building an archive is
+    # the one request whose cost is set by the library rather than by the
+    # request: an album of game soundtracks can be several gigabytes, a playlist
+    # can be the whole collection. Raise it if you have big albums and a machine
+    # with room; the limit exists so a single click cannot occupy the server for
+    # minutes, not to be clever about it.
+    #
+    # 1 GB comfortably covers ordinary albums. Deliberately modest by default
+    # because this ships as an aarch64 AppImage too, and a Raspberry Pi is a
+    # plausible host.
+    maxDownloadSizeMB: int = 1024
+
     # ⚠️ Off by default, deliberately. This is the only switch that lets a scan
     # talk to the internet on its own: artist images from Deezer and similar
     # artists from Last.fm, both triggered by indexing rather than by anyone
