@@ -6,6 +6,7 @@ Contains default configs
 """
 
 import io
+import json
 import logging
 import multiprocessing
 import os
@@ -105,8 +106,11 @@ class AssetHandler:
         # INFO: Locate the client.zip file using imres, extract it to the aivinnet client folder
         client_zip_path = imres.files("aivinnet") / "client.zip"
         if not client_zip_path.exists():
-            # INFO: if client path contains an index.html file, return true
-            return bool((path / "index.html").exists())
+            # Nothing bundled (Docker image, some source installs). Say so
+            # plainly and let the caller fall through to the download; this used
+            # to report success when an `index.html` happened to sit in the
+            # CONFIG directory, which is not where the client is served from.
+            return False
 
         with zipfile.ZipFile(client_zip_path, "r") as zip_ref:
             zip_ref.extractall(path)
@@ -150,10 +154,14 @@ class AssetHandler:
         return False
 
     @staticmethod
-    def download_client_from_github():
+    def download_client_from_github() -> str | None:
         """
         Downloads the latest supported client from Github
         and places it in the aivinnet client folder.
+
+        Returns the release tag actually installed, or None. The caller records
+        it, so the log and the stamp say which client is really on disk rather
+        than which one was wanted — those differ whenever the fallback fires.
         """
         log.error("Default client not found. Downloading from GitHub ...")
         path = Paths().client_path
@@ -169,7 +177,7 @@ class AssetHandler:
             # `restart: unless-stopped` that is a crash loop.
             if not isinstance(releases, list) or not releases:
                 log.error("Release list from GitHub was not usable (rate limited?). No client could be fetched.")
-                return False
+                return None
 
             # INFO: find the release for the current version
             for release in releases:
@@ -178,7 +186,7 @@ class AssetHandler:
 
                 if release.get("tag_name") == f"v{Metadata.version}":
                     if AssetHandler.process_release(release, path):
-                        return True
+                        return release["tag_name"]
                     pass
 
             # INFO: if no release is found, download the latest release
@@ -189,10 +197,10 @@ class AssetHandler:
             stable = [r for r in releases if isinstance(r, dict) and not r.get("prerelease")]
             if not stable:
                 log.error("No stable release to take a client from.")
-                return False
+                return None
 
             log.error(f"No release found for the v{Metadata.version}. Downloading latest version ...")
-            return AssetHandler.process_release(stable[0], path)
+            return stable[0]["tag_name"] if AssetHandler.process_release(stable[0], path) else None
 
         except (
             requests.exceptions.RequestException,
@@ -206,29 +214,127 @@ class AssetHandler:
                 "Client could not be downloaded from releases. NETWORK ERROR",
                 exc_info=e,
             )
-            return False
+            return None
         except zipfile.BadZipfile as e:
             log.error("Client could not be unpacked. ZIP ERROR", exc_info=e)
+            return None
+
+    # Records which backend version last installed the client, so an upgrade can
+    # tell "a client is present" from "the RIGHT client is present". Lives BESIDE
+    # the client directory, never inside it: everything in there is served to
+    # anyone who can reach the port.
+    CLIENT_STAMP_NAME = "client.version"
+
+    @classmethod
+    def client_stamp_path(cls) -> Path | None:
+        """
+        Where the stamp goes — or None when this install does not own its client.
+
+        ⚠️ The ownership test is the safety net for three different setups that
+        must never be touched:
+
+        * the **AppImage**, which passes `--client "${APPDIR}/client"`, a
+          read-only squashfs. Writing there is impossible and copying into it
+          raises OSError out of the startup path;
+        * anyone deploying their **own build** via `--client` or
+          `SWINGMUSIC_CLIENT_DIR` — including this project's own server, whose
+          build is newer than any release;
+        * a client directory that is not `config_dir/client`, where the
+          bundled-zip branch would extract to a different place than the one
+          being checked.
+
+        Only the default location is ours to manage.
+        """
+        paths = Paths()
+
+        if paths.client_path != paths.config_dir / "client":
+            return None
+
+        return paths.config_dir / cls.CLIENT_STAMP_NAME
+
+    @classmethod
+    def client_is_stale(cls) -> bool:
+        """
+        Whether the client on disk was installed by an OLDER backend.
+
+        ⚠️ Note what "no stamp" means here: **leave it alone**, not "refresh".
+        The inverse rule is what made the first attempt at this unshippable — it
+        turns every AppImage launch and every hand-deployed build into a refresh
+        attempt, and a failed stamp write into an endless one. Unknown provenance
+        is a reason for restraint, not for action.
+        """
+        stamp = cls.client_stamp_path()
+
+        if stamp is None or not stamp.exists():
             return False
+
+        try:
+            recorded = json.loads(stamp.read_text(encoding="utf-8")).get("requested")
+        except (OSError, ValueError, AttributeError):
+            return False
+
+        return bool(recorded) and recorded != Metadata.version
+
+    @classmethod
+    def stamp_client(cls, installed: str | None) -> None:
+        """
+        Record that THIS version tried to install the client, and what it got.
+
+        ⚠️ `requested` is written even when the install failed or fell back to an
+        older release, and the staleness check reads `requested` — never
+        `installed`. That is what makes this converge: a release whose client
+        cannot be fetched (draft, rate limit, no network) is attempted once per
+        version, not once per restart. GitHub allows 60 anonymous requests an
+        hour, and a container restart loop would spend them in a minute.
+
+        Best-effort by necessity — and safe to fail, because a missing stamp
+        means "leave alone" rather than "try again".
+        """
+        stamp = cls.client_stamp_path()
+
+        if stamp is None:
+            return
+
+        try:
+            stamp.write_text(
+                json.dumps({"requested": Metadata.version, "installed": installed}, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            log.warning("Could not record the client version stamp: %s", e)
 
     @classmethod
     def setup_default_client(cls):
         """
-        Runs on startup to ensure the default client is present.
+        Runs on startup to ensure the RIGHT default client is present.
+
+        It used to ask only whether an `index.html` was there. The client is
+        unpacked into the config directory, which outlives every upgrade — for a
+        container it is a mounted volume that outlives the image — so a new
+        backend happily served the previous release's interface, silently, for
+        ever (AivinNet-Client#551).
         """
-
-        extracted = True
         client_path = Paths().client_path
+        present = (client_path / "index.html").exists()
+        stale = cls.client_is_stale()
 
-        if not client_path.exists() or not (client_path / "index.html").exists():
-            extracted = cls.extract_default_client(Paths().config_dir)
+        if present and not stale:
+            return
 
-        if not extracted:
-            extracted = cls.download_client_from_github()
+        if stale:
+            log.info("Web client was installed by an older version. Refreshing ...")
+
+        # The bundled zip is this build's own client, so it needs no lookup.
+        installed = Metadata.version if cls.extract_default_client(Paths().config_dir) else None
+
+        if installed is None:
+            installed = cls.download_client_from_github()
 
         if not (client_path / "index.html").exists():
             log.error("Web client not found. Exiting ...")
             sys.exit(1)
+
+        cls.stamp_client(installed)
 
 
 class Paths(metaclass=Singleton):

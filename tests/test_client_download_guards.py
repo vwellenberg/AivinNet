@@ -3,6 +3,10 @@
 This runs at startup, before the port is bound, and a container restarts it for
 ever — so "it raised" is not a neutral outcome here. Each of these was reachable
 from outside with no credentials at all.
+
+The function returns the release TAG it installed, or None. It used to return a
+bool; the tag is what lets the caller record which client is really on disk,
+which differs from the one asked for whenever the fallback fires.
 """
 
 from unittest.mock import patch
@@ -44,19 +48,19 @@ def test_a_rate_limited_answer_does_not_raise(client_dir):
     body = {"message": "API rate limit exceeded", "documentation_url": "https://…"}
 
     with patch("aivinnet.settings.requests.get", return_value=FakeResponse(body)):
-        assert AssetHandler.download_client_from_github() is False
+        assert AssetHandler.download_client_from_github() is None
 
 
 def test_an_empty_release_list_does_not_raise(client_dir):
     """A fresh repo, or a filtered response: `releases[0]` was an IndexError."""
     with patch("aivinnet.settings.requests.get", return_value=FakeResponse([])):
-        assert AssetHandler.download_client_from_github() is False
+        assert AssetHandler.download_client_from_github() is None
 
 
 def test_junk_entries_are_skipped(client_dir):
     """Defensive: anything that is not a release object must not be indexed into."""
     with patch("aivinnet.settings.requests.get", return_value=FakeResponse(["nonsense", 42, None])):
-        assert AssetHandler.download_client_from_github() is False
+        assert AssetHandler.download_client_from_github() is None
 
 
 def test_a_prerelease_is_not_used_as_the_fallback(client_dir):
@@ -88,4 +92,4 @@ def test_nothing_but_prereleases_is_refused(client_dir):
     releases = [{"tag_name": "v2026.9.0-rc1", "prerelease": True, "assets": []}]
 
     with patch("aivinnet.settings.requests.get", return_value=FakeResponse(releases)):
-        assert AssetHandler.download_client_from_github() is False
+        assert AssetHandler.download_client_from_github() is None
