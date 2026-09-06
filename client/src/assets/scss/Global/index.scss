@@ -1,0 +1,193 @@
+@import "./app-grid.scss", "./inputs.scss", "./scrollbars.scss", "./state.scss", "./variants.scss",
+    "./button-classes.scss", "./basic.scss", "./search-tabheaders.scss", "./album-grid.scss", "./lauflicht.scss", "./cards.scss",
+    "./detail-head.scss";
+
+* {
+    box-sizing: border-box;
+}
+
+#vue-recycle-scroller__item-wrapper {
+    overflow: visible !important;
+}
+
+:root {
+    // Active UI font. Switched via the "Schriftart" setting (see App.vue,
+    // which toggles `body.use-spotify-font`).
+    --app-font: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+
+    // Theme-dependent memphis roles (light defaults). App.vue toggles
+    // body.theme-dark from the appearance setting; everything that sits on
+    // the page ground reads these vars (via $mem-ground/$mem-content-* in
+    // _candy.scss). Panels, ink borders and accents are theme-independent.
+    --mem-ground: #{$mem-paper};
+    // Bold near-black grid like the reference art (its lines are full black;
+    // middle setting between the subtle original and the full copy).
+    --mem-grid-line: #{rgba($mem-ink, 0.45)};
+    --mem-content-text: #{$mem-ink};
+    --mem-content-muted: #{$mem-text-muted-static};
+    --mem-content-faint: #{rgba($mem-ink, 0.45)};
+    --mem-panel: #{$mem-panel-static};
+    --mem-soft: #{$mem-blush-soft-static};
+    --mem-line: #{$mem-ink};
+    --mem-text: #{$mem-ink};
+    --mem-text-muted: #{$mem-text-muted-static};
+    // HOVER — the pointer signal, and the ONE source for it (#418).
+    //
+    // It is the CONTRAST surface, not an accent: ink in light, paper in dark.
+    // Three reasons it cannot be a colour any more:
+    //   · blush became the label fill (the LIBRARY sticker), and one colour
+    //     cannot mean "heading" here and "you are pointing at this" there;
+    //   · the six navigation fills use up most of the palette, and a hover has
+    //     to read on ALL of them equally;
+    //   · teal means play and yellow means playing — both are spoken for.
+    // Ink as a FILL exists nowhere else in this app, which is exactly why it
+    // reads as a state instead of as another colour.
+    //
+    // `--mem-hover-text` is not optional: the fill is dark in light mode, so
+    // everything on it flips. `--mem-hatch-hover` does the same for the texture
+    // (paper strokes on the ink plate, ink strokes on the paper one).
+    --mem-hover: #{$mem-ink};
+    --mem-hover-text: #{$mem-panel-static};
+    --mem-hatch-hover: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.34" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    // Translucent ground plate behind track lists: text reads clearly while
+    // the grid + doodles still shimmer through.
+    --mem-veil: #{rgba($mem-paper, 0.92)};
+    // Hard offset shadow colour (see candy-shadow). Ink on the paper ground.
+    --mem-shadow: #{$mem-ink};
+    --mem-scrollbar-thumb: #{rgba($mem-ink, 0.35)};
+    --mem-scrollbar-thumb-hover: #{rgba($mem-ink, 0.55)};
+
+    // HATCH — the texture that means "you can press this" (see mem-hatch in
+    // _candy.scss). Two tokens, because the stroke colour has to answer to what
+    // it is drawn ON, and that is not the same question in both themes:
+    //
+    //   --mem-hatch         a PANEL surface. Theme-aware: the panel is white in
+    //                       light and near-black in dark, so ink strokes would
+    //                       simply vanish there.
+    //   --mem-hatch-accent  a STATIC accent fill (blush/teal/yellow). Those are
+    //                       identical in both themes, so the strokes stay ink —
+    //                       the same call the button roles make for $mem-ink.
+    //
+    // The opacity lives INSIDE the sprite as `stroke-opacity`, not as a CSS
+    // `opacity` on an overlay: the rows this lands on already spend both
+    // pseudo-elements on their drag/drop markers (styling.md), so the texture
+    // has to be a background layer rather than a ::before.
+    --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.30" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    --mem-hatch-accent: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.42" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+}
+
+body.theme-dark {
+    // True-dark "classic 90s": deep indigo ground WITH the grid (light
+    // lines), dark indigo panels, paper borders/text. Accents stay the same.
+    color-scheme: dark;
+    --mem-ground: #{$mem-dark-ground};
+    --mem-grid-line: #{$mem-dark-grid-line};
+    --mem-content-text: #{$mem-dark-content-text};
+    --mem-content-muted: #{$mem-dark-content-muted};
+    --mem-content-faint: rgba(255, 255, 255, 0.55);
+    --mem-panel: #{$mem-dark-panel};
+    --mem-soft: #{$mem-dark-soft};
+    --mem-line: #{$mem-dark-line};
+    --mem-text: #{$mem-dark-text};
+    --mem-text-muted: #{$mem-dark-text-muted};
+    // The contrast surface flips with the theme: paper on the near-black
+    // ground, and everything on it goes dark. Same tokens, mirrored values.
+    --mem-hover: #{$mem-dark-line};
+    --mem-hover-text: #{$mem-dark-ground};
+    --mem-hatch-hover: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.34" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    --mem-veil: #{rgba($mem-dark-ground, 0.92)};
+    // Ink is invisible on the indigo ground — the offset becomes a soft paper
+    // edge instead, matching the paper borders of this theme.
+    --mem-shadow: rgba(244, 242, 237, 0.42);
+    --mem-scrollbar-thumb: rgba(255, 255, 255, 0.45);
+    --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.65);
+    // Paper strokes on the near-black panel. `--mem-hatch-accent` is NOT
+    // overridden here on purpose: blush, teal and yellow are the same colour in
+    // both themes, so their texture stays ink — exactly like the glyphs on them.
+    --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.26" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+}
+
+body.use-spotify-font {
+    --app-font: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+html {
+    cursor: default !important;
+    overflow: hidden;
+    color: $candy-text;
+    background-color: $mem-ground;
+
+    & > * {
+        overflow: visible !important;
+        -webkit-tap-highlight-color: transparent; /* Webkit browsers like Safari */
+        tap-highlight-color: transparent; /* Some Android browsers */
+        outline: none;
+    }
+}
+
+html.loading,
+html.loading * {
+    cursor: progress !important;
+}
+
+body {
+    font-family: var(--app-font);
+    font-size: 1rem;
+    font-weight: 500;
+    color: $candy-text;
+    image-rendering: -webkit-optimize-contrast;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    width: 100dvw;
+    overflow: hidden;
+    margin: 0;
+    background-color: $mem-ground;
+    color-scheme: light;
+
+    #app {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.noSelect {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.dimmer {
+    display: none;
+}
+
+@include allPhones {
+    .dimmer {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1001;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        opacity: 0;
+        visibility: hidden;
+        background-color: rgb(0, 0, 0, 0.6);
+        transition: opacity 300ms ease, visibility 300ms ease;
+    }
+
+    .dimmer.active {
+        opacity: 1;
+        visibility: visible;
+    }
+}

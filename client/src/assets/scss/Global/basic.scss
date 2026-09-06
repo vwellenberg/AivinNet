@@ -1,0 +1,271 @@
+input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+
+// TEXT
+.t-center {
+  text-align: center;
+}
+
+.ellip {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ellip2 {
+  word-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+// No `transition: transform` here: nothing transforms an `.image`. The rule is
+// left over from the pre-memphis cards, whose artwork zoomed on hover. Measured
+// on the running app across three of its users (playlist card, artist card,
+// playlist header): hovering changes no property on the element at all.
+.image {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+// BORDERS
+//
+// These utilities predate the memphis redesign and carried their own scale
+// (16/8/12/20/160px) next to the design's three radius tokens. Measured over
+// the rendered app, that made 8px — `.rounded-sm`, 71 uses across 50 files —
+// the SECOND most common radius in the whole client at 2100 occurrences, none
+// of them a token, and the two systems met inside single rows: a
+// `.sidebar-pl-img.rounded-sm` thumbnail at 8px sat in a sidebar row at 10px.
+//
+// The classes stay (they are spelled out in 100+ templates); only what they
+// resolve to is now the token. Sizes map by role, not by nearest number:
+// anything panel-sized reads $candy-radius, thumbnails and small surfaces read
+// $candy-radius-sm, and "circular" means the pill token rather than a 10rem
+// value that stops looking round past a 320px element.
+.rounded {
+  border-radius: $candy-radius;
+}
+
+.rounded-sm {
+  border-radius: $candy-radius-sm;
+}
+
+.rounded-md {
+  border-radius: $candy-radius;
+}
+
+.rounded-lg {
+  border-radius: $candy-radius;
+}
+
+.circular {
+  border-radius: $candy-radius-pill;
+}
+
+.bg-primary {
+  @include candy-box($candy-white);
+}
+
+// ---------------------------------------------------------------------------
+// BUTTONS — a reset, and nothing else.
+//
+// This rule used to give EVERY <button> a finished look: 2.25rem tall, blush
+// fill, ink border, a 2px offset shadow, a static ink glyph and a pink hover.
+// Because that is the wrong look for most buttons, it was subtracted again in
+// three separate places — a flat-controls blocklist right below, ~28 components
+// hand-writing `background: transparent; border: none`, and ~116 `!important`.
+// Nothing told you which of the three applied to the button in front of you;
+// you found out by looking at the screen.
+//
+// That is how a mixin's shadow got silently cancelled from a different file
+// (the download button rendered as a bare glyph, the pin lost its shadow), how
+// one player bar came to hold four button heights, and how a `:first-child`
+// aimed at the transport also hid the mute control on small phones.
+//
+// So: nothing here paints. A button declares WHAT IT IS with a role from
+// Global/_buttons.scss — primary, action, quiet, pill, toggle — and gets the
+// whole anatomy from one place. Nothing is subtracted anywhere.
+//
+// What stays is what a browser default gets wrong for every button regardless
+// of role: the font (buttons do not inherit it), the pointer, centring its
+// contents, and a visible keyboard focus ring.
+// ---------------------------------------------------------------------------
+button {
+  font-family: var(--app-font);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  // Keyboard focus was app-wide invisible: the old base set `outline: none` on
+  // :focus with nothing put back, so tabbing through the app left no trace at
+  // all. `:focus-visible` shows the ring for keyboard users without putting an
+  // outline around every mouse click.
+  //
+  // The ring itself lives in `Global/_buttons.scss` as `focus-ring`, because
+  // not everything that looks like a button IS one (the top bar's home button
+  // is a RouterLink) and a second hand-written copy is how the two drift.
+  @include focus-ring;
+}
+
+// POSITION
+
+.abs {
+  position: absolute;
+}
+
+// OTHERS
+.grid {
+  display: grid;
+}
+
+.flex {
+  display: flex;
+}
+
+.separator {
+  border-top: 1px $separator solid;
+  color: transparent;
+  margin: $small 0 $small 0;
+  opacity: 1;
+}
+
+.no-border {
+  border: none;
+}
+
+.no-scroll {
+  overflow: hidden;
+}
+
+.no-select {
+  user-select: none;
+}
+
+.load_disabled {
+  pointer-events: all;
+  background: $candy-pink-soft !important;
+  border-color: $mem-line !important;
+  opacity: 1;
+}
+
+#drag-img {
+  width: max-content;
+  max-width: 15rem;
+  @include candy-box($candy-lavender, $candy-radius-sm);
+  padding: $smaller $small;
+  opacity: 1;
+  position: absolute;
+  left: -20rem;
+}
+
+.spinner {
+  border: solid 3px $mem-line;
+  border-top: solid 3px transparent;
+  border-left: solid 3px transparent;
+  border-radius: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  animation: spin 0.45s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.card-list-scroll-x {
+  overflow: hidden;
+
+  h3 {
+    display: grid;
+    grid-template-columns: 1fr max-content;
+    align-items: baseline;
+    padding: 0 $medium;
+    margin-bottom: $medium;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax($cardwidth, 1fr));
+    gap: $card-row-gap $card-col-gap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    flex-direction: row;
+    padding-bottom: 2rem;
+
+    @include hideScrollbars;
+  }
+
+  // No hover rule for `.album-card` here. It used to paint the tile YELLOW in
+  // this one scroller — a colour that means "active" everywhere else in this
+  // design (playing row, shuffle on) — while every other row tinted blush. The
+  // tile has no surface of its own since the plate anatomy (Global/cards.scss);
+  // the hover belongs to its plates and is stated once, there.
+}
+
+.rhelp {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: $candy-text-muted;
+  font-weight: 700;
+  margin: $smaller 0;
+}
+
+// Badges used in settings
+.badge {
+  margin-left: $small;
+  opacity: 1;
+  padding: 0 $smaller;
+  border-radius: $candy-radius-pill;
+  border: 1px solid $mem-line;
+  background-color: $candy-lavender;
+  color: $mem-ink;
+  font-size: 12px !important;
+}
+
+.experimental {
+  background-color: $candy-pink-soft;
+  // Soft (theme-var) fill, not an accent — keep adaptive text so it stays
+  // readable when this badge variant lands on the dark soft in dark mode.
+  color: $candy-text;
+}
+
+.badge.new {
+  background-color: $candy-lavender;
+}
+
+.explicit-icon {
+  width: 0.9rem;
+  margin-left: $smaller;
+}

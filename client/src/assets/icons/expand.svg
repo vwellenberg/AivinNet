@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: the disclosure chevron. Was hard-coded #F2F2F2 and therefore
+         invisible on light surfaces; currentColor like the rest of the set. -->
+    <path d="M9 4.8 16.2 12 9 19.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

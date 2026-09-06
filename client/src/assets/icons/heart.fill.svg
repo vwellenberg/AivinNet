@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: the favourite marker, set state. Same silhouette as
+         heart.svg — half-circle lobes, notch at lobe-centre height — filled
+         instead of hollow. The state is the fill, like every other pair here.
+
+         The EDGE is fixed ink, not `currentColor`, and that is inherited from
+         the marker this replaces (#370): the fill is teal, and teal measures
+         1.24:1 against $mem-yellow — under the 3:1 WCAG 1.4.11 wants of a
+         graphic — so on the yellow playing row the outline is what carries the
+         shape (ink measures 9.64:1). The fill says which state, the edge says
+         where the glyph is.
+
+         Same path bounds as heart.svg (4.2..19.8) so both fassungen land on
+         ink 3..21 once the 2.4 stroke is counted. -->
+    <path d="M4.2 8.1 A3.9 3.9 0 0 1 12 8.1 A3.9 3.9 0 0 1 19.8 8.1 C19.8 12.1 15.6 15.6 12 19.8 C8.4 15.6 4.2 12.1 4.2 8.1 Z" fill="currentColor" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,253 @@
+// ============================================================================
+// COVER TILE ANATOMY — one shape for every card type, everywhere.
+//
+// A tile is three stacked objects on the memphis ground, not one filled panel:
+//
+//   1. the TYPE LABEL  (CardTypeLabel.vue)  — glyph cell + rule + "ALBUM"
+//   2. the ARTWORK     (.card-art)          — framed, raised, square
+//   3. the NAME PLATE  (.card-plate)        — name + one line of meta
+//
+// It is the Now-Playing anatomy (`NowPlaying/PlayingFrom.vue` above the cover,
+// `NowPlayingInfo.vue` below it) at tile scale: white plates against the grid
+// and the doodles, each with its own ink frame and hard offset shadow. The
+// tiles used to be a single white panel with the picture and the text inside
+// it — the one place in this design where that contrast was missing.
+//
+// Deliberately NOT part of a tile: 44px action buttons. A tile column is 12rem
+// ($cardwidth), and a plate carrying two of them would either overflow or push
+// the touch target below the app's 44px floor. The whole tile is the link, and
+// the play disc on the artwork is its only control.
+//
+// EVERY card type CardScroller can render belongs in $card-types. The folder,
+// mix and favourites tiles were once missing from that list and each one
+// drifted on its own (the folder card measured 176x245 next to a 176x248
+// playlist in the same "Recently played" row, at a 16px radius instead of 14px
+// and with no offset shadow at all). `src/components/__tests__/cardAnatomy.test.ts`
+// fails if a card type appears in CardScroller without being listed here.
+// ============================================================================
+
+// The one list. Read by the anatomy below, by the row geometry further down and
+// by the census test — a second copy is how the drift above started.
+$card-types: ".p-card, .trackcard, .artist-card, .album-card, .foldercard";
+
+/// The buffer between a caption line and the hatch strokes around it (#486).
+/// It is both the cover's padding and the negative margin that pulls the cover
+/// back over the plate's own padding, so the text keeps its original left edge
+/// — the two must stay one number or the captions shift sideways.
+$card-cover-pad: 6px;
+
+#{$card-types} {
+    display: grid;
+    // label · artwork · plate. The rows size to their content everywhere except
+    // inside a mixed row, where the plate is pinned (see .cardscroller below).
+    grid-template-rows: max-content max-content max-content;
+    align-content: start;
+    // Stufe B aus der Abstands-Runde: 16px statt 8px zwischen Etikett, Cover
+    // und Platte. Die Kachel bleibt ein Objekt, atmet aber.
+    gap: 1rem;
+    height: max-content;
+    // Grid items refuse to shrink below their min-content size by default, so
+    // one long nowrap name silently pushed its card wider than the column.
+    min-width: 0;
+    // The tile itself carries no surface any more: no panel fill, no frame, no
+    // padding. Its three parts do.
+    padding: 0;
+    text-decoration: none;
+
+    > * {
+        min-width: 0;
+    }
+
+    @include card-play-btn;
+
+    // Hover belongs to the PLATES — there is no card surface left to tint. Both
+    // answer together, so the tile still reads as one object. An open context
+    // menu says the same thing.
+    &:hover,
+    &.context-menu-open {
+        .card-type-label,
+        .card-plate {
+            // `--row-fill` carries the flip to the covers in the same
+            // declaration, so a caption can never keep the resting fill on the
+            // flipped plate (the visible-rectangle bug mem-hatch-ring exists to
+            // prevent). The label keeps no texture of its own — only the plate
+            // swaps its sprite, because the surface under it just inverted.
+            --row-fill: #{$mem-hover};
+            background-color: var(--row-fill);
+            color: var(--mem-hover-text);
+            @include candy-shadow(4px, 4px);
+        }
+
+        // Only the plate carries a texture, so only it swaps sprites — the
+        // resting hatch is drawn in the surface's own contrast and would vanish
+        // on the flipped fill. The type label stays smooth in both states.
+        .card-plate {
+            background-image: var(--mem-hatch-hover);
+            background-size: 38px 38px;
+        }
+
+        // The card components pin their own text colours ($candy-text on the
+        // name, $candy-text-muted on the meta line), which outrank an inherited
+        // colour — every pinned child flips explicitly. The label's glyph cell
+        // stays out: it keeps its own static entity tint, so its ink glyph
+        // stays right without help.
+        .card-plate *,
+        .card-type-label .label {
+            color: var(--mem-hover-text);
+        }
+
+        // Same exemption as the glyph cell, one level deeper: a child that
+        // keeps a STATIC fill of its own (the album version badges) keeps the
+        // static ink that belongs on it — flipped, its text would sit
+        // paper-on-lavender.
+        .card-plate .master-flag {
+            color: $mem-ink;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The artwork. Square, framed, raised — the picture IS the tile's body now, so
+// it wears the frame the panel used to wear.
+// ---------------------------------------------------------------------------
+.card-art {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    @include candy-box($mem-panel, $candy-radius);
+    @include candy-shadow(3px, 3px);
+    transition: box-shadow $motion-shadow $motion-curve;
+
+    // Direct child only. A collage (PlaylistImages) brings its own
+    // grid of nested images with their own sizing; reaching those with a
+    // descendant selector would fight it.
+    > img {
+        // Kill the inline baseline gap and fill the square box.
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+// A glyph placeholder instead of a picture (folder tile, favourites tile).
+.card-art.is-glyph {
+    background-color: $candy-pink-soft;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+// A round motif (artist portrait). The frame moves to the IMAGE and the box
+// opens up, because the play disc sits in the square corner OUTSIDE the circle
+// — under `overflow: hidden` it would be clipped away.
+.card-art.is-round {
+    overflow: visible;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+
+    // Frame AND shadow move to the image together. Only the frame moved at
+    // first, so the artist portrait was the one tile in a mixed row that sat
+    // flat on the ground while its neighbours were raised — and on a disc the
+    // offset shadow reads as a crescent, which is the shape this design gives
+    // every round raised element (the play discs do the same).
+    img {
+        border: $candy-border;
+        border-radius: 50%;
+        @include candy-shadow(3px, 3px);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The name plate. Same panel + frame + offset shadow as the label above the
+// artwork, at the tile's full width.
+// ---------------------------------------------------------------------------
+.card-plate {
+    overflow: hidden;
+    min-width: 0;
+    padding: 0.45rem 0.7rem;
+    // The tile is one big link, so its plate wears the texture — but AROUND the
+    // text, never behind it (#486, styling.md). That is the "wide element whose
+    // text takes only part of it" case: each caption line carries its own cover
+    // in the plate's fill, so the strokes stay visible beside and between them.
+    //
+    // `--row-fill` is the single source both halves read — the surface here and
+    // the covers below — so a hover can never flip one without the other.
+    --row-fill: #{$mem-panel};
+    background-color: var(--row-fill);
+    @include mem-hatch(38px, $on: surface);
+    border: $candy-border;
+    border-radius: $candy-radius;
+    box-shadow: 3px 3px 0 var(--mem-shadow);
+    // Motion only — the paint is a cut (styling.md): the plate flips to the
+    // contrast surface together with its text and hatch, in one frame.
+    transition: box-shadow $motion-shadow $motion-curve;
+
+    // THE COVERS — every direct child, matched STRUCTURALLY rather than by a
+    // list of class names.
+    //
+    // The list was the bug: `.p-count`, `.rtcount`, `.racount` and the artist
+    // line a TrackCard renders through a component were never in it, so those
+    // subtitles kept the strokes behind them while the name above was clean.
+    // Five card types each name their caption lines differently, and a sixth
+    // would have gone missing the same way. A child of the plate IS a caption
+    // line — that is what this container holds — so the selector says so.
+    //
+    // `width: fit-content` is the load-bearing part, NOT `inline-block`: a
+    // block-level `.ellip` always fills its line, so a cover on it would hide
+    // the whole plate — but making the lines inline puts the title and the
+    // artist on ONE line and breaks long titles across two instead of
+    // truncating them. `fit-content` keeps each line a block (own row, ellipsis
+    // intact) while the box shrinks to the words, which is exactly what leaves
+    // texture beside a short one. It also makes a WRAPPER safe to cover: a
+    // `.p-count` holding a `<b>` shrinks to that `<b>`.
+    //
+    // The negative margin pulls the cover's left padding back over the plate's
+    // own, so the text keeps its original left edge and only gains a buffer;
+    // `max-width` compensates for it so a long title still truncates instead of
+    // overflowing the plate.
+    //
+    // `.rhelp` is the one exception: it is a flex ROW of two spans that must
+    // stay side by side, so its children carry the cover instead (below).
+    > *:not(.rhelp) {
+        box-sizing: border-box;
+        width: fit-content;
+        max-width: calc(100% + #{$card-cover-pad});
+        margin-left: -$card-cover-pad;
+        padding: 1px $card-cover-pad;
+        background-color: var(--row-fill);
+        border-radius: 6px;
+    }
+
+    // The help row is a flex line of two spans; they cover themselves and stay
+    // side by side.
+    .rhelp .help,
+    .rhelp .time {
+        padding: 1px $card-cover-pad;
+        margin-left: -$card-cover-pad;
+        background-color: var(--row-fill);
+        border-radius: 6px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Row geometry. A `.cardscroller` row mixes playlist, track, album and artist
+// tiles side by side, so their totals have to match exactly: the plate is
+// pinned to one height instead of sizing to whichever card happens to carry a
+// help text. Grid pages show a single card type and keep the flow above.
+// ---------------------------------------------------------------------------
+.cardscroller {
+    #{$card-types} {
+        // Fits the plate's three possible lines (help text, name, meta) plus
+        // its own padding; cards with fewer lines keep the empty space rather
+        // than shrinking the tile.
+        grid-template-rows: max-content max-content 4.5rem;
+    }
+
+    // Version badges vary per album and would rock the fixed plate; they stay
+    // on the album page, rows do without them.
+    .album-card .versions {
+        display: none;
+    }
+}

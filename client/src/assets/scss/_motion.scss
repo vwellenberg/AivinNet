@@ -1,0 +1,68 @@
+// The app's movement vocabulary — durations and curves — in one place, the way
+// _candy.scss holds colour and shape (#240).
+//
+// These are NOT new numbers. They are the ones the codebase had already settled
+// on, counted across every `transition` and `animation` in src/ before this file
+// existed:
+//
+//   0.2s   69 uses      0.15s  25 uses      0.25s  11 uses
+//   0.12s  11 uses      0.1s    7 uses
+//   ease-out  84 of 118 easing declarations
+//
+// So the scale was real and consistent; it just had no name, which is why every
+// new component had to guess at it. Naming it costs nothing at build time — the
+// emitted CSS is unchanged — and gives the next component something to reach for
+// instead of a fresh guess.
+//
+// Deliberately NOT included: the long ambient loops (the Lauflicht at 5.5s, the
+// drifting doodles at 7-14s). Those are one-off character pieces, not a scale,
+// and folding them in here would invite someone to treat 9s as a reusable step.
+
+// ---------------------------------------------------------------------------
+// Durations — fastest to slowest. The whole interaction range fits in a
+// quarter second on purpose: #240's actual requirement is that nothing which
+// you see twice is still noticeable the tenth time.
+// ---------------------------------------------------------------------------
+
+// The press. Has to be under the threshold where a click feels laggy.
+$motion-press: 0.1s;
+
+// The hard offset shadow moving as a surface lifts or is pushed in. Slightly
+// slower than the press so the shadow reads as following the button.
+$motion-shadow: 0.12s;
+
+// Colour: fills, borders, glyph tint. The most common transition in the app.
+$motion-tint: 0.15s;
+
+// The workhorse: transforms, opacity, anything that travels. Also the "pop in"
+// (#279) — an element appearing is the same class of movement.
+$motion-move: 0.2s;
+
+// The slowest step still inside the interaction range. Layout shifts and
+// panels, where 0.2s reads as abrupt.
+$motion-settle: 0.25s;
+
+// The click ripple on rows. Mirrored — v-wave is configured in `main.ts`, which
+// is TypeScript and cannot read this file; the comment there points back here.
+$motion-ripple: 0.35s;
+
+// Gap between neighbours in a staggered row, so an action row arrives left to
+// right instead of all at once (#279).
+$motion-stagger: 45ms;
+
+// ---------------------------------------------------------------------------
+// Curves
+// ---------------------------------------------------------------------------
+
+// The default, and by a wide margin: movement that starts immediately and
+// eases out. Anything that responds to a pointer should use this — an ease-IN
+// delays the visible response to the user's own action.
+$motion-curve: ease-out;
+
+// A hard decelerate for something arriving at rest. Used by the pop, where the
+// overshoot lives in the keyframes and the curve only has to land it.
+$motion-curve-settle: cubic-bezier(0.22, 1, 0.36, 1);
+
+// The one curve that anticipates — it dips below its start before moving. Keep
+// it rare: it is a character moment, not a default.
+$motion-curve-back: cubic-bezier(0.68, -0.55, 0.265, 1.55);

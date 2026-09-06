@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Transport set: 24x24 box, 2px stroke, round caps. The two crossing
+         runs share the arrow heads on the right, like the reference art. -->
+    <path d="M3.5 7h3.1c1.35 0 2.2.6 3.05 1.75l4.7 6.5C15.2 16.4 16.05 17 17.4 17h3.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.5 17h3.1c1.35 0 2.2-.6 3.05-1.75l.9-1.25" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M13.45 9.75l.9-1.25C15.2 7.35 16.05 6.75 17.4 6.75h3.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M18.2 4.5 20.7 6.75 18.2 9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M18.2 14.75 20.7 17 18.2 19.25" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

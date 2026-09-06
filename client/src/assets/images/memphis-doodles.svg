@@ -1,0 +1,427 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="1600" viewBox="0 0 3840 1600">
+  <!-- Memphis doodle tile — the 90s reference art (design-refs/memphis-*.png,
+       gitignored) spread over an ultrawide canvas.
+
+       WHY 3840x1600: the tile is placed at a fixed pixel size, so the canvas has
+       to cover the largest ground we serve or the composition visibly repeats
+       across one screen. On a 3440x1440 ultrawide the page ground measures about
+       3150x1370 after the sidebar and top bar — this canvas covers that, a
+       2560x1440 display, and some browser zoom, in a single copy.
+
+       WHY A SHAPE LIBRARY: every shape used to be drawn inline, and its hard
+       shadow was a hand-copied duplicate of the same path sitting underneath.
+       Hand-copies get forgotten — several shapes had ended up flat that way.
+       Here the shadow is part of the shape's definition, so a placement cannot
+       lose it. The one deliberate exception is the big background circles: they
+       are the flat back layer and carry no shadow in the reference either.
+
+       Colours are the reference artwork's own, on purpose (ground art, not UI
+       tokens). Tiled over the grid by mem-grid; the grid lines themselves stay a
+       CSS layer so they align across the page. Shapes crossing an edge are
+       repeated on the opposite side, so the canvas still tiles without a seam on
+       a display larger than the one it was cut for. -->
+  <defs>
+    <!-- dark terrazzo squiggles + dots, indigo ink (for the indigo slabs) -->
+    <pattern id="tz" width="46" height="46" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke="#232046" stroke-width="4" stroke-linecap="round">
+        <path d="M6 10 q5 -6 10 0 t10 0"/>
+        <path d="M26 30 q5 -6 10 0 t10 0"/>
+        <path d="M2 36 q4 -5 8 0"/>
+      </g>
+      <g fill="#232046">
+        <circle cx="36" cy="10" r="3"/>
+        <circle cx="14" cy="24" r="3"/>
+        <circle cx="42" cy="42" r="3"/>
+      </g>
+    </pattern>
+    <!-- the same terrazzo in near-black, for the white / pink / blue slabs -->
+    <pattern id="tzk" width="46" height="46" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke="#2B2733" stroke-width="4" stroke-linecap="round">
+        <path d="M6 10 q5 -6 10 0 t10 0"/>
+        <path d="M26 30 q5 -6 10 0 t10 0"/>
+        <path d="M2 36 q4 -5 8 0"/>
+      </g>
+      <g fill="#2B2733">
+        <circle cx="36" cy="10" r="3"/>
+        <circle cx="14" cy="24" r="3"/>
+        <circle cx="42" cy="42" r="3"/>
+      </g>
+    </pattern>
+    <!-- white sprinkles on the teal panels -->
+    <pattern id="spr" width="42" height="42" patternUnits="userSpaceOnUse">
+      <g stroke="#FFFFFF" stroke-width="4" stroke-linecap="round">
+        <line x1="6" y1="9" x2="14" y2="13"/>
+        <line x1="27" y1="5" x2="34" y2="2"/>
+        <line x1="34" y1="24" x2="40" y2="29"/>
+        <line x1="12" y1="31" x2="19" y2="28"/>
+        <line x1="24" y1="39" x2="31" y2="37"/>
+      </g>
+    </pattern>
+    <!-- indigo sprinkles on the pale cones -->
+    <pattern id="sprd" width="42" height="42" patternUnits="userSpaceOnUse">
+      <g stroke="#3E4890" stroke-width="4" stroke-linecap="round">
+        <line x1="6" y1="9" x2="14" y2="13"/>
+        <line x1="27" y1="5" x2="34" y2="2"/>
+        <line x1="34" y1="24" x2="40" y2="29"/>
+        <line x1="12" y1="31" x2="19" y2="28"/>
+        <line x1="24" y1="39" x2="31" y2="37"/>
+      </g>
+    </pattern>
+
+    <!-- =====================================================================
+         Shape library. Every entry draws its shadow first and its body second,
+         so a placement cannot end up flat. Single-colour shapes take their
+         colour from the `color` attribute on the `use`; the slabs and beams
+         keep fixed variants, because their edge stripes are a second and third
+         colour and belong to the reference's language.
+         ===================================================================== -->
+
+    <!-- squiggles: the reference's four stroke weights -->
+    <g id="sqA">
+      <path d="M0 0 q60 -45 74 22 q10 52 62 30 q46 -20 44 42 q-2 44 40 34"
+            fill="none" stroke="#2B2733" stroke-width="26" stroke-linecap="round" transform="translate(9,11)"/>
+      <path d="M0 0 q60 -45 74 22 q10 52 62 30 q46 -20 44 42 q-2 44 40 34"
+            fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round"/>
+    </g>
+    <g id="sqB">
+      <path d="M0 0 q54 -38 66 16 q10 46 -36 54 q-44 10 -30 56"
+            fill="none" stroke="#2B2733" stroke-width="20" stroke-linecap="round" transform="translate(8,9)"/>
+      <path d="M0 0 q54 -38 66 16 q10 46 -36 54 q-44 10 -30 56"
+            fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round"/>
+    </g>
+    <g id="sqC">
+      <path d="M0 0 q40 -28 50 12 q8 34 -28 40"
+            fill="none" stroke="#2B2733" stroke-width="14" stroke-linecap="round" transform="translate(6,7)"/>
+      <path d="M0 0 q40 -28 50 12 q8 34 -28 40"
+            fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
+    </g>
+    <!-- rolling wave, the reference's four-bump squiggle.
+         NOTE: a shape with a bow on top and a straight descender below reads as
+         a QUESTION MARK once it is scattered across a page — the first draft of
+         this one did, about ten times over. Keep these squiggles free of a
+         single dominant vertical, or the ground starts asking questions. -->
+    <g id="sqD">
+      <path d="M0 26 q16 -26 32 0 q16 26 32 0 q16 -26 32 0 q16 26 32 0"
+            fill="none" stroke="#2B2733" stroke-width="18" stroke-linecap="round" transform="translate(7,8)"/>
+      <path d="M0 26 q16 -26 32 0 q16 26 32 0 q16 -26 32 0 q16 26 32 0"
+            fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round"/>
+    </g>
+    <!-- open curl: a tail running into a loop, the reference's calligraphic
+         flourish. No straight stroke anywhere in it, per the note above. -->
+    <g id="sqE">
+      <path d="M0 96 q-10 -52 40 -52 q48 0 38 42 q-10 40 -46 26"
+            fill="none" stroke="#2B2733" stroke-width="18" stroke-linecap="round" transform="translate(7,8)"/>
+      <path d="M0 96 q-10 -52 40 -52 q48 0 38 42 q-10 40 -46 26"
+            fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round"/>
+    </g>
+    <!-- sharp scribble zigzag -->
+    <g id="scribble">
+      <path d="M0 0 l46 -34 8 40 50 -36 8 40 50 -38 8 38 44 -32"
+            fill="none" stroke="#2B2733" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" transform="translate(7,9)"/>
+      <path d="M0 0 l46 -34 8 40 50 -36 8 40 50 -38 8 38 44 -32"
+            fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- triangles: apex down (the reference's signature) and apex up -->
+    <g id="triD">
+      <polygon points="0,0 300,-180 130,220" fill="#2B2733" transform="translate(12,14)"/>
+      <polygon points="0,0 300,-180 130,220" fill="currentColor"/>
+    </g>
+    <g id="triU">
+      <polygon points="150,0 300,240 0,240" fill="#2B2733" transform="translate(12,14)"/>
+      <polygon points="150,0 300,240 0,240" fill="currentColor"/>
+    </g>
+
+    <!-- half ring, opening down -->
+    <g id="arc">
+      <path d="M0 95 A 95 95 0 0 1 190 95 L 132 95 A 37 37 0 0 0 58 95 Z" fill="#2B2733" transform="translate(8,10)"/>
+      <path d="M0 95 A 95 95 0 0 1 190 95 L 132 95 A 37 37 0 0 0 58 95 Z" fill="currentColor"/>
+    </g>
+
+    <!-- pennant with the swallow-tail notch -->
+    <g id="flag">
+      <polygon points="0,0 120,0 86,32 120,64 0,64" fill="#2B2733" transform="translate(8,9)"/>
+      <polygon points="0,0 120,0 86,32 120,64 0,64" fill="currentColor"/>
+    </g>
+
+    <!-- chevron / dart — the reference's small arrow -->
+    <g id="chev">
+      <polygon points="0,0 62,0 62,54 31,32 0,54" fill="#2B2733" transform="translate(7,8)"/>
+      <polygon points="0,0 62,0 62,54 31,32 0,54" fill="currentColor"/>
+    </g>
+
+    <!-- outlined ring -->
+    <g id="ringO">
+      <circle cx="26" cy="26" r="26" fill="#2B2733" transform="translate(6,7)"/>
+      <circle cx="26" cy="26" r="26" fill="#F4F2ED"/>
+      <circle cx="26" cy="26" r="26" fill="none" stroke="currentColor" stroke-width="14"/>
+      <circle cx="26" cy="26" r="34" fill="none" stroke="#2B2733" stroke-width="4"/>
+      <circle cx="26" cy="26" r="18" fill="none" stroke="#2B2733" stroke-width="4"/>
+    </g>
+
+    <!-- bunting zigzag strip -->
+    <g id="zigStrip">
+      <polygon points="8,58 58,10 108,58 158,10 208,58 258,10 268,20 208,78 158,30 108,78 58,30 18,68" fill="#2B2733"/>
+      <polygon points="0,48 50,0 100,48 150,0 200,48 250,0 260,10 200,68 150,20 100,68 50,20 10,58"
+               fill="currentColor" stroke="#2B2733" stroke-width="4"/>
+    </g>
+
+    <!-- beams and planks, base 260x56 -->
+    <g id="barGold">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#F0A23C"/>
+      <rect width="260" height="16" fill="#E2574C"/>
+    </g>
+    <g id="barPink">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#F0A6B8"/>
+      <rect y="42" width="260" height="14" fill="#E2574C"/>
+    </g>
+    <g id="barBeam">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#F0A23C"/>
+      <rect width="260" height="17" fill="#3EBFAF"/>
+      <rect y="43" width="260" height="13" fill="#E2574C"/>
+    </g>
+    <g id="barCap">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#F0A6B8"/>
+      <rect width="260" height="16" fill="#E2574C"/>
+      <rect x="226" width="34" height="56" fill="#3EBFAF"/>
+    </g>
+    <g id="barTeal">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#3EBFAF"/>
+      <rect width="260" height="17" fill="#F0A23C"/>
+      <rect y="43" width="260" height="13" fill="#D9603F"/>
+    </g>
+    <g id="barYellow">
+      <rect x="14" y="16" width="260" height="56" fill="#2B2733"/>
+      <rect width="260" height="56" fill="#F5D547"/>
+      <rect width="260" height="16" fill="#F0A6B8"/>
+    </g>
+
+    <!-- patterned slabs, base 380x88 -->
+    <g id="slabTz">
+      <rect x="16" y="18" width="380" height="88" fill="#2B2733"/>
+      <rect width="380" height="88" fill="#5560BD"/>
+      <rect width="380" height="88" fill="url(#tz)"/>
+      <rect width="380" height="18" fill="#F0A6B8"/>
+    </g>
+    <g id="slabWhite">
+      <rect x="16" y="18" width="380" height="88" fill="#2B2733"/>
+      <rect width="380" height="88" fill="#F4F2ED"/>
+      <rect width="380" height="88" fill="url(#tzk)"/>
+      <rect width="380" height="18" fill="#2B2733"/>
+    </g>
+    <g id="slabPink">
+      <rect x="16" y="18" width="380" height="88" fill="#2B2733"/>
+      <rect width="380" height="88" fill="#F0A6B8"/>
+      <rect width="380" height="88" fill="url(#tzk)"/>
+      <rect width="380" height="18" fill="#E2574C"/>
+    </g>
+    <g id="slabBlue">
+      <rect x="16" y="18" width="380" height="88" fill="#2B2733"/>
+      <rect width="380" height="88" fill="#7C9BD6"/>
+      <rect width="380" height="88" fill="url(#tzk)"/>
+      <rect width="380" height="18" fill="#3EBFAF"/>
+    </g>
+
+    <!-- prisms, base 128x100 -->
+    <g id="prismTz">
+      <polygon points="72,10 140,110 12,110" fill="#2B2733" transform="translate(10,10)"/>
+      <polygon points="60,0 128,100 0,100" fill="#5560BD"/>
+      <polygon points="60,0 128,100 0,100" fill="url(#tz)"/>
+      <polygon points="60,0 128,100 60,100" fill="#3E4890"/>
+    </g>
+    <g id="prismSpr">
+      <polygon points="72,10 140,110 12,110" fill="#2B2733" transform="translate(10,10)"/>
+      <polygon points="60,0 128,100 0,100" fill="#35B5A5"/>
+      <polygon points="60,0 128,100 0,100" fill="url(#spr)"/>
+      <polygon points="60,0 128,100 60,100" fill="#2E9E90"/>
+    </g>
+
+    <!-- cones: dome on a tapered body, the reference's ice-cream shape -->
+    <g id="cone">
+      <g transform="translate(9,10)">
+        <path d="M0 46 L64 46 L32 150 Z" fill="#2B2733"/>
+        <path d="M0 46 A 32 32 0 0 1 64 46 Z" fill="#2B2733"/>
+      </g>
+      <path d="M0 46 L64 46 L32 150 Z" fill="#8E7BE0"/>
+      <path d="M0 46 A 32 32 0 0 1 64 46 Z" fill="#EFA0C8"/>
+    </g>
+    <g id="conePale">
+      <g transform="translate(9,10)">
+        <path d="M0 46 L64 46 L32 150 Z" fill="#2B2733"/>
+        <path d="M0 46 A 32 32 0 0 1 64 46 Z" fill="#2B2733"/>
+      </g>
+      <path d="M0 46 L64 46 L32 150 Z" fill="#F4F2ED"/>
+      <path d="M0 46 L64 46 L32 150 Z" fill="url(#sprd)"/>
+      <path d="M0 46 A 32 32 0 0 1 64 46 Z" fill="#ACD9E8"/>
+    </g>
+
+    <!-- the teal "book": sprinkled panel + plain panel -->
+    <g id="book">
+      <rect x="18" y="20" width="310" height="180" fill="#2B2733"/>
+      <rect width="150" height="180" fill="#35B5A5" stroke="#2B2733" stroke-width="5"/>
+      <rect width="150" height="180" fill="url(#spr)"/>
+      <rect x="150" width="160" height="180" fill="#3EBFAF" stroke="#2B2733" stroke-width="5"/>
+    </g>
+  </defs>
+
+  <!-- Volume dial: the full-strength copy (tag memphis-ref-full-v1.2.6) was
+       too loud as an app ground — this group opacity blends the artwork
+       toward the previous subtle look while keeping the copied composition. -->
+  <g opacity="0.62">
+
+  <!-- ============ big soft shapes (flat back layer, no shadow) ============ -->
+  <circle cx="320" cy="490" r="150" fill="#C36BBE"/>
+  <circle cx="800" cy="345" r="115" fill="#F2A9C4"/>
+  <circle cx="985" cy="845" r="170" fill="#F0A23C"/>
+  <circle cx="1760" cy="255" r="140" fill="#F2A9C4"/>
+  <circle cx="2310" cy="700" r="165" fill="#F5D547"/>
+  <circle cx="2880" cy="205" r="130" fill="#EFA0C8"/>
+  <circle cx="3480" cy="620" r="155" fill="#C36BBE"/>
+  <circle cx="140" cy="1080" r="110" fill="#F5D547"/>
+  <circle cx="620" cy="1330" r="125" fill="#F2A9C4"/>
+  <circle cx="1420" cy="1220" r="145" fill="#F0A23C"/>
+  <circle cx="2010" cy="1420" r="120" fill="#F2A9C4"/>
+  <circle cx="2660" cy="1180" r="160" fill="#EFA0C8"/>
+  <circle cx="3300" cy="1400" r="135" fill="#F5D547"/>
+
+  <!-- ================================================================
+       Region 1 — the original reference composition (0..1500 x 0..960),
+       kept as it was drawn against the reference, now expressed through
+       the library so every piece carries its shadow.
+       ================================================================ -->
+  <use href="#barGold" transform="translate(60,18) rotate(-18) scale(0.58,0.79)"/>
+  <use href="#barPink" transform="translate(195,100) rotate(24) scale(0.88,0.93)"/>
+  <use href="#triD" transform="translate(360,210)" color="#66C7B8"/>
+  <use href="#sqA" transform="translate(530,40)" color="#5B67C9"/>
+  <use href="#arc" transform="translate(840,95)" color="#F0A23C"/>
+  <use href="#barPink" transform="translate(1052,-30) rotate(14) scale(0.46,0.89)"/>
+  <use href="#sqB" transform="translate(1408,118) scale(1.1)" color="#3EBFAF"/>
+  <use href="#barBeam" transform="translate(1120,208) rotate(12) scale(1.04,1.07)"/>
+  <use href="#slabTz" transform="translate(-40,290) rotate(32) scale(1.1,1.09)"/>
+  <use href="#zigStrip" transform="translate(676,292) rotate(-8)" color="#ACD9E8"/>
+  <use href="#scribble" transform="translate(1000,420)" color="#D9603F"/>
+  <use href="#ringO" transform="translate(1312,460)" color="#F0A23C"/>
+  <use href="#flag" transform="translate(580,462) rotate(10)" color="#F0A23C"/>
+  <use href="#sqB" transform="translate(300,572)" color="#3EBFAF"/>
+  <use href="#prismTz" transform="translate(490,680) rotate(-14)"/>
+  <use href="#book" transform="translate(742,628) rotate(8)"/>
+  <use href="#barCap" transform="translate(56,796) rotate(-8) scale(0.96,1.04)"/>
+  <use href="#sqB" transform="translate(382,776) scale(0.8)" color="#3EBFAF"/>
+  <use href="#zigStrip" transform="translate(1226,616) rotate(6) scale(0.8)" color="#ACD9E8"/>
+  <use href="#sqA" transform="translate(1280,812) scale(0.85)" color="#EFA0C8"/>
+  <!-- added with the widening, at the original composition's density -->
+  <use href="#chev" transform="translate(268,182) rotate(16)" color="#D9603F"/>
+  <use href="#sqE" transform="translate(930,120) scale(0.9)" color="#F5D547"/>
+  <use href="#sqC" transform="translate(1180,60) scale(1.1)" color="#F5D547"/>
+  <use href="#cone" transform="translate(150,668) rotate(-12) scale(0.9)"/>
+  <use href="#conePale" transform="translate(1080,560) rotate(9) scale(0.8)"/>
+  <use href="#chev" transform="translate(862,548) rotate(-22)" color="#E2574C"/>
+
+  <!-- ================================================================
+       Region 2 — right of the original canvas (1500..3840 x 0..960)
+       ================================================================ -->
+  <use href="#slabWhite" transform="translate(1560,-10) rotate(20) scale(1.05)"/>
+  <use href="#sqC" transform="translate(1560,180) scale(0.9)" color="#3EBFAF"/>
+  <use href="#sqD" transform="translate(1980,60) rotate(-6)" color="#F5D547"/>
+  <use href="#triU" transform="translate(2140,40) scale(0.82)" color="#66C7B8"/>
+  <use href="#ringO" transform="translate(2144,186) scale(0.75)" color="#F5D547"/>
+  <use href="#chev" transform="translate(2470,88) rotate(28)" color="#D9603F"/>
+  <use href="#barTeal" transform="translate(2560,150) rotate(-14) scale(0.92)"/>
+  <use href="#sqE" transform="translate(3060,60) scale(0.95)" color="#5B67C9"/>
+  <use href="#slabPink" transform="translate(3160,180) rotate(26) scale(0.95)"/>
+  <use href="#sqC" transform="translate(3560,90) scale(1.2)" color="#F0A23C"/>
+  <use href="#cone" transform="translate(1620,300) rotate(14)"/>
+  <use href="#zigStrip" transform="translate(1880,360) rotate(-10) scale(0.9)" color="#ACD9E8"/>
+  <use href="#prismSpr" transform="translate(2280,300) rotate(-18)"/>
+  <use href="#ringO" transform="translate(2760,392) scale(0.9)" color="#D9603F"/>
+  <use href="#sqA" transform="translate(2880,330) scale(0.8)" color="#EFA0C8"/>
+  <use href="#barYellow" transform="translate(3320,420) rotate(18) scale(0.86)"/>
+  <use href="#flag" transform="translate(3700,300) rotate(-12) scale(0.9)" color="#F5D547"/>
+  <use href="#triD" transform="translate(1520,540) scale(0.75)" color="#3EBFAF"/>
+  <use href="#chev" transform="translate(2060,540) rotate(-30)" color="#E2574C"/>
+  <use href="#sqD" transform="translate(2600,580) scale(1.05)" color="#3EBFAF"/>
+  <use href="#arc" transform="translate(2900,500) scale(0.85)" color="#F5D547"/>
+  <use href="#conePale" transform="translate(3120,640) rotate(-8) scale(0.95)"/>
+  <use href="#scribble" transform="translate(1900,700) scale(0.9)" color="#D9603F"/>
+  <use href="#book" transform="translate(2160,690) rotate(-6) scale(0.9)"/>
+  <use href="#slabBlue" transform="translate(2700,760) rotate(-24) scale(0.9)"/>
+  <use href="#barGold" transform="translate(3380,760) rotate(10) scale(0.9)"/>
+  <use href="#sqD" transform="translate(1740,820) scale(0.85)" color="#F5D547"/>
+  <use href="#sqC" transform="translate(2440,880) scale(0.95)" color="#EFA0C8"/>
+  <use href="#chev" transform="translate(3020,880) rotate(20)" color="#F0A23C"/>
+  <use href="#prismTz" transform="translate(3560,880) rotate(12) scale(0.9)"/>
+
+  <!-- ================================================================
+       Region 3 — below the original canvas (0..3840 x 960..1600)
+       ================================================================ -->
+  <use href="#sqE" transform="translate(60,1020) rotate(8)" color="#F5D547"/>
+  <use href="#barBeam" transform="translate(280,1120) rotate(-16) scale(0.9)"/>
+  <use href="#chev" transform="translate(560,1060) rotate(-24)" color="#D9603F"/>
+  <use href="#triU" transform="translate(700,1080) scale(0.7)" color="#66C7B8"/>
+  <use href="#sqC" transform="translate(1740,1000) scale(0.9)" color="#D9603F"/>
+  <use href="#zigStrip" transform="translate(1300,1020) rotate(8) scale(0.85)" color="#ACD9E8"/>
+  <use href="#prismSpr" transform="translate(2520,1020) rotate(16) scale(0.95)"/>
+  <use href="#barTeal" transform="translate(2960,1080) rotate(20) scale(0.88)"/>
+  <use href="#ringO" transform="translate(3560,1020) scale(0.8)" color="#5B67C9"/>
+  <use href="#cone" transform="translate(1980,1080) rotate(-10) scale(0.95)"/>
+  <use href="#barYellow" transform="translate(1180,1160) rotate(24) scale(0.8)"/>
+  <use href="#conePale" transform="translate(1000,1180) rotate(16) scale(0.9)"/>
+  <use href="#slabWhite" transform="translate(1560,1200) rotate(-22) scale(0.9)"/>
+  <use href="#chev" transform="translate(2320,1220) rotate(-18)" color="#F0A23C"/>
+  <use href="#flag" transform="translate(3320,1180) rotate(14)" color="#F0A23C"/>
+  <use href="#sqC" transform="translate(380,1240) scale(0.85)" color="#EFA0C8"/>
+  <use href="#sqB" transform="translate(3660,1240) scale(1.0)" color="#EFA0C8"/>
+  <use href="#sqD" transform="translate(3080,1300) scale(0.8)" color="#3EBFAF"/>
+  <use href="#sqA" transform="translate(2140,1300) scale(0.9)" color="#5B67C9"/>
+  <use href="#arc" transform="translate(1200,1280) rotate(-6) scale(0.8)" color="#F0A23C"/>
+  <use href="#slabPink" transform="translate(160,1360) rotate(14) scale(0.92)"/>
+  <use href="#sqE" transform="translate(760,1380) scale(0.95)" color="#3EBFAF"/>
+  <use href="#scribble" transform="translate(1140,1420) scale(0.85)" color="#E2574C"/>
+  <use href="#ringO" transform="translate(1000,1440) scale(0.85)" color="#F0A23C"/>
+  <use href="#barCap" transform="translate(2480,1420) rotate(-10) scale(0.95)"/>
+  <use href="#sqC" transform="translate(2900,1420) scale(1.05)" color="#F5D547"/>
+  <use href="#chev" transform="translate(1880,1500) rotate(22)" color="#E2574C"/>
+  <use href="#slabTz" transform="translate(2100,1500) rotate(-12) scale(0.9)"/>
+  <use href="#prismTz" transform="translate(2760,1520) rotate(-14) scale(0.85)"/>
+  <use href="#book" transform="translate(560,1520) rotate(10) scale(0.85)"/>
+  <use href="#triD" transform="translate(3380,1500) scale(0.72)" color="#66C7B8"/>
+
+  <!-- ================================================================
+       Edge repeats — the copies that let the canvas tile without a seam.
+       Each one mirrors a placement above that crosses an edge, offset by
+       the full canvas (3840 across, 1600 down). Change one, change its
+       twin, or a seam appears on a display wider than this canvas.
+       ================================================================ -->
+  <!-- the left-edge slab reappears past the right edge -->
+  <use href="#slabTz" transform="translate(3800,290) rotate(32) scale(1.1,1.09)"/>
+  <!-- right-edge pieces reappear at the left -->
+  <use href="#sqC" transform="translate(-280,90) scale(1.2)" color="#F0A23C"/>
+  <use href="#flag" transform="translate(-140,300) rotate(-12) scale(0.9)" color="#F5D547"/>
+  <use href="#prismTz" transform="translate(-280,880) rotate(12) scale(0.9)"/>
+  <use href="#sqB" transform="translate(-180,1240) scale(1.0)" color="#EFA0C8"/>
+  <use href="#triD" transform="translate(-460,1500) scale(0.72)" color="#66C7B8"/>
+  <!-- top-edge pieces reappear at the bottom, and bottom-edge ones at the top -->
+  <use href="#barGold" transform="translate(60,1618) rotate(-18) scale(0.58,0.79)"/>
+  <use href="#barPink" transform="translate(1052,1570) rotate(14) scale(0.46,0.89)"/>
+  <use href="#slabWhite" transform="translate(1560,1590) rotate(20) scale(1.05)"/>
+  <use href="#book" transform="translate(560,-80) rotate(10) scale(0.85)"/>
+  <use href="#chev" transform="translate(1880,-100) rotate(22)" color="#E2574C"/>
+  <use href="#slabTz" transform="translate(2100,-100) rotate(-12) scale(0.9)"/>
+  <use href="#barCap" transform="translate(2480,-180) rotate(-10) scale(0.95)"/>
+  <use href="#prismTz" transform="translate(2760,-80) rotate(-14) scale(0.85)"/>
+  <use href="#triD" transform="translate(3380,-100) scale(0.72)" color="#66C7B8"/>
+  <!-- circles that run off an edge -->
+  <circle cx="3980" cy="1080" r="110" fill="#F5D547"/>
+  <circle cx="-360" cy="620" r="155" fill="#C36BBE"/>
+  <circle cx="3300" cy="-200" r="135" fill="#F5D547"/>
+  <circle cx="2010" cy="-180" r="120" fill="#F2A9C4"/>
+  <circle cx="1760" cy="1855" r="140" fill="#F2A9C4"/>
+  <circle cx="2880" cy="1805" r="130" fill="#EFA0C8"/>
+
+  </g>
+</svg>

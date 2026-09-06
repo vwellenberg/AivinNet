@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Transport set: 24x24 box, 2px stroke, round caps.
+         Stroke-based on purpose, and every path carries its own `stroke`
+         attribute: CSS that colours icons must use `color` (not `fill`), and
+         the one blanket `fill` rule left in the app (context menu items)
+         skips paths that have a stroke. Without that these open shapes would
+         get flooded solid. -->
+    <path d="M17 3.5 20.5 7 17 10.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M20.5 7H7.5A3.5 3.5 0 0 0 4 10.5V12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M7 20.5 3.5 17 7 13.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.5 17h13a3.5 3.5 0 0 0 3.5-3.5V12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,22 @@
+input {
+    font-family: var(--app-font);
+    font-weight: 500;
+    color: $candy-text;
+
+    &::placeholder {
+        color: $candy-text-faint;
+        opacity: 1;
+    }
+}
+
+input[type='number'] {
+    width: 40px;
+    padding: 4px 5px;
+    border-radius: 3px;
+    background-color: $candy-pink-soft;
+    border: 1px solid $mem-line;
+}
+
+input[type='search'] {
+    height: 2.25rem !important;
+}

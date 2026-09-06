@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: the favourite marker. The disc is `currentColor` (teal via
+         `.heart-button.is-fav`); the edge and the tick are FIXED ink.
+
+         Fixed, not `currentColor`, for two reasons. The edge is what makes this
+         readable on the yellow playing row: teal measures 1.24:1 against
+         $mem-yellow — under the 3:1 WCAG 1.4.11 asks of a graphic — while ink
+         measures 9.64:1, so the outline carries the contrast the fill cannot.
+         And drawing the tick in the same channel as the disc would collapse the
+         glyph into a solid blob wherever a host pins `color: ink`.
+
+         Same tick path as check.filled.svg, scaled 0.92 about the centre so its
+         round caps clear the ring's inner edge (reach 6.15 against 6.6). -->
+    <circle cx="12" cy="12" r="7.8" fill="currentColor" stroke="#17171A" stroke-width="2.4" />
+    <path d="M7.95 12.18 10.8 15.04 16.05 9.15" stroke="#17171A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

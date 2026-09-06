@@ -1,0 +1,86 @@
+// The slider itself. Its geometry comes from --range-h / --range-thumb /
+// --range-track, defined by `range-geometry` in _candy.scss and set by whoever
+// owns the slider.
+//
+// This file only ever READS those variables, always with a fallback. A
+// declaration here would sit on the input and shadow anything a host set
+// further up the tree, which is the whole point of moving them out — and a
+// bare slider with no owner (the volume bar) still needs sane numbers.
+input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-right: 15px;
+    width: calc(100% - 2px);
+    height: var(--range-h, #{$range-h-default});
+    border-radius: $candy-radius-pill;
+    background: $candy-pink;
+    border: $candy-border-w solid $mem-line;
+    background-size: 100% 100%;
+    cursor: pointer;
+
+    &::-webkit-slider-runnable-track {
+        -webkit-appearance: none;
+        // An EXPLICIT height is what turns the offset below into pure
+        // geometry. Without one, WebKit lays the knob out against a track
+        // height it picks itself, and the offset has to be guessed against it
+        // — which is exactly where the old `margin-top: -3px` came from.
+        height: var(--range-track, #{$range-track-default});
+        box-shadow: none;
+        border: none;
+        background: transparent;
+    }
+
+    &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+
+        // The global `* { box-sizing: border-box }` reset does NOT reach
+        // pseudo-elements — set it here so the ink border stays inside the
+        // circle and the centring below holds.
+        box-sizing: border-box;
+        height: var(--range-thumb, #{$range-thumb-default});
+        width: var(--range-thumb, #{$range-thumb-default});
+        border-radius: 50%;
+        background: $mem-panel-static;
+        // Static ink ring on the static-white thumb: it sits ON the blush
+        // track, so a paper (var) border would vanish in dark — keep it ink.
+        border: $candy-border-w solid $mem-ink;
+        margin-top: calc(
+            (var(--range-track, #{$range-track-default}) - var(--range-thumb, #{$range-thumb-default})) / 2
+        );
+    }
+
+    &::-moz-range-track {
+        appearance: none;
+        height: var(--range-track, #{$range-track-default});
+        box-shadow: none;
+        border: none;
+        background: transparent;
+    }
+
+    &::-moz-range-thumb {
+        appearance: none;
+
+        box-sizing: border-box;
+        height: var(--range-thumb, #{$range-thumb-default});
+        width: var(--range-thumb, #{$range-thumb-default});
+        border-radius: 50%;
+        background: $mem-panel-static;
+        border: $candy-border-w solid $mem-ink;
+        // No offset here on purpose: Gecko centres the knob on its track by
+        // itself. Measured rather than assumed — see the PR for #285.
+    }
+}
+
+// There are deliberately no `::-ms-*` rules any more. They addressed legacy
+// Edge, which has been Chromium-based since 2020 and out of support since
+// 2021, so they could not fire in any browser able to run this app — while
+// still counting as a third place every size change had to be repeated in.
+
+/* Input Thumb */
+input[type='range']::-webkit-slider-thumb:hover {
+    background: $candy-pink-soft;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+    background: $candy-pink-soft;
+}

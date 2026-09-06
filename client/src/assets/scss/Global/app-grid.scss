@@ -1,0 +1,534 @@
+$g-border: solid $candy-border-w $mem-line;
+
+#app-grid {
+    display: grid;
+    // grid-template-columns: min-content 1fr 29rem;
+    grid-template-columns: min-content 1fr;
+    // minmax(0, 1fr) so a tall sidebar/content can't blow the middle row past
+    // 100% and push the bottom bar off-screen.
+    grid-template-rows: $navheight minmax(0, 1fr) $bottombarheight;
+    // Full-width top bar across sidebar + content (Spotify-style).
+    grid-template-areas:
+        'nav nav'
+        'l-sidebar content'
+        'bottombar bottombar';
+    height: 100%;
+    column-gap: 8px;
+    row-gap: 8px;
+    margin: 0 auto;
+    position: relative;
+
+    #contentresizer {
+        margin: 0 $padright 0 $padleft;
+    }
+
+    @include allPhones {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            'nav'
+            'content'
+            'bottombar';
+        grid-template-rows: auto 1fr auto;
+    }
+
+    // A landscape phone: the chrome is a fixed cost, and at 390px of height it
+    // was eating two thirds of the screen (measured 133px of usable content out
+    // of 390). Both bars shrink to one row apiece.
+    @include shortViewport {
+        grid-template-rows: $navheight-short minmax(0, 1fr) $bottombarheight-short;
+    }
+}
+
+#acontent {
+    width: 100%;
+    grid-area: content;
+    grid-row: 2 / 4;
+    overflow: hidden;
+    margin-right: $margright;
+    z-index: 0;
+    // THE memphis ground: grid paper. Pages/scrollers above are transparent
+    // so this single grid shows through everywhere (no nested grids — they
+    // would drift out of alignment).
+    @include mem-grid;
+    border: $candy-border;
+    border-bottom: none;
+    border-radius: $candy-radius $candy-radius 0 0;
+}
+
+.topnav {
+    grid-area: nav;
+    height: $navheight;
+    // No vertical padding: the 3rem children (search pill, home button) are
+    // taller than the padded content box would be — they'd overflow downward
+    // and sit visibly below center. The grid centers them instead (NavBar.vue).
+    padding: 0 $padleft;
+    padding-right: $padright;
+    // Continuous white top bar with the candy border underneath.
+    background-color: $candy-white;
+    border-bottom: $candy-border;
+
+    @include allPhones {
+        display: flex;
+        gap: $smaller;
+        height: unset;
+        padding: 6px 8px;
+        margin: $medium 1rem;
+        border-radius: 5rem;
+        background-color: $candy-white;
+        border: $candy-border;
+    }
+
+    @include shortViewport {
+        // The bar follows its grid row (#366): the grid hands the nav row
+        // $navheight-short here, but the fixed $navheight above kept the bar at
+        // 72px — 12px past its 60px row, so the one-row chrome this viewport is
+        // about never happened for the top bar.
+        height: $navheight-short;
+
+        // The phone pill keeps its shape, on a shorter row: the margin above it
+        // is what the grid row has left over, so it has to shrink with the row
+        // or the pill grows past it and sits on the content card. Nested under
+        // allPhones on purpose — a flat DESKTOP window is also a short
+        // viewport, and the pill's margin/padding used to land on the
+        // full-width bar there, which has no pill to shape.
+        @include allPhones {
+            height: unset;
+            margin: $smaller 1rem;
+            padding: 3px 6px;
+        }
+    }
+}
+
+.b-bar {
+    grid-area: bottombar;
+    border-top: $g-border;
+    // Solid white player bar with the candy border on top.
+    background-color: $candy-white;
+    position: relative;
+    z-index: 50;
+}
+
+.content-page {
+    // `both-edges`, not plain `stable`: the gutter is 12px and the scrollbar
+    // auto-hides, so reserving it on one side only left every list sitting
+    // 35px from the left edge and 47px from the right — measured identical on
+    // playlist, favorites, search and stats, with 32px padding declared on
+    // both sides. Reserving both keeps the column centred, and nothing shifts
+    // when the bar fades in.
+    scrollbar-gutter: stable both-edges;
+    padding-left: $padleft;
+    padding-right: $padright;
+    // Reserve the player bar's row — see $bottombarheight for why the content
+    // area runs underneath it in the first place. The three breakpoints live in
+    // `player-bar-reserve` so a second caller cannot get one of them wrong.
+    @include player-bar-reserve;
+    -webkit-overflow-scrolling: touch;
+
+    @include allPhones {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+.vue-recycle-scroller__item-wrapper {
+    overflow: visible !important;
+}
+
+// Track rows sit directly on the doodled grid ground — a translucent
+// ground-coloured plate on each row keeps titles readable while the shapes
+// stay full-strength around the list (header, margins). Rows stack without
+// gaps, so the plates read as one continuous surface. Filled states
+// (hover/current/contexton) override with their own opaque fills.
+//
+// The plate carries an ink frame for the memphis panel look: every row colours
+// the (already reserved, transparent) side borders, and the .is-first/.is-last
+// rows close the frame top/bottom with capped corners. Middle rows must drop
+// the .rounded-sm radius, or each row's corners would curve away from the
+// frame line. Row states (hover/current/contexton) live in SongItem.vue and
+// deliberately win here (same specificity, later in the bundle) so they keep
+// their own full rounded ink box.
+.songlist-item {
+    background-color: var(--mem-veil);
+
+    // The frame declarations need the .rounded-sm compound: SongItem.vue's
+    // base rule (border: 2px solid transparent) sits later in the bundle and
+    // would reset plain same-specificity overrides from here.
+    //
+    // The side lines are painted as background stripes across the full border
+    // box rather than by colouring the side borders: a coloured border miters
+    // diagonally against the transparent top/bottom placeholder borders,
+    // leaving a notch at every row boundary, while stacked background stripes
+    // join seamlessly. The stripes also fill in the corner miters of the real
+    // top/bottom cap borders on .is-first/.is-last rows. Row states
+    // (hover/current/contexton) draw their own full ink border on top, which
+    // covers the stripes at the edges.
+    &.rounded-sm {
+        border-radius: 0;
+    }
+
+    // The colour cycle of the guide band (see mem-band-cycle in _candy.scss).
+    // Declared on the row itself so `--band` resolves for every state, then
+    // read by the stripe layer below.
+    @include mem-band-cycle;
+
+    // Filled row states carry their own full ink border at the same edge, so
+    // the stripes are skipped there — a straight stripe would peek out inside
+    // those rows' rounded corners.
+    //
+    // Three layers, and the order matters (the FIRST one paints on top):
+    //   1. the perforation that separates one row from the next — inset past
+    //      the band, so the band reads as one continuous spine rather than a
+    //      stack of dashes
+    //   2. the colour guide band on the leading edge
+    //   3. the ink side-stripe on the trailing edge (the leading one is the
+    //      band's job now)
+    //
+    // The perforation hangs off the BOTTOM edge, not the top. It belongs
+    // *between* two rows, and only the bottom edge can say that without a
+    // second flag: the last row already declares itself (`.is-last`, which
+    // closes the frame there), while "first" is not always the top of the frame
+    // — on the playlist page the caption bar caps it and no row is `.is-first`
+    // at all.
+    //
+    // ⚠️ The hover exclusion is NOT in these selectors — it is a pointer-gated
+    // rule of its own further down. `:not(:hover)` here would fail on a touch
+    // device the moment a tap latches the hover state, and since the hover FILL
+    // is pointer-gated too (SongItem.vue), nothing would paint in their place:
+    // the tapped row would simply lose its band, perforation and stripe (#457).
+    &.rounded-sm:not(.current):not(.contexton) {
+        background-image: repeating-linear-gradient(
+                90deg,
+                $mem-line 0 3px,
+                transparent 3px 7px
+            ),
+            linear-gradient(var(--band, #{$mem-line}), var(--band, #{$mem-line})),
+            linear-gradient($mem-line, $mem-line);
+        background-repeat: no-repeat;
+        background-origin: border-box;
+        background-position: $songlist-band-w bottom, left top, right top;
+        background-size:
+            calc(100% - #{$songlist-band-w}) 2px,
+            $songlist-band-w 100%,
+            $candy-border-w 100%;
+    }
+
+    // The last row closes the frame with a solid border — a perforation on the
+    // same edge would double it.
+    &.is-last.rounded-sm:not(.current):not(.contexton) {
+        background-image: linear-gradient(var(--band, #{$mem-line}), var(--band, #{$mem-line})),
+            linear-gradient($mem-line, $mem-line);
+        background-position: left top, right top;
+        background-size: $songlist-band-w 100%, $candy-border-w 100%;
+    }
+
+    // The hovered row draws its own full ink frame and contrast fill
+    // (candy-row-hover), so the three stripe layers step aside — a straight
+    // stripe would peek out inside its rounded corners.
+    //
+    // Pointer devices only, and it has to sit AFTER both blocks above: at
+    // (0,5,0) it ties with the `.is-last` variant, so source order is what
+    // decides. Written as an exclusion inside those selectors instead, it would
+    // have fired on every latched tap — see the note above them.
+    @media (hover: hover) {
+        &.rounded-sm:hover:not(.current):not(.contexton) {
+            background-image: none;
+        }
+    }
+
+    &.is-first.rounded-sm {
+        border-top-color: $mem-line;
+        border-top-left-radius: $candy-radius-sm;
+        border-top-right-radius: $candy-radius-sm;
+    }
+
+    &.is-last.rounded-sm {
+        border-bottom-color: $mem-line;
+        border-bottom-left-radius: $candy-radius-sm;
+        border-bottom-right-radius: $candy-radius-sm;
+    }
+}
+
+.vue-recycle-scroller {
+    // See the note on `.content-page` — same reason, same 12px.
+    scrollbar-gutter: stable both-edges;
+    padding-left: $padleft;
+}
+
+.r-sidebar {
+    grid-area: r-sidebar;
+    border-left: $g-border;
+
+    .vue-recycle-scroller {
+        padding-left: 0;
+    }
+}
+
+// ====== MODIFIERS =======
+
+#app-grid.is_alt_layout {
+    grid-template-columns: min-content 1fr;
+    grid-template-rows: max-content minmax(0, 1fr) $bottombarheight;
+    grid-template-areas:
+        'nav nav'
+        'l-sidebar content'
+        'bottombar bottombar';
+
+    @include allPhones {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: max-content 1fr $bottombarheight-phone !important;
+        grid-template-areas:
+            'nav'
+            'content'
+            'bottombar' !important;
+    }
+
+    // Same one-row chrome in the alternate layout — it declares its rows with
+    // `!important`, so this has to as well or the phone stack wins.
+    @include shortViewport {
+        grid-template-rows: $navheight-short minmax(0, 1fr) $bottombarheight-short !important;
+    }
+
+    .vue-recycle-scroller,
+    .content-page,
+    .topnav,
+    #songlist-scroller {
+        padding-left: $alt_layout_pad;
+        padding-right: $alt_layout_pad;
+    }
+
+    .b-bar {
+        padding: 0 $alt_layout_pad;
+    }
+
+    // The SIDES only. As a `padding` shorthand this also zeroed the bottom,
+    // and a second rule further down handed back $padbottom (4rem) against a
+    // 5.125rem bar — the exact 18px shortfall styling.md records for #307,
+    // measured again at the foot of the search page's idle column. The reserve
+    // is this scroller's own `@include player-bar-reserve` (TopResults.vue)
+    // and is left alone here.
+    .search-page-top-results {
+        padding-left: $alt_layout_pad;
+        padding-right: $alt_layout_pad;
+    }
+
+    #contentresizer {
+        margin: 0 $alt_layout_pad;
+    }
+
+    .topnav {
+        // background-color: $bars;
+    }
+
+    .vue-recycle-scroller,
+    .content-page {
+        padding-top: 2rem;
+    }
+
+    .search-view .buttons-area {
+        padding-left: $alt_layout_pad;
+    }
+
+    .lyricsview {
+        padding-bottom: 2rem;
+    }
+
+    #lyricscontent {
+        padding-top: 0;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    @media only screen and (min-width: 1980px) {
+        // NOTE: Styles for 1680px and below
+        $alt_layout_pad: max(2rem, calc((100% - 1680px) / 2));
+
+        .vue-recycle-scroller,
+        .content-page,
+        .topnav,
+        #songlist-scroller {
+            padding-left: $alt_layout_pad;
+            padding-right: $alt_layout_pad;
+        }
+
+        #contentresizer {
+            margin: 0 $alt_layout_pad;
+        }
+
+        .search-view .buttons-area {
+            padding-left: $alt_layout_pad;
+        }
+
+        .b-bar {
+            padding: 0 $alt_layout_pad;
+        }
+
+        // Sides only — same reason as the copy above: the shorthand also zeroed
+        // the player-bar reserve, and this second copy would have kept doing it
+        // on any window past 1980px.
+        .search-page-top-results {
+            padding-left: $alt_layout_pad;
+            padding-right: $alt_layout_pad;
+        }
+    }
+}
+
+// Top bar spans edge-to-edge: keep the logo at the very left and the avatar at
+// the very right (Spotify-style), independent of the centered content padding.
+#app-grid.is_alt_layout .topnav {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+// The queue panel INSIDE the wide chrome. Both classes are on the grid at the
+// same time, and `.useSidebar` (below) wins on source order — which used to be
+// harmless only because the two could never be true together: the queue panel
+// was reachable exclusively by first switching the layout off, and that switch
+// is gone. Without this block the panel would take its areas from the old grid
+// and pull the top bar back out of the full width.
+#app-grid.is_alt_layout.useSidebar {
+    grid-template-columns: min-content 1fr 28rem;
+    grid-template-areas:
+        'nav nav nav'
+        'l-sidebar content r-sidebar'
+        'bottombar bottombar bottombar';
+
+    @include for-desktop-down {
+        grid-template-columns: min-content 1fr 24rem;
+    }
+}
+
+#app-grid.useSidebar {
+    grid-template-columns: min-content 1fr 28rem;
+    grid-template-areas:
+        'l-sidebar nav r-sidebar'
+        'l-sidebar content r-sidebar'
+        'bottombar bottombar bottombar';
+
+    @include for-desktop-down {
+        grid-template-columns: min-content 1fr 24rem;
+    }
+
+    #acontent {
+        // margin-right: 0 !important;
+        // padding-right: $medium !important;
+    }
+}
+
+#app-grid.NoSideBorders {
+    border-right: none !important;
+    border-left: none !important;
+}
+
+.v-scroll-page {
+    // Memphis design: transparent — the grid-paper ground on #acontent shows
+    // through wherever the cover veil is off or has faded out.
+    background-color: transparent;
+
+    // THE cover veil (album / artist / playlist). Views provide the colour band
+    // via --page-gradient.
+    //
+    // ⚠️ It lives on this static container, BEHIND the scroller, and not inside
+    // it — which is where it was, as an absolutely positioned
+    // `.page-gradient-decor`. Chrome clips scrolled CONTENT at the scrollport,
+    // and the real scrollbar sits outside that in a layer of its own: the veil
+    // stopped $scrollbar-w short of the right content edge and the transparent
+    // scrollbar track showed bare grid paper through the gap, the full height
+    // of the header band. No left/right value reaches those pixels — they
+    // belong to the scrollbar, not to the content. What reaches them is a layer
+    // BEHIND the scrollbar, which the transparent track shows through.
+    //
+    // Measured on the running app (playlist 11, 3399px, sampling the gutters
+    // against the middle): as a child of the scroller 244,242,237 at the right
+    // edge; as this background 90,88,118, same as the middle. And no,
+    // `background-attachment: local` on the scroller is NOT a shortcut — it
+    // clips the background to the scrollport as well, which loses BOTH gutters
+    // (measured 244,242,237 left and right).
+    //
+    // The left gutter never had the problem (reserved space, no scrollbar
+    // widget), which is why this read as "the left is fine" and hid for so long.
+    //
+    // ⚠️ Headless Chromium paints NO scrollbar at all — not even a fully opaque
+    // track shows up in a screenshot — so this strip measures clean headless
+    // whether it is broken or not. That is how the previous attempt (#483) was
+    // signed off. Verify it in a real browser.
+    background-image: var(--page-gradient, none);
+    background-repeat: no-repeat;
+    // Matches the gradient's settle stop (see pageGradient) — below this the
+    // bare grid-paper ground takes over.
+    background-size: 100% 800px;
+    // A background behind the scroller does not scroll on its own, so the band
+    // is pulled up by the scroller's own offset instead: App.vue's global
+    // scroll handler writes --veil-scroll. That keeps the "scrolls away with
+    // the header" behaviour the veil had while it lived inside the scroller.
+    background-position: 0 calc(-1 * var(--veil-scroll, 0px));
+
+    .scroller {
+        position: relative;
+        // Sideways overflow is never wanted here; without it the `auto` on the
+        // other axis would hand this one a horizontal bar.
+        overflow-x: hidden;
+        padding-right: $padright;
+        height: 100%;
+        width: 100%;
+        // Every virtualised page (playlist, album, artist, folder, mix, search,
+        // now playing, the song lists) scrolls through this element, and all of
+        // them sit in a content area that deliberately runs BEHIND the player
+        // bar. Reserving only $padbottom (4rem) against a 5.125rem bar left the
+        // bottom ~18px of the last row covered — the reported "last track of a
+        // playlist is hidden by the bottom bar". The `.content-page` pages next
+        // door had reserved the bar's height all along; these never did.
+        @include player-bar-reserve;
+        -webkit-overflow-scrolling: touch;
+
+        @include allPhones {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+    }
+}
+
+.isSmall {
+    .album_disc_header {
+        padding-left: $small;
+    }
+
+    .songlist-item {
+        grid-template-columns: 2fr 7.5rem !important;
+        // The index column is dropped on small layouts, so the thumbnail
+        // becomes the first cell — without extra padding it sits flush
+        // against the row edge (clearly visible on the highlighted
+        // currently-playing row). The guide band still runs down the leading
+        // edge here, so the inset has to clear it like it does on wide layouts.
+        padding-left: $songlist-lead;
+        padding-right: $small;
+
+        // (A `&:hover { background-color: unset }` "disable hover on mobile"
+        // stood here — a half-measure keyed on WIDTH instead of pointer
+        // capability. It stripped every fill a latched tap left behind —
+        // including the playing row's yellow, which it outranked — while the
+        // hover TEXT flip in SongItem.vue kept applying: white artist on the
+        // light ground (#457). The row hover is pointer-gated at its source
+        // now — `@media (hover: hover)` in SongItem.vue — so narrow desktop
+        // windows keep their full hover again and touch gets none at all.)
+
+        @include mediumPhones {
+            grid-template-columns: 2fr 2.5rem !important;
+            gap: $small !important;
+        }
+    }
+
+    .song-album {
+        display: none !important;
+    }
+}
+
+.isMedium {
+    // hide album column on medium screens
+    .songlist-item {
+        grid-template-columns: $songlist-index-col 2.5fr 7.5rem;
+    }
+
+    .song-album {
+        display: none !important;
+    }
+}

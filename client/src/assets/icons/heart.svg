@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: the favourite marker, unset state. Outline, so the pair
+         heart/heart.fill says the same thing twice — empty and filled — the way
+         a star or a bookmark does. That is what a tick could not do: a tick has
+         no hollow reading, which is why the unset state used to be a plus.
+
+         The two lobes are HALF CIRCLES (r=3.9 about y=8.1), not bezier bumps.
+         That puts the notch between them at the height of the lobe centres,
+         ~4.7 units deep — measured against 2.6 for a bezier heart of the same
+         box, which at 24px reads as a round blob rather than a heart.
+
+         Path bounds 4.2..19.8 + the 2.4 stroke = ink 3..21, the grid every
+         other chrome glyph is drawn to. -->
+    <path d="M4.2 8.1 A3.9 3.9 0 0 1 12 8.1 A3.9 3.9 0 0 1 19.8 8.1 C19.8 12.1 15.6 15.6 12 19.8 C8.4 15.6 4.2 12.1 4.2 8.1 Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

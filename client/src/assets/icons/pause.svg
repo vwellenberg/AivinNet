@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Transport set: 24x24 box, ~14px optical glyph, currentColor. -->
+    <rect x="7" y="5.5" width="3.8" height="13" rx="1.2" fill="currentColor" />
+    <rect x="13.2" y="5.5" width="3.8" height="13" rx="1.2" fill="currentColor" />
+</svg>

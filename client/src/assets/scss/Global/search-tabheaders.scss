@@ -1,0 +1,30 @@
+.tabheaders {
+  display: flex;
+  align-items: center;
+  gap: $medium;
+
+  // Filter chips — the `pill` role at ITS height, not a shrunk copy of it.
+  //
+  // They used to state `$h: 2rem`, which put the search page's only category
+  // navigation at 32px — below the app's own 44px touch target, and the one
+  // control on the phone you cannot avoid. The role's default already is
+  // 2.75rem; the literal only ever took it away.
+  //
+  // The soft fill is theme-aware (dark in the dark theme), so the label has
+  // to be too: the role's static ink is only legal on a static accent fill.
+  .tab {
+    @include btn-pill($radius: $candy-radius-pill, $fill: $candy-pink-soft);
+    color: $candy-text;
+    text-transform: capitalize;
+    // No hover of its own: the role reads the shared token (#422). The
+    // override this replaces predates that and existed to dodge the role's
+    // then-yellow hover, which made every hovered tab look selected.
+  }
+
+  .activetab,
+  .activetab:hover {
+    background-color: $candy-pink-deep;
+    // Yellow accent fill (light in both themes) → pin static ink.
+    color: $mem-ink;
+  }
+}

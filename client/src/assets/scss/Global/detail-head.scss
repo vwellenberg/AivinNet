@@ -1,0 +1,202 @@
+// ============================================================================
+// DETAIL HEADER ANATOMY — one plate for album, artist and playlist.
+//
+// The head is ONE object: a panel with an ink frame and a hard offset shadow,
+// split into a square media cell and a text side by a single dividing rule.
+// It is the Now-Playing source plate (`NowPlaying/PlayingFrom.vue`) at page
+// scale, and the same anatomy the cover tiles wear (Global/cards.scss).
+//
+//   [ artwork ] | TYPE
+//               | Title
+//               | meta line
+//               | Play · Favourite · Pin · Second action · Overflow
+//
+// What this replaces: headers that each solved the same problem differently —
+// cover left in a grid (album), photo RIGHT plus an ambient halo (artist), and
+// two modes with a dark scrim over a banner photo (playlist). A fourth, the mix
+// head, was folded in here and then removed with the mixes feature; the list
+// below is the census the anatomy reads, so it stays in step by construction.
+// Type, title and meta sat free on the
+// memphis ground, where a muted line lands on whatever doodle happens to be
+// behind it; that is exactly the problem the plates solve everywhere else.
+//
+// Measured on a 1180px content width: 288px -> 181px of header height, which
+// also relieves the landscape-phone case where the head used to be taller than
+// the whole content area.
+//
+// NO hatch here. The texture means "you can press this" (#378) and a header is
+// not a control — only the buttons inside it are.
+// ============================================================================
+
+// The one list, read by the anatomy below and by the census test.
+$detail-heads: ".a-header, .artist-page-header, .p-header";
+
+#{$detail-heads} {
+    display: flex;
+    align-items: stretch;
+    // The cell decides the height (see .dh-art), so the plate must not stretch
+    // it to whatever the text needs.
+    align-items: flex-start;
+    overflow: hidden;
+    margin: 0 1rem 1rem;
+    @include candy-box($mem-panel, $candy-radius);
+    @include candy-shadow(3px, 3px);
+
+    // Every text row inside the plate reads against the PANEL now, not against
+    // the page ground — so the theme-aware panel tokens apply, and the ground
+    // halos the old headers needed (`text-shadow: 0 0 8px var(--mem-ground)`)
+    // are neither needed nor correct here.
+    color: $candy-text;
+}
+
+// The media cell. Square at rest, but it STRETCHES with the plate: a two-line
+// title makes the text side taller than 11rem, and a cell pinned to
+// `align-self: flex-start` then left a slab of empty panel under the artwork
+// (measured: 289px plate against a 176px cell on "Monkey Island 2 -
+// LeChuck's Revenge"). Stretching keeps the plate closed at any title length.
+//
+// ⚠️ `aspect-ratio` is what makes the cell square — `min-height` cannot, and the
+// `height: 100%` on the image below only works because of it. Without a
+// resolvable height on this box, `height: 100%` falls back to `auto` and the
+// IMAGE sizes the cell: a portrait cover (512×735) rendered 176×253 instead of
+// 176×176, the plate grew 49px, and `.dh-body`'s `space-between` spent every one
+// of them on a gap between the title and the meta line (#512). Non-square art is
+// routine here — CD case scans and Windows Media Player leftovers — so this is
+// the normal case, not an edge one.
+//
+// Consequence worth knowing: the album head overrides the `cover` below with
+// `object-fit: contain` on purpose (a scan should sit inside the cell rather
+// than be cropped), so a portrait cover now shows its pink ground left and
+// right instead of stretching the plate. That is the trade — a letterboxed
+// cover in a steady plate beats a full-bleed one in a plate that jumps.
+.dh-art {
+    width: 11rem;
+    aspect-ratio: 1;
+    flex-shrink: 0;
+    align-self: stretch;
+    overflow: hidden;
+    position: relative;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    // A round motif (artist portrait) gets a ground of its own rather than
+    // floating against the bare panel — the same answer the Now-Playing source
+    // plate gives for its artist thumbnail.
+    &.is-round {
+        background-color: $candy-pink-soft;
+        padding: $small;
+
+        img {
+            border-radius: 50%;
+            border: $candy-border;
+        }
+    }
+
+    // A glyph placeholder (artist without a photo).
+    &.is-glyph {
+        background-color: $candy-pink-soft;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        svg {
+            width: 40%;
+            height: 40%;
+            color: $candy-text-muted;
+        }
+    }
+}
+
+// The text side. The dividing rule belongs HERE, not to the media cell: the
+// cell can be round or padded, and a border on it would follow that shape.
+.dh-art + .dh-body {
+    border-left: $candy-border;
+}
+
+.dh-body {
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    // Type/title/meta at the top, actions at the foot of the plate. The actions
+    // sit UNDER the text, not at the right edge: a row of buttons beside the
+    // title takes the width the title needs, and the head then reads left to
+    // right instead of top to bottom.
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 11rem;
+
+    .dh-type {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+        color: $candy-text-muted;
+        line-height: 1.2;
+    }
+
+    .dh-title {
+        font-size: $detail-title-size;
+        font-weight: $detail-title-weight;
+        line-height: 1.08;
+        color: $candy-text;
+        margin: 0.25rem 0;
+    }
+
+    .dh-meta {
+        font-size: $detail-meta-size;
+        font-weight: $detail-meta-weight;
+        color: $candy-text-muted;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Small screens. The plate keeps its shape — cell, rule, text — and only the
+// numbers shrink. That is the point of having one anatomy: the three headers
+// used to carry their own `largePhones` and `shortViewport` blocks with three
+// different cover sizes and three title sizes.
+// ---------------------------------------------------------------------------
+@include largePhones {
+    #{$detail-heads} {
+        margin: 0 $small $small;
+    }
+
+    .dh-art {
+        width: 7.5rem;
+    }
+
+    .dh-body {
+        padding: $medium;
+        min-height: 7.5rem;
+        gap: $medium;
+
+        .dh-title {
+            font-size: $detail-title-size-phone;
+        }
+    }
+}
+
+// A landscape phone is wide AND short: the whole content area is ~133px tall
+// there, so the head has to become a row rather than a block.
+@include shortViewport {
+    .dh-art {
+        width: 5.5rem;
+    }
+
+    .dh-body {
+        padding: $small $medium;
+        min-height: 5.5rem;
+        gap: $small;
+
+        .dh-title {
+            font-size: $detail-title-size-phone;
+        }
+    }
+}
