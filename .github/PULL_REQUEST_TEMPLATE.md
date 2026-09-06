@@ -1,25 +1,7 @@
-<!--
-Please make sure to read the Pull Request Guidelines:
-https://github.com/swing-opensource/aivinnet/.github/CONTRIBUTING.md#pull-request-guidelines
--->
+<!-- Delete anything that does not apply. -->
 
-<!-- PULL REQUEST TEMPLATE -->
-<!-- (Update "[ ]" to "[x]" to check a box) -->
+**What does this change, and why?**
 
-**What kind of change does this PR introduce?** (check at least one)
-
-- [ ] Bugfix
-- [ ] Feature
-- [ ] Code style update
-- [ ] Refactor
-- [ ] Build-related changes
-- [ ] Other, please describe:
-
-**The PR fulfills these requirements:**
-
-- [ ] When resolving a specific issue, it's referenced in the PR's title (e.g. `fix #xxx[,#xxx]`, where "xxx" is the issue number)
-
-If adding a **new feature**, the PR's description includes:
-- [ ] A convincing reason for adding this feature (it's best to open a suggestion issue first and wait for approval before working on it)
-
-**Other information:**
+**How was it verified?**
+<!-- A bug fix needs a test that fails without the fix. UI changes are measured
+     in a browser (see docs/verification.md). Say what you ran and what it said. -->
