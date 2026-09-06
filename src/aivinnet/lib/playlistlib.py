@@ -90,7 +90,7 @@ def save_p_image(img: Image, pid: int, content_type: str = None, filename: str =
             frames.append(frame.copy())
 
         frames[0].save(full_img_path, save_all=True, append_images=frames[1:])
-        create_gif_thumbnail(img, img_path=filename)
+        create_gif_thumbnail(img, filename)
 
         return filename
 
