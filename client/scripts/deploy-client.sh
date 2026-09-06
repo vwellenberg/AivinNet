@@ -9,7 +9,11 @@
 
 set -euo pipefail
 
-REPO="${REPO:-$HOME/AivinNet-Client}"
+# The client half of the monorepo. Defaults to this script's own grandparent,
+# so a checkout anywhere works and the deploy no longer depends on one blessed
+# directory name — it stood at `$HOME/AivinNet-Client`, which stopped existing
+# when the two repositories were merged.
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Where the backend serves the client from. The config directory was renamed
 # swingmusic -> aivinnet (AivinNet#98) and the backend moves it on its first

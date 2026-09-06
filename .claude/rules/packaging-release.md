@@ -18,7 +18,7 @@ Default, `--system` für systemweit). Flags: `--system`, `--no-autostart`, `--po
 `--music`, `--version`, `--update`, `--uninstall`.
 
 **Release ziehen:** Workflow `Release` (`.github/workflows/build.yml`, `workflow_dispatch`) baut
-Client aus `AivinNet-Client`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-Binaries und
+Client aus `client/`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-Binaries und
 `SHA256SUMS`. Vorher `.github/changelog.md` anpassen — das ist der Release-Body. Für Testläufe
 `prerelease=true` + `is_latest=false` setzen und mit `install.sh --version <tag>` installieren
 (`/releases/latest` überspringt Prereleases; **Drafts** sind über die API gar nicht sichtbar).

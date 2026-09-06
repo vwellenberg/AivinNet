@@ -5,9 +5,27 @@
 AivinNet streams your own audio library to a web player with a look of its own —
 bold 80s/Memphis shapes and colours, in light and dark. Point it at a folder of
 music, open it in a browser, and that is the whole idea. It is a Python/Flask
-backend that serves a REST API plus the dedicated
-[AivinNet web client](https://github.com/vwellenberg/AivinNet-Client).
+backend serving a REST API, and a Vue web client — both in this repository.
 
+
+## What it looks like
+
+|                                                                 |                                                                       |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Home** — browse your library                                  | **Lyrics** — synced, with a per-line progress bar                     |
+| ![Home](client/docs/screenshots/home.png)                       | ![Synced lyrics](client/docs/screenshots/lyrics.png)                  |
+| **Playlist** — track list with ambient gradient                 | **Artists** — library grid                                            |
+| ![Playlist view](client/docs/screenshots/playlist.png)          | ![Artists](client/docs/screenshots/artists.png)                       |
+
+The whole palette flips through the moon toggle in the top bar, and with **Auto
+dark mode** on it switches itself: dark from 20:00, light from 08:00.
+
+|                                                                 |                                                                       |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Home**                                                        | **Playlist**                                                          |
+| ![Home in dark theme](client/docs/screenshots/home-dark.png)    | ![Playlist in dark theme](client/docs/screenshots/playlist-dark.png)  |
+
+---
 ---
 
 ## Install (Linux)
@@ -121,13 +139,25 @@ uv sync                       # dependencies
 uvx ruff check src/ tests/    # lint
 ```
 
-The web client is a separate repository:
-[vwellenberg/AivinNet-Client](https://github.com/vwellenberg/AivinNet-Client).
+The web client lives in `client/` — Vue 3 and Vite, with its own `yarn` scripts:
+
+```sh
+cd client
+yarn install
+yarn dev          # dev server
+yarn test         # vitest
+yarn typecheck    # vue-tsc
+```
+
+It used to be its own repository
+([vwellenberg/AivinNet-Client](https://github.com/vwellenberg/AivinNet-Client),
+now archived); its history came along with it, so `git blame` still reaches
+back.
 
 ### Releasing
 
 The `Release` workflow (`.github/workflows/build.yml`) is triggered manually. It
-builds the client from `AivinNet-Client`, produces wheels, AppImages (x86_64 +
+builds the client from `client/`, produces wheels, AppImages (x86_64 +
 aarch64), single-file binaries and `SHA256SUMS`, and attaches everything to a
 GitHub release. Edit `.github/changelog.md` first — it becomes the release body.
 

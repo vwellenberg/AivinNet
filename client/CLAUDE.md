@@ -1,22 +1,22 @@
-# SubspaceRadio-Client (AivinNet)
+# AivinNet Web Client
 
-Vue.js 3 Webclient für AivinNet — Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic).
+Vue.js 3 Webclient für AivinNet — Fork von [swingmx/webclient](https://github.com/swingmx/webclient).
 
 ## Projekt-Setup
 
-⚠️ **Der lokale Ordner heißt noch `SubspaceRadio-Client`, alles andere heißt `AivinNet`.**
-Repo, Server-Checkout und systemd-Unit wurden umbenannt — wer die alten Namen tippt, greift ins Leere.
+⚠️ **Seit 2026-09-06 ein Monorepo.** Der Client liegt als `client/` im Backend-Repo; das frühere
+`vwellenberg/AivinNet-Client` ist archiviert. Es hält weiterhin die alten PR-Nummern (bis #564) und
+die Issue-Historie — Links dorthin bleiben gültig, neue Arbeit passiert hier.
 
 | | |
 |---|---|
-| **Repo** | `vwellenberg/AivinNet-Client` (Fork von [swingmx/webclient](https://github.com/swingmx/webclient)) |
-| **Backend-Repo** | `vwellenberg/AivinNet` |
+| **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)), Client unter `client/` |
 | **Stack** | Vue 3, Pinia, TypeScript, SCSS, Vite 3, yarn |
 | **Server** | Homeserver im LAN, Port 1970, systemd-Unit **`aivinnet`** — Host, Account und Key stehen in der globalen `~/.claude/CLAUDE.md` (nicht im Repo) |
-| **Checkout auf dem Server** | `~/AivinNet-Client`, gebaut nach `~/.config/aivinnet/client/` |
+| **Checkout auf dem Server** | `~/AivinNet`, Client gebaut nach `~/.config/aivinnet/client/` |
 
-⚠️ **`gh` ohne `--repo` landet im Upstream** (`swingmx/webclient`) — bei `gh issue create` und
-`gh pr create` immer `--repo vwellenberg/AivinNet-Client` setzen.
+⚠️ **`gh` ohne `--repo` landet im Upstream** (`swingmx/swingmusic`) — bei `gh issue create` und
+`gh pr create` immer `--repo vwellenberg/AivinNet` setzen.
 
 ## Entwicklung
 
@@ -77,9 +77,9 @@ Pro Aufgabe/Issue:
      man im Kopf hat. Das ist die Untergrenze, keine gleichwertige Alternative: im PR-Text
      vermerken, dass das Review nicht lief.
 4. **CI grün abwarten** (Lint/Tests/Build).
-5. **Autonom (squash) mergen**, sobald Review (Schritt 3) sauber und CI grün: `gh pr merge --repo vwellenberg/AivinNet-Client --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind. Keine Rückfrage beim Nutzer nötig — „kein Review-Zwang" heißt dabei nur, dass **GitHub** keinen Fremd-Reviewer verlangt; das Self-Review aus Schritt 3 ist trotzdem Pflicht.
+5. **Autonom (squash) mergen**, sobald Review (Schritt 3) sauber und CI grün: `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind. Keine Rückfrage beim Nutzer nötig — „kein Review-Zwang" heißt dabei nur, dass **GitHub** keinen Fremd-Reviewer verlangt; das Self-Review aus Schritt 3 ist trotzdem Pflicht.
 6. **Deploy von `master`** + verifizieren (bei UI: Headless-Screenshot), dann **Worktree entfernen** (`git worktree remove`) + lokalen Branch löschen — und am Rundenende **einmal die Leichen wegkehren** (siehe *Branch-Hygiene* unten).
-7. **Issue-Abgleich — Pflicht, nicht Kür.** Nach **jeder** Implementierung prüfen, ob es dazu ein Issue gibt (`gh issue list --repo vwellenberg/AivinNet-Client --state open`), und es schließen **mit einem Kommentar, der die Lösung beschreibt** — was geändert wurde, in welchem PR, womit belegt.
+7. **Issue-Abgleich — Pflicht, nicht Kür.** Nach **jeder** Implementierung prüfen, ob es dazu ein Issue gibt (`gh issue list --repo vwellenberg/AivinNet --state open`), und es schließen **mit einem Kommentar, der die Lösung beschreibt** — was geändert wurde, in welchem PR, womit belegt.
    - Das gilt auch für Arbeit, die **nebenbei** ein Issue erledigt: Features lösen regelmäßig fremde Issues mit, ohne dass jemand die Verbindung zieht. Real passiert: die Album-Hash-Migration aus #255 hat den halben Punkt B von #31 miterledigt, und die Ordner-Arbeit aus #83 die halbe Akzeptanzliste von #94 — beide Issues standen danach monatelang offen und sahen unangetastet aus.
    - **Nie den Issue-Text als Status wiedergeben.** Er ist hier regelmäßig Monate hinter dem Code. Vor jeder Aussage über ein Issue die genannten Dateien, Funktionen und Endpunkte im Code nachschlagen (real passiert: #2 und #97 wurden als „offen" zusammengefasst, obwohl Backend und Frontend fertig waren).
    - Teilweise erledigt ⇒ nicht schließen, sondern kommentieren, welche Punkte stehen und welche nicht — mit Dateiverweis als Beleg.
@@ -129,7 +129,7 @@ die einzige verbliebene Kopie. In diesem Repo trifft das 3 von 388 PRs — selte
 vergessen, oft genug, um Arbeit zu verlieren. Vor einem Massenlauf deshalb einmal gegenprüfen:
 
 ```bash
-gh pr list --repo vwellenberg/AivinNet-Client --state closed --limit 1000 \
+gh pr list --repo vwellenberg/AivinNet --state closed --limit 1000 \
   --json headRefName,mergedAt --jq '.[]|select(.mergedAt==null)|.headRefName'
 ```
 
@@ -198,7 +198,7 @@ Wohin — nach Umfang und Lesehäufigkeit:
 | Etwas, das **zwingend** passieren muss und sonst echten Schaden anrichtet | **`.claude/settings.json`** als Hook | deterministisch beim Event — sparsam einsetzen, siehe unten |
 | Bauplan, Store-Landkarte, Datenfluss | **[docs/architecture.md](docs/architecture.md)**, hier nur ein Zeiger | nur auf Anforderung |
 | Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
-| Offene Arbeit, Bug, Idee | GitHub-Issue (`gh issue list --repo vwellenberg/AivinNet-Client`) | einzige Backlog-Quelle, auch für Backend-Themen |
+| Offene Arbeit, Bug, Idee | GitHub-Issue (`gh issue list --repo vwellenberg/AivinNet`) | einzige Backlog-Quelle, auch für Backend-Themen |
 
 Bestehende Bereichsregeln: `styling` · `stores-and-state` · `device-sync` · `testing`
 (Übersicht mit Geltungsbereich unter *Architektur-Hinweise*). Neue Regel = neue Datei in
@@ -291,8 +291,8 @@ Frontmatter überein. Wer einen Glob ergänzt, ergänzt ihn hier — sonst wird 
 
 ```bash
 # Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo).
-# Lokaler Ordner heisst noch SubspaceRadio-Client, auf Server + GitHub aber
-# AivinNet-Client; systemd-Service heisst aivinnet.
+# Server-Checkout ist ~/AivinNet (Monorepo, Client unter client/);
+# systemd-Service heisst aivinnet.
 ssh -i <key> <account>@<homeserver> "bash ~/deploy-client.sh"
 ```
 
@@ -308,7 +308,7 @@ aus #359 lagen danach weiter im alten Wortlaut im Bundle).
 Meldung:
 
 ```bash
-cd ~/AivinNet-Client && git log --oneline -1          # enthält der Checkout den Commit?
+cd ~/AivinNet && git log --oneline -1          # enthält der Checkout den Commit?
 grep -oh "<neuer Text>" ~/.config/aivinnet/client/assets/*.js | sort -u
 ```
 
@@ -325,9 +325,10 @@ Liegt auf dem Server unter `~/AivinNet` und läuft über **denselben** systemd-D
 Frontend-Deploy startet also dasselbe Backend neu. Der Deploy-Befehl und die Gotchas dazu
 (`uv` nicht im PATH, Health-Check) stehen in der CLAUDE.md des Backend-Repos.
 
-⚠️ Backend-PRs gehen an `--repo vwellenberg/AivinNet`, aber **Issues liegen in diesem
-Client-Repo** → dort mit „For vwellenberg/AivinNet-Client#N" referenzieren, **kein** „Closes"
-(sonst schließt GitHub das Issue im falschen Repo nicht).
+✅ Seit dem Monorepo gibt es die Repo-Grenze zwischen PR und Issue nicht mehr: beides liegt in
+`vwellenberg/AivinNet`, `Fixes #N` schließt also ganz normal. (Vorher mussten Backend-PRs Issues
+im Client-Repo mit „For vwellenberg/AivinNet-Client#N" referenzieren — quer über Repos schließt
+GitHub nichts.)
 
 
 ## Learnings / Gotchas (für alle Agents)
@@ -363,7 +364,7 @@ Client-Repo** → dort mit „For vwellenberg/AivinNet-Client#N" referenzieren, 
 
 ## Nächste Schritte
 
-Offene Arbeit als GitHub Issues: `gh issue list --repo vwellenberg/AivinNet-Client`.
+Offene Arbeit als GitHub Issues: `gh issue list --repo vwellenberg/AivinNet`.
 
 ## Device Sync / Multiroom
 

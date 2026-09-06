@@ -101,3 +101,99 @@ jobs:
       # multipart optionality and file mapping only misbehave in real requests.
       - name: Run API tests
         run: uv run --with pytest pytest tests_api/ -v
+
+  # ---------------------------------------------------------------------------
+  # Web client. Same repository since the merge, its own toolchain.
+  #
+  # ⚠️ Deliberately WITHOUT a `paths:` filter, on either half. A required check
+  # that is skipped never reports at all, and a pull request waiting for it
+  # waits for ever — the cheapest monorepo trap there is. Four short Node jobs
+  # on a Python-only change is the price, and it is a low one.
+  # ---------------------------------------------------------------------------
+  client-lint:
+    name: Client Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: ESLint check
+        run: yarn lint:check
+
+  client-typecheck:
+    name: Client Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: vue-tsc check
+        run: yarn typecheck
+
+  client-test:
+    name: Client Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run tests
+        run: yarn test
+
+  client-build:
+    name: Client Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: client/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
