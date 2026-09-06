@@ -66,6 +66,33 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+Five fixes on top of v2026.8.2. One of them needs a single manual step if you
+are upgrading — see the first point.
+
+- **An upgrade now really replaces the web interface.** The interface is
+  unpacked into your config directory, which survives every upgrade (in Docker
+  it is a volume), so a newer server kept serving the older interface — quietly,
+  for good. From this release on an upgrade refreshes it. **Upgrading from an
+  older version, do this once:** stop the server, delete
+  `~/.config/aivinnet/client` (Docker: `config/aivinnet/client`), start it
+  again. Fresh installs need nothing.
+- **Downloads are named after the tags** — `Artist - Album - 07 Title.mp3`
+  instead of whatever the file happens to be called on disk.
+- **Albums and playlists can be downloaded as separate files**, not only as a
+  ZIP. On a phone the ZIP is the wrong shape: it lands in Downloads and needs an
+  unzip app, while single files arrive playable and keep their names.
+- **Three settings did not do what they said.** Folders in `excludeDirs` were
+  scanned anyway — the setting was stored and never read. A connectivity check
+  set a three-second timeout on every socket in the process, permanently, and
+  leaked one handle each time it ran. And `--password-reset` on a config
+  directory that did not exist yet wrote an account that could never log in.
+- **The interface no longer loads its font from Google.** It ships with the app,
+  so nothing is fetched from outside when you open the player.
+
+<details>
+<summary>What v2026.8.2 fixed</summary>
+
+
 A follow-up to v2026.8.1 with four fixes that landed after it was cut. Two of
 them can stop the server, so this is worth taking.
 
@@ -91,6 +118,8 @@ them can stop the server, so this is worth taking.
 
 Upgrading is safe and needs nothing from you: existing logins keep working, and
 the database gains its new column on the first start.
+
+</details>
 
 <details>
 <summary>What v2026.8.1 fixed (the security release before this one)</summary>
