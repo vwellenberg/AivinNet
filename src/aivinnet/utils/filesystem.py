@@ -1,4 +1,5 @@
 import os
+from collections.abc import Sequence
 from pathlib import Path
 
 FILES = ["flac", "mp3", "wav", "m4a", "ogg", "wma", "opus", "alac", "aiff"]
@@ -44,7 +45,29 @@ IGNORE_PATH_CONTAINS = {
 }
 
 
-def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
+def is_excluded(path: Path, exclude: Sequence[str]) -> bool:
+    """
+    Whether this directory is one the owner asked to keep out of the library.
+
+    Compares resolved paths, so `~/Music/Podcasts` and `/home/x/Music/Podcasts`
+    are the same answer, and a match covers everything beneath it.
+    """
+    for raw in exclude:
+        if not raw:
+            continue
+
+        try:
+            excluded = Path(raw).expanduser().resolve()
+        except (OSError, RuntimeError, ValueError):
+            continue
+
+        if path == excluded or excluded in path.parents:
+            return True
+
+    return False
+
+
+def run_fast_scandir(path: str, full=False, exclude: Sequence[str] = ()) -> tuple[list[str], list[str]]:
     """
     Scans a directory for files with a specific extension.
     Returns a list of files and folders in the directory.
@@ -53,6 +76,9 @@ def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
 
     :param path: folder to scan
     :param full: will call recursively until end of path.
+    :param exclude: directories to skip, from `UserConfig().excludeDirs`.
+        Passed IN rather than read here on purpose — `config` imports this module
+        (for `restrict_to_owner`), so reading it from here would be a cycle.
     :return: (folder:[], files:[])
     """
 
@@ -67,6 +93,13 @@ def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
         return [], []
 
     if any(ignore_path in path.as_posix() for ignore_path in IGNORE_PATH_CONTAINS):
+        return [], []
+
+    # The owner's own exclusions. The setting has been in the config and
+    # in the settings API since before this fork, accepted and returned —
+    # and never once consulted. A setting that answers "saved" and then
+    # scans the folder anyway is worse than no setting.
+    if is_excluded(path, exclude):
         return [], []
 
     # if on mac, ignore Library folder and its children
@@ -93,7 +126,7 @@ def run_fast_scandir(path: str, full=False) -> tuple[list[str], list[str]]:
 
         if full or len(files) == 0:
             for folder in subfolders:
-                sub_dirs, subfiles = run_fast_scandir(folder, full=True)
+                sub_dirs, subfiles = run_fast_scandir(folder, full=True, exclude=exclude)
                 subfolders.extend(sub_dirs)
                 files.extend(subfiles)
 

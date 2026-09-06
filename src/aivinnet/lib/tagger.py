@@ -51,9 +51,10 @@ class IndexTracks:
             pass
 
         files = set()
+        exclude = UserConfig().excludeDirs
 
         for _dir in dirs_to_scan:
-            files = files.union(run_fast_scandir(_dir, full=True)[1])
+            files = files.union(run_fast_scandir(_dir, full=True, exclude=exclude)[1])
 
         unmodified, modified_tracks = self.filter_modded()
         untagged = files - unmodified
