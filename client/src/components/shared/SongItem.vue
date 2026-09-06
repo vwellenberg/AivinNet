@@ -242,7 +242,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
 // NOTE: CSS for responsiveness is at app-grid.scss
 .songlist-item {
     display: grid;
-    grid-template-columns: $songlist-index-col 2.5fr 1.5fr 7.5rem;
+    grid-template-columns: $songlist-index-col 2.5fr 1.5fr $songlist-duration-col;
     align-items: center;
     justify-content: flex-start;
     gap: 1rem;
@@ -279,7 +279,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     // number (justify-content: end). 10rem keeps the check inside its own column
     // with enough headroom for the longest (HH:MM:SS) durations.
     &.with-plays {
-        grid-template-columns: $songlist-index-col 2.5fr 1.5fr 5rem 10rem;
+        grid-template-columns: $songlist-index-col 2.5fr 1.5fr 5rem $songlist-duration-col;
     }
 
     // "Date added" column (playlist page): inserted between album and duration,

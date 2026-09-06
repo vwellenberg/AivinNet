@@ -29,7 +29,14 @@ encoderx.py
 # pyinstaller files
 dist
 build
-client
+# ⚠️ `client` stood here, from when that name meant the BUILT web interface
+# (`yarn build --outDir ../client`). Since the repositories were merged it is
+# the client's SOURCE tree — and the rule silently swallowed every new file
+# added under it. Tracked files are unaffected by .gitignore, so the import
+# itself looked fine; the first new test written afterwards simply never
+# reached a commit, with no error anywhere. The build output is `dist-client/`
+# now (see .github/workflows/build.yml) and that is what gets ignored.
+dist-client
 .gitignore
 
 logs.txt

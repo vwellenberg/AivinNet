@@ -283,7 +283,7 @@ onBeforeRouteLeave(() => {
     overflow: visible;
 
     .songlist-item {
-        grid-template-columns: 1.75rem 1fr 7.5rem;
+        grid-template-columns: 1.75rem 1fr $songlist-duration-col;
     }
 
     .statshead {

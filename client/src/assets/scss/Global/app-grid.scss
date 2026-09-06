@@ -493,7 +493,7 @@ $g-border: solid $candy-border-w $mem-line;
     }
 
     .songlist-item {
-        grid-template-columns: 2fr 7.5rem !important;
+        grid-template-columns: 2fr $songlist-duration-col !important;
         // The index column is dropped on small layouts, so the thumbnail
         // becomes the first cell — without extra padding it sits flush
         // against the row edge (clearly visible on the highlighted
@@ -525,7 +525,7 @@ $g-border: solid $candy-border-w $mem-line;
 .isMedium {
     // hide album column on medium screens
     .songlist-item {
-        grid-template-columns: $songlist-index-col 2.5fr 7.5rem;
+        grid-template-columns: $songlist-index-col 2.5fr $songlist-duration-col;
     }
 
     .song-album {

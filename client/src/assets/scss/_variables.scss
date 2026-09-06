@@ -89,11 +89,25 @@ $songlist-band-w: 8px;
 // takes no clicks.
 $index-badge: 1.7rem;
 
+// The LAST cell of a track row, and the only one whose width is decided by its
+// contents rather than by taste: it holds the favourite heart (32px), the
+// duration pill (56px) and the ⋯ button (32px) with the row's 16px gaps —
+// 152px, plus 8px of margin. At the 7.5rem (120px) it used to be, the group
+// (`justify-content: end`) kept its right edge and spilled 40px LEFT over the
+// album title, measured identically at 1280, 1440 and 1920 (#133/#134).
+//
+// It is a token because the number was already right in two places and wrong in
+// four: `.with-plays` and `.with-date` were widened to 10rem when the overflow
+// was noticed over the Plays column, and the base row, both responsive variants
+// and the album page kept the old width. Whoever adds the next variant should
+// not have to know this story.
+$songlist-duration-col: 10rem;
+
 // Track-row grid with the "Date added" column (playlist page, wide layouts):
 // index | title | album | date added | duration. Shared by the rows
 // (SongItem .with-date) and the column-caption header (AfterHeader .with-date)
 // so the caption can never drift from its column.
-$songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem 10rem;
+$songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem $songlist-duration-col;
 $content-padding-bottom: 2rem;
 
 // Legacy "apple human design guideline" names, remapped onto candy roles:
