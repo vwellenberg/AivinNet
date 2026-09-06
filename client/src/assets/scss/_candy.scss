@@ -180,7 +180,17 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // whenever its own play button is clicked.
 @mixin candy-raised($x: 3px, $y: 3px, $press: true) {
   @include candy-shadow($x, $y);
-  transition: box-shadow 0.12s ease-out, transform 0.12s ease-out;
+  // The shadow trails the surface by 40ms. A hard shadow moving in perfect
+  // lockstep reads as a sticker printed on the page; arriving a breath late, it
+  // reads as an object with weight above it. Nobody sees an animation — the
+  // plate just feels physical.
+  //
+  // ⚠️ Literal values, not `$motion-shadow` / `$motion-lag`: this file is
+  // imported BEFORE _motion.scss (vite.config.ts), so the tokens do not resolve
+  // here. Same reason as every other transition in this file — see the note at
+  // `mem-row-plate`. The numbers are the tokens' values (0.12s / 40ms) and must
+  // be changed together with them.
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out 40ms;
 
   &:hover {
     @include candy-shadow($x + 1, $y + 1);
@@ -388,7 +398,9 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Motion only — the paint is a cut (styling.md). Literal durations, like
   // every transition in this file: `_motion.scss` is imported AFTER
   // `_candy.scss` (see vite.config.ts), so its tokens are not resolvable here.
-  transition: box-shadow 0.12s ease-out, transform 0.12s ease-out;
+  // The 40ms on the shadow is $motion-lag — it trails the surface, like every
+  // other raised plate (#143).
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out 40ms;
   @include mem-row-plate-press;
 }
 

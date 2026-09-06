@@ -50,6 +50,19 @@ $motion-ripple: 0.35s;
 // right instead of all at once (#279).
 $motion-stagger: 45ms;
 
+// How far the hard offset shadow trails the surface it belongs to.
+//
+// The shadow is the signature of this design, and it used to move in perfect
+// lockstep with the plate — which is exactly what makes a hard shadow read as a
+// sticker rather than as a raised object. Letting it arrive a breath late is
+// the cheapest physical cue there is: nobody sees an animation, the surface
+// simply feels like it has weight.
+//
+// 40ms is deliberately below the ~100ms at which a delay starts to read as
+// lag. Above that the shadow looks detached, as if it belonged to something
+// else on the page.
+$motion-lag: 40ms;
+
 // ---------------------------------------------------------------------------
 // Curves
 // ---------------------------------------------------------------------------

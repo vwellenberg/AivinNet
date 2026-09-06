@@ -84,6 +84,12 @@ $card-cover-pad: 6px;
         .card-plate {
             background-image: var(--mem-hatch-hover);
             background-size: 38px 38px;
+            // The sprinkles wake up (#143): the sprite shifts by a few pixels
+            // as the surface flips, so the strokes appear to shuffle rather
+            // than simply swap. Movement in the TEXTURE, not on the card — a
+            // card that moves under the pointer is noticed every single time,
+            // a texture that stirs behind the text is not.
+            background-position: 9px 6px;
         }
 
         // The card components pin their own text colours ($candy-text on the
@@ -116,7 +122,8 @@ $card-cover-pad: 6px;
     overflow: hidden;
     @include candy-box($mem-panel, $candy-radius);
     @include candy-shadow(3px, 3px);
-    transition: box-shadow $motion-shadow $motion-curve;
+    // Schatten läuft nach, wie jede andere gehobene Fläche (#143).
+    transition: box-shadow $motion-shadow $motion-curve $motion-lag;
 
     // Direct child only. A collage (PlaylistImages) brings its own
     // grid of nested images with their own sizing; reaching those with a
@@ -182,7 +189,16 @@ $card-cover-pad: 6px;
     box-shadow: 3px 3px 0 var(--mem-shadow);
     // Motion only — the paint is a cut (styling.md): the plate flips to the
     // contrast surface together with its text and hatch, in one frame.
-    transition: box-shadow $motion-shadow $motion-curve;
+    //
+    // `background-position` is motion, not paint, and that distinction is what
+    // lets the sprinkles stir here without breaking the rule: the fill and the
+    // sprite still CUT to their hover values, the sprite merely slides while
+    // doing it. Transitioning `background-image` or the colour would be the
+    // violation; sliding the texture is not.
+    //
+    // The shadow trails by $motion-lag, like every other raised surface.
+    transition: background-position $motion-move $motion-curve,
+        box-shadow $motion-shadow $motion-curve $motion-lag;
 
     // THE COVERS — every direct child, matched STRUCTURALLY rather than by a
     // list of class names.

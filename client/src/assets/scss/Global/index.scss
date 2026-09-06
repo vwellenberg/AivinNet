@@ -1,6 +1,11 @@
 @import "./app-grid.scss", "./inputs.scss", "./scrollbars.scss", "./state.scss", "./variants.scss",
     "./button-classes.scss", "./basic.scss", "./search-tabheaders.scss", "./album-grid.scss", "./lauflicht.scss", "./cards.scss",
-    "./detail-head.scss";
+    "./detail-head.scss",
+    // ⚠️ MUSS als letztes stehen: die pauschale reduced-motion-Regel darin gilt
+    // per `!important`, und ihre begründeten Ausnahmen stehen in derselben
+    // Datei darunter. Weiter vorne einsortiert, verliert sie gegen jede später
+    // geladene Komponente — lautlos.
+    "./motion-policy.scss";
 
 * {
     box-sizing: border-box;

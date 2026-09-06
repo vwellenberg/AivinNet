@@ -70,7 +70,7 @@
               <div class="sidebar-pl-img rounded-sm">
                 <img :src="thumbBase + entry.al.image" />
                 <button
-                  class="pl-play-overlay"
+                  class="pl-play-overlay mem-glyph-swap"
                   :class="{ playing: isCurrentAlbum(entry.al.albumhash) }"
                   :title="isPlayingAlbum(entry.al.albumhash) ? 'Pause' : 'Play'"
                   @click.prevent.stop="togglePlayAlbum(entry.al)"

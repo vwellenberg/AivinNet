@@ -92,7 +92,12 @@
     bottom: 0.75rem;
     opacity: 0;
     transform: translateY(0.5rem);
-    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.15s ease;
+    // The shadow trails by 40ms, like every other raised surface (#143).
+    // ⚠️ Literal values: this file is imported BEFORE _motion.scss
+    // (vite.config.ts), so `$motion-*` does not resolve here. The numbers are
+    // the tokens' ($motion-move / $motion-shadow / $motion-lag) and change
+    // with them.
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.12s ease 40ms;
 
     @if $placement == center {
       left: calc(50% - 1.625rem); // half of width

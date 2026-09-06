@@ -1,0 +1,69 @@
+// Was passiert, wenn jemand "weniger Bewegung" eingestellt hat — an EINER Stelle.
+//
+// Vorher stand die Antwort in vier Dateien (Lauflicht, _buttons, Logo.vue,
+// PlayingMeter.vue) und galt damit für vier Dinge. Gezählt am 2026-09-06: 66
+// handgeschriebene Sekundenwerte in `src/`, plus alles, was über die Token
+// läuft — die weit überwiegende Mehrheit war ungedeckt. Das ist kein
+// Schönheitsfehler, sondern ein Barrierefreiheits-Bug: `prefers-reduced-motion`
+// setzt man nicht aus Geschmack, sondern gegen Schwindel und Migräne.
+//
+// Eine pauschale Regel schlägt sechzig einzelne, weil sie auch für alles gilt,
+// was erst noch geschrieben wird. Der Preis ist, dass die begründeten Ausnahmen
+// hier ebenfalls stehen müssen — und genau das ist der Nebeneffekt, den man
+// will: eine Datei beantwortet die Frage vollständig.
+//
+// ⚠️ Diese Datei wird als LETZTE importiert (Global/index.scss). Beides hängt
+// daran: die pauschale Regel muss nach den Komponenten kommen, und die
+// Ausnahmen darunter müssen nach der pauschalen Regel kommen. Wer sie
+// verschiebt, schaltet lautlos entweder die Regel oder ihre Ausnahmen ab.
+
+@media (prefers-reduced-motion: reduce) {
+    // Nicht `animation: none`: das würde einen Endzustand, der in den Keyframes
+    // steht (etwa ein `forwards` gefülltes Erscheinen), nie erreichen — das
+    // Element bliebe unsichtbar. 0.01ms läuft die Animation zu Ende, nur ohne
+    // dass ein Auge etwas davon sieht.
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+    }
+
+    // Sanftes Scrollen ist ebenfalls Bewegung, die niemand angefordert hat.
+    html {
+        scroll-behavior: auto !important;
+    }
+
+    // ------------------------------------------------------------------
+    // Begründete Ausnahmen. Jede braucht einen Grund, der über "sieht gut
+    // aus" hinausgeht.
+    // ------------------------------------------------------------------
+
+    // Das Lauflicht bleibt laufen, nur langsamer (14s / 9s statt 7s / 5.5s).
+    // Der Grund steht in lauflicht.scss und stammt aus einem echten Fehlerbild:
+    // Auf Telefonen schaltet der Energiesparmodus `prefers-reduced-motion` mit
+    // ein. Fror der Komet dort ein, las sich das nicht als Rücksichtnahme,
+    // sondern als kaputter Effekt — der Ring ist die Anzeige "hier läuft
+    // gerade etwas", und eine stehende Laufanzeige ist eine falsche Aussage.
+    .lauflicht-rim::before {
+        animation-duration: 14s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    .lauflicht-rim::after {
+        animation-duration: 9s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    // Der Spinner ist keine Zierde, sondern die einzige Auskunft darüber, dass
+    // überhaupt noch etwas passiert. Steht er still, sieht die App abgestürzt
+    // aus. Langsamer statt aus, aus demselben Grund wie oben.
+    .loader,
+    .spinner {
+        animation-duration: 1.4s !important;
+        animation-iteration-count: infinite !important;
+    }
+}

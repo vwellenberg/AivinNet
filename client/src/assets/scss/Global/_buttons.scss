@@ -198,9 +198,10 @@ $control-dense-glyph: 1rem;
   // silently kill hover and press in all five roles.
   animation: btn-pop $motion-move $motion-curve-settle var(--btn-pop-delay, 0s) backwards;
 
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
+  // (Der eigene reduced-motion-Block hier ist entfallen: die pauschale Regel
+  // in Global/motion-policy.scss deckt jede Animation ab, auch diese. Zwei
+  // Antworten auf dieselbe Frage waren genau der Zustand, aus dem heraus 62
+  // andere Animationen ungedeckt blieben.)
 }
 
 // A row of buttons arrives left to right instead of all at once. Include it on
@@ -299,7 +300,9 @@ $control-dense-glyph: 1rem;
   // Motion only — the PAINT is a cut (styling.md: the pointer flip is a cut,
   // not a fade). Fill and glyph swap in opposite directions, so a fade has a
   // mid-frame where both are grey and the flip looks asynchronous.
-  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+  // Shadow trails the surface by $motion-lag — see candy-raised for why.
+  transition: transform $motion-press $motion-curve,
+    box-shadow $motion-shadow $motion-curve $motion-lag;
 
   &::before {
     content: "";
@@ -413,7 +416,9 @@ $control-dense-glyph: 1rem;
   // the contrast surface, and a cross-fade of two opposing colours meets in
   // the middle at grey; the hatch cannot fade at all (it is an image swap), so
   // fading the rest just left it visibly out of step (styling.md).
-  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+  // Shadow trails the surface by $motion-lag — see candy-raised for why.
+  transition: transform $motion-press $motion-curve,
+    box-shadow $motion-shadow $motion-curve $motion-lag;
 
   svg {
     width: $glyph;
@@ -555,7 +560,9 @@ $control-dense-glyph: 1rem;
   // there by accident: `color` was never in its list, so the label snapped
   // while the fill faded — one more voice in the "it looks asynchronous"
   // report this rule ends.
-  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+  // Shadow trails the surface by $motion-lag — see candy-raised for why.
+  transition: transform $motion-press $motion-curve,
+    box-shadow $motion-shadow $motion-curve $motion-lag;
 
   &:hover {
     // Was `$candy-pink-deep`, which is YELLOW — and yellow means "playing" in
@@ -622,7 +629,9 @@ $control-dense-glyph: 1rem;
   @include btn-pop;
   // After `candy-raised`, which pins its own shorter list. Motion only — the
   // paint is a cut, like every role (styling.md).
-  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+  // Shadow trails the surface by $motion-lag — see candy-raised for why.
+  transition: transform $motion-press $motion-curve,
+    box-shadow $motion-shadow $motion-curve $motion-lag;
 
   // The pointer signal, stated IN the role (#422). It used to live at the two
   // call sites (desktop and mobile transport), both still hovering the old

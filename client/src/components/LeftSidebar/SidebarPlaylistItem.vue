@@ -14,7 +14,7 @@
                 <PlaylistSvg />
             </div>
             <button
-                class="pl-play-overlay"
+                class="pl-play-overlay mem-glyph-swap"
                 :class="{ playing: playing }"
                 :title="playing ? 'Pause' : 'Play'"
                 @click.prevent.stop="toggle"
