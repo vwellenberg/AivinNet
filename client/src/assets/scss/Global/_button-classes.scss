@@ -298,3 +298,68 @@
   box-shadow: 7px 9px 0 var(--mem-shadow);
   cursor: grabbing;
 }
+
+// ---------------------------------------------------------------------------
+// Ground-Parallax beim Seitenwechsel (#143).
+//
+// Der Inhalt wandert schnell herein, der Doodle-Ground dahinter langsamer und
+// in die GEGENRICHTUNG. Tiefe ohne eine einzige neue Form, und ohne
+// Layout-Kosten: es verschieben sich zwei Ebenen, es wird nichts neu berechnet.
+//
+// ⚠️ Bewusst OHNE `<Transition>` und ohne Leave-Phase. Ein `mode="out-in"`
+// würde die neue Seite um die Dauer der alten verzögern — und nichts darf auf
+// eine Animation warten (die Pflichtliste in #143). Gemessen: die erste Karte
+// ist nach 198ms anklickbar.
+//
+// ⚠️ Nur waagerecht. Ein vertikaler Versatz würde beim Wechsel auf eine Seite
+// mit erhaltener Scrollposition doppelt lesen — einmal als Animation, einmal
+// als Sprung.
+@keyframes mem-page-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes mem-ground-drift {
+  0% {
+    background-position-x: -14px;
+  }
+
+  100% {
+    background-position-x: 0;
+  }
+}
+
+// ⚠️ NICHT an `.content-page` gehängt, obwohl das die naheliegende Klasse ist:
+// nur 7 von 24 Views tragen sie. Gemessen kam der Effekt dadurch bei zwei von
+// vier Routenwechseln — schlimmer als gar keiner, weil ein Effekt, der
+// manchmal ausbleibt, wie ein Fehler aussieht. (Die Klasse überall
+// nachzurüsten wäre richtig, ist aber ein eigener Umbau: sie bringt Padding,
+// Scrollbar-Rinne und die Reserve für die Player-Leiste mit.)
+//
+// Stattdessen der Router-Auslöser und die STRUKTUR: alles, was in `#acontent`
+// liegt, außer dem Messpunkt. Damit gilt es für jede Seite, auch für die
+// nächste, die jemand hinzufügt.
+#acontent.ground-drift > *:not(#contentresizer) {
+  animation: mem-page-enter $motion-move $motion-curve-settle;
+}
+
+// Der Ground liegt auf `#acontent`, und dieses Element ÜBERLEBT den
+// Routenwechsel. Eine CSS-Animation startet aber nur, wenn ein Knoten entsteht
+// oder ein Selektor zu greifen BEGINNT — beides passiert hier nach dem ersten
+// Laden nie wieder. Ein Versuch mit `#acontent:has(.content-page)` lief deshalb
+// genau einmal, beim App-Start, und danach nie: der Selektor greift ja immer.
+//
+// Den Auslöser setzt darum der Router (src/router/index.ts, `afterEach`), und
+// zwar als Klasse. Das ist die einzige Stelle in diesen vier Runden, an der
+// Bewegung überhaupt JavaScript braucht — alles andere hängt daran, dass ein
+// Element neu entsteht.
+#acontent.ground-drift {
+  animation: mem-ground-drift $motion-settle $motion-curve-settle;
+}

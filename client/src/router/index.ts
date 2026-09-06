@@ -248,4 +248,33 @@ const router = createRouter({
     routes,
 } as RouterOptions)
 
+/**
+ * Ground-Parallax (#143): der Doodle-Ground driftet beim Seitenwechsel kurz
+ * gegen die Laufrichtung des Inhalts.
+ *
+ * Warum das hier steht und nicht im Stylesheet: der Ground liegt auf
+ * `#acontent`, und das Element ÜBERLEBT den Routenwechsel. Eine CSS-Animation
+ * startet, wenn ein Knoten entsteht oder ein Selektor zu greifen beginnt —
+ * beides passiert hier nie wieder nach dem ersten Laden. Ein Versuch mit
+ * `#acontent:has(.content-page)` lief deshalb genau einmal, beim App-Start.
+ *
+ * Die Seite selbst braucht das nicht: sie ist bei jeder Route eine neue
+ * Komponenteninstanz und animiert sich über `.content-page` von allein.
+ *
+ * ⚠️ Die Klasse wird VOR dem nächsten Frame wieder entfernt und dann neu
+ * gesetzt, sonst startet die Animation beim zweiten Wechsel in dieselbe
+ * Richtung nicht erneut — ein laufender Name auf demselben Element wird von
+ * der Engine nicht neu angestoßen.
+ */
+router.afterEach(() => {
+    const content = document.getElementById('acontent')
+    if (!content) return
+
+    content.classList.remove('ground-drift')
+    // Reflow erzwingen: ohne das fasst der Browser Entfernen und Setzen in
+    // einem Frame zusammen, und es passiert gar nichts.
+    void content.offsetWidth
+    content.classList.add('ground-drift')
+})
+
 export { router, Routes }
