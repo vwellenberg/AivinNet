@@ -149,3 +149,33 @@ def test_backup_writes_no_folder_for_a_playlist_without_a_cover(tmp_path: Path, 
 
     assert copy_playlist_images("does-not-exist.webp", img_folder) == 0
     assert not img_folder.exists(), "an empty images/ directory was created anyway"
+
+
+def test_the_backups_own_thumbnail_wins(backup_dir: Path, image_dir: Path):
+    """
+    A rebuild must not shoulder aside the file the backup carries.
+
+    "7abcde.webp" sorts before "thumb_7abcde.webp", so the cover lands first and
+    the rebuild — if it fires unconditionally — writes a thumbnail before the
+    backup's own copy is reached, which is then skipped as "already there". The
+    result looks right (a 250px thumbnail is a 250px thumbnail) and is not:
+    it is a re-encode of the backed-up file, and for an animated cover the
+    rebuild path is a different one entirely.
+
+    Caught on the live instance, not here: the restored cover's checksum matched
+    the backup, the restored thumbnail's did not.
+    """
+    original = (backup_dir / "images" / "thumb_7abcde.webp").read_bytes()
+
+    # ⚠️ `aivinnet.settings.Paths` as well, not just the one this module
+    # imported: playlistlib writes through its OWN lookup, so without this the
+    # rebuild lands somewhere else entirely, the backup's thumbnail is copied
+    # after all, and this test passes against the unfixed code — which is
+    # exactly what it did on the first run.
+    with patch("aivinnet.settings.Paths") as settings_paths:
+        settings_paths.return_value.playlist_img_path = image_dir
+        RestoreBackup(backup_dir).restore_playlist_images()
+
+    assert (image_dir / "thumb_7abcde.webp").read_bytes() == original, (
+        "the thumbnail on disk is not the one from the backup — it was rebuilt over it"
+    )

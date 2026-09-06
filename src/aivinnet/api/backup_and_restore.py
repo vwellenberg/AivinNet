@@ -330,7 +330,14 @@ class RestoreBackup:
                 report.discard("playlist image", {"name": image.name}, error)
                 continue
 
-            if not image.name.startswith("thumb_"):
+            # Rebuild only what the backup cannot supply. Without the second
+            # condition the rebuild always wins the race: "cover.webp" sorts
+            # before "thumb_cover.webp", so the thumbnail was re-encoded from
+            # the just-copied cover and the backup's own copy — the exact file,
+            # and for an animated cover the only correct one — was then skipped
+            # as "already there". Measured on the live instance: the cover came
+            # back byte-identical, the thumbnail did not.
+            if not image.name.startswith("thumb_") and not (source / f"thumb_{image.name}").exists():
                 self.rebuild_thumbnail(target, image.name)
 
         return report
