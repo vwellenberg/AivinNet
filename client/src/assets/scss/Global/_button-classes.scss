@@ -253,3 +253,48 @@
     box-shadow: 3px 3px 0 var(--mem-shadow);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Die seltenen, verspielten Bewegungen (#143).
+//
+// Sie dürfen auffallen, weil man sie selten und ABSICHTLICH auslöst — was man
+// ein paar Mal am Tag bewusst tut, nutzt sich nicht ab. Genau umgekehrt zu
+// allem in Global/_buttons.scss, das bei jedem Zeigerkontakt läuft.
+// ---------------------------------------------------------------------------
+
+// Shuffle heißt "wirf alles durcheinander" — also überschlägt sich das Glyph
+// einmal und wird dabei kurz kleiner. Ein Umschalter, den man ein paar Mal am
+// Tag drückt, verträgt eine ganze Umdrehung; ein Play-Knopf täte das nicht.
+@keyframes mem-tumble {
+  0% {
+    transform: rotate(0) scale(1);
+  }
+
+  55% {
+    transform: rotate(220deg) scale(0.72);
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+// Nur beim EINSCHALTEN. Beim Ausschalten passiert nichts: "aus" ist kein
+// Ereignis, das man feiert, und eine Animation in beide Richtungen macht aus
+// einem Zustandswechsel ein Zappeln.
+.aux.shuffle:not(.aux-off) > svg {
+  animation: mem-tumble $motion-settle $motion-curve-settle;
+}
+
+// Eine Zeile, die gezogen wird, liegt in der Hand: sie kippt leicht und ihr
+// harter Schatten wächst. Das ist Rückmeldung, keine Zierde — sichtbar nur,
+// solange man selbst zieht.
+//
+// ⚠️ Als Übergang und nicht als Animation, und das ist hier richtig herum: der
+// Zustand DAUERT an (solange gezogen wird), er passiert nicht einmalig. Eine
+// Animation würde beim Loslassen nicht zurücklaufen.
+.songlist-item.is-dragging {
+  transform: rotate(-2.5deg) translate(-3px, -6px);
+  box-shadow: 7px 9px 0 var(--mem-shadow);
+  cursor: grabbing;
+}
