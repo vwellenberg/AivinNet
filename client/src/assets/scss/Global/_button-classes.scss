@@ -1,0 +1,117 @@
+// ---------------------------------------------------------------------------
+// BUTTON ROLE CLASSES — the markup-side half of the role system.
+//
+// `Global/_buttons.scss` holds the mixins and is injected into every component
+// style block (vite.config.ts `additionalData`), so a component with its own
+// selector can `@include btn-action` and be done.
+//
+// This file is different: it emits ACTUAL CSS, so it is imported exactly ONCE,
+// from Global/index.scss. Putting these rules in the injected file instead
+// would stamp a copy into all ~167 component style blocks.
+//
+// Use a class when the button has no meaningful selector of its own — a bare
+// `<button>Save</button>` in a dialog. The class then states the button's role
+// in the template, which is the whole point of the system:
+//
+//   <button class="btn-pill">Save</button>
+//
+// Use the mixin when the component already has a selector worth keeping
+// (sizes, positioning, an on-state), and include the role into it.
+// ---------------------------------------------------------------------------
+
+// The "pop in" keyframes belong here rather than next to the `btn-pop` mixin
+// that uses them: `_buttons.scss` is injected into every component style
+// block, and a `@keyframes` block emits real CSS — it would be duplicated
+// ~167 times. Mixins are free there; anything that produces output is not.
+// A real overshoot, not a curve that merely aims at one. The old version went
+// scale(0.9) -> scale(1) in 130ms and leaned on a `cubic-bezier` whose 1.2
+// control point was supposed to supply the bounce — at that duration it was
+// swallowed, and what was left read as a twitch rather than a pop (#279).
+//
+// The overshoot is stated as a keyframe instead, so it survives regardless of
+// the easing: down further, past 1, and back.
+@keyframes btn-pop {
+  0% {
+    transform: scale(0.82);
+  }
+
+  62% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HEADER ACTION ROW — the container half of the detail-header anatomy.
+//
+// There are THREE detail headers (album, artist, playlist) and each one
+// hand-wrote the same four declarations for its action row. They are one thing,
+// so they are written once. (A fourth, the mix header, was removed with the
+// mixes feature — the census test in headerActionOrder.test.ts is what keeps
+// this count honest.)
+//
+// A CLASS and not a Vue component, deliberately. The row has no behaviour, no
+// props and no shared markup — its children differ per header (a playlist has
+// no favourite), so a wrapper component would exist purely to
+// emit a <div>. It would also cost something real: the stagger below reads
+// `:nth-child` off the DOM, and every header would have to keep passing its
+// buttons through a slot for that to keep resolving to the same positions. A
+// class states the row's role in the template, which is exactly what
+// `.btn-action` and friends below do for a single button.
+//
+// CANONICAL ORDER — Play · Favourite · Pin · Secondary action · Overflow.
+// A header omits the slots it has no action for; it never reorders them. That
+// is what makes the stagger read as one gesture across all four pages, and it
+// is enforced by src/components/__tests__/headerActionOrder.test.ts rather than
+// left to a comment — a pointer in prose is exactly what rotted when #244
+// deleted `mem-header-action` out from under the CLAUDE.md.
+// ---------------------------------------------------------------------------
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: $small;
+  // Wrap instead of squeezing: on a 390px phone five controls used to compress
+  // until the last of them was a 16px sliver.
+  flex-wrap: wrap;
+
+  // An action row pops left to right instead of all at once. The rules that do
+  // it are `btn-pop-stagger` in Global/_buttons.scss, because the sort banner on
+  // the album and artist lists needs the same gesture and a second copy of five
+  // nth-child rules is exactly the drift this file exists to end.
+  //
+  // This used to list every row by its own class name, which is how a header
+  // came to be missing from the group until #293 went looking. One shared
+  // class is one place to be on.
+  @include btn-pop-stagger;
+}
+
+.btn-primary {
+  @include btn-primary;
+}
+
+.btn-action {
+  @include btn-action;
+}
+
+.btn-quiet {
+  @include btn-quiet;
+}
+
+.btn-pill {
+  @include btn-pill;
+}
+
+// A pill that has to wrap: long labels in settings rows ("All covers present").
+// Height becomes a floor instead of a fixed value, so the label can take a
+// second line rather than overflowing its box.
+.btn-pill--wrap {
+  @include btn-pill($h: auto);
+  min-height: 2.75rem;
+  padding-top: $smaller;
+  padding-bottom: $smaller;
+  text-align: center;
+  line-height: 1.3;
+}

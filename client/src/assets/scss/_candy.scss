@@ -1,0 +1,1011 @@
+// ============================================================================
+// "Memphis 90s" design tokens — the single SCSS source for the design.
+//
+// Palette values are injected from src/brand-colors.json (memphis block) via
+// vite.config (css.preprocessorOptions.scss.additionalData) so JSON stays the
+// single source of truth shared with TypeScript. The literals below are inert
+// `!default` fallbacks for tooling that compiles without the injection.
+//
+// Design language (reference: 80s/90s Memphis pattern art): grid-paper ground,
+// white panels, 2-3px ink borders, hard offset shadows, teal/yellow/coral/
+// lavender/pink accents, sprinkle (terrazzo) textures, zigzag accent strips.
+// Flat colors — no gradients, no blurred shadows.
+//
+// The $candy-* names further down are LEGACY aliases from the candy design
+// this theme evolved from — they are re-pointed at memphis roles so the
+// existing usages keep working. Use $mem-* directly in new/touched code.
+// ============================================================================
+
+// Memphis roles
+$mem-ink: #17171a !default; // borders, text, icons
+$mem-paper: #f4f2ed !default; // page ground (gets the grid pattern)
+$mem-panel: #ffffff !default; // panels: bars, sidebars, cards, modals
+$mem-teal: #2fbfa3 !default; // primary action (play), seek fill
+$mem-yellow: #f5b23c !default; // active states (playing row, hovers)
+$mem-coral: #e2574c !default; // secondary accent
+$mem-lavender: #8b8beb !default; // badges, chips
+$mem-pink: #f2799f !default; // decorative accent
+// Added for the entity palette (see mem-entity-tint at the end of this file):
+// a TRUE blue. The palette's only other cool tones are teal (blue-green) and
+// lavender (blue-violet), and six entities need six separable hues.
+$mem-blue: #3b82d9 !default;
+$mem-blush: #f5c6ce !default; // soft fills (nav active, buttons)
+$mem-blush-soft: #fbe3e7 !default; // input fills, hover on white
+$mem-text-muted: #6d6a62 !default; // subtitles, captions
+
+// True-dark theme ("classic 90s": deep indigo, grid stays visible) — the
+// roles that CHANGE between themes. Accents (teal/yellow/coral/lavender/
+// blush) and $mem-ink stay identical.
+$mem-dark-ground: #1e1f4b !default;
+$mem-dark-panel: #2a2b5e !default;
+$mem-dark-soft: #3a3b7a !default;
+$mem-dark-line: #f4f2ed !default;
+$mem-dark-text: #f4f2ed !default;
+$mem-dark-text-muted: #c9c9e8 !default;
+$mem-dark-content-text: #ffffff !default;
+$mem-dark-content-muted: #d9d9f2 !default;
+$mem-dark-grid-line: rgba(255, 255, 255, 0.14) !default;
+
+// Static literals preserved for the :root var definitions in
+// Global/index.scss (the role tokens below become var() references).
+// `!default` is CRITICAL: this file is imported more than once (variables,
+// index.scss, vite additionalData); on re-import $mem-panel is already the
+// var() reference, and without !default these would capture the var and
+// emit a self-referencing `--mem-panel: var(--mem-panel)` (= transparent).
+$mem-panel-static: $mem-panel !default;
+$mem-blush-soft-static: $mem-blush-soft !default;
+$mem-text-muted-static: $mem-text-muted !default;
+
+// ---------------------------------------------------------------------------
+// THEME-DEPENDENT roles — runtime-switchable via CSS custom properties.
+// Global/index.scss defines --mem-* on :root (light values) and overrides
+// them under body.theme-dark. NEVER run these through Sass colour functions
+// (they are var() references).
+//  - ground/content-*: the page ground (grid) and text painted over it
+//  - panel/text/text-muted/soft: panel surfaces and their text/hover fills
+//  - line: EVERY border/outline (ink in light, paper in dark)
+// $mem-ink stays STATIC — use it for text/icons on the light accent fills
+// (yellow/teal/blush/white), which look the same in both themes.
+// ---------------------------------------------------------------------------
+$mem-ground: var(--mem-ground);
+$mem-content-text: var(--mem-content-text);
+$mem-content-muted: var(--mem-content-muted);
+$mem-content-faint: var(--mem-content-faint);
+$mem-panel: var(--mem-panel);
+$mem-soft: var(--mem-soft);
+$mem-line: var(--mem-line);
+$mem-text: var(--mem-text);
+$mem-text-muted: var(--mem-text-muted);
+$mem-hover: var(--mem-hover); // hover fill (blush / calm dark tint)
+
+// ---------------------------------------------------------------------------
+// LEGACY candy aliases — kept for the ~100 existing usages; new code should
+// prefer $mem-*. The theme-dependent ones are assigned WITHOUT !default so
+// they beat the static literals the vite injection prepends.
+// ---------------------------------------------------------------------------
+$candy-pink: $mem-blush !default; // accent, theme-independent
+$candy-pink-soft: $mem-soft; // panel hover/input fill → theme var
+$candy-pink-deep: $mem-yellow !default; // accent, theme-independent
+$candy-white: $mem-panel; // panel surface → theme var
+$candy-lavender: $mem-lavender !default;
+$candy-black: $mem-ink !default; // static ink (text on accent fills)
+
+// Text
+$candy-text: $mem-text; // default text → theme var (ink / paper)
+$candy-text-muted: $mem-text-muted; // theme var
+$candy-text-faint: var(--mem-content-faint); // placeholders, disabled
+
+// Structure
+//
+// 3px, not 2px: the memphis look lives on a hard, punched-out frame, and at
+// 2px the app read visibly softer than the design reference. 72 places pull
+// this token, so the weight of every card, row, chip and button moves together
+// — which is also why it must stay a whole pixel. 2.5px lands on a half-pixel
+// at 100% zoom and frays on fractional DPI scaling, and the reserved
+// transparent borders (candy-row-base, the sidebar rows) subtract this exact
+// value from their padding to keep a row's height constant.
+$candy-border-w: 3px;
+// Every border/outline: ink in light, paper in dark.
+$candy-border: $candy-border-w solid $mem-line;
+$candy-radius: 14px; // cards, panels, modals
+$candy-radius-sm: 10px; // buttons, inputs, thumbnails
+$candy-radius-pill: 999px; // pills, sliders
+
+// Slider geometry — the seek bar and the volume bar.
+//
+// Two numbers a host may choose, one derived from them:
+//   --range-h      how tall the bar is (outer, border included)
+//   --range-thumb  the knob's diameter
+//   --range-track  the bar's INNER height — the border sits inside --range-h,
+//                  and the knob is laid out against the content box, so THIS
+//                  is what the knob has to centre on, not --range-h.
+//
+// Emitted on the element that OWNS the slider rather than on the input itself,
+// for two reasons. The texture overlay in NP/Progress.vue is a *sibling* of
+// the input and could never read values set on it. And an input carrying its
+// own declaration would shadow anything a host set further up, so the defaults
+// live here and in the `var()` fallbacks in ProgressBar.scss — never on the
+// input.
+//
+// Before this, hosts set the knob's height and width on each of three vendor
+// pseudo-elements and added a hand-tuned `margin-top` to re-centre it. A fixed
+// offset fits exactly one pairing of bar and knob, and there were four (#284),
+// so it was wrong in three of them (#285).
+//
+// The number that matters here is --range-track, not --range-h: the 3px ink
+// border sits INSIDE the bar, so a 0.6rem bar had 3.6px left to carry colour —
+// less than its own frame. Two things fell out of that. The sprinkle texture on
+// the played fill (a 20px tile) had no room to read as a pattern, and the knob
+// stood 1.83x taller than the bar it runs on, which makes the bar look thinner
+// still. 0.875rem leaves 8px of fill, and the knob follows to keep that ratio
+// at 1.43. The bar stays a pointer control — the touch pairing
+// (1.25rem/1.6rem) is set by the phone bar and the Now-Playing header.
+$range-h-default: 0.875rem;
+$range-thumb-default: 1.25rem;
+$range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
+
+@mixin range-geometry($h: $range-h-default, $thumb: $range-thumb-default) {
+  --range-h: #{$h};
+  --range-thumb: #{$thumb};
+  --range-track: calc(#{$h} - #{$candy-border-w * 2});
+}
+
+// Hard offset shadow — the only allowed "shadow" in this design: no blur, no
+// spread, always down-right, so every raised surface is lit from the same
+// corner. Carried by cards, buttons and floating chrome (modals, menus,
+// toasts). The colour is theme-aware (--mem-shadow, Global/index.scss): ink on
+// paper, a soft paper offset on the indigo dark ground where ink would vanish.
+@mixin candy-shadow($x: 4px, $y: 4px) {
+  box-shadow: $x $y 0 var(--mem-shadow);
+}
+
+// The standard bordered surface.
+@mixin candy-box($bg: $mem-panel, $radius: $candy-radius) {
+  background-color: $bg;
+  border: $candy-border;
+  border-radius: $radius;
+}
+
+// A raised, clickable surface: the offset shadow plus the press feedback that
+// belongs to it — hover deepens the offset, pressing pushes the element INTO
+// its own shadow (translate by the offset, shadow gone), which is what makes
+// the design feel physical rather than just decorated.
+//
+// Use on cards and on filled buttons. Never on a flattened/transparent control
+// (see the exception list in Global/basic.scss): an offset under nothing reads
+// as a smudge.
+//
+// `$press: false` keeps the shadow but drops the press: CSS `:active` also
+// matches ANCESTORS of the pressed element, so a card that presses would jump
+// whenever its own play button is clicked.
+@mixin candy-raised($x: 3px, $y: 3px, $press: true) {
+  @include candy-shadow($x, $y);
+  transition: box-shadow 0.12s ease-out, transform 0.12s ease-out;
+
+  &:hover {
+    @include candy-shadow($x + 1, $y + 1);
+  }
+
+  @if $press {
+    &:active {
+      transform: translate($x, $y);
+      box-shadow: none;
+    }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Transport auxiliary control (shuffle / repeat), "on" state — THE one
+// decision for both transports: the desktop one (LeftSidebar/NP/HotKeys.vue)
+// and the mobile one (BottomBar/Right.vue), which used to carry two copies of
+// this rule and drifted apart.
+//
+// It wears the play button's memphis box (ink border, rounded square, sprinkle
+// texture) one size down and in yellow, so play stays the primary teal action.
+//
+// Deliberately sets NO width/height: the caller reserves the footprint in BOTH
+// states, or switching shuffle on grows the button and shoves the whole
+// transport row sideways.
+//
+// `$fill` / `$glyph` are knobs, not an invitation to a new colour per control:
+// the devices button's "joined" state is the app's other persistent on/off,
+// and it wore a hand-written green box with NO texture and NO offset shadow —
+// i.e. the same drift this mixin exists to end, one control further along. Any
+// caller passing a fill states its own glyph colour too, because the pair is
+// what makes the fill legible: the fills here are STATIC (identical in both
+// themes), so the glyph on them is a static colour rather than a theme token.
+// ---------------------------------------------------------------------------
+@mixin mem-transport-aux-on($fill: $mem-yellow, $glyph-color: $mem-ink) {
+  @include candy-box($fill, $candy-radius-sm);
+  // The on-state paints a COMPLETE surface, texture included — so whatever the
+  // rest state used has to be cleared, not left to show through. `candy-box`
+  // only sets `background-color`, so a rest state with a hatch (anything on
+  // `btn-action`) would keep it UNDER the sprinkle below: two textures at once,
+  // and the wrong one — the surviving hatch is the theme-aware `$on: surface`
+  // sprite, while a static accent fill wants `$on: accent`. It went unnoticed
+  // for as long as every caller happened to pair with `btn-quiet`, which has no
+  // rest texture to leak.
+  background-image: none;
+  position: relative;
+  overflow: hidden; // clip the sprinkle to the rounded corners
+  // On the accent fill the glyph must be a STATIC colour in BOTH themes.
+  // Set through `color`, never `fill`: the transport glyphs are currentColor
+  // and the auxiliary ones (shuffle, repeat) are STROKED — a `fill` rule
+  // would flood their open shapes solid.
+  color: $glyph-color;
+
+  // Memphis sprinkle over the accent fill, exactly like the play CTA.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    @include mem-sprinkle(22px);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  svg {
+    // Above the sprinkle overlay.
+    position: relative;
+    z-index: 1;
+    opacity: 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Interactive row (list item) — THE app-wide hover treatment.
+//
+// Every row list in the app (song lists, folder lists, ...) marks hover the same
+// way: a light fill with the ink frame drawn around it. Use these two mixins
+// instead of restating the rule, so the treatment stays one decision.
+//
+//   .my-row { @include candy-row-base; &:hover { @include candy-row-hover; } }
+//
+// `candy-row-base` is NOT optional. It reserves a transparent border of the same
+// width, so the frame appearing on hover does not shift the row's content by 2px.
+// A row that only implements the hover half visibly jumps (and rows that skip
+// both, like the folder list did, get no frame at all — the bug this fixes).
+//
+// Both halves are mixins for the same reason: a row that spells the base out by
+// hand keeps the frame's *reservation* but loses the reminder that a frame is
+// coming, and the next hand-written `&:hover { background-color: … }` next to it
+// looks complete while drawing no frame. That is exactly how the sidebar folder
+// header ended up the one library row without one, twice — see the source test
+// in `src/components/__tests__/rowHover.test.ts`, which now fails on any row
+// that hand-rolls either half.
+// ---------------------------------------------------------------------------
+@mixin candy-row-base($radius: $candy-radius-sm) {
+  border: $candy-border-w solid transparent;
+  border-radius: $radius;
+  // NO transition, deliberately: the paint is a cut (styling.md). The fade
+  // this replaces was written when hover was a blush TINT — fill and frame
+  // easing in together read as one gesture. Since #422 the hover fill is the
+  // CONTRAST surface, and a fade of fill (light→dark) against text (dark→
+  // light) meets in the middle at grey: reported as "the black arrives at two
+  // different places". Fill, frame and text now flip in the same frame.
+}
+
+// The fill is the CONTRAST surface and comes from `--mem-hover` — the single
+// token every hover in this app reads (#418). Before that there were three
+// sources: this mixin, `mem-row-plate-hover` and `btn-action`, of which two
+// wrote `$mem-blush` by hand and ignored the token that existed for exactly
+// this. Changing the pointer colour meant finding all three.
+//
+// Why a contrast surface rather than a colour — the reasoning lives at the
+// token in Global/index.scss, short version: blush became the label fill, the
+// six navigation fills use up the palette, teal and yellow are spoken for.
+//
+// ⚠️ TWO THINGS MOVE WITH THE FILL, and both are easy to forget because the
+// light theme hides one of them:
+//   1. The TEXT. `--mem-hover-text` — the fill is dark in light mode, so ink
+//      text on it is invisible. Hosts that pin ink on filled rows must exclude
+//      the hover case (see SongItem.vue's "Filled row states").
+//   2. Anything that has to read as STRONGER than hover moves up.
+//      `.songlist-item.contexton` (the row owning an open context menu) can
+//      now take blush, which hover just vacated.
+@mixin candy-row-hover($fill: var(--mem-hover), $radius: $candy-radius-sm) {
+  background-color: $fill;
+  color: var(--mem-hover-text);
+  border-color: $mem-line;
+  border-radius: $radius;
+}
+
+// ---------------------------------------------------------------------------
+// PASTEL — an accent toned down for a surface you look at all day.
+//
+// The full memphis accents are built for SMALL, rare marks: a play button, a
+// toggle that is on, the one running row. A navigation list is neither small
+// nor rare — six saturated fills stacked in a narrow column shout, and the
+// reference art does not: its shapes carry the same saturation but sit as large
+// areas BEHIND the panels, where they read as ground rather than as signal.
+//
+// Mixing toward the paper ground keeps each hue distinguishable (that is what
+// tells the entries apart) while dropping the loudness. Ink stays far above the
+// 4.5:1 it needs on every one of them — mixing toward paper only raises the
+// contrast against ink.
+//
+// NOT `lighten()`: that raises lightness in HSL and leaves saturation where it
+// was, which turns coral into neon rather than into a pastel. Mixing with the
+// actual ground colour is what makes the two look related.
+// ---------------------------------------------------------------------------
+@function mem-pastel($color, $amount: 55%) {
+  @return mix($color, $mem-paper, $amount);
+}
+
+// ---------------------------------------------------------------------------
+// SIDEBAR PLATE — the library list's row anatomy since #378.
+//
+// The sidebar's rows ARE buttons and now say so: panel fill, ink frame, the
+// 3px offset and the hatch. Before this they were flat rows, which was
+// consistent among themselves but split the sidebar in two the moment the
+// navigation above them became plates — six framed plates, a divider, then
+// thirteen bare rows (measured in the mockup round: the plate version costs
+// 60px of height on 19 entries, +6%, because only the gaps grow).
+//
+// Both mixins, never hand-written: nav rows, playlist rows, pinned albums and
+// the folder header all wear the SAME plate, and the last time this treatment
+// was spelled out per call site it took four rounds to make the sidebar's rows
+// agree (see the "letzte Stelle" learning in CLAUDE.md).
+//
+// The active half is separate because it is a STATE, not a variant: it swaps
+// the fill for the static blush and therefore has to swap the hatch to the
+// accent token in the same breath — an ink-on-panel hatch would go blank in the
+// dark theme, and a surface hatch on blush would be nearly invisible in both.
+//
+// ⚠️ `$hatch: false` — WHEN THE TEXTURE HAS TO GO (#468).
+//
+// The hatch means "you can press this", and that only says something where
+// pressable surfaces stand AMONG unpressable ones: the sidebar alternates rows
+// with headings and dividers, so the texture earns its keep there.
+//
+// A full-width CONTENT list is the opposite case. Every row is pressable, so
+// the texture separates nothing — and it is drawn on a surface it was never
+// sized for. The tile is 38px; on the ~1900px chart row that is ~50 tiles
+// across, ten rows deep, with the strokes running straight through the title
+// and the subtitle. (`mem-hatch-clear` is what keeps them off a label, and it
+// assumes the flex content of a sidebar row, not a five-column grid.)
+//
+// So the rule has a second half: the texture belongs to CHROME. On the charts
+// screen the tabs and the pager buttons keep it and the rows drop it, which is
+// what makes the difference readable. Guarded by `rowHover.test.ts` in both
+// directions — a sidebar plate may not silently lose it either, and a plate
+// that drops it has to drop it in its hover as well.
+// ---------------------------------------------------------------------------
+@mixin mem-row-plate($radius: $candy-radius-sm, $hatch: true) {
+  // Fill and cover read the same custom property — see mem-hatch-ring. The
+  // texture runs across the WHOLE plate here; what keeps it off the label is
+  // `mem-hatch-clear` on the content, not a clip on the row.
+  --row-fill: #{$mem-panel};
+  background-color: var(--row-fill);
+  @if $hatch {
+    @include mem-hatch(38px, $on: surface);
+  }
+  border: $candy-border-w solid $mem-line;
+  border-radius: $radius;
+  color: $mem-content-text;
+  box-shadow: 3px 3px 0 var(--mem-shadow);
+  // Motion only — the paint is a cut (styling.md). Literal durations, like
+  // every transition in this file: `_motion.scss` is imported AFTER
+  // `_candy.scss` (see vite.config.ts), so its tokens are not resolvable here.
+  transition: box-shadow 0.12s ease-out, transform 0.12s ease-out;
+  @include mem-row-plate-press;
+}
+
+// Hover deepens the offset and tints the fill, the same answer `btn-action`
+// gives (3px -> 4px). Deliberately NO `transform: scale()`: a row that grows
+// under the pointer shoves the drop marker it is being dragged onto.
+// Hover is BLUSH, not the soft tint, and that is the point: `$mem-soft` is
+// `$mem-blush-soft` in light and a dark grey in dark, so on a white plate it
+// was a barely-there wash and on a coloured one it was invisible. Reported as
+// "you can hardly see the hover". Blush is the design's own pointer colour and
+// reads on all six navigation fills as well as on panel.
+//
+// The fill is the only thing that changes; the cover layer follows through
+// `--row-fill`, so the ring can never fall out of sync with the surface.
+//
+// `$hatch` has to match the base plate's answer. A row that dropped the texture
+// but hovered with it would GROW a texture under the pointer — the one state
+// nobody looks at while editing CSS, and the same class of miss as the hover
+// that forgot `--mem-hover-text`.
+@mixin mem-row-plate-hover($hatch: true) {
+  // Reads the same token as every other hover in the app (#418) — the plate
+  // version additionally deepens its offset. `--row-fill` carries the fill to
+  // the label's cover layer, so the two cannot fall apart; the hatch switches
+  // to the inverted sprite because the surface under it just went dark.
+  --row-fill: var(--mem-hover);
+  color: var(--mem-hover-text);
+  @if $hatch {
+    background-image: var(--mem-hatch-hover);
+  }
+  border-color: $mem-line;
+  box-shadow: 4px 4px 0 var(--mem-shadow);
+}
+
+// A coloured row: static memphis accent + ink text + the accent hatch, all
+// three together. Splitting them is the mistake the census guards against — a
+// static fill under the theme-aware hatch is blank in the dark theme.
+// Pressing pushes the plate INTO its own shadow, the same physical answer
+// `candy-raised` gives every other filled button.
+//
+// This replaces the v-wave ripple these rows used to carry. The rule in
+// styling.md was already there — rows get the wave, BUTTONS get their role's
+// press and no wave, or two effects fight over one element — and the rows
+// became buttons in #378 without anyone moving them across. The wave is drawn
+// in `--mem-line` (ink in light), so a click flooded the whole plate dark:
+// reported as "the label and the hatch disappear when you click".
+@mixin mem-row-plate-press {
+  &:active {
+    transform: translate(3px, 3px);
+    box-shadow: none;
+  }
+}
+
+@mixin mem-row-plate-tint($fill) {
+  --row-fill: #{$fill};
+  background-color: var(--row-fill);
+  @include mem-hatch(38px, $on: accent);
+  color: $mem-ink;
+}
+
+@mixin mem-row-plate-active {
+  // Static blush -> pin static ink, exactly as the flat active row did.
+  @include mem-row-plate-tint($candy-pink);
+  border-color: $mem-line;
+}
+
+// ---------------------------------------------------------------------------
+// HEADING STICKER — a caption sitting ON the memphis ground.
+//
+// Every plate in this design exists for the same reason: `$mem-content-muted`
+// (and often plain ink) over the doodle tile is not a readable pairing — the
+// text lands on whatever saturated shape happens to be behind it. Panels,
+// cards, rows and the detail heads all solved that; the section captions
+// ("Browse Library", "Recently played", "All Tracks", the page titles) were
+// the last text left standing free on the ground.
+//
+// A sticker is a plate MINUS the pressable statement: panel, ink frame, hard
+// offset shadow — and deliberately NO hatch. The texture means "you can press
+// this" (#378), and a caption is not a control. Same reason it takes no hover
+// and no press feedback.
+//
+// `width: fit-content` on purpose: a caption sticker is a label, not a bar
+// across the page.
+// ---------------------------------------------------------------------------
+@mixin mem-sticker($radius: $candy-radius-sm, $pad: 0.3rem 0.7rem) {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  padding: $pad;
+  background-color: $mem-panel;
+  border: $candy-border;
+  border-radius: $radius;
+  box-shadow: 3px 3px 0 var(--mem-shadow);
+  // The ground halos that used to prop these captions up (`text-shadow: 0 0 8px
+  // var(--mem-ground)`) are unnecessary on a panel — and so is the
+  // theme-aware content colour: this text reads against the panel now.
+  color: $candy-text;
+  text-shadow: none;
+}
+
+// ---------------------------------------------------------------------------
+// "How many of them there are" — the small outlined chip beside a caption.
+//
+// Pastel ENTITY tint, never the saturated "on"-state colour: a count is not a
+// state, and keeping those two registers apart is what stops the palette's
+// three jobs from blurring (see mem-entity-tint).
+//
+// Written out twice would have been fine right up until the two drifted, which
+// is how the devices button ended up with three anatomies (#499). `$entity` is
+// the tint: 'track' for the queue count, 'album' for a release count.
+// ---------------------------------------------------------------------------
+@mixin mem-count-chip($entity) {
+  @include mem-entity-tint($entity);
+  border: 2px solid $mem-line;
+  border-radius: $candy-radius-pill;
+  padding: 0 0.45rem;
+  font-size: $medium;
+  font-weight: 700;
+  // Digits must not re-flow the chip's width as the number grows.
+  font-variant-numeric: tabular-nums;
+}
+
+// ---------------------------------------------------------------------------
+// A tab group is ONE segmented plate.
+//
+// Panel fill, ink frame, offset shadow, one ink divider between segments, and
+// yellow for the active one — the design's "on" signal, same as the pager
+// chips. No underline: the plate is its own divider (#422, no 1px hairlines in
+// a 3px ink world). No hatch (#476): the tabs are nothing but their words, so
+// a texture would only run behind the labels.
+//
+// Shared rather than copied. It was written for the charts header (#456) and
+// the discography page had missed the memphis round entirely — still on `$gray`
+// text and a 1px line. Two tab groups looking alike by coincidence is how the
+// devices button drifted across three hosts (#499).
+//
+// `$item` is the element the labels are: buttons in the charts header, router
+// links on the discography page.
+// ---------------------------------------------------------------------------
+@mixin mem-seg-tabs($item: "button") {
+  display: inline-flex;
+  background-color: $mem-panel;
+  border: $candy-border;
+  border-radius: $candy-radius-sm;
+  box-shadow: 3px 3px 0 var(--mem-shadow);
+  overflow: hidden;
+
+  #{$item} {
+    // 44px interior — the chrome touch-target floor (styling.md).
+    display: inline-flex;
+    align-items: center;
+    height: $bar-control;
+    padding: 0 $medium;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: $mem-content-text;
+    background-color: transparent;
+    border: none;
+    border-right: $candy-border;
+    border-radius: 0;
+    cursor: pointer;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    // The pointer flip is a CUT (styling.md): fill and text swap in one frame,
+    // --mem-hover-text travels with the fill.
+    //
+    // `:not(.active)` rather than an `&.active:hover` override further down.
+    // Both keep the active tab yellow under the pointer, but only this one says
+    // so — and the hover census (hoverToken.test.ts) is right to stop the
+    // other: a `:hover` rule painting `$mem-yellow` reads as "hover has its own
+    // accent", which is the exact drift that test exists to prevent. The state
+    // that does not respond to the pointer should not be written as a hover
+    // state at all.
+    &:not(.active):hover {
+      background-color: var(--mem-hover);
+      color: var(--mem-hover-text);
+    }
+
+    &.active {
+      background-color: $mem-yellow;
+      color: $mem-ink;
+    }
+  }
+
+  @include allPhones {
+    #{$item} {
+      padding: 0 0.55rem;
+      font-size: 0.8rem;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE SCROLLER A SEGMENTED PLATE SITS IN.
+//
+// A tab group cannot shrink: its width is its words, and they do not wrap
+// (`white-space: nowrap`, and a wrapped segment would break the plate's row of
+// dividers anyway). On a phone that is 308px of min-content for four labels —
+// measured on the charts header at 320px, where it pushed its whole grid item
+// 50px past the track and cut the tabs, the stat tile and the captions off at
+// the screen edge (#558).
+//
+// So the PLATE keeps its size and something else moves: an outer box that
+// scrolls. The plate must not be the scroll port itself — its offset shadow
+// falls outside its border box, and a scroll port clips at its padding edge.
+//
+// Three hosts, and the drift between them is why this is a mixin: the
+// discography tabs (`.generictabs-scroll`, where it was written), the charts
+// header (`.seg-scroll`, which had nothing at all until #558) and the search
+// page's filter chips (`.tabheaders`, which had a third hand-rolled copy that
+// had already grown its own numbers). Registered in
+// `chartsNarrowViewport.test.ts`; a fourth copy is what that census stops.
+// ---------------------------------------------------------------------------
+
+// The default overhang: the offset shadow, and nothing else. A caller whose
+// content sticks out further says so — see `$reserve` below. It is a token
+// rather than a literal because the charts header has to CANCEL it (a
+// `space-between` row must end where its neighbours end), and a compensation
+// written as its own `-4px` is a silent coupling to a value it cannot see.
+//
+// No census guards this one: deleting it fails the BUILD, because the
+// compensation reads it (verified — `[sass] Undefined variable`). A compiler
+// error is a better guard than a test, and it is the reason the value lives
+// here rather than being passed around.
+$mem-seg-reserve: 4px !default;
+
+@mixin mem-seg-scroll($reserve: $mem-seg-reserve) {
+  max-width: 100%;
+  // Room for the offset shadow on BOTH sides it falls on. A box-shadow is
+  // overflow, not layout — it does not grow scrollWidth — so at the end of the
+  // scroll the right-hand shadow was cut off against the scroll port.
+  //
+  // `$reserve` is a knob because the shadow is not the only thing that can
+  // stick out: the search page's filter chips grow under the pointer (a 1.04
+  // scale on top of the 4px offset), so their row books 8px. A caller states
+  // what its content overhangs by; it does not restate the rest of this box.
+  padding-bottom: $reserve;
+  padding-right: $reserve;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  // A flex item does not shrink below its min-content unless it is told to,
+  // and this box exists precisely to be narrower than what is inside it.
+  min-width: 0;
+  @include hideScrollbars;
+}
+
+// ---------------------------------------------------------------------------
+// The active marker for a list whose rows are already coloured.
+//
+// Once every navigation row carries its own fill, "selected" can no longer BE a
+// fill — so it is the ink zigzag band the now-playing track row wears on its
+// leading edge (mem-now-playing-row). One vocabulary for "this is the one",
+// in a form that survives on any of the six accent colours: the contrast table
+// further up rules out every coloured marker on yellow.
+//
+// Drawn with `border-left` + a background layer rather than a pseudo-element:
+// both of those are spoken for by the drag/drop markers on these rows.
+// ---------------------------------------------------------------------------
+@mixin mem-row-marker($w: 9px) {
+  padding-left: $w;
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>'),
+    var(--mem-hatch-accent);
+  background-repeat: repeat-y, repeat;
+  background-position: left top, left top;
+  background-size: 9px 14px, 38px 38px;
+}
+
+// ---------------------------------------------------------------------------
+// Memphis patterns
+// ---------------------------------------------------------------------------
+
+// Grid-paper ground — THE signature surface. Apply to the page ground only
+// (one owner per screen region; nested grids drift out of alignment).
+// Theme-aware grid lines; $doodles layers the scattered memphis shapes
+// (assets/images/memphis-doodles.svg — copied from the 90s reference art)
+// over the grid. Both stay fixed while the content scrolls past (backgrounds
+// on the overflow container don't scroll), like paper under the UI.
+// Cell + line weight follow the reference art's proportions (cell ~47px with a
+// bold ~2px line on the 750px-wide reference).
+//
+// The doodle layer is placed at its natural pixel size, never stretched: scaling
+// it to the viewport would shrink the shapes on a laptop and blow them up on a
+// wide screen, and the grid underneath keeps its own fixed cell either way. So
+// the artwork's canvas is what decides when it repeats — it is 3840x1600, which
+// covers an ultrawide (3440x1440 leaves ~3150x1370 of ground) in one copy. Keep
+// these two numbers equal to the SVG's width/height; a smaller value here crops
+// the artwork, a larger one stretches it.
+@mixin mem-grid($size: 46px, $w: 2px, $doodles: true) {
+  background-color: $mem-ground;
+  @if $doodles {
+    background-image: url("@/assets/images/memphis-doodles.svg"),
+      linear-gradient(var(--mem-grid-line) $w, transparent $w),
+      linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
+    background-size: 3840px 1600px, $size $size, $size $size;
+  } @else {
+    background-image: linear-gradient(var(--mem-grid-line) $w, transparent $w),
+      linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
+    background-size: $size $size;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// HATCH — the texture that means "this can be pressed".
+//
+// THE RULE: every pressable SURFACE wears it — buttons, the sidebar's row
+// plates, cards. Anything that only looks like a plate (a heading sticker, the
+// sort banner's labels) stays smooth, and that difference is what tells them
+// apart. It replaces the older reading of the texture ("primary/active"), which
+// could not be learned from the screen: the hierarchy is already carried by the
+// FILL (teal = play, yellow = on, blush = selected).
+//
+// Two conditions, both load-bearing:
+//
+//   1. It needs a surface. `btn-quiet` is transparent at rest and therefore
+//      stays bare; it may take the texture together with its hover plate.
+//   2. The stroke colour answers to the fill underneath — `$on: surface` for a
+//      theme-aware panel, `$on: accent` for a static blush/teal/yellow fill.
+//      Getting this wrong is invisible in light and blank in dark.
+//
+// Painted as a BACKGROUND LAYER, not a ::before overlay. The rows this lands on
+// spend both pseudo-elements on their drag/drop markers already, and the
+// now-playing row spends both on texture and marker (styling.md) — an overlay
+// would have collided with the one state nobody looks at while editing CSS.
+// Because of that the opacity is baked into the sprite as `stroke-opacity`; see
+// the two tokens in Global/index.scss.
+//
+// Set `background-color` alongside it, never the `background` shorthand — the
+// shorthand wipes the image layer.
+//
+// Tile size follows the size of the thing: 28px on a 44px button, 38px on a row
+// that is six times as wide. The button tile on a row reads as a textile print
+// (measured against the 260x44 row in the mockup round for #378).
+// ---------------------------------------------------------------------------
+@mixin mem-hatch($size: 38px, $on: surface) {
+  background-image: if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
+  background-size: $size $size;
+}
+
+// ---------------------------------------------------------------------------
+// HATCH AS A RING — texture in the padding, smooth ground under the label.
+//
+// Running the texture across the whole plate puts strokes right through the
+// text band; at 2x they visibly touch the letters. The now-playing row solved
+// the same problem with a mask, but a mask applies to the WHOLE element, and
+// these rows have no pseudo-element left (drag markers). So: a cover layer in
+// the row's own fill, clipped to the CONTENT box, sits on top of the texture —
+// what stays visible is exactly the padding, on all four sides.
+//
+// The fill is read from `--row-fill`, never passed in, and that is the point:
+// cover and background have to be the same colour, so they must have ONE
+// source. A row that sets `background-color` by hand next to this mixin paints
+// a cover in the wrong colour and gets a visible rectangle around its label.
+//
+// `background-clip` takes one value per layer, and the background COLOUR uses
+// the last one — which is why `border-box` has to come second, or the fill
+// would stop at the padding edge and the border would show the page ground.
+//
+// The ring is only as wide as the padding: a row whose padding subtracts the
+// border width down to ~3px has no visible ring. Callers give it real padding.
+// ---------------------------------------------------------------------------
+@mixin mem-hatch-ring($size: 38px, $on: surface) {
+  background-color: var(--row-fill);
+  background-image: linear-gradient(var(--row-fill), var(--row-fill)),
+    if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
+  background-clip: content-box, border-box;
+  background-repeat: no-repeat, repeat;
+  background-size: auto, $size $size;
+}
+
+// ---------------------------------------------------------------------------
+// KEEPING THE TEXTURE OFF THE TEXT — the second half of the ring idea.
+//
+// Clipping the cover to the content box makes the ring exactly as wide as the
+// padding, and on the right that is a few pixels: the label's box stretches to
+// the end of the row whether the word is "Funk" or a full album title, so the
+// space next to a short name was covered as well. Reported as "too much of the
+// hatch is cut away on the right".
+//
+// So the cover moves from the ROW onto its CONTENT: the label carries it and is
+// only as wide as its own text (`flex: 0 1 auto`), and everything beside it
+// stays texture. Same colour source as always — `--row-fill`, never restated.
+//
+// The padding is the buffer that keeps the letters off the strokes; without it
+// the text ends exactly where the texture begins and reads as cramped.
+// ---------------------------------------------------------------------------
+@mixin mem-hatch-clear($buffer: 26px) {
+  flex: 0 1 auto;
+  min-width: 0;
+  background-color: var(--row-fill);
+  border-radius: 7px;
+  padding: 2px $buffer 2px 4px;
+}
+
+// Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
+// combine with a background-color on the same element (use background-color,
+// not the background shorthand, or the image layer gets wiped).
+@mixin mem-sprinkle($size: 46px) {
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+  background-size: $size $size;
+}
+
+// ---------------------------------------------------------------------------
+// The "this row is playing" state — ONE decision, read by
+// `.songlist-item.current` (SongItem.vue, every song list).
+//
+// It became a mixin because there used to be a SECOND row with a word-for-word
+// copy of it (`.track-item.currentInQueue`, the queue panel), so the same
+// ornament had to be edited twice. That row is gone (#416); the rule stays,
+// and `nowPlayingRow.test.ts` holds any future row to it.
+//
+// The mark is the design's bunting zigzag, but on the LEADING edge instead of
+// the bottom one. The bottom strip sat INSIDE the row (`overflow: hidden`), so
+// it ate 9px of the row's bottom air and ran right under the artist line, and
+// it repeated the frame's ink a second time on the one edge the frame already
+// owns. It also said nothing the row wasn't already saying — the meter glyph
+// and the yellow fill mark the state; the eye scans a list down its left edge,
+// which is where a marker belongs.
+//
+// Ink, not an accent: on `$mem-yellow` teal measures 1.24:1 and coral 1.98:1
+// against WCAG 1.4.11's 3:1 for graphical objects, ink 9.64:1 (see
+// .claude/rules/styling.md). The colour is baked into the asset for the same
+// reason the favourite marker's outline is: it IS the contrast edge, in both
+// themes, whatever the host pins as `color`.
+//
+// The teeth are a shape, and that matters — a straight ink bar in this spot
+// simply reads as a thicker left border, because it abuts the frame.
+//
+// The fill also wears the sprinkle — the same texture `mem-transport-aux-on`
+// puts on shuffle/repeat when they are ON, so "this one is active" is one
+// vocabulary instead of a per-widget invention. It is MASKED to the top and
+// bottom edges: run across the whole row and it lands right in the text band,
+// where it costs the muted columns (album, date, duration) their legibility
+// first. Texture at the edges, text in a clean band.
+//
+// Both pseudo-elements belong to this state (texture + marker) — a host that
+// needs its own decoration has to find another mechanism. The now-removed
+// queue row drew its drop marker as an inset box-shadow for exactly this
+// reason; that is the pattern to copy, not `::before`.
+// ---------------------------------------------------------------------------
+@mixin mem-now-playing-row($radius: $candy-radius-sm) {
+  position: relative;
+  overflow: hidden; // clip the teeth to the rounded corners
+  @include candy-box($mem-yellow, $radius);
+
+  // The row's own content sits ABOVE the texture: a positioned pseudo-element
+  // paints over static in-flow children, so without this the sprinkle would
+  // lie on top of the title.
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.34;
+    @include mem-sprinkle(42px);
+    // 13px of texture, faded out by 21px — measured against the 4.5rem song row
+    // and the 4rem queue row, so both keep a clean band around their two lines.
+    $band: 13px;
+    $fade: 21px;
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      #000 0 #{$band},
+      transparent #{$fade} calc(100% - #{$fade}),
+      #000 calc(100% - #{$band})
+    );
+    mask-image: linear-gradient(
+      180deg,
+      #000 0 #{$band},
+      transparent #{$fade} calc(100% - #{$fade}),
+      #000 calc(100% - #{$band})
+    );
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    pointer-events: none;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><path d="M0 0 H3 L10 7 L3 14 H0 Z" fill="%2317171A"/></svg>');
+    background-size: 10px 14px;
+    background-repeat: repeat-y;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE COLOUR GUIDE BAND — the leading edge of a track row.
+//
+// A cassette inlay's spine. TWO accents in alternation (was five): warm coral
+// against cool teal, the widest pair the palette has, so two neighbouring rows
+// tell apart even when both are pale. Five full-strength accents said nothing —
+// colour 3 only ever meant "third row in the cycle". Now the hue separates
+// neighbours and the STRENGTH carries the meaning: `--band-fade` (set inline
+// from trackBandFade) runs 0.25 → 1 over the list, so the band reads as a
+// how-far-am-I gauge mid-scroll. It replaces the LEFT half of the row's ink
+// side-stripes; the right one stays, and the frame is still closed top/bottom
+// by the .is-first/.is-last caps.
+//
+// ⚠️ The cycle is driven by a CLASS the component computes from the row index,
+// never by `:nth-child`. Track lists render through `vue-virtual-scroller`,
+// which RECYCLES its row elements — DOM order there is scroll state, not list
+// order, so an nth-child rule would repaint every row on every scroll tick and
+// show a different colour for the same track each time.
+//
+// The band is a background LAYER, not a pseudo-element: `::before` and
+// `::after` both belong to the now-playing state (texture + zigzag marker), and
+// a row that is playing still needs its band.
+// ---------------------------------------------------------------------------
+$mem-band-colours: $mem-coral, $mem-teal;
+
+/// How much of the row's band hue tints its background — the "zebra" that
+/// separates rows in the flat, retelling the band's two-colour story instead
+/// of introducing a third, grey layer. Faint on purpose: text sits on it.
+$mem-band-tint: 6%;
+
+/// Declares `--band-hue` for each `band-N` class and derives `--band` from it
+/// at the row's fade strength. Applied to the row selector.
+@mixin mem-band-cycle {
+  @for $i from 1 through length($mem-band-colours) {
+    &.band-#{$i - 1} {
+      --band-hue: #{nth($mem-band-colours, $i)};
+    }
+  }
+  // Fallback hue = ink line, fallback fade = 1: a row without a band class or
+  // fade value keeps the old full-strength edge instead of losing it.
+  --band: color-mix(
+    in srgb,
+    var(--band-hue, #{$mem-line}) calc(var(--band-fade, 1) * 100%),
+    transparent
+  );
+}
+
+/// The row's zebra fill: the band hue folded INTO the row's translucent plate
+/// (`--mem-veil`, set in app-grid.scss), never instead of it. Mixing against
+/// `transparent` would win the bundle-order race against app-grid's plain
+/// veil plate and drop the plate entirely — rows would sit bare on the
+/// doodled ground, which is the exact readability failure the plate exists
+/// to prevent. Rows without a band class fold the veil into itself: a no-op,
+/// not a wrong colour.
+@mixin mem-band-tint {
+  background-color: color-mix(in srgb, var(--band-hue, var(--mem-veil)) $mem-band-tint, var(--mem-veil));
+}
+
+// DEPRECATED (candy design): diagonal candy stripes. Superseded by
+// mem-now-playing-row/mem-sprinkle — kept only until the last usage is migrated.
+@mixin candy-stripes($a: $candy-pink-deep, $b: $candy-white, $w: 10px) {
+  background: repeating-linear-gradient(-45deg, $a 0 $w, $b $w $w * 2);
+}
+
+// ---------------------------------------------------------------------------
+// ENTITY COLOURS — one colour per THING, for good.
+//
+// The palette carries three separate jobs, and the whole point of this block is
+// that they never get mixed up:
+//
+//   NEUTRAL  panel · ground · ink · muted · soft — structure, no meaning
+//   STATE    (full strength) teal = playing, yellow = on, blush = selected
+//   ENTITY   (pastel) album · artist · track · playlist · folder · favourites
+//
+// State and entity share the palette but use two REGISTERS: saturated and small
+// against pale and flat. That is why the teal play disc does not collide with
+// the teal favourites tint — the sidebar has worked this way since #384, this
+// block only extends it from places to things.
+//
+// The assignment follows three rules, in order:
+//   1. Whoever already has a colour in the navigation keeps it (playlist =
+//      pink, favourites = teal) — otherwise the same thing would be two
+//      colours in two places.
+//   2. Album · artist · track have to be maximally distinct FROM EACH OTHER,
+//      because they stand side by side in the same row. So: lavender (cool),
+//      coral (warm), yellow (neutral-light).
+//   3. The most frequent and smallest entry gets the calmest tone (track).
+//
+// Measured, not guessed: the closest pair in this set is artist/playlist at
+// ΔE 17 (CIE76). The rejected draft had folder on green, which sat at ΔE 8
+// against the teal favourites — below the ~15 where two colours stop being
+// tellable apart, and it was spotted on screen before it was measured.
+//
+// The tint is STATIC (mem-pastel mixes toward paper), so anything on top of it
+// is static ink in both themes — same rule as the sidebar's row plates.
+//
+// ⚠️ There is a THIRD use of the same palette, and it is neither state nor
+// entity: `$mem-band-colours` cycles five accents down the song list as
+// decoration (the cassette-inlay leading edge). It stays legible next to this
+// block because it is full strength, a 4px stripe, and lives inside a track
+// list — while an entity tint is pale, flat, and lives on a tile. Anyone adding
+// a fourth use of the palette owes the same three-way separation.
+// ---------------------------------------------------------------------------
+$mem-entities: (
+  "album": $mem-lavender,
+  "artist": $mem-coral,
+  "track": $mem-yellow,
+  "playlist": $mem-pink,
+  "folder": $mem-blue,
+  "favorite": $mem-teal,
+);
+
+@mixin mem-entity-tint($entity) {
+  background-color: mem-pastel(map-get($mem-entities, $entity));
+  color: $mem-ink;
+}
+
+// Emits `--ent-<name>` for every entity. Hosts that cannot switch on a class
+// (a row caption whose colour depends on its contents) read the variable.
+@mixin mem-entity-vars {
+  @each $name, $colour in $mem-entities {
+    --ent-#{$name}: #{mem-pastel($colour)};
+  }
+}

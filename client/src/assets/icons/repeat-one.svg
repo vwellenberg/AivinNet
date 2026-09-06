@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Repeat, with a "1" floating inside the loop. Same loop geometry as
+         repeat.svg so the two states don't jump when the mode is cycled. -->
+    <path d="M17 3.5 20.5 7 17 10.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M20.5 7H7.5A3.5 3.5 0 0 0 4 10.5V12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M7 20.5 3.5 17 7 13.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.5 17h13a3.5 3.5 0 0 0 3.5-3.5V12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M10.9 11.1 12.4 10v4.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

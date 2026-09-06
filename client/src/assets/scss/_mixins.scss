@@ -1,0 +1,143 @@
+@mixin ximage {
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+// media query mixins
+@mixin smallestPhones {
+  @media only screen and (max-width: 320px) {
+    @content;
+  }
+}
+
+@mixin smallerPhones {
+  @media only screen and (max-width: 360px) {
+    @content;
+  }
+}
+
+@mixin smallPhones {
+  @media only screen and (max-width: 420px) {
+    @content;
+  }
+}
+
+/* This query is "synced" with content-width.ts values */
+@mixin mediumPhones {
+  @media only screen and (max-width: 460px) {
+    @content;
+  }
+}
+
+/* This query is "synced" with content-width.ts values */
+@mixin largePhones {
+  @media only screen and (max-width: 660px) {
+    @content;
+  }
+}
+
+/* This query is "synced" with content-width.ts and index.ts values */
+@mixin allPhones {
+  @media only screen and (max-width: 900px) {
+    @content;
+  }
+}
+
+/* A landscape phone — the one breakpoint in this file that watches the HEIGHT.
+   Synced with `isShort` in content-width.ts.
+
+   Every other query here is a max-width, and a phone held sideways is wide and
+   short: the width put it in the 660-900px "large phone" band while nothing
+   looked at the height at all. Measured on an 844x390 viewport, the fixed
+   chrome (title bar 86 + player bar 163) left 133px of content — 34% of the
+   screen, against 69% in portrait.
+
+   `orientation: landscape` belongs in the query, not just the height: an
+   upright tablet also lands in that width band and is not short. */
+@mixin shortViewport {
+  @media only screen and (max-height: 500px) and (orientation: landscape) {
+    @content;
+  }
+}
+
+@mixin for-desktop-down {
+  @media only screen and (max-width: 1600px) {
+    @content;
+  }
+}
+
+// hide scrollbar
+@mixin hideScrollbars {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+
+  &::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+// Floating green play button shared by all cover cards (Album, Playlist,
+// Track, Favorites, Folder, Artist). Single source of truth for placement
+// + hover reveal so it can't drift per card. Include inside a card's root
+// selector — the hover reveal binds to that card. See issue #44.
+//
+// $placement:
+//   right (default) — Spotify-style bottom-right corner placement
+//   center          — bottom-centre, used for round images (ArtistCard)
+@mixin card-play-btn($placement: right) {
+  .play-btn {
+    position: absolute;
+    width: 3.25rem;
+    bottom: 0.75rem;
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.15s ease;
+
+    @if $placement == center {
+      left: calc(50% - 1.625rem); // half of width
+    } @else {
+      right: 0.75rem;
+    }
+  }
+
+  &:hover .play-btn {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  // Touch devices can't hover, so the reveal-on-hover affordance above is
+  // unreachable there. Keep the play button visible on those devices.
+  @media (hover: none) {
+    .play-btn {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The player bar overlays the bottom of EVERY scroll container (#acontent
+// spans the bar's grid row so the memphis ground runs behind it), so each one
+// has to reserve the bar's height itself — see styling.md and $bottombarheight.
+//
+// A mixin rather than only the `.content-page` class: that class also brings a
+// scrollbar gutter and an alt-layout top padding, and the search scroller wants
+// the reserve WITHOUT those (its tab-chip row sits outside the scroller, so a
+// 12px gutter puts the two on different left edges — measured). Writing the
+// three lines out at the second call site is what left this page 18px short in
+// the first place, so they live here.
+// ---------------------------------------------------------------------------
+@mixin player-bar-reserve($extra: $padbottom) {
+  padding-bottom: calc($extra + $bottombarheight);
+
+  @include allPhones {
+    padding-bottom: calc($extra + $bottombarheight-phone);
+  }
+
+  // The reserve follows the bar: a landscape phone gets its 92px back in the
+  // one viewport where height is scarce.
+  @include shortViewport {
+    padding-bottom: calc($extra + $bottombarheight-short);
+  }
+}

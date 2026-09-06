@@ -1,0 +1,29 @@
+{
+  "green": "#1D9E75",
+  "red": "#FF284E",
+  "memphis": {
+    "ink": "#17171A",
+    "paper": "#F4F2ED",
+    "panel": "#FFFFFF",
+    "teal": "#2FBFA3",
+    "yellow": "#F5B23C",
+    "coral": "#E2574C",
+    "lavender": "#8B8BEB",
+    "pink": "#F2799F",
+    "blue": "#3B82D9",
+    "blush": "#F5C6CE",
+    "blushSoft": "#FBE3E7",
+    "textMuted": "#6D6A62"
+  },
+  "memphisDark": {
+    "ground": "#101012",
+    "panel": "#141416",
+    "soft": "#222226",
+    "line": "#F4F2ED",
+    "text": "#F4F2ED",
+    "textMuted": "#B9B9C0",
+    "contentText": "#FFFFFF",
+    "contentMuted": "#C6C6CE",
+    "gridLine": "rgba(255, 255, 255, 0.18)"
+  }
+}

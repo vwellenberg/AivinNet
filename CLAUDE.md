@@ -37,7 +37,7 @@ Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
 | | |
 |---|---|
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)) |
-| **Client-Repo** | `vwellenberg/AivinNet-Client` — dort liegen auch **alle Issues**, auch die Backend-Themen |
+| **Client** | `client/` in **diesem** Repo (Vue 3 + Vite, eigenes `yarn`). Bis 2026-09-06 ein eigenes Repo `vwellenberg/AivinNet-Client` — dort liegen die alten PR-Nummern und die Historie vor dem Import |
 | **Python / Paketmanager** | >=3.11, **uv** (nicht pip) |
 | **Standard-Port** | 1970, systemd-Unit **`aivinnet`** (nicht `subspaceradio`) |
 | **Eigenes Deployment** | Pfade, Zugang und Server-Eigenheiten: `MAINTAINER.local.md` (gitignored) |
@@ -282,8 +282,8 @@ Anleitung steht in der CLAUDE.md des Clients.
 
 ## Nächste Schritte
 
-Der Backlog lebt **ausschließlich** in den GitHub-Issues — und zwar im **Client**-Repo, auch für
-Backend-Themen: `gh issue list --repo vwellenberg/AivinNet-Client`. Keine zweite Liste im Repo anlegen;
+Der Backlog lebt **ausschließlich** in den GitHub-Issues dieses Repos:
+`gh issue list --repo vwellenberg/AivinNet`. Keine zweite Liste im Repo anlegen;
 die frühere `ROADMAP.md` ist genau daran gescheitert (sie führte „Manuelle Metadaten-Bearbeitung" noch als
 offen, während das Feature längst live war).
 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, filled state. Same silhouette as bookmark.svg so the toggle
+         changes weight, not shape. -->
+    <path d="M6.4 5a1.9 1.9 0 0 1 1.9-1.9h7.4A1.9 1.9 0 0 1 17.6 5v15.1a.8.8 0 0 1-1.29.63L12 17.3l-4.31 3.43A.8.8 0 0 1 6.4 20.1Z" fill="currentColor" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

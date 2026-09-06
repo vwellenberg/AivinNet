@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: an axis and three bars, heavier than the hairlines they
+         replace so they survive at 18px. -->
+    <path d="M3.6 3.4v17h17" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M8.6 16.8v-4.4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+    <path d="M13.4 16.8V7.6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+    <path d="M18.2 16.8v-6.8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+</svg>

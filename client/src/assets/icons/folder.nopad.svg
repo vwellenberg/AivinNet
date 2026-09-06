@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set. The "nopad" variant is the same glyph pushed out to the box
+         edges for tiles that crop their own padding (Stats). -->
+    <path d="M1.6 5.6a2.1 2.1 0 0 1 2.1-2.1h4a2.1 2.1 0 0 1 1.6.75l1.5 1.75h9.5a2.1 2.1 0 0 1 2.1 2.1v10.3a2.1 2.1 0 0 1-2.1 2.1H3.7a2.1 2.1 0 0 1-2.1-2.1Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M1.6 10h20.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,215 @@
+// colors
+
+// Candy design tokens first — the legacy palette below is remapped onto them.
+@import "./candy";
+
+// AivinNet brand colors — single source of truth: src/brand-colors.json,
+// injected by vite.config (css.preprocessorOptions.scss.additionalData) so the
+// injected values win. The literals below are an inert `!default` fallback that
+// only applies if the SCSS is ever compiled without that injection.
+$brand-red: #FF284E !default;
+$brand-green: #1D9E75 !default;
+$brand-purple: #7F77DD;
+
+// ---------------------------------------------------------------------------
+// CANDY REMAP: the historical dark-theme palette is re-pointed at the candy
+// tokens (_candy.scss) so the hundreds of existing usages flip to the light
+// design in one place. The variable NAMES are legacy — treat them as
+// deprecated aliases and use $candy-* directly in new/touched code.
+// ---------------------------------------------------------------------------
+$highlight-blue: $candy-black;
+$darkestblue: $candy-pink-deep; // global hover accent (was blue)
+$bbb: $candy-white; //bottom controls background
+$theme: $candy-white;
+
+// sizes
+$small: 0.5rem;
+$smaller: 0.25rem;
+$smallest: 0.15rem;
+$medium: 0.75rem;
+$large: 1.5rem;
+$larger: 2rem;
+
+// ---------------------------------------------------------------------------
+// LEFT SIDEBAR ROWS — one owner for the nav items and the library entries.
+//
+// They are the same thing (a hoverable, selectable row in the same column) and
+// had drifted into two looks: the nav wore a full pill from the generic
+// `.circular` utility, the library wore an almost-square 4px. Neither matched
+// the app's own row radius, which is what `candy-row-base` has always
+// defaulted to.
+// ---------------------------------------------------------------------------
+$sidebar-row-radius: $candy-radius-sm;
+$sidebar-row-font: 0.9375rem; // 15px — a step up from the old 14px
+
+// ---------------------------------------------------------------------------
+// DETAIL-PAGE HEADER — one owner for the album and playlist headers.
+//
+// They are the same object (cover + type label + title + meta line + action
+// row) and had drifted into two: 44px/700 title next to 60px/1000, 14px/700
+// meta next to 12.8px/900, and a text column that started 4px further right on
+// one page than the other. Measured, not estimated.
+//
+// The album's scale won. 1000 is a variable-font extreme used nowhere else in
+// the app, and a 60px title wraps to two lines on titles the 44px one still
+// fits — which is why the playlist header needed a `balanceText` hint in the
+// first place.
+//
+// 44px -> 34px with the plate anatomy (Global/detail-head.scss). The head is a
+// panel now, not 18rem of open ground, and the title's line count decides the
+// whole head's height: at 2.75rem the plate measured 289px and stretched its
+// square media cell into a 176x283 portrait crop. At 2.1rem the title fits one
+// ellipsed line and the cell stays close to square (measured 226px / 176x220).
+// ---------------------------------------------------------------------------
+$detail-title-size: 2.1rem;
+$detail-title-size-phone: 1.5rem;
+$detail-title-weight: 700;
+$detail-meta-size: 14px;
+$detail-meta-weight: 700;
+
+$banner-height: 18rem;
+$song-item-height: 4.5rem;
+
+// --- Track-row geometry (the "inlay" list) ----------------------------------
+// The index cell holds a bordered circle around the track number, so it is
+// wider than the bare numeral it used to hold. ONE source: the rows, the three
+// responsive grids in app-grid.scss and the column caption all read these, and
+// a caption that drifts from its column is exactly what $songlist-columns-*
+// was introduced to prevent.
+$songlist-index-col: 2.4rem;
+// Left inset of a row. The colour band lives inside it (see $songlist-band-w),
+// so the content has to start clear of the band, not on top of it.
+$songlist-lead: 1.1rem;
+// Width of the colour guide band on the leading edge. It replaces the left
+// half of the row's ink side-stripes.
+$songlist-band-w: 8px;
+// The ink circle around the track number. Deliberately NOT one of the three
+// control sizes in _buttons.scss: it is a printed badge, not something you can
+// press, and sizing it as a control would put a 28px tap target on a glyph that
+// takes no clicks.
+$index-badge: 1.7rem;
+
+// Track-row grid with the "Date added" column (playlist page, wide layouts):
+// index | title | album | date added | duration. Shared by the rows
+// (SongItem .with-date) and the column-caption header (AfterHeader .with-date)
+// so the caption can never drift from its column.
+$songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem 10rem;
+$content-padding-bottom: 2rem;
+
+// Legacy "apple human design guideline" names, remapped onto candy roles:
+// deepest-panel bg → white panel, app text ($white!) → black text, the gray
+// ramp (bg shades → hover/chip tints) → pink tints, muted grays → muted text.
+$black: $candy-white; // was the deepest panel background
+$white: $candy-text; // was the app-wide TEXT colour (87% white)
+
+$gray: $candy-pink-soft; // hover/panel tint
+$gray1: $candy-text-muted; // muted text
+$gray2: $candy-text-muted; // muted text/icons
+$gray3: $candy-pink-soft; // chip/pill fills
+$gray4: $candy-pink; // mid surfaces (buttons, tracks, placeholders)
+$gray5: $candy-pink-soft; // elevated surfaces, active states
+$body: $candy-pink; // page background
+
+$red: $candy-black; // alarm accents are black in candy (no red)
+$blue: $candy-lavender;
+$darkblue: $candy-pink-deep;
+$green: $candy-black; // trend-up etc. — monochrome in candy
+$yellow: $candy-text-muted;
+$orange: $candy-text-muted;
+$pink: $candy-pink-deep;
+$purple: $candy-lavender;
+$brown: $candy-pink-soft;
+$indigo: $candy-lavender;
+$teal: $candy-lavender;
+$lightbrown: $candy-lavender;
+$bars: $candy-white;
+
+$primary: $candy-pink;
+$accent: $candy-text-muted;
+$secondary: $candy-pink-soft;
+$danger: $candy-black;
+$track-hover: $candy-white;
+$context: $candy-white; // context menus are white candy panels
+$playlist-card-bg: $candy-pink;
+
+// SVG COLORS
+$default: $accent;
+$side-nav-svg: $candy-black;
+
+$overshoot: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+$separator: rgba(17, 17, 17, 0.25);
+
+$margright: 0;
+$padbottom: 4rem;
+$maxwidth: 1438px;
+$navheight: 4.5rem;
+
+// Width of our own scrollbar (Global/scrollbars.scss) — and therefore the
+// width of the gutter the content scrollers reserve on BOTH edges
+// (`scrollbar-gutter: stable both-edges`). The RIGHT gutter holds the real
+// scrollbar widget, which Chrome paints outside the scrollport: nothing drawn
+// as scroll CONTENT can cover those pixels, which is why the cover veil is a
+// background of the scroller itself (see `.scroller` in Global/app-grid.scss).
+// The two are tied together by scrollbarGutter.test.ts.
+$scrollbar-w: 12px;
+
+// The settings modal's height, FIXED rather than grown from its content.
+// The panes differ a lot in length (Profile is a handful of fields, Appearance
+// is nine setting plates), and the modal is centred — so a content-sized box
+// moved all four of its edges on every tab switch: the nav list on the left and
+// the close button in the corner landed somewhere else each time, which reads as
+// the window jumping. With one height the frame stands still and the pane
+// scrolls inside it (`.settingsmodalcontent` already does).
+//
+// Measured before the fix at 1440x900: Appearance stood at y=32 with h=836 (long
+// enough to hit the max-height cap), every other pane at y=113 with h=674 — the
+// close button moved 81px between two clicks. 48rem clears the tallest short pane
+// (the nav list needs 668px, so it does not have to scroll on a normal window)
+// and gives the long panes about 100px more room than the old cap did.
+$settings-modal-h: 48rem;
+
+// Height of the player bar's grid row. `#acontent` spans rows 2–4 on purpose
+// (the memphis ground has to run behind the bar, or the page would end in a
+// seam), so the bar covers the bottom of every scroll container and each of
+// them has to reserve this much room for its last row. It was written out as a
+// bare `5.125rem` in three places and reserved in none of the virtualised
+// pages, which is how the last track of a playlist ended up under the bar.
+$bottombarheight: 5.125rem;
+// The phone bar is taller: it carries the navigation as well as the transport.
+$bottombarheight-phone: 9.5rem;
+// A landscape phone puts all three of them — track, transport, navigation — in
+// ONE row (see the `shortViewport` mixin). The 9.5rem stack was 42% of a 390px
+// screen turned over, and `#acontent` still spans rows 2–4 behind it, so this
+// value has to reach every scroller's reserve as well or the last row hides.
+$bottombarheight-short: 3.75rem;
+// Same idea for the title bar: the pill does not need 4.5rem of row when the
+// whole viewport is 390.
+$navheight-short: 3.75rem;
+$cardwidth: 12rem;
+// One spacing for EVERY cover-card grid: the Home rows (.recentitems), the
+// virtualised album/artist list and the search card pages (.cardlistrow) and
+// the discography grid. The tiles carry no surface of their own since the
+// plate anatomy (Global/cards.scss) — a gapless grid stands the covers
+// edge-to-edge, which is exactly how the album list looked while the Home
+// rows next door breathed. The column gap is mirrored as CARD_GAP in
+// utils/cardColumns.ts; the pair is tied together by cardGridGap.test.ts.
+$card-row-gap: 2.5rem;
+$card-col-gap: 2rem;
+$maxpadleft: 5rem;
+
+$alt_layout_pad: max(2rem, calc((100% - 1600px) / 2));
+
+$maxpadright: calc(100% - $maxwidth);
+
+$padleft: clamp(2rem, $maxpadright, $maxpadleft);
+
+// 👇 fixed width with content floating to the left.
+// $padright: clamp(
+//   1rem,
+//   max($maxpadright, 5rem),
+//   calc($maxpadright + $maxpadleft)
+// );
+$padright: $padleft;
+
+$margright: calc(0rem - $padright);

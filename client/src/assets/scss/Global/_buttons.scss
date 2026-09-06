@@ -1,0 +1,651 @@
+// ---------------------------------------------------------------------------
+// BUTTON ROLES — the opt-in replacement for the opt-out button base.
+//
+// The problem this exists to kill: `Global/basic.scss` gives EVERY <button> a
+// complete look (2.25rem tall, blush fill, ink border, 2px offset shadow,
+// static ink glyph). Because that default is wrong for most buttons, it is
+// subtracted again in three separate places — a central flat-controls
+// blocklist in another file, ~28 components hand-writing
+// `background: transparent; border: none`, and ~116 `!important`. Nothing tells
+// you which applies; you find out by looking at the screen. That is how a
+// mixin's shadow got silently cancelled from a different file, how the same
+// row-hover ended up half-implemented in two places, and how one bar came to
+// hold four button heights.
+//
+// Here a button declares WHAT IT IS and gets the whole anatomy from one place.
+// Nothing is subtracted anywhere.
+//
+//   .my-button { @include btn-action; }
+//
+// ---------------------------------------------------------------------------
+// THEME TOKENS — read this before touching a colour.
+//
+//   $mem-panel         THEME-AWARE  (white on light, near-black on dark)
+//   $mem-line          THEME-AWARE  border colour (ink on light, paper on dark)
+//   $mem-content-text  THEME-AWARE  the correct glyph colour ON $mem-panel
+//   $mem-ink           STATIC dark
+//   $mem-blush         STATIC light pink
+//   $mem-teal          STATIC teal
+//   $mem-yellow        STATIC yellow
+//
+// $mem-ink is legal ONLY on top of a STATIC fill (blush, teal, yellow), where
+// the background is identical in both themes. On $mem-panel it is dark-on-dark
+// in the dark theme — that is the documented "the pin and download buttons
+// literally disappeared" bug. On a theme-aware fill, use $mem-content-text.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// CHROME GEOMETRY — one owner for the footprint of a bar control.
+//
+// The player bar used to hold four heights (32 / 36 / 40 / 48px) and four glyph
+// sizes (20.8 / 21.6 / 24.8 / 28.8) side by side, because five files each sized
+// their own controls. These two values are what "the bar is uniform" MEANS, so
+// they live in one place and every bar control reads them.
+//
+// The TOP bar repeated that history in its own row and was measured at
+// 48 / 48 / 48 / 36 / 36 px with two shadow depths (4px on the home button,
+// 3px on the theme toggle) and three different press answers. It reads this
+// same value now — one number for the whole chrome, top bar and player bar,
+// which also collapses the top bar's own 36px-desktop / 44px-phone split.
+//
+// 44px is the touch target, and it is the size the most-tapped control in the
+// app should have had all along.
+// ---------------------------------------------------------------------------
+$bar-control: 2.75rem;
+$bar-glyph: 1.5rem;
+// Play/pause is the same BOX as its neighbours — only its glyph is bigger, so
+// the primary reads as primary without breaking the row's rhythm.
+$bar-glyph-play: 1.75rem;
+
+// The third value the bar needs, and the one nobody owned: the space BETWEEN
+// its controls. Measured on the running app, the bar held three — 20px in the
+// transport row, 12px in the track block, and 2px on the right, where lyrics,
+// devices and the speaker sit. Same drift the sizes had before #387, one level
+// out: each group sized its own gaps, and the odd one out is only visible when
+// you put a ruler on it, because a 24px glyph in a 44px box carries 10px of
+// padding of its own — until the button gets a fill and a frame, and then the
+// right-hand three read as one welded block.
+//
+// 20px, i.e. the value the transport row already used: it is the group with
+// the most controls, so it is the rhythm the eye has already learned.
+$bar-gap: 1.25rem;
+// Closer than two neighbours would stand. Two groups want that, for the same
+// reason from opposite ends: the volume slider is not a fourth control but the
+// speaker's other half, and the transport on a phone has to pack five controls
+// into a row that is 328px wide.
+$bar-gap-tight: 0.75rem;
+// The phone row. It is a third value and it needs to be, because the space is
+// genuinely not there: at 360px the row is cover 48 + transport 156 + devices
+// 44 out of 328 usable, and while the player is silent an unmute button joins
+// them — four gaps at $bar-gap would overflow the screen on its own.
+//
+// It gets a NAME rather than being written into the breakpoint block, for the
+// same reason the two above have one: the bar carried three unowned gaps before
+// #387, and the one that is out of step is only visible with a ruler on it.
+// (`.left-group` reached this by having `gap: 0` and letting the cover carry a
+// private margin — measured, `next` and `devices` stood at exactly 0 once the
+// devices button had a fill.)
+$bar-gap-phone: 0.5rem;
+
+// ---------------------------------------------------------------------------
+// THE COMPACT SCALE — the app's SECOND footprint, which until now had no name.
+//
+// A census of every square icon button in the running app (12 routes, desktop
+// and phone: 1164 of them) found six sizes — 22, 26, 28, 32, 44, 52 px — and
+// only two of them owned by anything. The revealing number is 32: with 780
+// occurrences it is the MOST common icon button in the app, and it belonged to
+// no token at all. That is the same shape as the 8px radius in #354: not a
+// mistake, a decision nobody wrote down.
+//
+// It is a real second scale, not drift. A 44px control does not fit a 43px
+// sidebar row or a 32px thumbnail overlay, and the row-level affordances in a
+// track row are secondary to the row itself. What IS drift is that the same
+// zone also held 22, 26 and 28 — each of them a compensation for a size
+// somewhere else.
+//
+// So: chrome (top bar, player bar, header actions) reads `$bar-control`;
+// in-row and on-artwork affordances read this. Nothing reads a literal.
+//
+// The glyph is 1rem because that is what the compact zone already draws at —
+// the sidebar's row glyphs and its play overlay are both 16px. One zone, one
+// glyph size, the same argument the 24px chrome grid makes one level up.
+// ---------------------------------------------------------------------------
+$control-compact: 2rem;
+$control-compact-glyph: 1rem;
+
+// ---------------------------------------------------------------------------
+// THE DENSE SCALE — the sidebar, and the last unnamed footprint.
+//
+// Same census, one round later: 28px is now the biggest group in the app (756
+// of 1156 square icon buttons, 65 %), and it owned no token either. It got
+// there deliberately — #388 pulled the sidebar thumbnail from 2rem to 1.75rem
+// so the row height would survive the hatch ring, and `sidebar-newfolder` was
+// already sitting at 1.75rem beside it.
+//
+// So this is NOT the compact scale under another name, and forcing the two
+// together would undo that reasoning. The sidebar row is 42px tall against a
+// track row's 72; it is genuinely denser, and it is the one zone where the ROW
+// is the tap target and the controls on it are secondary.
+//
+// Three tiers, then, each with a job:
+//
+//   $bar-control      44px  chrome — top bar, player bar, header actions
+//   $control-compact  32px  affordances in a content row — track rows, queue
+//   $control-dense    28px  the sidebar — thumbnails, their overlays, its
+//                           section buttons
+//
+// The 52px play disc on a cover tile stays a call-site decision: it is a
+// primary CTA sized to the artwork it sits on, not a member of any tier.
+// ---------------------------------------------------------------------------
+$control-dense: 1.75rem;
+$control-dense-glyph: 1rem;
+
+// ---------------------------------------------------------------------------
+// The keyboard focus ring. `Global/basic.scss` gives it to every <button>; this
+// mixin exists because a control that WEARS a button role is not always a
+// <button> element — the top bar's home button is a RouterLink, so it fell
+// through the element selector and showed the browser's own ring instead of the
+// app's ink one. Anything that looks like a button includes this.
+// ---------------------------------------------------------------------------
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid $mem-line;
+    outline-offset: 2px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// APPEARING — the shared "pop in" (#253).
+//
+// Replaces what the favourite button used to do on its own: a <Motion> fade
+// with `delay 0.25s + duration 0.5s`, so the glyph was only fully visible
+// 0.75s after mount — and it re-ran on every page change. In the new header
+// look (panel fill, frame, shadow) that read as an empty button filling in
+// late.
+//
+// A scale impulse instead: no delay, 200ms, done. Defined ONCE here so every
+// button that appears does the same thing, rather than each component carrying
+// its own Motion config.
+//
+// 200ms and an overshoot that goes past 1, not the original 130ms from 0.9.
+// That version leaned on the easing curve's 1.2 control point for its bounce
+// and the short duration ate it, so it read as a twitch (#279). The bounce is
+// a keyframe now; the curve here only has to decelerate.
+//
+// No `animation-fill-mode`, deliberately: `both` would hold `scale(1)` as an
+// animation-origin value, which outranks every declared `transform` — the
+// hover and press feedback in the roles below would silently stop working.
+// (The staggered header rows in `_button-classes.scss` do set `backwards`,
+// which is the safe half: it applies only DURING the delay.)
+//
+// The `@keyframes btn-pop` this refers to lives in `_button-classes.scss`, NOT
+// here. This file is injected into every component style block, and a
+// `@keyframes` block emits real CSS — it would be stamped out ~167 times. Only
+// mixins may live in this file.
+// ---------------------------------------------------------------------------
+@mixin btn-pop {
+  // The delay is a custom property rather than a longhand a caller could set,
+  // and that is load-bearing. This is the `animation` SHORTHAND, so it resets
+  // `animation-delay` and `animation-fill-mode` to their initial values — and
+  // a role is included at a deeper selector than any row-level rule, so a
+  // longhand `animation-delay` set on the row's children was wiped every time.
+  // A custom property survives the shorthand because it is not part of it.
+  //
+  // `backwards` is safe to carry unconditionally: it applies only DURING the
+  // delay, and with the default 0s there is no such period. It is NOT the
+  // forbidden `both` — `both` also holds the LAST frame afterwards, and an
+  // animation-origin `scale(1)` outranks every declared transform, which would
+  // silently kill hover and press in all five roles.
+  animation: btn-pop $motion-move $motion-curve-settle var(--btn-pop-delay, 0s) backwards;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+// A row of buttons arrives left to right instead of all at once. Include it on
+// the element whose DIRECT CHILDREN are the buttons.
+//
+// It lived inside the `.header-actions` block until a second row wanted it (the
+// sort banner on the album and artist lists, which flashed all eleven of its
+// chips in at 0s while every header row next door arrived as one gesture).
+// Copying five nth-child rules into the second call site is how the four detail
+// headers each ended up hand-writing the same row in the first place.
+//
+// Deliberately NOT folded into `btn-action`: a delay is only wanted where
+// buttons stand in a line and read as a group. In a role it would also stagger a
+// lone button by its accidental position among unrelated siblings, and emit five
+// extra rules at each of ~40 call sites.
+//
+// Set as `--btn-pop-delay`, never as `animation-delay`. The roles state the whole
+// `animation` SHORTHAND, which resets the delay longhand, and they do it from a
+// deeper selector than a row-level rule can reach — the first version of this
+// used `animation-delay` and measured 0s on four of five buttons. A custom
+// property is not part of the shorthand, so it survives. `backwards` lives with
+// `btn-pop` for the same reason.
+//
+// Reduced motion needs nothing here: `btn-pop` drops to `animation: none`, at
+// which point a delay has nothing to delay.
+//
+// The `#{}` around each value is not optional. Sass treats a custom property's
+// value as an opaque token and does NOT evaluate expressions inside it, so
+// `$motion-stagger * 3` reached the stylesheet verbatim and every delay silently
+// became invalid. Caught by diffing the built CSS against master.
+//
+// The cap at the sixth child is what keeps a long row from turning into a queue:
+// the sort banner has up to nine chips, and 45ms each would have it still
+// arriving 400ms in.
+@mixin btn-pop-stagger {
+  > *:nth-child(2) {
+    --btn-pop-delay: #{$motion-stagger};
+  }
+
+  > *:nth-child(3) {
+    --btn-pop-delay: #{$motion-stagger * 2};
+  }
+
+  > *:nth-child(4) {
+    --btn-pop-delay: #{$motion-stagger * 3};
+  }
+
+  > *:nth-child(5) {
+    --btn-pop-delay: #{$motion-stagger * 4};
+  }
+
+  > *:nth-child(n + 6) {
+    --btn-pop-delay: #{$motion-stagger * 5};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// primary — the page's main call to action. One per screen region.
+// Teal, because teal means "play/do the thing" everywhere in this app.
+//
+// SIZE AND RADIUS STAY AT THE CALL SITE. The role owns fill, border, shadow,
+// glyph scale and pointer feedback only. A primary that hard-codes 44px and a
+// 10px radius would turn every card's round teal play disc into a rounded
+// square.
+//
+// NO `btn-pop` here, and that is a decision rather than an oversight (#279).
+// The biggest population of primaries is the round play disc on every cover
+// card, and those live inside a recycling scroller: they mount and unmount
+// continuously while you scroll, so a mount animation would make the whole
+// grid twitch. Page-level primaries that mount once (the header Play CTA) opt
+// in at the call site.
+// ---------------------------------------------------------------------------
+@mixin btn-primary($w: auto, $h: 2.75rem, $radius: $candy-radius-sm, $pad: 0 1.25rem, $glyph: 1.75rem) {
+  position: relative;
+  overflow: hidden; // clip the sprinkle to the rounded corners
+  width: $w;
+  height: $h;
+  padding: $pad;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background-color: $mem-teal;
+  border: $candy-border;
+  border-radius: $radius;
+  // Static ink is correct here: the teal underneath is identical in both themes.
+  color: $mem-ink;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  // `$press: false` — this role keeps the scale feedback below instead of the
+  // press-into-shadow, so the two never fight over `transform`.
+  @include candy-raised(3px, 3px, $press: false);
+  // Motion only — the PAINT is a cut (styling.md: the pointer flip is a cut,
+  // not a fade). Fill and glyph swap in opposite directions, so a fade has a
+  // mid-frame where both are grey and the flip looks asynchronous.
+  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    @include mem-sprinkle(28px);
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  svg,
+  .text {
+    position: relative;
+    z-index: 1;
+  }
+
+  svg {
+    width: $glyph;
+    height: $glyph;
+  }
+
+  // The shared pointer signal (#422), like every other button. The v1.4.0
+  // rule this replaces said "no colour flip", but it was aimed at YELLOW —
+  // hover borrowing the playing/active colour. The contrast surface carries no
+  // state meaning, so the conflict that rule prevented no longer exists; what
+  // DID exist was a play button that was the one control in the bar the
+  // pointer said nothing on.
+  &:hover {
+    background-color: var(--mem-hover);
+    color: var(--mem-hover-text);
+    // The hatch, not the sprinkle: on the contrast surface the texture means
+    // what it means on every other hovered plate. The sprinkle underneath is
+    // ink-stroked and would sit invisible (light) or as a second, clashing
+    // texture (dark), so it yields for the duration.
+    background-image: var(--mem-hatch-hover);
+    background-size: 28px 28px;
+    transform: scale(1.06);
+
+    &::before {
+      opacity: 0;
+    }
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// action — a secondary control that must READ as a button: favourite, pin,
+// download, overflow, theme toggle, the bar controls.
+//
+// The Play CTA's anatomy one step down: panel instead of teal, so primary
+// stays primary. This is `mem-header-action` generalised beyond page headers.
+//
+// $rest: surface  -> a plate at rest (default; page headers, bars)
+// $rest: bare     -> transparent at rest, the plate appears on hover. The
+//                    transparent border is still RESERVED so hovering can
+//                    never shift the row by 2px.
+// ---------------------------------------------------------------------------
+// `$glyph` is a knob like `btn-quiet`'s, and it exists because this role is
+// used at more than one size: a plate at `$control-dense` with the chrome's
+// 1.5rem glyph would be a 24px icon in a 22px opening. Without the parameter
+// every small plate overrode `svg { width/height }` at its call site — which is
+// the outside-patch shape this file exists to remove.
+// `$hatch: false` — for the variants that carry a LABEL instead of a glyph
+// (#476). The texture never runs behind text (styling.md), and on a chip that
+// is essentially its own label a cover would leave a ~4px rim: noise without a
+// statement. So those drop it and let plate, offset and hover carry "pressable"
+// — the same answer the chart rows give. Icon buttons keep it: a glyph is a
+// line drawing with its own contrast, not running text.
+@mixin btn-action(
+  $size: 2.75rem,
+  $width: $size,
+  $rest: surface,
+  $radius: $candy-radius-sm,
+  $glyph: $bar-glyph,
+  $hatch: true
+) {
+  @include btn-pop;
+  width: $width;
+  height: $size;
+  flex-shrink: 0;
+  padding: if($width == $size, 0, 0 $medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: $radius;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  background-color: if($rest == surface, $mem-panel, transparent);
+  border: $candy-border-w solid if($rest == surface, $mem-line, transparent);
+  // The hatch means "you can press this" (styling.md). It needs a SURFACE, so
+  // only the plated variant gets it at rest — `$rest: bare` is transparent
+  // until hover and takes the texture together with its plate, below.
+  @if $rest == surface and $hatch {
+    @include mem-hatch(28px, $on: surface);
+  }
+  // Theme-aware, because the fill under it is. See the token note at the top.
+  color: $mem-content-text;
+  box-shadow: if($rest == surface, 3px 3px 0 var(--mem-shadow), none);
+  // Motion only — the paint (fill, frame, glyph) is a cut. The hover flips to
+  // the contrast surface, and a cross-fade of two opposing colours meets in
+  // the middle at grey; the hatch cannot fade at all (it is an image swap), so
+  // fading the rest just left it visibly out of step (styling.md).
+  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+
+  svg {
+    width: $glyph;
+    height: $glyph;
+  }
+
+  // Hover only. An open context menu is deliberately NOT folded in here: in
+  // this design system yellow means "active" (the playing row, shuffle on,
+  // repeat on), and the open-menu state already uses it. Making it blush would
+  // turn a state signal into the pointer signal — the same conflation that made
+  // a pinned button look permanently hovered. Call sites keep their yellow.
+  &:hover {
+    // The shared hover token (#418), not a hand-written fill: this role was one
+    // of the two places that wrote `$mem-blush` itself and therefore never
+    // moved when the pointer colour changed.
+    background-color: var(--mem-hover);
+    color: var(--mem-hover-text);
+    border-color: $mem-line;
+    // The surface just went dark (light theme) or light (dark theme), so the
+    // texture takes the inverted sprite. This is also where `$rest: bare` gets
+    // its texture at all, together with the plate it only grows on hover.
+    //
+    // A label variant stays smooth here too: a chip that GREW a texture under
+    // the pointer would be worse than one that always had it (#470).
+    @if $hatch {
+      background-image: var(--mem-hatch-hover);
+      background-size: 28px 28px;
+    }
+    box-shadow: if($rest == surface, 4px 4px, 3px 3px) 0 var(--mem-shadow);
+    transform: scale(1.06);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// quiet — deliberately a bare glyph: overlays on artwork, close buttons,
+// in-row affordances. No plate, ever; hover tints the glyph's ground only.
+//
+// A hard offset shadow needs a surface to sit on — under a transparent button
+// it is just a smudge floating next to the icon. That is the whole reason the
+// flat-controls blocklist was invented; this role replaces it.
+//
+// NO `btn-pop` here, and that is a decision rather than an oversight (#279).
+// This role's largest population is the player bar and the row affordances —
+// bare glyphs that are simply *there*. A pop per page change would be noise in
+// the chrome that frames every page, not feedback. Where a quiet button really
+// does appear as an event, the call site opts in.
+// ---------------------------------------------------------------------------
+// $width defaults to $size (square, which every bar and row control wants) but
+// is a knob, exactly like `btn-action`'s. The favourite toggle is the one quiet
+// control that is deliberately wider than tall, and it used to state that as
+// `aspect-ratio: 1.5` — a ratio needs a dimension to resolve against, and the
+// button base stopped supplying one at #244. Both dimensions come from here now.
+@mixin btn-quiet($size: 2.75rem, $width: $size, $radius: $candy-radius-sm, $glyph: 1.5rem) {
+  width: $width;
+  height: $size;
+  flex-shrink: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  // Reserved, not absent: hovering must not shift anything by 2px.
+  border: $candy-border-w solid transparent;
+  border-radius: $radius;
+  color: $mem-content-text;
+  box-shadow: none;
+  cursor: pointer;
+  // Motion only — the paint is a cut, like every role (styling.md).
+  transition: transform $motion-press ease;
+
+  svg {
+    width: $glyph;
+    height: $glyph;
+  }
+
+  &:hover {
+    // Same token as every other hover (#418) — this role already read it, the
+    // other two did not, which is what made the pointer colour a three-place
+    // change. Text and texture follow the fill, because the fill is now the
+    // contrast surface rather than a light tint.
+    background-color: $mem-hover;
+    color: var(--mem-hover-text);
+    background-image: var(--mem-hatch-hover);
+    background-size: 28px 28px;
+    transform: scale(1.06);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// pill — a labelled text button: modals, settings, dialogs. This is the look
+// the global base was actually trying to give everything.
+// ---------------------------------------------------------------------------
+@mixin btn-pill($h: 2.75rem, $radius: $candy-radius-sm, $fill: $candy-pink) {
+  @include btn-pop;
+  height: $h;
+  padding: 0 $medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background-color: $fill;
+  // NO hatch (#476). A pill is a LABEL button by definition — every call site
+  // in the app is a word: Save, Login, Cancel, Delete, Load More, New Playlist,
+  // the search tabs. The texture never runs behind text (styling.md), and here
+  // there is no room beside the text to put it instead, so it goes entirely.
+  // The static accent fill, the ink frame, the offset and the hover already
+  // say "pressable" — this role loses nothing.
+  border: $candy-border;
+  border-radius: $radius;
+  color: $mem-ink;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  // 3px, like every other raised surface in the app. The token census (#355)
+  // found 2px on exactly three elements against 1186 at 3px or 4px, and two
+  // of the three were this role — so it was never a pill decision, it was a
+  // default nobody had a reason for.
+  @include candy-raised(3px, 3px, $press: false);
+  // Motion only — the paint is a cut (styling.md). This role was already half
+  // there by accident: `color` was never in its list, so the label snapped
+  // while the fill faded — one more voice in the "it looks asynchronous"
+  // report this rule ends.
+  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+
+  &:hover {
+    // Was `$candy-pink-deep`, which is YELLOW — and yellow means "playing" in
+    // this design, so a pill turned into a state signal for as long as the
+    // pointer sat on it. The shared token instead (#418); found by the census
+    // in hoverToken.test.ts the moment it existed.
+    background-color: var(--mem-hover);
+    color: var(--mem-hover-text);
+    // Smooth here too — a pill that grew a texture under the pointer would be
+    // worse than one that always had it (#470).
+    transform: scale(1.04);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// toggle ON — for controls with a persistent on/off state.
+//
+// DESIGN DECISION (confirmed with the product owner, and it overrides the
+// audit's blanket "an accent glyph, never a fill" rule): shuffle and repeat
+// KEEP the yellow memphis box from the v1.4.0 round. It is a deliberate,
+// shipped signal, not an accident.
+//
+// What DOES change is size — the yellow box was 32px next to a 40px play
+// button and 36px skips. The caller reserves the footprint in BOTH states via
+// its role, so switching on must never resize the control and shove the row.
+//
+// The fill is the state here, which is exactly why hover must not also be a
+// fill on these controls: see the pin, where "on" and "hovered" were the same
+// picture until they were split apart.
+// ---------------------------------------------------------------------------
+// `$fill` / `$glyph-color` are passed straight through to the mixin below — see
+// the note there. Shuffle and repeat take the default yellow; the devices
+// button's "joined" state is the one other persistent on-state in the app and
+// takes the brand green, so that BOTH of them read as the same kind of signal
+// instead of one being a plated toggle and the other a hand-written box.
+//
+// It is `$glyph-color`, NOT `$glyph`: in this file `$glyph` is a glyph SIZE
+// (btn-action, btn-quiet, btn-primary all take one). A caller reading the file's
+// convention and passing a length here would emit `color: 1rem` — dropped by the
+// browser without a word, leaving a theme-aware glyph on a static accent fill,
+// which is invisible in one theme and wrong in the other.
+@mixin btn-toggle-on($fill: $mem-yellow, $glyph-color: $mem-ink) {
+  @include mem-transport-aux-on($fill, $glyph-color);
+  // `mem-transport-aux-on` only PAINTS the box (fill, border, radius,
+  // sprinkle). The offset shadow that makes a filled control look raised used
+  // to arrive by accident, from the global button base — so switching the
+  // control to a role that is flat at rest silently flattened the on-state too.
+  // It is stated here, at the same 3px as the play button it sits next to.
+  @include candy-raised(3px, 3px, $press: false);
+  // The one role where the pop fires on a STATE CHANGE rather than on mount:
+  // this block applies when the "on" class is added, so shuffle and repeat pop
+  // at the moment you switch them on — which is precisely when feedback is
+  // wanted. The other roles pop when they appear, which is why the two below
+  // stay out of it.
+  @include btn-pop;
+  // After `candy-raised`, which pins its own shorter list. Motion only — the
+  // paint is a cut, like every role (styling.md).
+  transition: box-shadow $motion-shadow $motion-curve, transform $motion-press ease;
+
+  // The pointer signal, stated IN the role (#422). It used to live at the two
+  // call sites (desktop and mobile transport), both still hovering the old
+  // pointer colour blush — the exact "changing it means finding every copy"
+  // this file exists to end. The on-state's own class outranks the base role's
+  // hover in specificity, so without this block an ON shuffle/repeat is the
+  // one button the pointer says nothing on.
+  &:hover {
+    background-color: var(--mem-hover);
+    color: var(--mem-hover-text);
+    // Hatch over sprinkle, same trade as `btn-primary`'s hover: the ink-
+    // stroked sprinkle is invisible on the ink plate and a second texture on
+    // the paper one.
+    background-image: var(--mem-hatch-hover);
+    background-size: 28px 28px;
+    transform: scale(1.06);
+
+    &::before {
+      opacity: 0;
+    }
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}

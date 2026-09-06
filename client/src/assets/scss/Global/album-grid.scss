@@ -1,0 +1,14 @@
+.card-grid-view {
+  height: 100%;
+
+  .scrollable {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    padding: 0 1rem;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: 100%;
+    // Stufe B, wie die Home-Zeilen und das Playlist-Grid.
+    gap: 3.5rem 2rem;
+  }
+}

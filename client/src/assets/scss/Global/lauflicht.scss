@@ -1,0 +1,122 @@
+// Lauflicht / running-light — issue #32.
+//
+// "Running light" around an active container (now-playing card & full
+// now-playing cover art): a soft PINK glimmer breathes all around it while a
+// brighter PINK comet with a white-hot tip travels along the rim — candy
+// pink-deep throughout (recolored from brand green for the candy design).
+//
+// Cheap by construction: only a registered `--np-angle` angle and `opacity`
+// animate — no layout, no animated box-shadow. Lives in Global/index.scss
+// (imported exactly once) so the @property/@keyframes are emitted a single
+// time; never put these in _mixins.scss (Vite prepends that into every
+// component style and would duplicate them).
+//
+// Adjustable intensity (App.vue sets these from the `np_lauflicht_level`
+// setting): `body.lauflicht-off` hides it entirely. `body.lauflicht-subtle`
+// leaves the soft glimmer (::after) untouched and only makes the travelling
+// comet (::before) discreeter — lighter via `--lauflicht-strength` and slower.
+// No class = full "normal" strength. Respects `prefers-reduced-motion`.
+
+@property --np-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+@keyframes np-comet-spin {
+    to {
+        --np-angle: 360deg;
+    }
+}
+
+@keyframes np-comet-breathe {
+    0%,
+    100% {
+        opacity: 0.26;
+    }
+    50% {
+        opacity: 0.55;
+    }
+}
+
+.lauflicht-rim {
+    position: relative;
+    isolation: isolate;
+
+    // The travelling GREEN light comet (white-hot tip), masked to a 3px ring.
+    &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        border-radius: inherit;
+        padding: 3px;
+        background: conic-gradient(
+            from var(--np-angle),
+            transparent 0deg,
+            transparent 235deg,
+            rgba($candy-pink-deep, 0.55) 300deg,
+            $candy-pink-deep 332deg,
+            #ffffff 348deg,
+            $candy-pink-deep 354deg,
+            transparent 360deg
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        opacity: var(--lauflicht-strength, 1);
+        animation: np-comet-spin 7s linear infinite;
+    }
+
+    // Soft GREEN outer glimmer that gently "breathes" — blur + opacity only.
+    &::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        z-index: -1;
+        border-radius: inherit;
+        background: $candy-pink-deep;
+        filter: blur(24px);
+        opacity: 0.34;
+        pointer-events: none;
+        animation: np-comet-breathe 5.5s ease-in-out infinite;
+    }
+}
+
+// Global on/off (App.vue toggles body.lauflicht-off from the setting).
+body.lauflicht-off .lauflicht-rim {
+    &::before,
+    &::after {
+        display: none;
+    }
+}
+
+// Subtler level (App.vue toggles body.lauflicht-subtle from the setting):
+// only the travelling comet is toned down — the soft glimmer (::after) stays
+// exactly as in "normal". `--lauflicht-strength` lightens the comet's opacity
+// and a longer spin makes it drift by more slowly, so it reads as a calm accent
+// rather than an attention-grabbing chase.
+body.lauflicht-subtle .lauflicht-rim {
+    --lauflicht-strength: 0.35;
+
+    &::before {
+        animation-duration: 12s;
+    }
+}
+
+// The Lauflicht is an explicit opt-in brand accent (`np_lauflicht_level`,
+// default on), so the user's choice wins over the OS hint: it keeps running under
+// reduced-motion — just slower and calmer. Without this the comet froze outright
+// on phones that enable reduced-motion via battery saver / "remove animations",
+// which reads as the effect being broken (mobile Lauflicht fix).
+@media (prefers-reduced-motion: reduce) {
+    .lauflicht-rim::before {
+        animation-duration: 14s;
+    }
+
+    .lauflicht-rim::after {
+        animation-duration: 9s;
+    }
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: headband and two cups. -->
+    <path d="M3.6 15.4v-2.9a8.4 8.4 0 0 1 16.8 0v2.9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.6 14.6h2.2a1.6 1.6 0 0 1 1.6 1.6v2.6a1.6 1.6 0 0 1-1.6 1.6H5.2a1.6 1.6 0 0 1-1.6-1.6Z" fill="currentColor" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M18.2 14.6h2.2v4.2a1.6 1.6 0 0 1-1.6 1.6h-.6a1.6 1.6 0 0 1-1.6-1.6v-2.6a1.6 1.6 0 0 1 1.6-1.6Z" fill="currentColor" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

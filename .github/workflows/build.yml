@@ -57,21 +57,17 @@ on:
 
 env:
   PIP_USE_PEP517: true
-  # INFO: The web client lives in its own repo and is built fresh for every
-  # release. This MUST stay on the fork — pointing it at swingmx/webclient
-  # ships the upstream UI instead of the AivinNet redesign.
-  CLIENT_REPO: "vwellenberg/AivinNet-Client"
 
 jobs:
   build-client:
     runs-on: ubuntu-latest
     name: Build client
     steps:
-      - name: Clone client
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.CLIENT_REPO }}
-          path: aivinnet-client
+      # The client lives in THIS repository since the two were merged. It used
+      # to be cloned from `vwellenberg/AivinNet-Client` with no ref pinned,
+      # which meant a release was not reproducible from its own tag: re-running
+      # an old build picked up whatever the client's default branch had become.
+      - uses: actions/checkout@v4
 
       - name: Setup Node 20
         uses: actions/setup-node@v3
@@ -84,15 +80,14 @@ jobs:
 
       - name: Install dependencies & Build client
         run: |
-          cd aivinnet-client
+          cd client
           yarn install
-          yarn build --outDir ../client
-          cd ..
+          yarn build --outDir ../dist-client
 
       - name: Upload client
         uses: actions/upload-artifact@v4
         with:
-          path: "client/"
+          path: "dist-client/"
           compression-level: 0
           name: "client"
 

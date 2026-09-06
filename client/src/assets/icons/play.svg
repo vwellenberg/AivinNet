@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Transport set: 24x24 box, ~14px optical glyph, currentColor.
+         Solid triangle with rounded joins, matching the chunky memphis look. -->
+    <path
+        d="M8.6 5.5 18.1 11.15a1 1 0 0 1 0 1.7L8.6 18.5A1 1 0 0 1 7.1 17.65V6.35a1 1 0 0 1 1.5-.85Z"
+        fill="currentColor"
+    />
+</svg>

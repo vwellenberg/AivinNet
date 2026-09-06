@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set. Also rendered rotated 45 degrees as the remove-cross in the
+         queue rows, so both bars are deliberately the same length. -->
+    <path d="M12 4.2v15.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+    <path d="M4.2 12h15.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+</svg>
