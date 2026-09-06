@@ -17,13 +17,114 @@ bp_tag = Tag(name="Download", description="Download audio files")
 api = APIBlueprint("download", __name__, url_prefix="/download", abp_tags=[bp_tag])
 
 
-def _existing_files(tracks) -> list[Path]:
-    """The track files that are actually on disk, in the order given."""
-    paths = [Path(t.filepath) for t in tracks]
-    return [p for p in paths if p.exists()]
+# Names that carry no information and are better left out than printed.
+UNINFORMATIVE_ARTISTS = {"", "unknown", "unknown artist", "various artists", "va"}
+
+# Windows refuses these outright; the rest of the world only mostly minds.
+ILLEGAL_IN_FILENAMES = r'<>:"/\|?*'
+
+# Long enough for "Composed by Adam Sporka - Kingdom Come Deliverance II
+# Extended Official Soundtrack - 6-001 Fistcuffs 1 (Extended Version)", short
+# enough to survive a few nested directories on Windows' 260-character limit.
+MAX_STEM = 150
 
 
-def _too_large(paths: list[Path]) -> tuple[bool, int, int]:
+def _artist_name(track) -> str:
+    """
+    The album artist, or nothing.
+
+    Accepts both shapes this field takes: the RAM store hands out a plain
+    string, while the model declares a list of dicts. Guessing one of them
+    wrong would put "[{'name':" into a filename.
+    """
+    raw = getattr(track, "albumartists", None) or getattr(track, "artists", None)
+
+    if isinstance(raw, str):
+        name = raw
+    elif isinstance(raw, (list, tuple)) and raw:
+        first = raw[0]
+        name = first.get("name", "") if isinstance(first, dict) else str(first)
+    else:
+        name = ""
+
+    name = name.strip()
+
+    return "" if name.lower() in UNINFORMATIVE_ARTISTS else name
+
+
+def _sanitise(part: str) -> str:
+    """Make one component safe for a filename on every platform we ship to."""
+    cleaned = "".join("_" if c in ILLEGAL_IN_FILENAMES or ord(c) < 32 else c for c in part)
+
+    return " ".join(cleaned.split()).strip(" .")
+
+
+def download_filename(track, original: Path) -> str:
+    """
+    Name a downloaded file after its TAGS, not after the file on disk.
+
+    The server used to send the on-disk name, and those carry no context in a
+    real library: `swamp.mp3`, `Drum Loop 03.mp3`, `Main Theme (Piano).mp3`.
+    Ten of them in a phone's Downloads folder and none says what it belongs to,
+    while the tags knew all along.
+
+    Whatever the tags do not have is left out rather than filled with a
+    placeholder — plenty of game soundtracks have no album artist, and
+    "Unknown - …" is noise. With nothing usable at all, the original name is
+    kept: a worse name is still better than an empty one.
+    """
+    artist = _sanitise(_artist_name(track))
+    album = _sanitise(getattr(track, "album", "") or "")
+    title = _sanitise(getattr(track, "title", "") or "")
+
+    if not title:
+        return original.name
+
+    number = getattr(track, "track", 0) or 0
+    numbered = f"{number:02d} {title}" if number else title
+
+    stem = " - ".join(part for part in (artist, album, numbered) if part)[:MAX_STEM].strip(" .")
+
+    return f"{stem}{original.suffix}" if stem else original.name
+
+
+def _unique(name: str, taken: set[str]) -> str:
+    """
+    Keep archive entries distinct.
+
+    Two tracks can share a title and a number — alternate takes, a disc split
+    the tags do not record — and a zip with two identical entry names unpacks to
+    one file.
+    """
+    if name not in taken:
+        taken.add(name)
+        return name
+
+    stem, _, suffix = name.rpartition(".")
+    stem = stem or name
+
+    for n in range(2, 1000):
+        candidate = f"{stem} ({n}).{suffix}" if suffix else f"{stem} ({n})"
+        if candidate not in taken:
+            taken.add(candidate)
+            return candidate
+
+    taken.add(name)
+    return name
+
+
+def _existing_files(tracks) -> list[tuple[object, Path]]:
+    """
+    The tracks whose files are actually on disk, in the order given.
+
+    The TRACK travels alongside its path because the archive entry is named
+    after its tags — the name on disk is not the name that goes in.
+    """
+    pairs = [(t, Path(t.filepath)) for t in tracks]
+    return [(t, p) for t, p in pairs if p.exists()]
+
+
+def _too_large(entries: list[tuple[object, Path]]) -> tuple[bool, int, int]:
     """
     Whether these files exceed the configured archive limit.
 
@@ -32,12 +133,12 @@ def _too_large(paths: list[Path]) -> tuple[bool, int, int]:
     several gigabytes.
     """
     limit = max(0, UserConfig().maxDownloadSizeMB) * 1024 * 1024
-    total = sum(p.stat().st_size for p in paths)
+    total = sum(p.stat().st_size for _t, p in entries)
 
     return (limit > 0 and total > limit), total, limit
 
 
-def _zip_response(paths: list[Path], download_name: str):
+def _zip_response(entries: list[tuple[object, Path]], download_name: str):
     """
     Stream a ZIP of these files back, building it on DISK rather than in memory.
 
@@ -54,14 +155,20 @@ def _zip_response(paths: list[Path], download_name: str):
     response instead.
     """
 
-    # reads from it while the response is being sent, so a context manager
-    # would close it before the first byte goes out.
+    # The noqa is on purpose: this handle has to OUTLIVE the function.
+    # `send_file` reads from it while the response is being sent, so a context
+    # manager would close it before the first byte goes out.
     tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)  # noqa: SIM115
 
     try:
         with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
-            for p in paths:
-                zf.write(p, p.name)
+            taken: set[str] = set()
+
+            for track, p in entries:
+                # Named after the tags, not after the file on disk — the
+                # names in a real library carry no context (`swamp.mp3`,
+                # `Drum Loop 03.mp3`), and an archive of those is a puzzle.
+                zf.write(p, _unique(download_filename(track, p), taken))
 
         tmp.flush()
         tmp.seek(0)
@@ -117,7 +224,9 @@ def download_track(path: TrackHashSchema):
         filepath.parent,
         filepath.name,
         as_attachment=True,
-        download_name=filepath.name,
+        # Only the name the browser saves changes; the file read from disk is
+        # still addressed by its real path.
+        download_name=download_filename(track, filepath),
     )
 
 
@@ -136,13 +245,13 @@ def download_album(path: AlbumHashSchema):
     album_name = tracks[0].album or path.albumhash
     safe_name = "".join(c if c.isalnum() or c in " -_." else "_" for c in album_name)
 
-    paths = _existing_files(tracks)
-    oversized, total, limit = _too_large(paths)
+    entries = _existing_files(tracks)
+    oversized, total, limit = _too_large(entries)
 
     if oversized:
         return _refuse_oversized(total, limit)
 
-    return _zip_response(paths, f"{safe_name}.zip")
+    return _zip_response(entries, f"{safe_name}.zip")
 
 
 class PlaylistIDPath(BaseModel):
@@ -163,10 +272,10 @@ def download_playlist(path: PlaylistIDPath):
 
     safe_name = "".join(c if c.isalnum() or c in " -_." else "_" for c in (playlist.name or "playlist"))
 
-    paths = _existing_files(tracks)
-    oversized, total, limit = _too_large(paths)
+    entries = _existing_files(tracks)
+    oversized, total, limit = _too_large(entries)
 
     if oversized:
         return _refuse_oversized(total, limit)
 
-    return _zip_response(paths, f"{safe_name}.zip")
+    return _zip_response(entries, f"{safe_name}.zip")
