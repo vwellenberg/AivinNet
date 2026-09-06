@@ -10,10 +10,12 @@
             { 'is-last': is_last },
             bandClass,
             dragOverClass,
+            { 'is-dragging': dragging },
         ]"
         :style="{ '--band-fade': band_fade ?? 1 }"
         :draggable="droppable"
         @dragstart="onDragStart"
+        @dragend="onDragEnd"
         @dragover.prevent="onDragOver"
         @dragleave="onDragLeave"
         @drop.prevent="onDrop"
@@ -140,6 +142,7 @@ const emit = defineEmits<{
     (e: 'trackDropped', source: dropSources, track: Track, newIndex: number, oldIndex: number): void
 }>()
 
+const dragging = ref(false)
 const dragOverTop = ref(false)
 const dragOverBottom = ref(false)
 const dragOverClass = computed(() => {
@@ -166,6 +169,15 @@ function onDragStart(e: DragEvent) {
     }
 
     showDragStart(e, props.track, props.track.index, props.source)
+    // Die Zeile liegt jetzt in der Hand (#143): sie kippt, und ihr harter
+    // Schatten wächst. Als ZUSTAND und nicht als Animation, weil er andauert,
+    // solange gezogen wird — eine Animation liefe einmal ab und käme beim
+    // Loslassen nicht zurück.
+    dragging.value = true
+}
+
+function onDragEnd() {
+    dragging.value = false
 }
 
 function onDragOver(e: DragEvent) {

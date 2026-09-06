@@ -15,6 +15,22 @@
             <HeartFillSvg v-if="state" class="heart-fill" />
             <HeartOutlineSvg v-else />
         </div>
+        <!-- Der eine bewusst gesetzte Überraschungsmoment (#143): sieben
+             Memphis-Splitter fliegen auseinander, wenn etwas favorisiert wird.
+
+             ⚠️ Sie existieren nur WÄHREND des Ausbruchs (`v-if`). Dauerhaft
+             gerendert wären es sieben zusätzliche Knoten je Zeile — bei 50
+             sichtbaren Zeilen 350 Knoten, die 400ms im Jahr etwas tun.
+
+             ⚠️ Und sie hängen an einem Watcher, nicht an der `is-fav`-Klasse.
+             Eine CSS-Animation auf der Klasse liefe auch, wenn ein bereits
+             favorisierter Knoten neu ENTSTEHT — also bei jedem Scrollen durch
+             eine Favoritenliste, weil der Scroller Zeilen recycelt. Ein
+             Ausbruch beim Vorbeiscrollen wäre genau die Sorte Effekt, die man
+             nach dem zweiten Mal abschalten will. -->
+        <span v-if="burst" class="fav-burst" aria-hidden="true">
+            <i v-for="index in 7" :key="index" :style="shardStyle(index - 1)"></i>
+        </span>
     </button>
 </template>
 
@@ -24,10 +40,12 @@
 // The pair replaces plus + check-circle, and the plus is what made that pair
 // awkward: a tick has no hollow reading, so the unset state had to borrow a
 // different glyph entirely. Two shapes for one toggle is one shape too many.
+import { onBeforeUnmount, ref, watch } from 'vue'
+
 import HeartFillSvg from '@/assets/icons/heart.fill.svg'
 import HeartOutlineSvg from '@/assets/icons/heart.svg'
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         state: Boolean | undefined
         // Primitive `boolean`, not the `Boolean` wrapper the other prop still
@@ -66,6 +84,52 @@ defineEmits<{
     // eslint-disable-next-line no-unused-vars
     (event: 'handleFav'): void
 }>()
+
+const burst = ref(false)
+let clear: ReturnType<typeof setTimeout> | undefined
+
+/**
+ * Der Ausbruch feuert beim ÜBERGANG auf "favorisiert" — nie beim Entfernen und
+ * nie beim Erscheinen.
+ *
+ * Ein Watcher und keine CSS-Regel auf `.is-fav`: eine Animation auf der Klasse
+ * liefe auch, wenn ein bereits favorisierter Knoten neu entsteht. Der
+ * DynamicScroller recycelt Zeilen, also wäre das jedes Scrollen durch die
+ * Favoriten — ein Ausbruch im Vorbeiscrollen, den man nach zweimal abstellen
+ * will. Ein Watcher kennt den vorherigen Wert und schweigt deshalb.
+ */
+watch(
+    () => props.state,
+    (now, before) => {
+        if (!now || before) return
+
+        clearTimeout(clear)
+        burst.value = true
+        // Etwas länger als die Animation (0,35s), damit der letzte Splitter
+        // ausgeflogen ist, bevor die Knoten wieder verschwinden.
+        clear = setTimeout(() => (burst.value = false), 420)
+    }
+)
+
+onBeforeUnmount(() => clearTimeout(clear))
+
+/**
+ * Ein Splitter: nur RICHTUNG und Drehung.
+ *
+ * Farbe und Form entscheidet das Stylesheet über `:nth-child` — bewusst nicht
+ * hier. Eine Farbe im JavaScript wäre ein Literal an genau der Stelle, an der
+ * das Theme sie überschreiben müsste (#143, Theme-Abschnitt), und die drei
+ * Grundformen des Stils sind CSS, kein Zustand.
+ */
+function shardStyle(index: number) {
+    const angle = (index / 7) * Math.PI * 2 - Math.PI / 2
+
+    return {
+        '--dx': `${Math.round(Math.cos(angle) * 42)}px`,
+        '--dy': `${Math.round(Math.sin(angle) * 42)}px`,
+        '--rot': `${index % 2 ? 200 : -160}deg`,
+    } as Record<string, string>
+}
 </script>
 
 <style lang="scss">
@@ -94,6 +158,9 @@ defineEmits<{
 // design rounds its controls at `$candy-radius-sm`.
 .heart-button {
     @include btn-quiet($size: $control-compact, $glyph: $control-compact-glyph);
+    // Bezugsrahmen für die Splitter des Ausbruchs (siehe ganz unten). Sie
+    // fliegen ÜBER den Knopf hinaus, deshalb kein `overflow: hidden` hier.
+    position: relative;
 
     div {
         height: max-content;
@@ -211,5 +278,63 @@ defineEmits<{
     &.is-fav:hover {
         color: $mem-teal;
     }
+}
+// ---------------------------------------------------------------------------
+// Der Ausbruch (#143) — der eine bewusst gesetzte Ueberraschungsmoment.
+//
+// Er liegt NEBEN der Interaktion, nie davor: der Klick zaehlt sofort, das
+// Herz faerbt sich sofort, und die Splitter fliegen daneben. Nichts wartet
+// auf eine Animation.
+// ---------------------------------------------------------------------------
+@keyframes fav-shard-fly {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0) scale(0.4);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(1);
+  }
+}
+
+.heart-button {
+  .fav-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    // Ueber dem Glyph, aber unter allem, was die Zeile sonst noch hat.
+    z-index: 2;
+
+    i {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: block;
+      width: 9px;
+      height: 9px;
+      opacity: 0;
+      animation: fav-shard-fly $motion-ripple $motion-curve forwards;
+    }
+
+    // Farbe aus den Token, nie als Literal — sonst stimmt der Ausbruch beim
+    // naechsten Theme farblich nicht mehr.
+    i:nth-child(6n + 1) { background: $mem-teal; }
+    i:nth-child(6n + 2) { background: $mem-yellow; }
+    i:nth-child(6n + 3) { background: $mem-coral; }
+    i:nth-child(6n + 4) { background: $mem-lavender; }
+    i:nth-child(6n + 5) { background: $mem-pink; }
+    i:nth-child(6n) { background: $mem-blue; }
+
+    // Die drei Grundformen des Stils: Balken, Dreieck, Punkt.
+    i:nth-child(3n + 2) {
+      height: 11px;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    }
+
+    i:nth-child(3n) {
+      border-radius: $candy-radius-pill;
+    }
+  }
 }
 </style>
