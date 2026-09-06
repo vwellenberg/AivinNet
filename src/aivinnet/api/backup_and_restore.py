@@ -30,6 +30,38 @@ def get_backup_root() -> Path:
     return Path("~").expanduser() / "aivinnet.backup"
 
 
+def copy_playlist_images(image: str, img_folder: Path) -> int:
+    """
+    Put one playlist's cover into the backup — the full picture AND its thumb.
+
+    The thumbnail is a separate file (`thumb_<name>`, written by playlistlib
+    when the cover is uploaded) and it is what every LIST view asks for. The
+    backup used to carry the full image alone, so even once the restore learned
+    to copy pictures back (#135), the sidebar and the playlist grid would have
+    kept showing the placeholder while the playlist page looked fine.
+
+    A function of its own because it is the only part of `create_backup` with a
+    rule worth checking, and the endpoint around it needs a database, a request
+    context and an admin to call at all.
+
+    Returns the number of files copied, so a caller can tell "no cover" from
+    "cover, no thumb".
+    """
+    copied = 0
+
+    for name in (image, f"thumb_{image}"):
+        source = Path(Paths().playlist_img_path) / name
+
+        if not source.exists():
+            continue
+
+        img_folder.mkdir(parents=True, exist_ok=True)
+        shutil.copy(source, img_folder / name)
+        copied += 1
+
+    return copied
+
+
 def resolve_backup_dir(name: str) -> Path | None:
     """
     Resolve a client-supplied backup name inside the backup root, or return
@@ -112,8 +144,11 @@ def backup():
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     backup_file = backup_dir / "data.json"
+    # Created on first use by `copy_playlist_images`, so an instance where no
+    # playlist has a cover writes no empty directory. (The `img_folder_created`
+    # flag that tracked this by hand went with it — `mkdir(exist_ok=True)` does
+    # the same job without a second piece of state to keep in step.)
     img_folder = backup_dir / "images"
-    img_folder_created = img_folder.exists()
 
     # EVERY user's rows, in all four sections. This endpoint is
     # `@admin_required`, so it is an instance backup, not a personal one —
@@ -153,14 +188,7 @@ def backup():
 
         playlist_dicts.append(playlist)
 
-        # copy images
-        img_path = Path(Paths().playlist_img_path) / str(playlist["image"])
-        if img_path.exists():
-            if not img_folder_created:
-                img_folder.mkdir(parents=True)
-                img_folder_created = True
-
-            shutil.copy(img_path, img_folder / playlist["image"])
+        copy_playlist_images(str(playlist["image"]), img_folder)
 
     # !SECTION
 
@@ -255,9 +283,87 @@ class RestoreBackup:
         return {
             "favorites": self.restore_favorites(self.data["favorites"]),
             "playlists": self.restore_playlists(self.data["playlists"]),
+            "playlist_images": self.restore_playlist_images(),
             "scrobbles": self.restore_scrobbles(self.data["scrobbles"]),
             "collections": self.restore_collections(self.data.get("collections", [])),
         }
+
+    def restore_playlist_images(self) -> SectionReport:
+        """
+        Put the playlist covers back on disk.
+
+        `create_backup` has always copied them next to `data.json`, and nothing
+        ever copied them back: `self.backup_dir` was stored and never read
+        (#135). So after a disk loss the playlists returned with their names,
+        their tracks and the correct `image` value in the database — and every
+        one of them showed the placeholder, while the JPEGs sat unused in the
+        backup folder the whole time.
+
+        ⚠️ Existing files are kept, never overwritten. A restore is additive
+        everywhere else in this class, and the file on disk belongs to whatever
+        the database currently says; replacing it would let an old backup
+        silently change the cover of a playlist that was never lost.
+        """
+        report = SectionReport()
+        source = self.backup_dir / "images"
+
+        if not source.is_dir():
+            return report
+
+        target = Path(Paths().playlist_img_path)
+        target.mkdir(parents=True, exist_ok=True)
+
+        for image in sorted(source.iterdir()):
+            if not image.is_file():
+                continue
+
+            destination = target / image.name
+
+            if destination.exists():
+                report.skipped += 1
+                continue
+
+            try:
+                shutil.copy(image, destination)
+                report.restored += 1
+            except OSError as error:
+                report.discard("playlist image", {"name": image.name}, error)
+                continue
+
+            if not image.name.startswith("thumb_"):
+                self.rebuild_thumbnail(target, image.name)
+
+        return report
+
+    @staticmethod
+    def rebuild_thumbnail(folder: Path, name: str):
+        """
+        Make the small version, for a backup that does not carry one.
+
+        Backups written before this change hold the full cover only, and the
+        thumbnail is the file every LIST view asks for — so without this, older
+        backups would restore to exactly the symptom being fixed, just one
+        rung down.
+
+        A failure here is logged, not counted as a discard: the cover itself is
+        already back, and the playlist page shows it. Only the small version is
+        missing, and the image server falls back to the placeholder for that.
+        """
+        if (folder / f"thumb_{name}").exists():
+            return
+
+        try:
+            from PIL import Image
+
+            from aivinnet.lib.playlistlib import create_gif_thumbnail, create_thumbnail
+
+            with Image.open(folder / name) as image:
+                if getattr(image, "n_frames", 1) > 1:
+                    create_gif_thumbnail(image, name)
+                else:
+                    create_thumbnail(image, name)
+        except Exception as error:
+            log.warning("Could not rebuild the thumbnail for playlist image %s: %s", name, error)
 
     def restore_favorites(self, favorites: list[dict]) -> SectionReport:
         """
@@ -404,7 +510,13 @@ def restore(body: RestoreBackupBody):
     """
     backup_base_dir = get_backup_root()
     backups = []
-    totals = {section: SectionReport() for section in ("favorites", "playlists", "scrobbles", "collections")}
+    # `playlist_images` counts FILES, not rows — it is here because a restore
+    # that puts every playlist back and none of their covers should not be able
+    # to look like a complete one in the response.
+    totals = {
+        section: SectionReport()
+        for section in ("favorites", "playlists", "playlist_images", "scrobbles", "collections")
+    }
 
     def run(directory: Path):
         for section, report in RestoreBackup(directory).restore().items():
