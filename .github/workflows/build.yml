@@ -285,7 +285,12 @@ jobs:
     # first container to start falls back to the previous release's UI, and
     # `:latest` (which every doc points at) keeps pointing at the old image.
     needs: [build-client, build-wheels, upload-builds]
-    permissions: write-all
+    # Only what this job actually does: read the checkout, push the image to
+    # ghcr. `write-all` additionally handed it write access to the repository
+    # itself — to code, releases and everything else — which nothing here uses.
+    permissions:
+      contents: read
+      packages: write
     if: ${{ github.event.inputs.build_docker == 'true' }}
 
     steps:
@@ -398,10 +403,19 @@ jobs:
           merge-multiple: true
 
       # install system packages
-      - name: Setup Homebrew
-        if: ${{ startsWith(matrix.os, 'macos') }}
-        uses: Homebrew/actions/setup-homebrew@master
-
+      #
+      # ⚠️ `Homebrew/actions/setup-homebrew@master` used to sit here and was
+      # removed rather than pinned. Two reasons, and the first is the one that
+      # matters: `@master` is a BRANCH, so every release run fetched whatever
+      # that repository happened to contain at that moment and executed it here.
+      # A moving tag is a risk; a branch is a certainty that the code changes.
+      #
+      # The second is that it was not needed. GitHub's macOS runners ship
+      # Homebrew preinstalled, so `brew install` below works without setting
+      # anything up. Deleting a dependency beats pinning one.
+      #
+      # If a future runner image drops Homebrew, put the action back — but with
+      # a commit SHA, not a branch.
       - name: Install libev (macOS)
         if: ${{ startsWith(matrix.os, 'macos') }}
         run: |
