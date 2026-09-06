@@ -151,3 +151,105 @@
 .mem-glyph-swap > svg {
   animation: mem-glyph-punch $motion-tint $motion-curve-back;
 }
+
+// ---------------------------------------------------------------------------
+// Ankommen — die Keyframes der Zeilen- und Sticker-Bewegungen (#143).
+//
+// Warum hier und nicht neben den Mixins, die sie benutzen: `@keyframes` gibt
+// echtes CSS aus, und `_buttons.scss` wird in JEDEN Komponenten-Styleblock
+// injiziert. Dort stehend würden diese Blöcke ~167-mal im Bundle landen.
+// ---------------------------------------------------------------------------
+
+// Das Zahnband der laufenden Zeile fährt von oben herunter und federt einmal.
+@keyframes mem-band-drop {
+  0% {
+    transform: scaleY(0);
+  }
+
+  70% {
+    transform: scaleY(1);
+  }
+
+  85% {
+    transform: scaleY(0.94);
+  }
+
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+// Die Textur wischt quer herein. Bewusst `translateX` und nicht `opacity`: die
+// Farbe dieser Zeile ist ein Schnitt (styling.md), ein Aufblenden wäre ein
+// Verstoß dagegen — eine Fläche, die durchs Bild fährt, ist es nicht.
+@keyframes mem-texture-wipe {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+// Der Treppen-Eintritt: eine Zeile kommt von links unten herein.
+//
+// ⚠️ Der Deckel ist Teil der Idee, nicht eine Vorsichtsmaßnahme daneben.
+// Gestaffeltes Erscheinen ist beim ersten Mal charmant und beim zwanzigsten
+// Seitenaufruf eine Wartezeit; ohne Grenze wartet Zeile 200 zwölf Sekunden auf
+// ihren Auftritt. Deshalb bekommen nur die ersten acht Zeilen eine Verzögerung
+// (siehe `.songlist-item` in app-grid.scss), der Rest ist sofort da.
+//
+// ⚠️ Und deshalb steht das hier als Animation auf dem ELEMENT, nicht als
+// Übergang auf einem Zustand: `DynamicScroller` recycelt seine Zeilen-Knoten
+// beim Scrollen. Eine Animation läuft, wenn der Knoten ENTSTEHT — beim
+// Recycling wechselt nur der Inhalt, und genau deshalb feuert sie beim Scrollen
+// nicht erneut. Ein Zustands-Übergang täte das sehr wohl.
+@keyframes mem-step-in {
+  0% {
+    opacity: 0;
+    transform: translate(-10px, 6px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+}
+
+// Der Sticker-Anschlag: von oben, schräg, beim Aufsetzen gestaucht — und der
+// harte Schatten entsteht ERST im Moment des Kontakts.
+//
+// ⚠️ Bewusst mit `ease-out` gefahren und nicht mit `$motion-curve-settle`. Die
+// Settle-Kurve ist bei 27 % der Zeit schon zu ~85 % durch: die Zwischenschritte
+// bekommen keine Zeit, und übrig bleibt eine Drehung, die bei 0,2 s niemand
+// sieht. Genau daran ist die erste Fassung im Mockup gescheitert, im
+// Filmstreifen nachgemessen. Die Form steckt in den Keyframes, die Kurve hält
+// sich flach.
+@keyframes mem-sticker-slap {
+  0% {
+    transform: translateY(-16px) rotate(-11deg) scale(1.22);
+    opacity: 0;
+    box-shadow: 0 0 0 var(--mem-shadow);
+  }
+
+  45% {
+    transform: translateY(0) rotate(3deg) scale(1.02);
+    opacity: 1;
+    box-shadow: 0 0 0 var(--mem-shadow);
+  }
+
+  60% {
+    transform: translateY(0) rotate(1deg) scale(0.94);
+    box-shadow: 3px 3px 0 var(--mem-shadow);
+  }
+
+  80% {
+    transform: translateY(0) rotate(-1deg) scale(1.03);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+    box-shadow: 3px 3px 0 var(--mem-shadow);
+  }
+}

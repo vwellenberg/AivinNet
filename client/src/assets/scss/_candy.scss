@@ -498,6 +498,15 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // theme-aware content colour: this text reads against the panel now.
   color: $candy-text;
   text-shadow: none;
+  // Der Sticker-Anschlag (#143): ein Sticker wird aufgeklebt, nicht
+  // eingeblendet — von oben, schräg, beim Aufsetzen gestaucht, und der harte
+  // Schatten entsteht erst im Moment des Kontakts. Die Keyframes stehen in
+  // Global/_button-classes.scss (ein `@keyframes` hier landete 167-mal im
+  // Bundle), die Begründung für die flache Kurve ebenfalls dort.
+  //
+  // Läuft, weil das Element NEU ist: eine Caption erscheint, wenn ihr Abschnitt
+  // erscheint. Nichts muss einen Zustand mitführen.
+  animation: mem-sticker-slap 0.25s ease-out;
 }
 
 // ---------------------------------------------------------------------------
@@ -894,6 +903,21 @@ $mem-seg-reserve: 4px !default;
     background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><path d="M0 0 H3 L10 7 L3 14 H0 Z" fill="%2317171A"/></svg>');
     background-size: 10px 14px;
     background-repeat: repeat-y;
+    // Der Kassetten-Ruck (#143): das Zahnband schießt von oben herunter und
+    // federt einmal nach, statt einfach dazusein. Es ist ein Etikett auf der
+    // Kante einer Kassette — und ein Etikett wird aufgezogen, nicht eingeblendet.
+    //
+    // Die Füllung darunter bleibt ein CUT (styling.md): hier bewegt sich nur
+    // dieses Band, die Farbe der Zeile wechselt weiterhin in einem Bild.
+    transform-origin: top;
+    animation: mem-band-drop 0.2s ease-out;
+  }
+
+  // Die Sprinkle-Textur wischt herein, statt aufzublenden — dieselbe
+  // Unterscheidung: eine Opazität, die hochfährt, ist ein Fade und damit gegen
+  // die Regel; eine Fläche, die durchs Bild fährt, ist Bewegung.
+  &::before {
+    animation: mem-texture-wipe 0.2s ease-out;
   }
 }
 

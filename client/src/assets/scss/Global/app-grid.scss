@@ -150,6 +150,21 @@ $g-border: solid $candy-border-w $mem-line;
 .songlist-item {
     background-color: var(--mem-veil);
 
+    // Treppen-Eintritt (#143). Nur die ersten acht Zeilen sind gestaffelt: der
+    // Deckel gehört zur Idee, nicht als Vorsicht daneben. Bei 45ms je Zeile
+    // wartet Zeile 200 sonst neun Sekunden auf ihren Auftritt, und aus einer
+    // Begrüßung wird eine Ladezeit.
+    //
+    // `backwards` hält den Startzustand während der Verzögerung — ohne das
+    // blitzt die Zeile am Zielort auf, bevor sie losläuft.
+    animation: mem-step-in $motion-move $motion-curve backwards;
+
+    @for $i from 1 through 8 {
+        &:nth-child(#{$i}) {
+            animation-delay: $motion-stagger * ($i - 1);
+        }
+    }
+
     // The frame declarations need the .rounded-sm compound: SongItem.vue's
     // base rule (border: 2px solid transparent) sits later in the bundle and
     // would reset plain same-specificity overrides from here.
