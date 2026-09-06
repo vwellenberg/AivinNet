@@ -73,9 +73,8 @@ are upgrading — see the first point.
   unpacked into your config directory, which survives every upgrade (in Docker
   it is a volume), so a newer server kept serving the older interface — quietly,
   for good. From this release on an upgrade refreshes it. **Upgrading from an
-  older version, do this once:** stop the server, delete
-  `~/.config/aivinnet/client` (Docker: `config/aivinnet/client`), start it
-  again. Fresh installs need nothing.
+  older version, do this once:** stop the server, delete the `client` folder in
+  your data directory, start it again. Fresh installs need nothing.
 - **Downloads are named after the tags** — `Artist - Album - 07 Title.mp3`
   instead of whatever the file happens to be called on disk.
 - **Albums and playlists can be downloaded as separate files**, not only as a
@@ -188,9 +187,12 @@ note that `docker compose pull` does not replace the bundled web interface.
 
 ## Notes
 
-- Data lives in `~/.config/aivinnet/` (database, covers, playlists) — back this
-  up, it is the only copy. It is three files for the database alone
-  (`aivinnet.db` plus its `-wal` and `-shm` sidecars); copy them as a set.
+- **Where your data lives** (database, covers, playlists) depends on how you
+  started it: `~/.config/aivinnet/` with the one-line installer,
+  `config/aivinnet/` next to the compose file with Docker, and `~/.aivinnet/`
+  if you run the AppImage or a binary by hand. Back it up — it is the only
+  copy, and it is three files for the database alone (`aivinnet.db` plus its
+  `-wal` and `-shm` sidecars); copy them as a set.
 - `ffmpeg` is optional and only needed for transcoding.
 - Reach it from outside your LAN via Tailscale or a VPN — do not port-forward it.
 - **Out of the box, nothing about your library leaves the machine.** Three
