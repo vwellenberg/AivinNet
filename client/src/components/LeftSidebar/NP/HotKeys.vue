@@ -12,7 +12,7 @@
         <button class="skip skip-prev" @click.prevent="queue.playPrev">
             <PrevSvg />
         </button>
-        <button class="play" @click.prevent="queue.playPause">
+        <button class="play mem-glyph-swap" @click.prevent="queue.playPause">
             <Spinner v-if="buffering && queue.playing" />
             <PauseSvg v-else-if="queue.playing" />
             <PlaySvg class="playsvg" v-else />

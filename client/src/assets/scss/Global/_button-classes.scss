@@ -115,3 +115,39 @@
   text-align: center;
   line-height: 1.3;
 }
+
+// ---------------------------------------------------------------------------
+// Glyph punch — the play/pause swap, and every other glyph that REPLACES
+// another one rather than changing colour (#143).
+//
+// Same reason as `btn-pop` for living here: a `@keyframes` block emits real
+// CSS, and `_buttons.scss` is injected into every component style block.
+//
+// The animation runs because the element is NEW: Vue swaps <PlaySvg> for
+// <PauseSvg>, the fresh node starts its animation on mount, and nothing has to
+// track state. That also means it costs nothing when the state does not change.
+//
+// It squashes and tips before it lands, rather than merely scaling: a pure
+// scale at this duration reads as a flicker. The rotation is 8 degrees — enough
+// to register, small enough that a glyph with a clear axis (the pause bars)
+// does not look crooked mid-flight.
+@keyframes mem-glyph-punch {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+
+  40% {
+    transform: scale(0.7) rotate(-8deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+// The swap itself. Applied to the glyph, never to the button: the button keeps
+// its own press feedback, and stacking two transforms on one element makes the
+// press fight the punch.
+.mem-glyph-swap > svg {
+  animation: mem-glyph-punch $motion-tint $motion-curve-back;
+}
