@@ -176,6 +176,10 @@ function handleFav() {
             border-radius: $smaller;
             font-variant-numeric: tabular-nums;
             // Pills keep their size; the bar between them is the elastic part.
+            // Their width is the five digits plus padding (41px measured), so
+            // there is nothing to trim on a narrow phone — `min-width` never
+            // binds, and the bar simply keeps the rest (184px at 390, 124 at
+            // 320). Hence no narrow-phone special case here.
             flex: none;
         }
 
@@ -187,25 +191,24 @@ function handleFav() {
             flex: 1;
             min-width: 0;
         }
-
-        // On a 320px phone the two pills eat a third of the line, and the bar
-        // is the part you have to hit with a finger — so there the pills give
-        // the width back rather than the bar. Same ink, one size down.
-        @include smallestPhones {
-            gap: $smaller;
-
-            .time {
-                min-width: 0;
-                padding: 1px 3px;
-            }
-        }
     }
 
     .below-progress {
         display: flex;
-        justify-content: space-between;
         align-items: center;
         margin-top: 1rem;
+
+        // The aux group is the only thing on this line now, so it spans it and
+        // spreads. It carries `width: max-content` + `justify-content:
+        // flex-end` from the bottom bar, where it shares the line with the
+        // transport; here that left a huddle of four buttons against the left
+        // edge with a third of the card empty beside it. (Was written out for
+        // the 320px case only, where the times used to stack above the group
+        // and it was the same problem.)
+        .right-group {
+            width: 100%;
+            justify-content: space-between;
+        }
 
         /* Responsive */
         @include allPhones {
@@ -213,14 +216,6 @@ function handleFav() {
                 border-top: 1px solid transparent !important;
                 border-top-left-radius: 0 !important;
                 border-top-right-radius: 0 !important;
-            }
-        }
-
-        @include smallestPhones {
-            .right-group {
-                width: 100% !important;
-                display: flex;
-                justify-content: space-between;
             }
         }
     }
