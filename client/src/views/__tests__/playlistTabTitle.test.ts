@@ -60,6 +60,7 @@ function mountView() {
 describe("the tab names the playlist that is open", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    route.params.pid = "1";
     document.title = "";
   });
 
