@@ -15,20 +15,26 @@
                 <img v-motion-fade class="rounded" :src="paths.images.thumb.large + queue.currenttrack?.image" />
             </RouterLink>
             <NowPlayingInfo @handle-fav="handleFav" />
-            <Progress v-if="isMobile" />
-            <!-- Every child here is gated on isMobile/isSmallPhone, so on a
-                 desktop this was an empty 0px div still contributing its
-                 `margin-top: 1rem`. Invisible on the bare ground, but the veil
-                 plate below makes it 16px of dead air inside the card. Safe
-                 gate: isSmallPhone (<=660) is a subset of isMobile (<=900). -->
-            <div v-if="isMobile" class="below-progress">
-                <div v-if="isMobile" class="time">
+            <!-- Played time, bar, total time on ONE line: the two times label
+                 the bar, so they belong beside it. They used to stand at the
+                 far ends of the button row below, where they read as two more
+                 controls in that row and left the bar itself unlabelled. -->
+            <div v-if="isMobile" class="np-progress-row">
+                <div class="time">
                     {{ formatSeconds(queue.duration.current) }}
                 </div>
-                <Buttons v-if="isSmallPhone" :hide-heart="true" :hide-volume="true" @handleFav="() => {}" />
-                <div v-if="isMobile" class="time">
+                <Progress />
+                <div class="time">
                     {{ formatSeconds(queue.duration.full) }}
                 </div>
+            </div>
+            <!-- Gated on isSmallPhone, the only thing left in here: between 660
+                 and 900px this was an empty div still contributing its
+                 `margin-top`, and on a desktop the veil plate below turns that
+                 into 16px of dead air inside the card. isSmallPhone (<=660) is
+                 a subset of isMobile (<=900), so nothing is lost. -->
+            <div v-if="isSmallPhone" class="below-progress">
+                <Buttons :hide-heart="true" :hide-volume="true" @handleFav="() => {}" />
             </div>
             <div v-if="isMobile" class="np-devices">
                 <!-- On mobile the bottom bar swaps the aux group for navigation,
@@ -147,10 +153,15 @@ function handleFav() {
         @include mem-count-chip('track');
     }
 
-    .below-progress {
+    // played · bar · total, one line. The times are labels of the bar, so they
+    // sit on its line; the bar takes whatever the two pills leave.
+    .np-progress-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        gap: $small;
+        // The air that used to sit on .progress-wrap — the bar is no longer the
+        // outermost thing on this line, so the gap belongs to the ROW. Leaving
+        // it on the wrapper would only push the bar off the pills' centre line.
         margin-top: 1rem;
 
         .time {
@@ -164,7 +175,37 @@ function handleFav() {
             text-align: center;
             border-radius: $smaller;
             font-variant-numeric: tabular-nums;
+            // Pills keep their size; the bar between them is the elastic part.
+            flex: none;
         }
+
+        .progress-wrap {
+            // `min-width: 0` alongside the grow: a flex item defaults to
+            // `min-width: auto`, and the input inside carries an intrinsic
+            // width, so without this the row would push past the card on the
+            // narrowest phones instead of the bar giving way.
+            flex: 1;
+            min-width: 0;
+        }
+
+        // On a 320px phone the two pills eat a third of the line, and the bar
+        // is the part you have to hit with a finger — so there the pills give
+        // the width back rather than the bar. Same ink, one size down.
+        @include smallestPhones {
+            gap: $smaller;
+
+            .time {
+                min-width: 0;
+                padding: 1px 3px;
+            }
+        }
+    }
+
+    .below-progress {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1rem;
 
         /* Responsive */
         @include allPhones {
@@ -176,23 +217,6 @@ function handleFav() {
         }
 
         @include smallestPhones {
-            position: relative;
-            flex-direction: column;
-            align-items: unset;
-            gap: $small;
-
-            .time:first-child {
-                align-self: baseline;
-                margin-left: 4px;
-            }
-
-            .time:last-child {
-                align-self: end;
-                position: absolute;
-                top: 0;
-                right: 4px;
-            }
-
             .right-group {
                 width: 100% !important;
                 display: flex;
@@ -303,16 +327,16 @@ function handleFav() {
     // drew an ellipse rather than a circle. See #284.
     .progress-wrap {
         @include range-geometry(1.25rem, 1.6rem);
-        // The gap belongs to the WRAPPER, not to the input inside it.
+        // No margin here — the row above owns the spacing.
         //
-        // The input is an inline-block, so its margin box counts towards the
-        // wrapper's line box: a `margin-top` on the input made the wrapper 1rem
+        // Spacing never belonged on the input inside this wrapper either: the
+        // input is an inline-block, so its margin box counts towards the
+        // wrapper's line box. A `margin-top` on the input made the wrapper 1rem
         // taller at the top without moving the input's own centre, leaving the
         // two centres 7px apart. The knob and track centre on the input, but
         // the texture overlay centres on the WRAPPER — so the texture drifted
         // up out of the bar. It went unnoticed while the strip was 3.6px; at
         // the touch height it is 14px and straddles the top ink border.
-        margin-top: 1rem;
     }
 
     #progress {

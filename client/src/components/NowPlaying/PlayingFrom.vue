@@ -101,7 +101,7 @@ function showContextMenu(e: MouseEvent) {
 // readable pairing: the "Playlist" label vanished into the confetti wherever a
 // shape happened to sit behind it. Panel + frame + offset shadow is the answer
 // this design already gives everywhere else (the time chips in
-// `.below-progress` are the same move), and it makes the source read as one
+// `.np-progress-row` are the same move), and it makes the source read as one
 // tappable object rather than an icon that happens to be near some words.
 .now-playling-from-link > .from {
     display: flex;
