@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { onBeforeUnmount, onMounted, onUpdated } from 'vue'
+import { onBeforeUnmount } from 'vue'
 
 import { isMedium, isSmall, isSmallPhone } from '@/stores/content-width'
 import { dropSources, FromOptions } from '@/enums'
@@ -304,9 +304,15 @@ async function playFromPlaylistPage(index: number) {
     queue.play(index)
 }
 
-;[onMounted, onUpdated].forEach(() => {
-    updatePageTitle(playlist.info.name)
-})
+// The name arrives with the fetch, not with the mount: this component is
+// reused across playlists (the route param changes, setup does not re-run), so
+// reading the store once would name the PREVIOUS playlist forever. Watch the
+// name itself — that also covers a rename while the page is open.
+watch(
+    () => playlist.info.name,
+    name => updatePageTitle(name || ''),
+    { immediate: true }
+)
 
 onBeforeUnmount(() => stopAutoScroll())
 
