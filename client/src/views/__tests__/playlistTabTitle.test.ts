@@ -26,7 +26,10 @@ import usePlaylistStore from "@/stores/pages/playlist";
 
 const route = reactive({ params: { pid: "1" }, query: {}, name: "playlist" });
 
-vi.mock("vue-router", () => ({
+// Partial mock: the real module is still needed (the queue store pulls the
+// router in), only the two composables this view uses are replaced.
+vi.mock("vue-router", async () => ({
+  ...((await vi.importActual("vue-router")) as object),
   useRoute: () => route,
   onBeforeRouteLeave: vi.fn(),
 }));
