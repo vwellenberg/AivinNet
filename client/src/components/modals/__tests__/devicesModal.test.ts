@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -48,8 +48,11 @@ const self = (over: Partial<any> = {}) => device({ device_id: 'devA', name: 'Thi
 
 /** The button carrying `label`, whatever row it sits in. */
 const button = (w: any, label: string) => {
-    const found = w.findAll('button').filter((b: any) => b.text() === label)
-    expect(found.length, `button "${label}"`).toBe(1)
+    const all = w.findAll('button')
+    const found = all.filter((b: any) => b.text() === label)
+    // The label IS the assertion in these tests, so a miss must say what the
+    // panel actually rendered instead.
+    expect(found.length, `button "${label}" among [${all.map((b: any) => b.text()).join(' | ')}]`).toBe(1)
     return found[0]
 }
 
@@ -100,8 +103,7 @@ describe('Devices panel — membership buttons', () => {
         expect(requestsMock.leaveGroup).toHaveBeenCalledTimes(1)
 
         release()
-        await promise
-        await nextTick()
+        await flushPromises()
 
         // Answer in: the row stops claiming membership right away instead of
         // waiting for the next poll.
@@ -154,8 +156,7 @@ describe('Devices panel — membership buttons', () => {
         expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
 
         release()
-        await promise
-        await nextTick()
+        await flushPromises()
         expect(button(w, 'Invite').attributes('disabled')).toBeUndefined()
     })
 })
