@@ -96,6 +96,14 @@ function clearScheduled() {
 let applyDepth = 0
 
 /**
+ * The join sequence currently running, or null. `leave()` waits on it instead
+ * of bailing out: the invite overlay's "Not now" fires exactly while the join
+ * is still calibrating, and a leave dropped there would leave the device in
+ * the group it just declined.
+ */
+let joinInFlight: Promise<void> | null = null
+
+/**
  * While set (epoch ms deadline), poll() must NOT re-adopt a server-side
  * membership: the user just pressed Leave and the server may not have
  * processed it yet — without this, an in-flight poll bounces the device
@@ -147,6 +155,7 @@ export function __resetDeviceSyncTestState() {
     leaveSuppressUntil = 0
     autoRejoinSuppressUntil = 0
     applyDepth = 0
+    joinInFlight = null
     lastTransportAt = 0
     loadedTrackhash = ''
     appliedRate = 1
@@ -241,6 +250,18 @@ export default defineStore('devicesync', {
         status: 'solo' as 'solo' | 'joined' | 'reconnecting',
         /** Autoplay-block overlay flag — consumed by the later UI PR. */
         needsGesture: false,
+        /**
+         * A membership transition that is still in flight, or null.
+         *
+         * Joining takes a round trip plus a clock calibration burst (~1 s), and
+         * leaving takes a round trip — while neither the device list nor
+         * `joined` has moved yet. Without this the picker looked completely
+         * dead after the tap and invited a second one, which fired a second
+         * join/leave at the server. The UI names the pending action and blocks
+         * its button; every entry point (picker, invite, auto-rejoin) goes
+         * through the same guard.
+         */
+        membershipPending: null as null | 'join' | 'leave',
         /**
          * Manual trim for this device's output latency (Bluetooth speakers,
          * TVs). Positive = run ahead of the group anchor. Persisted locally,
@@ -787,8 +808,28 @@ export default defineStore('devicesync', {
         },
 
         // --- membership transitions -----------------------------------------
+
+        /**
+         * Every join goes through here: the picker, an accepted invite and the
+         * auto-rejoin from poll(). The guard is what makes the button-blocking
+         * in the picker honest — a second join while the first one is still
+         * calibrating would register twice and race two snapshots into the
+         * queue mirror.
+         */
         async joinInternal() {
-            if (!this.deviceId) return
+            if (!this.deviceId || this.membershipPending) return
+            this.membershipPending = 'join'
+            joinInFlight = this.runJoin()
+            try {
+                await joinInFlight
+            } finally {
+                joinInFlight = null
+                this.membershipPending = null
+            }
+        },
+
+        /** The join sequence itself — call `joinInternal`, never this. */
+        async runJoin() {
             const t0 = Date.now()
             const res = await joinGroup(this.deviceId)
             const snap = res?.data as PollResponse | undefined
@@ -796,6 +837,7 @@ export default defineStore('devicesync', {
             this.joined = true
             this.status = 'joined'
             this.pollFailures = 0
+            this.markSelfJoined(true)
             // Remembered across reloads so an involuntary drop-out can rejoin.
             rememberMembership(true)
 
@@ -870,14 +912,41 @@ export default defineStore('devicesync', {
             if (applied && typeof snap.version === 'number') this.sessionVersion = snap.version
         },
 
+        /**
+         * Flip this device's row in the cached device list right away.
+         *
+         * That list is server data, refreshed only by the next poll — up to 5 s
+         * away once we are solo again. Leaving therefore left the picker
+         * showing this device as "In group" long after it had left, which read
+         * as "the button did nothing".
+         */
+        markSelfJoined(joined: boolean) {
+            if (!this.deviceId) return
+            this.devices = this.devices.map(d => (d.device_id === this.deviceId ? { ...d, joined } : d))
+        },
+
         /** Voluntary leave: keep playing locally (dissolve-to-solo semantics). */
         async leave() {
+            // Let a running join finish first — otherwise it lands right after
+            // us and puts the device back into the group (the invite overlay's
+            // "Not now" is exactly that case). A leave already in flight leaves
+            // no join behind, so this waits only when there is one.
+            if (joinInFlight) await joinInFlight.catch(() => {})
+            // Checked AFTER the wait, so a second Leave that queued up behind
+            // the same join drops out here instead of sending a second request.
+            if (this.membershipPending === 'leave') return
             const id = this.deviceId
+            this.membershipPending = 'leave'
             leaveSuppressUntil = Date.now() + 10000
             // Deliberate exit → do not walk back in on the next poll.
             rememberMembership(false)
             this.toSolo()
-            if (id) await leaveGroup(id)
+            try {
+                if (id) await leaveGroup(id)
+            } finally {
+                this.markSelfJoined(false)
+                this.membershipPending = null
+            }
         },
 
         /** play_here recipient: leave the group AND stop audio. */
@@ -890,6 +959,7 @@ export default defineStore('devicesync', {
             audioSource.pausePlayingSource()
             useQueue().playing = false
             this.toSolo()
+            this.markSelfJoined(false)
         },
 
         /**

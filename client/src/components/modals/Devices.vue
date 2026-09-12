@@ -44,11 +44,23 @@
                     >
                         {{ muteFor(device) ? 'Unmute' : 'Mute' }}
                     </button>
-                    <button v-if="isSelf(device)" class="ghost" title="Leave group playback" @click="ds.leave()">
-                        Leave
+                    <button
+                        v-if="isSelf(device)"
+                        class="ghost"
+                        title="Leave group playback"
+                        :disabled="ds.membershipPending !== null"
+                        @click="ds.leave()"
+                    >
+                        {{ ds.membershipPending === 'leave' ? 'Leaving…' : 'Leave' }}
                     </button>
-                    <button v-else class="ghost" title="Drop this device from the group" @click="remove(device)">
-                        Remove
+                    <button
+                        v-else
+                        class="ghost"
+                        title="Drop this device from the group"
+                        :disabled="isPending(device)"
+                        @click="remove(device)"
+                    >
+                        {{ isPending(device) ? 'Removing…' : 'Remove' }}
                     </button>
                 </template>
 
@@ -59,12 +71,19 @@
                         v-if="!isSelf(device)"
                         class="primary"
                         title="Play in sync with this device"
+                        :disabled="isPending(device) || ds.membershipPending !== null"
                         @click="invite(device)"
                     >
-                        Invite
+                        {{ isPending(device) ? 'Inviting…' : 'Invite' }}
                     </button>
-                    <button v-else-if="groupExists" class="primary" title="Join the running group" @click="ds.join()">
-                        Join group
+                    <button
+                        v-else-if="groupExists"
+                        class="primary"
+                        title="Join the running group"
+                        :disabled="ds.membershipPending !== null"
+                        @click="ds.join()"
+                    >
+                        {{ ds.membershipPending === 'join' ? 'Joining…' : 'Join group' }}
                     </button>
                 </template>
             </div>
@@ -99,8 +118,13 @@
             {{ offline.length === 1 ? 'device' : 'devices' }}
         </button>
 
-        <button v-if="ds.joined && joinedOthers.length > 0" class="play-here rounded-sm" @click="playHereOnly">
-            Play here only
+        <button
+            v-if="ds.joined && joinedOthers.length > 0"
+            class="play-here rounded-sm"
+            :disabled="playHerePending"
+            @click="playHereOnly"
+        >
+            {{ playHerePending ? 'Removing the others…' : 'Play here only' }}
         </button>
     </div>
 </template>
@@ -173,24 +197,49 @@ function onOffsetChange(e: Event) {
     ds.setAudioOffset(parseInt((e.target as HTMLInputElement).value, 10))
 }
 
+// Every button here is a round trip, and the row it sits in only changes once
+// the SERVER list comes back — so an un-blocked button looks dead for as long
+// as the call takes and invites a second tap that fires a second request.
+// Membership (join/leave) is tracked in the store, because the invite path and
+// the auto-rejoin go through it too; the per-device commands are tracked here.
+const pendingIds = ref<string[]>([])
+const isPending = (device: DeviceSummary) => pendingIds.value.includes(device.device_id)
+const playHerePending = ref(false)
+
+async function withPending(device: DeviceSummary, run: () => Promise<unknown>) {
+    if (isPending(device)) return
+    pendingIds.value = [...pendingIds.value, device.device_id]
+    try {
+        await run()
+    } finally {
+        pendingIds.value = pendingIds.value.filter(id => id !== device.device_id)
+    }
+}
+
 /**
  * Invite a device: this one joins first (seeding the group with whatever is
  * playing here), then the target is asked to join.
  */
-async function invite(device: DeviceSummary) {
-    if (!ds.joined) await ds.join()
-    void ds.sendCmd('join_invite', {}, device.device_id)
+function invite(device: DeviceSummary) {
+    return withPending(device, async () => {
+        if (!ds.joined) await ds.join()
+        await ds.sendCmd('join_invite', {}, device.device_id)
+    })
 }
 
 /** Drop a single device out of the group (it stops playing). */
 function remove(device: DeviceSummary) {
-    void ds.sendCmd('play_here', {}, device.device_id)
+    return withPending(device, () => ds.sendCmd('play_here', {}, device.device_id))
 }
 
 /** Keep playback on this device only — every other member bows out. */
-function playHereOnly() {
-    for (const device of joinedOthers.value) {
-        void ds.sendCmd('play_here', {}, device.device_id)
+async function playHereOnly() {
+    if (playHerePending.value) return
+    playHerePending.value = true
+    try {
+        await Promise.all(joinedOthers.value.map(device => ds.sendCmd('play_here', {}, device.device_id)))
+    } finally {
+        playHerePending.value = false
     }
 }
 </script>
@@ -319,6 +368,14 @@ function playHereOnly() {
                         color: white;
                     }
                 }
+
+                // A button whose request is still running: it keeps its place
+                // and its colour (the label already says what is happening),
+                // it just stops taking taps.
+                &:disabled {
+                    cursor: progress;
+                    opacity: 0.65;
+                }
             }
         }
 
@@ -388,6 +445,16 @@ function playHereOnly() {
         &:hover {
             background-color: $brand-green;
             color: white;
+        }
+
+        &:disabled {
+            cursor: progress;
+            opacity: 0.65;
+
+            &:hover {
+                background-color: rgba(125, 125, 125, 0.2);
+                color: inherit;
+            }
         }
     }
 }

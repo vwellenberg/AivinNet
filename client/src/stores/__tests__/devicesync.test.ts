@@ -1041,6 +1041,121 @@ describe('devicesync store', () => {
         expect(requestsMock.sendCommand).not.toHaveBeenCalled()
     })
 
+    // --- membership feedback -------------------------------------------------
+    // Joining takes a round trip plus a clock-calibration burst, leaving takes
+    // a round trip, and the picker renders the SERVER device list — which the
+    // next poll refreshes at the earliest. Both transitions therefore looked
+    // like nothing had happened, and a second tap fired a second request.
+
+    it('names the pending membership transition while the join is in flight', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        let release: (v: any) => void = () => {}
+        requestsMock.joinGroup.mockReturnValueOnce(new Promise(r => (release = r)))
+
+        const inFlight = ds.join()
+        expect(ds.membershipPending).toBe('join')
+
+        release({ status: 200, data: mkPoll({ joined: true }) })
+        await inFlight
+        expect(ds.membershipPending).toBeNull()
+    })
+
+    it('refuses a second join while the first one is still running', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        let release: (v: any) => void = () => {}
+        requestsMock.joinGroup.mockReturnValueOnce(new Promise(r => (release = r)))
+
+        const first = ds.join()
+        await ds.join()
+        await ds.joinNow()
+
+        expect(requestsMock.joinGroup).toHaveBeenCalledTimes(1)
+
+        release({ status: 200, data: mkPoll({ joined: true }) })
+        await first
+    })
+
+    it('names the pending leave and refuses a second one', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        ds.joined = true
+
+        let release: (v: any) => void = () => {}
+        requestsMock.leaveGroup.mockReturnValueOnce(new Promise(r => (release = r)))
+
+        const inFlight = ds.leave()
+        expect(ds.membershipPending).toBe('leave')
+        await ds.leave()
+        expect(requestsMock.leaveGroup).toHaveBeenCalledTimes(1)
+
+        release({ status: 200, data: {} })
+        await inFlight
+        expect(ds.membershipPending).toBeNull()
+    })
+
+    it('a leave that lands mid-join still leaves ("Not now" on the invite overlay)', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        let release: (v: any) => void = () => {}
+        requestsMock.joinGroup.mockReturnValueOnce(new Promise(r => (release = r)))
+
+        // The overlay appears while the join is still calibrating, so "Not now"
+        // fires into exactly this window. Dropping the leave there would leave
+        // the device inside the group it just declined.
+        const joining = ds.joinNow()
+        const leaving = ds.leave()
+        release({ status: 200, data: mkPoll({ joined: true }) })
+        await joining
+        await leaving
+
+        expect(requestsMock.leaveGroup).toHaveBeenCalledWith('devA')
+        expect(ds.joined).toBe(false)
+        expect(ds.membershipPending).toBeNull()
+    })
+
+    it('drops this device out of the cached device list on leave, without waiting for a poll', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        ds.joined = true
+        ds.devices = [peer({ device_id: 'devA', name: 'This one' }), peer()]
+
+        await ds.leave()
+
+        expect(ds.devices.find(d => d.device_id === 'devA')?.joined).toBe(false)
+        // Nobody else is touched — they are still in the group.
+        expect(ds.devices.find(d => d.device_id === 'devB')?.joined).toBe(true)
+    })
+
+    it('marks this device as a member as soon as the join request lands', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        ds.devices = [peer({ device_id: 'devA', name: 'This one', joined: false })]
+
+        // A join response without a device list (server restarted mid-call):
+        // the row must still stop offering "Join group".
+        requestsMock.joinGroup.mockResolvedValueOnce({ status: 200, data: {} })
+        await ds.join()
+
+        expect(ds.devices.find(d => d.device_id === 'devA')?.joined).toBe(true)
+    })
+
     it('solo (not joined) keeps the local queue mutations local', async () => {
         const { useDeviceSync, useTracklist, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
