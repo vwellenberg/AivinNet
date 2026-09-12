@@ -21,6 +21,12 @@ const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as
 /** Every bar group and the selector its spacing lives on. */
 const GROUPS: [file: string, selector: string, token: string, what: string][] = [
   ["/src/components/BottomBar/Left.vue", ".left-group", "$bar-gap", "the track block"],
+  [
+    "/src/components/BottomBar/Left.vue",
+    ".bar-controls",
+    "$bar-gap-tight",
+    "transport + devices — two buttons side by side, so the transport's own spacing",
+  ],
   ["/src/components/LeftSidebar/NP/HotKeys.vue", ".hotkeys", "$bar-gap", "the transport row"],
   ["/src/components/BottomBar/Right.vue", ".right-group", "$bar-gap", "lyrics and devices"],
   [
@@ -87,5 +93,54 @@ describe("player bar spacing", () => {
         "a generic $small or a bare rem here is a spacing nobody owns; give it a name in " +
         "Global/_buttons.scss like the three that do."
     ).toEqual([]);
+  });
+
+  // -------------------------------------------------------------------------
+  // The phone bar's control row: it HOLDS the transport, so it has to space
+  // like the transport. Asserted as a relation between the two files rather
+  // than as a literal token, because the failure this catches is a drift —
+  // someone retunes the transport's phone gap and the devices button, which is
+  // in the same visual row of four plated buttons, silently keeps the old one.
+  // -------------------------------------------------------------------------
+  const LEFT = "/src/components/BottomBar/Left.vue";
+  const HOTKEYS = "/src/components/LeftSidebar/NP/HotKeys.vue";
+
+  it("spaces the phone bar's control row exactly like the transport inside it", () => {
+    const phoneTransport = block(block(styleBlock(SOURCES[HOTKEYS]), ".hotkeys").body, "@include allPhones").body;
+    expect(phoneTransport, "no `@include allPhones` block in .hotkeys — did the transport lose its phone gap?").not.toBe(
+      ""
+    );
+
+    const transportGap = /(?:^|[\s;{])gap\s*:\s*([^;]+);/.exec(phoneTransport);
+    const rowGap = /(?:^|[\s;{])gap\s*:\s*([^;]+);/.exec(block(styleBlock(SOURCES[LEFT]), ".bar-controls").body);
+    expect(transportGap, "the transport states no phone `gap`").toBeTruthy();
+    expect(rowGap, "`.bar-controls` states no `gap`").toBeTruthy();
+
+    expect(
+      (rowGap as RegExpExecArray)[1].trim(),
+      "`.bar-controls` holds the transport plus the devices button, so the space between " +
+        "`next` and `devices` has to be the space between `prev` and `play` — measured at 375px " +
+        "before #159 it was 8px against 12px, because the devices button was a sibling of the " +
+        "transport and took the row's BLOCK gap instead."
+    ).toBe((transportGap as RegExpExecArray)[1].trim());
+  });
+
+  it("keeps the transport and the devices button in that ONE row", () => {
+    const template = SOURCES[LEFT].slice(0, SOURCES[LEFT].indexOf("<script"));
+    const row = template.indexOf('class="bar-controls"');
+    const transport = template.indexOf("<HotKeys");
+    const devices = template.indexOf("<DevicesButton");
+
+    expect(row, "no `.bar-controls` row in the phone bar's template").toBeGreaterThan(-1);
+    expect(row, "`.bar-controls` has to OPEN before the transport it holds").toBeLessThan(transport);
+    expect(transport, "the devices button stands after the transport in this row").toBeLessThan(devices);
+    // The gap rule above is worth nothing if the two buttons end up in
+    // different rows again — then each takes its own row's spacing and the
+    // seam is back, with both `gap` declarations still reading their token.
+    expect(
+      template.slice(transport, devices),
+      "the devices button left the control row — it is a control, not a block, so it is spaced " +
+        "by the row that holds the transport (#159)"
+    ).not.toContain("</div>");
   });
 });
