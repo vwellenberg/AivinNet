@@ -69,6 +69,29 @@ describe('arrival animations', () => {
         expect(grid).toMatch(/animation-delay: \$motion-stagger/)
     })
 
+    it('lets the tiles arrive with the same gesture as the rows', () => {
+        // Die Kacheln haben die Ankunft aus #143 nachgereicht bekommen — mit
+        // `mem-step-in`, nicht mit einer eigenen Keyframe. Zwei Vokabeln für
+        // dieselbe Aussage ("hier kommt etwas an") sind genau die Drift, gegen
+        // die die geteilte Kachel-Anatomie existiert; und `btn-pop`, die andere
+        // naheliegende Wahl, ist für ein 44-px-Bedienelement gebaut.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+
+        expect(cards, 'die Kacheln kommen nicht mehr an').toMatch(/animation: mem-step-in[^;]*backwards/)
+        expect(cards, 'die Kacheln haben eine eigene Ankunfts-Keyframe bekommen').not.toMatch(/@keyframes/)
+    })
+
+    it('caps the tile stagger too, and takes the step from the token', () => {
+        // Derselbe Deckel wie bei den Zeilen, aus demselben Grund: bei 45ms je
+        // Kachel wartet die sechzigste einer Bibliotheksseite sonst 2,7s.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+        const loop = cards.match(/@for \$i from 1 through (\d+)/)
+
+        expect(loop, 'die Staffelung der Kacheln ist weg').toBeTruthy()
+        expect(Number(loop![1])).toBeLessThanOrEqual(8)
+        expect(cards).toMatch(/animation-delay: \$motion-stagger/)
+    })
+
     it('holds the start frame during the delay', () => {
         // Without `backwards` a delayed row paints at its destination first and
         // then jumps back to start — the flicker reads as a rendering bug.
