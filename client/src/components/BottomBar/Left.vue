@@ -81,21 +81,30 @@
              something away from landscape, it is ending an inconsistency —
              measured, the bar held 9 controls sideways against 4 upright. -->
         <Actions v-if="!phoneBar && isLargerMobile" @handleFav="$emit('handleFav')" />
-        <HotKeys v-if="isMobile" />
-        <!-- Small phones only get HotKeys here (Actions covers the larger ones),
-             so without this the Devices button was buried in the Now Playing
-             view and unreachable from the bar itself.
+        <!-- ONE control row, so the space between its buttons belongs to it.
+             `next` and `devices` are two buttons side by side; cover · title ·
+             controls are blocks, and the row around them is spaced for blocks
+             ($bar-gap-phone, deliberately tighter than the chrome). While the
+             devices button was a SIBLING of the transport it took that block
+             gap: measured at 375px, prev/play/next stood 12px apart and
+             `devices` 8px from `next` (#159). -->
+        <div v-if="isMobile" class="bar-controls">
+            <HotKeys />
+            <!-- Small phones only get HotKeys here (Actions covers the larger
+                 ones), so without this the Devices button was buried in the Now
+                 Playing view and unreachable from the bar itself.
 
-             It steps aside while the player is silent, and that is a decision
-             about which of the two matters more in that moment. Five controls
-             do not fit a 360px phone: cover 48 + unmute 44 + transport 164 +
-             devices 44 is 300 of the 328 available, which left the title 12px
-             and its text ran straight under the unmute box. Silence means
-             nothing is audible anywhere, so "get the sound back" outranks "play
-             this in sync with another device" — and Devices stays reachable on
-             the Now Playing page, which is where it lived before it was added
-             here. -->
-        <DevicesButton v-if="phoneBar && !settings.is_silent" />
+                 It steps aside while the player is silent, and that is a
+                 decision about which of the two matters more in that moment.
+                 Five controls do not fit a 360px phone: cover 48 + unmute 44 +
+                 transport 164 + devices 44 is 300 of the 328 available, which
+                 left the title 12px and its text ran straight under the unmute
+                 box. Silence means nothing is audible anywhere, so "get the
+                 sound back" outranks "play this in sync with another device" —
+                 and Devices stays reachable on the Now Playing page, which is
+                 where it lived before it was added here. -->
+            <DevicesButton v-if="phoneBar && !settings.is_silent" />
+        </div>
     </div>
 </template>
 
@@ -160,6 +169,34 @@ defineEmits<{
         width: $bar-glyph;
         height: $bar-glyph;
         color: $candy-text;
+    }
+
+    // TRANSPORT + DEVICES — one control row, one spacing.
+    //
+    // The `gap` above is the BLOCK rhythm of this row: cover · title · the
+    // control block, and on a phone it is deliberately tighter than the
+    // chrome's ($bar-gap-phone — at 360px the space genuinely is not there).
+    // The devices button is not a third block though, it is the transport's
+    // neighbour: while it stood as a SIBLING of `.hotkeys` it took that block
+    // gap, and measured at 375px prev/play/next stood 12px apart while
+    // `devices` stood 8px from `next` — one welded pair at the end of a row of
+    // four plated 44px buttons (#159).
+    //
+    // So the controls get their own row and it owns their spacing, rather than
+    // the devices button carrying a private margin to make the difference up:
+    // "the gap belongs to the row, not to a child" is the same rule the phone
+    // bar broke before #499 with `gap: 0` plus a private margin on the cover.
+    // `$bar-gap-tight` is not a fresh value either — it is what the transport
+    // inside this row already spaces itself by on phones, which is the whole
+    // point: the two are the same row now, so they cannot drift apart.
+    //
+    // (It sits inside the `v-auto-animate` row, so the devices button's own
+    // mount/unmount is no longer a direct child of the animated element. That
+    // swap happens on a mute, which nobody watches the bar for.)
+    .bar-controls {
+        display: flex;
+        align-items: center;
+        gap: $bar-gap-tight;
     }
 
     // The way out of silence, phone bar only (see the template). It is not a
