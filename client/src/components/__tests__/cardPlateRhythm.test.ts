@@ -214,4 +214,30 @@ describe("card plate rhythm", () => {
         `this one card type, and it pushes the centred stack off centre.`
     ).toEqual([]);
   });
+
+  // ⚠️ A caption line must not carry its own text alignment, and the reason is
+  // that it CANNOT carry it consistently. Since the cover rule (#486) every
+  // line except `.rhelp` is `width: fit-content`, so `text-align` on it aligns
+  // text inside a box that already shrank to that text — it does nothing.
+  // `.rhelp` is the one line exempt from the cover rule, so it is the one line
+  // that still obeys. An alignment written for the whole plate therefore lands
+  // on exactly one of its lines, and the result is a plate whose overline sits
+  // somewhere else than its name. That is what the artist tile looked like:
+  // `t-center` on all three lines, visibly centred on one.
+  it.each([...components])("%s leaves the text alignment to the plate", (path, source) => {
+    const style = source.slice(source.indexOf("<style"));
+    const offenders = captionClasses(source)
+      .filter(cls => {
+        if (cls === "t-center") return true;
+        const body = ruleBody(style, new RegExp(`\\.${escape(cls)}\\s*\\{`));
+        return body !== null && /text-align:/.test(body);
+      });
+
+    expect(
+      offenders,
+      `${path} gives a caption line its own alignment (${offenders.join(", ")}). It can only ` +
+        `reach \`.rhelp\` — every other line is \`width: fit-content\` and swallows it — so the ` +
+        `line it does reach ends up aligned differently from the ones next to it.`
+    ).toEqual([]);
+  });
 });

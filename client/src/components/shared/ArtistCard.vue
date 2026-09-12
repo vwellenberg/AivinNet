@@ -19,14 +19,14 @@
             <PlayBtn :artisthash="artist.artisthash" :artistname="artist.name" :source="playSources.artist" />
         </div>
         <div class="card-plate">
-            <div v-if="artist.help_text && !isTypeEcho(artist.help_text, 'artist')" class="rhelp t-center">
+            <div v-if="artist.help_text && !isTypeEcho(artist.help_text, 'artist')" class="rhelp artist">
                 <span class="help" :class="{ keep: !artist.time }">{{ artist.help_text }}</span>
                 <span class="time">{{ artist.time }}</span>
             </div>
-            <div class="artist-name t-center">
+            <div class="artist-name">
                 {{ artist.name }}
             </div>
-            <div v-if="artist.help_text && artist.trackcount" class="racount t-center">
+            <div v-if="artist.help_text && artist.trackcount" class="racount">
                 {{ artist.trackcount }} Track{{ artist.trackcount == 1 ? '' : 's' }}
             </div>
         </div>

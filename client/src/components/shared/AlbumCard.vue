@@ -120,9 +120,10 @@ function showMenu(e: MouseEvent) {
         font-weight: 700;
     }
 
+    // No `text-align` — a caption line is `width: fit-content` (the cover rule
+    // in Global/cards.scss), so it aligns to nothing; the plate decides.
     .artist {
         font-size: 0.8rem;
-        text-align: left;
         color: $candy-text-muted;
         font-weight: 500;
 
