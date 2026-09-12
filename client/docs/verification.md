@@ -102,6 +102,18 @@ ohne Tab ist dagegen ehrlich und zeigt „404! Page Not Found!".
 
 ## ⚠️ Fallen beim Messen
 
+- **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der
+  erste Keyframe ist `scale(0.82)`, und die Rolle setzt `animation-fill-mode: backwards` — läuft
+  die Animation nicht los, ist genau das der Zustand, den man misst. Passiert in jedem
+  **versteckten oder gethrottelten** Renderkontext (Browser-Pane, Hintergrund-Tab): die Animation
+  meldet brav `playState: "running"`, ihre `currentTime` bleibt aber auf **0**. Ein 44-px-Knopf
+  misst sich dann als 36, und weil das an **beiden** Rändern 4 px abzieht, wandern die fehlenden
+  8 px in die Lücken: die Reihe prev/play/next/devices las sich als 16/16/16 — also *gleichmäßig*
+  —, während sie tatsächlich 12/12/8 stand (#159). Ein echter Fehlstand wäre so als „nicht
+  reproduzierbar" abgehakt worden. Vor jeder Abstands- oder Box-Messung deshalb die Animationen
+  beenden: `el.getAnimations().forEach(a => a.finish())` über den Teilbaum — oder in einem
+  sichtbaren Fenster messen. (`popcheck.js` / `popframes.js` lesen die laufende Matrix
+  absichtlich; das ist der umgekehrte Fall.)
 - **⚠️ EINE Phone-Breite ist keine Mobile-Verifikation.** Ein Layout, dessen Min-Content zufällig
   knapp unter der Messbreite liegt, ist bei 390 px grün und bei 360 px (häufigste Android-Breite)
   kaputt — real passiert: die Bottom-Bar maß nach dem 533-px-Fix exakt 383 px Min-Content, der
