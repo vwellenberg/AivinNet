@@ -927,11 +927,13 @@ export default defineStore('devicesync', {
 
         /** Voluntary leave: keep playing locally (dissolve-to-solo semantics). */
         async leave() {
-            if (this.membershipPending === 'leave') return
             // Let a running join finish first — otherwise it lands right after
             // us and puts the device back into the group (the invite overlay's
-            // "Not now" is exactly that case).
+            // "Not now" is exactly that case). A leave already in flight leaves
+            // no join behind, so this waits only when there is one.
             if (joinInFlight) await joinInFlight.catch(() => {})
+            // Checked AFTER the wait, so a second Leave that queued up behind
+            // the same join drops out here instead of sending a second request.
             if (this.membershipPending === 'leave') return
             const id = this.deviceId
             this.membershipPending = 'leave'
