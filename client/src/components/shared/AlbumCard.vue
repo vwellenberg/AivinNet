@@ -110,8 +110,9 @@ function showMenu(e: MouseEvent) {
         margin: 0;
     }
 
+    // No `margin-bottom` — the spacing between caption lines is the plate's
+    // `gap` (Global/cards.scss).
     .title {
-        margin-bottom: $smallest;
         font-size: 0.95rem;
         width: fit-content;
         position: relative;
@@ -134,10 +135,11 @@ function showMenu(e: MouseEvent) {
         }
     }
 
+    // Its distance to the artist line above is the plate's `gap` like every
+    // other caption line's; only the horizontal pull-back is this row's own.
     .versions {
         display: flex;
         gap: $smaller;
-        margin-top: $small;
         margin-left: -$smaller;
     }
 }

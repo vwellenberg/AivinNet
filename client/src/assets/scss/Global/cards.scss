@@ -214,6 +214,29 @@ $card-cover-pad: 6px;
     overflow: hidden;
     min-width: 0;
     padding: 0.45rem 0.7rem;
+    // The caption lines are ONE column with ONE rhythm, centred in whatever
+    // height the plate has. Both halves of that are load-bearing:
+    //
+    // `justify-content: center` — inside a row the plate is pinned (see
+    // `.cardscroller` below), so a tile with fewer lines has slack. In normal
+    // block flow all of it lands at the BOTTOM: the playlist tile's two lines
+    // sat flush against the top edge with 6.6px of empty plate under them,
+    // while the three-line folder tile next to it overflowed the same box. The
+    // slack belongs to both edges.
+    //
+    // `gap` — the spacing between the lines used to be margins on the lines
+    // themselves, set per card type: `.rtcount`/`.p-count` carried
+    // `margin-top: $smaller`, the album name `margin-bottom: $smallest`, and
+    // `.rhelp` brings `margin: $smaller 0` from basic.scss. Five card types,
+    // three different rhythms, and the `.rhelp` top margin added itself to the
+    // plate's own padding (11.2px above the first line against 7.2px below the
+    // last — the asymmetry styling.md warns about). One `gap` here says it
+    // once, and centring can only work if the lines carry no vertical margins
+    // of their own.
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: $smaller;
     // The tile is one big link, so its plate wears the texture — but AROUND the
     // text, never behind it (#486, styling.md). That is the "wide element whose
     // text takes only part of it" case: each caption line carries its own cover
@@ -264,6 +287,16 @@ $card-cover-pad: 6px;
     // `max-width` compensates for it so a long title still truncates instead of
     // overflowing the plate.
     //
+    // The `gap` above is the only vertical spacing in here. `.rhelp` is shared
+    // with the list rows and brings its own `margin: $smaller 0` from
+    // basic.scss, so the plate states the rule for every line rather than
+    // hoping each card type remembers it. Horizontal margins stay untouched —
+    // the covers below need their negative `margin-left`.
+    > * {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
     // `.rhelp` is the one exception: it is a flex ROW of two spans that must
     // stay side by side, so its children carry the cover instead (below).
     > *:not(.rhelp) {
@@ -295,10 +328,27 @@ $card-cover-pad: 6px;
 // ---------------------------------------------------------------------------
 .cardscroller {
     #{$card-types} {
-        // Fits the plate's three possible lines (help text, name, meta) plus
-        // its own padding; cards with fewer lines keep the empty space rather
-        // than shrinking the tile.
-        grid-template-rows: max-content max-content 4.5rem;
+        // The plate's floor, not its ceiling. Cards with fewer lines keep the
+        // empty space rather than shrinking the tile (that is what makes the
+        // totals match); a card that needs more grows instead of eating its
+        // own text.
+        //
+        // ⚠️ The number used to be 4.5rem with a comment claiming it fit the
+        // plate's three possible lines. It fit two. Measured in the running app
+        // at 1440px, the three-line stack (help text 14px + name 21px + meta
+        // 18px, two 4px gaps) is 65px against 51.6px of inner plate — so the
+        // meta line of every tile in a row that HAS a help text ("Recently
+        // added", "Recently played") was cut off horizontally through the
+        // glyphs by `overflow: hidden`. Nothing in the DOM said so: the line's
+        // rectangle measures its full height, the clip happens at paint. 5.5rem
+        // is that stack plus the plate's 14.4px padding, its 6px of frame and
+        // ~2.5px of air at each edge.
+        //
+        // And `minmax(…, max-content)` rather than a fixed height so the same
+        // bug cannot come back silently: whatever a future line does to the
+        // stack, the plate grows and the row is a pixel out of true — visible,
+        // and not at the cost of the text.
+        grid-template-rows: max-content max-content minmax(5.5rem, max-content);
     }
 
     // Version badges vary per album and would rock the fixed plate; they stay
