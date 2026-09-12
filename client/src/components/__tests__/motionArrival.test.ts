@@ -76,9 +76,18 @@ describe('arrival animations', () => {
         // die die geteilte Kachel-Anatomie existiert; und `btn-pop`, die andere
         // naheliegende Wahl, ist für ein 44-px-Bedienelement gebaut.
         const cards = SHEETS['src/assets/scss/Global/cards.scss']
+        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
 
         expect(cards, 'die Kacheln kommen nicht mehr an').toMatch(/animation: mem-step-in[^;]*backwards/)
-        expect(cards, 'die Kacheln haben eine eigene Ankunfts-Keyframe bekommen').not.toMatch(/@keyframes/)
+
+        // Und zwar mit DERSELBEN Keyframe wie die Zeilen — aus deren Regel
+        // gelesen statt hier ein zweites Mal hingeschrieben, sonst prüft der
+        // Test nur, dass beide Stellen denselben Tippfehler haben.
+        const rowGesture = grid.match(/animation: (mem-[\w-]+)[^;]*backwards/)
+        expect(rowGesture, 'die Zeilen kommen nicht mehr an').toBeTruthy()
+        expect(cards, 'Kacheln und Zeilen kommen inzwischen unterschiedlich an').toContain(
+            `animation: ${rowGesture![1]}`
+        )
     })
 
     it('caps the tile stagger too, and takes the step from the token', () => {
