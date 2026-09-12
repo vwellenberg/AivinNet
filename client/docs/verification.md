@@ -59,6 +59,7 @@ pyjwt.encode({"sub": {"id": 1}, "iat": …, "nbf": …, "exp": …,
 | `scripts/edge-audit.js` (**im Repo**) | **Kanten-Gate**: misst jede Sticker-Überschrift gegen den Block, den sie beschriftet, und meldet Versatz sowie schiefes Chip-Padding. Zweites Gate am Ende von `scripts/deploy-client.sh`. `TOKEN=`, `BASE=`, `WIDTH=`, `ROUTES=`, `MIN_COMPARED=`. ⚠️ Beide Gates teilen einen Vertrag: **0 sauber · 1 Fund · 2 Harness kaputt** — „nicht gelaufen" darf nie wie „sauber" aussehen, und ein Fund nie wie ein Harness-Fehler |
 | `scripts/menu-label-fit.js` (**im Repo**) | **Label-Gate**: öffnet alle acht Kontextmenüs und misst jedes Label mit Canvas-`measureText` gegen die Box, die es tatsächlich bekommen hat. Drittes Gate am Ende von `scripts/deploy-client.sh`, gleicher Vertrag. `TOKEN=`, `BASE=`. ⚠️ **Nicht** `scrollWidth` — an einem bereits gekappten Element meldet der die gekappte Breite, ein abgeschnittenes Label misst sich also als passend. Ein Menü, das nicht aufgeht, druckt `HARNESS:` und zählt als nichts gemessen, nie als bestanden |
 | `pixelprobe.js` | **welche Farbe steht wirklich an dieser Stelle?** Tastet eine waagerechte Linie im Bild ab (Clip → Canvas), statt Element-Rechtecken zu glauben. `ROUTE=`, `BASE=`, `ENGINE=` |
+| `auxvariants.js` | **Layout-Varianten vergleichen, ohne eine zu bauen**: schiebt der laufenden App nacheinander CSS-Overrides unter und schießt zu jeder Variante Bild **und** Maße — siehe unten |
 | `previewproxy.js` + `run*.sh` | Branch-`dist` über einen Proxy servieren und messen |
 | `queueseams.js`, `verify3.js` | E2E für Queue-Seams und Group-Sync |
 | `shuffleverify.js`, `endlessverify.js`, `groupshuffle.js` | E2E für die Zufallswiedergabe: wiederholt sie einen Song, stoppt sie auf der letzten Zeile, würfelt die Gruppe? |
@@ -99,6 +100,37 @@ Die Routen sind Hash-Routen: `http://localhost:1970/#/<route>`.
 liefert eine **leere Seite mit gültiger URL**. Kein 404, keine Konsolenmeldung: Titelleiste und
 Bottom-Bar stehen, der Messcode findet null Elemente und meldet, das Feature fehle. `/nowplaying`
 ohne Tab ist dagegen ehrlich und zeigt „404! Page Not Found!".
+
+## Varianten vergleichen, bevor eine gebaut wird
+
+Wenn die Frage „wie sollen die vier Buttons stehen?" lautet, ist der kürzeste Weg **nicht** ein
+Standalone-Mockup und erst recht kein Branch pro Idee: Man lädt die laufende App, hängt pro
+Variante ein `<style>` mit dem Override ein und schießt zu jeder ein Bild plus die Maße.
+
+```js
+for (const [name, css] of VARIANTS) {
+  await page.evaluate((c) => {
+    let el = document.getElementById("variant-style")
+    if (!el) { el = document.createElement("style"); el.id = "variant-style"; document.head.appendChild(el) }
+    el.textContent = c
+  }, css)
+  // … messen, dann screenshot(name)
+}
+```
+
+Vorlage: `~/uitest/auxvariants.js` (fünf Anordnungen der Aux-Reihe im Now-Playing-Kopf, #157).
+Der Wert liegt darin, dass **echte** Tokens, Schrift, Grund und Nachbarschaft mitkommen — ein
+Nachbau lügt genau dort, wo die Entscheidung fällt. Und die Maße gehören mit ins Bild: Die
+Entscheidung „zentriert mit 20px" war erst belastbar, als neben dem Screenshot stand, dass die
+Ist-Variante 35px zwischen den Nachbarn hatte.
+
+⚠️ **Eine Variante, die nur bei einer Breite gesehen wurde, ist eine Skizze, kein Beweis.** Die
+Runde in #157 hat alle fünf bei 390px verglichen und die Gewinner-Variante („zentriert,
+`width: max-content`") anschließend gebaut — auf 320px lief genau diese Form über, der letzte
+Button lag unter der Kartenkante. Der Screenshot bei 390 konnte das nicht zeigen, und die
+Implementierung musste die Form erst noch elastisch machen (siehe die `space-between`-Falle in
+`.claude/rules/styling.md`). Also **jede Variante auch bei 320px durchlaufen lassen** — es kostet
+einen Schleifendurchlauf.
 
 ## ⚠️ Fallen beim Messen
 
