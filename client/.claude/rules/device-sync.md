@@ -92,6 +92,27 @@ Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader be
 Drückende beim manuellen „Next"). Wer das ändern will, braucht ein Feld im Backend-State, nicht
 nur Client-Code.
 
+## ⚠️ Das Devices-Panel zeigt SERVER-Wahrheit — ein lokaler Wechsel ist dort unsichtbar
+
+Jede Zeile im Panel rendert aus `ds.devices`, und diese Liste kommt ausschließlich aus dem Poll.
+Nach einem Leave sind das **bis zu 5 Sekunden** (die Solo-Kadenz, die `toSolo()` gerade erst
+eingestellt hat): `ds.joined` ist längst `false`, die Zeile sagt weiter „In group" und bietet
+Regler und *Leave* an. Aus Nutzersicht hat der Knopf nichts getan — obwohl der Request unterwegs
+war. Deshalb setzt jeder Pfad, der die Mitgliedschaft lokal kennt, die eigene Zeile selbst:
+`markSelfJoined()` in `leave()`, `playHereLeave()` und im Join.
+
+**Und jeder Knopf, der ein Round Trip ist, benennt seinen Zustand** (`membershipPending`
+`'join' | 'leave'` im Store, per-Gerät-Pending in `Devices.vue`) und nimmt derweil keine Klicks
+mehr an. Ohne das tippt man zweimal und schickt zwei Joins — ein Join dauert wegen
+`calibrateClock()` ~1 s, und zwei parallele Joins rennen zwei Snapshots in den Queue-Mirror.
+
+⚠️ **`leave()` wartet auf einen laufenden Join, statt sich wegzuwerfen.** Das „Not now" des
+`GestureOverlay` landet exakt in diesem Fenster (`needsGesture` wird *während* `runJoin()`
+gesetzt). Ein dort verworfenes Leave ließe das Gerät in der Gruppe, die es gerade abgelehnt hat —
+und schlimmer: `rememberMembership(true)` aus dem Join überlebte, Auto-Rejoin liefe später
+hinterher. Die Kehrseite ist bewusst in Kauf genommen: Hängt der Join-Request, hängt auch das
+Leave (ein Timeout-Race würde genau den Bug wieder einbauen).
+
 ## ⚠️ Weitere Gotchas
 
 - **Der `applying`-Guard darf nie ein `await` überspannen.** Resolve **vor** dem Guard;
