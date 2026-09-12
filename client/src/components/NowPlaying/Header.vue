@@ -202,15 +202,26 @@ function handleFav() {
         align-items: center;
         margin-top: 1rem;
 
-        // The aux group is the only thing on this line now, so it spans it and
-        // spreads. It carries `width: max-content` + `justify-content:
-        // flex-end` from the bottom bar, where it shares the line with the
-        // transport; here that left a huddle of four buttons against the left
-        // edge with a third of the card empty beside it. (Was written out for
-        // the 320px case only, where the times used to stack above the group
-        // and it was the same problem.)
+        // The four controls read as ONE cluster in the middle, not as four
+        // objects pinned across the card. Spreading them over the full line
+        // put 35px between neighbours — the bar's own control spacing is
+        // $bar-gap (20px), and that is what the group carries anyway.
+        //
+        // The cap is what keeps both ends honest: at its natural width the
+        // group sits centred with exactly $bar-gap between the buttons; on a
+        // line narrower than that (a viewport of about 343px and down) the
+        // GAPS give way instead of the 44px touch targets, because the buttons
+        // are what a finger has to hit. Written as the cluster it describes —
+        // four controls and the three gaps between them — so a changed
+        // control size or gap token moves it along.
         .right-group {
+            $np-aux-controls: 4;
+
             width: 100%;
+            max-width: calc(
+                #{$np-aux-controls} * #{$bar-control} + #{$np-aux-controls - 1} * #{$bar-gap}
+            );
+            margin: 0 auto;
             justify-content: space-between;
         }
 
