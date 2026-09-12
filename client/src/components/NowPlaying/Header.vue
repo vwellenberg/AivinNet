@@ -222,6 +222,11 @@ function handleFav() {
         // With the spacing derived instead, the gaps shrink (12px at 320px)
         // and the 44px touch targets stay whole, which is the right way round.
         .right-group {
+            // repeat · shuffle · lyrics · devices — the group's own contents
+            // under this screen's props (`hide-heart`, `hide-volume` above).
+            // A fifth control would not break the row (the gaps just get
+            // smaller), but it would stop standing $bar-gap apart until this
+            // number follows.
             $np-aux-controls: 4;
 
             width: 100%;
