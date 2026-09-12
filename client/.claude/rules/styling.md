@@ -836,6 +836,19 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   erreichen kann — ein `animation-delay` auf den Kindern einer Reihe wurde deshalb jedes Mal
   weggewischt (gemessen: 4 von 5 Buttons bei 0 s). Werte, die eine Rolle überleben sollen, gehören
   in eine **Custom Property**, die die Kurzform liest (`var(--btn-pop-delay, 0s)`).
+- **⚠️ `:nth-child` zählt ALLE Geschwister, nicht die gleichartigen.** Die gestaffelte Ankunft
+  (`mem-arrival`) wird auf dem Element eingebunden und liest dessen Position — also zählt jedes
+  fremde Element davor mit. Die Chart-Zeilen standen im `.chartgroup` hinter dem Tab-Kopf und
+  einem `<br>`: Zeile 1 saß auf Platz 3 und bekam 90 ms, Zeile 7 fiel auf Platz 9 hinter den
+  Deckel und damit auf `0s` — sie kam **vor** Zeile 1 an. Am Build gemessen (`#1 0.09s … #6 0.315s,
+  #7–#10 je 0s`), im Bild unsichtbar, weil alle Zeilen ja animierten. Wer die Ankunft einbindet,
+  gibt den Elementen deshalb einen Kasten, der **nur** sie enthält (`.chartrows`), statt die
+  Positionen im Kopf nachzuzählen — Statusmeldungen und Pager sind bedingt, die Rechnung stimmt
+  also nicht einmal dauerhaft. Festgehalten in `motionArrival.test.ts`.
+- **Eine segmentierte Leiste kommt als EIN Objekt an, nie als Satz Segmente.** `mem-seg-tabs` ist
+  eine Platte mit Trennlinien und `overflow: hidden`, kein Satz Chips: Staffelten die Segmente
+  einzeln, risse die Platte beim Auftauchen auf und wüchse danach wieder zusammen. Die Animation
+  gehört deshalb ins Mixin selbst, nicht auf `#{$item}`.
 - **⚠️ Der Staffel-Deckel einer LISTE ist im RASTER ein Fehler.** `.songlist-item` staffelt die
   ersten acht Zeilen und lässt alles danach auf `0s` fallen — richtig, weil Zeile 9 unter der Falz
   steht: Niemand sieht sie früher ankommen als Zeile 8. Ein Kachelraster ist breit, und dieselbe
@@ -845,7 +858,9 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Fehler aus, nicht nach einer Staffel. Deshalb hält `#{$card-types}` alles ab der neunten Kachel
   auf der **letzten** Verzögerung (`&:nth-child(n + 9)`), statt es auf 0s zurückfallen zu lassen.
   Wer einen Deckel von einer Liste auf ein Raster überträgt, zählt also vorher die Kacheln über der
-  Falz. Festgehalten in `motionArrival.test.ts`.
+  Falz. Beide Hälften stecken seit #168 in **einem** Mixin: `mem-arrival($beyond: hold)` für alles
+  nebeneinander, `mem-arrival($beyond: drop)` für alles untereinander. Neue Reihen binden das ein
+  statt die Staffel ein viertes Mal auszuschreiben. Festgehalten in `motionArrival.test.ts`.
 - **`animation-fill-mode: backwards` ist erlaubt, `both` nicht.** `both` hält zusätzlich den
   **letzten** Frame, und ein Animations-`scale(1)` schlägt jedes deklarierte `transform` — Hover
   und Press wären in allen fünf Rollen still tot. `backwards` gilt nur *während* einer Verzögerung.
