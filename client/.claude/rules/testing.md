@@ -85,6 +85,22 @@ einzeln brechen und den Test rot sehen. Vier Mutationen, vier rote Läufe, dazu 
 Baseline- und ein grüner Restore-Lauf — das Ergebnis in den PR. Ohne diesen Lauf hätte hier ein
 Test gestanden, der genau den Fehler durchlässt, gegen den er geschrieben wurde.
 
+## ⚠️ Nach einer aufgelösten Mock-Antwort reicht `nextTick()` nicht
+
+Wer den Zustand **während** eines Requests prüft, hält die Mock-Antwort an (`mockReturnValueOnce`
+mit einem selbst aufgelösten Promise) und lässt sie danach los. Für die Assertion **nach** dem
+Loslassen ist `await nextTick()` zu wenig: Zwischen dem aufgelösten Promise und dem `finally`,
+das den Zustand aufräumt, liegen mehrere Microtask-Hops (Store-Action → aufrufende Komponente →
+deren `finally`). Der Test misst dann den Zustand von *vor* der Antwort und meldet den Bug, den
+er beweisen soll — obwohl der Code stimmt.
+
+`await flushPromises()` (aus `@vue/test-utils`) leert die Kette und rendert danach. Vorbild:
+`components/modals/__tests__/devicesModal.test.ts`.
+
+Zweite Kleinigkeit, die dort Zeit gespart hat: Ein Helfer, der ein Element **über sein Label**
+sucht, muss im Fehlerfall ausgeben, was tatsächlich dastand — sonst sagt der Fehlschlag nur
+„expected 0 to be 1" und man rät.
+
 ## Realistische Fixtures
 
 Backend-Formate nachbilden, nicht schönen: `image`-Strings mit `?pathhash=`-Suffix,
