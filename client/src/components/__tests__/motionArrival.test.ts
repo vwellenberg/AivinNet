@@ -69,6 +69,51 @@ describe('arrival animations', () => {
         expect(grid).toMatch(/animation-delay: \$motion-stagger/)
     })
 
+    it('lets the tiles arrive with the same gesture as the rows', () => {
+        // Die Kacheln haben die Ankunft aus #143 nachgereicht bekommen — mit
+        // `mem-step-in`, nicht mit einer eigenen Keyframe. Zwei Vokabeln für
+        // dieselbe Aussage ("hier kommt etwas an") sind genau die Drift, gegen
+        // die die geteilte Kachel-Anatomie existiert; und `btn-pop`, die andere
+        // naheliegende Wahl, ist für ein 44-px-Bedienelement gebaut.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
+
+        expect(cards, 'die Kacheln kommen nicht mehr an').toMatch(/animation: mem-step-in[^;]*backwards/)
+
+        // Und zwar mit DERSELBEN Keyframe wie die Zeilen — aus deren Regel
+        // gelesen statt hier ein zweites Mal hingeschrieben, sonst prüft der
+        // Test nur, dass beide Stellen denselben Tippfehler haben.
+        const rowGesture = grid.match(/animation: (mem-[\w-]+)[^;]*backwards/)
+        expect(rowGesture, 'die Zeilen kommen nicht mehr an').toBeTruthy()
+        expect(cards, 'Kacheln und Zeilen kommen inzwischen unterschiedlich an').toContain(
+            `animation: ${rowGesture![1]}`
+        )
+    })
+
+    it('caps the tile stagger too, and takes the step from the token', () => {
+        // Derselbe Deckel wie bei den Zeilen, aus demselben Grund: bei 45ms je
+        // Kachel wartet die sechzigste einer Bibliotheksseite sonst 2,7s.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+        const loop = cards.match(/@for \$i from 1 through (\d+)/)
+
+        expect(loop, 'die Staffelung der Kacheln ist weg').toBeTruthy()
+        expect(Number(loop![1])).toBeLessThanOrEqual(8)
+        expect(cards).toMatch(/animation-delay: \$motion-stagger/)
+    })
+
+    it('lands the tiles past the cap WITH the wave, not before it', () => {
+        // Der Unterschied zwischen Zeile und Raster, und der einzige Grund,
+        // warum die Kacheln nicht einfach die Zeilen-Regel kopieren können:
+        // Zeile 9 steht unter der Falz, Kachel 9 steht mitten im Bild (gemessen:
+        // 5 Spalten, 10 Kacheln im Viewport bei 1440×900). Fällt sie auf 0s
+        // zurück, ist sie VOR der Welle da und die Staffel liest sich rückwärts.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+
+        expect(cards, 'die Kacheln hinter dem Deckel fallen wieder auf 0s').toMatch(
+            /&:nth-child\(n \+ 9\) \{\s*animation-delay: \$motion-stagger \* 8;/
+        )
+    })
+
     it('holds the start frame during the delay', () => {
         // Without `backwards` a delayed row paints at its destination first and
         // then jumps back to start — the flicker reads as a rendering bug.
