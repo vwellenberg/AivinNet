@@ -836,6 +836,16 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   erreichen kann — ein `animation-delay` auf den Kindern einer Reihe wurde deshalb jedes Mal
   weggewischt (gemessen: 4 von 5 Buttons bei 0 s). Werte, die eine Rolle überleben sollen, gehören
   in eine **Custom Property**, die die Kurzform liest (`var(--btn-pop-delay, 0s)`).
+- **⚠️ Der Staffel-Deckel einer LISTE ist im RASTER ein Fehler.** `.songlist-item` staffelt die
+  ersten acht Zeilen und lässt alles danach auf `0s` fallen — richtig, weil Zeile 9 unter der Falz
+  steht: Niemand sieht sie früher ankommen als Zeile 8. Ein Kachelraster ist breit, und dieselbe
+  Regel wird dort sichtbar falsch. Gemessen auf `/playlists` bei 1440×900: **5 Spalten, 10 Kacheln
+  im Viewport** — die Plätze 9 und 10 standen also mitten im Bild und waren fertig (Deckkraft 1,00),
+  während Platz 8 noch bei 0,27 lief. Die Welle liest sich rückwärts, und das sieht nach einem
+  Fehler aus, nicht nach einer Staffel. Deshalb hält `#{$card-types}` alles ab der neunten Kachel
+  auf der **letzten** Verzögerung (`&:nth-child(n + 9)`), statt es auf 0s zurückfallen zu lassen.
+  Wer einen Deckel von einer Liste auf ein Raster überträgt, zählt also vorher die Kacheln über der
+  Falz. Festgehalten in `motionArrival.test.ts`.
 - **`animation-fill-mode: backwards` ist erlaubt, `both` nicht.** `both` hält zusätzlich den
   **letzten** Frame, und ein Animations-`scale(1)` schlägt jedes deklarierte `transform` — Hover
   und Press wären in allen fünf Rollen still tot. `backwards` gilt nur *während* einer Verzögerung.
