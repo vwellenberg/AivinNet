@@ -202,15 +202,39 @@ function handleFav() {
         align-items: center;
         margin-top: 1rem;
 
-        // The aux group is the only thing on this line now, so it spans it and
-        // spreads. It carries `width: max-content` + `justify-content:
-        // flex-end` from the bottom bar, where it shares the line with the
-        // transport; here that left a huddle of four buttons against the left
-        // edge with a third of the card empty beside it. (Was written out for
-        // the 320px case only, where the times used to stack above the group
-        // and it was the same problem.)
+        // The four controls read as ONE cluster in the middle, not as four
+        // objects pinned across the card. Spreading them over the full line
+        // put 35px between neighbours — the bar's own control spacing is
+        // $bar-gap (20px), and that is what the group carries anyway.
+        //
+        // The cap is what produces that spacing, and `gap: 0` is what makes it
+        // work: the width is the cluster — four controls plus the three
+        // $bar-gap between them — and `space-between` then divides exactly
+        // that leftover, so the buttons stand $bar-gap apart wherever the line
+        // is at least as wide.
+        //
+        // ⚠️ The group's own `gap: $bar-gap` must go for this, and not for
+        // tidiness: a gap is a fixed length, and `space-between` only ever
+        // hands out POSITIVE free space. On a line narrower than the cluster
+        // (a 320px phone: 212px against 236px) the 20px gaps stayed 20px and
+        // the row overflowed to the right — the devices button was clipped by
+        // the card edge, measured on the built branch before this line existed.
+        // With the spacing derived instead, the gaps shrink (12px at 320px)
+        // and the 44px touch targets stay whole, which is the right way round.
         .right-group {
+            // repeat · shuffle · lyrics · devices — the group's own contents
+            // under this screen's props (`hide-heart`, `hide-volume` above).
+            // A fifth control would not break the row (the gaps just get
+            // smaller), but it would stop standing $bar-gap apart until this
+            // number follows.
+            $np-aux-controls: 4;
+
             width: 100%;
+            max-width: calc(
+                #{$np-aux-controls} * #{$bar-control} + #{$np-aux-controls - 1} * #{$bar-gap}
+            );
+            margin: 0 auto;
+            gap: 0;
             justify-content: space-between;
         }
 
