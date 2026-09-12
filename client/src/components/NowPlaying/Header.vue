@@ -28,11 +28,12 @@
                     {{ formatSeconds(queue.duration.full) }}
                 </div>
             </div>
-            <!-- Gated on isSmallPhone, the only thing left in here: between 660
-                 and 900px this was an empty div still contributing its
-                 `margin-top`, and on a desktop the veil plate below turns that
-                 into 16px of dead air inside the card. isSmallPhone (<=660) is
-                 a subset of isMobile (<=900), so nothing is lost. -->
+            <!-- The aux buttons are all that is left in here, and they are
+                 `isSmallPhone` — so the row takes that gate too. Left on
+                 `isMobile` it would render empty between 660 and 900px and
+                 still contribute its `margin-top`: 16px of dead air inside the
+                 veil plate, the same thing the gate on this div was added to
+                 stop in the first place. -->
             <div v-if="isSmallPhone" class="below-progress">
                 <Buttons :hide-heart="true" :hide-volume="true" @handleFav="() => {}" />
             </div>
@@ -176,10 +177,13 @@ function handleFav() {
             border-radius: $smaller;
             font-variant-numeric: tabular-nums;
             // Pills keep their size; the bar between them is the elastic part.
-            // Their width is the five digits plus padding (41px measured), so
-            // there is nothing to trim on a narrow phone — `min-width` never
-            // binds, and the bar simply keeps the rest (184px at 390, 124 at
-            // 320). Hence no narrow-phone special case here.
+            //
+            // No narrow-phone special case, because there is nothing to trim:
+            // measured, a pill is 41px — its five digits plus padding, one over
+            // the 40px `min-width`, which therefore never binds. Shrinking it
+            // bought 2px and the bar keeps the rest anyway (184px at 390, 114
+            // at 320). An hour-long track widens both pills to eight digits and
+            // the bar gives way further; it is the one that may.
             flex: none;
         }
 
