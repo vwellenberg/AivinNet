@@ -207,13 +207,20 @@ function handleFav() {
         // put 35px between neighbours — the bar's own control spacing is
         // $bar-gap (20px), and that is what the group carries anyway.
         //
-        // The cap is what keeps both ends honest: at its natural width the
-        // group sits centred with exactly $bar-gap between the buttons; on a
-        // line narrower than that (a viewport of about 343px and down) the
-        // GAPS give way instead of the 44px touch targets, because the buttons
-        // are what a finger has to hit. Written as the cluster it describes —
-        // four controls and the three gaps between them — so a changed
-        // control size or gap token moves it along.
+        // The cap is what produces that spacing, and `gap: 0` is what makes it
+        // work: the width is the cluster — four controls plus the three
+        // $bar-gap between them — and `space-between` then divides exactly
+        // that leftover, so the buttons stand $bar-gap apart wherever the line
+        // is at least as wide.
+        //
+        // ⚠️ The group's own `gap: $bar-gap` must go for this, and not for
+        // tidiness: a gap is a fixed length, and `space-between` only ever
+        // hands out POSITIVE free space. On a line narrower than the cluster
+        // (a 320px phone: 212px against 236px) the 20px gaps stayed 20px and
+        // the row overflowed to the right — the devices button was clipped by
+        // the card edge, measured on the built branch before this line existed.
+        // With the spacing derived instead, the gaps shrink (12px at 320px)
+        // and the 44px touch targets stay whole, which is the right way round.
         .right-group {
             $np-aux-controls: 4;
 
@@ -222,6 +229,7 @@ function handleFav() {
                 #{$np-aux-controls} * #{$bar-control} + #{$np-aux-controls - 1} * #{$bar-gap}
             );
             margin: 0 auto;
+            gap: 0;
             justify-content: space-between;
         }
 
