@@ -59,14 +59,16 @@ describe('arrival animations', () => {
     })
 
     it('caps the stagger, so row 200 does not wait for its entrance', () => {
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
-        const loop = grid.match(/@for \$i from 1 through (\d+)/)
+        // Der Deckel steht seit dem gemeinsamen Mixin dort, nicht mehr in
+        // app-grid.scss — die Zeilenliste bindet ihn nur noch ein.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const cap = candy.match(/@mixin mem-arrival\(\$steps: (\d+)/)
 
-        expect(loop, 'the staggered rows are gone').toBeTruthy()
-        expect(Number(loop![1])).toBeLessThanOrEqual(8)
+        expect(cap, 'die Staffelung ist weg').toBeTruthy()
+        expect(Number(cap![1])).toBeLessThanOrEqual(8)
 
-        // And the delay has to come from the token, not from a fresh number.
-        expect(grid).toMatch(/animation-delay: \$motion-stagger/)
+        // Und der Schritt kommt aus dem Token, nicht aus einer frischen Zahl.
+        expect(candy).toMatch(/animation-delay: \$motion-stagger/)
     })
 
     it('keeps ONE staggered arrival, as a mixin', () => {
@@ -75,37 +77,23 @@ describe('arrival animations', () => {
         // Kopie ist genau die Drift, gegen die die geteilten Anatomien hier
         // existieren — also gibt es sie einmal, als `mem-arrival`.
         const candy = SHEETS['src/assets/scss/_candy.scss']
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
-
         const mixin = candy.slice(candy.indexOf('@mixin mem-arrival'))
         expect(mixin, 'mem-arrival ist weg').toBeTruthy()
         // Bis zur schließenden Klammer auf Spaltenposition 0 — die
         // verschachtelten Blöcke im Mixin sind eingerückt, die eigene nicht.
         const body = mixin.slice(0, mixin.search(/^}/m) + 1)
 
-        // Dieselbe Keyframe wie die Zeilen — aus DEREN Regel gelesen, nicht hier
-        // ein zweites Mal hingeschrieben: sonst prüft der Test nur, dass beide
-        // Stellen denselben Tippfehler tragen.
-        const rowGesture = grid.match(/animation: (mem-[\w-]+)[^;]*backwards/)
-        expect(rowGesture, 'die Zeilen kommen nicht mehr an').toBeTruthy()
-        expect(body, 'Reihen und Zeilen kommen inzwischen unterschiedlich an').toContain(
-            `animation: ${rowGesture![1]}`
-        )
+        expect(body, 'die Ankunft benutzt nicht mehr die Zeilen-Keyframe').toMatch(/animation: mem-step-in/)
         expect(body, 'ohne backwards blitzt das Element am Zielort auf').toMatch(/backwards/)
-        expect(body).not.toMatch(/both/)
-    })
-
-    it('caps that stagger and takes its step from the token', () => {
-        // Derselbe Deckel wie bei den Zeilen, aus demselben Grund: bei 45ms je
-        // Element wartet das sechzigste einer Bibliotheksseite sonst 2,7s.
-        const candy = SHEETS['src/assets/scss/_candy.scss']
-        const mixin = candy.slice(candy.indexOf('@mixin mem-arrival'))
-        const loop = mixin.match(/@for \$i from 1 through \$steps/)
-
-        expect(loop, 'die Staffelung ist weg').toBeTruthy()
-        expect(candy).toMatch(/@mixin mem-arrival\(\$steps: (\d+)\)/)
-        expect(Number(candy.match(/@mixin mem-arrival\(\$steps: (\d+)\)/)![1])).toBeLessThanOrEqual(8)
-        expect(mixin).toMatch(/animation-delay: \$motion-stagger/)
+        // `both` hielte zusätzlich den letzten Frame fest, und dessen
+        // `transform: none` schlüge jedes deklarierte transform (styling.md).
+        //
+        // Geprüft an der DEKLARATION, nicht am Block: der Kommentar darüber
+        // nennt `both` als das Verbotene, und ein Test, der daran scheitert,
+        // verbietet die Begründung statt den Fehler.
+        const declaration = body.match(/animation:[^;]*;/)
+        expect(declaration, 'die Ankunft hat keine animation-Kurzform mehr').toBeTruthy()
+        expect(declaration![0], 'fill-mode both macht Hover und Press still tot').not.toContain('both')
     })
 
     it('lands whatever stands side by side WITH the wave, not before it', () => {
@@ -123,15 +111,46 @@ describe('arrival animations', () => {
     })
 
     it.each([
-        ['die Kacheln', 'src/assets/scss/Global/cards.scss'],
-        ['die Bibliotheks-Kacheln der Startseite', 'src/components/HomeView/Browse.vue'],
-    ])('%s nehmen die geteilte Ankunft', (_label, file) => {
-        // Aufrufstellen, nicht Schreibweisen: wer `mem-step-in` hier von Hand
-        // ausschreibt, hat die Kopie wieder — und der Deckel fehlt ihm dann.
-        // Von der Platte gelesen wie die Stylesheets: der .vue-Glob liefert
-        // zwar Inhalt, aber zwei Schlüsselformen (mit und ohne führenden
-        // Schrägstrich) in einem Test sind eine Fehlerquelle ohne Gegenwert.
-        expect(readFileSync(file, 'utf8'), `${file} bindet mem-arrival nicht ein`).toMatch(/@include mem-arrival/)
+        ['die Kacheln', 'src/assets/scss/Global/cards.scss', 'hold'],
+        ['die Bibliotheks-Kacheln der Startseite', 'src/components/HomeView/Browse.vue', 'hold'],
+        ['die Songzeilen', 'src/assets/scss/Global/app-grid.scss', 'drop'],
+        ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'drop'],
+    ])('%s nehmen die geteilte Ankunft (%s, $beyond: %s)', (_label, file, beyond) => {
+        // Aufrufstellen statt Schreibweisen: wer `mem-step-in` von Hand
+        // ausschreibt, hat die Kopie wieder — und ihm fehlt dann der Deckel.
+        //
+        // Die Hälfte gehört mitgeprüft, weil sie die eine Entscheidung ist, die
+        // man hier falsch treffen kann: `hold` für alles nebeneinander (sonst
+        // läuft die Welle rückwärts), `drop` für alles untereinander (sonst
+        // blendet eine virtualisierte Zeile mitten im Scrollen nach).
+        const source = readFileSync(file, 'utf8')
+        const call = source.match(/@include mem-arrival\(?([^;)]*)\)?;/)
+
+        expect(call, `${file} bindet mem-arrival nicht ein`).toBeTruthy()
+        const usesDrop = /\$beyond:\s*drop/.test(call![0])
+        expect(usesDrop, `${file} sollte $beyond: ${beyond} benutzen`).toBe(beyond === 'drop')
+    })
+
+    it('gives the chart rows a container that holds nothing else', () => {
+        // Die eine Falle, die `mem-arrival` mitbringt: `:nth-child` zählt ALLE
+        // Geschwister, nicht die gleichartigen. Die Chart-Zeilen standen direkt
+        // im `.chartgroup` neben Kopfzeile, `<br>` und Statusmeldung — Zeile 1
+        // hätte die Verzögerung von Platz 3 bekommen und Zeile 7 wäre auf Platz
+        // 9 gefallen, also VOR Zeile 1 angekommen. Beim Self-Review im eigenen
+        // Diff gefunden, nicht im Bild: die Zeilen animierten ja alle.
+        const group = readFileSync('src/components/Stats/ChartItemGroup.vue', 'utf8')
+        // `lastIndexOf`, nicht `indexOf`: die Statusmeldung steht in einem
+        // verschachtelten `<template v-if>`, dessen Schluss-Tag sonst den
+        // Ausschnitt vor den Zeilen enden lässt — der Test wäre rot gewesen,
+        // während der Code stimmt.
+        const template = group.slice(0, group.lastIndexOf('</template>'))
+        const rows = template.indexOf('class="chartrows"')
+
+        expect(rows, 'die Chart-Zeilen haben keinen eigenen Kasten mehr').toBeGreaterThan(-1)
+        expect(
+            template.indexOf('<ChartItem'),
+            'ChartItem steht außerhalb von .chartrows — die Staffel zählt dann wieder Fremdelemente mit'
+        ).toBeGreaterThan(rows)
     })
 
     it('lets the segmented tab plate arrive as ONE object', () => {
@@ -153,8 +172,8 @@ describe('arrival animations', () => {
     it('holds the start frame during the delay', () => {
         // Without `backwards` a delayed row paints at its destination first and
         // then jumps back to start — the flicker reads as a rendering bug.
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
-        expect(grid).toMatch(/animation: mem-step-in[^;]*backwards/)
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        expect(candy).toMatch(/animation: mem-step-in[^;]*backwards/)
     })
 
     it('keeps the sticker slap off the settle curve', () => {

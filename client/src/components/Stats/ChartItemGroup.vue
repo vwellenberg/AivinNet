@@ -12,14 +12,24 @@
             </template>
             <span v-else>No {{ settings.statsgroup.slice(0, -1) }} data found for this period</span>
         </div>
-        <ChartItem
-            v-for="(item, index) in items"
-            :key="index"
-            :item="item"
-            :rank="pageStart + index + 1"
-            :name="(settings.statsgroup.slice(0, -1) as any)"
-            :meter_pct="meterPercent(chartItemDuration(item), maxPlayduration)"
-        />
+        <!-- Die Zeilen stehen in einem eigenen Kasten, und das ist nicht
+             Kosmetik: Die gestaffelte Ankunft (`mem-arrival`) zählt über
+             `:nth-child`, also über ALLE Geschwister. Direkt im `.chartgroup`
+             wären das der Kopf, ein `<br>` und womöglich die Statusmeldung —
+             Zeile 1 hätte damit die Verzögerung von Platz 3 bekommen, und Zeile
+             7 wäre auf Platz 9 gefallen, wo die Staffel sie sofort einblendet:
+             die siebte Zeile käme vor der ersten. Ein Kasten, der nur Zeilen
+             enthält, macht die Position wieder zur Zeilennummer. -->
+        <div class="chartrows">
+            <ChartItem
+                v-for="(item, index) in items"
+                :key="index"
+                :item="item"
+                :rank="pageStart + index + 1"
+                :name="(settings.statsgroup.slice(0, -1) as any)"
+                :meter_pct="meterPercent(chartItemDuration(item), maxPlayduration)"
+            />
+        </div>
         <div class="chartpager" v-if="showPager">
             <div class="pagesizes">
                 <button

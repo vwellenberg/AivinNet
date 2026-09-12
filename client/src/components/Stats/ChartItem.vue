@@ -120,6 +120,12 @@ function getRouterParams() {
     // The screen's CHROME — the tab segments, the pager buttons — keeps it, and
     // that contrast is now the thing the texture says. See mem-row-plate.
     @include mem-row-plate($candy-radius-sm, $hatch: false);
+    // Ankunft wie die Songzeilen, nicht wie die Kacheln (#143): eine Chart-Zeile
+    // steht UNTER ihrer Vorgängerin, also fällt alles hinter dem Deckel sofort
+    // ein statt auf das Ende der Welle zu warten. Bis zu diesem PR kam auf der
+    // Stats-Seite gar nichts an — gemessen im Ankunfts-Zensus: 6 Zeilen im Bild,
+    // null Animationen.
+    @include mem-arrival($beyond: drop);
     // Charts keep their translucent ground plate: the grid + doodles shimmer
     // through between the rows, which is what sets this screen apart from the
     // song list's cassette inlay. `--row-fill` is the plate's own indirection.

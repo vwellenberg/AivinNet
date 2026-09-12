@@ -155,15 +155,12 @@ $g-border: solid $candy-border-w $mem-line;
     // wartet Zeile 200 sonst neun Sekunden auf ihren Auftritt, und aus einer
     // Begrüßung wird eine Ladezeit.
     //
-    // `backwards` hält den Startzustand während der Verzögerung — ohne das
-    // blitzt die Zeile am Zielort auf, bevor sie losläuft.
-    animation: mem-step-in $motion-move $motion-curve backwards;
-
-    @for $i from 1 through 8 {
-        &:nth-child(#{$i}) {
-            animation-delay: $motion-stagger * ($i - 1);
-        }
-    }
+    // `$beyond: drop` ist hier die richtige Hälfte der Regel: Zeile 9 steht
+    // unter der Falz, und im virtualisierten Scroller entsteht sie erst beim
+    // Hinscrollen — mit gehaltener Verzögerung würde sie mitten in der
+    // Scrollbewegung nachblenden. Reihen NEBENeinander brauchen das Gegenteil
+    // (siehe mem-arrival in _candy.scss).
+    @include mem-arrival($beyond: drop);
 
     // The frame declarations need the .rounded-sm compound: SongItem.vue's
     // base rule (border: 2px solid transparent) sits later in the bundle and
