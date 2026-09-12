@@ -123,6 +123,16 @@ const browselist: BrowseItem[] = [
     color: $candy-text;
     transition: background-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.12s ease-out;
 
+    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): sechs
+    // Platten nebeneinander, die vorher als einziger Block der Startseite
+    // sofort dastanden, während die Reihen darunter eintrafen.
+    //
+    // `mem-arrival` und nicht `btn-pop`, obwohl das hier Bedienelemente sind:
+    // Der Pop ist für den 44-px-Satz gebaut. Diese Platte ist 160×70 und trägt
+    // Schraffur und harten Schatten, also die Kachel-Anatomie — auf ihr liest
+    // sich der Überschwinger als Wackeln, gemessen an denselben Kacheln in #162.
+    @include mem-arrival;
+
     display: grid;
     grid-template-columns: max-content 1fr;
     place-items: center;
