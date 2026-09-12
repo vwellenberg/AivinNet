@@ -87,9 +87,15 @@ Pro Aufgabe/Issue:
 Am 2026-08-07 lagen **183 tote Branches** herum (hier 51, im Client 139 — nach dem Kehren 2 bzw. 3).
 Das war keine Schlamperei, sondern drei Mechanismen, von denen nur einer Disziplin ist:
 
-- **`gh pr merge --delete-branch` löscht das REMOTE, nicht die lokale Branch.** Die überlebt den
-  Merge; sie zu löschen ist ein zweiter, separater Handgriff — und der fällt aus, sobald die Runde
-  sich fertig anfühlt.
+- ⚠️ **`--delete-branch` löscht „nach dem Merge" — und mit `--auto` gibt es dieses „nach" nicht.**
+  Der Flag heißt bei `gh` wörtlich „delete the local **and** remote branch after merge", der
+  vorgeschriebene Weg oben ist aber `--auto`: `gh` schaltet nur die Auto-Merge-Regel ein und kehrt
+  sofort zurück, gemergt wird Minuten später auf GitHub, ohne laufenden Client. Also räumt
+  **niemand** auf, weder lokal noch remote — belegt an #165, die Branch stand zwei
+  `fetch --prune` nach dem Merge noch mit lebendem Remote da. GitHub würde das Remote selbst
+  löschen, dafür müsste aber `delete_branch_on_merge` am Repo an sein; es steht auf `false`
+  (`gh api repos/vwellenberg/AivinNet --jq .delete_branch_on_merge`). **Ohne** `--auto` gilt, was
+  hier früher stand: das Remote ist weg, die lokale Branch überlebt.
 - **Fremde Merges hinterlassen Leichen bei DIR.** Mergt eine andere Sitzung, wird die Branch in
   *deinem* Klon zur Leiche, ohne dass du irgendetwas falsch gemacht hättest. Dagegen hilft keine
   eigene Disziplin — nur ein Sweep.
@@ -118,7 +124,14 @@ Squash-Merges kennt Git die Branch nicht als „merged" und verweigert **jede**.
 
 Und: `--delete-branch` beim Merge bleibt Pflicht — es ist das, was die lokale Branch überhaupt
 erst als `[gone]` erkennbar macht. Ohne das steht sie mit lebendem Remote da und fällt durch jeden
-Sweep (so entstanden 76 der 183).
+Sweep (so entstanden 76 der 183). ⚠️ Nach einem `--auto`-Merge reicht es aber nicht: Dort ist das
+Remote noch da, die Branch also gar nicht `[gone]`. Deshalb gehört nach dem Merge **ein Blick auf
+das Remote** dazu, nicht nur der Sweep:
+
+```bash
+git push origin --delete <branch>   # nur wenn der PR wirklich gemergt ist
+git fetch --prune && git branch -D <branch>
+```
 
 ## Code-Qualität
 
