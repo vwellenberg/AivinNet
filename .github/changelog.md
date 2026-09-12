@@ -66,6 +66,58 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+The biggest release since the security round: five fixes, a new sense of
+movement throughout the app, and a tidier player on phones.
+
+### Fixed
+
+- **Hovering a track row drew the heart over the album title.** The last column
+  held 152px of content in a 120px slot, so the overflow spilled left — 40px, at
+  every window size. Every track list in the app was affected.
+- **Restoring a backup left every playlist with the placeholder cover.** The
+  pictures were in the backup the whole time; nothing ever copied them back.
+  Restoring is additive, so a cover already on disk is kept, never overwritten.
+- **The browser tab kept naming the playlist you looked at before.** The title
+  was read once during setup, when the name had not arrived yet.
+- **The third line of a card's name plate was cut off** — the plate was pinned
+  to a height that fits two.
+- **"Join group" and "Leave" looked like nothing had happened.** Both are round
+  trips, and the panel shows the device list the server sends, which the next
+  poll brings up to five seconds later. The buttons now say what they are doing.
+
+### The app moves now
+
+Things **arrive** instead of appearing: track rows step in, captions land like
+stickers, cards and tab plates build with the page, and the playing row's band
+drops in on the leading edge. Everything stays inside a quarter second — the
+point is that it should not be noticeable the tenth time you see it.
+
+Two deliberate exceptions, because you trigger them rarely and on purpose: a
+small burst of confetti when you favourite something, and the shuffle glyph
+turning a somersault when you switch it on.
+
+⚠️ **`prefers-reduced-motion` is now respected everywhere.** If your system asks
+for less movement, the app stops moving — one rule, the whole app. Before this,
+four files answered that question and the rest ignored it.
+
+### Better on a phone
+
+The played and total time now flank the progress bar they label instead of
+standing among the buttons; the repeat/shuffle/lyrics/devices controls read as
+one cluster; and the devices button sits in the transport's row at the same
+spacing as its neighbours.
+
+### Upgrading
+
+Nothing to do coming from v2026.8.3. **From v2026.8.2 or older:** stop the
+server once, delete the `client` folder in your data directory, start it again —
+older versions left no marker behind, so that one generation has to be cleared
+by hand.
+
+<details>
+<summary>What v2026.8.3 fixed</summary>
+
+
 Five fixes on top of v2026.8.2. One of them needs a single manual step if you
 are upgrading — see the first point.
 
@@ -87,6 +139,8 @@ are upgrading — see the first point.
   directory that did not exist yet wrote an account that could never log in.
 - **The interface no longer loads its font from Google.** It ships with the app,
   so nothing is fetched from outside when you open the player.
+
+</details>
 
 <details>
 <summary>What v2026.8.2 fixed</summary>
