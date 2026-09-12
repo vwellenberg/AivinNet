@@ -43,16 +43,21 @@ function anatomy(): string {
 }
 
 /**
- * The body of the first rule whose selector matches `pattern`, without the
- * bodies of its nested rules — so a declaration is attributed to the selector
- * that actually carries it.
+ * The body of the first rule whose selector matches `pattern`. `own` keeps only
+ * the declarations the selector itself carries (so a declaration is attributed
+ * to the rule that actually holds it); `full` keeps the nested rules too.
+ *
+ * ⚠️ Returns `null` for "no such rule" and a possibly EMPTY string for "found,
+ * carries nothing" — a caller that tests the result for truthiness would read
+ * a rule whose declarations are all nested as a missing rule and fail for the
+ * wrong reason.
  */
-function ruleBody(source: string, pattern: RegExp): string | null {
+function ruleBody(source: string, pattern: RegExp, keep: "own" | "full" = "own"): string | null {
   const match = pattern.exec(source);
   if (!match) return null;
 
   let depth = 0;
-  let own = "";
+  let body = "";
   for (let i = source.indexOf("{", match.index); i < source.length; i++) {
     const c = source[i];
     if (c === "{") {
@@ -60,12 +65,16 @@ function ruleBody(source: string, pattern: RegExp): string | null {
       if (depth === 1) continue;
     } else if (c === "}") {
       depth--;
-      if (depth === 0) return own;
-      continue;
+      if (depth === 0) return body;
     }
-    if (depth === 1) own += c;
+    if (keep === "full" ? depth >= 1 : depth === 1) body += c;
   }
   return null;
+}
+
+/** `cls` as a literal inside a RegExp — a class name is data, not a pattern. */
+function escape(cls: string): string {
+  return cls.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 }
 
 /** The classes of the caption lines a card component puts inside its plate. */
@@ -81,23 +90,47 @@ function captionClasses(source: string): string[] {
   const after = template.slice(template.lastIndexOf("<", attr));
   const classes = new Set<string>();
   let depth = 0;
+  let i = 0;
 
   // Walk the plate's subtree and collect the classes one level below it. The
   // depth counter is why this is a walk and not a regex: a caption line that
   // wraps its text in a `<span>` (the help row) must not contribute the span.
-  for (const tag of after.matchAll(/<(\/?)([\w.-]+)([^>]*)>/g)) {
-    const [, slash, name, attrs] = tag;
-    if (name === "template" && slash) break;
-    if (slash) {
+  while (i < after.length) {
+    const lt = after.indexOf("<", i);
+    if (lt === -1) break;
+
+    // ⚠️ Walk to the tag's own ">" past quoted attribute values. A binding may
+    // contain one — `v-if="show_date && artists.length > 0"` is in AlbumCard
+    // today — and ending the tag there makes the depth count wrong from that
+    // point on, which silently empties the class list of every line below it.
+    let j = lt + 1;
+    let quote = "";
+    while (j < after.length) {
+      const c = after[j];
+      if (quote) {
+        if (c === quote) quote = "";
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if (c === ">") {
+        break;
+      }
+      j++;
+    }
+
+    const raw = after.slice(lt + 1, j);
+    i = j + 1;
+
+    const closing = raw.startsWith("/");
+    if (closing) {
       depth--;
       if (depth <= 0) break;
       continue;
     }
     if (depth === 1) {
-      const cls = attrs.match(/\bclass="([^"]*)"/);
+      const cls = raw.match(/\bclass="([^"]*)"/);
       if (cls) cls[1].trim().split(/\s+/).forEach(c => classes.add(c));
     }
-    if (!attrs.trimEnd().endsWith("/")) depth++;
+    if (!raw.trimEnd().endsWith("/")) depth++;
   }
 
   return [...classes];
@@ -135,11 +168,13 @@ describe("card plate rhythm", () => {
   // `minmax(…, max-content)` costs a row that is a pixel out of true in that
   // case — visible, and not at the cost of the text.
   it("pins the plate in a row as a floor, not as a fixed height", () => {
-    const row = ruleBody(scss, /\.cardscroller\s*\{/);
-    expect(row, `${ANATOMY_FILE} has no .cardscroller block`).toBeTruthy();
+    // The row geometry lives in a NESTED rule, so the whole block is read —
+    // not the block plus the rest of the file, which would happily pick up a
+    // `grid-template-rows` belonging to some later selector.
+    const row = ruleBody(scss, /^\.cardscroller\s*\{/m, "full");
+    expect(row, `${ANATOMY_FILE} has no .cardscroller block`).not.toBeNull();
 
-    const nested = (row as string) + scss.slice(scss.indexOf(".cardscroller"));
-    const tracks = nested.match(/grid-template-rows:\s*([^;]+);/);
+    const tracks = (row as string).match(/grid-template-rows:\s*([^;]+);/);
     expect(tracks, "the row geometry sets no grid-template-rows for the tiles").toBeTruthy();
 
     expect(
@@ -155,7 +190,7 @@ describe("card plate rhythm", () => {
   // would push the stack off centre again.
   it("gives the plate one rhythm and centres it", () => {
     const plate = ruleBody(scss, /^\.card-plate\s*\{/m);
-    expect(plate, `${ANATOMY_FILE} has no .card-plate block`).toBeTruthy();
+    expect(plate, `${ANATOMY_FILE} has no .card-plate block`).not.toBeNull();
 
     expect(plate, "the plate does not lay its lines out as a column").toMatch(/flex-direction:\s*column/);
     expect(plate, "the plate has no `gap` — the lines' spacing has no single source").toMatch(/\bgap:/);
@@ -168,8 +203,8 @@ describe("card plate rhythm", () => {
 
   it.each([...components])("%s leaves the vertical rhythm to the plate", (path, source) => {
     const offenders = captionClasses(source)
-      .map(cls => [cls, ruleBody(source.slice(source.indexOf("<style")), new RegExp(`\\.${cls}\\s*\\{`))] as const)
-      .filter(([, body]) => body && /margin-top:|margin-bottom:|margin:\s*[^;]*\s[^;]*;/.test(body))
+      .map(cls => [cls, ruleBody(source.slice(source.indexOf("<style")), new RegExp(`\\.${escape(cls)}\\s*\\{`))] as const)
+      .filter(([, body]) => body !== null && /margin-top:|margin-bottom:|margin:\s*[^;]*\s[^;]*;/.test(body))
       .map(([cls]) => cls);
 
     expect(
