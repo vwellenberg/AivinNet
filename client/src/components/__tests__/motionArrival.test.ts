@@ -92,6 +92,19 @@ describe('arrival animations', () => {
         expect(cards).toMatch(/animation-delay: \$motion-stagger/)
     })
 
+    it('lands the tiles past the cap WITH the wave, not before it', () => {
+        // Der Unterschied zwischen Zeile und Raster, und der einzige Grund,
+        // warum die Kacheln nicht einfach die Zeilen-Regel kopieren können:
+        // Zeile 9 steht unter der Falz, Kachel 9 steht mitten im Bild (gemessen:
+        // 5 Spalten, 10 Kacheln im Viewport bei 1440×900). Fällt sie auf 0s
+        // zurück, ist sie VOR der Welle da und die Staffel liest sich rückwärts.
+        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+
+        expect(cards, 'die Kacheln hinter dem Deckel fallen wieder auf 0s').toMatch(
+            /&:nth-child\(n \+ 9\) \{\s*animation-delay: \$motion-stagger \* 8;/
+        )
+    })
+
     it('holds the start frame during the delay', () => {
         // Without `backwards` a delayed row paints at its destination first and
         // then jumps back to start — the flicker reads as a rendering bug.

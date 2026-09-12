@@ -86,6 +86,18 @@ $card-cover-pad: 6px;
         }
     }
 
+    // ⚠️ Und der Rest kommt MIT dem Ende der Staffel, nicht vor ihr. Bei den
+    // Zeilen (`.songlist-item`) fällt alles ab der neunten auf 0s zurück, und
+    // das ist dort folgenlos: Zeile 9 steht unter der Falz, niemand sieht sie
+    // früher ankommen als Zeile 8. Ein Raster ist breit — gemessen auf der
+    // Playlists-Seite bei 1440×900: 5 Spalten, 10 Kacheln im Viewport, also
+    // stehen die Plätze 9 und 10 mitten im Bild. Ohne diese Regel landen sie
+    // sofort, während die Welle links davon noch läuft, und die Staffel liest
+    // sich rückwärts — im Filmstreifen sichtbar, deshalb steht sie hier.
+    &:nth-child(n + 9) {
+        animation-delay: $motion-stagger * 8;
+    }
+
     @include card-play-btn;
 
     // Hover belongs to the PLATES — there is no card surface left to tint. Both
