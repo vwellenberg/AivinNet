@@ -1000,6 +1000,44 @@ Regler-`input` bläht den Wrapper auf (Inline-Block: die Margin-Box zählt zur Z
 Mitte des Inputs mitzubewegen → Knopf und Overlay 7 px auseinander, während jede Knopf-Messung
 ±0,00 px meldet. **Abstände gehören auf den Wrapper.**
 
+Und eine Stufe höher dasselbe Prinzip: Steht der Wrapper selbst in einer Zeile (seit #154 flankieren
+die Zeit-Pillen die Leiste im Now-Playing-Kopf), gehört der Abstand an die **Zeile**. Auf dem
+Wrapper würde er die Leiste aus der Mittellinie ihrer Nachbarn schieben.
+
+## ⚠️ `space-between` verteilt nur POSITIVEN Freiraum — Abstände in einer gedeckelten Zeile ableiten
+
+Eine Steuergruppe, die zentriert mit einem festen Abstand stehen soll, baut man **nicht** aus
+`gap` + `justify-content: space-between`. Ein `gap` ist eine feste Länge: Wird die Zeile schmaler
+als der Inhalt, bleibt er stehen und die Reihe **läuft über** — `space-between` kann keinen
+negativen Freiraum verteilen. Real passiert (#157): vier 44-px-Controls mit `gap: $bar-gap` =
+236 px in einer 212-px-Zeile auf einem 320-px-Gerät; der letzte Button lag 24 px außerhalb und
+wurde von der Kartenkante abgeschnitten. `docOverflow` war dabei **0** — die Kante clippt, das
+Dokument scrollt nicht, kein Overflow-Check schlägt an.
+
+Stattdessen den Abstand **ableiten**: Gruppe auf ihre Cluster-Breite deckeln, `gap: 0`, und
+`space-between` genau diesen Rest verteilen lassen.
+
+```scss
+.right-group {
+    $controls: 4; // was die Zeile hier wirklich rendert
+
+    width: 100%;
+    max-width: calc(#{$controls} * #{$bar-control} + #{$controls - 1} * #{$bar-gap});
+    margin: 0 auto;
+    gap: 0;
+    justify-content: space-between;
+}
+```
+
+Damit steht die Gruppe dort, wo sie passt, exakt `$bar-gap` auseinander (gemessen: 20 px bei
+430/390/360) und darunter enger (12 px bei 320) — die **44-px-Touch-Ziele** bleiben ganz, und das
+ist die richtige Reihenfolge: Nachgeben soll die Luft, nicht das Ziel für den Finger.
+
+Zwei Dinge, die dazugehören: Die Anzahl im Deckel ist eine **Kopplung an das, was die Zeile
+rendert** — sie gehört als benannte Variable mit Kommentar dorthin, nicht als nackte Zahl. Und
+geprüft wird das an den **Button-Rechtecken**, nicht am Gruppenkasten: Der Kasten meldete brav
+212 px Breite, während seine Kinder bei 290 px endeten.
+
 ## ⚠️ Eine Trennlinie gehört der Textseite, nicht der Medienzelle
 
 Ein `border-right` auf einem Element mit `border-radius` wird **entlang dieses Radius gezeichnet** —
