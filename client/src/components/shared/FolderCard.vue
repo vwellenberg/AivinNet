@@ -80,10 +80,11 @@ const name = (path: string) => {
     color: $candy-text-muted;
   }
 
+  // No `margin-top` — the spacing between caption lines is the plate's `gap`
+  // (Global/cards.scss). Only the type stays here.
   .rtcount {
     font-size: 0.75rem;
     color: $candy-text-muted;
-    margin-top: $smaller;
   }
 }
 </style>

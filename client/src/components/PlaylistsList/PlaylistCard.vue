@@ -52,14 +52,13 @@ defineProps<{
 .p-card {
   user-select: none;
 
+  // `.overlay` IS the `.card-plate` (one element, two classes), so the column,
+  // its rhythm and its vertical alignment all come from the shared anatomy
+  // (Global/cards.scss). This block repeated them by hand and its
+  // `justify-content: flex-start` was the last thing anchoring a playlist
+  // tile's two lines to the top edge after the plate learned to centre them —
+  // the same drift the anatomy exists to prevent. Only the type stays here.
   .overlay {
-    display: flex;
-    flex-direction: column;
-    // Top-anchored like every other card's text zone, so the name lines align
-    // across mixed rows (the old flex-end only mattered when the image row was
-    // 1fr; in the shared anatomy the text zone has a fixed height).
-    justify-content: flex-start;
-
     .p-name {
       font-weight: 700;
       color: $candy-text;
@@ -68,7 +67,6 @@ defineProps<{
     .p-count {
       font-size: 0.75rem;
       color: $candy-text-muted;
-      margin-top: $smaller;
     }
   }
 }
