@@ -510,6 +510,51 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 }
 
 // ---------------------------------------------------------------------------
+// ANKUNFT EINER REIHE — der Treppen-Eintritt plus seine Staffelung, für alles,
+// was in Mehrzahl nebeneinander auftaucht: Kacheln, Kachelraster, die
+// Bibliotheks-Kacheln der Startseite.
+//
+// Auf dem ELEMENT einzubinden, nicht auf seinem Container: `:nth-child` zählt
+// dann die eigene Position, und damit staffelt jeder Container automatisch —
+// auch der nächste, den jemand baut. Eine Liste der Container wäre eine Liste,
+// die man vergisst zu pflegen (#162 hatte davon vier).
+//
+// ⚠️ **`$beyond` ist der ganze Unterschied zwischen Reihe und Liste**, und er
+// ist keine Geschmacksfrage:
+//
+// - `hold` (Standard, für alles NEBENEINANDER): Was hinter dem Deckel liegt,
+//   wartet auf das Ende der Welle. Muss es, weil es gleichzeitig sichtbar ist.
+// - `drop`: Was hinter dem Deckel liegt, ist sofort da. Richtig für alles
+//   UNTEREINANDER — Zeile 9 steht unter der Falz, niemand sieht sie zu früh
+//   ankommen; und im virtualisierten Scroller entsteht sie erst beim
+//   Hinscrollen, wo eine Verzögerung sie mitten in der Bewegung nachblenden
+//   ließe.
+// ---------------------------------------------------------------------------
+@mixin mem-arrival($steps: 8, $beyond: hold) {
+  // `backwards` hält den Startzustand während der Verzögerung — ohne das blitzt
+  // das Element am Zielort auf, bevor es losläuft. Niemals `both`: das hielte
+  // zusätzlich den letzten Frame, und dessen `transform: none` schlüge jedes
+  // deklarierte `transform` (styling.md).
+  animation: mem-step-in $motion-move $motion-curve backwards;
+
+  @for $i from 1 through $steps {
+    &:nth-child(#{$i}) {
+      animation-delay: $motion-stagger * ($i - 1);
+    }
+  }
+
+  // Gemessen auf /playlists bei 1440×900: 5 Spalten, 10 Kacheln im Viewport —
+  // Platz 9 und 10 standen fertig da (Deckkraft 1,00), während Platz 8 noch bei
+  // 0,27 lief. Die Staffel las sich rückwärts, und das sieht nach einem Fehler
+  // aus, nicht nach einer Welle.
+  @if $beyond == hold {
+    &:nth-child(n + #{$steps + 1}) {
+      animation-delay: $motion-stagger * $steps;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // "How many of them there are" — the small outlined chip beside a caption.
 //
 // Pastel ENTITY tint, never the saturated "on"-state colour: a count is not a
@@ -555,6 +600,12 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   border-radius: $candy-radius-sm;
   box-shadow: 3px 3px 0 var(--mem-shadow);
   overflow: hidden;
+  // Die Ankunft (#143) gehört der PLATTE, nicht ihren Segmenten — deshalb hier
+  // und nicht als `mem-arrival` auf `#{$item}`. Eine segmentierte Leiste ist
+  // EIN Objekt: eine Trennlinie, kein Spalt, `overflow: hidden` außen herum.
+  // Staffelten die Segmente einzeln, würde die Platte beim Auftauchen
+  // auseinanderreißen und danach wieder zusammenwachsen.
+  animation: mem-step-in $motion-move $motion-curve backwards;
 
   #{$item} {
     // 44px interior — the chrome touch-target floor (styling.md).

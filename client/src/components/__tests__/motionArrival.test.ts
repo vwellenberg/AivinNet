@@ -59,66 +59,121 @@ describe('arrival animations', () => {
     })
 
     it('caps the stagger, so row 200 does not wait for its entrance', () => {
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
-        const loop = grid.match(/@for \$i from 1 through (\d+)/)
+        // Der Deckel steht seit dem gemeinsamen Mixin dort, nicht mehr in
+        // app-grid.scss — die Zeilenliste bindet ihn nur noch ein.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const cap = candy.match(/@mixin mem-arrival\(\$steps: (\d+)/)
 
-        expect(loop, 'the staggered rows are gone').toBeTruthy()
-        expect(Number(loop![1])).toBeLessThanOrEqual(8)
+        expect(cap, 'die Staffelung ist weg').toBeTruthy()
+        expect(Number(cap![1])).toBeLessThanOrEqual(8)
 
-        // And the delay has to come from the token, not from a fresh number.
-        expect(grid).toMatch(/animation-delay: \$motion-stagger/)
+        // Und der Schritt kommt aus dem Token, nicht aus einer frischen Zahl.
+        expect(candy).toMatch(/animation-delay: \$motion-stagger/)
     })
 
-    it('lets the tiles arrive with the same gesture as the rows', () => {
-        // Die Kacheln haben die Ankunft aus #143 nachgereicht bekommen — mit
-        // `mem-step-in`, nicht mit einer eigenen Keyframe. Zwei Vokabeln für
-        // dieselbe Aussage ("hier kommt etwas an") sind genau die Drift, gegen
-        // die die geteilte Kachel-Anatomie existiert; und `btn-pop`, die andere
-        // naheliegende Wahl, ist für ein 44-px-Bedienelement gebaut.
-        const cards = SHEETS['src/assets/scss/Global/cards.scss']
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
+    it('keeps ONE staggered arrival, as a mixin', () => {
+        // Die Staffel stand ausgeschrieben in cards.scss, bis die zweite Reihe
+        // sie brauchte (die Bibliotheks-Kacheln der Startseite). Eine zweite
+        // Kopie ist genau die Drift, gegen die die geteilten Anatomien hier
+        // existieren — also gibt es sie einmal, als `mem-arrival`.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const mixin = candy.slice(candy.indexOf('@mixin mem-arrival'))
+        expect(mixin, 'mem-arrival ist weg').toBeTruthy()
+        // Bis zur schließenden Klammer auf Spaltenposition 0 — die
+        // verschachtelten Blöcke im Mixin sind eingerückt, die eigene nicht.
+        const body = mixin.slice(0, mixin.search(/^}/m) + 1)
 
-        expect(cards, 'die Kacheln kommen nicht mehr an').toMatch(/animation: mem-step-in[^;]*backwards/)
+        expect(body, 'die Ankunft benutzt nicht mehr die Zeilen-Keyframe').toMatch(/animation: mem-step-in/)
+        expect(body, 'ohne backwards blitzt das Element am Zielort auf').toMatch(/backwards/)
+        // `both` hielte zusätzlich den letzten Frame fest, und dessen
+        // `transform: none` schlüge jedes deklarierte transform (styling.md).
+        //
+        // Geprüft an der DEKLARATION, nicht am Block: der Kommentar darüber
+        // nennt `both` als das Verbotene, und ein Test, der daran scheitert,
+        // verbietet die Begründung statt den Fehler.
+        const declaration = body.match(/animation:[^;]*;/)
+        expect(declaration, 'die Ankunft hat keine animation-Kurzform mehr').toBeTruthy()
+        expect(declaration![0], 'fill-mode both macht Hover und Press still tot').not.toContain('both')
+    })
 
-        // Und zwar mit DERSELBEN Keyframe wie die Zeilen — aus deren Regel
-        // gelesen statt hier ein zweites Mal hingeschrieben, sonst prüft der
-        // Test nur, dass beide Stellen denselben Tippfehler haben.
-        const rowGesture = grid.match(/animation: (mem-[\w-]+)[^;]*backwards/)
-        expect(rowGesture, 'die Zeilen kommen nicht mehr an').toBeTruthy()
-        expect(cards, 'Kacheln und Zeilen kommen inzwischen unterschiedlich an').toContain(
-            `animation: ${rowGesture![1]}`
+    it('lands whatever stands side by side WITH the wave, not before it', () => {
+        // Der Unterschied zwischen Zeile und Reihe, und der Grund, warum die
+        // Kacheln die Zeilen-Regel nicht einfach kopieren konnten: Zeile 9 steht
+        // unter der Falz, Kachel 9 mitten im Bild (gemessen: 5 Spalten, 10
+        // Kacheln im Viewport bei 1440×900). Fällt sie auf 0s, ist sie VOR der
+        // Welle da und die Staffel liest sich rückwärts.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const mixin = candy.slice(candy.indexOf('@mixin mem-arrival'))
+
+        expect(mixin, 'hinter dem Deckel fällt die Reihe wieder auf 0s').toMatch(
+            /&:nth-child\(n \+ #\{\$steps \+ 1\}\) \{\s*animation-delay: \$motion-stagger \* \$steps;/
         )
     })
 
-    it('caps the tile stagger too, and takes the step from the token', () => {
-        // Derselbe Deckel wie bei den Zeilen, aus demselben Grund: bei 45ms je
-        // Kachel wartet die sechzigste einer Bibliotheksseite sonst 2,7s.
-        const cards = SHEETS['src/assets/scss/Global/cards.scss']
-        const loop = cards.match(/@for \$i from 1 through (\d+)/)
+    it.each([
+        ['die Kacheln', 'src/assets/scss/Global/cards.scss', 'hold'],
+        ['die Bibliotheks-Kacheln der Startseite', 'src/components/HomeView/Browse.vue', 'hold'],
+        ['die Songzeilen', 'src/assets/scss/Global/app-grid.scss', 'drop'],
+        ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'drop'],
+    ])('%s nehmen die geteilte Ankunft (%s, $beyond: %s)', (_label, file, beyond) => {
+        // Aufrufstellen statt Schreibweisen: wer `mem-step-in` von Hand
+        // ausschreibt, hat die Kopie wieder — und ihm fehlt dann der Deckel.
+        //
+        // Die Hälfte gehört mitgeprüft, weil sie die eine Entscheidung ist, die
+        // man hier falsch treffen kann: `hold` für alles nebeneinander (sonst
+        // läuft die Welle rückwärts), `drop` für alles untereinander (sonst
+        // blendet eine virtualisierte Zeile mitten im Scrollen nach).
+        const source = readFileSync(file, 'utf8')
+        const call = source.match(/@include mem-arrival\(?([^;)]*)\)?;/)
 
-        expect(loop, 'die Staffelung der Kacheln ist weg').toBeTruthy()
-        expect(Number(loop![1])).toBeLessThanOrEqual(8)
-        expect(cards).toMatch(/animation-delay: \$motion-stagger/)
+        expect(call, `${file} bindet mem-arrival nicht ein`).toBeTruthy()
+        const usesDrop = /\$beyond:\s*drop/.test(call![0])
+        expect(usesDrop, `${file} sollte $beyond: ${beyond} benutzen`).toBe(beyond === 'drop')
     })
 
-    it('lands the tiles past the cap WITH the wave, not before it', () => {
-        // Der Unterschied zwischen Zeile und Raster, und der einzige Grund,
-        // warum die Kacheln nicht einfach die Zeilen-Regel kopieren können:
-        // Zeile 9 steht unter der Falz, Kachel 9 steht mitten im Bild (gemessen:
-        // 5 Spalten, 10 Kacheln im Viewport bei 1440×900). Fällt sie auf 0s
-        // zurück, ist sie VOR der Welle da und die Staffel liest sich rückwärts.
-        const cards = SHEETS['src/assets/scss/Global/cards.scss']
+    it('gives the chart rows a container that holds nothing else', () => {
+        // Die eine Falle, die `mem-arrival` mitbringt: `:nth-child` zählt ALLE
+        // Geschwister, nicht die gleichartigen. Die Chart-Zeilen standen direkt
+        // im `.chartgroup` neben Kopfzeile, `<br>` und Statusmeldung — Zeile 1
+        // hätte die Verzögerung von Platz 3 bekommen und Zeile 7 wäre auf Platz
+        // 9 gefallen, also VOR Zeile 1 angekommen. Beim Self-Review im eigenen
+        // Diff gefunden, nicht im Bild: die Zeilen animierten ja alle.
+        const group = readFileSync('src/components/Stats/ChartItemGroup.vue', 'utf8')
+        // `lastIndexOf`, nicht `indexOf`: die Statusmeldung steht in einem
+        // verschachtelten `<template v-if>`, dessen Schluss-Tag sonst den
+        // Ausschnitt vor den Zeilen enden lässt — der Test wäre rot gewesen,
+        // während der Code stimmt.
+        const template = group.slice(0, group.lastIndexOf('</template>'))
+        const rows = template.indexOf('class="chartrows"')
 
-        expect(cards, 'die Kacheln hinter dem Deckel fallen wieder auf 0s').toMatch(
-            /&:nth-child\(n \+ 9\) \{\s*animation-delay: \$motion-stagger \* 8;/
+        expect(rows, 'die Chart-Zeilen haben keinen eigenen Kasten mehr').toBeGreaterThan(-1)
+        expect(
+            template.indexOf('<ChartItem'),
+            'ChartItem steht außerhalb von .chartrows — die Staffel zählt dann wieder Fremdelemente mit'
+        ).toBeGreaterThan(rows)
+    })
+
+    it('lets the segmented tab plate arrive as ONE object', () => {
+        // Eine segmentierte Leiste ist ein Objekt mit Trennlinien, kein Satz
+        // Chips: `overflow: hidden` außen herum, Trennstriche statt Spalten.
+        // Gestaffelte Segmente würden die Platte beim Auftauchen aufreißen.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const mixin = candy.slice(candy.indexOf('@mixin mem-seg-tabs'))
+        // Bis zur schließenden Klammer auf Spaltenposition 0 — die
+        // verschachtelten Blöcke im Mixin sind eingerückt, die eigene nicht.
+        const body = mixin.slice(0, mixin.search(/^}/m) + 1)
+
+        expect(body, 'die Tab-Platte kommt nicht an').toMatch(/animation: mem-step-in[^;]*backwards/)
+        expect(body, 'die Platte staffelt ihre Segmente — sie reißt dabei auf').not.toMatch(
+            /@include mem-arrival/
         )
     })
 
     it('holds the start frame during the delay', () => {
         // Without `backwards` a delayed row paints at its destination first and
         // then jumps back to start — the flicker reads as a rendering bug.
-        const grid = SHEETS['src/assets/scss/Global/app-grid.scss']
-        expect(grid).toMatch(/animation: mem-step-in[^;]*backwards/)
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        expect(candy).toMatch(/animation: mem-step-in[^;]*backwards/)
     })
 
     it('keeps the sticker slap off the settle curve', () => {

@@ -69,34 +69,10 @@ $card-cover-pad: 6px;
     // Überschwinger ist für ein 44-px-Bedienelement gebaut und liest sich auf
     // einer 12-rem-Kachel als Wackeln.)
     //
-    // `:nth-child` auf der KACHEL statt einer Liste der Raster-Container: jedes
-    // Raster staffelt damit automatisch, auch das nächste, das jemand baut —
-    // `.cardlistrow`, `.recentitems`, das Playlist-Raster und die Diskografie
-    // sind heute vier Stück, und vier Container in einer Liste sind vier
-    // Gelegenheiten, den fünften zu vergessen.
-    //
-    // Deckel bei acht wie bei den Zeilen: bei 45ms je Kachel wartet die
-    // sechzigste einer Bibliotheksseite sonst 2,7 s, und aus der Begrüßung wird
-    // eine Ladezeit. `backwards` hält den Startzustand während der Verzögerung.
-    animation: mem-step-in $motion-move $motion-curve backwards;
-
-    @for $i from 1 through 8 {
-        &:nth-child(#{$i}) {
-            animation-delay: $motion-stagger * ($i - 1);
-        }
-    }
-
-    // ⚠️ Und der Rest kommt MIT dem Ende der Staffel, nicht vor ihr. Bei den
-    // Zeilen (`.songlist-item`) fällt alles ab der neunten auf 0s zurück, und
-    // das ist dort folgenlos: Zeile 9 steht unter der Falz, niemand sieht sie
-    // früher ankommen als Zeile 8. Ein Raster ist breit — gemessen auf der
-    // Playlists-Seite bei 1440×900: 5 Spalten, 10 Kacheln im Viewport, also
-    // stehen die Plätze 9 und 10 mitten im Bild. Ohne diese Regel landen sie
-    // sofort, während die Welle links davon noch läuft, und die Staffel liest
-    // sich rückwärts — im Filmstreifen sichtbar, deshalb steht sie hier.
-    &:nth-child(n + 9) {
-        animation-delay: $motion-stagger * 8;
-    }
+    // Deckel, Staffelschritt und die Regel dahinter stehen im Mixin
+    // (`mem-arrival`, _candy.scss) — hier stand die ausgeschriebene Fassung,
+    // bis die Bibliotheks-Kacheln der Startseite dieselbe Ankunft brauchten.
+    @include mem-arrival;
 
     @include card-play-btn;
 
