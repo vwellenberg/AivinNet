@@ -42,7 +42,7 @@ generated admin password when it is done.
 
 Requirements: a glibc Linux with systemd. **No** Python, compiler, FUSE or
 Docker needed — the AppImage is unpacked at install time, so `libfuse2` never
-comes up. `ffmpeg` is optional and only used for transcoding.
+comes up.
 
 ### Options
 
@@ -104,6 +104,20 @@ None of these has an installer to hand you a password, so the server generates
 one on its first start and prints it once — watch that first log. Set
 `AIVINNET_ADMIN_PASSWORD` beforehand to choose it yourself, or run
 `aivinnet --password-reset` if you miss it.
+
+## Audio formats
+
+Scanned and indexed: **MP3, FLAC, M4A/ALAC, OGG, Opus, WAV, AIFF, WMA**.
+
+⚠️ **Files are streamed as they are — there is no transcoding.** What actually
+plays is therefore whatever your *browser* decodes. MP3, FLAC, M4A/AAC, OGG,
+Opus and WAV are safe in any current browser; **ALAC and WMA usually are not**,
+and a library full of those will be indexed and then refuse to play.
+
+There is a transcoding path in the source, but it has no caller — the client
+pins the legacy endpoint, and the chunked branch that would transcode is
+commented out. So `ffmpeg` buys you nothing today; it is listed as optional
+because that is all it is.
 
 ## Reaching it from outside your LAN
 
