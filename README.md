@@ -7,6 +7,7 @@ bold 80s/Memphis shapes and colours, in light and dark. Point it at a folder of
 music, open it in a browser, and that is the whole idea. It is a Python/Flask
 backend serving a REST API, and a Vue web client — both in this repository.
 
+![AivinNet in use](client/docs/screenshots/demo.gif)
 
 ## What it looks like
 
