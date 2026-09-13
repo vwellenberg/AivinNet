@@ -36,7 +36,7 @@ interface NavItem {
   // sequence alternates warm and cool and keeps the two red-ish fills (pink,
   // coral) apart:
   //
-  //   green · lavender · coral  —  separator —  teal · pink · yellow
+  //   green · pink · teal  —  separator —  coral · lavender · yellow
   //
   // Moving an entry means checking its new neighbours, not just its own fill.
   tint?: string;
@@ -74,26 +74,47 @@ const home = {
   tint: "tint-green",
 };
 
+const search = {
+  name: "search",
+  route_name: Routes.search,
+  params: { page: "top" },
+  query: () => ({ q: useSearch().query }),
+  icon: SearchSvg,
+  tint: "tint-coral",
+};
+
+const stats = {
+  name: "stats",
+  route_name: Routes.Stats,
+  icon: ChartSvg,
+  tint: "tint-yellow",
+};
+
+// ZIELE oben, WERKZEUGE unten — das ist die Bedeutung des Trenners.
+//
+// Oben stehen die Orte, an die man WILL (Start, die eigenen Listen, das
+// Gemerkte); unten das, womit man etwas SUCHT, plus die Statistik als
+// Gelegenheitsbesuch. Vorher stand der Trenner zwischen zwei Gruppen, die
+// niemand benennen konnte (`home · folders · search` gegen `favorites ·
+// playlists · stats`) — und Playlists, eines der häufigsten Ziele, lag an
+// fünfter Stelle hinter zwei Werkzeugen.
+//
+// ⚠️ Diese Reihenfolge gilt ZWEIMAL: `NavButtons.vue` rendert sie in der
+// Seitenleiste und — über `BottomBar.vue` — in der Navigationszeile am
+// Telefon. Dort sind `stats` und der Trenner per CSS ausgeblendet, sichtbar
+// sind also genau die fünf davor. Wer hier umsortiert, entscheidet mit, was am
+// Telefon überhaupt erscheint.
+//
+// (`MobileNav.vue` liest diese Liste ebenfalls, hat aber keinen Aufrufer —
+// toter Code, der beim Suchen in die Irre führt.)
 export const menus: NavItem[] = [
   home,
-  folder,
-  {
-    name: "search",
-    route_name: Routes.search,
-    params: { page: "top" },
-    query: () => ({ q: useSearch().query }),
-    icon: SearchSvg,
-    tint: "tint-coral",
-  },
+  playlists,
+  favorites,
   {
     separator: true,
   },
-  favorites,
-  playlists,
-  {
-    name: "stats",
-    route_name: Routes.Stats,
-    icon: ChartSvg,
-    tint: "tint-yellow",
-  },
+  search,
+  folder,
+  stats,
 ];
