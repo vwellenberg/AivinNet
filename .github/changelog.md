@@ -278,7 +278,10 @@ note that `docker compose pull` does not replace the bundled web interface.
   if you run the AppImage or a binary by hand. Back it up — it is the only
   copy, and it is three files for the database alone (`aivinnet.db` plus its
   `-wal` and `-shm` sidecars); copy them as a set.
-- `ffmpeg` is optional and only needed for transcoding.
+- **Audio formats:** MP3, FLAC, M4A/ALAC, OGG, Opus, WAV, AIFF and WMA are
+  scanned. Files are streamed **as they are** — there is no transcoding — so
+  what plays is whatever your browser decodes. MP3, FLAC, M4A/AAC, OGG, Opus
+  and WAV are safe everywhere; ALAC and WMA usually are not.
 - Reach it from outside your LAN via Tailscale or a VPN — do not port-forward it.
 - **Out of the box, nothing about your library leaves the machine.** Three
   things can talk to the internet and each is off until you switch it on:
