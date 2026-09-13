@@ -12,7 +12,7 @@ const automatic_backups: Setting = {
 
 const restore: Setting = {
     title: 'Backup now',
-    desc: 'Backup directory: ~/swingmusic.backups',
+    desc: 'Backup directory: ~/aivinnet.backup',
     type: SettingType.backup,
     state: () => true,
     action: () => {},

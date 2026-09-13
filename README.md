@@ -29,6 +29,60 @@ dark mode** on it switches itself: dark from 20:00, light from 08:00.
 ---
 ---
 
+## What it does
+
+**Your library, browsable.** Point it at one or more folders and it reads the
+tags into albums, artists, and tracks. Artist pages split the discography by
+type and collect every appearance, guest spots included. Alongside that, a folder
+browser walks the directory tree as it sits on disk, for the times the tags are
+not the truth. Search covers tracks, albums, and artists, with an A–Z band for
+browsing rather than typing. Adding music later means one **Scan for new music**
+from the profile menu — AivinNet does not watch the filesystem.
+
+**Playlists and favourites.** Playlists take a cover (uploaded or found online),
+can be pinned to the sidebar, and can be filed into folders once there are too
+many to scan. Favourites are their own section — tracks, albums, and artists
+each with a page.
+
+**Playback.** Gapless, with optional silence-padding removal and an optional
+crossfade whose length you set yourself — outside Chromium it carries an
+"experimental" badge. A queue you can rearrange by dragging, shuffle and repeat,
+and a now-playing screen that is the queue itself, with the lyrics one click away.
+
+**Lyrics.** Synced lyrics from `.lrc` files next to the track or from embedded
+tags, with a per-line progress bar. The lyrics plugin can download missing ones,
+optionally overriding unsynced text it finds.
+
+**Multiroom.** Pair a second device by scanning a QR code, and playback follows
+the group — start on the desktop, pick it up on the phone.
+
+**Editing.** Fix tags in the app, and give an album a cover: upload one, search
+online, or write the picture back into the files themselves.
+
+**Downloads.** Pull a whole album or playlist as a ZIP, or as separate files
+named from their tags.
+
+**Stats.** What you played, when, and how often — top artists, albums, and
+tracks over a week, a month, a year, or all time.
+
+**Accounts.** Multiple users with their own playlists, favourites, and history,
+plus an optional shared guest login, so a visitor can listen without an account
+of their own. Last.fm scrobbling is per user, with your own API key if you
+have one.
+
+**Backup and restore.** One button writes the whole instance — users, playlists,
+favourites, play history, and artwork — to `~/aivinnet.backup`, and restores it
+on the same machine or another one.
+
+**Elsewhere.** The web client installs as a PWA. There is a REST API behind
+everything the client does, and an [MCP server](mcp_server/) so an assistant can
+manage playlists and fix tags for you.
+
+**What it does not do:** transcode. Files are streamed as they are — see
+[Audio formats](#audio-formats).
+
+---
+
 ## Install (Linux)
 
 ```sh
