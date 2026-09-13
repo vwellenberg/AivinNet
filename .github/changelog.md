@@ -66,6 +66,35 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+One change, and it is the first thing you see.
+
+### The navigation is ordered by what you actually use
+
+**Playlists moved from fifth place to second.** The sidebar — and the row of
+buttons at the bottom on a phone — now reads:
+
+> **Home · Playlists · Favorites** — *Search · Folders · Stats*
+
+Destinations on top, tools underneath. Before this, Playlists sat behind Folders
+and Search, which are the things you reach for when you are *looking* for
+something rather than going somewhere. On a phone the difference is bigger than
+it sounds: only five entries fit there, and Playlists used to be the last one.
+
+That is the whole release. It is small on purpose — the screenshots and the
+demo in the README show this order, and an install that shows a different one
+is worse than no screenshots at all.
+
+### Upgrading
+
+Nothing to do coming from v2026.8.3 or newer. **From v2026.8.2 or older:** stop
+the server once, delete the `client` folder in your data directory, start it
+again — older versions left no marker behind, so that one generation has to be
+cleared by hand.
+
+<details>
+<summary>What v2026.8.4 brought</summary>
+
+
 The biggest release since the security round: five fixes, a new sense of
 movement throughout the app, and a tidier player on phones.
 
@@ -113,6 +142,8 @@ Nothing to do coming from v2026.8.3. **From v2026.8.2 or older:** stop the
 server once, delete the `client` folder in your data directory, start it again —
 older versions left no marker behind, so that one generation has to be cleared
 by hand.
+
+</details>
 
 <details>
 <summary>What v2026.8.3 fixed</summary>
