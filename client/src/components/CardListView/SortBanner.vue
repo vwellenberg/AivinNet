@@ -83,6 +83,13 @@ const artistitems = [
     // other and neither lined up with the grid (chips measured at 315 against
     // cards at 303). With the head flush, this is the last seam on these pages.
     padding: 1rem $medium 2rem 0;
+
+    // After the shorthand, or it would win: on a phone the head above is
+    // empty and already gives the page its start ($phone-page-start); this
+    // 1rem put the chips 16px lower than every other page's first row.
+    @include allPhones {
+        padding-top: 0;
+    }
     position: relative;
     font-size: 14px;
     font-weight: 500;
