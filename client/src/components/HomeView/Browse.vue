@@ -83,8 +83,15 @@ const browselist: BrowseItem[] = [
   // No horizontal padding: the caption sticker and the tiles sit on the
   // page's own content edge — the same line the card rows below start on.
   // An extra indent here put the whole block 8px right of everything else.
-  // The top value is the phone page start as well — see $phone-page-start.
+  // The top value is the page's own rhythm under the head. On a phone that
+  // head is empty but still owns the page start ($phone-page-start), so this
+  // padding stands down there — two owners would stack to 48px, which is the
+  // drift the token was introduced to end.
   padding: $phone-page-start 0 1.5rem;
+
+  @include allPhones {
+    padding-top: 0;
+  }
 
   .btitle {
     // A sticker, like every other section caption: it stood free on the doodle

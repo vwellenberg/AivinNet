@@ -1,5 +1,8 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
+        <GenericHeader>
+            <template #name>Home</template>
+        </GenericHeader>
         <Browse />
         <PageItem
             v-for="item in home.homepageItems"
@@ -22,6 +25,7 @@ import useHome from '@/stores/home'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
+import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
 

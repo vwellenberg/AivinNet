@@ -11,10 +11,7 @@
             <h2>Links</h2>
             <div class="flex">
                 <a href="https://github.com/vwellenberg/AivinNet" target="_blank">
-                    <button class="btn-pill">Backend (GitHub)</button>
-                </a>
-                <a href="https://github.com/vwellenberg/AivinNet-Client" target="_blank">
-                    <button class="btn-pill">Frontend (GitHub)</button>
+                    <button class="btn-pill">Source (GitHub)</button>
                 </a>
                 <a href="https://github.com/swingmx/swingmusic" target="_blank">
                     <button class="btn-pill">Upstream: Swing Music</button>
