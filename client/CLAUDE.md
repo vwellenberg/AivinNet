@@ -358,11 +358,12 @@ GitHub nichts.)
   Computed-Style-Audits, Regler-Vermessung, E2E für Queue und Group-Sync. **Vor dem Bauen eines
   neuen Skripts dort nachsehen** — die meisten Fragen sind schon einmal gemessen worden.
   Befehle, JWT-Prägung und die Fallen beim Messen: **[docs/verification.md](docs/verification.md)**.
-- **⚠️ Gemessen wird nur an einem Baum, der einem selbst gehört.** `~/preview` wird von mehreren
-  Sitzungen benutzt — eine andere kann es mitten im Lauf auf ihren Branch zurücksetzen und neu
-  bauen, und dann misst man deren Code (real passiert: erste Messung gelb, zweite gegen dasselbe
-  `dist` wieder teal). Eigenen Checkout anlegen und danach **am gebauten Artefakt** prüfen, dass
-  die eigene Änderung wirklich drin ist. Rezept: [docs/verification.md](docs/verification.md).
+- **⚠️ Gemessen wird nur an einem Baum, der einem selbst gehört.** Ein geteilter Checkout wird
+  von mehreren Sitzungen benutzt — eine andere kann ihn mitten im Lauf auf ihren Branch
+  zurücksetzen und neu bauen, und dann misst man deren Code (real passiert: erste Messung gelb,
+  zweite gegen dasselbe `dist` wieder teal). Eigenen Checkout **von `~/AivinNet`** anlegen
+  (`~/preview` ist seit dem Monorepo tot) und danach **am gebauten Artefakt** prüfen, dass die
+  eigene Änderung wirklich drin ist. Rezept: [docs/verification.md](docs/verification.md).
 - **⚠️ Reine Refactors gegen den Content-Hash beweisen.** Vite benennt Assets nach ihrem Inhalt — wenn `dist/assets/index.<hash>.css` auf Branch und master **denselben** Namen trägt, ist das gebaute CSS byte-identisch und eine Rendering-Änderung ausgeschlossen, nicht bloß unwahrscheinlich. Vorgehen: beide Seiten mit `rm -rf dist` sauber bauen, Dateinamen vergleichen, mit `cmp` gegenprüfen. Genau dieser Vergleich hat einen Sass-Interpolationsfehler gefunden, den drei grüne Gates durchgelassen hatten.
 - **⚠️ Ein selbst geprägtes JWT braucht `sub` als Dict, nicht als JSON-String.** Sonst: HTTP 500
   auf jedem Endpoint, während die App-Shell weiter rendert — Chrome und Nav sind da, aber null

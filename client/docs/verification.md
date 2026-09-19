@@ -232,19 +232,24 @@ einen Schleifendurchlauf.
   am falschen Build (real passiert: „Button fehlt" an master-CSS gemessen). Immer die Startzeile
   `preview proxy on <port> serving <dist>` im Log prüfen, frischen Port nehmen, mit `kill $PROXY`
   aufräumen (nicht `pkill -f previewproxy`).
-- **⚠️ `~/preview` gehört niemandem — für einen Messlauf einen eigenen Checkout nehmen.** Das
-  Verzeichnis wird von mehreren Sitzungen benutzt: eine andere kann es mitten im Lauf auf ihren
-  Branch zurücksetzen und neu bauen, und dann misst man deren Code. Real passiert: erste Messung
-  gelb, zweite gegen dasselbe `dist` wieder teal — `git log` in `~/preview` stand auf einem
-  fremden Commit.
+- **⚠️ Für einen Messlauf einen eigenen Checkout nehmen — und zwar von `~/AivinNet`, nicht von
+  `~/preview`.** Früher teilten sich die Sitzungen `~/preview`: eine andere konnte es mitten im Lauf
+  auf ihren Branch zurücksetzen und neu bauen, und dann misst man deren Code (real passiert: erste
+  Messung gelb, zweite gegen dasselbe `dist` wieder teal). ⚠️ **`~/preview` ist seit dem Monorepo
+  ohnehin tot:** es ist ein Worktree des archivierten `~/AivinNet-Client` und antwortet auf jedes
+  `git` mit `fatal: not a git repository` (festgestellt 2026-09-19). Basis ist der
+  Deploy-Checkout `~/AivinNet` — `--shared` liest nur aus ihm, der Deploy bleibt unberührt:
 
   ```bash
-  git clone -q --shared ~/preview ~/preview-<thema>
-  cd ~/preview-<thema> && git remote set-url origin <fork-repo>
-  git fetch origin <branch> && git checkout FETCH_HEAD
-  ln -s ~/preview/node_modules node_modules
-  yarn build
+  git clone -q --shared ~/AivinNet ~/preview-<thema>
+  cd ~/preview-<thema> && git remote set-url origin https://github.com/vwellenberg/AivinNet.git
+  git fetch -q origin <branch> && git checkout -q FETCH_HEAD
+  cd client && ln -sfn ~/AivinNet/client/node_modules node_modules
+  yarn build                                   # Proxy dann mit DIST=~/preview-<thema>/client/dist
   ```
+
+  Danach **am gebauten Artefakt** prüfen, dass die eigene Änderung drin ist (Bundle-Hash oder
+  `grep` im `dist`), und den Checkout mit `rm -rf ~/preview-<thema>` wieder entfernen.
 
   ⚠️ **Der Symlink auf fremde `node_modules` ist nicht nur Bequemlichkeit — ein frisches
   `yarn install` bricht auf `ryukyu` ab.** Der Server hat Node **18.19.1**, und `js-cookie@3.0.7`
