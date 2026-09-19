@@ -2,18 +2,36 @@ from aivinnet.settings import TCOLOR, Metadata, Paths
 from aivinnet.utils.network import get_ip
 
 
+def reachable_addresses(host: str) -> list[str]:
+    """
+    The addresses a browser can actually open for a server bound to `host`.
+
+    ⚠️ Wildcard bind addresses mean "listen on every interface" — they are not
+    destinations. A browser pointed at http://0.0.0.0 gets "site can't be
+    reached" on Windows (and Chrome blocks it outright), so they are replaced by
+    the loopback and LAN addresses they stand for.
+
+    "::" only promises IPv6: whether it also accepts IPv4 depends on the OS
+    (Windows defaults to IPV6_V6ONLY=1), so only the IPv6 loopback is listed.
+    """
+    if host in ("0.0.0.0", ""):
+        lan_ip = get_ip()
+        return ["127.0.0.1"] + ([lan_ip] if lan_ip else [])
+
+    if host == "::":
+        return ["::1"]
+
+    return [host]
+
+
 def log_startup_info(host: str, port: int):
-    print(f"{TCOLOR.HEADER}Swing Music v{Metadata.version} {TCOLOR.ENDC}")
-
-    addresses = [host]
-
-    if host == "0.0.0.0":
-        remote_ip = get_ip()
-        addresses.extend(["127.0.0.1"] + ([remote_ip] if remote_ip else []))
+    print(f"{TCOLOR.HEADER}AivinNet v{Metadata.version} {TCOLOR.ENDC}")
 
     print("Server running on:\n")
-    for address in addresses:
-        print(f"{TCOLOR.OKGREEN}http://{address}:{port}{TCOLOR.ENDC}")
+    for address in reachable_addresses(host):
+        # IPv6 literals need brackets in a URL, or the port is read as part of them.
+        url_host = f"[{address}]" if ":" in address else address
+        print(f"{TCOLOR.OKGREEN}http://{url_host}:{port}{TCOLOR.ENDC}")
 
     print(f"\n{TCOLOR.YELLOW}Data folder: {Paths().config_dir}{TCOLOR.ENDC}\n")
 
