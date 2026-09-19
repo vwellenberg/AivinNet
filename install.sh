@@ -307,6 +307,74 @@ exec "${SHARE_DIR}/AppRun" "\$@"
 EOF
 chmod +x "$BIN_PATH"
 
+# ------------------------------------------------------------------ ffmpeg ---
+
+# Not needed to PLAY anything — files are streamed as they are. But skipping the
+# silence between tracks (on by default in the client) decodes through ffmpeg
+# for everything except WAV, and without it that feature does nothing, without
+# an error anywhere. The AppImage does not bundle it (~80 MB per architecture
+# plus GPL source obligations), so offer the distro package instead.
+#
+# ASKED, not done silently: this script promises to run without root, and on a
+# minimal server the package pulls in 100+ MB of codecs. Default is yes, so a
+# plain Enter gets it. `curl | bash` has the script itself on stdin, which is
+# why the answer is read from /dev/tty — and why, with no terminal at all
+# (cron, CI, provisioning), it only prints the command instead of guessing.
+ffmpeg_install_cmd() {
+	if command -v apt-get >/dev/null 2>&1; then
+		echo "sudo apt-get update -qq && sudo apt-get install -y ffmpeg"
+	elif command -v dnf >/dev/null 2>&1; then
+		# Fedora's own repos call it ffmpeg-free; plain `ffmpeg` needs RPM Fusion.
+		echo "sudo dnf install -y ffmpeg-free"
+	elif command -v pacman >/dev/null 2>&1; then
+		echo "sudo pacman -S --needed --noconfirm ffmpeg"
+	fi
+}
+
+ensure_ffmpeg() {
+	command -v ffmpeg >/dev/null 2>&1 && return 0
+
+	local cmd answer
+	cmd="$(ffmpeg_install_cmd)"
+	if [ -z "$cmd" ]; then
+		warn "ffmpeg is not installed. Playback works without it, but skipping the
+    silence between tracks does not. Install it with your package manager."
+		return 0
+	fi
+
+	# /dev/tty can exist and still fail to open (no controlling terminal), so
+	# probe it by opening, in a subshell that may fail harmlessly.
+	if ! (: </dev/tty) 2>/dev/null; then
+		warn "ffmpeg is not installed. Playback works without it, but skipping the
+    silence between tracks does not. To add it:  ${cmd}"
+		return 0
+	fi
+
+	printf '\033[1;32m==>\033[0m ffmpeg is not installed. It is needed to skip the silence between\n'
+	printf '    tracks (playback works without it). Install it now with:\n'
+	printf '      %s\n' "$cmd"
+	printf '    [Y/n] '
+	answer=""
+	read -r answer </dev/tty || true
+
+	case "$answer" in
+	[nN]*)
+		log "Skipping ffmpeg. Add it any time with:  ${cmd}"
+		return 0
+		;;
+	esac
+
+	# ⚠️ stdin from the terminal, NOT inherited: under `curl | bash` stdin is the
+	# rest of this script, and a package manager reading it would swallow it.
+	if sh -c "$cmd" </dev/tty && command -v ffmpeg >/dev/null 2>&1; then
+		log "ffmpeg installed"
+	else
+		warn "installing ffmpeg failed — AivinNet works without it. Retry with:  ${cmd}"
+	fi
+}
+
+ensure_ffmpeg
+
 # ------------------------------------------------------------- config + env ---
 
 # Either database name means a library already exists — the file is renamed on

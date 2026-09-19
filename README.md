@@ -96,7 +96,8 @@ generated admin password when it is done.
 
 Requirements: a glibc Linux with systemd. **No** Python, compiler, FUSE or
 Docker needed — the AppImage is unpacked at install time, so `libfuse2` never
-comes up.
+comes up. If `ffmpeg` is missing, the installer asks whether to add it (apt,
+dnf or pacman, via `sudo`); see [Audio formats](#audio-formats) for why.
 
 ### Options
 
@@ -168,9 +169,11 @@ plays is therefore whatever your *browser* decodes. MP3, FLAC, M4A/AAC, OGG,
 Opus and WAV are safe in any current browser; **ALAC and WMA usually are not**,
 and a library full of those will be indexed and then refuse to play.
 
-`ffmpeg` is still worth installing: the optional silence-padding removal
-decodes tracks with it to find where the silence ends. Without it that feature
-quietly does nothing for anything but WAV; playback itself is unaffected.
+`ffmpeg` is still worth installing: skipping the silence between tracks (on by
+default) decodes tracks with it to find where the silence ends. Without it that
+feature does nothing for anything but WAV; playback itself is unaffected. The
+installer offers to add it through your package manager, and the server says so
+at startup when it is missing.
 
 ## Reaching it from outside your LAN
 

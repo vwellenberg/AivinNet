@@ -21,7 +21,9 @@ curl -fsSL https://raw.githubusercontent.com/vwellenberg/AivinNet/master/install
 ```
 
 Installs the AppImage to `~/.local/bin/aivinnet`, sets up a systemd service that
-starts at boot, and prints the URL plus the generated admin password.
+starts at boot, and prints the URL plus the generated admin password. If
+`ffmpeg` is missing it asks whether to install it — say yes: skipping the
+silence between tracks needs it.
 
 Options: `| bash -s -- --system` (system-wide service), `--port 1971`,
 `--music /mnt/nas/music`, `--no-autostart`, `--update`, `--uninstall`.

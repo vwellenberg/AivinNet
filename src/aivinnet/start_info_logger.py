@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from aivinnet.settings import TCOLOR, Metadata, Paths
 from aivinnet.utils.network import get_ip
@@ -52,6 +53,29 @@ def log_startup_info(host: str, port: int):
         print("\n(inside the container: on the host, use the port you published)")
 
     print(f"\n{TCOLOR.YELLOW}Data folder: {Paths().config_dir}{TCOLOR.ENDC}\n")
+
+    if not has_ffmpeg():
+        print(f"{TCOLOR.YELLOW}{FFMPEG_MISSING_HINT}{TCOLOR.ENDC}\n")
+
+
+FFMPEG_MISSING_HINT = (
+    "ffmpeg was not found. Playback works without it, but skipping the silence\n"
+    "between tracks does not (except for WAV). Install it and restart,\n"
+    "e.g. `sudo apt install ffmpeg`."
+)
+
+
+def has_ffmpeg() -> bool:
+    """
+    Whether the silence detection behind `POST /file/silence` can decode.
+
+    ⚠️ Without a decoder that feature fails SILENTLY: the vendored pydub shells
+    out to ffmpeg (or avconv, which it prefers) for everything but WAV, and
+    `lib/trackslib.py` turns the resulting exception into "no silence". The
+    client skips silence by default, so the only place this can surface is here.
+    The AppImage does not ship ffmpeg; the Docker image does.
+    """
+    return bool(shutil.which("ffmpeg") or shutil.which("avconv"))
 
 
 def log_generated_admin_password(password: str):
