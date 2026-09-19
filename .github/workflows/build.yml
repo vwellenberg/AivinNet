@@ -302,9 +302,6 @@ jobs:
       - name: Checkout into repo
         uses: actions/checkout@v3
 
-      - name: Create version.txt
-        run: echo ${{ github.event.inputs.tag }} > version.txt
-
       # INFO: Container registries reject upper-case image names, and this repo
       # is `vwellenberg/AivinNet` — using ${{ github.repository }} verbatim
       # makes the push fail.
@@ -339,6 +336,10 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_TAGS }}
           labels: org.opencontainers.image.title=AivinNet
+          # ⚠️ The image's ONLY version source — the Dockerfile's `ARG app_version`
+          # writes it into the pip metadata. An arg the Dockerfile does not declare
+          # is dropped without a word; tests/test_packaging_manifests.py checks both
+          # ends (TestImageVersion).
           build-args: |
             app_version=${{github.event.inputs.tag}}
 

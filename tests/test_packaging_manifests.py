@@ -283,3 +283,54 @@ class TestDockerfile:
         from aivinnet.start_info_logger import CONTAINER_ENV
 
         assert re.search(rf"^ENV {CONTAINER_ENV}=1$", self._dockerfile(), re.MULTILINE)
+
+
+class TestImageVersion:
+    """
+    The image's version comes from `--build-arg app_version`, nothing else (#192).
+
+    A build-arg the Dockerfile does not declare is dropped by Docker WITHOUT an
+    error, and that is exactly how the release's `app_version` did nothing: the
+    image read a `version.txt` relative to the working directory instead. The
+    release job overwrote that file just before the build, so published images
+    happened to be right — every other build reported the committed copy,
+    unbumped since v2026.8.2.
+    """
+
+    def _dockerfile(self) -> str:
+        return (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    def _release_build_args(self) -> set[str]:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "build.yml").read_text(encoding="utf-8")
+        block = re.search(r"build-args:\s*\|\n((?:[ \t]+\S.*\n?)+)", workflow)
+        assert block, "the release workflow no longer passes build-args — update this test"
+        return {line.strip().split("=", 1)[0] for line in block.group(1).splitlines() if line.strip()}
+
+    def test_every_release_build_arg_is_declared(self):
+        declared = set(re.findall(r"^ARG\s+(\w+)", self._dockerfile(), re.MULTILINE))
+        missing = self._release_build_args() - declared
+
+        assert not missing, (
+            f"build.yml passes {sorted(missing)}, the Dockerfile has no ARG for it — Docker drops it silently"
+        )
+
+    def test_the_version_arg_reaches_setuptools_scm(self):
+        # Scoped to OUR distribution: the unscoped variable would also stamp any
+        # dependency that happens to be built from an sdist with setuptools-scm.
+        assert re.search(r"SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AIVINNET=\S*app_version", self._dockerfile())
+
+    def test_no_second_version_source(self):
+        # One source of truth. A copied version file drifts (it did, by three
+        # releases) and was read relative to the CWD.
+        # Uses, not mentions: a quoted file name (open), a write (`> version.txt`)
+        # or a COPY. The comments explaining why it is gone may keep the name.
+        use = re.compile(r"""["']version\.txt["']|>\s*version\.txt|^COPY\b.*version\.txt""", re.MULTILINE)
+
+        assert not (REPO_ROOT / "version.txt").exists()
+        for rel in (
+            "Dockerfile",
+            ".github/workflows/build.yml",
+            "src/aivinnet/settings.py",
+            "src/aivinnet/api/settings.py",
+        ):
+            assert not use.search((REPO_ROOT / rel).read_text(encoding="utf-8")), rel

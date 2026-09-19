@@ -11,6 +11,7 @@ import logging
 import multiprocessing
 import os
 import pathlib
+import re
 import shutil
 import sys
 import tempfile
@@ -25,6 +26,31 @@ from aivinnet import legacy_paths
 from aivinnet.utils import classproperty
 
 log = logging.getLogger(__name__)
+
+
+def _comparable_version(value: str) -> str:
+    """
+    The two PEP 440 normalisations our tags actually need: no leading `v`, and
+    no separator before a pre-release marker (`2026.8.1-rc1` -> `2026.8.1rc1`).
+    """
+    value = value.strip().lower().removeprefix("v")
+    return re.sub(r"[-_.]?(a|b|rc)[-_.]?(\d+)$", r"\1\2", value)
+
+
+def release_matches_version(tag, version: str) -> bool:
+    """
+    Whether a GitHub release tag is the release of this `version`.
+
+    ⚠️ Not a string comparison. setuptools-scm normalises the version it writes
+    into the metadata, the tag stays as typed: `v2026.8.1-rc1` is installed as
+    `2026.8.1rc1`. Compared raw, an rc build never finds its own release and
+    falls back to the latest STABLE client.
+    """
+    if not isinstance(tag, str):
+        return False
+
+    return _comparable_version(tag) == _comparable_version(version)
+
 
 # # # # # # # # #
 #  Meta-classes  #
@@ -184,7 +210,7 @@ class AssetHandler:
                 if not isinstance(release, dict):
                     continue
 
-                if release.get("tag_name") == f"v{Metadata.version}":
+                if release_matches_version(release.get("tag_name"), Metadata.version):
                     if AssetHandler.process_release(release, path):
                         return release["tag_name"]
                     pass
@@ -668,11 +694,28 @@ class Metadata:
     Contains metadata for the application.
     """
 
+    # What an unversioned build reports: setuptools-scm's `fallback_version`
+    # (pyproject.toml) as it lands in the metadata, and the answer when there is
+    # no installed distribution at all. Never a reason to crash.
+    UNKNOWN_VERSION = "0.0.0"
+
     @classproperty
     def version(self) -> str:
-        version = metadata.version("aivinnet")
+        """
+        The installed distribution's version — the ONLY source (#192).
 
-        if version == "0.0.0":
-            return open("version.txt").read().strip()
+        A release build gets it from the git tag (wheel, AppImage, binary) or
+        from `--build-arg app_version` (Docker image, built without `.git`).
+        There used to be a fallback to `version.txt`, opened relative to the
+        WORKING DIRECTORY: a container started with any workdir but /app died
+        with FileNotFoundError — already in `__main__`, so even `--version` did —
+        and the file itself was a hand-maintained copy three releases stale.
 
-        return version
+        ⚠️ Keep the literal `metadata.version("aivinnet")`. PyInstaller collects
+        a distribution's metadata only when it sees that call with a constant
+        argument; behind a variable, the binary would report UNKNOWN_VERSION.
+        """
+        try:
+            return metadata.version("aivinnet")
+        except metadata.PackageNotFoundError:
+            return Metadata.UNKNOWN_VERSION
