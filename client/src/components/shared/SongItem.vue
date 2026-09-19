@@ -358,9 +358,9 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     // loudness, so it takes the light accent while hover takes the dark one.
     //
     // A static accent, so the pinned ink text below reads in the dark theme too.
-    @include candy-row-hover($mem-blush);
-    background-color: $mem-blush !important;
-    color: $mem-ink;
+    @include candy-row-hover(var(--look-context-fill, #{$mem-blush}));
+    background-color: var(--look-context-fill, #{$mem-blush}) !important;
+    color: var(--look-filled-text, #{$mem-ink});
 }
 
 // Filled row states — the LIGHT ones only. The base row text is
@@ -377,11 +377,11 @@ const isFavoritesPage = route.path.startsWith('/favorites')
 // only half the answer.
 .songlist-item.current,
 .songlist-item.contexton {
-    color: $mem-ink;
+    color: var(--look-filled-text, #{$mem-ink});
 
     .song-album,
     .song-duration {
-        color: $mem-text-muted-static;
+        color: var(--look-filled-muted, #{$mem-text-muted-static});
     }
 
     .options-and-duration {
@@ -391,7 +391,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
         }
 
         .options-icon svg {
-            stroke: $mem-text-muted-static;
+            stroke: var(--look-filled-muted, #{$mem-text-muted-static});
         }
     }
 
@@ -403,7 +403,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     // by the row's own class — so without the exclusion the marker's disc would
     // go ink here and, since its tick is ink too, read as a solid blob.
     .heart-button:not(.is-fav) {
-        color: $mem-ink;
+        color: var(--look-filled-text, #{$mem-ink});
     }
 }
 
@@ -482,23 +482,23 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     }
 
     > .song-album {
-        color: $mem-ink;
+        color: var(--look-filled-text, #{$mem-ink});
         font-weight: 600;
     }
 
     > .song-date-added {
         opacity: 1;
-        color: $mem-ink;
+        color: var(--look-filled-text, #{$mem-ink});
         font-weight: 600;
     }
 
     > .options-and-duration .song-duration {
-        color: $mem-ink;
+        color: var(--look-filled-text, #{$mem-ink});
         font-weight: 600;
     }
 
     > .options-and-duration .options-icon svg {
-        stroke: $mem-ink;
+        stroke: var(--look-filled-text, #{$mem-ink});
     }
 }
 

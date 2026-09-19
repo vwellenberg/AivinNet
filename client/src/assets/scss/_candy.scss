@@ -151,6 +151,30 @@ $candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every th
 // `--shape-shadow`. Memphis keeps its per-site offsets through the fallbacks;
 // a theme that sets the token gives every raised surface the same depth.
 // ---------------------------------------------------------------------------
+// LOOK TOKENS (#199) — the same mechanism for the static ACCENTS.
+//
+// Memphis paints its states with fixed palette colours: pastel navigation
+// fills, yellow for "on" and "playing", blush labels, a coral/teal band down the
+// track list, the pink seek track. Those are right for Memphis and wrong for
+// any other look, so each reads `var(--look-<name>, <memphis colour>)`.
+// `--shape-*` is the FORM, `--look-*` the accent/state COLOUR — two families so
+// a name says which question it answers. Both are set only by a look's own file
+// (Global/_theme-stream.scss); `shapeTokens.test.ts` holds that line.
+//
+//   --look-tint · -tint-text        static row fills (sidebar nav, Home) + text
+//   --look-active-fill · -text      the selected row
+//   --look-marker                   the ink zigzag marking "this one"
+//   --look-sticker-fill · -inset    heading stickers: fill and side padding
+//   --look-playing-fill             the now-playing track row
+//   --look-filled-text · -muted     text on the filled rows (playing, context)
+//   --look-context-fill             the row owning an open context menu
+//   --look-on-fill · -on-glyph      toggles that are on (shuffle, repeat, …)
+//   --look-selected-fill · -text    the active segment of a tab plate / select
+//   --look-switch-on                the track of a switch that is on
+//   --look-band                     the colour guide band of track rows
+//   --look-badge-line               the ring round track numbers and durations
+//   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
+//   --look-type-label               `display` of the type chip over a card
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
   @return var(#{$token}, #{$x} #{$y} 0 var(--mem-shadow));
@@ -276,7 +300,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // themes), so the glyph on them is a static colour rather than a theme token.
 // ---------------------------------------------------------------------------
 @mixin mem-transport-aux-on($fill: $mem-yellow, $glyph-color: $mem-ink) {
-  @include candy-box($fill, $candy-radius-sm);
+  @include candy-box(var(--look-on-fill, #{$fill}), $candy-radius-sm);
   // The on-state paints a COMPLETE surface, texture included — so whatever the
   // rest state used has to be cleared, not left to show through. `candy-box`
   // only sets `background-color`, so a rest state with a hatch (anything on
@@ -292,7 +316,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Set through `color`, never `fill`: the transport glyphs are currentColor
   // and the auxiliary ones (shuffle, repeat) are STROKED — a `fill` rule
   // would flood their open shapes solid.
-  color: $glyph-color;
+  color: var(--look-on-glyph, #{$glyph-color});
 
   // Memphis sprinkle over the accent fill, exactly like the play CTA.
   &::before {
@@ -503,15 +527,17 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 }
 
 @mixin mem-row-plate-tint($fill) {
-  --row-fill: #{$fill};
+  --row-fill: var(--look-tint, #{$fill});
   background-color: var(--row-fill);
   @include mem-hatch(38px, $on: accent);
-  color: $mem-ink;
+  color: var(--look-tint-text, #{$mem-ink});
 }
 
 @mixin mem-row-plate-active {
   // Static blush -> pin static ink, exactly as the flat active row did.
   @include mem-row-plate-tint($candy-pink);
+  --row-fill: var(--look-active-fill, var(--look-tint, #{$candy-pink}));
+  color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
   border-color: $mem-line;
 }
 
@@ -538,7 +564,10 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   width: fit-content;
   max-width: 100%;
   padding: $pad;
-  background-color: $mem-panel;
+  // The side padding is a look token: a sticker's text sits inside its plate,
+  // a look without plates wants the words on the content edge.
+  padding-inline: var(--look-sticker-inset, #{nth($pad, -1)});
+  background-color: var(--look-sticker-fill, #{$mem-panel});
   border: $candy-border;
   border-radius: $radius;
   box-shadow: mem-shadow(3px, 3px);
@@ -693,8 +722,8 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
     }
 
     &.active {
-      background-color: $mem-yellow;
-      color: $mem-ink;
+      background-color: var(--look-selected-fill, #{$mem-yellow});
+      color: var(--look-selected-text, #{$mem-ink});
     }
   }
 
@@ -775,7 +804,11 @@ $mem-seg-reserve: 4px !default;
 // ---------------------------------------------------------------------------
 @mixin mem-row-marker($w: 9px) {
   padding-left: $w;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>'),
+  // A look without the zigzag still has to say "this one": it gets the active
+  // fill instead. Memphis keeps the row's own tint here (the fallback).
+  background-color: var(--look-active-fill, var(--row-fill));
+  color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
+  background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>')),
     var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
@@ -957,7 +990,7 @@ $mem-seg-reserve: 4px !default;
 @mixin mem-now-playing-row($radius: $candy-radius-sm) {
   position: relative;
   overflow: hidden; // clip the teeth to the rounded corners
-  @include candy-box($mem-yellow, $radius);
+  @include candy-box(var(--look-playing-fill, #{$mem-yellow}), $radius);
 
   // The row's own content sits ABOVE the texture: a positioned pseudo-element
   // paints over static in-flow children, so without this the sprinkle would
@@ -1000,7 +1033,7 @@ $mem-seg-reserve: 4px !default;
     bottom: 0;
     width: 10px;
     pointer-events: none;
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><path d="M0 0 H3 L10 7 L3 14 H0 Z" fill="%2317171A"/></svg>');
+    background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><path d="M0 0 H3 L10 7 L3 14 H0 Z" fill="%2317171A"/></svg>'));
     background-size: 10px 14px;
     background-repeat: repeat-y;
     // Der Kassetten-Ruck (#143): das Zahnband schießt von oben herunter und
@@ -1061,10 +1094,9 @@ $mem-band-tint: 6%;
   }
   // Fallback hue = ink line, fallback fade = 1: a row without a band class or
   // fade value keeps the old full-strength edge instead of losing it.
-  --band: color-mix(
-    in srgb,
-    var(--band-hue, #{$mem-line}) calc(var(--band-fade, 1) * 100%),
-    transparent
+  --band: var(
+    --look-band,
+    color-mix(in srgb, var(--band-hue, #{$mem-line}) calc(var(--band-fade, 1) * 100%), transparent)
   );
 }
 

@@ -2,17 +2,34 @@ import { SettingType } from '../enums'
 import { Setting } from '@/interfaces/settings'
 
 import useSettingsStore from '@/stores/settings'
+import { lookHasModes, type Look } from '@/utils/theme'
 
 const settings = useSettingsStore
 
 /**
- * Memphis theme switch: grid-paper light vs. classic-90s indigo dark.
- * App.vue watches the store value and toggles `body.theme-dark`, which
- * flips the --mem-* custom properties (Global/index.scss).
+ * The LOOK: the app's form language. A separate setting from the mode below —
+ * see utils/theme.ts for why the two are not one list.
+ */
+const look: Setting = {
+    title: 'Theme',
+    desc: 'Memphis: grid paper, ink frames and hard shadows. Stream: flat and dark.',
+    type: SettingType.select,
+    options: [
+        { title: 'Memphis', value: 'memphis' },
+        { title: 'Stream', value: 'stream' },
+    ],
+    state: () => settings().look,
+    action: (value: Look) => settings().setLook(value),
+}
+
+/**
+ * The MODE: light or dark. App.vue turns look + mode into body classes
+ * (utils/theme.ts), which flip the --mem-* custom properties
+ * (Global/index.scss).
  */
 const theme: Setting = {
-    title: 'Theme',
-    desc: 'Grid-paper light or the near-black dark look.',
+    title: 'Mode',
+    desc: 'Light grid paper or the near-black dark ground. Stream is always dark.',
     type: SettingType.select,
     options: [
         { title: 'Light', value: 'light' },
@@ -21,9 +38,11 @@ const theme: Setting = {
     state: () => settings().theme,
     action: (value: 'light' | 'dark') => settings().setTheme(value),
     defaultAction: () => settings().toggleTheme(),
-    // While Auto dark mode is on the theme is not the user's to pick — showing it
+    // While Auto dark mode is on the mode is not the user's to pick — showing it
     // as editable would just let them make a choice the next check overrides.
-    inactive: () => settings().auto_theme,
+    // Under a look with one mode there is nothing to pick either; the stored
+    // choice waits for the switch back.
+    inactive: () => settings().auto_theme || !lookHasModes(settings().look),
 }
 
 /**
@@ -37,6 +56,7 @@ const auto_theme: Setting = {
     type: SettingType.binary,
     state: () => settings().auto_theme,
     action: () => settings().toggleAutoTheme(),
+    inactive: () => !lookHasModes(settings().look),
 }
 
-export default [theme, auto_theme]
+export default [look, theme, auto_theme]

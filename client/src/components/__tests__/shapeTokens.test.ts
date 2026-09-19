@@ -32,6 +32,7 @@ function sources(dir: string): string[] {
 
 const FILES = sources("src");
 const CANDY = "src/assets/scss/_candy.scss";
+const STREAM = "src/assets/scss/Global/_theme-stream.scss";
 
 /** `line: text` for every line matching `re`, outside the one owner file. */
 function offenders(re: RegExp, owner = CANDY): string[] {
@@ -76,7 +77,21 @@ describe("shape tokens", () => {
 
   it("Memphis does not set any shape token itself — the fallbacks are the design", () => {
     // A `--shape-*` DEFINITION in a Memphis stylesheet would make the fallback
-    // dead code and the pixel-equality argument of #198 void.
-    expect(offenders(/^\s*--shape-[a-z-]+\s*:/, "")).toEqual([]);
+    // dead code and the pixel-equality argument of #198 void. The one file
+    // allowed to set them is the Stream look, and only under its own class.
+    // Same for the accent family `--look-*` (#199).
+    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, STREAM)).toEqual([]);
+  });
+
+  it("the Stream look sets its tokens only under body.theme-stream", () => {
+    // Comments out, and Sass interpolations (`#{$brand-green}`) flattened —
+    // their braces would otherwise split a declaration block in two.
+    const stream = readFileSync(STREAM, "utf-8")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/#\{[^}]*\}/g, "X");
+    const blocks = [...stream.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const withShape = blocks.filter(([, , body]) => /--(shape|look)-/.test(body));
+    expect(withShape.length).toBeGreaterThan(0);
+    for (const [, selector] of withShape) expect(selector.trim()).toBe("body.theme-dark.theme-stream");
   });
 });

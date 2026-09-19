@@ -12,6 +12,7 @@ import useAxios from '@/requests/useAxios'
 import { paths } from '@/config'
 import { router, Routes } from '@/router'
 import { themeForNow } from '@/utils/autoTheme'
+import type { Look } from '@/utils/theme'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
 export default defineStore('settings', {
@@ -80,7 +81,11 @@ export default defineStore('settings', {
         use_legacy_streaming_endpoint: false,
 
         // layout
-        // Memphis theme: 'light' = grid paper, 'dark' = classic-90s indigo.
+        // The LOOK (form language) and the MODE are two settings — see
+        // utils/theme.ts. `theme` is the mode; the name predates the split and
+        // stays so nothing persisted needs migrating.
+        look: <Look>'memphis',
+        // Mode: 'light' = grid paper, 'dark' = the near-black ground.
         theme: <'light' | 'dark'>'light',
         /**
          * Pick the theme from the time of day in Berlin: light 08:00–19:59,
@@ -137,6 +142,9 @@ export default defineStore('settings', {
             this.separators = separators
         },
         // theme 👇
+        setLook(look: Look) {
+            this.look = look
+        },
         setTheme(theme: 'light' | 'dark') {
             this.theme = theme
         },

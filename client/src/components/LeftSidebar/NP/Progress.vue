@@ -201,14 +201,21 @@ const seekSpan = computed(() => {
 // background layer it sits under the thumb by construction. Hard colour stops
 // place it (rather than background-position, whose percentages are measured
 // against the leftover width and would need the span's own size folded in).
+// Look tokens with the Memphis colour as fallback (_candy.scss, "LOOK TOKENS"):
+// an inline style resolves `var()` like any other declaration.
+const SEEK = `var(--look-track-seek, ${MEMPHIS.yellow})`
+const PLAYED = `var(--look-track-played, ${MEMPHIS.teal})`
+const BUFFERED = `var(--look-track-buffered, ${MEMPHIS.blush})`
+const TRACK = `var(--look-track, ${MEMPHIS.blushSoft})`
+
 const progressBg = computed(() => {
     const span = seekSpan.value
     const seek = span
-        ? `linear-gradient(to right, transparent ${span.from}%, ${MEMPHIS.yellow} ${span.from}%, ${MEMPHIS.yellow} ${span.to}%, transparent ${span.to}%) left center / 100% 100% no-repeat, `
+        ? `linear-gradient(to right, transparent ${span.from}%, ${SEEK} ${span.from}%, ${SEEK} ${span.to}%, transparent ${span.to}%) left center / 100% 100% no-repeat, `
         : ''
-    const played = `linear-gradient(${MEMPHIS.teal}, ${MEMPHIS.teal}) left center / ${currentPercent.value}% 100% no-repeat`
-    const buffered = `linear-gradient(${MEMPHIS.blush}, ${MEMPHIS.blush}) left center / ${maxSeekPercent.value}% 100% no-repeat`
-    return `${seek}${played}, ${buffered}, ${MEMPHIS.blushSoft}`
+    const played = `linear-gradient(${PLAYED}, ${PLAYED}) left center / ${currentPercent.value}% 100% no-repeat`
+    const buffered = `linear-gradient(${BUFFERED}, ${BUFFERED}) left center / ${maxSeekPercent.value}% 100% no-repeat`
+    return `${seek}${played}, ${buffered}, ${TRACK}`
 })
 
 // Seek target under the cursor, formatted like every other time in the app.

@@ -116,7 +116,7 @@ defineEmits<{
         // the row re-pins the text colour on every filled state (hover, playing,
         // context menu), and the ring has to follow it or it strands as a grey
         // outline on the yellow row.
-        border: 2px solid currentColor;
+        border: 2px solid var(--look-badge-line, currentColor);
         border-radius: $candy-radius-pill;
         padding: 0.12rem 0.5rem;
         font-weight: 600;
