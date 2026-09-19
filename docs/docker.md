@@ -36,8 +36,12 @@ Worth knowing:
   playlists. The database is three files (`aivinnet.db` plus its `-wal` and
   `-shm` sidecars) — copy them as a set.
 - **The music volume is writable on purpose.** Editing tags writes back into your
-  files, and lyrics fetched online are saved as `.lrc` next to the track. Mount
-  it `:ro` if you would rather have neither.
+  files, and lyrics fetched online are saved as `.lrc` next to the track. Add
+  `read_only: true` to it (`:ro` with `docker run`) if you would rather have
+  neither.
+- **The music folder has to exist.** compose refuses to start on a path that
+  isn't there (`bind source path does not exist`) instead of creating an empty
+  one — that is what a typo in `.env` would otherwise give you.
 - **The first start needs internet.** The image does not bundle the web client;
   it downloads it from the release matching the image version (falling back to
   the newest release).
@@ -49,11 +53,9 @@ Worth knowing:
 Upgrading is `docker compose pull && docker compose up -d`. Your data stays in
 the `config` volume.
 
-> ⚠️ **The web interface does not upgrade with it.** It is unpacked into the
-> `config` volume on first start and kept as long as it is there, so a pulled
-> image runs the new backend behind the previous release's UI. Until that is
-> fixed, **rename** `config/aivinnet/client` (don't delete it) before starting the
-> new version: the app then fetches the matching one, and if it cannot — no
-> network, rate limited — you still have the old one to move back.
-> Tracked in AivinNet-Client#551.
+The web interface is refreshed along with it: the server notices that the
+client in `config/` was installed by an older version and fetches the matching
+one. Only an install that started out on **v2026.8.2 or older** has to help
+once — those left no version marker behind, so stop the container, delete
+`config/aivinnet/client`, and start it again.
 

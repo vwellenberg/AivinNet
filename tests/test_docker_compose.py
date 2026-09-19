@@ -52,3 +52,15 @@ class TestComposeInterpolation:
 
         assert generated is True
         assert len(password) >= 16
+
+
+def test_music_directory_must_already_exist():
+    # `:?` only catches an EMPTY variable. A typo still made Docker create an
+    # empty folder and the server came up healthy with nothing in it.
+    # `create_host_path: false` on the long bind syntax makes compose refuse.
+    compose = COMPOSE.read_text(encoding="utf-8")
+    music = compose[compose.index("source: ${AIVINNET_MUSIC_DIR") :]
+    music = music[: music.index("\n\n")]
+
+    assert "target: /music" in music
+    assert "create_host_path: false" in music
