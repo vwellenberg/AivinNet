@@ -266,8 +266,12 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   seinen eigenen SIGINT-Watcher und wartet dann ohne Timeout auf jede offene Verbindung (ein
   Browser-Tab genügt). (3) Ein Endlos-Thread ohne `daemon=True` hält den Prozess nach dem Server
   am Leben. Deshalb: `utils/shutdown.py` (SIGTERM → SIGINT + 3-s-Drain-Deadline, DB-Pool wird
-  geschlossen) und **neue Endlos-Threads immer als Daemon** — `@background` ist keiner. Gate:
-  Schritt „Stop is clean" im `Docker Smoke Test`. Kein `stop_grace_period` als Pflaster.
+  geschlossen) und **Endlos-Threads als Daemon** — `@background` ist keiner. ⚠️ Daemon allein
+  reicht aber nicht: steckt er beim Exit in SQLite, stirbt der Prozess mit **SIGSEGV** und die
+  WAL bleibt liegen (gemessen: 3 bzw. 7 von 12 Stopps direkt nach dem Start). Ein Endlos-Thread,
+  der die DB anfasst, braucht einen **kooperativen Stopp vor `dispose()`** — Vorbild
+  `crons.stop_cron_jobs()`. Gate: Schritt „Stop is clean" im `Docker Smoke Test`. Kein
+  `stop_grace_period` als Pflaster.
 - `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 
 Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:

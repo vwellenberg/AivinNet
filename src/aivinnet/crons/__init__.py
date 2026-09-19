@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 
 import schedule
 
@@ -27,6 +26,11 @@ def _reap_group_sessions():
         log.error("group-session reaper failed", exc_info=True)
 
 
+# Set once, on shutdown: the loop runs no further job after the one in progress.
+_stop = threading.Event()
+_thread: threading.Thread | None = None
+
+
 def start_cron_jobs():
     """
     Start the cron loop in a background thread.
@@ -34,13 +38,37 @@ def start_cron_jobs():
     ⚠️ A DAEMON thread, unlike `@background`: the loop never returns, and the
     interpreter waits for every non-daemon thread before it exits. As one, it
     kept the process alive after the server had already stopped, until Docker
-    SIGKILLed it. Nothing in here needs finishing — the jobs rebuild in-RAM
-    state and simply run again on the next start.
+    SIGKILLed it.
+
+    Daemon is only the fallback, though — the shutdown STOPS the loop first
+    (`stop_cron_jobs`). A daemon thread that is inside SQLite when the
+    interpreter finalizes crashes the process (SIGSEGV), and the connection it
+    holds keeps the WAL from being folded back into the database.
     """
-    threading.Thread(target=_run_cron_jobs, name="cron", daemon=True).start()
+    global _thread
+
+    _thread = threading.Thread(target=_run_cron_jobs, name="cron", daemon=True)
+    _thread.start()
+
+
+def stop_cron_jobs(timeout: float) -> None:
+    """
+    Let the job in progress finish, start no further one, and wait for the
+    thread — at most `timeout` seconds. Call it BEFORE closing the database.
+    """
+    _stop.set()
+    if _thread is not None:
+        _thread.join(timeout)
+        if _thread.is_alive():
+            log.warning("cron job still running %s s into the shutdown", timeout)
 
 
 def _run_cron_jobs():
+    # The stop can come while startup still runs: the thread is started from
+    # another background thread, after the plugins are registered.
+    if _stop.is_set():
+        return
+
     # NOTE: RecentlyPlayed is not a CRON job, it's triggered here to
     # populate the values for the very first time.
     RecentlyPlayed()
@@ -63,7 +91,7 @@ def _run_cron_jobs():
     # start" means nothing on its own.
     schedule.run_all()
 
-    # Run all CRON jobs on a loop.
-    while True:
+    # Run all CRON jobs on a loop, until the shutdown asks it to stop.
+    while not _stop.is_set():
         schedule.run_pending()
-        time.sleep(1)
+        _stop.wait(1)

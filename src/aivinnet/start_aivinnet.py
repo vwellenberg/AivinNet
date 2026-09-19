@@ -4,13 +4,18 @@ import socket
 import setproctitle
 
 from aivinnet import app_builder
-from aivinnet.crons import start_cron_jobs
+from aivinnet.crons import start_cron_jobs, stop_cron_jobs
 from aivinnet.db.engine import DbEngine
 from aivinnet.plugins.register import register_plugins
 from aivinnet.setup import load_into_mem, run_setup
 from aivinnet.start_info_logger import log_startup_info
 from aivinnet.utils.shutdown import ServerShutdown
 from aivinnet.utils.threading import background
+
+# Short enough that the whole stop, drain deadline included, stays inside
+# Docker's 10 s grace period. A cron job that takes longer is abandoned, with a
+# warning in the log — its results are only in-RAM and rebuilt on the next start.
+CRON_STOP_TIMEOUT = 3.0
 
 
 def config_mimetypes():
@@ -104,9 +109,7 @@ def start_aivinnet(host: str, port: int):
     # docker needs manual flush
     print("", end="", flush=True)
 
-    # Closing every pooled connection lets the last one fold the WAL back into
-    # the database, so a stopped server leaves one file behind, not three.
-    shutdown = ServerShutdown(cleanup=DbEngine.engine.dispose)
+    shutdown = ServerShutdown(cleanup=close_database)
     shutdown.install()
     try:
         serve(app, host, port)
@@ -115,6 +118,19 @@ def start_aivinnet(host: str, port: int):
         print("Shutting down ...", flush=True)
     finally:
         shutdown.finish()
+
+
+def close_database():
+    """
+    Close every pooled connection, so the last one folds the WAL back into
+    the database: a stopped server leaves one file behind, not three.
+
+    ⚠️ The cron thread first. `dispose()` only closes connections nobody holds,
+    and a cron job that is mid-query at exit keeps its connection — the WAL
+    stays, and the daemon thread can crash the exiting interpreter (SIGSEGV).
+    """
+    stop_cron_jobs(timeout=CRON_STOP_TIMEOUT)
+    DbEngine.engine.dispose()
 
 
 def serve(app, host: str, port: int):
