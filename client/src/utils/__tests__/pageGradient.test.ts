@@ -30,6 +30,18 @@ describe('pageGradient', () => {
         expect(gradient).toContain('rgba(58, 95, 138')
     })
 
+    it('carries its strength as look tokens with the Memphis values as fallback', () => {
+        // On the paper ground the tint is a light wash; a look whose ground is
+        // near-black lets it carry the whole detail head (#200). The strength
+        // is therefore the look's to set — and a bare number here would be a
+        // stop no look could reach.
+        const gradient = pageGradient(COVER_BG)
+
+        expect(gradient).toContain('var(--look-veil-top, 0.72)')
+        expect(gradient).toContain('var(--look-veil-mid, 0.42)')
+        expect(gradient).toContain('var(--look-veil-end, 0)')
+    })
+
     // `none`, not `transparent`: the veil is a background IMAGE (the scroll
     // container's own, see app-grid.scss). `transparent` is not a valid
     // <image>, so `background-image: var(--page-gradient)` would drop the whole

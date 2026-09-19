@@ -639,6 +639,14 @@ berühren), master gegen Branch — Ergebnis im PR. Wer einen neuen Look baut, s
 Stelle findet, die der Look nicht erreicht, macht sie zum Token mit Memphis-Fallback — nie eine
 `body.theme-stream .komponente`-Regel.
 
+**Detailseiten (#200):** Album-, Artist- und Playlist-Kopf sind in Memphis eine **Platte** (Panel,
+Rahmen, Offset) — der Text liest gegen die Panel-Fläche. Ein Look, der die Seite ohnehin aus dem
+Cover einfärbt, lässt stattdessen den Farbverlauf selbst der Kopf sein: `--look-detail-head-fill:
+transparent`, stärkerer und weiter laufender Verlauf (`--look-veil-top/-mid/-end`, gelesen in
+`pageGradient()` — `var()` in `rgba()` löst ganz normal auf) und ein größerer Titel
+(`--shape-detail-title`, plus die Phone-Variante). Der Play-CTA nimmt die Look-Farbe
+(`--look-play-fill`/`-glyph`), in Memphis weiterhin Teal mit Ink-Glyph.
+
 Drei Stellen, an denen es beim Bauen gehakt hat:
 
 - **Eine gefüllte Zeile pinnt ihre Textfarbe.** Die laufende Zeile ist in Memphis gelb und setzt

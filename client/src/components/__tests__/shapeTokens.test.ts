@@ -69,6 +69,19 @@ describe("shape tokens", () => {
     expect(candy).toMatch(/\$candy-radius-sm-static:\s*10px;/);
   });
 
+  it("the detail head and the play CTA are the look's to paint (#200)", () => {
+    // The head is a PLATE in Memphis; a cover-tinted look lets the page's own
+    // tint be the head, and the primary play button carries the look's colour.
+    const head = readFileSync("src/assets/scss/Global/detail-head.scss", "utf-8");
+    expect(head).toMatch(/candy-box\(var\(--look-detail-head-fill, #\{\$mem-panel\}\)/);
+    expect(head).toMatch(/font-size: var\(--shape-detail-title, #\{\$detail-title-size\}\)/);
+    expect(head).toMatch(/font-size: var\(--shape-detail-title-phone, #\{\$detail-title-size-phone\}\)/);
+
+    const buttons = readFileSync("src/assets/scss/Global/_buttons.scss", "utf-8");
+    expect(buttons).toMatch(/background-color: var\(--look-play-fill, #\{\$mem-teal\}\)/);
+    expect(buttons).toMatch(/color: var\(--look-play-glyph, #\{\$mem-ink\}\)/);
+  });
+
   it("the textures fall back to the Memphis artwork", () => {
     const candy = readFileSync(CANDY, "utf-8");
     expect(candy).toMatch(/var\(--shape-sprinkle,\s*url\('data:image\/svg\+xml/);
