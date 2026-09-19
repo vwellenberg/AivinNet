@@ -4,7 +4,6 @@
             <template #name>Charts</template>
             <template #description>Your top artists, albums, tracks, and playlists</template>
         </GenericHeader>
-        <br>
         <div class="chartitemgroupsgrid">
             <ChartItemGroup />
         </div>
@@ -19,6 +18,11 @@ import ChartItemGroup from './ChartItemGroup.vue'
 <style lang="scss">
 .stats-charts {
     .chartitemgroupsgrid {
+        // Was a `<br>` between the head and the grid: one line-height (21px)
+        // on the desktop — and the same 21px on a phone, where the head is
+        // empty and the tabs should start at $phone-page-start like every
+        // other page (they sat at 49px).
+        margin-top: 1.25rem;
         display: grid;
         // `minmax(0, 1fr)`, not `1fr`: a grid item's automatic minimum is its
         // MIN-CONTENT, so the group grew to whatever its widest child needed
@@ -28,6 +32,10 @@ import ChartItemGroup from './ChartItemGroup.vue'
         // width. The chart rows fit: their min-content is 257px.
         grid-template-columns: minmax(0, 1fr);
         gap: 3rem;
+
+        @include allPhones {
+            margin-top: 0;
+        }
     }
 }
 </style>

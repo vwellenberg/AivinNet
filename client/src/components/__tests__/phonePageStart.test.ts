@@ -59,4 +59,18 @@ describe("phone page start", () => {
     const recent = style.slice(style.indexOf(".recent-favs {"));
     expect(includeBlock(recent, "allPhones")).toMatch(/padding-top:\s*0;/);
   });
+
+  it("is not topped up by the album list's sort chips", () => {
+    const style = read("components/CardListView/SortBanner.vue");
+    // The override has to come AFTER the padding shorthand, or the shorthand wins.
+    const afterShorthand = style.slice(style.indexOf("padding: 1rem $medium 2rem 0;"));
+    expect(includeBlock(afterShorthand, "allPhones")).toMatch(/padding-top:\s*0;/);
+  });
+
+  it("is not topped up by a <br> or the grid margin on the charts", () => {
+    const source = read("components/Stats/Charts.vue");
+    expect(source).not.toMatch(/<\/GenericHeader>\s*<br\s*\/?>/);
+    const grid = source.slice(source.indexOf(".chartitemgroupsgrid {"));
+    expect(includeBlock(grid, "allPhones")).toMatch(/margin-top:\s*0;/);
+  });
 });
