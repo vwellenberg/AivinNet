@@ -170,6 +170,13 @@ class UserConfig(metaclass=Singleton):
         # rather than only a fresh one.
         restrict_to_owner(config)
 
+        # ⚠️ Arm write-through. `__post_init__` only does that after LOADING a
+        # file, so on a fresh install — no file yet — every setting changed in the
+        # first session stayed in memory: the music folder a new user picks in
+        # the first-run dialog was gone after the first restart (and Docker
+        # restarts on every upgrade). The file exists now, so writing is safe.
+        self._finished = True
+
     def load_config(self, path: Path) -> dict[str, Any]:
         """
         Reads the settings from the config file.

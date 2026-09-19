@@ -160,9 +160,27 @@ jobs:
           # Run bare, as the startup banner tells people to — it has to change
           # the password of THIS server, not of a second instance in /root.
           printf 'admin\nsmoke-reset-pw\n' | docker exec -i smoke aivinnet --password-reset
-          curl -sf -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
+          curl -sf -c cookies -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
             -H 'Content-Type: application/json' \
             -d '{"username":"admin","password":"smoke-reset-pw"}'
+
+          # The first-run folder choice has to survive a restart — every Docker
+          # upgrade is one. It used to live in memory only on a fresh install.
+          curl -sf -b cookies -o /dev/null -X POST http://127.0.0.1:1970/notsettings/add-root-dirs \
+            -H 'Content-Type: application/json' -d '{"new_dirs":["/music"],"removed":[]}'
+          docker restart smoke
+          for _ in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:1970/ && break
+            sleep 2
+          done
+          curl -sf -c cookies -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"smoke-reset-pw"}'
+          dirs=$(curl -sf -b cookies http://127.0.0.1:1970/notsettings/get-root-dirs)
+          echo "root dirs after restart: $dirs"
+          if ! grep -q '"/music"' <<< "$dirs"; then
+            echo "::error::music folder chosen on first run was lost on restart"; exit 1
+          fi
 
       - name: Container log on failure
         if: failure()
