@@ -2,7 +2,7 @@
 #
 #   echo AIVINNET_MUSIC_DIR=/path/to/your/music > .env
 #   docker compose up -d
-#   docker compose logs aivinnet     admin password, printed once on the first start
+#   docker compose logs -f aivinnet  waits for the admin password (printed once), then Ctrl+C
 #
 # then open http://localhost:1970 and log in as `admin`.
 #
@@ -37,7 +37,7 @@ services:
     environment:
       # Optional. Left empty, the server generates a random admin password on
       # its very first start and prints it ONCE to the container log:
-      #     docker compose logs aivinnet
+      #     docker compose logs -f aivinnet
       # It is not stored anywhere else — and the log is gone as soon as the
       # container is recreated (`docker compose pull && up -d`), so write it
       # down, then change it in the profile screen if you want your own.

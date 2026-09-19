@@ -4,7 +4,7 @@
 curl -fsSLO https://raw.githubusercontent.com/vwellenberg/AivinNet/master/docker-compose.yml
 echo AIVINNET_MUSIC_DIR=/path/to/your/music > .env
 docker compose up -d
-docker compose logs aivinnet   # admin password: printed once, a few seconds after the first start
+docker compose logs -f aivinnet   # waits for the admin password (printed once), then Ctrl+C
 ```
 
 Or without compose:
@@ -14,7 +14,7 @@ docker run -d --name aivinnet -p 1970:1970 \
   -v /path/to/your/music:/music \
   -v "$(pwd)/config:/config" \
   ghcr.io/vwellenberg/aivinnet:latest
-docker logs aivinnet
+docker logs -f aivinnet   # waits for the admin password (printed once), then Ctrl+C
 ```
 
 Then open `http://localhost:1970`, log in as `admin`, and pick `/music` as your
