@@ -105,12 +105,23 @@
     // title and collapse the header's bottom padding so content starts right
     // under the top bar instead of leaving a dead gap. (Page-level actions like
     // "New Playlist" move to a mobile FAB rather than living in this header.)
+    //
+    // The header is empty there, so it must not add height either: the first
+    // thing on the page starts $phone-page-start below the panel, like Home.
+    // `.after` kept its 2rem margin even when empty and pushed every
+    // GenericHeader page 8px (Playlists) to 24px (Favorites) further down than
+    // Home. The margin goes, not just the empty box: with nothing above it, a
+    // filled `.after` (ArtistDiscography) is the page start too.
     @include allPhones {
-        padding-top: 0;
+        padding-top: $phone-page-start;
         padding-bottom: 0;
 
         .title {
             display: none;
+        }
+
+        .after {
+            margin-top: 0;
         }
     }
 

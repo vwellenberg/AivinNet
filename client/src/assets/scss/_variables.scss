@@ -110,6 +110,17 @@ $songlist-duration-col: 10rem;
 $songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem $songlist-duration-col;
 $content-padding-bottom: 2rem;
 
+// PHONE PAGE START — how far the first thing on a page sits below the top of
+// the content panel on phones. ONE value for every page: Home's Browse block
+// (its own top padding) and the phone header of every GenericHeader page.
+//
+// They had drifted into three: 24px on Home, 32px on Playlists and 48px on
+// Favorites. On phones the in-view header is empty (the title moves to the top
+// bar, the description is never painted), but its empty `.after` box still
+// held its 2rem margin — and Favorites added 1rem of its own on top. The page
+// looked like it started "somewhere further down" depending on the menu.
+$phone-page-start: 1.5rem;
+
 // Legacy "apple human design guideline" names, remapped onto candy roles:
 // deepest-panel bg → white panel, app text ($white!) → black text, the gray
 // ramp (bg shades → hover/chip tints) → pink tints, muted grays → muted text.

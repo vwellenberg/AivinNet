@@ -104,6 +104,12 @@ function handlePlay(index: number) {
 
     .recent-favs {
         padding-top: 1rem;
+
+        // The header already gives the phone page its start
+        // ($phone-page-start); this extra 1rem put Favorites 24px lower than Home.
+        @include allPhones {
+            padding-top: 0;
+        }
     }
 
     .nothing h3 {
