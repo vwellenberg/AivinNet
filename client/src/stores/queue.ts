@@ -92,7 +92,8 @@ export default defineStore('Queue', {
          *
          * With permanent shuffle on this enters at a RANDOM track instead of the
          * first row: pressing Play on a playlist should not open with the same
-         * song every time (that is what "Zufallswiedergabe" promises). Clicking a specific row is a different intent and keeps its
+         * song every time (that is what "Zufallswiedergabe" promises).
+         * Clicking a specific row is a different intent and keeps its
          * index — that path calls `play(index)` and is untouched.
          *
          * The track playing right now is excluded, so hitting Play again on the
