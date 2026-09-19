@@ -1,13 +1,13 @@
-# SwingMusic Project Structure and Architecture
+# AivinNet Project Structure and Architecture
 
-This document provides a comprehensive overview of how SwingMusic is structured, how its components interact, and the application lifecycle from startup to ready state.
+This document provides a comprehensive overview of how AivinNet is structured, how its components interact, and the application lifecycle from startup to ready state.
 
 > [!IMPORTANT]
 > Disclaimer: This document was drafted with the help of an LLM. Last updated on July 14th, 2025.
 
 ## Project Overview
 
-SwingMusic is a modern music streaming server built with Python (Flask) on the backend and Vue.js on the frontend. It provides a self-hosted music library management system with features like audio streaming, playlist management, favorite tracking, and metadata extraction.
+AivinNet (a fork of [Swing Music](https://github.com/swingmx/swingmusic)) is a modern music streaming server built with Python (Flask) on the backend and Vue.js on the frontend. It provides a self-hosted music library management system with features like audio streaming, playlist management, favorite tracking, and metadata extraction.
 
 ## High-Level Architecture
 
@@ -110,7 +110,7 @@ aivinnet/
 
 ### 1. Data Models (`models/`)
 
-SwingMusic uses dataclasses for its core data models, providing type safety and automatic serialization:
+AivinNet uses dataclasses for its core data models, providing type safety and automatic serialization:
 
 #### Track Model (`models/track.py`)
 - **Purpose**: Represents individual audio files with rich metadata
@@ -320,7 +320,7 @@ graph LR
 ## Component Coordination
 
 ### Hash-Based Entity System
-SwingMusic uses hashes for entity identification:
+AivinNet uses hashes for entity identification:
 
 - **Track Hash**: `hash(title + album + artists)` - Content-based deduplication
 - **Album Hash**: `hash(title + album_artists)` - Album identification

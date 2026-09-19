@@ -34,7 +34,7 @@ const authorize = <Setting>{
 
 // const api_key = <Setting>{
 //     title: 'Use custom API Key',
-//     desc: 'instead of the Swing Music default to authenticate with Last.fm',
+//     desc: 'instead of the AivinNet default to authenticate with Last.fm',
 //     type: SettingType.secretinput,
 //     state: () => useSettings().lastfm_api_key,
 //     action: (value: string) => {
@@ -47,7 +47,7 @@ const authorize = <Setting>{
 
 // const api_secret = <Setting>{
 //     title: 'Use custom API Secret',
-//     desc: 'instead of the Swing Music default to sign your scrobble submission',
+//     desc: 'instead of the AivinNet default to sign your scrobble submission',
 //     type: SettingType.secretinput,
 //     state: () => useSettings().lastfm_api_secret,
 //     action: (value: string) => {

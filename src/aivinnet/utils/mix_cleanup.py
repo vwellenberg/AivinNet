@@ -5,7 +5,7 @@ Lives here rather than next to the migration that runs it, for the same reason
 `lib/albumhash.py` holds the rule for the album-hash repair: `migrations/__init__.py`
 imports the ORM, so anything inside that package drags the whole database layer
 along — and the unit-test lane runs with sqlalchemy replaced by a MagicMock,
-where that import poisons `swingmusic.db` with a metaclass conflict for the rest
+where that import poisons `aivinnet.db` with a metaclass conflict for the rest
 of the session. Plain strings in a plain module can be read by a test.
 
 The distinction between the two statements is the part worth guarding:

@@ -20,7 +20,7 @@ UNIQUE index over `hash` ALONE. The rebuild replaces that with a unique index
 over `(hash, userid)`, so the next start finds nothing to do. That is also how
 you tell from the outside whether the repair already ran::
 
-    sqlite3 ~/.config/swingmusic/swingmusic.db \\
+    sqlite3 ~/.config/aivinnet/aivinnet.db \\
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='favorite';"
 
     before:  hash VARCHAR NOT NULL,  ... UNIQUE (hash)

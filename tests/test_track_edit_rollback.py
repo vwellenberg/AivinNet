@@ -1,7 +1,7 @@
 """Tests for track_edit's rollback backup safety.
 
 ``track_edit`` imports heavy store/db/tagger modules at import time (and
-``swingmusic.db.__init__`` builds a SQLAlchemy declarative ``Base`` that cannot be
+``aivinnet.db.__init__`` builds a SQLAlchemy declarative ``Base`` that cannot be
 constructed against a mocked sqlalchemy). Third-party deps are mocked globally
 (same pattern as ``test_album_model``); the heavy ``aivinnet`` leaf modules are
 mocked only for the duration of the import via ``patch.dict`` so we do NOT shadow
@@ -44,7 +44,7 @@ for _mod in [
 
 # Heavy aivinnet leaf modules track_edit imports. Scoped to the import only so
 # the real modules stay available to the rest of the suite.
-_SWING_MOCKS = {
+_AIVINNET_MOCKS = {
     name: MagicMock()
     for name in [
         "aivinnet.config",
@@ -61,7 +61,7 @@ _SWING_MOCKS = {
     ]
 }
 
-with patch.dict(sys.modules, _SWING_MOCKS):
+with patch.dict(sys.modules, _AIVINNET_MOCKS):
     from aivinnet.lib import track_edit
 
 import os  # noqa: E402

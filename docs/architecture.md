@@ -35,7 +35,7 @@ Cron) läuft deshalb in Threads oder Prozess-Pools daneben.
    Artists/Ordner/       userdata.py = alles Nutzergebundene
    Homepage                  │
                              ▼
-                     SQLite (WAL), eine Datei: swingmusic.db
+                     SQLite (WAL): aivinnet.db (+ -wal/-shm)
 ```
 
 `models/` sind die Dataclasses, mit denen Stores und API arbeiten (`Track`, `Album`, `Artist`, …).
@@ -233,15 +233,19 @@ Tag-Verarbeitungsoptionen.
 config folder
 └── aivinnet
     ├── assets            Platzhalterbilder (default.webp, artist.webp, playlist.svg)
+    ├── aivinnet/logs     log.jsonl (bis #191: swingmusic/logs, wandert beim Start)
     ├── client            der deployte Vue-Build  ← app.static_folder
+    ├── client.version    welche Version den Client installiert hat (Stale-Erkennung)
+    ├── data              artist_split_ignore.txt
     ├── images
     │   ├── artists       large / medium / small
-    │   ├── mixes         original / medium / small
     │   ├── playlists
-    │   └── thumbnails    large / medium / small / xsmall
+    │   ├── thumbnails    large / medium / small / xsmall
+    │   └── users
     ├── plugins
     │   └── lyrics
-    └── swingmusic.db
+    ├── settings.json     UserConfig (rootDirs, serverId, …) — 0600
+    └── aivinnet.db       + aivinnet.db-wal / -shm: EIN Satz, nur gemeinsam kopieren
 ```
 
 ## Wo fange ich an?

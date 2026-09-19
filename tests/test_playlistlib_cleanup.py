@@ -7,7 +7,7 @@ inverted — it deleted every LINKED playlist image (and its thumbnail) while
 keeping the orphans it was supposed to remove.
 
 INFO: cleanup_playlist_images imports PlaylistTable lazily, so instead of
-importing the real swingmusic.db.userdata (whose sqlalchemy/store import
+importing the real aivinnet.db.userdata (whose sqlalchemy/store import
 chain clashes with the MagicMock stubs other test modules leave in
 sys.modules during a shared session), these tests install a fake module via
 monkeypatch.setitem — automatically restored after each test.

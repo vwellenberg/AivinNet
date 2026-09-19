@@ -202,7 +202,7 @@ onMounted(async () => {
         }
 
         .back2 {
-            // NOTE: This element is used to center the Swing Music logo
+            // NOTE: This element is used to center the AivinNet logo
             visibility: hidden;
         }
     }
@@ -212,7 +212,7 @@ onMounted(async () => {
         transition: all 0.25s;
     }
 
-    .swing-logo {
+    .aivinnet-logo {
         width: max-content;
         padding: $small 2rem;
         background: none;

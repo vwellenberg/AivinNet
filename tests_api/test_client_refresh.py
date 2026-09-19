@@ -82,7 +82,7 @@ class TestStaleness:
 class TestOwnership:
     def test_a_custom_client_directory_is_never_managed(self, monkeypatch, tmp_path):
         """
-        `--client` / `SWINGMUSIC_CLIENT_DIR`: the AppImage's read-only squashfs,
+        `--client` / `AIVINNET_CLIENT_DIR`: the AppImage's read-only squashfs,
         and anyone running their own build. No stamp is written and nothing is
         judged stale.
         """

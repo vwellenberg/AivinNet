@@ -191,3 +191,45 @@ def test_both_layouts_migrate(tmp_path, dotted, legacy, new):
 
     assert legacy_paths.migrate_config_dir(tmp_path, dotted=dotted) is True
     assert (tmp_path / new / "images" / "cover.webp").exists()
+
+
+class TestEnvironmentOverrides:
+    """
+    AIVINNET_CONFIG_DIR / AIVINNET_CLIENT_DIR replace the SWINGMUSIC_* names.
+
+    The old ones must keep working: they sit in systemd units, compose files and
+    shell profiles, and an override that is silently ignored points the app at
+    a different, EMPTY data directory — the library looks gone.
+    """
+
+    @pytest.mark.parametrize("names", [legacy_paths.CONFIG_DIR_ENV, legacy_paths.CLIENT_DIR_ENV])
+    def test_new_name_is_read(self, names):
+        assert legacy_paths.read_env(names, {names[0]: "/new"}) == "/new"
+
+    @pytest.mark.parametrize("names", [legacy_paths.CONFIG_DIR_ENV, legacy_paths.CLIENT_DIR_ENV])
+    def test_legacy_name_still_works_and_warns(self, names, caplog):
+        with caplog.at_level("WARNING"):
+            assert legacy_paths.read_env(names, {names[1]: "/old"}) == "/old"
+
+        assert names[1] in caplog.text and names[0] in caplog.text
+
+    def test_new_name_wins_over_legacy(self):
+        new, legacy = legacy_paths.CONFIG_DIR_ENV
+        assert legacy_paths.read_env(legacy_paths.CONFIG_DIR_ENV, {new: "/new", legacy: "/old"}) == "/new"
+
+    def test_unset_is_none(self):
+        assert legacy_paths.read_env(legacy_paths.CONFIG_DIR_ENV, {}) is None
+
+    def test_names(self):
+        assert legacy_paths.CONFIG_DIR_ENV == ("AIVINNET_CONFIG_DIR", "SWINGMUSIC_CONFIG_DIR")
+        assert legacy_paths.CLIENT_DIR_ENV == ("AIVINNET_CLIENT_DIR", "SWINGMUSIC_CLIENT_DIR")
+
+    @pytest.mark.parametrize("variable", ["AIVINNET_CONFIG_DIR", "SWINGMUSIC_CONFIG_DIR"])
+    def test_default_config_parent_honours_both_names(self, variable, monkeypatch, tmp_path):
+        from aivinnet.settings import Paths
+
+        for name in legacy_paths.CONFIG_DIR_ENV:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setenv(variable, str(tmp_path))
+
+        assert Paths.get_default_config_parent_dir() == tmp_path

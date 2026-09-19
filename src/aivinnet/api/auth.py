@@ -181,7 +181,7 @@ pair_token = dict()
 @api.get("/getpaircode")
 def get_pair():
     """
-    Get a new pair code to log in to thee Swing Music mobile app
+    Get a new pair code to log another device in to this server
     """
     # INFO: if user is already logged in, create a new pair code
     token = create_new_token(get_jwt_identity())

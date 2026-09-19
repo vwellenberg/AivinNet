@@ -1,5 +1,5 @@
 <template>
-  <router-link class="swing-logo" :to="{ name: 'Home' }" title="Home">
+  <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home">
     <div class="logo-orbit-wrapper">
       <img src="@/assets/icons/logos/logo-subspaceradio.png" alt="AivinNet" class="logo-img" />
       <span class="logo-orbit" aria-hidden="true">
@@ -13,7 +13,7 @@
 </script>
 
 <style lang="scss">
-.swing-logo {
+.aivinnet-logo {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -120,7 +120,7 @@
 // leave the orbit parked around the planet for good. (The top bar hides the
 // logo on phones entirely — this covers tablets and touch laptops.)
 @media (hover: hover) {
-  .swing-logo:hover .logo-orbit-wrapper {
+  .aivinnet-logo:hover .logo-orbit-wrapper {
     transform: rotate(-8deg);
 
     .logo-img {
@@ -140,7 +140,7 @@
 
 // Pressed: squeezed rather than pushed into its own shadow, because there is no
 // shadow to push into — plus the tilt, so the press does not undo the flick.
-.swing-logo:active .logo-orbit-wrapper {
+.aivinnet-logo:active .logo-orbit-wrapper {
   transform: scale(0.9) rotate(-8deg);
 }
 
@@ -169,7 +169,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .swing-logo:hover .logo-orbit-wrapper {
+  .aivinnet-logo:hover .logo-orbit-wrapper {
     transform: none;
 
     .logo-img {
@@ -183,7 +183,7 @@
     }
   }
 
-  .swing-logo:active .logo-orbit-wrapper {
+  .aivinnet-logo:active .logo-orbit-wrapper {
     transform: scale(0.94);
   }
 }
