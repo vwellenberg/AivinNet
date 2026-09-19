@@ -609,6 +609,49 @@ ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht 
 dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
 schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
 
+## ⚠️ Zwei Achsen: LOOK und MODUS — und ein zweiter Look heißt Stream (#199)
+
+**Look** (Formsprache: Memphis, Stream) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
+keine Liste. Eine Liste „Memphis / Memphis Dark / Stream" mischt ein Design mit einer Helligkeit
+und bricht beim ersten Look, der ebenfalls beide Modi hat. Modell und Body-Klassen:
+`utils/theme.ts` (`themeBodyClasses(look, mode)`); gespeichert als `look` + das alte `theme`-Feld
+(= Modus, Name blieb, damit nichts migriert werden muss).
+
+- **Stream ist nur dunkel und überschreibt den Modus NICHT.** Die Hell/Dunkel-Wahl und Auto bleiben
+  gespeichert und kommen beim Zurückwechseln unverändert wieder; Modus-Auswahl und Auto sind unter
+  Stream ausgegraut, der Mond-Knopf ausgeblendet (`lookHasModes`).
+- **Stream baut AUF Dark auf:** `body.theme-dark.theme-stream`. Jede Komponente hat ihre
+  Dunkel-Antwort schon unter `body.theme-dark`; Stream formt sie nur um. Die doppelte Klasse ist
+  auch die nötige Spezifität — die Datei wird *vor* den `:root`-/Dark-Blöcken importiert.
+- **Stream ist keine einzige Komponentenregel**, sondern andere Token-Werte in
+  `Global/_theme-stream.scss` — der einzige Ort, der `--shape-*` und `--look-*` definieren darf
+  (`shapeTokens.test.ts`, auch: nur unter genau diesem Selektor).
+
+**`--look-*` ist die zweite Token-Familie** — gleiche Mechanik wie `--shape-*`, aber für die
+statischen **Akzent- und Zustandsfarben** (Pastell-Navigation, Gelb für „an"/„läuft", Blush-
+Etiketten, Farbband, rosa Seek-Leiste, Ringe um Nummern und Dauer, Typ-Chip). Die Liste steht als
+Kommentar über `mem-shadow()` in `_candy.scss`. Zwei Familien, damit ein Name sagt, welche Frage er
+beantwortet: **Form** oder **Akzent**.
+
+Beweis wie bei #198: Memphis hell/dunkel, berechnete Styles jetzt **zusätzlich mit `color`,
+`display`, `padding-left/right` und `stroke`** (genau die Eigenschaften, die die Look-Tokens
+berühren), master gegen Branch — Ergebnis im PR. Wer einen neuen Look baut, setzt Tokens; wer eine
+Stelle findet, die der Look nicht erreicht, macht sie zum Token mit Memphis-Fallback — nie eine
+`body.theme-stream .komponente`-Regel.
+
+Drei Stellen, an denen es beim Bauen gehakt hat:
+
+- **Eine gefüllte Zeile pinnt ihre Textfarbe.** Die laufende Zeile ist in Memphis gelb und setzt
+  deshalb Ink auf Titel, Album, Dauer und Glyphen (`SongItem.vue`, „Filled row states"). Tauscht ein
+  Look nur die Füllung, steht schwarzer Text auf fast Schwarz. Füllung und Text sind EIN Paar
+  (`--look-playing-fill` + `--look-filled-text`).
+- **„Aktiv" darf nicht allein an der Zickzack-Marke hängen.** Die Navigation markiert den aktiven
+  Eintrag nur mit ihr (alle Zeilen sind ja farbig). Nimmt ein Look die Marke weg
+  (`--look-marker: none`), braucht er ein Ersatzsignal — `mem-row-marker` setzt deshalb auch
+  `--look-active-fill`/`-text`, in Memphis fällt das auf die eigene Tönung zurück.
+- **Ein Inline-Style löst `var()` ganz normal auf.** Die Seek-Leiste baut ihren Hintergrund in JS
+  (`Progress.vue`); die Farben stehen dort als `var(--look-track-*, <hex>)` im String.
+
 ## ⚠️ Hard-Shadow-System
 
 `candy-shadow($x,$y)` malt den einzigen erlaubten Schatten: kein Blur, immer nach rechts-unten,

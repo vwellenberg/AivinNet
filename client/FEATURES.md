@@ -78,6 +78,9 @@ with upstream.
 - 🆕 **Mobile contextual title** — the mobile top bar shows the current page name.
 - 🆕 **Resizable left sidebar** — drag the right edge (clamped 180–420 px); width is
   remembered across reloads.
+- 🆕 **Themes** — Settings → Appearance: **Theme** (Memphis or Stream, a flat dark look) and
+  **Mode** (light, dark, or Auto by time of day). Stream is dark only and keeps the stored mode
+  for the switch back.
 - 🆕 **Font selection** — switch the UI typeface between Default and
   Figtree; persisted and applied app-wide.
 - 🆕 **Version label** under Settings → About — client version (from `package.json`)
