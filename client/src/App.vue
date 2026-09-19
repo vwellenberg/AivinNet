@@ -45,6 +45,7 @@ import useTracker from "@/stores/tracker";
 
 // @utils
 import handleShortcuts from "@/helpers/useKeyboard";
+import { lauflichtClasses } from "@/utils/lauflicht";
 import { xl, xxl } from "./composables/useBreakpoints";
 
 // @small-components
@@ -85,11 +86,13 @@ watch(
 
 // Drive the Now Playing Lauflicht intensity from the setting. `off` hides it,
 // `subtle` dims it (body.lauflicht-subtle), `normal` is full strength (no class).
+// While nothing plays it is paused (body.lauflicht-idle) — see utils/lauflicht.ts.
 watch(
-    () => settings.np_lauflicht_level,
-    (level) => {
-        document.body.classList.toggle("lauflicht-off", level === "off");
-        document.body.classList.toggle("lauflicht-subtle", level === "subtle");
+    () => [settings.np_lauflicht_level, queue.playing] as const,
+    ([level, playing]) => {
+        for (const [cls, on] of Object.entries(lauflichtClasses(level, playing))) {
+            document.body.classList.toggle(cls, on);
+        }
     },
     { immediate: true }
 );
@@ -198,7 +201,6 @@ onMounted(async () => {
 <script lang="ts">
 // Detect OS & browser agents and add class
 import { defineComponent } from "vue";
-import usePlayer from "./composables/usePlayer";
 
 // Reveal the scrollbar only while the user is actively scrolling. Scroll events
 // don't bubble, so we listen in the capture phase to catch inner scroll
