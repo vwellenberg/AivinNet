@@ -74,11 +74,11 @@ useTracker();
 
 handleShortcuts(useQueue, useModal);
 
-// Toggle the Spotify-style UI font based on the "Font" setting.
+// Toggle the optional Figtree UI font based on the "Font" setting.
 watch(
     () => settings.font,
     (font) => {
-        document.body.classList.toggle("use-spotify-font", font === "spotify");
+        document.body.classList.toggle("use-figtree-font", font === "figtree");
     },
     { immediate: true }
 );

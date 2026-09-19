@@ -17,7 +17,7 @@
 
 :root {
     // Active UI font. Switched via the "Schriftart" setting (see App.vue,
-    // which toggles `body.use-spotify-font`).
+    // which toggles `body.use-figtree-font`).
     --app-font: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
         sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 
@@ -113,7 +113,7 @@ body.theme-dark {
     --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.26" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
 }
 
-body.use-spotify-font {
+body.use-figtree-font {
     --app-font: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
         "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
