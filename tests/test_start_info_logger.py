@@ -103,3 +103,21 @@ def test_outside_a_container_no_container_hint(lan_ip, monkeypatch, capsys):
 
     assert "http://192.168.0.251:1970" in out
     assert "container" not in out
+
+
+@pytest.mark.parametrize("found", [None, "/usr/bin/ffmpeg"])
+def test_a_missing_ffmpeg_is_announced(found, lan_ip, monkeypatch, capsys):
+    """Silence skipping is on by default and fails silently without ffmpeg (#197)."""
+    monkeypatch.setattr(start_info_logger.shutil, "which", lambda name: found if name == "ffmpeg" else None)
+
+    start_info_logger.log_startup_info("0.0.0.0", 1970)
+    out = capsys.readouterr().out
+
+    assert ("ffmpeg was not found" in out) is (found is None)
+
+
+def test_avconv_counts_as_a_decoder(monkeypatch):
+    """pydub prefers avconv over ffmpeg, so either one is enough."""
+    monkeypatch.setattr(start_info_logger.shutil, "which", lambda name: "/usr/bin/avconv" if name == "avconv" else None)
+
+    assert start_info_logger.has_ffmpeg() is True

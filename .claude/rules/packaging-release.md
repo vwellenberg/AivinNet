@@ -118,6 +118,16 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
   der Server nie sah.
 - **Shellcheck läuft in CI** über `install.sh` und `appimage/entrypoint.sh` (Job `Lint & Format`)
   — beides ausgelieferte Skripte, die kein Python-Test abdeckt.
+- **⚠️ Unter `curl | bash` IST stdin das restliche Skript.** Jeder Kindprozess, der stdin liest
+  (Paketmanager, `sudo`, ein `read`), frisst den Rest der Installation, und bash führt danach
+  einfach nichts mehr aus, ohne Fehler. Antworten also von `/dev/tty` lesen und Kindprozesse mit
+  `</dev/tty` starten; vorher per `(: </dev/tty)` prüfen, ob es überhaupt ein Terminal gibt
+  (cron/CI: nur Hinweis ausgeben). Nachgewiesen an der ffmpeg-Rückfrage (#197): ohne
+  `</dev/tty` las der Stub genau die nächste Skriptzeile.
+- **ffmpeg ist NICHT im AppImage** (Größe + GPL-Quellpflicht). Gebraucht wird es nur für die
+  Stille-Erkennung (pydub). `install.sh` bietet das Distro-Paket an (Default Ja), der Server
+  meldet beim Start, wenn es fehlt (`start_info_logger.has_ffmpeg`). Fedora: `ffmpeg-free`,
+  nicht `ffmpeg` (das bräuchte RPM Fusion).
 
 ## Der entpackte Client überlebt das Update — seit v2026.8.3 wird er erneuert
 
