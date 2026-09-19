@@ -40,8 +40,9 @@ Then open `http://localhost:1970`, log in, and pick your music folder.
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/vwellenberg/AivinNet/master/docker-compose.yml
-# point the music volume at your library, set the admin password
+echo AIVINNET_MUSIC_DIR=/path/to/your/music > .env
 docker compose up -d
+docker compose logs -f aivinnet   # waits for the admin password (printed once), then Ctrl+C
 ```
 
 `ghcr.io/vwellenberg/aivinnet:latest` — amd64 and arm64. Pick `/music` as your

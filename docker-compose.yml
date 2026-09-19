@@ -1,6 +1,10 @@
 # AivinNet — self-hosted music server
 #
-#   docker compose up -d      then open http://localhost:1970
+#   echo AIVINNET_MUSIC_DIR=/path/to/your/music > .env
+#   docker compose up -d
+#   docker compose logs -f aivinnet  waits for the admin password (printed once), then Ctrl+C
+#
+# then open http://localhost:1970 and log in as `admin`.
 #
 # Two directories matter and both are mounted below: your music, and the
 # directory AivinNet keeps everything else in (database, covers, playlists).
@@ -20,7 +24,7 @@ services:
       # NOT read-only on purpose: editing tags writes back into the files, and
       # lyrics fetched online are saved as .lrc next to the track. Add `:ro` if
       # you would rather have neither than let the container write there.
-      # Required, like the password below: left as a relative default Docker
+      # Required: left as a relative default Docker
       # would silently create an empty ./music and the server would come up
       # healthy with an empty library and nothing to explain it.
       - ${AIVINNET_MUSIC_DIR:?point this at your music folder}:/music
@@ -31,17 +35,21 @@ services:
       - ./config:/config
 
     environment:
-      # ⚠️ Set this BEFORE the first start — it is only read while the admin
-      # account is created, and the value is then baked in for good. It is
-      # ignored from then on, so leave the line in place: removing it makes the
-      # `:?` below refuse to start a perfectly good install.
+      # Optional. Left empty, the server generates a random admin password on
+      # its very first start and prints it ONCE to the container log:
+      #     docker compose logs -f aivinnet
+      # It is not stored anywhere else — and the log is gone as soon as the
+      # container is recreated (`docker compose pull && up -d`), so write it
+      # down, then change it in the profile screen if you want your own.
       #
-      # Deliberately written so compose REFUSES to start until you supply one:
-      # left empty (or absent) the app falls back to the password `admin`, and a
-      # quickstart that boots with default credentials on 0.0.0.0 is worse than
-      # one that stops and asks. Either export it, put it in a `.env` file next
-      # to this one, or replace the whole line with your own value.
-      - AIVINNET_ADMIN_PASSWORD=${AIVINNET_ADMIN_PASSWORD:?set a password before the first start}
+      # To choose it yourself instead, set it BEFORE the first start (export it
+      # or put it in the `.env` next to this file). It is only read while the
+      # admin account is created and ignored from then on.
+      #
+      # ⚠️ There is no default password to fall back to, and that is what makes
+      # an empty value safe here. Up to v2026.8.1-rc1 the app shipped `admin`, which
+      # is why this line used to refuse to start without a value.
+      - AIVINNET_ADMIN_PASSWORD=${AIVINNET_ADMIN_PASSWORD:-}
 
       # - TZ=Europe/Berlin
 
