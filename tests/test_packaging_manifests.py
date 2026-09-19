@@ -216,3 +216,70 @@ def test_no_upstream_lamp_logo_is_referenced():
         and "logo-fill" in path.read_text(encoding="utf-8", errors="ignore")
     ]
     assert offenders == []
+
+
+PACKAGE_DIR = REPO_ROOT / "src" / "aivinnet"
+VENDORED = PACKAGE_DIR / "lib" / "pydub"
+
+
+def _package_data_globs() -> list[str]:
+    with (REPO_ROOT / "pyproject.toml").open("rb") as file:
+        pyproject = tomllib.load(file)
+
+    return pyproject.get("tool", {}).get("setuptools", {}).get("package-data", {}).get("aivinnet", [])
+
+
+class TestPackageData:
+    """
+    Every data file in the package must be declared, not left to setuptools-scm.
+
+    scm only adds git-tracked files when `.git` is visible. The Docker build
+    copies `src/` without it, so the image came out with no `assets/` — every
+    fallback image answered 404 — while the wheel, built from a checkout, was
+    complete. Nothing in CI builds the image, so only a declaration check sees it.
+    """
+
+    def test_every_data_file_is_declared(self):
+        # Expanded the way setuptools does — relative to the package root, `*`
+        # not crossing directories. `Path.match` would match from the right and
+        # count `plugins/x/assets/icon.png` as covered by `assets/*`.
+        declared = {path for pattern in _package_data_globs() for path in PACKAGE_DIR.glob(pattern)}
+        undeclared = [
+            path.relative_to(PACKAGE_DIR).as_posix()
+            for path in PACKAGE_DIR.rglob("*")
+            if path.is_file()
+            and path.suffix not in {".py", ".pyc"}
+            and "__pycache__" not in path.parts
+            and VENDORED not in path.parents
+            and path not in declared
+        ]
+
+        assert not undeclared, (
+            f"Not in [tool.setuptools.package-data] aivinnet: {sorted(undeclared)}. "
+            "Without it the Docker image (built without .git) ships without these files."
+        )
+
+    def test_the_fallback_images_exist(self):
+        # The guard above is vacuous if the directory it protects disappears.
+        assert (PACKAGE_DIR / "assets" / "default.webp").is_file()
+
+
+class TestDockerfile:
+    def _dockerfile(self) -> str:
+        return (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    def test_default_config_parent_is_the_config_volume(self):
+        # `aivinnet --password-reset` in the container must reach the server's
+        # data. The server gets `--config <dir>`; the tool, run bare, falls back
+        # to XDG_CONFIG_HOME — which therefore has to be the same directory.
+        dockerfile = self._dockerfile()
+        entrypoint = re.search(r'"--config",\s*"([^"]+)"', dockerfile)
+        xdg = re.search(r"^ENV XDG_CONFIG_HOME=(\S+)$", dockerfile, re.MULTILINE)
+
+        assert entrypoint and xdg, "Dockerfile must pass --config and set XDG_CONFIG_HOME"
+        assert xdg.group(1) == entrypoint.group(1)
+
+    def test_marks_itself_as_a_container(self):
+        from aivinnet.start_info_logger import CONTAINER_ENV
+
+        assert re.search(rf"^ENV {CONTAINER_ENV}=1$", self._dockerfile(), re.MULTILINE)

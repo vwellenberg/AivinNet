@@ -19,4 +19,12 @@ COPY src/ ./src/
 # Install the package and its dependencies
 RUN pip install --no-cache-dir .
 
+# ⚠️ The default config parent, so a bare `aivinnet --password-reset` (as the
+# startup banner suggests) reaches the SAME data as the server. Without it the
+# tool falls back to /root/.config, sets up an empty second instance there and
+# reports success — for a password the real server never sees.
+ENV XDG_CONFIG_HOME=/config
+# Drops the container's bridge address (172.x) from the startup banner.
+ENV AIVINNET_IN_CONTAINER=1
+
 ENTRYPOINT ["python", "-m", "aivinnet", "--host", "0.0.0.0", "--config", "/config"]

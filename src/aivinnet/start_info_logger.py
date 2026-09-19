@@ -1,5 +1,14 @@
+import os
+
 from aivinnet.settings import TCOLOR, Metadata, Paths
 from aivinnet.utils.network import get_ip
+
+CONTAINER_ENV = "AIVINNET_IN_CONTAINER"
+"""Set by the Dockerfile. Inside a container the "LAN" address is the container's own."""
+
+
+def in_container() -> bool:
+    return bool(os.environ.get(CONTAINER_ENV))
 
 
 def reachable_addresses(host: str) -> list[str]:
@@ -13,9 +22,14 @@ def reachable_addresses(host: str) -> list[str]:
 
     "::" only promises IPv6: whether it also accepts IPv4 depends on the OS
     (Windows defaults to IPV6_V6ONLY=1), so only the IPv6 loopback is listed.
+
+    ⚠️ In a container the LAN address is the bridge address (172.x), which the
+    host cannot open without extra routing and nobody else can open at all —
+    the real address is the host's, and the process cannot see it. So it is
+    left out there rather than printed as the second link to click.
     """
     if host in ("0.0.0.0", ""):
-        lan_ip = get_ip()
+        lan_ip = None if in_container() else get_ip()
         return ["127.0.0.1"] + ([lan_ip] if lan_ip else [])
 
     if host == "::":
@@ -32,6 +46,10 @@ def log_startup_info(host: str, port: int):
         # IPv6 literals need brackets in a URL, or the port is read as part of them.
         url_host = f"[{address}]" if ":" in address else address
         print(f"{TCOLOR.OKGREEN}http://{url_host}:{port}{TCOLOR.ENDC}")
+
+    if in_container():
+        # The port above is the container's; the host may publish it elsewhere.
+        print("\n(inside the container: on the host, use the port you published)")
 
     print(f"\n{TCOLOR.YELLOW}Data folder: {Paths().config_dir}{TCOLOR.ENDC}\n")
 
