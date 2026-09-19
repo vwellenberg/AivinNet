@@ -286,11 +286,11 @@ $control-dense-glyph: 1rem;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  background-color: $mem-teal;
+  background-color: var(--look-play-fill, #{$mem-teal});
   border: $candy-border;
   border-radius: $radius;
   // Static ink is correct here: the teal underneath is identical in both themes.
-  color: $mem-ink;
+  color: var(--look-play-glyph, #{$mem-ink});
   font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.2;

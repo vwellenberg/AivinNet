@@ -34,11 +34,17 @@ export function pageGradient(bg?: string): string {
     // resolving to "no veil".
     if (!bg || !useSettings().use_page_gradient) return 'none'
     const [r, g, b] = parseColor(bg)
-    const stop = (a: number) => `rgba(${r}, ${g}, ${b}, ${a})`
+    // The strength is a look token with the Memphis value as fallback (#200):
+    // on the paper ground the tint is a light wash, on a near-black one it can
+    // carry the whole head. `var()` inside `rgba()` resolves like anywhere else.
+    const stop = (a: number, token: string) => `rgba(${r}, ${g}, ${b}, var(${token}, ${a}))`
     // Slightly stronger than the first memphis iteration (0.55/0.25): with the
     // reference-copied doodles the header band needs more wash so the muted
     // metadata lines stay readable over saturated shapes (judge finding).
-    return `linear-gradient(180deg, ${stop(0.72)} 0%, ${stop(0.42)} 240px, ${stop(0)} 460px)`
+    return (
+        `linear-gradient(180deg, ${stop(0.72, '--look-veil-top')} 0%, ` +
+        `${stop(0.42, '--look-veil-mid')} 240px, ${stop(0, '--look-veil-end')} 460px)`
+    )
 }
 
 /**

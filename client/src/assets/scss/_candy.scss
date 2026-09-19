@@ -175,6 +175,10 @@ $candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every th
 //   --look-badge-line               the ring round track numbers and durations
 //   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
 //   --look-type-label               `display` of the type chip over a card
+//   --look-detail-head-fill         the plate behind an album/artist/playlist head
+//   --look-veil-top · -mid · -end   how strongly the cover tints the page
+//   --look-play-fill · -play-glyph  the primary play CTA
+//   --shape-detail-title · -phone   the title in a detail head
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
   @return var(#{$token}, #{$x} #{$y} 0 var(--mem-shadow));

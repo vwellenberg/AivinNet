@@ -39,7 +39,9 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     align-items: flex-start;
     overflow: hidden;
     margin: 0 1rem 1rem;
-    @include candy-box($mem-panel, $candy-radius);
+    // The fill is a look token: Memphis reads its text against the panel, a
+    // cover-tinted look lets the page's own tint stand as the head (#200).
+    @include candy-box(var(--look-detail-head-fill, #{$mem-panel}), $candy-radius);
     @include candy-shadow(3px, 3px);
 
     // Every text row inside the plate reads against the PANEL now, not against
@@ -143,7 +145,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     }
 
     .dh-title {
-        font-size: $detail-title-size;
+        font-size: var(--shape-detail-title, #{$detail-title-size});
         font-weight: $detail-title-weight;
         line-height: 1.08;
         color: $candy-text;
@@ -178,7 +180,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         gap: $medium;
 
         .dh-title {
-            font-size: $detail-title-size-phone;
+            font-size: var(--shape-detail-title-phone, #{$detail-title-size-phone});
         }
     }
 }
@@ -196,7 +198,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         gap: $small;
 
         .dh-title {
-            font-size: $detail-title-size-phone;
+            font-size: var(--shape-detail-title-phone, #{$detail-title-size-phone});
         }
     }
 }
