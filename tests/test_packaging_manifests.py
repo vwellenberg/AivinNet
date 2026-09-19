@@ -19,6 +19,7 @@ both have failed silently in a way CI could not see:
 
 import re
 import tomllib
+import zlib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -122,3 +123,96 @@ class TestClientReleaseSource:
             "The client fallback download must use this fork's releases. Pointing it at "
             "swingmx/swingmusic makes installations pull the upstream web client."
         )
+
+
+def _decode_png_rgba(data: bytes) -> tuple[int, int, bytes]:
+    """Minimal stdlib PNG decoder: 8-bit RGBA, non-interlaced — what Pillow writes.
+
+    PIL is mocked away in the fast lane (see `.claude/rules/tests.md`), so the
+    icon comparison below cannot lean on it.
+    """
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    pos, idat = 8, b""
+    width = height = 0
+    while pos < len(data):
+        length = int.from_bytes(data[pos : pos + 4], "big")
+        kind, body = data[pos + 4 : pos + 8], data[pos + 8 : pos + 8 + length]
+        if kind == b"IHDR":
+            width, height = int.from_bytes(body[0:4], "big"), int.from_bytes(body[4:8], "big")
+            assert body[8:13] == bytes([8, 6, 0, 0, 0]), "expected 8-bit RGBA, non-interlaced"
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + length
+
+    raw, stride, bpp = zlib.decompress(idat), width * 4, 4
+    out, prev = bytearray(), bytearray(stride)
+    for y in range(height):
+        ftype, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1 : (y + 1) * (stride + 1)])
+        for i in range(stride):
+            a = line[i - bpp] if i >= bpp else 0
+            b, c = prev[i], prev[i - bpp] if i >= bpp else 0
+            if ftype == 1:
+                line[i] = (line[i] + a) & 0xFF
+            elif ftype == 2:
+                line[i] = (line[i] + b) & 0xFF
+            elif ftype == 3:
+                line[i] = (line[i] + (a + b) // 2) & 0xFF
+            elif ftype == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 0xFF
+        out += line
+        prev = line
+    return width, height, bytes(out)
+
+
+class TestWindowsExeIcon:
+    """The EXE icon is the AivinNet planet, not the swingmusic lamp.
+
+    v2026.8.5 shipped both Windows EXEs with upstream's `logo-fill.light.ico`
+    while the AppImage already showed the planet: the PyInstaller spec pointed
+    at a file nobody had redrawn. This pins the EXE icon to the same artwork
+    as the AppImage icon, pixel for pixel.
+    """
+
+    def _spec_icon(self) -> Path:
+        spec = (REPO_ROOT / "aivinnet.spec").read_text(encoding="utf-8")
+        match = re.search(r"icon=\[pathlib\.Path\('([^']+)'\)\]", spec)
+        assert match, "no icon= in aivinnet.spec"
+        return REPO_ROOT / match.group(1)
+
+    def test_spec_icon_exists(self):
+        assert self._spec_icon().is_file()
+
+    def test_exe_icon_is_the_appimage_artwork(self):
+        ico = self._spec_icon().read_bytes()
+        count = int.from_bytes(ico[4:6], "little")
+        entries = {}
+        for i in range(count):
+            entry = ico[6 + 16 * i : 22 + 16 * i]
+            size = entry[0] or 256
+            length, offset = int.from_bytes(entry[8:12], "little"), int.from_bytes(entry[12:16], "little")
+            entries[size] = ico[offset : offset + length]
+
+        assert {16, 32, 48, 256} <= entries.keys(), f"missing standard Windows sizes: {sorted(entries)}"
+
+        # The planet is 32x32 pixel art drawn in 10px cells on a 320px canvas,
+        # so the 32px entry must equal the AppImage icon sampled at cell centres.
+        w, h, icon = _decode_png_rgba(entries[32])
+        sw, sh, source = _decode_png_rgba((REPO_ROOT / "appimage" / "aivinnet.png").read_bytes())
+        assert (w, h, sw, sh) == (32, 32, 320, 320)
+        sampled = b"".join(source[((y * 10 + 5) * 320 + x * 10 + 5) * 4 :][:4] for y in range(32) for x in range(32))
+        assert icon == sampled
+
+
+def test_no_upstream_lamp_logo_is_referenced():
+    """The swingmusic lamp logos were deleted; nothing may point at them again."""
+    offenders = [
+        str(path.relative_to(REPO_ROOT))
+        for base in ("src", "client/src", "client/index.html", "client/package.json", "aivinnet.spec")
+        for path in ([REPO_ROOT / base] if (REPO_ROOT / base).is_file() else (REPO_ROOT / base).rglob("*"))
+        if path.is_file()
+        and path.suffix in {".py", ".vue", ".ts", ".html", ".json", ".spec", ".scss"}
+        and "logo-fill" in path.read_text(encoding="utf-8", errors="ignore")
+    ]
+    assert offenders == []
