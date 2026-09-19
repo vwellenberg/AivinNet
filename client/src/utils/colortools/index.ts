@@ -64,8 +64,8 @@ function hslToHex(h: number, s: number, l: number): string {
 /**
  * Returns a dark, rich `#rrggbb` version of the given colour: keeps the hue,
  * ensures a saturation floor (so it doesn't wash out to grey) and forces the
- * lightness to `lightnessPct` (default 16 %). Used to build the dark, Spotify-
- * style page gradient that fades to the page background.
+ * lightness to `lightnessPct` (default 16 %). Used to build the dark
+ * page gradient that fades to the page background.
  */
 export function darkenHex(color: string, lightnessPct = 16, satFloor = 0.5): string {
     if (!color) return ''

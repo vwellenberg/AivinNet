@@ -75,7 +75,7 @@ export default defineStore("playlists", {
     },
     /**
      * Bubble a just-played playlist to the top of its sidebar group
-     * (Spotify-style recency). Pinned playlists move above everything in the
+     * (most recently played first). Pinned playlists move above everything in the
      * shared top zone (folders, pinned albums, pinned playlists); un-pinned
      * ones move above the other un-pinned playlists. Implemented as a single
      * position write (min of the group - 1) so every other entry keeps its

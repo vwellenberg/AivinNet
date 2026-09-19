@@ -88,10 +88,6 @@ export const get_find_on_social = (page = 'album', query = '', album?: Album) =>
                 action: () => window.open(`https://www.youtube.com/results?search_query=${search_term}`, '_blank'),
             },
             {
-                label: 'Spotify',
-                action: () => window.open(`https://open.spotify.com/search/${search_term}/${page}s`, '_blank'),
-            },
-            {
                 label: 'Tidal',
                 action: () => window.open(`https://listen.tidal.com/search/${page}s?q=${search_term}`, '_blank'),
             },

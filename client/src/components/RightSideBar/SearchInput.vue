@@ -106,7 +106,7 @@ function handleButton() {
 </style>
 
 <style lang="scss">
-// Give the search bar a wide, Spotify-style footprint in the top nav and let
+// Give the search bar a wide footprint in the top nav and let
 // the input fill it (it used to be pinned to a tiny fixed 150px).
 .right > .gsearch-input {
     width: clamp(280px, 34vw, 460px);
@@ -131,7 +131,7 @@ function handleButton() {
     #ginner {
         width: 100%;
         // The chrome footprint, same as the home button beside it, so the pill
-        // fills the top nav (Spotify-style) instead of sitting small with empty
+        // fills the top nav instead of sitting small with empty
         // padding above and below.
         height: $bar-control;
         display: flex;

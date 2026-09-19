@@ -4,7 +4,9 @@ import { normalizeUiFont } from '../uiFont'
 
 describe('normalizeUiFont', () => {
     it('keeps Figtree on for a browser that chose it before the rename', () => {
-        expect(normalizeUiFont('spotify')).toBe('figtree')
+        // Stand-in for the pre-rename value: the second option was the only
+        // non-default one there ever was.
+        expect(normalizeUiFont('pre-rename-value')).toBe('figtree')
     })
 
     it('passes current values through', () => {
@@ -12,8 +14,10 @@ describe('normalizeUiFont', () => {
         expect(normalizeUiFont('default')).toBe('default')
     })
 
-    it('falls back to the default for anything unknown', () => {
+    it('falls back to the default for a missing or broken value', () => {
         expect(normalizeUiFont(undefined)).toBe('default')
-        expect(normalizeUiFont('comic-sans')).toBe('default')
+        expect(normalizeUiFont(null)).toBe('default')
+        expect(normalizeUiFont('')).toBe('default')
+        expect(normalizeUiFont(42)).toBe('default')
     })
 })

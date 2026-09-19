@@ -28,7 +28,7 @@ export function collectSwatches(palette: any): SwatchLite[] {
 }
 
 /**
- * Score used to pick the *dominant* colour (Spotify-style), NOT the most
+ * Score used to pick the *dominant* colour, NOT the most
  * saturated one. Population dominates so a big earthy tone wins over a tiny
  * vivid accent, but a mild saturation factor breaks ties toward the more
  * colourful option and away from near-greys.
@@ -40,7 +40,7 @@ export function dominance(s: SwatchLite): number {
 }
 
 /**
- * Dominant *coloured* swatch of a cover, darkened to the same Spotify-style
+ * Dominant *coloured* swatch of a cover, darkened to the same
  * page-gradient base used by the Album/Playlist headers.
  *
  * Unlike setColorsToStore (which falls back to grey swatches so a greyscale

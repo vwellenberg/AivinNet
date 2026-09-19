@@ -12,7 +12,7 @@ import { paths } from '@/config'
 import { getCollageImages, imageName, PlaylistImageEntry } from '@/utils/playlistImages'
 
 /**
- * Playlist thumbnail: a Spotify-style 2x2 collage of the first 4 album
+ * Playlist thumbnail: a 2x2 collage of the first 4 album
  * covers when the playlist has 4 genuinely different ones, otherwise the
  * plain first cover (the previous behavior).
  *

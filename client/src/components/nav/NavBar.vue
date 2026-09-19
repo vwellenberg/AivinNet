@@ -199,7 +199,7 @@ const mobileTitle = computed(() => {
             color: $candy-black;
         }
 
-        // Spotify-style layout: the two auto margins (one before the home
+        // Layout: the two auto margins (one before the home
         // button, one before the avatar) split the free space evenly, centring
         // the home + search group and pinning the avatar to the far-right corner
         // so it no longer sits glued to the search bar.

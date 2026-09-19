@@ -7,7 +7,7 @@ $g-border: solid $candy-border-w $mem-line;
     // minmax(0, 1fr) so a tall sidebar/content can't blow the middle row past
     // 100% and push the bottom bar off-screen.
     grid-template-rows: $navheight minmax(0, 1fr) $bottombarheight;
-    // Full-width top bar across sidebar + content (Spotify-style).
+    // Full-width top bar across sidebar + content.
     grid-template-areas:
         'nav nav'
         'l-sidebar content'
@@ -385,7 +385,7 @@ $g-border: solid $candy-border-w $mem-line;
 }
 
 // Top bar spans edge-to-edge: keep the logo at the very left and the avatar at
-// the very right (Spotify-style), independent of the centered content padding.
+// the very right, independent of the centered content padding.
 #app-grid.is_alt_layout .topnav {
     padding-left: 1.25rem;
     padding-right: 1.25rem;

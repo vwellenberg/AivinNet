@@ -16,7 +16,7 @@ export function formatDate(timestamp: number, yearOnly = false, month: 'long' | 
 }
 
 /**
- * Formats a "date added" timestamp like Spotify: relative for recent
+ * Formats a "date added" timestamp: relative for recent
  * dates ("3 days ago"), absolute from ~4 weeks on ("Jan 5, 2026").
  * @param timestamp unix timestamp in seconds
  */
