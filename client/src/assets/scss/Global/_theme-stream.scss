@@ -102,6 +102,20 @@ body.theme-dark.theme-stream {
     // The subtitle already names the type; the chip over each card goes.
     --look-type-label: none;
 
+    // --- Detail pages: the cover colour IS the head (#200) ------------------
+    // Memphis reads the head's text against a white plate. Here the page is
+    // already tinted from the artwork, so the plate steps aside, the tint runs
+    // stronger and further, and the title grows into the band it now owns.
+    --look-detail-head-fill: transparent;
+    --look-veil-top: 0.85;
+    --look-veil-mid: 0.5;
+    --look-veil-end: 0;
+    --shape-detail-title: 3.25rem;
+    --shape-detail-title-phone: 2rem;
+    // Play is the one saturated mark on the page: the brand green, dark glyph.
+    --look-play-fill: #{$brand-green};
+    --look-play-glyph: #0a0a0a;
+
     --mem-scrollbar-thumb: rgba(255, 255, 255, 0.25);
     --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
 
