@@ -128,7 +128,7 @@ async function deleteBackup(backup_dir: string) {
         .item .item__info .item__name {
             font-size: 0.5rem;
             color: $gray3;
-            font-family: 'SF Mono';
+            font-family: $mono-font;
         }
 
         .item__stats {

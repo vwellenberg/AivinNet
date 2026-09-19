@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
         margin: 0 auto;
         padding: $smaller $small;
         font-size: 12px;
-        font-family: 'SF Mono';
+        font-family: $mono-font;
         color: $candy-text;
         background-color: $candy-pink-soft;
         border: 1px solid $mem-line;

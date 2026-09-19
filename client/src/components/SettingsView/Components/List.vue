@@ -72,7 +72,7 @@ const icon_ = getIcon()
             display: flex;
             gap: $small;
             align-items: center;
-            font-family: 'SF Mono', monospace;
+            font-family: $mono-font;
             font-weight: 500;
             font-size: 0.9rem;
 
