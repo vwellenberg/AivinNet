@@ -19,15 +19,21 @@ services:
       - "1970:1970"
 
     volumes:
-      # Your music. Point the left side at your own library.
+      # Your music: set AIVINNET_MUSIC_DIR (in the `.env` next to this file).
+      #
+      # Required, and it must EXIST. Otherwise Docker quietly creates an empty
+      # folder (a typo in the path is enough) and the server comes up healthy
+      # with an empty library and nothing to explain it. The long syntax is for
+      # `create_host_path: false`, which makes compose refuse instead.
       #
       # NOT read-only on purpose: editing tags writes back into the files, and
-      # lyrics fetched online are saved as .lrc next to the track. Add `:ro` if
-      # you would rather have neither than let the container write there.
-      # Required: left as a relative default Docker
-      # would silently create an empty ./music and the server would come up
-      # healthy with an empty library and nothing to explain it.
-      - ${AIVINNET_MUSIC_DIR:?point this at your music folder}:/music
+      # lyrics fetched online are saved as .lrc next to the track. Add
+      # `read_only: true` if you would rather have neither.
+      - type: bind
+        source: ${AIVINNET_MUSIC_DIR:?point this at your music folder}
+        target: /music
+        bind:
+          create_host_path: false
 
       # Everything AivinNet owns: database, covers, playlists, settings.
       # ⚠️ This is the only copy of that data — back up `./config/aivinnet`.
