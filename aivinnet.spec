@@ -50,7 +50,7 @@ exe = EXE(
     entitlements_file=None,
     # NOTE: forward slashes on purpose — Windows accepts them, and the old
     # backslash literal was a non-existent filename on Linux/macOS.
-    icon=[pathlib.Path('src/aivinnet/assets/logo-fill.light.ico')],
+    icon=[pathlib.Path('src/aivinnet/assets/aivinnet.ico')],
 )
 
 # INFO: No COLLECT block. `EXE(...)` above already receives a.binaries and

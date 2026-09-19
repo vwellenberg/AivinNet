@@ -6,7 +6,6 @@
     "dev": "vite",
     "serve": "vite preview",
     "build": "vite build",
-    "generate-pwa-assets": "pwa-assets-generator --preset minimal public/logo-fill.light.svg",
     "lint": "eslint --ext .js,.vue,.ts --ignore-path .gitignore --fix src",
     "lint:check": "eslint --ext .js,.vue,.ts --ignore-path .gitignore src",
     "typecheck": "vue-tsc --noEmit",

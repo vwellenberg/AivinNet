@@ -55,7 +55,7 @@ def handle_password_reset(config_parent: Path):
 def create_image(width, height, color1, color2):
     # Generate an image and draw a pattern
     padding = 7
-    icon_path = Paths().assets_path / "logo-fill.light.ico"
+    icon_path = Paths().assets_path / "aivinnet.ico"
     image = Image.open(icon_path)
 
     # Calculate new size with padding

@@ -1,7 +1,7 @@
 <template>
     <div class="pair-view">
         <div class="card rounded">
-            <img src="/logo-fill.light.svg" alt="AivinNet" class="logo" />
+            <img src="/favicon.png" alt="AivinNet" class="logo" />
             <template v-if="state === 'working'">
                 <div class="spinner"></div>
                 <p>Pairing this device…</p>

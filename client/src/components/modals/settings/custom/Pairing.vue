@@ -41,7 +41,7 @@ async function renderQrCode(code: string) {
         height: 300,
         type: 'svg',
         data: data,
-        image: '/logo-fill.light.svg',
+        image: '/favicon.png',
         dotsOptions: {
             color: MEMPHIS.ink,
             type: 'extra-rounded',
