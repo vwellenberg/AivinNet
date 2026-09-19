@@ -291,22 +291,6 @@ chmod +x "${WORK}/${asset_name}"
 	die "could not unpack the AppImage. Is ${WORK} mounted noexec?"
 [ -x "${WORK}/squashfs-root/AppRun" ] || die "unpacked image has no AppRun — corrupt download?"
 
-service_stop_if_running
-
-rm -rf "$SHARE_DIR"
-mkdir -p "$(dirname "$SHARE_DIR")"
-mv "${WORK}/squashfs-root" "$SHARE_DIR"
-printf '%s\n' "$tag" >"${SHARE_DIR}/.version"
-
-mkdir -p "$(dirname "$BIN_PATH")"
-cat >"$BIN_PATH" <<EOF
-#!/bin/sh
-# Wrapper written by the AivinNet installer. AppRun is invoked by its real
-# absolute path so the AppImage's own \$APPDIR detection stays correct.
-exec "${SHARE_DIR}/AppRun" "\$@"
-EOF
-chmod +x "$BIN_PATH"
-
 # ------------------------------------------------------------------ ffmpeg ---
 
 # Not needed to PLAY anything — files are streamed as they are. But skipping the
@@ -314,6 +298,9 @@ chmod +x "$BIN_PATH"
 # for everything except WAV, and without it that feature does nothing, without
 # an error anywhere. The AppImage does not bundle it (~80 MB per architecture
 # plus GPL source obligations), so offer the distro package instead.
+#
+# Runs BEFORE the service is stopped: on an update the prompt and apt can take
+# minutes, and the server should keep playing meanwhile.
 #
 # ASKED, not done silently: this script promises to run without root, and on a
 # minimal server the package pulls in 100+ MB of codecs. Default is yes, so a
@@ -374,6 +361,22 @@ ensure_ffmpeg() {
 }
 
 ensure_ffmpeg
+
+service_stop_if_running
+
+rm -rf "$SHARE_DIR"
+mkdir -p "$(dirname "$SHARE_DIR")"
+mv "${WORK}/squashfs-root" "$SHARE_DIR"
+printf '%s\n' "$tag" >"${SHARE_DIR}/.version"
+
+mkdir -p "$(dirname "$BIN_PATH")"
+cat >"$BIN_PATH" <<EOF
+#!/bin/sh
+# Wrapper written by the AivinNet installer. AppRun is invoked by its real
+# absolute path so the AppImage's own \$APPDIR detection stays correct.
+exec "${SHARE_DIR}/AppRun" "\$@"
+EOF
+chmod +x "$BIN_PATH"
 
 # ------------------------------------------------------------- config + env ---
 
