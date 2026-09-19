@@ -240,7 +240,10 @@ class TestPackageData:
     """
 
     def test_every_data_file_is_declared(self):
-        globs = _package_data_globs()
+        # Expanded the way setuptools does — relative to the package root, `*`
+        # not crossing directories. `Path.match` would match from the right and
+        # count `plugins/x/assets/icon.png` as covered by `assets/*`.
+        declared = {path for pattern in _package_data_globs() for path in PACKAGE_DIR.glob(pattern)}
         undeclared = [
             path.relative_to(PACKAGE_DIR).as_posix()
             for path in PACKAGE_DIR.rglob("*")
@@ -248,7 +251,7 @@ class TestPackageData:
             and path.suffix not in {".py", ".pyc"}
             and "__pycache__" not in path.parts
             and VENDORED not in path.parents
-            and not any(path.relative_to(PACKAGE_DIR).match(pattern) for pattern in globs)
+            and path not in declared
         ]
 
         assert not undeclared, (

@@ -143,6 +143,12 @@ jobs:
           fi
           password=$(grep -oP 'password: \K\S+' <<< "$logs")
 
+          # The banner is printed BEFORE the library loads and the port binds.
+          for _ in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:1970/ && break
+            sleep 2
+          done
+
           curl -sf -c cookies -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
             -H 'Content-Type: application/json' \
             -d "{\"username\":\"admin\",\"password\":\"$password\"}"
