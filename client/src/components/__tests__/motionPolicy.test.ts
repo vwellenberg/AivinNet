@@ -52,6 +52,21 @@ describe('reduced motion', () => {
         expect(policy).toMatch(/transition-duration: 0\.01ms !important/)
     })
 
+    it('starts every animation already finished, not at its first keyframe', () => {
+        // With a 0ms delay a new animation is still painted at progress 0 until
+        // its start time resolves on the next frame. Arrival keyframes begin at
+        // `opacity: 0`, so every page change and every row the virtual scroller
+        // created blinked out for two frames — measured, and reported as
+        // flicker on a Mac with "Reduce motion" on. A delay at least as long
+        // (negative) as the duration puts the end before the first frame.
+        const policy = SHEETS[POLICY]
+        const delay = policy.match(/animation-delay: (-?[\d.]+)ms !important/)
+        const duration = policy.match(/animation-duration: ([\d.]+)ms !important/)
+
+        expect(delay, 'the blanket animation-delay is gone').toBeTruthy()
+        expect(Number(delay![1])).toBeLessThanOrEqual(-Number(duration![1]))
+    })
+
     it('is loaded LAST, or it loses to everything after it', () => {
         // The blanket rule has to come after the components it covers, and the
         // exceptions live below it in the same file. Imported earlier, the rule
