@@ -90,7 +90,7 @@ const handleMouseWheel = (event: WheelEvent) => {
         width: 6rem;
         min-width: 4rem;
         margin-right: 0; // neutralise the global range's 15px right margin
-        background-image: linear-gradient($mem-teal, $mem-teal);
+        background-image: linear-gradient(var(--look-track-played, #{$mem-teal}), var(--look-track-played, #{$mem-teal}));
         background-repeat: no-repeat;
         // background-size set inline from the current volume.
     }

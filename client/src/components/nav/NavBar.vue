@@ -197,8 +197,8 @@ const mobileTitle = computed(() => {
             // appears on the playlists page and creates one. Hover stays with
             // the role: the override here still painted blush, the pointer
             // colour #422 retired.
-            background-color: mem-pastel($mem-pink);
-            color: $candy-black;
+            background-color: var(--look-tint, #{mem-pastel($mem-pink)});
+            color: var(--look-tint-text, #{$candy-black});
         }
 
         // Layout: the two auto margins (one before the home
@@ -222,8 +222,8 @@ const mobileTitle = computed(() => {
             // colour for one destination. Hover stays with the role: the
             // override here still painted blush, the pointer colour #422
             // retired.
-            background-color: mem-pastel($brand-green);
-            color: $candy-black;
+            background-color: var(--look-tint, #{mem-pastel($brand-green)});
+            color: var(--look-tint-text, #{$candy-black});
         }
 
         // The free space is claimed BEFORE the theme toggle, not before the

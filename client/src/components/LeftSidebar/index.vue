@@ -775,8 +775,8 @@ onBeforeUnmount(teardown);
     //
     // No hatch: the texture means "you can press this", and this is a caption.
     > span {
-      background-color: $mem-blush;
-      color: $mem-ink;
+      background-color: var(--look-sticker-fill, #{$mem-blush});
+      color: var(--look-tint-text, #{$mem-ink});
       border: $candy-border;
       border-radius: 8px;
       box-shadow: mem-shadow(3px, 3px);

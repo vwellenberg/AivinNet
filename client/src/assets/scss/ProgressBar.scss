@@ -13,7 +13,7 @@ input[type='range'] {
     width: calc(100% - 2px);
     height: var(--range-h, #{$range-h-default});
     border-radius: $candy-radius-pill;
-    background: $candy-pink;
+    background: var(--look-track, #{$candy-pink});
     border: $candy-border-w solid $mem-line;
     background-size: 100% 100%;
     cursor: pointer;
@@ -43,7 +43,7 @@ input[type='range'] {
         background: $mem-panel-static;
         // Static ink ring on the static-white thumb: it sits ON the blush
         // track, so a paper (var) border would vanish in dark — keep it ink.
-        border: $candy-border-w solid $mem-ink;
+        border: $candy-border-w solid var(--look-thumb-line, #{$mem-ink});
         margin-top: calc(
             (var(--range-track, #{$range-track-default}) - var(--range-thumb, #{$range-thumb-default})) / 2
         );
@@ -65,7 +65,7 @@ input[type='range'] {
         width: var(--range-thumb, #{$range-thumb-default});
         border-radius: 50%;
         background: $mem-panel-static;
-        border: $candy-border-w solid $mem-ink;
+        border: $candy-border-w solid var(--look-thumb-line, #{$mem-ink});
         // No offset here on purpose: Gecko centres the knob on its track by
         // itself. Measured rather than assumed — see the PR for #285.
     }

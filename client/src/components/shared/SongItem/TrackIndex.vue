@@ -53,7 +53,7 @@ defineProps<{
     width: $index-badge;
     height: $index-badge;
     flex-shrink: 0;
-    border: 2px solid currentColor;
+    border: 2px solid var(--look-badge-line, currentColor);
     border-radius: 50%;
     font-size: 0.76rem;
     font-weight: 700;

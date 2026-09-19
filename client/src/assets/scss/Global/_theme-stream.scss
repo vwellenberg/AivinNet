@@ -70,6 +70,37 @@ body.theme-dark.theme-stream {
     --shape-radius: 8px;
     --shape-radius-sm: 6px;
 
+    // --- Accents and states (`--look-*`, _candy.scss "LOOK TOKENS") --------
+    // Memphis says "on", "playing" and "this one" with palette fills (yellow,
+    // blush, six pastels). Here the fills go and the TEXT carries the state:
+    // muted grey at rest, white when selected, the brand green when on.
+    --look-tint: transparent;
+    --look-tint-text: #b3b3b3;
+    --look-active-fill: #2a2a2a;
+    --look-active-text: #ffffff;
+    --look-marker: none;
+    // Headings are words, not plates — flush with the content edge.
+    --look-sticker-fill: transparent;
+    --look-sticker-inset: 0;
+    --look-playing-fill: rgba(255, 255, 255, 0.08);
+    --look-filled-text: #ffffff;
+    --look-filled-muted: #b3b3b3;
+    --look-context-fill: #333333;
+    --look-on-fill: transparent;
+    --look-on-glyph: #{$brand-green};
+    // A selected segment is a white chip with dark text.
+    --look-selected-fill: #ffffff;
+    --look-selected-text: #000000;
+    --look-band: transparent;
+    --look-badge-line: transparent;
+    --look-track: #4d4d4d;
+    --look-track-played: #ffffff;
+    --look-track-buffered: #6a6a6a;
+    --look-track-seek: rgba(255, 255, 255, 0.35);
+    --look-thumb-line: transparent;
+    // The subtitle already names the type; the chip over each card goes.
+    --look-type-label: none;
+
     --mem-scrollbar-thumb: rgba(255, 255, 255, 0.25);
     --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
 

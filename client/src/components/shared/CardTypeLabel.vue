@@ -49,7 +49,9 @@ defineProps<{
     // grid item itself, because the tile's rows are full-width tracks.
     width: fit-content;
     max-width: 100%;
-    display: flex;
+    // A look token: the chip is Memphis's way of naming the type; a look can
+    // leave that to the subtitle.
+    display: var(--look-type-label, flex);
     align-items: stretch;
     pointer-events: none;
 
