@@ -82,3 +82,24 @@ def test_banner_names_aivinnet(lan_ip, capsys):
 
     assert "AivinNet" in out
     assert "Swing Music" not in out
+
+
+def test_container_lists_no_bridge_address(lan_ip, monkeypatch, capsys):
+    # Inside Docker get_ip() answers with the bridge address (172.x), which the
+    # host cannot open — it was the second link in the banner, and a dead one.
+    monkeypatch.setenv(start_info_logger.CONTAINER_ENV, "1")
+    start_info_logger.log_startup_info("0.0.0.0", 1970)
+    out = capsys.readouterr().out
+
+    assert "http://127.0.0.1:1970" in out
+    assert "192.168.0.251" not in out
+    assert "port you published" in out
+
+
+def test_outside_a_container_no_container_hint(lan_ip, monkeypatch, capsys):
+    monkeypatch.delenv(start_info_logger.CONTAINER_ENV, raising=False)
+    start_info_logger.log_startup_info("0.0.0.0", 1970)
+    out = capsys.readouterr().out
+
+    assert "http://192.168.0.251:1970" in out
+    assert "container" not in out

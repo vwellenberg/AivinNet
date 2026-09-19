@@ -66,6 +66,14 @@ Repository = "https://github.com/vwellenberg/AivinNet"
 Issues = "https://github.com/vwellenberg/AivinNet-Client/issues"
 
 
+# ⚠️ Spelled out, not left to setuptools-scm. scm adds every git-tracked file
+# to the package — but only when it can see `.git`. The Docker build copies
+# `src/` without it, so the image shipped with no placeholder images at all
+# (every album without a cover rendered as a broken image) while the wheel,
+# built from a checkout, was fine. tests/test_packaging_manifests.py guards it.
+[tool.setuptools.package-data]
+aivinnet = ["assets/*"]
+
 [tool.setuptools_scm]
 version_scheme = "only-version"
 local_scheme = "no-local-version"

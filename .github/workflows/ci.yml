@@ -102,6 +102,66 @@ jobs:
       - name: Run API tests
         run: uv run --with pytest pytest tests_api/ -v
 
+  # Builds the image and starts it, because the image is what Docker users get
+  # and nothing else here ever ran it. Every test above reads `src/` from the
+  # checkout, so an image missing its assets or pointing its tools at the
+  # wrong data directory passed all of them. Only the release workflow built the
+  # image — and it never started it.
+  docker:
+    name: Docker Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t aivinnet-smoke .
+
+      - name: Start, log in, fetch fallback images, reset the password
+        run: |
+          set -euo pipefail
+          mkdir -p music config/aivinnet/client
+          # A stub client: the real one is downloaded from GitHub on first start,
+          # and an API rate limit must not be able to fail this job.
+          echo '<!doctype html><title>stub</title>' > config/aivinnet/client/index.html
+
+          docker run -d --name smoke -p 1970:1970 \
+            -v "$PWD/music:/music" -v "$PWD/config:/config" aivinnet-smoke
+
+          for _ in $(seq 1 60); do
+            docker logs smoke 2>&1 | grep -q "Data folder" && break
+            sleep 2
+          done
+          logs=$(docker logs smoke 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+          echo "$logs"
+
+          # Not `! grep`: a negated command never trips `set -e`.
+          if grep -q "Assets dir could not be found" <<< "$logs"; then
+            echo "::error::image ships without src/aivinnet/assets"; exit 1
+          fi
+          if grep -qE 'http://172\.' <<< "$logs"; then
+            echo "::error::banner lists the container bridge address"; exit 1
+          fi
+          password=$(grep -oP 'password: \K\S+' <<< "$logs")
+
+          curl -sf -c cookies -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"username\":\"admin\",\"password\":\"$password\"}"
+
+          for img in thumbnail/small/missing.webp artist/small/missing.webp; do
+            test "$(curl -s -b cookies -o /dev/null -w '%{content_type}' "http://127.0.0.1:1970/img/$img")" = image/webp
+          done
+
+          # Run bare, as the startup banner tells people to — it has to change
+          # the password of THIS server, not of a second instance in /root.
+          printf 'admin\nsmoke-reset-pw\n' | docker exec -i smoke aivinnet --password-reset
+          curl -sf -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"smoke-reset-pw"}'
+
+      - name: Container log on failure
+        if: failure()
+        run: docker logs smoke || true
+
   # ---------------------------------------------------------------------------
   # Web client. Same repository since the merge, its own toolchain.
   #

@@ -89,6 +89,17 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
 - **Erst-Admin-Passwort** kommt aus `AIVINNET_ADMIN_PASSWORD` (`utils/bootstrap.py`, greift nur
   beim Erzeugen des Default-Users). Bewusst **Env statt CLI-Flag**: Prozess-Argumente sind über
   `/proc/<pid>/cmdline` für alle lesbar.
+- **⚠️ Datendateien im Paket (`assets/` …) MÜSSEN in `[tool.setuptools.package-data]` stehen.**
+  Sonst nimmt sie nur setuptools-scm mit — und das sieht Git-Dateien nur, wenn `.git` da ist.
+  Das Wheel (gebaut aus dem Checkout) war komplett, das **Docker-Image** (`COPY src/`, ohne
+  `.git`) hatte bis v2026.8.5 **keine** Platzhalterbilder: jedes Album ohne Cover ein kaputtes
+  Bild, im Log `Assets dir could not be found`. Kein Test sah es, weil alle gegen `src/` laufen.
+  Seitdem: `TestPackageData` (schnell) + Job `Docker Smoke Test` in `ci.yml`, der das Image
+  **baut und startet** — vorher baute nur der Release-Workflow es, und startete es nie.
+- **Im Container zeigt `XDG_CONFIG_HOME` auf `/config`** (Dockerfile), damit ein nacktes
+  `aivinnet --password-reset` dieselbe DB trifft wie der Server. Ohne das legte es unter
+  `/root/.config` eine leere zweite Instanz an und meldete „successfully" für ein Passwort, das
+  der Server nie sah.
 - **Shellcheck läuft in CI** über `install.sh` und `appimage/entrypoint.sh` (Job `Lint & Format`)
   — beides ausgelieferte Skripte, die kein Python-Test abdeckt.
 
