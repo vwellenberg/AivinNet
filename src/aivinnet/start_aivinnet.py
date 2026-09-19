@@ -5,9 +5,11 @@ import setproctitle
 
 from aivinnet import app_builder
 from aivinnet.crons import start_cron_jobs
+from aivinnet.db.engine import DbEngine
 from aivinnet.plugins.register import register_plugins
 from aivinnet.setup import load_into_mem, run_setup
 from aivinnet.start_info_logger import log_startup_info
+from aivinnet.utils.shutdown import ServerShutdown
 from aivinnet.utils.threading import background
 
 
@@ -102,6 +104,20 @@ def start_aivinnet(host: str, port: int):
     # docker needs manual flush
     print("", end="", flush=True)
 
+    # Closing every pooled connection lets the last one fold the WAL back into
+    # the database, so a stopped server leaves one file behind, not three.
+    shutdown = ServerShutdown(cleanup=DbEngine.engine.dispose)
+    shutdown.install()
+    try:
+        serve(app, host, port)
+    except KeyboardInterrupt:
+        # How both servers return on SIGINT, and on SIGTERM via ServerShutdown.
+        print("Shutting down ...", flush=True)
+    finally:
+        shutdown.finish()
+
+
+def serve(app, host: str, port: int):
     try:
         import bjoern
 

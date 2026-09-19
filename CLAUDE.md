@@ -260,6 +260,14 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   Hashes **in der Datenbank** stammen teils noch aus der SHA1-Ära, der laufende Server rechnet
   xxh3 — Hashes immer aus der API holen, nie aus `aivinnet.db`. Ableitungsregeln,
   Platzhalter-Fallstricke, MusicBrainz-Abgleich, Indexer-Blindstellen: `.claude/rules/track-tags.md`.
+- **⚠️ STOPPEN: `docker stop` endete bis 2026-09-19 IMMER in SIGKILL (Exit 137).** Drei Ursachen,
+  jede allein reicht: (1) Im Container ist die App PID 1, und der Kernel verwirft an PID 1 jedes
+  Signal ohne eigenen Handler — Python hat nur einen für SIGINT. (2) bjoerns Loop endet nur über
+  seinen eigenen SIGINT-Watcher und wartet dann ohne Timeout auf jede offene Verbindung (ein
+  Browser-Tab genügt). (3) Ein Endlos-Thread ohne `daemon=True` hält den Prozess nach dem Server
+  am Leben. Deshalb: `utils/shutdown.py` (SIGTERM → SIGINT + 3-s-Drain-Deadline, DB-Pool wird
+  geschlossen) und **neue Endlos-Threads immer als Daemon** — `@background` ist keiner. Gate:
+  Schritt „Stop is clean" im `Docker Smoke Test`. Kein `stop_grace_period` als Pflaster.
 - `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 
 Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
