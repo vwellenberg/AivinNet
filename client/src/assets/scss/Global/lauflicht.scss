@@ -93,6 +93,19 @@ body.lauflicht-off .lauflicht-rim {
     }
 }
 
+// Nothing playing (App.vue toggles body.lauflicht-idle from queue.playing):
+// freeze both layers. "Cheap by construction" above is only half true — the
+// animated `--np-angle` feeds a conic-gradient, which repaints on the main
+// thread every frame; left running it was the one animation that never stopped
+// on an idle page. Paused, not hidden: the ring stays, it just stops travelling.
+// Must not be touched by motion-policy.scss (it forces duration, not play-state).
+body.lauflicht-idle .lauflicht-rim {
+    &::before,
+    &::after {
+        animation-play-state: paused;
+    }
+}
+
 // Subtler level (App.vue toggles body.lauflicht-subtle from the setting):
 // only the travelling comet is toned down — the soft glimmer (::after) stays
 // exactly as in "normal". `--lauflicht-strength` lightens the comet's opacity

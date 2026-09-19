@@ -1211,3 +1211,18 @@ Solche Tests gegen Mutationen prüfen, nicht nur gegen den Ist-Zustand.
   `getTextColor` entscheidet luminanz-basiert. Der Seiten-Verlauf ist **zentral** in
   [`pageGradient()`](../../src/utils/colortools/pageGradient.ts) — nicht pro View duplizieren.
 - **Brand-Farben haben eine Quelle:** `src/brand-colors.json`. Nicht hardcoden.
+
+## ⚠️ Eine Daueranimation muss aufhören können
+
+Nur `transform` und `opacity` laufen auf dem Compositor. Alles andere — auch eine per
+`@property` registrierte Variable, die in einen Verlauf fließt (`--np-angle` → `conic-gradient`
+im Lauflicht) — stößt **jedes Frame** Style + Paint auf dem Main-Thread an, solange der Tab
+sichtbar ist. Das Lauflicht lief so dauerhaft in der Bottom-Bar, auch ohne Wiedergabe; es war
+die einzige Endlos-Animation auf einer ruhenden Seite (Zensus per `document.getAnimations()`).
+Seitdem pausiert `body.lauflicht-idle` beide Schichten, solange `queue.playing` falsch ist
+(`utils/lauflicht.ts`, Test `utils/__tests__/lauflicht.test.ts`).
+
+Wer eine neue `infinite`-Animation baut: entweder `transform`/`opacity`, oder an einen Zustand
+koppeln, der auch wieder endet. **Pausieren über `animation-play-state`, nicht über
+`motion-policy.scss`** — die erzwingt Dauer und Wiederholung mit `!important`, nie den
+Play-State, und das muss so bleiben.

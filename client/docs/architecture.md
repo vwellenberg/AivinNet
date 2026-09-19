@@ -43,7 +43,8 @@ Quer dazu: `utils/` (pure Helfer, testbar — Farben, Playlist-Index-Arithmetik,
 `main.ts` steckt nur Plugins zusammen (Pinia + Persistenz, Router, v-wave, Virtual Scroller,
 Motion, Auto-Animate) und mountet `App.vue`. Die eigentliche Startlogik steht in **`App.vue`**:
 
-1. Theme-Klassen auf `document.body` setzen (`theme-dark`, `use-spotify-font`, Lauflicht-Stufe)
+1. Theme-Klassen auf `document.body` setzen (`theme-dark`, `use-figtree-font`, Lauflicht-Stufe,
+   `lauflicht-idle` = pausiert ohne Wiedergabe)
    — als `watch(..., { immediate: true })`, damit ein Reload nie kurz das falsche Theme malt.
    `settings.applyAutoTheme()` läuft **davor**, weil die Einstellungen synchron aus der
    Persistenz kommen.
