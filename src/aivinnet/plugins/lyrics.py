@@ -32,7 +32,7 @@ class LRCProvider:
         Returns the synced lyrics of the song in lrc.
 
         ### Arguments
-        - track_id: The ID of the track defined in the provider database. e.g. Spotify/Deezer track ID
+        - track_id: The ID of the track defined in the provider database. e.g. a streaming service's track ID
         """
         raise NotImplementedError
 

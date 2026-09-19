@@ -9,7 +9,7 @@ import { collectSwatches, dominance } from "./swatches";
  * Background used to be node-vibrant's `DarkMuted` swatch (grey) and was
  * then briefly the *most saturated* swatch (which over-picked tiny vivid
  * accents). We now pick the *dominant* coloured swatch and darken it, so the
- * gradient matches the cover's overall feel like Spotify.
+ * gradient matches the cover's overall feel.
  *
  * @param store - The store object to assign the color values to.
  * @param img_url - The URL of the image to extract colors from.
@@ -62,7 +62,7 @@ export default (store: any, img_url: string, btn_only: boolean = false) => {
     const primary = [...pool].sort((a, b) => dominance(b) - dominance(a))[0];
 
     // The BASE tone is the cover's population-weighted average colour — for
-    // a mostly dark cover that is a dark tone, and dark is fine (Spotify).
+    // a mostly dark cover that is a dark tone, and dark is fine.
     // The dominant coloured swatch may only TINT that base as much as its
     // actual share of the artwork: a niche saturated cluster (the maroon
     // frame of an otherwise dark beige cover) no longer takes over the page.
@@ -76,7 +76,7 @@ export default (store: any, img_url: string, btn_only: boolean = false) => {
           })
         : primary.rgb;
 
-    // bg/bg2 are the dark, Spotify-style gradient colours (same hue, two
+    // bg/bg2 are the dark gradient colours (same hue, two
     // lightness levels). Darkening here keeps the gradient and the header
     // text colour (which is derived from bg) perfectly in sync.
     const primaryRgb = listToRgbString(blended);

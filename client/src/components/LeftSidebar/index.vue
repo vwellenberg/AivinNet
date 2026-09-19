@@ -636,7 +636,7 @@ onBeforeUnmount(teardown);
   // bottom). Padding on the SCROLLER scrolls away with the content instead, so
   // the same resting inset stays but rows are cut at the frame.
   min-height: 0;
-  // Small black gap on the far left so the panel floats (Spotify-style).
+  // Small black gap on the far left so the panel floats.
   margin-left: 8px;
 
   .scrollable {
@@ -991,7 +991,7 @@ onBeforeUnmount(teardown);
       width: 0.95rem;
       height: 0.95rem;
       color: $candy-text;
-      // Tilt the thumbtack like Spotify's pin (📌): head top-right, point lower-left.
+      // Tilt the thumbtack like a real pin (📌): head top-right, point lower-left.
       transform: rotate(35deg);
     }
   }
@@ -1014,7 +1014,7 @@ onBeforeUnmount(teardown);
       object-fit: cover;
     }
 
-    // Spotify-style play/pause overlay: shows on hover, or always while this
+    // Play/pause overlay: shows on hover, or always while this
     // playlist is the one playing.
     .pl-play-overlay {
       position: absolute;

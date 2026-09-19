@@ -220,7 +220,7 @@ defineEmits<{
     line-height: 1.2;
     margin-right: $medium;
 
-    // Favorite check next to the title (Spotify-style), desktop only.
+    // Favorite check next to the title, desktop only.
     //
     // Nothing to state here any more: the box comes from `btn_role="bar"` at
     // the call site, so this control reads `$bar-control` like the transport

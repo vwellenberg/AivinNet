@@ -83,7 +83,7 @@
 // selector — the hover reveal binds to that card. See issue #44.
 //
 // $placement:
-//   right (default) — Spotify-style bottom-right corner placement
+//   right (default) — bottom-right corner placement
 //   center          — bottom-centre, used for round images (ArtistCard)
 @mixin card-play-btn($placement: right) {
   .play-btn {

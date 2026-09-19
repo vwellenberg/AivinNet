@@ -1,6 +1,6 @@
 # AivinNet Client
 
-A Spotify-style music player frontend, branded as **AivinNet**. This is a fork of [swingmx/webclient](https://github.com/swingmx/webclient) with a full visual redesign and custom branding.
+A self-hosted music player frontend, branded as **AivinNet**. This is a fork of [swingmx/webclient](https://github.com/swingmx/webclient) with a full visual redesign and custom branding.
 
 - Backend: [vwellenberg/AivinNet](https://github.com/vwellenberg/AivinNet)
 - Frontend: [vwellenberg/AivinNet-Client](https://github.com/vwellenberg/AivinNet-Client)

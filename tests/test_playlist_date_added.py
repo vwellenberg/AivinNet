@@ -22,7 +22,7 @@ class TestRecordAddedAt:
 
     def test_readded_hash_gets_fresh_timestamp(self):
         # "a" was removed earlier (not in existing list) but a stale map entry
-        # survived; re-adding must reset the date like Spotify does.
+        # survived; re-adding must reset the date.
         result = record_added_at({"a": 500}, [], ["a"], 1000)
         assert result == {"a": 1000}
 

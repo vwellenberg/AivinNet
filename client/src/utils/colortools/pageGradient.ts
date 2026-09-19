@@ -18,7 +18,7 @@ export const MEMPHIS = brandColors.memphis
  * the content shell (#acontent, app-grid.scss); this paints a LIGHT
  * cover-tinted veil over it — a translucent fade from the extracted cover
  * colour (colors.bg) that lets the grid and doodles show through, echoing
- * the old Spotify-style header fade in a memphis-compatible way.
+ * the old dark header fade in a memphis-compatible way.
  *
  * The veil can be switched off in Settings -> Appearance ("Cover-tinted page
  * gradient"), which leaves the bare grid-paper ground on those pages. The

@@ -23,7 +23,7 @@ with upstream.
   the list is filtered by a search query.
 - 🆕 **Pin playlists** — pin/unpin from the sidebar context menu or the playlist
   page; pinned playlists sort to the top of the sidebar and show a small green,
-  Spotify-style tilted push-pin badge. Pin state stays in sync across the sidebar
+  tilted push-pin badge. Pin state stays in sync across the sidebar
   and the open page.
 - 🆕 **Working right-click context menu** on sidebar playlists (Play / Pin / Delete).
   Upstream had this menu in code but it only logged to the console and was never
@@ -61,14 +61,14 @@ with upstream.
 ## Appearance & layout
 
 - ⬆️ **Color-matched ambient gradient** — album, artist, and playlist pages bleed the
-  cover's dominant color from the top into a dark Spotify-style gradient (fades to
+  cover's dominant color from the top into a dark gradient (fades to
   near-black), replacing the flat grey.
 - ⬆️ **Readable header text** — text over the colored header is luminance-based
   white/near-black instead of a tinted hue-shifted color.
-- ⬆️ **Spotify-style track rows** — artists moved under the title; hovering a row
+- ⬆️ **Two-line track rows** — artists moved under the title; hovering a row
   shows a play triangle over the cover thumbnail.
-- ⬆️ **Spotify-style cards** — hover reveals a small green corner play button.
-- 🎨 **Spotify-style bottom bar** — centered shuffle/prev/play/next/repeat, a white
+- ⬆️ **Corner-play cards** — hover reveals a small green corner play button.
+- 🎨 **Centered bottom bar** — centered shuffle/prev/play/next/repeat, a white
   play circle, and an always-visible horizontal volume slider (green on hover).
 - 🔀 **Favorite heart** moved next to the now-playing title (bottom-bar left).
 - 🎨 **Full-width black top bar** with the AivinNet logo pinned far-left, plus a round
@@ -78,8 +78,8 @@ with upstream.
 - 🆕 **Mobile contextual title** — the mobile top bar shows the current page name.
 - 🆕 **Resizable left sidebar** — drag the right edge (clamped 180–420 px); width is
   remembered across reloads.
-- 🆕 **Font selection** — switch the UI typeface between Default and a Spotify-style
-  font (Figtree); persisted and applied app-wide.
+- 🆕 **Font selection** — switch the UI typeface between Default and
+  Figtree; persisted and applied app-wide.
 - 🆕 **Version label** under Settings → About — client version (from `package.json`)
   alongside the server's.
 - 🎨 **AivinNet rebrand** — tab title, favicon, PWA manifest name/description, and

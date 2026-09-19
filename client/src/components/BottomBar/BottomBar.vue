@@ -206,7 +206,7 @@ function handleFav() {
             color: $candy-text;
 
             .numbers {
-                // Plain time text, no pill/box background (Spotify).
+                // Plain time text, no pill/box background.
                 font-variant-numeric: tabular-nums;
             }
         }

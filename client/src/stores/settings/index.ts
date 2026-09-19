@@ -23,7 +23,7 @@ export default defineStore('settings', {
         // repeat_one: false,
         repeat: <'all' | 'one' | 'none'>'all',
         /**
-         * Permanent shuffle ("random track") mode, like Spotify's shuffle toggle:
+         * Permanent shuffle ("random track") mode, a sticky shuffle toggle:
          * while on, the next track is picked at random from the queue and the
          * visible queue order is left untouched. This is NOT the queue panel's
          * one-shot "shuffle queue" action, which still reorders the list itself.
@@ -509,7 +509,7 @@ export default defineStore('settings', {
             store.root_dirs = []
             store.root_dir_set = false
 
-            // The font option was stored as 'spotify' before it was renamed.
+            // The font option was stored under another name before it was renamed.
             store.font = normalizeUiFont(store.font)
 
             // reset plugin settings

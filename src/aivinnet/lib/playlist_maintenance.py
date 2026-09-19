@@ -144,8 +144,8 @@ def record_added_at(
     Return a new `added_at` map (trackhash -> unix timestamp) with `timestamp`
     recorded for every hash in `merged` that is not in `existing`.
 
-    Re-added hashes get a fresh timestamp (Spotify semantics: removing and
-    re-adding a track resets its "date added").
+    Re-added hashes get a fresh timestamp: removing and re-adding a track
+    resets its "date added".
     """
     result = dict(added_at or {})
     known = set(existing)

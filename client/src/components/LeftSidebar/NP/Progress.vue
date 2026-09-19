@@ -30,7 +30,7 @@
         <div class="progress-fill-sprinkle" />
 
         <!--
-            Spotify-style hover preview (#66): the seek span is painted as a
+            Hover preview (#66): the seek span is painted as a
             background layer on the input itself (see progressBg), so the thumb
             keeps its ink ring on top of it. Only the time tooltip is an overlay.
             Mouse/pen only — touch is ignored (onPointerMove) and the tooltip is
