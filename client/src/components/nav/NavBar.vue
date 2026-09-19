@@ -25,7 +25,8 @@
             >
                 <component :is="headerAction.icon" />
             </button>
-            <ThemeToggle />
+            <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
+            <ThemeToggle v-if="lookHasModes(settings.look)" />
             <AvatarWithDropdown />
         </div>
     </div>
@@ -39,6 +40,7 @@ import { useRoute } from 'vue-router'
 import useAuth from '@/stores/auth'
 import { content_width, isMobile } from '@/stores/content-width'
 import useSettings from '@/stores/settings'
+import { lookHasModes } from '@/utils/theme'
 import { xl } from './../../composables/useBreakpoints'
 
 import SearchInput from '../RightSideBar/SearchInput.vue'

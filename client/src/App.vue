@@ -46,6 +46,7 @@ import useTracker from "@/stores/tracker";
 // @utils
 import handleShortcuts from "@/helpers/useKeyboard";
 import { lauflichtClasses } from "@/utils/lauflicht";
+import { themeBodyClasses } from "@/utils/theme";
 import { xl, xxl } from "./composables/useBreakpoints";
 
 // @small-components
@@ -108,12 +109,15 @@ settings.applyAutoTheme();
 const autoThemeTimer = setInterval(() => settings.applyAutoTheme(), 5 * 60 * 1000);
 onBeforeUnmount(() => clearInterval(autoThemeTimer));
 
-// Memphis theme: body.theme-dark flips the --mem-* custom properties
-// (Global/index.scss) to the classic-90s indigo dark look.
+// Look + mode -> body classes (utils/theme.ts): body.theme-dark flips the
+// --mem-* custom properties to the dark ground, body.theme-stream reshapes it
+// (Global/index.scss).
 watch(
-    () => settings.theme,
-    (theme) => {
-        document.body.classList.toggle("theme-dark", theme === "dark");
+    () => [settings.look, settings.theme] as const,
+    ([look, mode]) => {
+        for (const [cls, on] of Object.entries(themeBodyClasses(look, mode))) {
+            document.body.classList.toggle(cls, on);
+        }
     },
     { immediate: true }
 );

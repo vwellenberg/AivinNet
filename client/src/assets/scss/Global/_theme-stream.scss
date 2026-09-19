@@ -1,0 +1,80 @@
+// ============================================================================
+// STREAM — the flat dark look (#199).
+//
+// A second LOOK next to Memphis (utils/theme.ts has the look/mode model). It is
+// built on the dark theme: `body.theme-stream` always comes with
+// `body.theme-dark`, so every component's dark-ground answer applies first and
+// this block only reshapes it. Nothing here is a component rule — Stream is the
+// Memphis app with other token values:
+//
+//   colour  the `--mem-*` roles (Global/index.scss)
+//   form    the `--shape-*` tokens (_candy.scss, #198) — the ONLY file that
+//           may define them; `shapeTokens.test.ts` holds that line, because a
+//           definition anywhere else would silently reshape Memphis too
+//
+// The idea in one line: surfaces instead of outlines. Memphis separates things
+// with 3px ink frames and hard offsets; Stream separates them with a few steps
+// of near-black and lets the artwork carry the colour.
+//
+// ⚠️ Borders are hidden through their COLOUR (`--mem-line: transparent`), never
+// their width: ~100 layout calculations subtract `$candy-border-w`, so a 0px
+// border would shift every row by 3px. An invisible 3px frame keeps them all.
+// ============================================================================
+
+// `body.theme-dark.theme-stream`, not `body.theme-stream`: this file is imported
+// BEFORE the `:root` / `body.theme-dark` blocks in Global/index.scss, and at
+// equal specificity the dark block would win. The doubled class states the
+// real relationship anyway — Stream never comes without Dark.
+body.theme-dark.theme-stream {
+    // --- Surfaces: three steps of near-black instead of ink frames ---------
+    --mem-ground: #121212;
+    --mem-panel: #181818;
+    --mem-soft: #242424;
+    --mem-veil: rgba(18, 18, 18, 0.94);
+
+    // --- Lines: gone. Separation comes from the surface steps above. -------
+    --mem-line: transparent;
+    --mem-grid-line: transparent;
+
+    // --- Text ----------------------------------------------------------------
+    --mem-content-text: #ffffff;
+    --mem-content-muted: #b3b3b3;
+    --mem-content-faint: rgba(255, 255, 255, 0.5);
+    --mem-text: #ffffff;
+    --mem-text-muted: #b3b3b3;
+
+    // --- Pointer: a lighter surface, not the Memphis contrast flip ---------
+    // Memphis inverts the plate (ink <-> paper) because it has no spare colour;
+    // on a near-black ground one step lighter is the whole signal, and the text
+    // stays white on it.
+    --mem-hover: #2a2a2a;
+    --mem-hover-text: #ffffff;
+
+    // --- Textures: none. The hatch said "pressable" in a world of frames; ---
+    // here the hover surface says it.
+    --mem-hatch: none;
+    --mem-hatch-accent: none;
+    --mem-hatch-hover: none;
+    --shape-sprinkle: none;
+    --shape-doodles: none;
+
+    // --- Form ----------------------------------------------------------------
+    // Flat at rest; depth only where something is lifted off the page.
+    --mem-shadow: rgba(0, 0, 0, 0.5);
+    --shape-shadow: none;
+    --shape-shadow-hover: none;
+    --shape-shadow-lift: 0 8px 24px rgba(0, 0, 0, 0.6);
+    // Pressing sinks the control slightly instead of pushing it into a shadow
+    // that is not there.
+    --shape-press: scale(0.97);
+    --shape-radius: 8px;
+    --shape-radius-sm: 6px;
+
+    --mem-scrollbar-thumb: rgba(255, 255, 255, 0.25);
+    --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
+
+    // The look comes with its typeface: Figtree, whatever the font setting says
+    // (that setting chooses between Memphis's own two).
+    --app-font: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}

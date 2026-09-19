@@ -112,4 +112,36 @@ describe('settings store: theme + auto dark mode', () => {
 
         expect(settings.auto_theme).toBe(true)
     })
+
+    it('starts on the Memphis look', () => {
+        expect(useSettings().look).toBe('memphis')
+    })
+
+    it('switching the look leaves mode and auto alone', () => {
+        // Stream is dark only, but it must not overwrite the mode: the user's
+        // light/dark choice comes back unchanged on switching back.
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+        expect(settings.theme).toBe('dark')
+
+        settings.setLook('stream')
+        expect(settings.theme).toBe('dark')
+        expect(settings.auto_theme).toBe(true)
+
+        settings.setLook('memphis')
+        expect(settings.theme).toBe('dark')
+        expect(settings.auto_theme).toBe(true)
+    })
+
+    it('auto keeps following the day under Stream, ready for the switch back', () => {
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+        settings.setLook('stream')
+
+        themeForNowMock.mockReturnValue('light')
+        settings.applyAutoTheme()
+
+        expect(settings.theme).toBe('light')
+        expect(settings.look).toBe('stream')
+    })
 })
