@@ -65,7 +65,7 @@ onMounted(() => {
             background: none;
             padding: $small;
             font-size: 12px;
-            font-family: 'SF Mono';
+            font-family: $mono-font;
             color: transparent;
         }
 

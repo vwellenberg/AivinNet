@@ -54,44 +54,10 @@
     U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* San Francisco Compact Display font */
-@font-face {
-  font-family: "SF Compact Display";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("../fonts/SFCompactDisplay-Regular.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "SF Compact Display";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("../fonts/SFCompactDisplay-Medium.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "SF Compact Display";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("../fonts/SFCompactDisplay-Semibold.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "SF Compact Display";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("../fonts/SFCompactDisplay-Bold.woff2") format("woff2");
-}
-
-/* San Francisco Mono font */
-@font-face {
-  font-family: "SF Mono";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("../fonts/sf-mono-medium.woff2") format("woff2");
-}
+/* No Apple typefaces are shipped: "SF Compact Display" and "SF Mono" lived
+ * here as five woff2 files (#201). Their licence allows mock-ups for Apple
+ * platforms, not redistribution as a webfont — and SF Compact was not even
+ * used. Monospace text now names the fonts a machine already HAS
+ * ($mono-font in _variables.scss), which ships nothing and still renders as
+ * SF Mono on a Mac.
+ */

@@ -110,6 +110,12 @@ $songlist-duration-col: 10rem;
 $songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem $songlist-duration-col;
 $content-padding-bottom: 2rem;
 
+// MONOSPACE — pairing codes, backup paths, key lists. Every family here is one
+// the machine already has; nothing is downloaded and nothing is redistributed
+// (#201, which took five bundled Apple woff2 files out). `SFMono-Regular`
+// names a LOCAL font, so a Mac still shows the same glyphs it always did.
+$mono-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
 // PHONE PAGE START — how far the first thing on a page sits below the top of
 // the content panel on phones. ONE value for every page: Home's Browse block
 // (its own top padding) and the phone header of every GenericHeader page.
