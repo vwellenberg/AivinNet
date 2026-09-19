@@ -84,7 +84,11 @@ describe("shape tokens", () => {
   });
 
   it("the Stream look sets its tokens only under body.theme-stream", () => {
-    const stream = readFileSync(STREAM, "utf-8").replace(/\/\/.*$/gm, "");
+    // Comments out, and Sass interpolations (`#{$brand-green}`) flattened —
+    // their braces would otherwise split a declaration block in two.
+    const stream = readFileSync(STREAM, "utf-8")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/#\{[^}]*\}/g, "X");
     const blocks = [...stream.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
     const withShape = blocks.filter(([, , body]) => /--(shape|look)-/.test(body));
     expect(withShape.length).toBeGreaterThan(0);

@@ -126,8 +126,10 @@ describe('seek bar hover preview', () => {
     // The span is a background layer on the input, placed with hard colour
     // stops: `transparent <from>%, YELLOW <from>%, YELLOW <to>%, transparent`.
     // Its edges are sub-pixel floats, so read the stops back as numbers.
+    // The colour is the look token with Memphis yellow as fallback (#199) — a
+    // bare hex here would be a stop no other look can recolour.
     const span = () => {
-        const stops = [...lastBg.matchAll(/#F5B23C ([\d.]+)%/gi)].map(m => Number(m[1]))
+        const stops = [...lastBg.matchAll(/var\(--look-track-seek, #F5B23C\) ([\d.]+)%/gi)].map(m => Number(m[1]))
         return stops.length === 2 ? { from: stops[0], to: stops[1] } : null
     }
     const textureFrac = (w: ReturnType<typeof mount>) =>
