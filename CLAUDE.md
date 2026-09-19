@@ -22,6 +22,11 @@ beide sind wichtiger als die Umbenennung selbst:
   Rechten oder einem Lock, findet die App ihre Bibliothek trotzdem — verifiziert an einer Kopie
   der echten 126-MB-Installation.
 
+Der Log-Ordner hing bis #191 noch als `<config>/swingmusic/logs` fest im Code (`logger.py`) und
+wandert seitdem genauso — über dieselben Helfer `migrate_config_dir()` +
+`resolve_config_dir_name()`, die für jedes `<parent>/swingmusic` → `<parent>/aivinnet` passen.
+Neue Pfade mit dem alten Namen nicht hart verdrahten, sondern diese Helfer nutzen.
+
 ⚠️ **Die Datenbank sind DREI Dateien.** SQLite im WAL-Modus hält `-wal` und `-shm` daneben, und
 die sind nur mit einem gleichnamigen `.db` gültig (die Live-Installation hatte eine **10,9 MB**
 große WAL). Sie wandern als Satz, **Sidecars zuerst, die DB zuletzt**, und ein Fehler rollt die
