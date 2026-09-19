@@ -330,6 +330,20 @@ cd ~/AivinNet && git log --oneline -1          # enthält der Checkout den Commi
 grep -oh "<neuer Text>" ~/.config/aivinnet/client/assets/*.js | sort -u
 ```
 
+⚠️ **Der Deploy kopiert, er räumt nicht sofort auf.** `scripts/deploy-client.sh` löscht verwaiste
+Assets erst nach `GRACE_DAYS` (7) — absichtlich, damit ein Tab mit dem vorherigen Bundle nicht ins
+Leere läuft. Wer etwas entfernt, weil es **nicht mehr ausgeliefert werden darf** (Lizenz), ist
+damit noch nicht fertig: Die Datei liegt weiter unter `~/.config/aivinnet/client/assets/` und ist
+per URL abrufbar. Dann gezielt löschen und gegenprüfen (real passiert bei den Apple-Schriften,
+#201):
+
+```bash
+ls ~/.config/aivinnet/client/assets/*.woff2          # was liegt da wirklich?
+rm -f ~/.config/aivinnet/client/assets/<datei>
+curl -s -o /dev/null -w "%{http_code}
+" http://localhost:1970/assets/<datei>   # 404 erwartet
+```
+
 **Zweite Falle:** direkt nach einem Merge kann der Pull den Stand **davor** ziehen — GitHub
 braucht einen Moment, bis der neue `master` überall sichtbar ist. Auch das fällt nur über die
 Gegenprobe oben auf; dann einfach nochmal deployen.
