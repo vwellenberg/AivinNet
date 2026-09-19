@@ -1,19 +1,20 @@
 import { Setting } from '@/interfaces/settings'
 import { SettingType } from '../enums'
 import useSettings from '@/stores/settings'
+import type { UiFont } from '@/utils/uiFont'
 
 const settings = useSettings
 
 const font: Setting = {
     title: 'Font',
-    desc: 'Choose between the default font and a Spotify-like font (Figtree).',
+    desc: 'Choose between the default font (Space Grotesk) and Figtree.',
     type: SettingType.select,
     options: [
         { title: 'Default', value: 'default' },
-        { title: 'Spotify style', value: 'spotify' },
+        { title: 'Figtree', value: 'figtree' },
     ],
     state: () => settings().font,
-    action: (value: 'default' | 'spotify') => settings().setFont(value),
+    action: (value: UiFont) => settings().setFont(value),
     defaultAction: () => settings().toggleFont(),
 }
 

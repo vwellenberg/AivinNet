@@ -12,6 +12,7 @@ import useAxios from '@/requests/useAxios'
 import { paths } from '@/config'
 import { router, Routes } from '@/router'
 import { themeForNow } from '@/utils/autoTheme'
+import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
 export default defineStore('settings', {
     state: () => ({
@@ -58,7 +59,7 @@ export default defineStore('settings', {
         // client
         streaming_quality: 'original',
         streaming_container: 'mp3',
-        font: <'default' | 'spotify'>'default',
+        font: <UiFont>'default',
 
         // plugins
         use_lyrics_plugin: <boolean | undefined>false,
@@ -222,11 +223,11 @@ export default defineStore('settings', {
         setRootDirs(dirs: string[]) {
             this.root_dirs = dirs
         },
-        setFont(value: 'default' | 'spotify') {
+        setFont(value: UiFont) {
             this.font = value
         },
         toggleFont() {
-            this.font = this.font === 'spotify' ? 'default' : 'spotify'
+            this.font = this.font === 'figtree' ? 'default' : 'figtree'
         },
         toggleCleanTrackTitles() {
             this.clean_titles = !this.clean_titles
@@ -507,6 +508,9 @@ export default defineStore('settings', {
             let store = context.store
             store.root_dirs = []
             store.root_dir_set = false
+
+            // The font option was stored as 'spotify' before it was renamed.
+            store.font = normalizeUiFont(store.font)
 
             // reset plugin settings
             store.use_lyrics_plugin = false
