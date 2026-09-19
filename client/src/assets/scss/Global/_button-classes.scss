@@ -241,7 +241,7 @@
 
   60% {
     transform: translateY(0) rotate(1deg) scale(0.94);
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
   }
 
   80% {
@@ -250,7 +250,7 @@
 
   100% {
     transform: translateY(0) rotate(0) scale(1);
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
   }
 }
 
@@ -295,7 +295,7 @@
 // Animation würde beim Loslassen nicht zurücklaufen.
 .songlist-item.is-dragging {
   transform: rotate(-2.5deg) translate(-3px, -6px);
-  box-shadow: 7px 9px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(7px, 9px, lift);
   cursor: grabbing;
 }
 

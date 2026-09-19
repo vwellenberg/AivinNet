@@ -107,9 +107,58 @@ $candy-text-faint: var(--mem-content-faint); // placeholders, disabled
 $candy-border-w: 3px;
 // Every border/outline: ink in light, paper in dark.
 $candy-border: $candy-border-w solid $mem-line;
-$candy-radius: 14px; // cards, panels, modals
-$candy-radius-sm: 10px; // buttons, inputs, thumbnails
-$candy-radius-pill: 999px; // pills, sliders
+// The two corner radii are SHAPE TOKENS (see "Shape tokens" below): they emit
+// `var(--shape-radius…, <memphis value>)`, so a theme can round the whole app
+// differently while Memphis, which sets nothing, computes exactly the value it
+// always had. Anything that needs the NUMBER (arithmetic) reads the `-static`
+// twin — a `var()` cannot be subtracted from in Sass.
+$candy-radius-static: 14px;
+$candy-radius-sm-static: 10px;
+$candy-radius: var(--shape-radius, #{$candy-radius-static}); // cards, panels, modals
+$candy-radius-sm: var(--shape-radius-sm, #{$candy-radius-sm-static}); // buttons, inputs, thumbnails
+$candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every theme
+
+// ---------------------------------------------------------------------------
+// SHAPE TOKENS — the Memphis form language, switchable at runtime (#198).
+//
+// Colours were always runtime tokens (`--mem-*`, Global/index.scss); the FORM
+// was baked in at build time: every hard offset shadow, the press that pushes
+// a plate into it, the corner radii and the two textures were literals inside
+// these mixins. A second theme could recolour the app but not reshape it.
+//
+// Each shape value is now `var(--shape-<name>, <memphis literal>)`. The
+// fallback IS the Memphis design, so the default themes set none of these
+// properties and compute byte-for-byte what they computed before — that is
+// what makes this refactor provable (computed-style dump, master vs branch).
+// A theme reshapes the app by setting the property on `body`:
+//
+//   --shape-shadow         rest shadow of every raised surface
+//   --shape-shadow-hover   the deeper offset under the pointer
+//   --shape-shadow-lift    a row being dragged
+//   --shape-press          what pressing does to a plate (Memphis: into its shadow)
+//   --shape-radius(-sm)    corner radii (above)
+//   --shape-sprinkle       the terrazzo dash texture
+//   --shape-doodles        the doodle layer of the page ground
+//
+// Already runtime before this, and still the way to reach them:
+//   borders     → colour `--mem-line` (the WIDTH stays a Sass number: ~100
+//                 layout calculations subtract it; an invisible border is a
+//                 colour, not a width, and keeps every row the same height)
+//   hatch       → `--mem-hatch`, `--mem-hatch-accent`, `--mem-hatch-hover`
+//   grid lines  → `--mem-grid-line`
+//
+// ⚠️ One token per ROLE, not per offset: 2px, 3px and 4px shadows all read
+// `--shape-shadow`. Memphis keeps its per-site offsets through the fallbacks;
+// a theme that sets the token gives every raised surface the same depth.
+// ---------------------------------------------------------------------------
+@function mem-shadow($x, $y, $state: rest) {
+  $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
+  @return var(#{$token}, #{$x} #{$y} 0 var(--mem-shadow));
+}
+
+@function mem-press($x: 3px, $y: 3px) {
+  @return var(--shape-press, translate(#{$x}, #{$y}));
+}
 
 // Slider geometry — the seek bar and the volume bar.
 //
@@ -155,8 +204,8 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // corner. Carried by cards, buttons and floating chrome (modals, menus,
 // toasts). The colour is theme-aware (--mem-shadow, Global/index.scss): ink on
 // paper, a soft paper offset on the indigo dark ground where ink would vanish.
-@mixin candy-shadow($x: 4px, $y: 4px) {
-  box-shadow: $x $y 0 var(--mem-shadow);
+@mixin candy-shadow($x: 4px, $y: 4px, $state: rest) {
+  box-shadow: mem-shadow($x, $y, $state);
 }
 
 // The standard bordered surface.
@@ -193,12 +242,12 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   transition: transform 0.12s ease-out, box-shadow 0.12s ease-out 40ms;
 
   &:hover {
-    @include candy-shadow($x + 1, $y + 1);
+    @include candy-shadow($x + 1, $y + 1, hover);
   }
 
   @if $press {
     &:active {
-      transform: translate($x, $y);
+      transform: mem-press($x, $y);
       box-shadow: none;
     }
   }
@@ -394,7 +443,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   border: $candy-border-w solid $mem-line;
   border-radius: $radius;
   color: $mem-content-text;
-  box-shadow: 3px 3px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(3px, 3px);
   // Motion only — the paint is a cut (styling.md). Literal durations, like
   // every transition in this file: `_motion.scss` is imported AFTER
   // `_candy.scss` (see vite.config.ts), so its tokens are not resolvable here.
@@ -431,7 +480,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
     background-image: var(--mem-hatch-hover);
   }
   border-color: $mem-line;
-  box-shadow: 4px 4px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(4px, 4px, hover);
 }
 
 // A coloured row: static memphis accent + ink text + the accent hatch, all
@@ -448,7 +497,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // reported as "the label and the hatch disappear when you click".
 @mixin mem-row-plate-press {
   &:active {
-    transform: translate(3px, 3px);
+    transform: mem-press(3px, 3px);
     box-shadow: none;
   }
 }
@@ -492,7 +541,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   background-color: $mem-panel;
   border: $candy-border;
   border-radius: $radius;
-  box-shadow: 3px 3px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(3px, 3px);
   // The ground halos that used to prop these captions up (`text-shadow: 0 0 8px
   // var(--mem-ground)`) are unnecessary on a panel — and so is the
   // theme-aware content colour: this text reads against the panel now.
@@ -598,7 +647,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   background-color: $mem-panel;
   border: $candy-border;
   border-radius: $candy-radius-sm;
-  box-shadow: 3px 3px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(3px, 3px);
   overflow: hidden;
   // Die Ankunft (#143) gehört der PLATTE, nicht ihren Segmenten — deshalb hier
   // und nicht als `mem-arrival` auf `#{$item}`. Eine segmentierte Leiste ist
@@ -756,7 +805,7 @@ $mem-seg-reserve: 4px !default;
 @mixin mem-grid($size: 46px, $w: 2px, $doodles: true) {
   background-color: $mem-ground;
   @if $doodles {
-    background-image: url("@/assets/images/memphis-doodles.svg"),
+    background-image: var(--shape-doodles, url("@/assets/images/memphis-doodles.svg")),
       linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
     background-size: 3840px 1600px, $size $size, $size $size;
@@ -863,7 +912,7 @@ $mem-seg-reserve: 4px !default;
 // combine with a background-color on the same element (use background-color,
 // not the background shorthand, or the image layer gets wiped).
 @mixin mem-sprinkle($size: 46px) {
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+  background-image: var(--shape-sprinkle, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>'));
   background-size: $size $size;
 }
 

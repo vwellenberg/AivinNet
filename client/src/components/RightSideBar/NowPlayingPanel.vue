@@ -208,7 +208,7 @@ function handleFav() {
     padding: $small;
     // The scroller clips at its padding box, so the radius belongs here or the
     // rows cut square corners into a rounded panel (#473).
-    border-radius: $candy-radius - $candy-border-w;
+    border-radius: calc(#{$candy-radius} - #{$candy-border-w});
 
     .np-head {
         display: flex;

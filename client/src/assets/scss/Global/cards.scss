@@ -225,7 +225,7 @@ $card-cover-pad: 6px;
     @include mem-hatch(38px, $on: surface);
     border: $candy-border;
     border-radius: $candy-radius;
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
     // Motion only — the paint is a cut (styling.md): the plate flips to the
     // contrast surface together with its text and hatch, in one frame.
     //

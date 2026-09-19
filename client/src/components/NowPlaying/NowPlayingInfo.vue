@@ -73,7 +73,7 @@ function showMenu(e: MouseEvent) {
   background-color: $mem-panel;
   border: $candy-border;
   border-radius: $candy-radius;
-  box-shadow: 3px 3px 0 var(--mem-shadow);
+  box-shadow: mem-shadow(3px, 3px);
   font-weight: 500;
 
   .text {

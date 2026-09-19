@@ -76,7 +76,7 @@ const lyrics = useLyrics();
     border: $candy-border;
     border-radius: $candy-radius-sm;
     // Stuck on, like the artwork in a song row: offset shadow and a slight tilt.
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
     transform: rotate(-2.5deg);
   }
 

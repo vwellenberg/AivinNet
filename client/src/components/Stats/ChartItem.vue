@@ -196,7 +196,7 @@ function getRouterParams() {
         color: $mem-content-text;
         border: $candy-border;
         border-radius: $candy-radius-sm;
-        box-shadow: 2px 2px 0 var(--mem-shadow);
+        box-shadow: mem-shadow(2px, 2px);
         transform: rotate(-4deg);
 
         &.tilt-right {
