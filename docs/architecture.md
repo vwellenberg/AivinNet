@@ -177,8 +177,12 @@ nachzuschlagen, ohne den Code zu lesen.
 
 Praktisch läuft alles über `GET /file/<trackhash>/legacy`: Der Client erzwingt den Legacy-Pfad
 (`getUrl()` setzt `use_legacy = true` fest), weil die Playback-Engine mit dem gechunkten
-Endpoint nicht sauber umgeht. Der chunked/transcodierende Zweig ist auskommentiert —
-`Range`-Support und Transcoding (ffmpeg, `TransCodeStore` mit 50er-Cache) liegen also brach.
+Endpoint nicht sauber umgeht. Der Endpoint liefert die Datei **unverändert** aus
+(`send_from_directory(..., conditional=True)`) und beantwortet damit auch `Range`-Anfragen mit
+206 — Springen in langen Dateien geht also. Transcoding gibt es nicht: Der frühere gechunkte,
+transcodierende Zweig war auskommentiert und ist mit #180 samt `lib/transcoder.py` entfernt.
+Abgespielt wird, was der Browser dekodiert (ALAC und WMA meist nicht). `ffmpeg` braucht es
+trotzdem noch — für die Stille-Erkennung (`POST /file/silence` → vendortes pydub).
 
 Pfadauflösung: erst über den `filepath`-Query, sonst über den Trackhash mit der höchsten
 Bitrate, die tatsächlich auf der Platte liegt. Path-Traversal wird gegen die Root-Verzeichnisse

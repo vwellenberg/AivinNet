@@ -168,10 +168,9 @@ plays is therefore whatever your *browser* decodes. MP3, FLAC, M4A/AAC, OGG,
 Opus and WAV are safe in any current browser; **ALAC and WMA usually are not**,
 and a library full of those will be indexed and then refuse to play.
 
-There is a transcoding path in the source, but it has no caller — the client
-pins the legacy endpoint, and the chunked branch that would transcode is
-commented out. So `ffmpeg` buys you nothing today; it is listed as optional
-because that is all it is.
+`ffmpeg` is still worth installing: the optional silence-padding removal
+decodes tracks with it to find where the silence ends. Without it that feature
+quietly does nothing for anything but WAV; playback itself is unaffected.
 
 ## Reaching it from outside your LAN
 

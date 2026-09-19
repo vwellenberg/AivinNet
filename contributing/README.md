@@ -58,7 +58,7 @@ aivinnet/
 │   │   ├── album.py          # Album-related endpoints
 │   │   ├── artist.py         # Artist-related endpoints
 │   │   ├── auth.py           # Authentication & user management
-│   │   ├── stream.py         # Audio streaming & transcoding
+│   │   ├── stream.py         # Audio streaming (files sent as-is)
 │   │   ├── search.py         # Search functionality
 │   │   ├── playlist.py       # Playlist management
 │   │   ├── settings.py       # Configuration endpoints
@@ -85,8 +85,7 @@ aivinnet/
 │   │   ├── albumslib.py      # Album processing utilities
 │   │   ├── artistlib.py      # Artist processing utilities
 │   │   ├── searchlib.py      # Search algorithms
-│   │   ├── tagger.py         # Metadata extraction & processing
-│   │   └── transcoder.py     # Audio format conversion
+│   │   └── tagger.py         # Metadata extraction & processing
 │   ├── utils/                # Utility functions
 │   │   ├── hashing.py        # Hash generation for entities
 │   │   ├── auth.py           # Authentication utilities
@@ -204,14 +203,12 @@ Built with Flask-OpenAPI3 for automatic documentation and validation:
 - **`/album`**: Album information, tracks, versions, similar albums
 - **`/artist`**: Artist details, discography, top tracks
 - **`/search`**: Fuzzy search across all content types
-- **`/file`**: Audio streaming with transcoding support
+- **`/file`**: Audio streaming, files sent unchanged
 - **`/playlist`**: CRUD operations for playlists
 
 #### Streaming (`api/stream.py`)
-- **Format support**: MP3, AAC, FLAC, WebM, OGG
-- **Quality options**: 96kbps to lossless
-- **Range requests**: Efficient seeking and partial downloads
-- **Real-time transcoding**: On-demand format conversion (broken)
+- **No transcoding**: files go out exactly as they are on disk, so what plays is what the browser decodes
+- **Range requests**: seeking works (`GET /file/<trackhash>/legacy` answers a byte range with 206)
 
 ## Application Startup Sequence
 
@@ -314,14 +311,10 @@ graph LR
 ### Audio Streaming Flow
 ```mermaid
 graph LR
-    API[GET /file/trackhash] --> Auth[Verify JWT Token]
+    API[GET /file/trackhash/legacy] --> Auth[Verify JWT Token]
     Auth --> Lookup[TrackStore Lookup]
     Lookup --> File[Check File Exists]
-    File --> Transcode{Transcoding<br/>Needed?}
-    Transcode -->|Yes| Convert[FFmpeg Conversion]
-    Transcode -->|No| Direct[Direct File Stream]
-    Convert --> Stream[HTTP Response<br/>with Range Support]
-    Direct --> Stream
+    File --> Stream[File sent unchanged<br/>with Range Support]
 ```
 
 ## Component Coordination

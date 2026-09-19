@@ -24,7 +24,6 @@ sqlalchemy>=2.0.31
 memory-profiler>=0.61.0
 sortedcontainers>=2.4.0
 xxhash>=3.4.1
-ffmpeg-python>=0.2.0
 schedule>=1.2.2
 flask-openapi3==3.0.2
 rapidfuzz==3.11.0

@@ -28,7 +28,6 @@ source = { editable = "." }
 dependencies = [
     { name = "bjoern", marker = "sys_platform != 'win32'" },
     { name = "colorgram-py" },
-    { name = "ffmpeg-python" },
     { name = "flask" },
     { name = "flask-compress" },
     { name = "flask-cors" },
@@ -75,7 +74,6 @@ dev = [
 requires-dist = [
     { name = "bjoern", marker = "sys_platform != 'win32'", specifier = ">=3.2.2" },
     { name = "colorgram-py", specifier = ">=1.2.0" },
-    { name = "ffmpeg-python", specifier = ">=0.2.0" },
     { name = "flask", specifier = ">=3.1.0" },
     { name = "flask-compress", specifier = ">=1.13" },
     { name = "flask-cors", specifier = ">=3.0.10" },
@@ -571,18 +569,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ffmpeg-python"
-version = "0.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "future" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/5e/d5f9105d59c1325759d838af4e973695081fbbc97182baf73afc78dec266/ffmpeg-python-0.2.0.tar.gz", hash = "sha256:65225db34627c578ef0e11c8b1eb528bb35e024752f6f10b78c011f6f64c4127", size = 21543, upload-time = "2019-07-06T00:19:08.989Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/0c/56be52741f75bad4dc6555991fabd2e07b432d333da82c11ad701123888a/ffmpeg_python-0.2.0-py3-none-any.whl", hash = "sha256:ac441a0404e053f8b6a1113a77c0f452f1cfc62f6344a769475ffdc0f56c23c5", size = 25024, upload-time = "2019-07-06T00:19:07.215Z" },
-]
-
-[[package]]
 name = "filelock"
 version = "3.29.4"
 source = { registry = "https://pypi.org/simple" }
@@ -674,15 +660,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6c/76/13631a2314824bc02e66d2a4a398c3bb6e96580b8562c7d16440ff6d0082/flask_openapi3-3.0.2.tar.gz", hash = "sha256:92e6a308c5b13692ad8aea04ee951ffbfabc6853b20bd3b678c2569dcb781916", size = 982723, upload-time = "2024-01-28T09:06:43.208Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/e0/3b4bd3890fef19b1248d272bc077002658c53d494bab3ba15319df99ffdc/flask_openapi3-3.0.2-py3-none-any.whl", hash = "sha256:e39359bf07da47d9abf30d4b370feaac4035bd805f03518ce65016958796c636", size = 988441, upload-time = "2024-01-28T09:06:41.521Z" },
-]
-
-[[package]]
-name = "future"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a7/b2/4140c69c6a66432916b26158687e821ba631a4c9273c474343badf84d3ba/future-1.0.0.tar.gz", hash = "sha256:bd2968309307861edae1458a4f8a4f3598c03be43b97521076aebf5d94c07b05", size = 1228490, upload-time = "2024-02-21T11:52:38.461Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/71/ae30dadffc90b9006d77af76b393cb9dfbfc9629f339fc1574a1c52e6806/future-1.0.0-py3-none-any.whl", hash = "sha256:929292d34f5872e70396626ef385ec22355a1fae8ad29e1a734c3e43f9fbc216", size = 491326, upload-time = "2024-02-21T11:52:35.956Z" },
 ]
 
 [[package]]
