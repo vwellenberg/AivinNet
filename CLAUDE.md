@@ -78,7 +78,7 @@ Pro Aufgabe/Issue:
 - **Self-Review — VOR dem PR, nicht danach.** `/code-review` auf den Arbeits-Diff laufen lassen, Findings fixen, erneut prüfen — erst dann den PR öffnen. Die Reihenfolge ist der Punkt: Steht der Schritt hinter „PR öffnen", entfällt er in der Praxis (sobald der PR offen ist und die CI grün läuft, sieht das Paket fertig aus — so sind im Client 5 PRs ohne Review durchgerutscht). **Grüne CI ist kein Review.** Fallback ohne `/code-review`: den eigenen Diff `git diff origin/master...HEAD` vollständig lesen und im PR-Text vermerken, dass das Tool-Review nicht lief.
 - **PR** öffnen.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
-- **CI gatet jetzt:** Branch Protection auf `master` erzwingt die Status-Checks `Lint & Format` / `Unit Tests` (`strict:false`, kein Review-Zwang, `enforce_admins:false`). Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen.
+- **CI gatet jetzt:** Branch Protection auf `master` erzwingt **alle acht** Jobs aus `ci.yml` (`strict:false`, kein Review-Zwang, `enforce_admins:false`), seit 2026-09-19 auch `Docker Smoke Test`. Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen. ⚠️ **`--auto` wartet NUR auf Pflicht-Checks:** Ein neuer Job ist erst Gate, wenn er in der Branch Protection steht (#189 wurde gemergt, bevor der damals freiwillige Smoke-Test fertig war). Nachsehen: `gh api repos/vwellenberg/AivinNet/branches/master/protection/required_status_checks --jq .contexts`.
 - Danach **deployen und verifizieren** (Befehl: `MAINTAINER.local.md`), Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
@@ -143,7 +143,7 @@ git fetch --prune && git branch -D <branch>
 - **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
 - **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
-- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`).
+- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs.
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
 ## Dokumentation & Learnings (verbindlich)
