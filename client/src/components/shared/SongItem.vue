@@ -200,7 +200,7 @@ function onDragLeave() {
 function onDrop(e: DragEvent) {
     dragOverTop.value = false
     dragOverBottom.value = false
-    const data = e.dataTransfer?.getData('swing-track')
+    const data = e.dataTransfer?.getData('aivinnet-track')
     if (!data) return
     const { track, source, oldIndex } = JSON.parse(data) as {
         track: Track

@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-LABEL "author"="swing music"
+LABEL org.opencontainers.image.title="AivinNet" \
+      org.opencontainers.image.source="https://github.com/vwellenberg/AivinNet"
 EXPOSE 1970/tcp
 VOLUME /music
 VOLUME /config

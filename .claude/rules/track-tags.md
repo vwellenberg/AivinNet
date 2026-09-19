@@ -43,7 +43,7 @@ umzug = {vorher[fp]: nachher[fp] for fp in vorher
 Die `track`-Tabelle trägt teils noch Hashes aus der alten SHA1-Ära; `create_hash` rechnet
 längst `xxh3_64`. Der `TrackStore` im RAM hat die neuen, die DB die alten — für dieselbe Datei.
 
-Wer Hashes aus `swingmusic.db` liest und damit `/file/<hash>/legacy` aufruft, bekommt **404**,
+Wer Hashes aus der Datenbank (`aivinnet.db`) liest und damit `/file/<hash>/legacy` aufruft, bekommt **404**,
 obwohl alles in Ordnung ist. Das hat in einer Session zweimal auf eine falsche Fährte geführt.
 
 **Hashes immer aus der laufenden API holen** (`POST /folder`), nie aus der Datenbank.

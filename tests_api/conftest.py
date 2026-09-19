@@ -22,7 +22,7 @@ import pytest
 # Must happen before any aivinnet import resolves Paths.
 _config_root = tempfile.mkdtemp(prefix="aivinnet-apitests-")
 os.environ["XDG_CONFIG_HOME"] = _config_root
-os.environ.setdefault("SWINGMUSIC_CLIENT_DIR", _config_root)
+os.environ.setdefault("AIVINNET_CLIENT_DIR", _config_root)
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 

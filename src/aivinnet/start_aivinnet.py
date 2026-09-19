@@ -52,7 +52,7 @@ class PortManager:
 
 def start_aivinnet(host: str, port: int):
     """
-    Creates and starts the Flask application server for Swing Music.
+    Creates and starts the Flask application server for AivinNet.
 
     This function sets up the Flask application with all necessary
     configurations, including static file handling, authentication middleware, and

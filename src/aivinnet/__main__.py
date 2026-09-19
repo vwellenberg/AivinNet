@@ -38,7 +38,7 @@ tools.add_argument("--password-reset", help="Reset the password.", action="store
 
 def run(*args, **kwargs):
     """
-    Swing Music entry point
+    AivinNet entry point
     """
     args = parser.parse_args()
     args = vars(args)

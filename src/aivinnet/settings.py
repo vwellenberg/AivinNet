@@ -263,7 +263,7 @@ class AssetHandler:
           read-only squashfs. Writing there is impossible and copying into it
           raises OSError out of the startup path;
         * anyone deploying their **own build** via `--client` or
-          `SWINGMUSIC_CLIENT_DIR` — including this project's own server, whose
+          `AIVINNET_CLIENT_DIR` — including this project's own server, whose
           build is newer than any release;
         * a client directory that is not `config_dir/client`, where the
           bundled-zip branch would extract to a different place than the one
@@ -428,7 +428,7 @@ class Paths(metaclass=Singleton):
             legacy_paths.migrate_db_files(self.config_dir)
 
             # INFO: Setup client path
-            env_client_dir = os.environ.get("SWINGMUSIC_CLIENT_DIR")
+            env_client_dir = legacy_paths.read_env(legacy_paths.CLIENT_DIR_ENV)
             if client_dir is not None:
                 self.client_path = client_dir.resolve()
             elif env_client_dir is not None:
@@ -442,8 +442,8 @@ class Paths(metaclass=Singleton):
 
             # TODO: find a platform independent way to access module globals like `Paths`
             # TODO: move this into multithreading management class
-            os.environ["SWINGMUSIC_CONFIG_DIR"] = self.config_parent.resolve().as_posix()
-            os.environ["SWINGMUSIC_CLIENT_DIR"] = self.client_path.resolve().as_posix()
+            os.environ[legacy_paths.CONFIG_DIR_ENV[0]] = self.config_parent.resolve().as_posix()
+            os.environ[legacy_paths.CLIENT_DIR_ENV[0]] = self.client_path.resolve().as_posix()
 
             self.setup_config_dirs()
 
@@ -452,7 +452,7 @@ class Paths(metaclass=Singleton):
         """
         Determines the default config path in the following order:
 
-        1. Env:``SWINGMUSIC_CONFIG_DIR``
+        1. Env:``AIVINNET_CONFIG_DIR`` (or the deprecated ``SWINGMUSIC_CONFIG_DIR``)
         2. Env:``xdg_config_home``
         3. <User Home>/.config
         4. <User Home>
@@ -460,7 +460,7 @@ class Paths(metaclass=Singleton):
         :return: First valid path
         """
 
-        config_dir_from_env = os.environ.get("SWINGMUSIC_CONFIG_DIR")
+        config_dir_from_env = legacy_paths.read_env(legacy_paths.CONFIG_DIR_ENV)
         xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
 
         if config_dir_from_env is not None:
@@ -480,7 +480,7 @@ class Paths(metaclass=Singleton):
         Create the config/cache folder structure.
 
         base folder
-        └───`swingmusic` or `.swingmusic` (see config_folder_name)
+        └───`aivinnet` or `.aivinnet` (see config_folder_name)
             ├───images
             │   ├───artists
             │   │   ├───large
@@ -501,7 +501,7 @@ class Paths(metaclass=Singleton):
 
         # all dirs relative to the config dir
         dirs = [
-            "",  # `swingmusic` or `.swingmusic`
+            "",  # `aivinnet` or `.aivinnet` (or a legacy name, see config_folder_name)
             "plugins/lyrics",
             "images/playlists",
             "images/users",

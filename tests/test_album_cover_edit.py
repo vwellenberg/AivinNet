@@ -40,7 +40,7 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-_SWING_MOCKS = {
+_AIVINNET_MOCKS = {
     name: MagicMock()
     for name in [
         "aivinnet.db",
@@ -51,7 +51,7 @@ _SWING_MOCKS = {
     ]
 }
 
-with patch.dict(sys.modules, _SWING_MOCKS):
+with patch.dict(sys.modules, _AIVINNET_MOCKS):
     from aivinnet.lib import album_cover_edit
 
 import os  # noqa: E402

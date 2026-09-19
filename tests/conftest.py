@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # tinytag) run in the same session without those fallback mocks shadowing
 # them. "sqlalchemy.orm" must be named explicitly: SQLAlchemy 2.0 does NOT
 # register the submodule on a plain "import sqlalchemy", so the guarded
-# mocks would still shadow it and any test importing swingmusic.db would die
+# mocks would still shadow it and any test importing aivinnet.db would die
 # with a metaclass conflict on full-stack machines (Client issue #418). In
 # the fast CI lane, where a dep is not installed, the import fails and the
 # mocks apply exactly as before.

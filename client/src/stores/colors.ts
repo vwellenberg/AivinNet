@@ -17,7 +17,16 @@ async function getImageColor(url: string) {
   return { lightvibrant, darkvibrant, bg };
 }
 
-export default defineStore("SwingMusicColors", {
+// Persisted under the store id. It used to be "SwingMusicColors"; the cover
+// colours are recomputed on the next track, so the old entry is only dropped,
+// not carried over.
+try {
+  localStorage.removeItem("SwingMusicColors");
+} catch {
+  // storage blocked (private mode, tests) — nothing to clean up then
+}
+
+export default defineStore("AivinNetColors", {
   state: () => ({
     theme1: "",
     theme2: "",

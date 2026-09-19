@@ -27,6 +27,12 @@ wandert seitdem genauso — über dieselben Helfer `migrate_config_dir()` +
 `resolve_config_dir_name()`, die für jedes `<parent>/swingmusic` → `<parent>/aivinnet` passen.
 Neue Pfade mit dem alten Namen nicht hart verdrahten, sondern diese Helfer nutzen.
 
+Umgebungsvariablen heißen `AIVINNET_CONFIG_DIR` / `AIVINNET_CLIENT_DIR`; die alten `SWINGMUSIC_*`
+gelten weiter (mit Warnung, `legacy_paths.read_env`), denn eine still ignorierte Variable zeigt
+auf ein leeres Datenverzeichnis. **Wächter:** `tests/test_no_upstream_name.py` schlägt bei jedem
+neuen „Swing Music"/`swingmusic` in `src/`, `client/src/` oder im `Dockerfile` an — gewollte
+Stellen (Attribution, Legacy-Migration) stehen dort in `ALLOWED`, **mit Begründung**.
+
 ⚠️ **Die Datenbank sind DREI Dateien.** SQLite im WAL-Modus hält `-wal` und `-shm` daneben, und
 die sind nur mit einem gleichnamigen `.db` gültig (die Live-Installation hatte eine **10,9 MB**
 große WAL). Sie wandern als Satz, **Sidecars zuerst, die DB zuletzt**, und ein Fehler rollt die
@@ -252,7 +258,7 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   ein Formatwechsel ändert **keinen** Hash, eine Tag-Korrektur **jeden** betroffenen — Playlists,
   Favoriten und Scrobbles zeigen danach ins Leere und müssen mitgezogen werden. Zweite Falle: die
   Hashes **in der Datenbank** stammen teils noch aus der SHA1-Ära, der laufende Server rechnet
-  xxh3 — Hashes immer aus der API holen, nie aus `swingmusic.db`. Ableitungsregeln,
+  xxh3 — Hashes immer aus der API holen, nie aus `aivinnet.db`. Ableitungsregeln,
   Platzhalter-Fallstricke, MusicBrainz-Abgleich, Indexer-Blindstellen: `.claude/rules/track-tags.md`.
 - `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 

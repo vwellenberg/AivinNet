@@ -103,13 +103,13 @@ export function showDragStart(
   // add track object to dataTransfer
   e.dataTransfer?.clearData();
   e.dataTransfer?.setData(
-    "swing-track",
+    "aivinnet-track",
     JSON.stringify({ track, source, oldIndex })
   );
 }
 
 export function handleDrop(e: DragEvent, index: number, top: boolean) {
-  const data = e.dataTransfer?.getData("swing-track");
+  const data = e.dataTransfer?.getData("aivinnet-track");
   if (!data) return;
 
   const drop_data = JSON.parse(data) as {

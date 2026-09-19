@@ -1,5 +1,5 @@
 <template>
-    <div class="aboutswingmusic">
+    <div class="about-aivinnet">
         <div class="version">AivinNet v{{ clientVersion }}</div>
         <div v-if="settings.version" class="server-version">Server v{{ settings.version }}</div>
         <p class="blurb">
@@ -49,7 +49,7 @@ const clientVersion = pkg.version
 // enough for the pills' offset shadow to touch it.
 $about-step: 1rem;
 
-.aboutswingmusic {
+.about-aivinnet {
     padding: $small;
 
     .version {

@@ -29,6 +29,7 @@ WAL, and that loses the transactions the WAL still held.
 
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,29 @@ DB_NAME = "aivinnet.db"
 
 # SQLite WAL sidecars. Order matters on the move — see the module docstring.
 DB_SIDECAR_SUFFIXES = ("-wal", "-shm")
+
+# Environment overrides, new name first. The old names keep working: they sit in
+# systemd units, compose files and shell profiles we cannot see, and a silently
+# ignored override points the app at a different, empty data directory.
+CONFIG_DIR_ENV = ("AIVINNET_CONFIG_DIR", "SWINGMUSIC_CONFIG_DIR")
+CLIENT_DIR_ENV = ("AIVINNET_CLIENT_DIR", "SWINGMUSIC_CLIENT_DIR")
+
+
+def read_env(names: tuple[str, str], environ: Mapping[str, str] | None = None) -> str | None:
+    """The value of the new variable, else of the legacy one, else None."""
+    if environ is None:
+        environ = os.environ
+
+    new_name, legacy_name = names
+
+    if new_name in environ:
+        return environ[new_name]
+
+    if legacy_name in environ:
+        log.warning("%s is deprecated, use %s instead", legacy_name, new_name)
+        return environ[legacy_name]
+
+    return None
 
 
 def resolve_config_dir_name(config_parent: Path, *, dotted: bool) -> str:
