@@ -34,10 +34,10 @@
                 />
             </div>
             <label for="pswd">{{ adding_user ? 'Create' : 'Change' }} password</label>
-            <Input type="password" placeholder="⏺⏺⏺⏺⏺⏺⏺⏺" @input="input => (password = input)" />
+            <Input type="password" :placeholder="adding_user ? 'Password' : 'New password'" @input="input => (password = input)" />
             <div class="confirmpassword" v-if="password.length">
                 <label for="confirmpswd">Confirm password</label>
-                <Input type="password" placeholder="⏺⏺⏺⏺⏺⏺⏺⏺" @input="input => (confirmPassword = input)" />
+                <Input type="password" placeholder="Repeat the password" @input="input => (confirmPassword = input)" />
                 <label class="error" v-if="errorText">{{ errorText }}</label>
             </div>
             <button v-if="showSubmit" class="btn-pill">

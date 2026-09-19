@@ -42,9 +42,14 @@ describe("phone page start", () => {
     expect(read("assets/scss/_variables.scss")).toMatch(/^\$phone-page-start:/m);
   });
 
-  it("is where Home's Browse block starts", () => {
+  it("is owned by the head on Home too — the Browse block stands down", () => {
+    // Home gained the page head every other page has (#212), and on a phone
+    // that head owns the start. The Browse block's own 24px would otherwise
+    // stack on top of it to 48 — the drift this token was introduced to end.
     const style = read("components/HomeView/Browse.vue");
     expect(style).toMatch(/\.homebrowse\s*\{[^}]*padding:\s*\$phone-page-start\b/);
+    const browse = style.slice(style.indexOf(".homebrowse {"));
+    expect(includeBlock(browse, "allPhones")).toMatch(/padding-top:\s*0;/);
   });
 
   it("is the only height the phone GenericHeader adds above the page", () => {
