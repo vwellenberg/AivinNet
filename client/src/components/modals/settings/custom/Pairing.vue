@@ -1,15 +1,25 @@
 <template>
     <div class="pairing">
         <div
-            ref="qrcode"
             class="qrcode"
-            v-if="qrLoaded"
-        ></div>
+            v-if="state === 'ready'"
+        >
+            <img
+                :src="qrSrc"
+                alt="Pairing QR code"
+            />
+        </div>
         <div
             class="loader"
-            v-if="!qrLoaded"
+            v-else-if="state === 'loading'"
         >
             <div class="spinner"></div>
+        </div>
+        <div
+            class="error"
+            v-else
+        >
+            <p>{{ errorMsg }}</p>
         </div>
         <p class="desc">
             Scan the QR code with your phone's camera to open AivinNet and pair the device.
@@ -20,17 +30,21 @@
 </template>
 
 <script setup lang="ts">
-import { Ref, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import QRCodeStyling from 'qr-code-styling'
 import { sendPairRequest } from '@/requests/auth'
 import { MEMPHIS } from '@/utils/colortools/pageGradient'
 
-const qrLoaded = ref(false)
-// @ts-expect-error
-const qrcode: Ref<HTMLElement> = ref(null)
+// Every outcome lives in the template. The panel used to hand-append its error
+// into the QR container, which only exists once the code has loaded — so a
+// failed request threw inside onMounted and the spinner never went away.
+const state = ref<'loading' | 'ready' | 'error'>('loading')
+const qrSrc = ref('')
+const errorMsg = ref('')
 const url = window.location.origin
+let closed = false
 
-async function renderQrCode(code: string) {
+async function buildQrCode(code: string) {
     // Deep-link URL: scanning with a phone camera opens the web client, which
     // redeems the code and logs the browser in (see views/PairView.vue).
     // Intentionally replaces the native Swing Music app's "<origin> <code>"
@@ -56,23 +70,40 @@ async function renderQrCode(code: string) {
         margin: 20,
     })
     const svgBlob = await qrCode.getRawData('svg')
-    if (!svgBlob) return
-    const img = document.createElement('img')
-    img.src = URL.createObjectURL(svgBlob)
-    qrcode.value.appendChild(img)
+    if (!svgBlob) throw new Error('QR code rendered empty')
+    return svgBlob
+}
+
+function fail(msg: string) {
+    errorMsg.value = msg
+    state.value = 'error'
 }
 
 onMounted(async () => {
     const res = await sendPairRequest()
 
-    if (res.status == 200) {
-        qrLoaded.value = true
-        return renderQrCode(res.data.code)
+    if (res.status != 200) {
+        // useAxios answers a dead connection with `status: undefined`
+        const reason = res.status ? 'Error code: ' + res.status : res.error || 'Server not reachable'
+        return fail('Error fetching pairing code. ' + reason)
     }
 
-    const error = document.createElement('p')
-    error.innerHTML = 'Error fetching pairing code. Error code: ' + res.status
-    qrcode.value.appendChild(error)
+    let svgBlob: Blob
+    try {
+        svgBlob = await buildQrCode(res.data.code)
+    } catch (e) {
+        return fail('Could not draw the QR code. ' + ((e as Error)?.message || ''))
+    }
+
+    // The modal may have closed while we waited; an object URL made now would leak.
+    if (closed) return
+    qrSrc.value = URL.createObjectURL(svgBlob)
+    state.value = 'ready'
+})
+
+onBeforeUnmount(() => {
+    closed = true
+    if (qrSrc.value) URL.revokeObjectURL(qrSrc.value)
 })
 </script>
 
@@ -81,7 +112,8 @@ onMounted(async () => {
     text-align: center;
 
     .qrcode,
-    .loader {
+    .loader,
+    .error {
         height: 300px;
     }
 
@@ -95,9 +127,15 @@ onMounted(async () => {
         @include candy-box($mem-panel-static, $candy-radius);
     }
 
-    .loader {
+    .loader,
+    .error {
         display: grid;
         place-items: center;
+    }
+
+    .error p {
+        max-width: 20rem;
+        color: $candy-text;
     }
 
     .spinner {
