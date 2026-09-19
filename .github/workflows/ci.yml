@@ -113,8 +113,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Built the way the release builds it: with `app_version`. A pre-release
+      # with a leading `v` on purpose — the metadata normalises it to `1.2.3rc4`,
+      # and the check below pins that the arg arrives at all (#192: it did not,
+      # the Dockerfile had no ARG and Docker dropped it without a word).
       - name: Build image
-        run: docker build -t aivinnet-smoke .
+        run: docker build --build-arg app_version=v1.2.3-rc4 -t aivinnet-smoke .
+
+      # From a workdir that is NOT /app: the version used to be read from a
+      # `version.txt` relative to the working directory, and `-w /tmp` crashed.
+      - name: Version comes from the build-arg, not the working directory
+        run: |
+          set -euo pipefail
+          version=$(docker run --rm -w /tmp aivinnet-smoke --version)
+          echo "$version"
+          if [ "$version" != "aivinnet v1.2.3rc4" ]; then
+            echo "::error::image reports '$version', built with app_version=v1.2.3-rc4"; exit 1
+          fi
 
       - name: Start, log in, fetch fallback images, reset the password
         run: |
@@ -140,6 +155,9 @@ jobs:
           fi
           if grep -qE 'http://172\.' <<< "$logs"; then
             echo "::error::banner lists the container bridge address"; exit 1
+          fi
+          if ! grep -q 'AivinNet v1.2.3rc4' <<< "$logs"; then
+            echo "::error::the running server does not report the build-arg version"; exit 1
           fi
           password=$(grep -oP 'password: \K\S+' <<< "$logs")
 

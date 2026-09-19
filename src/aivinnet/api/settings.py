@@ -117,11 +117,6 @@ def get_all_settings():
     config["plugins"] = [p for p in PluginTable.get_all()]
     config["version"] = Metadata.version
 
-    if config["version"] == "0.0.0":
-        # fallback to version.txt (useful for docker builds)
-        with open("version.txt") as f:
-            config["version"] = f.read().strip()
-
     # The Last.fm application credentials are server configuration, not something
     # a listener needs. They only ever mattered to the settings row that lets an
     # admin swap in their own key — and that row is the admin's to see.

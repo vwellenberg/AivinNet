@@ -96,6 +96,22 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
   Bild, im Log `Assets dir could not be found`. Kein Test sah es, weil alle gegen `src/` laufen.
   Seitdem: `TestPackageData` (schnell) + Job `Docker Smoke Test` in `ci.yml`, der das Image
   **baut und startet** — vorher baute nur der Release-Workflow es, und startete es nie.
+- **⚠️ Die Version hat genau EINE Quelle: die pip-Metadaten** (`Metadata.version`, #192). Wheel,
+  AppImage und Binary bekommen sie von setuptools-scm aus dem Git-Tag. Das **Docker-Image** wird
+  ohne `.git` gebaut — dort trägt `--build-arg app_version` sie über
+  `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AIVINNET` in die Metadaten (führendes `v` wird
+  abgeschnitten). **Ein Build-Arg ohne passendes `ARG` im Dockerfile verwirft Docker
+  kommentarlos** — genau so war `app_version` wirkungslos, und das Image las stattdessen eine
+  `version.txt` **relativ zum Arbeitsverzeichnis** (`docker run -w /tmp … --version` →
+  `FileNotFoundError`). Veröffentlichte Images stimmten nur, weil der Release-Job die Datei
+  direkt vor dem Build überschrieb; jeder andere Build (lokal, CI) meldete die eingecheckte
+  Kopie, seit v2026.8.2 nicht mehr gebumpt. Die Datei ist weg; ein nacktes `docker build .`
+  meldet ehrlich **`0.0.0`** und holt sich damit den neuesten stabilen Client. Wächter: `TestImageVersion` (Arg ↔ `ARG`) und
+  der Versions-Check im `Docker Smoke Test`.
+  Zwei Folgen: (a) setuptools-scm **normalisiert** — Tag `v2026.8.1-rc1` wird zu `2026.8.1rc1`;
+  deshalb vergleicht der Client-Download über `release_matches_version`, nie als String.
+  (b) `metadata.version("aivinnet")` **mit Literal** stehen lassen — PyInstaller sammelt die
+  Metadaten nur, wenn es den Aufruf mit konstantem Argument im Bytecode findet.
 - **Im Container zeigt `XDG_CONFIG_HOME` auf `/config`** (Dockerfile), damit ein nacktes
   `aivinnet --password-reset` dieselbe DB trifft wie der Server. Ohne das legte es unter
   `/root/.config` eine leere zweite Instanz an und meldete „successfully" für ein Passwort, das
