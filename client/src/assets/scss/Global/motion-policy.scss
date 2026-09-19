@@ -22,11 +22,23 @@
     // steht (etwa ein `forwards` gefülltes Erscheinen), nie erreichen — das
     // Element bliebe unsichtbar. 0.01ms läuft die Animation zu Ende, nur ohne
     // dass ein Auge etwas davon sieht.
+    //
+    // ⚠️ Die Verzögerung ist NEGATIV, nicht 0 — und davon hängt ab, ob die UI
+    // flackert. Eine neu gestartete Animation wird mindestens einen Frame lang
+    // bei ihrem 0%-Keyframe gezeichnet, egal wie kurz sie ist: ihre Startzeit
+    // steht erst mit dem nächsten Frame fest, bis dahin steht sie auf
+    // Fortschritt 0. Bei `mem-page-enter` heißt das `opacity: 0` plus 22px
+    // Versatz — gemessen zwei Frames lang, bei jedem Seitenwechsel, und
+    // dasselbe bei jeder Zeile, die der virtualisierte Scroller beim Scrollen
+    // erzeugt. Aus dem Einblenden wurde so ein Aufblitzen: genau die Bewegung,
+    // die die Einstellung abstellen soll. Mit `-1ms` liegt das Ende der
+    // Animation schon vor ihrem ersten Frame; sie beginnt im Endzustand
+    // (Grundstil bzw. `forwards`-Frame), und die Events feuern trotzdem.
     *,
     *::before,
     *::after {
         animation-duration: 0.01ms !important;
-        animation-delay: 0ms !important;
+        animation-delay: -1ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         transition-delay: 0ms !important;

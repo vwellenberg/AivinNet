@@ -225,8 +225,9 @@ $control-dense-glyph: 1rem;
 // property is not part of the shorthand, so it survives. `backwards` lives with
 // `btn-pop` for the same reason.
 //
-// Reduced motion needs nothing here: `btn-pop` drops to `animation: none`, at
-// which point a delay has nothing to delay.
+// Reduced motion needs nothing here: the blanket rule in motion-policy.scss
+// overrides `animation-delay` itself (the custom property only feeds the
+// shorthand), so the pop is over before its first frame.
 //
 // The `#{}` around each value is not optional. Sass treats a custom property's
 // value as an opaque token and does NOT evaluate expressions inside it, so
