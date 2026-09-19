@@ -227,7 +227,7 @@ onMounted(() => {
   .line.current {
     @include mem-now-playing-row;
     color: $candy-black;
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
 
     // On the yellow fill the pill flips to ink: teal and coral both measure
     // under 3:1 there, ink measures 9.6:1 (styling.md contrast table).

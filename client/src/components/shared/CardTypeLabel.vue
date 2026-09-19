@@ -60,7 +60,7 @@ defineProps<{
     // behind four letters was noise on both counts.
     border: $candy-border;
     border-radius: $candy-radius-sm;
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
     overflow: hidden;
     // Motion only — the paint is a cut (styling.md), together with the plate.
     transition: box-shadow 0.12s ease-out;

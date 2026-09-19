@@ -658,7 +658,7 @@ onBeforeUnmount(teardown);
     // is the panel's minus the border it sits inside. (`overflow: hidden` on
     // `.l-sidebar` would fix the same thing by clipping, but it would also
     // swallow `.sidebar-resize-handle`, which hangs 4px outside on purpose.)
-    border-radius: $candy-radius - $candy-border-w;
+    border-radius: calc(#{$candy-radius} - #{$candy-border-w});
 
     // Scrollbar is hidden until the sidebar is hovered. The width/`thin` track
     // stays constant so showing the thumb never reflows the list.
@@ -779,7 +779,7 @@ onBeforeUnmount(teardown);
       color: $mem-ink;
       border: $candy-border;
       border-radius: 8px;
-      box-shadow: 3px 3px 0 var(--mem-shadow);
+      box-shadow: mem-shadow(3px, 3px);
       padding: 3px 10px;
     }
 

@@ -223,7 +223,7 @@ const PANEL_TYPES = [
         // `$press: false` for.
         &:active {
             transform: none;
-            box-shadow: 3px 3px 0 var(--mem-shadow);
+            box-shadow: mem-shadow(3px, 3px);
         }
 
         // Pointer-gated at the source (#457): on touch `:hover` latches after a

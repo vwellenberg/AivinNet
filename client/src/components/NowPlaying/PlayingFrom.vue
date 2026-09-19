@@ -112,7 +112,7 @@ function showContextMenu(e: MouseEvent) {
     background-color: $mem-panel;
     border: $candy-border;
     border-radius: $candy-radius-sm;
-    box-shadow: 3px 3px 0 var(--mem-shadow);
+    box-shadow: mem-shadow(3px, 3px);
     // The children are square-cornered; the plate does the rounding.
     overflow: hidden;
 

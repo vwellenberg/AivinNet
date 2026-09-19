@@ -308,7 +308,7 @@ onMounted(async () => {
             background-color: var(--mem-veil);
             border: $candy-border;
             border-radius: $candy-radius-sm;
-            box-shadow: 3px 3px 0 var(--mem-shadow);
+            box-shadow: mem-shadow(3px, 3px);
             font-size: 0.9rem;
             font-weight: 700;
             color: $mem-content-text;

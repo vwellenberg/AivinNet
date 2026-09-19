@@ -412,7 +412,7 @@ $control-dense-glyph: 1rem;
   }
   // Theme-aware, because the fill under it is. See the token note at the top.
   color: $mem-content-text;
-  box-shadow: if($rest == surface, 3px 3px 0 var(--mem-shadow), none);
+  box-shadow: if($rest == surface, mem-shadow(3px, 3px), none);
   // Motion only — the paint (fill, frame, glyph) is a cut. The hover flips to
   // the contrast surface, and a cross-fade of two opposing colours meets in
   // the middle at grey; the hatch cannot fade at all (it is an image swap), so
@@ -448,7 +448,7 @@ $control-dense-glyph: 1rem;
       background-image: var(--mem-hatch-hover);
       background-size: 28px 28px;
     }
-    box-shadow: if($rest == surface, 4px 4px, 3px 3px) 0 var(--mem-shadow);
+    box-shadow: if($rest == surface, mem-shadow(4px, 4px, hover), mem-shadow(3px, 3px, hover));
     transform: scale(1.06);
   }
 
