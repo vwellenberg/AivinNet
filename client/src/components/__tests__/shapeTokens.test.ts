@@ -37,7 +37,7 @@ const CANDY = "src/assets/scss/_candy.scss";
 function offenders(re: RegExp, owner = CANDY): string[] {
   const hits: string[] = [];
   for (const file of FILES) {
-    if (file.replace(/\/g, "/") === owner) continue;
+    if (file.split("\\").join("/") === owner) continue;
     readFileSync(file, "utf-8")
       .split("\n")
       .forEach((line, i) => {

@@ -566,6 +566,41 @@ Fix liegt global in [vite.config.ts](../../vite.config.ts):
 gegen die gerenderte svg-Höhe, oder ein hochauflösender Element-Screenshot
 (`locator.screenshot()`, deviceScaleFactor 3).
 
+## ⚠️ Die Memphis-FORM ist ein Satz Laufzeit-Tokens (#198)
+
+Farben waren schon immer Laufzeit-Tokens (`--mem-*`), die **Form** war beim Build eingebacken:
+Versatz-Schatten, das Drücken in den Schatten, Eckenradien, Sprinkle und Doodles. Ein zweites
+Theme hätte die App umfärben, aber nicht umformen können. Seit #198 liest jede dieser Stellen
+`var(--shape-<name>, <Memphis-Wert>)`:
+
+| Token | Quelle im Code | Memphis-Fallback |
+|---|---|---|
+| `--shape-shadow` · `-hover` · `-lift` | `mem-shadow($x, $y, $state)` (+ `candy-shadow`) | `3px 3px 0 var(--mem-shadow)` usw. |
+| `--shape-press` | `mem-press($x, $y)` | `translate(3px, 3px)` |
+| `--shape-radius` · `-sm` | `$candy-radius` · `$candy-radius-sm` | `14px` · `10px` |
+| `--shape-sprinkle` · `--shape-doodles` | `mem-sprinkle` · `mem-grid` | die heutigen Grafiken |
+
+**Der Fallback IST das Design.** Memphis setzt keines dieser Properties und rechnet deshalb
+exakt, was es vorher gerechnet hat — so wurde #198 bewiesen: berechnete Styles aller Elemente
+(Ruhe, Hover, Press) über 10 Routen × hell/dunkel × Desktop/Phone, master gegen Branch,
+Differenz null. Ein Theme setzt die Properties auf `body`.
+
+Drei Regeln, alle getestet (`shapeTokens.test.ts`):
+
+- **Keinen Versatz-Schatten von Hand schreiben** — `box-shadow: mem-shadow(3px, 3px)`, nie
+  `3px 3px 0 var(--mem-shadow)`. Die handgeschriebene Form behält in jedem anderen Theme ihre
+  harte Tintenkante. Beim Schreiben des Zensus standen 13 solche Stellen in 11 Dateien.
+- **Rechnen nur mit den `-static`-Zwillingen oder in `calc()`**: `$candy-radius` ist ein
+  `var()`, Sass kann davon nichts abziehen (`calc(#{$candy-radius} - #{$candy-border-w})`).
+- **Memphis-Stylesheets definieren kein `--shape-*`** — sonst wäre der Fallback tot und der
+  Gleichheitsbeweis wertlos.
+
+Bewusst **nicht** tokenisiert: die **Randbreite**. Rund 100 Layout-Rechnungen ziehen
+`$candy-border-w` ab (reservierte transparente Ränder halten Zeilenhöhen konstant). Ein Theme
+ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht über die Breite —
+dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
+schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
+
 ## ⚠️ Hard-Shadow-System
 
 `candy-shadow($x,$y)` malt den einzigen erlaubten Schatten: kein Blur, immer nach rechts-unten,
