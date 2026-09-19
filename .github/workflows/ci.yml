@@ -213,20 +213,20 @@ jobs:
           printf 'GET / HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3
           sleep 1
 
-          start=$(date +%s.%N)
+          start=$(date +%s%N)
           docker stop smoke
-          took=$(echo "$(date +%s.%N) - $start" | bc)
+          took_ms=$(( ($(date +%s%N) - start) / 1000000 ))
           exec 3>&-
           code=$(docker inspect -f '{{.State.ExitCode}}' smoke)
-          echo "docker stop took ${took} s, exit code ${code}"
+          echo "docker stop took ${took_ms} ms, exit code ${code}"
           docker logs --tail 5 smoke
 
           if [ "$code" != 0 ] && [ "$code" != 143 ]; then
             echo "::error::exit code $code after docker stop (137 = SIGKILLed after the grace period)"; exit 1
           fi
           # The drain deadline is 3 s; a SIGKILL would take the full 10.
-          if [ "$(echo "$took > 6" | bc)" = 1 ]; then
-            echo "::error::docker stop took ${took} s, the grace period is 10 s"; exit 1
+          if [ "$took_ms" -gt 6000 ]; then
+            echo "::error::docker stop took ${took_ms} ms, the grace period is 10 s"; exit 1
           fi
           # Closing the last connection folds the WAL back into the database.
           if [ -e config/aivinnet/aivinnet.db-wal ]; then
