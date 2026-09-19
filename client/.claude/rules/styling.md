@@ -581,9 +581,17 @@ Theme hätte die App umfärben, aber nicht umformen können. Seit #198 liest jed
 | `--shape-sprinkle` · `--shape-doodles` | `mem-sprinkle` · `mem-grid` | die heutigen Grafiken |
 
 **Der Fallback IST das Design.** Memphis setzt keines dieser Properties und rechnet deshalb
-exakt, was es vorher gerechnet hat — so wurde #198 bewiesen: berechnete Styles aller Elemente
-(Ruhe, Hover, Press) über 10 Routen × hell/dunkel × Desktop/Phone, master gegen Branch,
-Differenz null. Ein Theme setzt die Properties auf `body`.
+exakt, was es vorher gerechnet hat — so wurde #198 bewiesen: berechnete Styles jedes Elements
+und seiner Pseudo-Elemente (Schatten, vier Radien, Hintergrundbild/-größe, Transform, Rand) über
+10 Routen × hell/dunkel × Desktop/Phone, dazu 998 Hover- und 682 Press-Zustände, master gegen
+Branch: **30 728 Vergleiche, 0 Abweichungen**. Ein Theme setzt die Properties auf `body`.
+
+⚠️ **Zwei Fallen beim Nachmessen:** Die beiden Builds laufen hinter zwei Proxys, und jede
+aufgelöste `url()` trägt deren Port — ohne Normalisierung meldet der Vergleich 40 falsche
+Abweichungen. Und `waitUntil: "networkidle"` wartet in dieser App **ewig**: der Device-Sync
+pollt jede Sekunde, das Netz wird nie still. `load` plus feste Pause nehmen. Ein Press
+(`mouse.down`) auf einer ziehbaren Sidebar-Zeile startet einen HTML5-Drag, auf dessen Drop
+Playwright dann ohne Frist wartet — ziehbare Elemente beim Press-Test auslassen.
 
 Drei Regeln, alle getestet (`shapeTokens.test.ts`):
 
