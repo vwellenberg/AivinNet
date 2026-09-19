@@ -66,8 +66,8 @@ const optionsWithActive = computed(() => {
         // as the surface, once as the cover that keeps the texture out of the
         // text band. Setting `background-color` here as well would only be a
         // second source for the same colour.
-        --row-fill: #{$mem-yellow};
-        color: $mem-ink;
+        --row-fill: var(--look-selected-fill, #{$mem-yellow});
+        color: var(--look-selected-text, #{$mem-ink});
         // The hatch as a RING: texture in the padding, smooth under the word.
         // Running it across the whole segment puts strokes through the label —
         // see the hatch section in .claude/rules/styling.md.

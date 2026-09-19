@@ -45,7 +45,7 @@ defineProps<{
 .toggled {
   // Yellow means ON in this design, and the accent hatch says the surface is
   // pressable. No text rides on it, so the texture may cross the whole track.
-  background-color: $mem-yellow;
+  background-color: var(--look-switch-on, #{$mem-yellow});
   @include mem-hatch(26px, $on: accent);
 
   .circle {

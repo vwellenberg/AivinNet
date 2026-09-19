@@ -91,6 +91,7 @@ body.theme-dark.theme-stream {
     // A selected segment is a white chip with dark text.
     --look-selected-fill: #ffffff;
     --look-selected-text: #000000;
+    --look-switch-on: #{$brand-green};
     --look-band: transparent;
     --look-badge-line: transparent;
     --look-track: #4d4d4d;

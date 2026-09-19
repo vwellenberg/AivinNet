@@ -169,76 +169,8 @@ $candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every th
 //   --look-filled-text · -muted     text on the filled rows (playing, context)
 //   --look-context-fill             the row owning an open context menu
 //   --look-on-fill · -on-glyph      toggles that are on (shuffle, repeat, …)
-//   --look-selected-fill · -text    the active segment of a tab plate
-//   --look-band                     the colour guide band of track rows
-//   --look-badge-line               the ring round track numbers and durations
-//   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
-//   --look-type-label               `display` of the type chip over a card
-// LOOK TOKENS (#199) — the same mechanism for the static ACCENTS.
-//
-// Memphis paints its states with fixed palette colours: pastel navigation
-// fills, yellow for "on" and "playing", blush labels, a coral/teal band down the
-// track list, the pink seek track. Those are right for Memphis and wrong for
-// any other look, so each reads `var(--look-<name>, <memphis colour>)`.
-// `--shape-*` is the FORM, `--look-*` the accent/state COLOUR — two families so
-// a name says which question it answers. Both are set only by a look's own file
-// (Global/_theme-stream.scss); `shapeTokens.test.ts` holds that line.
-//
-//   --look-tint · -tint-text        static row fills (sidebar nav, Home) + text
-//   --look-active-fill · -text      the selected row
-//   --look-marker                   the ink zigzag marking "this one"
-//   --look-sticker-fill · -inset    heading stickers: fill and side padding
-//   --look-playing-fill             the now-playing track row
-//   --look-filled-text · -muted     text on the filled rows (playing, context)
-//   --look-context-fill             the row owning an open context menu
-//   --look-on-fill · -on-glyph      toggles that are on (shuffle, repeat, …)
-//   --look-selected-fill · -text    the active segment of a tab plate
-//   --look-band                     the colour guide band of track rows
-//   --look-badge-line               the ring round track numbers and durations
-//   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
-//   --look-type-label               `display` of the type chip over a card
-// LOOK TOKENS (#199) — the same mechanism for the static ACCENTS.
-//
-// Memphis paints its states with fixed palette colours: pastel navigation
-// fills, yellow for "on" and "playing", blush labels, a coral/teal band down the
-// track list, the pink seek track. Those are right for Memphis and wrong for
-// any other look, so each reads `var(--look-<name>, <memphis colour>)`.
-// `--shape-*` is the FORM, `--look-*` the accent/state COLOUR — two families so
-// a name says which question it answers. Both are set only by a look's own file
-// (Global/_theme-stream.scss); `shapeTokens.test.ts` holds that line.
-//
-//   --look-tint · -tint-text        static row fills (sidebar nav, Home) + text
-//   --look-active-fill · -text      the selected row
-//   --look-marker                   the ink zigzag marking "this one"
-//   --look-sticker-fill · -inset    heading stickers: fill and side padding
-//   --look-playing-fill             the now-playing track row
-//   --look-filled-text · -muted     text on the filled rows (playing, context)
-//   --look-context-fill             the row owning an open context menu
-//   --look-on-fill · -on-glyph      toggles that are on (shuffle, repeat, …)
-//   --look-selected-fill · -text    the active segment of a tab plate
-//   --look-band                     the colour guide band of track rows
-//   --look-badge-line               the ring round track numbers and durations
-//   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
-//   --look-type-label               `display` of the type chip over a card
-// LOOK TOKENS (#199) — the same mechanism for the static ACCENTS.
-//
-// Memphis paints its states with fixed palette colours: pastel navigation
-// fills, yellow for "on" and "playing", blush labels, a coral/teal band down the
-// track list, the pink seek track. Those are right for Memphis and wrong for
-// any other look, so each reads `var(--look-<name>, <memphis colour>)`.
-// `--shape-*` is the FORM, `--look-*` the accent/state COLOUR — two families so
-// a name says which question it answers. Both are set only by a look's own file
-// (Global/_theme-stream.scss); `shapeTokens.test.ts` holds that line.
-//
-//   --look-tint · -tint-text        static row fills (sidebar nav, Home) + text
-//   --look-active-fill · -text      the selected row
-//   --look-marker                   the ink zigzag marking "this one"
-//   --look-sticker-fill · -inset    heading stickers: fill and side padding
-//   --look-playing-fill             the now-playing track row
-//   --look-filled-text · -muted     text on the filled rows (playing, context)
-//   --look-context-fill             the row owning an open context menu
-//   --look-on-fill · -on-glyph      toggles that are on (shuffle, repeat, …)
-//   --look-selected-fill · -text    the active segment of a tab plate
+//   --look-selected-fill · -text    the active segment of a tab plate / select
+//   --look-switch-on                the track of a switch that is on
 //   --look-band                     the colour guide band of track rows
 //   --look-badge-line               the ring round track numbers and durations
 //   --look-track · -played · -buffered · -seek · --look-thumb-line   sliders
