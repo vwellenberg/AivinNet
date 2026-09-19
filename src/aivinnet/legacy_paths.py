@@ -94,7 +94,7 @@ def migrate_config_dir(config_parent: Path, *, dotted: bool) -> bool:
         log.warning("Could not move %s to %s (%s); continuing with the old location", source, destination, error)
         return False
 
-    log.info("Moved the config directory from %s to %s", source, destination)
+    log.info("Moved %s to %s", source, destination)
     return True
 
 

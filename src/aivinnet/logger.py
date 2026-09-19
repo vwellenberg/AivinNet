@@ -9,6 +9,8 @@ import logging.config
 import logging.handlers
 from pathlib import Path
 
+from aivinnet import legacy_paths
+
 LOG_RECORD_BUILTIN_ATTRS = {
     "args",
     "asctime",
@@ -191,6 +193,28 @@ CONFIG = {
 log = None
 
 
+def resolve_log_dir(app_dir: Path) -> Path:
+    """Return `<app_dir>/aivinnet/logs`, moving logs from the old name once.
+
+    Before the rename the logs lived in `<app_dir>/swingmusic/logs`. The move
+    follows the rules of `legacy_paths`: an existing target is never
+    overwritten, and when the move fails the logger keeps writing to whichever
+    directory exists. Nothing here may stop the app from starting.
+    """
+    dotted = Path.home().resolve().as_posix() == app_dir.resolve().as_posix()
+
+    try:
+        legacy_paths.migrate_config_dir(app_dir, dotted=dotted)
+        name = legacy_paths.resolve_config_dir_name(app_dir, dotted=dotted)
+    except OSError as error:
+        # Not the root logger: logging.warning() would call basicConfig() and
+        # leave a stray stderr handler behind before dictConfig() runs.
+        logging.getLogger(__name__).warning("Could not check for logs under the old name in %s (%s)", app_dir, error)
+        name = legacy_paths.DOT_DIR_NAME if dotted else legacy_paths.DIR_NAME
+
+    return app_dir / name / "logs"
+
+
 def setup_logger(app_dir: Path, debug=False):
     """
     setup logger
@@ -200,12 +224,7 @@ def setup_logger(app_dir: Path, debug=False):
     :param debug: When True Loglevel is set to DEBUG and enable Socket log
     """
 
-    if Path.home().resolve().as_posix() == app_dir.resolve().as_posix():
-        app_name = ".swingmusic"
-    else:
-        app_name = "swingmusic"
-
-    log_dir = Path(app_dir) / app_name / "logs"
+    log_dir = resolve_log_dir(Path(app_dir))
     if not log_dir.exists():
         log_dir.mkdir(parents=True)
 
