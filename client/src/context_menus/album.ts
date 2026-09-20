@@ -175,14 +175,32 @@ export default async (album?: Album) => {
         action: async () => {
             if (!album.albumhash) return
 
+            // ⚠️ Say something FIRST. The search goes to musicbrainz.org behind
+            // a 1.1s server-side throttle, then to the Cover Art Archive, then
+            // to the store chain if that misses — seconds, routinely. The
+            // button this replaced spun and disabled itself for the duration;
+            // a menu entry closes its menu and leaves the screen unchanged, so
+            // without this a slow search is indistinguishable from a dead
+            // click, and the obvious response is to fire a second one.
+            new Notification('Searching for a cover…', NotifType.Info)
+
             const res = await fetchCoverFromMusicBrainz(album.albumhash)
-            if (res.success) {
-                albumStore.bumpCoverVersion()
-                new Notification('Cover found', NotifType.Success)
+            if (!res.success) {
+                new Notification(res.error || 'No cover found online', NotifType.Error)
                 return
             }
 
-            new Notification(res.error || 'No cover found online', NotifType.Error)
+            // ⚠️ `coverVersion` belongs to the ALBUM PAGE and is read by
+            // exactly one <img> (AlbumView/main.vue). This menu also opens
+            // from cards and sidebar rows, where the page holds a different
+            // album — bumping it there would cache-bust an unrelated page and
+            // still not refresh the card the user is looking at. So the bump
+            // happens only when it is the same album; elsewhere the new cover
+            // appears on the next load, which is the same gap `upload_cover`
+            // and `remove_cover` have had all along.
+            if (albumStore.info?.albumhash === album.albumhash) albumStore.bumpCoverVersion()
+
+            new Notification('Cover found', NotifType.Success)
         },
         icon: SearchIcon,
     }
