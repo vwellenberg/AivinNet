@@ -132,6 +132,9 @@ describe("clickable elements", () => {
     // HeartSvg IS a button; the row used to wrap it in a click-catching div.
     const duration = readFileSync("src/components/shared/SongItem/TrackDuration.vue", "utf-8");
     expect(duration).toMatch(/<HeartSvg :state="is_fav" @handle-fav=/);
-    expect(duration).not.toMatch(/no_emit/);
+    // The PROP, not the word — the comment above the markup explains it and
+    // would otherwise fail its own rule.
+    expect(duration).not.toMatch(/:no_emit=/);
+    expect(duration).not.toMatch(/class="heart-icon"[^>]*@click/s);
   });
 });
