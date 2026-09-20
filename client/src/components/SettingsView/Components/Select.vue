@@ -1,14 +1,19 @@
 <template>
     <div class="setting-select rounded-sm no-scroll">
-        <div
+        <!-- Buttons, not divs (#137): the segments are the app's most common
+             setting control, and they were unreachable by keyboard. `aria-
+             pressed` says which one is on — the fill alone cannot. -->
+        <button
             v-for="option in optionsWithActive"
             :key="option.title"
+            type="button"
             class="option"
             :class="{ active: option.active }"
+            :aria-pressed="option.active"
             @click="setterFn(option.value)"
         >
             {{ option.title }}
-        </div>
+        </button>
     </div>
 </template>
 
@@ -45,6 +50,12 @@ const optionsWithActive = computed(() => {
     overflow: hidden;
 
     .option {
+        // Restated for the <button>: the base reset zeroes padding and switches
+        // the display, both of which the segment's geometry relies on.
+        display: block;
+        background-color: transparent;
+        border: none;
+        font: inherit;
         font-weight: 600;
         padding: 0.5rem;
         cursor: pointer;

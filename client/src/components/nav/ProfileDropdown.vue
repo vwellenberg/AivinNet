@@ -6,19 +6,19 @@
         <div class="separator"></div>
         <!-- A scan walks the root dirs and can drop tracks from the library, so
              the backend refuses it for non-admins (AivinNet#105). -->
-        <div v-if="auth.is_admin" class="item scan" @click="onScan">
+        <button v-if="auth.is_admin" type="button" class="item scan" @click="onScan">
             <div class="label">Quick scan</div>
             <ReloadSvg />
-        </div>
-        <div class="item" @click="onSettings">
+        </button>
+        <button type="button" class="item" @click="onSettings">
             <div class="label">Settings</div>
             <SettingsSvg />
-        </div>
+        </button>
         <div class="separator"></div>
-        <div class="item critical logout" @click="onLogout">
+        <button type="button" class="item critical logout" @click="onLogout">
             <div class="label">Log out</div>
             <LogoutSvg />
-        </div>
+        </button>
     </div>
 </template>
 
@@ -82,6 +82,18 @@ function onLogout() {
     }
 
     .item {
+        // The three entries are <button>s (#137): the menu's trigger became one
+        // long ago, its entries stayed <div>s — so the keyboard could open the
+        // menu and then reach nothing inside it. As buttons they need the width
+        // and the alignment a div brought for free; everything else (fill,
+        // hover, press) is unchanged, and the focus ring arrives from
+        // `Global/basic.scss`.
+        width: 100%;
+        text-align: left;
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        font: inherit;
         display: flex;
         align-items: center;
         justify-content: space-between;
