@@ -162,9 +162,13 @@ _mb_lock = threading.Lock()
 _mb_last_request_ts: float = 0.0
 
 
-def _lucene_escape(s: str) -> str:
+def lucene_escape(s: str) -> str:
     """
     Escape a string for safe inclusion inside a Lucene double-quoted phrase.
+
+    Public because ``lib/mbrelease.py`` builds the same kind of query against a
+    different MusicBrainz entity, and two copies of this would be two places to
+    get the escaping order wrong.
 
     Backslashes MUST be escaped first so that the backslashes we then add
     in front of the double quotes are not themselves doubled.
@@ -480,8 +484,14 @@ def _result_score(group: dict) -> int:
         return 0
 
 
-def _mb_throttle() -> None:
-    """Block (briefly) so we do not exceed 1 req/sec against MusicBrainz."""
+def mb_throttle() -> None:
+    """
+    Block (briefly) so we do not exceed 1 req/sec against MusicBrainz.
+
+    ⚠️ The budget is per SERVER, not per module: ``lib/mbrelease.py`` shares
+    this lock rather than keeping its own, or the two of them together would
+    quietly run at twice the rate MusicBrainz allows anonymous clients.
+    """
     global _mb_last_request_ts
     with _mb_lock:
         now = time.monotonic()
@@ -505,9 +515,9 @@ def _search_release_group_mbid(album_title: str, artist_name: str) -> str | None
     # INFO: Lucene-style query. Quote values to be safe with whitespace,
     # and escape any embedded backslashes / double quotes so titles like
     # `Say "Hello"` do not break the parser or inject extra terms.
-    query_parts = [f'releasegroup:"{_lucene_escape(album_title)}"']
+    query_parts = [f'releasegroup:"{lucene_escape(album_title)}"']
     if artist_name:
-        query_parts.append(f'artist:"{_lucene_escape(artist_name)}"')
+        query_parts.append(f'artist:"{lucene_escape(artist_name)}"')
     query = " AND ".join(query_parts)
 
     params = {
@@ -521,7 +531,7 @@ def _search_release_group_mbid(album_title: str, artist_name: str) -> str | None
     }
 
     try:
-        _mb_throttle()
+        mb_throttle()
         resp = requests.get(MB_SEARCH_URL, params=params, headers=headers, timeout=10)
         if resp.status_code != 200:
             log.debug("MusicBrainz search returned HTTP %s for %r / %r", resp.status_code, album_title, artist_name)

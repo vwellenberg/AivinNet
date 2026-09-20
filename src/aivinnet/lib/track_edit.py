@@ -37,7 +37,10 @@ from aivinnet.store.tracks import TrackStore
 log = logging.getLogger(__name__)
 
 # Fields accepted from the API. tag_writer ignores anything it doesn't recognise.
-EDITABLE_FIELDS = {"title", "artists", "albumartists", "album", "track"}
+EDITABLE_FIELDS = {"title", "artists", "albumartists", "album", "track", "disc"}
+# INFO: Of these, only title/album/artists feed the trackhash. `track` and
+# `disc` are pure display, which is why a numbering repair can be applied
+# without moving a single playlist reference.
 
 
 class TrackEditError(Exception):
@@ -142,6 +145,13 @@ def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
     """
     Edit the tags of the track identified by ``old_trackhash``.
 
+    ⚠️ A trackhash is **not unique**: it is derived from title/album/artists, so
+    every file of an album whose tags all say "Track 1" shares one. This entry
+    point edits whichever of them ``get_best()`` returns, which is fine for the
+    single-track editor (the client is holding one track and there is nothing
+    else it could mean) and wrong for anything that edits several tracks of one
+    album in a batch. That wants :func:`edit_track_tags_by_filepath`.
+
     :param old_trackhash: The current trackhash (as known by clients/references).
     :param fields: Mapping of field name -> new value (see ``tag_writer.write_tags``).
     :returns: The reindexed :class:`Track` with its new identity.
@@ -150,15 +160,36 @@ def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
     :raises TrackEditError: If writing/reindexing fails (the original file is
         restored before re-raising).
     """
-    fields = {k: v for k, v in fields.items() if k in EDITABLE_FIELDS}
-    if not fields:
-        raise TrackEditError("No editable fields provided")
-
     group = TrackStore.trackhashmap.get(old_trackhash)
     if not group or len(group) == 0:
         raise TrackNotFoundError("Track not found")
 
-    old_track = group.get_best()
+    return _edit(group.get_best(), fields)
+
+
+def edit_track_tags_by_filepath(filepath: str, fields: dict) -> Track:
+    """
+    Edit the tags of one specific FILE.
+
+    The path is the only identifier of a track that survives a tag change, and
+    the only one that is unique. A batch that repairs a whole album has to use
+    it: addressing the rows by trackhash means several of them can name the same
+    group, and then ``get_best()`` decides which file receives which title.
+    """
+    tracks = TrackStore.get_tracks_by_filepaths([filepath])
+    if not tracks:
+        raise TrackNotFoundError("Track not found")
+
+    return _edit(tracks[0], fields)
+
+
+def _edit(old_track: Track, fields: dict) -> Track:
+    """The edit itself, once the exact track to change has been resolved."""
+    fields = {k: v for k, v in fields.items() if k in EDITABLE_FIELDS}
+    if not fields:
+        raise TrackEditError("No editable fields provided")
+
+    old_trackhash = old_track.trackhash
     filepath = old_track.filepath
     old_albumhash = old_track.albumhash
     old_artist_hashes = _identity_artist_hashes(old_track)

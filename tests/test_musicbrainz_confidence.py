@@ -63,7 +63,7 @@ def search(monkeypatch):
     """
     # The real throttle sleeps up to 1.1s between calls to respect the
     # MusicBrainz rate limit. Irrelevant here and it would dominate the runtime.
-    monkeypatch.setattr(mb, "_mb_throttle", lambda: None)
+    monkeypatch.setattr(mb, "mb_throttle", lambda: None)
 
     class Helper:
         def __init__(self):
