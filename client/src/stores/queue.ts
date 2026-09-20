@@ -259,7 +259,7 @@ export default defineStore('Queue', {
 
             const resetQueue = () => {
                 this.currentindex = 0
-                audioSource.playingSource.src = getUrl(this.next.filepath, this.next.trackhash, settings.use_legacy_streaming_endpoint)
+                audioSource.playingSource.src = getUrl(this.next.filepath, this.next.trackhash)
                 audioSource.pausePlayingSource()
                 this.playing = false
 

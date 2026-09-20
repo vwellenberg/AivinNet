@@ -58,8 +58,6 @@ export default defineStore('settings', {
         show_playlists_in_folders: false,
 
         // client
-        streaming_quality: 'original',
-        streaming_container: 'mp3',
         font: <UiFont>'default',
 
         // plugins
@@ -78,7 +76,6 @@ export default defineStore('settings', {
         use_silence_skip: true,
         use_crossfade: false,
         crossfade_duration: 1000, // milliseconds
-        use_legacy_streaming_endpoint: false,
 
         // layout
         // The LOOK (form language) and the MODE are two settings — see
@@ -345,10 +342,6 @@ export default defineStore('settings', {
             this.crossfade_duration = duration * 1000
         },
 
-        toggleUseLegacyStreamingEndpoint() {
-            this.use_legacy_streaming_endpoint = !this.use_legacy_streaming_endpoint
-        },
-
         async genericToggleSetting(key: string, value: any, prop: string) {
             // @ts-expect-error
             const oldValue = this[prop]
@@ -469,9 +462,6 @@ export default defineStore('settings', {
             }
 
             this.lastfm_session_key = ''
-        },
-        setStreamingQuality(quality: string) {
-            this.streaming_quality = quality
         },
         setStatsGroup(group: string) {
             this.statsgroup = group

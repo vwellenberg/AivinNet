@@ -14,7 +14,6 @@ export enum SettingType {
   accounts,
   pairing,
   about,
-  streaming_quality,
   backup,
   secretinput,
 }

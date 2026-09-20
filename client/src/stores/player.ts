@@ -11,7 +11,11 @@ import useTracklist from './queue/tracklist'
 import useSettings from './settings'
 import useTracker from './tracker'
 
-import { getBaseUrl, paths } from '@/config'
+import { paths } from '@/config'
+// Imported for the two call sites below, re-exported so every existing
+// `import { getUrl } from '@/stores/player'` keeps working (#181).
+import { getUrl } from '@/utils/streamUrl'
+export { getUrl }
 import updateMediaNotif from '@/helpers/mediaNotification'
 import { crossFade } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
@@ -122,19 +126,6 @@ class AudioSource {
     }
 }
 
-export function getUrl(filepath: string, trackhash: string, use_legacy: boolean) {
-    // INFO: Force using legacy streaming endpoint until
-    // we change the playback engine to properly support
-    // the chunked streaming endpoint.
-    use_legacy = true
-    const { streaming_container, streaming_quality } = useSettings()
-
-    const url = `${paths.api.files}/${trackhash + (use_legacy ? '/legacy' : '')}?filepath=${encodeURIComponent(
-        filepath
-    )}&container=${streaming_container}&quality=${streaming_quality}`
-
-    return getBaseUrl() + url
-}
 
 const audioSource = new AudioSource()
 let audio = audioSource.playingSource
@@ -444,7 +435,7 @@ export const usePlayer = defineStore('player', () => {
     function loadNextTrack() {
         if (nextAudioData.filepath === queue.next.filepath) return
 
-        const uri = getUrl(queue.next.filepath, queue.next.trackhash, settings.use_legacy_streaming_endpoint)
+        const uri = getUrl(queue.next.filepath, queue.next.trackhash)
         nextAudioData.audio = audioSource.preloadWithUri(uri)
         nextAudioData.filepath = queue.next.filepath
         nextAudioData.audio.oncanplay = handleNextAudioCanPlay
@@ -563,8 +554,7 @@ export const usePlayer = defineStore('player', () => {
         }
 
         const { currenttrack: track } = queue
-        // const uri = `${paths.api.files}/${track.trackhash}?filepath=${encodeURIComponent(track.filepath as string)}`
-        const uri = getUrl(track.filepath, track.trackhash, settings.use_legacy_streaming_endpoint)
+        const uri = getUrl(track.filepath, track.trackhash)
 
         audio.src = uri
         audio.load() // on safari, audio won't play without load()
