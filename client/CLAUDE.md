@@ -358,9 +358,26 @@ beiden standen bis #218 andersherum: Wer Release v2026.9.0 installierte, las dor
 ### Backend
 
 Liegt auf dem Server unter `~/AivinNet` und läuft über **denselben** systemd-Dienst `aivinnet`
-(Port 1970 — er serviert auch das gebaute Frontend aus `~/.config/aivinnet/client`). Ein
-Frontend-Deploy startet also dasselbe Backend neu. Der Deploy-Befehl und die Gotchas dazu
-(`uv` nicht im PATH, Health-Check) stehen in der CLAUDE.md des Backend-Repos.
+(Port 1970 — er serviert auch das gebaute Frontend aus `~/.config/aivinnet/client`). Der
+Deploy-Befehl und die Gotchas dazu (`uv` nicht im PATH, Health-Check) stehen in der CLAUDE.md des
+Backend-Repos.
+
+⚠️ **`deploy-client.sh` startet das Backend NICHT neu** — hier stand jahrelang das Gegenteil.
+Das Skript sagt es selbst in Zeile 4: „Client-only changes need no restart — the backend serves
+the directory live." Für reine Client-Änderungen ist das richtig und gewollt (kein Ausfall für
+einen neuen Bundle-Hash). Für **Backend**-Änderungen bedeutet es: Der Wrapper zieht `master`, der
+Checkout ist aktuell, die Meldung sagt `DEPLOYED` — und es läuft weiter der **alte Prozess**.
+
+Aufgefallen ist es erst, als ein frisch gemergter Endpunkt `405` antwortete, während die Datei
+nachweislich im Checkout lag. Also nach einem Backend-Merge:
+
+```bash
+systemctl show aivinnet -p ActiveEnterTimestamp   # ist der Prozess jünger als der Merge?
+sudo systemctl restart aivinnet                   # ⚠️ ohne .service, sonst greift sudoers nicht
+```
+
+Und danach am **Endpunkt** gegenprüfen, nicht an der Deploy-Meldung — die war die ganze Zeit
+grün.
 
 ✅ Seit dem Monorepo gibt es die Repo-Grenze zwischen PR und Issue nicht mehr: beides liegt in
 `vwellenberg/AivinNet`, `Fixes #N` schließt also ganz normal. (Vorher mussten Backend-PRs Issues
