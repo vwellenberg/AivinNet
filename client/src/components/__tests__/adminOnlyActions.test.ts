@@ -40,6 +40,10 @@ const ADMIN_ONLY_REQUESTS = [
     'removeAlbumCover',
     'uploadAlbumCover',
     'editTrackTags',
+    // metadata repair: reads the library's file paths, writes its tags
+    'fetchReleaseCandidates',
+    'fetchPreview',
+    'applyChanges',
     // server configuration
     'addRootDirs',
     'getFolders',
@@ -139,6 +143,13 @@ const CALLERS: Record<string, Gate> = {
     // the album half is unreachable because both entry points are gated.
     '/src/components/modals/FindCoverOnline.vue': {
         reachedVia: ['/src/context_menus/album.ts', '/src/context_menus/track.ts'],
+    },
+
+    // The metadata repair dialog. Unlike the cover gallery it has no
+    // everyone-may-do-this half: every step reads the library's file paths or
+    // writes its tags, so its ONE entry point carries the whole boundary.
+    '/src/components/modals/FetchMetadata.vue': {
+        reachedVia: ['/src/context_menus/album.ts'],
     },
 }
 
