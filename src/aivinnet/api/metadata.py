@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
-from aivinnet.lib import mbjobs
+from aivinnet.lib import filename_meta, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
 from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
@@ -112,13 +112,90 @@ def album_candidates(body: AlbumCandidatesBody):
     return {"job": job_id}
 
 
+# INFO: Two sources, and the second one is not a consolation prize.
+#
+# Measured on this library: "The Guild 2" has 94 tracks, every file tagged
+# `track 1` with the number as its title, and the real titles in the file names
+# ("68. Night Woods1.mp3"). MusicBrainz answers ZERO candidates for it, under
+# either name — a game soundtrack rip is not in their database. An album like
+# that is repairable from its file names and from nothing else, so offering only
+# MusicBrainz would have left the exact case this feature was asked for
+# untouched.
+MUSICBRAINZ = "musicbrainz"
+FILENAMES = "filenames"
+
+
 class AlbumPreviewBody(AlbumHashSchema):
-    mbid: str = Field(..., description="The MusicBrainz release to compare against")
+    source: str = Field(
+        MUSICBRAINZ,
+        description=f"Where the proposal comes from: '{MUSICBRAINZ}' or '{FILENAMES}'",
+    )
+    mbid: str | None = Field(None, description="The MusicBrainz release to compare against")
 
 
-def _preview(albumhash: str, mbid: str) -> dict:
+def _preview_from_filenames(albumhash: str) -> dict:
+    """
+    Propose a number and a title per file, read off its own name.
+
+    No alignment: each file speaks for itself, so there is no gap to slide on
+    and nothing to pair. That also makes it the safer of the two sources — the
+    worst case is a proposal that reads wrong next to the current value, where a
+    mismatched release can be wrong in a way that looks right.
+    """
+    rows = []
+    proposals = 0
+
+    for track in _local_tracks(albumhash):
+        number, title = filename_meta.parse(track.filepath)
+
+        proposed = None
+        if number is not None or title is not None:
+            proposals += 1
+            proposed = {
+                # Only what the file name actually said. A None here means the
+                # client shows no change for that field, not an empty value.
+                "title": title,
+                "track": number,
+                "disc": None,
+                "duration": track.duration,
+            }
+
+        rows.append(
+            {
+                "current": {
+                    "trackhash": track.trackhash,
+                    "filepath": track.filepath,
+                    "title": track.title,
+                    "track": track.track,
+                    "disc": track.disc,
+                    "duration": track.duration,
+                },
+                "proposed": proposed,
+                "delta": None,
+                # The file name is evidence about naming, never about identity,
+                # so it makes no claim the way a duration match does.
+                "confident": False,
+            }
+        )
+
+    return {
+        "rows": rows,
+        "summary": {
+            "matched": proposals,
+            "confident": 0,
+            "unmatched_local": len(rows) - proposals,
+            "unmatched_remote": 0,
+            "ordered_by_filepath": True,
+        },
+    }
+
+
+def _preview(albumhash: str, mbid: str | None, source: str = MUSICBRAINZ) -> dict:
+    if source == FILENAMES:
+        return _preview_from_filenames(albumhash)
+
     local = _local_tracks(albumhash)
-    remote = fetch_release_tracks(mbid)
+    remote = fetch_release_tracks(mbid or "")
 
     if not remote:
         return {"error": "The release has no track list", "rows": []}
@@ -175,7 +252,9 @@ def _preview(albumhash: str, mbid: str) -> dict:
 @admin_required()
 def album_preview(body: AlbumPreviewBody):
     """
-    Start a comparison of this album against one release.
+    Start a comparison of this album against a release — or against what its
+    own file names say, which for a rip MusicBrainz has never heard of is the
+    only source there is.
 
     Returns a job id immediately; poll `/metadata/job/<job_id>` for the rows.
     Writes nothing.
@@ -183,8 +262,14 @@ def album_preview(body: AlbumPreviewBody):
     if _album_or_none(body.albumhash) is None:
         return {"error": "Album not found"}, 404
 
+    if body.source not in (MUSICBRAINZ, FILENAMES):
+        return {"error": f"Unknown source {body.source!r}"}, 400
+
+    if body.source == MUSICBRAINZ and not body.mbid:
+        return {"error": "A MusicBrainz preview needs a release"}, 400
+
     job_id = mbjobs.create()
-    _spawn(job_id, lambda: _preview(body.albumhash, body.mbid), writes=False)
+    _spawn(job_id, lambda: _preview(body.albumhash, body.mbid, body.source), writes=False)
     return {"job": job_id}
 
 

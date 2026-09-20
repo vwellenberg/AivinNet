@@ -321,3 +321,81 @@ class TestJobs:
         # and the client would poll a dead job.
         assert done["state"] == "error"
         assert "musicbrainz said no" in done["error"]
+
+
+class TestFilenameSource:
+    """The source that repairs an album MusicBrainz has never heard of.
+
+    Verified against the real library first: "The Guild 2" answers ZERO
+    MusicBrainz candidates under either of its names, while its file names hold
+    every title. Without this source the feature would not touch the album it
+    was asked for.
+    """
+
+    def test_it_proposes_what_the_file_names_say(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/The Guild 2/02. Game Won.mp3", "02", 67),
+                FakeTrack("h2", "/m/The Guild 2/68. Night Woods1.mp3", "68", 181),
+            ],
+        )
+        looked_up = []
+        monkeypatch.setattr(module, "fetch_release_tracks", lambda *a, **k: looked_up.append(1) or [])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+        done = await_job(api, res.json["job"])
+
+        rows = done["result"]["rows"]
+        assert [(r["current"]["title"], r["proposed"]["title"], r["proposed"]["track"]) for r in rows] == [
+            ("02", "Game Won", 2),
+            ("68", "Night Woods1", 68),
+        ]
+        assert looked_up == [], "the filename source went to the network"
+
+    def test_a_file_that_says_nothing_gets_no_proposal(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(monkeypatch, module, [FakeTrack("h1", "/m/A/Just A Song.mp3", "Just A Song", 100)])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+        done = await_job(api, res.json["job"])
+
+        row = done["result"]["rows"][0]
+        # The name carries a title but no number, so only one half is proposed.
+        assert row["proposed"]["title"] == "Just A Song"
+        assert row["proposed"]["track"] is None
+
+    def test_it_never_claims_confidence(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(monkeypatch, module, [FakeTrack("h1", "/m/A/01 - Opening.mp3", "1", 100)])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+        done = await_job(api, res.json["job"])
+
+        # A duration match is evidence about identity; a file name is evidence
+        # about whoever typed it. Only the first may say "confident".
+        assert done["result"]["rows"][0]["confident"] is False
+        assert done["result"]["summary"]["confident"] == 0
+
+
+class TestPreviewSourceValidation:
+    def test_a_musicbrainz_preview_without_a_release_is_refused(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(monkeypatch, module, [])
+        calls = []
+        monkeypatch.setattr(module, "fetch_release_tracks", lambda *a, **k: calls.append(1) or [])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH})
+
+        assert res.status_code == 400
+        assert calls == []
+
+    def test_an_unknown_source_is_refused(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(monkeypatch, module, [])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "wishful thinking"})
+
+        assert res.status_code == 400
