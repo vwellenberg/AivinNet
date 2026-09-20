@@ -150,7 +150,7 @@ class TestPreview:
             lambda mbid: [FakeRemote("Opening", 1, length=181_000), FakeRemote("Closing", 2, length=240_000)],
         )
         writes = []
-        monkeypatch.setattr(module, "edit_track_tags", lambda *a, **k: writes.append(1))
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", lambda *a, **k: writes.append(1))
 
         res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "mbid": "rel-1"})
         done = await_job(api, res.json["job"])
@@ -261,13 +261,12 @@ class TestApply:
         api, module = metadata_api
 
         written = {}
-        monkeypatch.setattr(
-            module,
-            "edit_track_tags_by_filepath",
-            lambda filepath, fields: (
-                written.setdefault(filepath, fields["title"]) or type("T", (), {"trackhash": "h"})()
-            ),
-        )
+
+        def fake_edit(filepath, fields):
+            written[filepath] = fields["title"]
+            return type("T", (), {"trackhash": "h"})()
+
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
 
         res = api.post(
             "/metadata/album/apply",
