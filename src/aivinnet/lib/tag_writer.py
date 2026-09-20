@@ -1,7 +1,8 @@
 """
 Write metadata tags back to audio files using mutagen.
 
-P1 scope: text tags only (title, artists, album, album artists, track number).
+P1 scope: text tags only (title, artists, album, album artists, track and disc
+number).
 Cover-art editing is intentionally deferred to P1b because it is format-specific
 (ID3 ``APIC`` / MP4 ``covr`` / FLAC ``picture``) and needs per-container testing.
 
@@ -26,6 +27,7 @@ _EASY_KEYS = {
     "artists": "artist",
     "albumartists": "albumartist",
     "track": "tracknumber",
+    "disc": "discnumber",
 }
 
 # Fields that must not be written empty (they feed the trackhash identity).
@@ -42,6 +44,7 @@ _ID3_FRAME_NAMES = {
     "artists": "TPE1",
     "albumartists": "TPE2",
     "track": "TRCK",
+    "disc": "TPOS",
 }
 
 

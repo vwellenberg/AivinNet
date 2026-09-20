@@ -37,7 +37,10 @@ from aivinnet.store.tracks import TrackStore
 log = logging.getLogger(__name__)
 
 # Fields accepted from the API. tag_writer ignores anything it doesn't recognise.
-EDITABLE_FIELDS = {"title", "artists", "albumartists", "album", "track"}
+EDITABLE_FIELDS = {"title", "artists", "albumartists", "album", "track", "disc"}
+# INFO: Of these, only title/album/artists feed the trackhash. `track` and
+# `disc` are pure display, which is why a numbering repair can be applied
+# without moving a single playlist reference.
 
 
 class TrackEditError(Exception):

@@ -159,6 +159,7 @@ def load_endpoints(web: OpenAPI):
         web.register_api(aivinnet_api.backup_and_restore.api)
         web.register_api(aivinnet_api.download.api)
         web.register_api(aivinnet_api.musicbrainz.api)
+        web.register_api(aivinnet_api.metadata.api)
         web.register_api(aivinnet_api.coverart.api)
 
         # Multiroom device sync
