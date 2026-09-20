@@ -1,7 +1,12 @@
 <template>
     <div class="about-aivinnet">
-        <div class="version">AivinNet v{{ clientVersion }}</div>
-        <div v-if="settings.version" class="server-version">Server v{{ settings.version }}</div>
+        <!-- ONE product version, and it is the release (CalVer, e.g. 2026.9.0).
+             The web client carries its own SemVer build number; it is deployed
+             separately here, so it stays visible — but small, and named for
+             what it is. Before this the two were the other way round: a user
+             on release v2026.9.0 read "AivinNet v1.7.50" in bold. -->
+        <div class="version">AivinNet{{ settings.version ? ` v${settings.version}` : '' }}</div>
+        <div class="build">Web client build {{ clientVersion }}</div>
         <p class="blurb">
             AivinNet is a fork of
             <a href="https://github.com/swingmx/swingmusic" target="_blank"><u>Swing Music</u></a>
@@ -55,7 +60,7 @@ $about-step: 1rem;
         margin-bottom: $smaller;
     }
 
-    .server-version {
+    .build {
         font-size: 0.85rem;
         opacity: 0.55;
         margin-bottom: $small;
