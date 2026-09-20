@@ -76,14 +76,6 @@
                 <Accounts v-if="setting.type === SettingType.accounts" />
                 <About v-if="setting.type === SettingType.about" />
                 <Pairing v-if="setting.type === SettingType.pairing" />
-                <DropDown
-                    v-if="setting.type === SettingType.streaming_quality"
-                    :items="(setting.options ?? [] as any)"
-                    :current="(setting.state && setting.state() as any)"
-                    @item-clicked="setting.action"
-                    :reverse="'hide'"
-                    component_key="streaming_quality"
-                />
                 <BackupRestore v-if="setting.type === SettingType.backup" />
                 <SecretInput
                     v-if="setting.type === SettingType.secretinput"
@@ -110,7 +102,6 @@ import Switch from './Components/Switch.vue'
 import Profile from '../modals/settings/Profile.vue'
 import Accounts from '../modals/settings/custom/Accounts.vue'
 import Pairing from '../modals/settings/custom/Pairing.vue'
-import DropDown from '../shared/DropDown.vue'
 import About from './About.vue'
 import BackupRestore from './Components/BackupRestore.vue'
 import SecretInput from './Components/SecretInput.vue'
