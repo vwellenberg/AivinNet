@@ -15,6 +15,7 @@ export enum ModalOptions {
     editTrackTags,
     folder,
     findCoverOnline,
+    fetchMetadata,
     devices,
 }
 
@@ -25,6 +26,8 @@ export default defineStore('newModal', {
         component: <any>null,
         props: <any>{},
         visible: false,
+        /** Set while the open modal is doing something that must not be abandoned. */
+        locked: false,
     }),
     actions: {
         showModal(modalOption: ModalOptions, props: any = {}) {
@@ -72,6 +75,9 @@ export default defineStore('newModal', {
         showFindCoverOnlineModal(props: { type: 'playlist' | 'album'; id: number | string; query: string }) {
             this.showModal(ModalOptions.findCoverOnline, props)
         },
+        showFetchMetadataModal(props: { albumhash: string; albumTitle: string }) {
+            this.showModal(ModalOptions.fetchMetadata, props)
+        },
         showDeletePlaylistModal(pid: number) {
             const props = {
                 pid: pid,
@@ -94,8 +100,17 @@ export default defineStore('newModal', {
             this.showModal(ModalOptions.settings)
         },
         hideModal() {
+            // A modal in the middle of writing to the library refuses to go. It
+            // is the component that would report how many files succeeded and
+            // refresh the page showing the old values; dismissed, the worker
+            // carries on and the outcome reaches nobody.
+            if (this.locked) return
+
             this.visible = false
             this.setTitle('')
+        },
+        setLocked(locked: boolean) {
+            this.locked = locked
         },
         setTitle(new_title: string) {
             this.title = new_title

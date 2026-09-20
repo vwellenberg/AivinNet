@@ -163,6 +163,25 @@ export default async (album?: Album) => {
         icon: DeleteIcon,
     }
 
+    // ⚠️ Titles and numbers, NOT the cover — and deliberately a separate entry
+    // rather than a second job for "Find cover online". They fail differently:
+    // a wrong cover is one picture to replace, a wrong track list is rewritten
+    // tags in every file of the album plus the playlist references that moved
+    // with them.
+    const fetch_metadata = <Option>{
+        label: 'Fetch titles & numbers',
+        action: () => {
+            // The store fallback can briefly hold an empty album object.
+            if (!album.albumhash) return
+
+            useModal().showFetchMetadataModal({
+                albumhash: album.albumhash,
+                albumTitle: album.title || 'this album',
+            })
+        },
+        icon: SearchIcon,
+    }
+
     const is_pinned = usePinnedAlbums().isPinned(album.albumhash) || !!album.is_pinned
     const pin: Option = {
         label: is_pinned ? 'Unpin from library' : 'Pin to library',
@@ -177,7 +196,7 @@ export default async (album?: Album) => {
     // rejects all three with 403 for a non-admin since AivinNet#105, so offering
     // them here would only produce an error toast.
     if (loggedInUserIsAdmin()) {
-        options.push(find_cover_online, upload_cover, remove_cover)
+        options.push(find_cover_online, upload_cover, remove_cover, fetch_metadata)
     }
 
     options.push(download_album, download_tracks, get_find_on_social('album', '', album))
