@@ -2,10 +2,18 @@
   <div class="root-dirs-prompt">
     <h3 class="t-center">Where do you want to look for music?</h3>
     <div class="options-group">
-      <div v-for="option in options" :key="option.id" v-motion-slide-bottom class="option" @click="option.action()">
+      <!-- Each card is a choice, so each is a button (#137). -->
+      <button
+        v-for="option in options"
+        :key="option.id"
+        v-motion-slide-bottom
+        type="button"
+        class="option"
+        @click="option.action()"
+      >
         <b>{{ option.title }}</b>
         <div class="info">{{ option.info }}</div>
-      </div>
+      </button>
     </div>
   </div>
 </template>
@@ -59,6 +67,12 @@ onMounted(() => {
 <style lang="scss">
 .root-dirs-prompt {
   .option {
+    // Restated for the <button> (#137).
+    display: block;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+    font: inherit;
     padding: 1.25rem;
     position: relative;
     @include candy-box($candy-pink-soft, $candy-radius-sm);

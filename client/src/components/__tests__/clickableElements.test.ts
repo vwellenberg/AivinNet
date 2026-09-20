@@ -3,42 +3,58 @@ import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
-// A THING YOU CLICK IS A BUTTON — NOT A DIV WITH A HANDLER (#137).
+// A THING YOU CLICK IS A CONTROL — NOT A DIV WITH A HANDLER (#137).
 //
 // A `<div @click>` does not exist for the keyboard: no tab stop, no Enter or
 // Space, no name for a screen reader — and the app's focus ring hangs off the
 // `button` selector (Global/basic.scss), so it cannot appear either.
 //
-// ⚠️ The census in the issue used a line-based grep and therefore MISSED the
-// worst case: `Select.vue` writes its handler on its own line, so the whole
-// settings panel — every toggle and every segmented choice — was invisible to
-// that count and to the eye. This test parses the opening tag across lines.
+// ⚠️ The census in the issue counted with a line-based grep and therefore MISSED
+// the worst case: `Select.vue` writes its handler on its own line, so every
+// segmented setting — the most common control in the settings panel — was
+// invisible to that count. Parsed properly it was 26 places in 22 files, not 19
+// in 15. This test parses the opening tag across lines.
 //
-// The rule is the FEATURE ("a non-interactive element carries @click"), never a
-// list of known files — a list is what lets the 20th case in unnoticed.
+// Three lists, and the difference between them is the point:
+//
+//   REGIONS   a box around real controls, or a backdrop whose job IS the click.
+//             Legitimate; a <button> there would nest controls.
+//   TODO      genuine controls that still need converting, each with the reason
+//             it was not mechanical. Shrinks; may never grow.
+//   (neither) fails the test.
 // ---------------------------------------------------------------------------
 
 const INTERACTIVE = new Set(["button", "a", "input", "select", "textarea", "label", "summary"]);
 
-/**
- * Elements that may keep a click handler, with the reason.
- *
- * Each one is a REGION that wraps real controls (a button inside a button is
- * invalid) or a backdrop whose job is the click itself — never a control that
- * a user is meant to find and operate.
- */
-const ALLOWED: Record<string, string> = {
-  "components/SettingsView/Group.vue": "the settings row wraps real controls; clicking the label is a convenience",
+/** HTML elements. A component tag (`<Switch @click>`) binds to that component's
+ *  own root, and whether THAT is a control is checked where the component lives. */
+const HTML = new Set([
+  "div", "span", "li", "ul", "ol", "p", "section", "article", "header", "footer", "nav", "aside", "main",
+  "form", "table", "tr", "td", "th", "tbody", "thead", "img", "svg", "h1", "h2", "h3", "h4", "h5", "h6",
+  "figure", "pre", "code", "small", "strong", "em", "b", "i", "dl", "dt", "dd", "canvas", "video", "audio",
+  "details", "dialog", "blockquote",
+]);
+
+/** A box around controls, or a surface whose click is the whole point. */
+const REGIONS: Record<string, string> = {
   "components/modal.vue": "the backdrop closes the modal; the dialog has its own close button",
-  "components/modals/AuthLogin.vue": "wrapper around the submit button",
+  "components/DeviceSync/GestureOverlay.vue": "a full-surface gesture layer — the real button sits inside it",
   "components/modals/ChipInput.vue": "the field area focuses the input inside it",
-  "components/modals/RootDirsPrompt.vue": "row wraps a real control",
-  "components/modals/SetRootDirs.vue": "row wraps a real control",
-  "components/modals/settings/custom/Accounts.vue": "row wraps real controls",
-  "components/modals/updatePlaylist.vue": "the image area opens the file picker below it",
-  "components/shared/AlbumCard.vue": "the card is a RouterLink region; the play disc inside is a button",
-  "components/shared/SongItem/TrackTitle.vue": "the row itself is the control; these open its menus",
-  "components/DeviceSync/GestureOverlay.vue": "a full-surface gesture layer, not a control",
+  "components/SettingsView/Group.vue": "the settings row wraps the real control; clicking the label is a convenience",
+  "components/RightSideBar/SearchInput.vue": "the box around the search input routes to the search page",
+  "components/shared/AlbumCard.vue": "an event stopper inside the card, so the artist line does not open the album",
+  "components/shared/ArtistName.vue": "an event stopper around router links",
+  "components/shared/SongItem/TrackTitle.vue": "the track row itself is the control; these repeat its action",
+};
+
+/** Genuine controls still to convert — with why each was not mechanical. */
+const TODO: Record<string, string> = {
+  "components/Contextmenu/ContextItem.vue":
+    "the submenu lives INSIDE the clickable item, so a <button> would nest controls — needs menu semantics",
+  "components/FolderView/FolderItem.vue": "a whole row with selection, drag and a context menu",
+  "components/LeftSidebar/index.vue": "the folder header is draggable and toggles — row semantics first",
+  "components/modals/settings/custom/Accounts.vue": "a user row that also carries its own buttons",
+  "components/modals/updatePlaylist.vue": "already keyboard-operable (tabindex + keydown), but not a real control",
 };
 
 function vueFiles(dir: string): string[] {
@@ -52,42 +68,34 @@ function vueFiles(dir: string): string[] {
   return out;
 }
 
-/** `<tag …>` openings whose attributes contain a click handler, tag name kept. */
-function clickableTags(source: string): string[] {
-  const template = source.slice(0, source.indexOf("\n<script") === -1 ? source.length : source.indexOf("\n<script"));
-  const out: string[] = [];
-  // The opening tag may span lines, so match up to the first ">" that is not
-  // inside an attribute value.
-  for (const match of template.matchAll(/<([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g)) {
-    const [, tag, attrs] = match;
-    if (/(?:^|\s)(@click|v-on:click)\b/.test(attrs)) out.push(tag.toLowerCase());
+/** Non-interactive HTML elements carrying a click handler, per file. */
+function offenders(file: string): string[] {
+  const source = readFileSync(file, "utf-8");
+  const scriptAt = source.indexOf("\n<script");
+  const template = scriptAt === -1 ? source : source.slice(0, scriptAt);
+  const found: string[] = [];
+  for (const [, tag, attrs] of template.matchAll(/<([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g)) {
+    const name = tag.toLowerCase();
+    if (!HTML.has(name) || INTERACTIVE.has(name)) continue;
+    if (/(?:^|\s)(@click|v-on:click)\b/.test(attrs)) found.push(name);
   }
-  return out;
+  return found;
 }
 
+const FILES = vueFiles("src").map((f) => ({ file: f, rel: f.replace(/\\/g, "/").replace(/^src\//, "") }));
+
 describe("clickable elements", () => {
-  it("are real controls, or a listed region with a reason", () => {
-    const offenders: string[] = [];
-    for (const file of vueFiles("src")) {
-      const rel = file.replace(/\\/g, "/").replace(/^src\//, "");
-      // A component tag (<Switch @click>) binds to that component's own root;
-      // whether THAT is a control is the component's own business, checked
-      // where it lives.
-      const bad = clickableTags(readFileSync(file, "utf-8")).filter(
-        (tag) => /^[a-z]/.test(tag) && !INTERACTIVE.has(tag)
-      );
-      if (bad.length && !(rel in ALLOWED)) offenders.push(`${rel}: <${bad.join(">, <")}> with @click`);
-    }
-    expect(offenders).toEqual([]);
+  it("are real controls, unless listed as a region or as a tracked gap", () => {
+    const unlisted = FILES.filter(({ file, rel }) => offenders(file).length && !(rel in REGIONS) && !(rel in TODO)).map(
+      ({ rel, file }) => `${rel}: <${offenders(file).join(">, <")}> with @click`
+    );
+    expect(unlisted).toEqual([]);
   });
 
-  it("keeps the allowlist honest — no entry for a file that no longer needs it", () => {
-    const stale = Object.keys(ALLOWED).filter((rel) => {
-      const bad = clickableTags(readFileSync(join("src", rel), "utf-8")).filter(
-        (tag) => /^[a-z]/.test(tag) && !INTERACTIVE.has(tag)
-      );
-      return bad.length === 0;
-    });
+  it("keeps both lists honest — an entry whose file is clean must go", () => {
+    const stale = [...Object.keys(REGIONS), ...Object.keys(TODO)].filter(
+      (rel) => offenders(join("src", rel)).length === 0
+    );
     expect(stale).toEqual([]);
   });
 
@@ -101,14 +109,29 @@ describe("clickable elements", () => {
   });
 
   it("names the icon-only controls it converted", () => {
-    const list = readFileSync("src/components/SettingsView/Components/List.vue", "utf-8");
-    expect(list).toMatch(/<button[^>]*:aria-label=/s);
+    for (const [file, pattern] of [
+      ["src/components/SettingsView/Components/List.vue", /<button[^>]*:aria-label=/s],
+      ["src/components/shared/Input.vue", /:aria-label="showingPassword \? 'Hide password' : 'Show password'"/],
+      ["src/components/nav/Titles/Folder.vue", /aria-label="Go to the top folder"/],
+      ["src/components/modals/settings/Profile.vue", /aria-label="Change profile picture"/],
+    ] as const) {
+      expect(readFileSync(file, "utf-8")).toMatch(pattern);
+    }
   });
 
-  it("shows a hover-only control when the keyboard focuses it", () => {
-    // `opacity: 0` until hover plus a tab stop is a trap: focus lands on
-    // something nobody can see.
-    const disc = readFileSync("src/components/AlbumView/AlbumDiscBar.vue", "utf-8");
-    expect(disc).toMatch(/\.play:focus-visible\s*\{\s*opacity: 1;/);
+  it("shows a control that hides until hover when the keyboard focuses it", () => {
+    // `opacity: 0` plus a tab stop is a trap: focus lands on something nobody
+    // can see. Both converted cases answer `:focus-visible`.
+    expect(readFileSync("src/components/AlbumView/AlbumDiscBar.vue", "utf-8")).toMatch(
+      /\.play:focus-visible\s*\{\s*opacity: 1;/
+    );
+    expect(readFileSync("src/components/shared/Input.vue", "utf-8")).toMatch(/\.showpass:focus-visible/);
+  });
+
+  it("does not put a control inside a control", () => {
+    // HeartSvg IS a button; the row used to wrap it in a click-catching div.
+    const duration = readFileSync("src/components/shared/SongItem/TrackDuration.vue", "utf-8");
+    expect(duration).toMatch(/<HeartSvg :state="is_fav" @handle-fav=/);
+    expect(duration).not.toMatch(/no_emit/);
   });
 });

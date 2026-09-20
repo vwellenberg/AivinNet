@@ -15,15 +15,18 @@
                 <ArrowSvg :class="{ reverse }" class="dropdown-arrow" v-if="reverse !== 'hide'" />
             </button>
             <div v-if="showDropDown" ref="dropOptionsRef" class="options rounded no-scroll shadow-lg">
-                <div
+                <!-- The opener was already a button; its options were not (#137). -->
+                <button
                     v-for="item in items"
                     :key="item.key"
+                    type="button"
                     class="option"
                     :class="{ current: current.key == item.key }"
+                    :aria-pressed="current.key == item.key"
                     @click.prevent="handleClick(item)"
                 >
                     {{ item.title }}
-                </div>
+                </button>
             </div>
         </div>
     </div>
@@ -133,6 +136,15 @@ onClickOutside(dropOptionsRef, e => {
         }
 
         .option {
+            // Restated for the <button>: the base reset takes the padding and
+            // the block layout the option list is built on.
+            display: block;
+            width: 100%;
+            text-align: left;
+            background-color: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
             font-weight: 500;
             cursor: pointer;
             padding: $small;

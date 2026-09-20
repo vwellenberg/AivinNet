@@ -1,11 +1,11 @@
 <template>
     <div class="options-and-duration">
-        <div
-            class="heart-icon"
-            :class="{ 'is_fav': is_fav && highlightFavoriteTracks }"
-            @click.stop="$emit('toggleFav')"
-        >
-            <HeartSvg :state="is_fav" :no_emit="true" />
+        <!-- HeartSvg IS a button, so the click belongs to it, not to a wrapper
+             around it (#137). With `no_emit` the button did nothing and this div
+             caught the bubbling click — a control inside a control. Now the
+             button emits and the div is layout again. -->
+        <div class="heart-icon" :class="{ 'is_fav': is_fav && highlightFavoriteTracks }">
+            <HeartSvg :state="is_fav" @handle-fav="$emit('toggleFav')" />
         </div>
         <div class="song-duration" :class="{ has_help_text: help_text }">{{ formatSeconds(duration) }}</div>
         <div class="song-duration help-text" v-if="help_text">

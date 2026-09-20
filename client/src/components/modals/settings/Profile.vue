@@ -1,13 +1,20 @@
 <template>
     <div class="profilesettings">
         <div class="profileavatar">
-            <div
-                class="avatar-wrap"
-                :class="{ editable: !adding_user }"
-                @click="!adding_user && fileInput?.click()"
+            <!-- It opens the file picker, so it is a button — and it says so,
+                 because "Change" only appears on hover (#137). -->
+            <button
+                v-if="!adding_user"
+                type="button"
+                class="avatar-wrap editable"
+                aria-label="Change profile picture"
+                @click="fileInput?.click()"
             >
                 <Avatar :name="username || auth.user.username" :image="auth.user.image" />
-                <span v-if="!adding_user" class="avatar-overlay">Change</span>
+                <span class="avatar-overlay">Change</span>
+            </button>
+            <div v-else class="avatar-wrap">
+                <Avatar :name="username || auth.user.username" :image="auth.user.image" />
             </div>
             <input ref="fileInput" type="file" accept="image/*" hidden @change="onPickImage" />
             <div class="name">
@@ -174,6 +181,12 @@ onMounted(async () => {
         align-items: center;
 
         .avatar-wrap {
+            // Restated for the <button> (#137).
+            background-color: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
+            padding: 0;
             position: relative;
             width: 80px;
             height: 80px;

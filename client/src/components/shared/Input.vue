@@ -8,15 +8,20 @@
             @input="$emit('input', ($event.target as HTMLInputElement).value)"
             v-model="value"
         />
-        <div
+        <!-- A control, so a button — and it says what it does and which state
+             it is in, because an eye glyph alone says neither (#137). -->
+        <button
             class="showpass rounded-sm"
+            type="button"
             v-if="props.type === 'password'"
             :class="{ show: value.length }"
+            :aria-label="showingPassword ? 'Hide password' : 'Show password'"
+            :aria-pressed="showingPassword"
             @click="toggleShowPassword"
         >
             <EyeSlashSvg v-if="showingPassword" />
             <EyeSvg v-else />
-        </div>
+        </button>
     </div>
 </template>
 
@@ -52,6 +57,11 @@ function toggleShowPassword() {
     position: relative;
 
     .showpass {
+        // Restated for the <button>.
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        padding: 0;
         position: absolute;
         right: $medium;
         top: 50%;
@@ -70,6 +80,9 @@ function toggleShowPassword() {
         }
     }
 
+    // ⚠️ Hidden until something is typed — and a hidden tab stop is a trap once
+    // this is a real button, so keyboard focus shows it too.
+    .showpass:focus-visible,
     .showpass.show {
         opacity: 1;
         transition-delay: 1s;
