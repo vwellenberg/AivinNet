@@ -348,7 +348,10 @@ curl -s -o /dev/null -w "%{http_code}
 braucht einen Moment, bis der neue `master` überall sichtbar ist. Auch das fällt nur über die
 Gegenprobe oben auf; dann einfach nochmal deployen.
 
-**Wichtig:** Server hat IPv6-Problem — git/yarn brauchen `NODE_OPTIONS='--dns-result-order=ipv4first'`. Nach jedem sichtbaren Deploy `package.json` version bumpen (angezeigt unter **Settings → About**, zusammen mit der Server-Version — der Sticker unten in der Sidebar ist weg).
+**Wichtig:** Server hat IPv6-Problem — git/yarn brauchen `NODE_OPTIONS='--dns-result-order=ipv4first'`. Nach jedem sichtbaren Deploy `package.json` version bumpen. Das ist die **Bau-Nummer des
+Webclients** und steht unter **Settings → About** klein als „Web client build" — die fette Zeile
+darüber ist die **Produktversion**, also der Release-Tag (CalVer), den der Server meldet. Die
+beiden standen bis #218 andersherum: Wer Release v2026.9.0 installierte, las dort fett „v1.7.50".
 
 ### Backend
 
