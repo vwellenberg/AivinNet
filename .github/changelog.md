@@ -69,6 +69,74 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+**A second look for the app, and a stack of fixes underneath it.** The design so
+far — grid paper, ink frames, hard shadows — is called **Memphis** and stays the
+default. Next to it there is now **Stream**: flat, dark, quiet. Same app, same
+features, different language.
+
+### Two themes, and light/dark is a separate question
+
+Settings → Appearance holds **two** settings now, because they are two different
+decisions:
+
+> **Theme** — Memphis · Stream
+> **Mode** — Light · Dark, plus Auto by time of day
+
+**Stream** is dark only, and it leaves your Mode and Auto settings alone: switch
+back to Memphis and you get exactly the brightness you had. It drops the frames,
+shadows and textures for flat surfaces, states read from the text instead of a
+fill, and the album/playlist/artist pages let the **colour of the cover** carry
+the head instead of a panel. It brings its own typeface.
+
+Memphis is untouched — not "should be", but measured: every element's computed
+appearance was compared before and after, light and dark, desktop and phone,
+including hover and press. 30,756 comparisons, zero differences.
+
+### Fixed
+
+- **Docker containers were killed, never stopped.** `docker stop` always ended in
+  SIGKILL after the grace period, which can leave the database mid-write. The
+  server now shuts down on the stop signal, drains open connections and closes
+  the database.
+- **The pages started at different heights on a phone.** Home, Playlists,
+  Favorites, Albums and Stats each began somewhere between 24px and 80px below
+  the top. Now they all start in the same place.
+- **Settings changed during the very first run were forgotten** on restart.
+- **A failed pairing spun forever** instead of showing what went wrong.
+- **The installer asks about ffmpeg**, and the server says so at startup when it
+  is missing — without it, skipping the silence between tracks does not work.
+- **Logs live in `<config>/aivinnet/logs`** and old logs move there by themselves.
+- **The startup banner** names AivinNet and lists only addresses you can actually
+  open (`0.0.0.0` is not one of them).
+- **Docker:** the image reports its real version, ships the placeholder artwork,
+  resets the right account's password, and refuses a music path that does not
+  exist instead of starting with an empty library.
+- **The Windows binary** carries the AivinNet icon.
+- Reduced-motion no longer flashes on the first paint; Home has a title like
+  every other page; the password field asks for a password instead of showing a
+  row of symbols.
+
+### Under the hood
+
+- **No third-party typefaces are shipped any more.** Two Apple fonts were bundled
+  as webfonts, which their licence does not allow. Monospace text now uses the
+  fonts your machine already has, so it looks the same and downloads nothing.
+- The running-light animation pauses while nothing is playing.
+- The dead transcoding path is gone — AivinNet streams your files as they are
+  (see the README for the formats that play).
+
+### Upgrading
+
+Nothing to do. Docker users get the clean stop on the next `docker compose up -d`.
+
+**From v2026.8.2 or older:** stop the server once, delete the `client` folder in
+your data directory, start it again — older versions left no marker behind, so
+that one generation has to be cleared by hand.
+
+<details>
+<summary>What v2026.8.5 brought</summary>
+
+
 One change, and it is the first thing you see.
 
 ### The navigation is ordered by what you actually use
@@ -87,12 +155,14 @@ That is the whole release. It is small on purpose — the screenshots and the
 demo in the README show this order, and an install that shows a different one
 is worse than no screenshots at all.
 
-### Upgrading
+#### Upgrading
 
 Nothing to do coming from v2026.8.3 or newer. **From v2026.8.2 or older:** stop
 the server once, delete the `client` folder in your data directory, start it
 again — older versions left no marker behind, so that one generation has to be
 cleared by hand.
+
+</details>
 
 <details>
 <summary>What v2026.8.4 brought</summary>
