@@ -92,7 +92,10 @@ type Gate =
 // admin-only helper directly.
 const CALLERS: Record<string, Gate> = {
     '/src/components/nav/ProfileDropdown.vue': 'self',
-    '/src/components/AlbumView/Header/Buttons.vue': 'self',
+    // ⚠️ `AlbumView/Header/Buttons.vue` is deliberately NOT here. It called
+    // `fetchCoverFromMusicBrainz` until #226 moved that action into the album
+    // context menu; the header now offers no admin-only control at all, so
+    // listing it would fail the staleness check rather than protect anything.
     '/src/context_menus/album.ts': 'self',
 
     // Settings modules, all inside the admin-gated `library` category.

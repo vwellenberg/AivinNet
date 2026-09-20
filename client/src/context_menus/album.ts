@@ -4,6 +4,7 @@ import useTracklist from '@/stores/queue/tracklist'
 import { getAlbumTracks } from '@/requests/album'
 import { addAlbumToPlaylist } from '@/requests/playlists'
 import { removeAlbumCover, uploadAlbumCover } from '@/requests/coverart'
+import { fetchCoverFromMusicBrainz } from '@/requests/musicbrainz'
 import { NotifType, Notification } from '@/stores/notification'
 import { toggleAlbumPin } from '@/helpers/pinAlbum'
 import { downloadTracksIndividually } from '@/helpers/downloadTracks'
@@ -163,6 +164,47 @@ export default async (album?: Album) => {
         icon: DeleteIcon,
     }
 
+    // The automatic counterpart to `find_cover_online` above: that one opens a
+    // gallery to pick from, this one searches and decides on its own, and only
+    // accepts a match it can verify. It lived in the album header until #226,
+    // as a magnifier one row away from the OTHER magnifier in this menu — two
+    // identical glyphs for two different actions, which is a coin toss. Here
+    // the two sit together and their labels do the distinguishing.
+    const fetch_cover_auto = <Option>{
+        label: 'Fetch cover automatically',
+        action: async () => {
+            if (!album.albumhash) return
+
+            // ⚠️ Say something FIRST. The search goes to musicbrainz.org behind
+            // a 1.1s server-side throttle, then to the Cover Art Archive, then
+            // to the store chain if that misses — seconds, routinely. The
+            // button this replaced spun and disabled itself for the duration;
+            // a menu entry closes its menu and leaves the screen unchanged, so
+            // without this a slow search is indistinguishable from a dead
+            // click, and the obvious response is to fire a second one.
+            new Notification('Searching for a cover…', NotifType.Info)
+
+            const res = await fetchCoverFromMusicBrainz(album.albumhash)
+            if (!res.success) {
+                new Notification(res.error || 'No cover found online', NotifType.Error)
+                return
+            }
+
+            // ⚠️ `coverVersion` belongs to the ALBUM PAGE and is read by
+            // exactly one <img> (AlbumView/main.vue). This menu also opens
+            // from cards and sidebar rows, where the page holds a different
+            // album — bumping it there would cache-bust an unrelated page and
+            // still not refresh the card the user is looking at. So the bump
+            // happens only when it is the same album; elsewhere the new cover
+            // appears on the next load, which is the same gap `upload_cover`
+            // and `remove_cover` have had all along.
+            if (albumStore.info?.albumhash === album.albumhash) albumStore.bumpCoverVersion()
+
+            new Notification('Cover found', NotifType.Success)
+        },
+        icon: SearchIcon,
+    }
+
     // ⚠️ Titles and numbers, NOT the cover — and deliberately a separate entry
     // rather than a second job for "Find cover online". They fail differently:
     // a wrong cover is one picture to replace, a wrong track list is rewritten
@@ -196,7 +238,7 @@ export default async (album?: Album) => {
     // rejects all three with 403 for a non-admin since AivinNet#105, so offering
     // them here would only produce an error toast.
     if (loggedInUserIsAdmin()) {
-        options.push(find_cover_online, upload_cover, remove_cover, fetch_metadata)
+        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata)
     }
 
     options.push(download_album, download_tracks, get_find_on_social('album', '', album))

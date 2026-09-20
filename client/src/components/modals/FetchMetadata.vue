@@ -334,9 +334,18 @@ async function apply() {
     .source,
     .candidate {
         display: grid;
+        // ⚠️ An explicit track, not `width: 100%`. A <button> is a grid
+        // CONTAINER here, and the UA centres its tracks: with an auto column
+        // the track is only as wide as its own widest line and then sits in
+        // the middle of the plate. Measured before this: two plates both
+        // 640px wide, their labels 199px and 364px, each centred — so the
+        // short one read as centred and the long one as left-aligned, which
+        // is exactly how it was reported. A `1fr` track absorbs the free
+        // space and the question of where the container justifies it never
+        // arises.
+        grid-template-columns: 1fr;
         gap: 2px;
-        width: 100%;
-        padding: $small;
+        padding: $small $medium;
         text-align: left;
         @include candy-box($mem-panel, $candy-radius-sm);
         @include candy-shadow(3px, 3px);
@@ -347,7 +356,12 @@ async function apply() {
 
         .hint {
             color: $candy-text-muted;
-            font-size: $small;
+            // ⚠️ NOT `$small`. That is a SPACING token (0.5rem), and as a font
+            // size it rendered this line at 8px — half the body text, below
+            // anything else in the app. Spacing tokens and type sizes are two
+            // scales that happen to share a vocabulary.
+            font-size: 0.8rem;
+            line-height: 1.35;
         }
     }
 
@@ -362,6 +376,8 @@ async function apply() {
     }
 
     .candidate {
+        // Overrides the single track above: label and hint on the left, the
+        // track count pinned right. The `1fr` still does the absorbing.
         grid-template-columns: 1fr max-content;
         grid-template-areas: 'name count' 'hint count';
         align-items: center;
@@ -424,7 +440,7 @@ async function apply() {
             }
 
             .delta {
-                font-size: $small;
+                font-size: 0.8rem;
                 font-variant-numeric: tabular-nums;
 
                 &.off {
