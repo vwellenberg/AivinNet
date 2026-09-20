@@ -218,7 +218,8 @@ Wohin — nach Umfang und Lesehäufigkeit:
 | Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
 | Offene Arbeit, Bug, Idee | GitHub-Issue (`gh issue list --repo vwellenberg/AivinNet`) | einzige Backlog-Quelle, auch für Backend-Themen |
 
-Bestehende Bereichsregeln: `styling` · `stores-and-state` · `device-sync` · `testing`
+Bestehende Bereichsregeln: `styling` · `stores-and-state` · `device-sync` · `infinite-scroll` ·
+`testing`
 (Übersicht mit Geltungsbereich unter *Architektur-Hinweise*). Neue Regel = neue Datei in
 `.claude/rules/` mit `paths:`-Glob im Frontmatter; **ohne `paths` lädt sie unbedingt** und ist
 damit nur CLAUDE.md unter anderem Namen.
@@ -290,6 +291,7 @@ passende Datei gelesen wird:
 | `styling.md` | `src/assets/scss/**`, `src/**/*.scss`, `src/**/*.vue`, `vite.config.ts` | **Schraffur-Policy** (was sie bedeutet, wo sie wegbleibt, nie hinter Text), Zeilen-Platten, Hover-Token, Rollen, Hard-Shadows, Icon-/viewBox-Fallen, 44-px-Touch-Ziele, Regler-Geometrie, Sass-Interpolation, Bewegung |
 | `stores-and-state.md` | `src/stores/**`, `src/utils/playlistMove.ts`, `src/utils/shufflePicker.ts`, `src/requests/**` | Playlist-Schreibpfade, optimistische Rollbacks, Zufall-im-Getter, virtualisierte Queue |
 | `device-sync.md` | `src/stores/devicesync.ts`, `src/utils/deviceSync/**`, `src/components/DeviceSync/**`, `src/components/modals/Devices.vue`, `src/views/PairView.vue` | Seams, Timing, Auto-Rejoin, Feld-Bugs |
+| `infinite-scroll.md` | `src/components/ArtistView/AlbumsFetcher.vue`, `src/components/shared/GenericTrackPagination.vue`, `src/views/AlbumListView/main.vue`, `src/views/FolderView.vue`, `src/views/SearchView/*.vue`, `src/stores/pages/itemlist.ts` | Sichtbarkeit statt Remount als Auslöser, Ketten-Bremse, `useAxios` löst bei Fehlern **auf**, Blättern übers Listenende |
 | `testing.md` | `src/**/__tests__/**`, `vite.config.ts` | Vitest-0.34-Fallen, Fixtures |
 
 ⚠️ **Die „greift bei"-Spalte ist keine Prosa, sondern das `paths:`-Frontmatter der jeweiligen

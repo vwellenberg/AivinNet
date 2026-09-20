@@ -87,7 +87,8 @@ const scrollerItems = computed(() => {
 
     if (props.fetch_callback && moreItems) {
         items.push({
-            id: Math.random(),
+            // Stable (#142) — see AlbumsFetcher: visibility triggers the next page.
+            id: 'search-cards-fetcher',
             component: AlbumsFetcher,
             props: {
                 fetch_callback: props.fetch_callback,

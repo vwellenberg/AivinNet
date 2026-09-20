@@ -77,8 +77,9 @@ const scrollerItems = computed(() => {
     }))
 
     items.push({
-        // set to random to force re-render
-        id: Math.random(),
+        // Stable (#142): the next page comes from this item becoming VISIBLE,
+        // not from a remount. A random id rebuilt it on every recomputation.
+        id: 'tracks-fetcher',
         component: AlbumsFetcher,
         props: {
             fetch_callback: props.moreItemsLoader,

@@ -93,7 +93,8 @@ const scrollerItems = computed(() => {
   }
 
   items.push({
-    id: Math.random(),
+    // Stable (#142) — see AlbumsFetcher: visibility triggers the next page.
+    id: "list-fetcher",
     component: Fetcher,
     props: {
       fetch_callback: () => store.getMoreAlbums(),

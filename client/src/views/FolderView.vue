@@ -116,7 +116,8 @@ const scrollerItems = computed(() => {
 
     if (folder.tracks.length >= track_limit.value) {
         items.push({
-            id: Math.random(),
+            // Stable (#142) — see AlbumsFetcher: visibility triggers the next page.
+            id: 'folder-tracks-fetcher',
             component: AlbumsFetcher,
             props: {
                 fetch_callback: () => folder.fetchAll(folder.path),
