@@ -38,3 +38,20 @@ der Empfehlungen — der ab Werk aktive Lyrics-Finder (Musixmatch, siehe CLAUDE.
 ⚠️ **Privacy:** Für Mixes verlassen Track-Metadaten (Titel, Artist, Album) das Haus Richtung
 `smcloud.mungaist.com` — sonst nichts. Wer hier eine neue Quelle ergänzt, ändert damit das
 Datenschutz-Versprechen und muss es in der CLAUDE.md vermerken.
+
+## Ausgehende Verbindungen im Überblick
+
+Damit „sonst nichts" nachprüfbar bleibt, hier die vollständige Liste. Sie ist der Ort, an dem eine
+neue Quelle eingetragen wird:
+
+| Wohin | Was | Wann |
+|---|---|---|
+| `smcloud.mungaist.com` | Top-5-Tracks eines Artists: Titel, Artists, Album im **Klartext** | Cron `mixes`, alle 12 h |
+| `apic-desktop.musixmatch.com` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (ab Werk aktiv, abschaltbar) |
+| `musicbrainz.org` / `coverartarchive.org` | Albumtitel + Album-Artist im Klartext | **nur auf Anforderung**: Cover holen, und seit #221 Titel/Nummern holen |
+| Deezer / Last.fm | Artist-Namen | nur mit `enableOnlineMetadata` (ab Werk **aus**) |
+
+⚠️ **Die Dateinamen-Quelle des Metadaten-Dialogs (`source: "filenames"`) geht NIRGENDWOHIN.** Sie
+liest die Pfade der eigenen Bibliothek und rechnet lokal — und sie ist deshalb auch die Antwort
+für Alben, die man aus Datenschutzgründen nicht nachschlagen möchte. Wer die beiden Quellen in
+der UI zusammenlegt, nimmt dem Nutzer genau diese Wahl.
