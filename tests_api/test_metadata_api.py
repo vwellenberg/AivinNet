@@ -229,57 +229,94 @@ class TestApply:
 
         calls = []
 
-        def fake_edit(trackhash, fields):
-            calls.append((trackhash, dict(fields)))
-            return type("T", (), {"trackhash": trackhash + "-new"})()
+        def fake_edit(filepath, fields):
+            calls.append((filepath, dict(fields)))
+            return type("T", (), {"trackhash": "new-hash"})()
 
-        monkeypatch.setattr(module, "edit_track_tags", fake_edit)
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
         looked_up = []
         monkeypatch.setattr(module, "fetch_release_tracks", lambda *a, **k: looked_up.append(1) or [])
         monkeypatch.setattr(module, "search_releases", lambda *a, **k: looked_up.append(1) or [])
 
         res = api.post(
             "/metadata/album/apply",
-            json={"changes": [{"trackhash": "h1", "title": "Opening", "track": 1}]},
+            json={"changes": [{"filepath": "/m/01.mp3", "title": "Opening", "track": 1}]},
         )
         done = await_job(api, res.json["job"])
 
-        assert calls == [("h1", {"title": "Opening", "track": 1})]
+        assert calls == [("/m/01.mp3", {"title": "Opening", "track": 1})]
         # ⚠️ No second lookup. What the person confirmed is what gets written —
         # a fresh request here could answer differently than the preview did.
         assert looked_up == [], "apply went back to the network"
-        assert done["result"]["applied"] == [{"trackhash": "h1", "new_trackhash": "h1-new"}]
+        assert done["result"]["applied"] == [{"filepath": "/m/01.mp3", "new_trackhash": "new-hash"}]
 
-    def test_one_bad_track_does_not_stop_the_others(self, metadata_api, monkeypatch):
+    def test_every_file_gets_its_own_title_even_when_they_share_a_hash(self, metadata_api, monkeypatch):
+        """THE regression, and it is the case this feature exists for.
+
+        A trackhash is `create_hash(title, album, *artists)`, so an album whose
+        files all say "Track 1" has exactly ONE of them. Addressed by hash, the
+        batch would hand N titles to `TrackGroup.get_best()` and let it decide
+        which file receives which — silently, and with the files rewritten.
+        """
         api, module = metadata_api
-        from aivinnet.lib.track_edit import TrackEditError
 
-        def fake_edit(trackhash, fields):
-            if trackhash == "bad":
-                raise TrackEditError("file is read-only")
-            return type("T", (), {"trackhash": trackhash})()
-
-        monkeypatch.setattr(module, "edit_track_tags", fake_edit)
+        written = {}
+        monkeypatch.setattr(
+            module,
+            "edit_track_tags_by_filepath",
+            lambda filepath, fields: (
+                written.setdefault(filepath, fields["title"]) or type("T", (), {"trackhash": "h"})()
+            ),
+        )
 
         res = api.post(
             "/metadata/album/apply",
             json={
                 "changes": [
-                    {"trackhash": "h1", "track": 1},
-                    {"trackhash": "bad", "track": 2},
-                    {"trackhash": "h3", "track": 3},
+                    {"filepath": "/m/01.mp3", "title": "Maintheme"},
+                    {"filepath": "/m/02.mp3", "title": "Game Won"},
+                    {"filepath": "/m/03.mp3", "title": "Game Lost"},
+                ]
+            },
+        )
+        await_job(api, res.json["job"])
+
+        assert written == {
+            "/m/01.mp3": "Maintheme",
+            "/m/02.mp3": "Game Won",
+            "/m/03.mp3": "Game Lost",
+        }
+
+    def test_one_bad_track_does_not_stop_the_others(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        from aivinnet.lib.track_edit import TrackEditError
+
+        def fake_edit(filepath, fields):
+            if filepath == "/m/bad.mp3":
+                raise TrackEditError("file is read-only")
+            return type("T", (), {"trackhash": "h"})()
+
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
+
+        res = api.post(
+            "/metadata/album/apply",
+            json={
+                "changes": [
+                    {"filepath": "/m/01.mp3", "track": 1},
+                    {"filepath": "/m/bad.mp3", "track": 2},
+                    {"filepath": "/m/03.mp3", "track": 3},
                 ]
             },
         )
         done = await_job(api, res.json["job"])
 
-        assert [a["trackhash"] for a in done["result"]["applied"]] == ["h1", "h3"]
-        assert done["result"]["failed"] == [{"trackhash": "bad", "error": "file is read-only"}]
+        assert [a["filepath"] for a in done["result"]["applied"]] == ["/m/01.mp3", "/m/03.mp3"]
+        assert done["result"]["failed"] == [{"filepath": "/m/bad.mp3", "error": "file is read-only"}]
 
     def test_an_empty_change_set_is_refused(self, metadata_api, monkeypatch):
         api, module = metadata_api
         calls = []
-        monkeypatch.setattr(module, "edit_track_tags", lambda *a, **k: calls.append(1))
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", lambda *a, **k: calls.append(1))
 
         res = api.post("/metadata/album/apply", json={"changes": []})
 
@@ -290,13 +327,39 @@ class TestApply:
         """A row the person unticked everything on must not open the file."""
         api, module = metadata_api
         calls = []
-        monkeypatch.setattr(module, "edit_track_tags", lambda *a, **k: calls.append(1))
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", lambda *a, **k: calls.append(1))
 
-        res = api.post("/metadata/album/apply", json={"changes": [{"trackhash": "h1"}]})
+        res = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/01.mp3"}]})
         done = await_job(api, res.json["job"])
 
         assert calls == []
         assert done["result"] == {"applied": [], "failed": []}
+
+    def test_a_second_apply_is_refused_while_one_is_running(self, metadata_api, monkeypatch):
+        """Two applies are not a slower one — they interleave inside the stores."""
+        api, module = metadata_api
+        import threading
+
+        release = threading.Event()
+        monkeypatch.setattr(
+            module,
+            "edit_track_tags_by_filepath",
+            lambda filepath, fields: release.wait(5) or type("T", (), {"trackhash": "h"})(),
+        )
+
+        first = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/01.mp3", "track": 1}]})
+        assert first.status_code == 200
+
+        second = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/02.mp3", "track": 2}]})
+        assert second.status_code == 409
+
+        release.set()
+        await_job(api, first.json["job"])
+
+        # And the claim is released afterwards, or nothing ever runs again.
+        third = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/03.mp3", "track": 3}]})
+        assert third.status_code == 200
+        await_job(api, third.json["job"])
 
 
 class TestJobs:

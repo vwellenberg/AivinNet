@@ -49,7 +49,7 @@ GUARDED_ROUTES = [
     ("PUT", f"/track/{TRACK_HASH}/tags", {"title": "renamed"}),
     ("POST", "/metadata/album/candidates", {"albumhash": ALBUM_HASH}),
     ("POST", "/metadata/album/preview", {"albumhash": ALBUM_HASH, "mbid": "0f1e2d3c"}),
-    ("POST", "/metadata/album/apply", {"changes": [{"trackhash": TRACK_HASH, "track": 3}]}),
+    ("POST", "/metadata/album/apply", {"changes": [{"filepath": "/music/x.mp3", "track": 3}]}),
     # The job slot is guarded too: a preview holds the absolute file paths of
     # the library, and an id is only as private as the guess that finds it.
     ("GET", "/metadata/job/deadbeef", None),

@@ -31,7 +31,7 @@ from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
 from aivinnet.lib import filename_meta, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
-from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags
+from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
@@ -194,6 +194,9 @@ def _preview(albumhash: str, mbid: str | None, source: str = MUSICBRAINZ) -> dic
     if source == FILENAMES:
         return _preview_from_filenames(albumhash)
 
+    # Read once. Two reads of a mutable global can disagree — the rows would
+    # then come from one version of the album and the ordering note from
+    # another.
     local = _local_tracks(albumhash)
     remote = fetch_release_tracks(mbid or "")
 
@@ -243,7 +246,7 @@ def _preview(albumhash: str, mbid: str | None, source: str = MUSICBRAINZ) -> dic
             # Worth saying out loud in the UI: with every file numbered the
             # same, the order comes from the file paths, and that is a guess
             # the person should get to sanity-check.
-            "ordered_by_filepath": track_numbers_are_useless(_local_tracks(albumhash)),
+            "ordered_by_filepath": track_numbers_are_useless(local),
         },
     }
 
@@ -274,7 +277,13 @@ def album_preview(body: AlbumPreviewBody):
 
 
 class TrackChange(BaseModel):
-    trackhash: str = Field(..., description="The track to change")
+    # ⚠️ The FILE, not the trackhash. A trackhash is derived from
+    # title/album/artists and is therefore not unique: an album whose files all
+    # say "Track 1" has exactly ONE of them, so a batch addressed by hash would
+    # hand N different titles to `get_best()` and let it decide which file gets
+    # which. That is the very shape of album this feature exists to repair.
+    # A path is unique and does not move when tags change.
+    filepath: str = Field(..., description="The file to change")
     title: str | None = Field(None, description="New track title")
     track: int | None = Field(None, description="New track number", ge=0)
     disc: int | None = Field(None, description="New disc number", ge=0)
@@ -284,28 +293,37 @@ class AlbumApplyBody(BaseModel):
     changes: list[TrackChange] = Field(..., description="Exactly the changes the user confirmed")
 
 
+# INFO: One apply at a time, server-wide. A second one is not a slower version
+# of the first: both threads walk `edit_track_tags_by_filepath`, which rewrites
+# the album and artist maps, and the later one finds tracks whose hashes the
+# earlier already changed — so a double-click reports half an album as failed
+# while it actually succeeded. The cover batch next door guards the same way.
+_apply_lock = threading.Lock()
+_applying = False
+
+
 def _apply(changes: list[TrackChange]) -> dict:
     applied = []
     failed = []
 
     for change in changes:
         fields = change.model_dump(exclude_none=True)
-        fields.pop("trackhash", None)
+        fields.pop("filepath", None)
         if not fields:
             continue
 
         try:
-            track = edit_track_tags(change.trackhash, fields)
+            track = edit_track_tags_by_filepath(change.filepath, fields)
         except TrackNotFoundError:
-            failed.append({"trackhash": change.trackhash, "error": "Track not found"})
+            failed.append({"filepath": change.filepath, "error": "Track not found"})
             continue
         except TrackEditError as e:
-            failed.append({"trackhash": change.trackhash, "error": str(e)})
+            failed.append({"filepath": change.filepath, "error": str(e)})
             continue
 
         # The hash changes whenever the title did, so the client needs the new
         # one to keep talking about the same track.
-        applied.append({"trackhash": change.trackhash, "new_trackhash": track.trackhash})
+        applied.append({"filepath": change.filepath, "new_trackhash": track.trackhash})
 
     return {"applied": applied, "failed": failed}
 
@@ -323,13 +341,31 @@ def album_apply(body: AlbumApplyBody):
 
     Returns a job id immediately; poll `/metadata/job/<job_id>`.
     """
+    global _applying
+
     if not body.changes:
         return {"error": "Nothing to apply"}, 400
 
+    with _apply_lock:
+        if _applying:
+            return {"error": "An apply is already running"}, 409
+        _applying = True
+
     changes = list(body.changes)
     job_id = mbjobs.create()
-    _spawn(job_id, lambda: _apply(changes), writes=True)
+    _spawn(job_id, lambda: _run_apply(changes), writes=True)
     return {"job": job_id}
+
+
+def _run_apply(changes: list[TrackChange]) -> dict:
+    """The worker: releases the claim whatever happens, or nothing runs again."""
+    global _applying
+
+    try:
+        return _apply(changes)
+    finally:
+        with _apply_lock:
+            _applying = False
 
 
 class JobPath(BaseModel):
