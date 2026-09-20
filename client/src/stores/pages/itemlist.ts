@@ -46,25 +46,39 @@ const state = () => {
     async function getAlbums(start: number) {
         if (!canFetch.value) return
 
+        // Nothing left to ask for. The fetcher stays mounted at the end of the
+        // list, so without this every return to the bottom spent a whole chain
+        // of requests on pages past the collection (#142).
+        if (total.value && start >= total.value) return
+
         canFetch.value = false
 
-        const res = await useAxios({
-            url:
-                (router.currentRoute.value.name == Routes.AlbumList
-                    ? paths.api.getall.albums
-                    : paths.api.getall.artists) +
-                `?start=${start}&limit=${pageSize}&sortby=${sortby.value}&reverse=${reverse_string.value}`,
-            method: 'GET',
-        })
+        try {
+            const res = await useAxios({
+                url:
+                    (router.currentRoute.value.name == Routes.AlbumList
+                        ? paths.api.getall.albums
+                        : paths.api.getall.artists) +
+                    `?start=${start}&limit=${pageSize}&sortby=${sortby.value}&reverse=${reverse_string.value}`,
+                method: 'GET',
+            })
 
-        const { data } = res
-        if (!total.value) {
-            total.value = data.total
+            // ⚠️ `useAxios` RESOLVES on failure — it returns `{ error, data:
+            // undefined }`. Reading `data.total` off that threw a TypeError
+            // past the `canFetch = true` line, so one dropped request left the
+            // flag false and the list refused to load anything ever again.
+            if (res.error || !res.data) return
+
+            const { data } = res
+            if (!total.value) {
+                total.value = data.total
+            }
+
+            items.value.push(...data.items)
+            latestIndex += pageSize
+        } finally {
+            canFetch.value = true
         }
-
-        items.value.push(...data.items)
-        latestIndex += pageSize
-        canFetch.value = true
     }
 
     function getMoreAlbums() {

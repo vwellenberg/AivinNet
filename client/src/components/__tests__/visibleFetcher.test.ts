@@ -171,6 +171,31 @@ describe("the fetcher loads when it becomes visible", () => {
         release();
     });
 
+    it("keeps the trigger alive when a page fails", async () => {
+        withObserver();
+        // `useAxios` resolves on failure, so the throw happens one frame deeper
+        // in the caller (`data.total` on undefined). Either way it arrives here
+        // as a rejected callback.
+        const fetch_callback = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError("Cannot read properties of undefined"))
+            .mockResolvedValue(undefined);
+
+        mount(AlbumsFetcher, { props: { fetch_callback, outside_route: true } });
+        const observer = observers[0];
+
+        observer.fire(true);
+        await settle();
+
+        // Uncaught, the rejection would have skipped the re-observe below and
+        // the list would have stood still with nothing on screen to say why.
+        expect(observer.observed).toBe(2);
+
+        observer.fire(true);
+        await settle();
+        expect(fetch_callback).toHaveBeenCalledTimes(2);
+    });
+
     it("stops observing when it goes away", async () => {
         withObserver();
         const fetch_callback = vi.fn().mockResolvedValue(undefined);
@@ -208,9 +233,26 @@ describe("the hosts give their fetcher a stable identity", () => {
 
             // `items.push({ … id: Math.random() … })` — the identity of the
             // entry that renders the fetcher.
+            //
+            // ⚠️ The end of the entry is found by BALANCING BRACES, not by
+            // looking for `});`: three of the five hosts are written without
+            // semicolons, so that delimiter never matched and the "entry" ran
+            // to the end of the file — passing only because no unrelated
+            // random id happened to sit further down.
             for (const block of source.split("items.push({").slice(1)) {
-                const entry = block.split("});")[0];
-                if (/id:\s*Math\.random\(\)/.test(entry)) offenders.push(path);
+                let depth = 1;
+                let end = block.length;
+                for (let i = 0; i < block.length; i += 1) {
+                    if (block[i] === "{") depth += 1;
+                    else if (block[i] === "}") {
+                        depth -= 1;
+                        if (depth === 0) {
+                            end = i;
+                            break;
+                        }
+                    }
+                }
+                if (/id:\s*Math\.random\(\)/.test(block.slice(0, end))) offenders.push(path);
             }
         }
 

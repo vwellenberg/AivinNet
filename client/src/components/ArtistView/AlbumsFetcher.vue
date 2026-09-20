@@ -63,21 +63,31 @@ async function loadOnce() {
   busy = true;
   try {
     await props.fetch_callback();
+  } catch (error) {
+    // ⚠️ A failing callback must not take the trigger with it. `useAxios`
+    // resolves rather than rejects, so a dropped request reaches its caller as
+    // `data: undefined` and throws there (a TypeError, one frame further in) —
+    // and an uncaught one here would skip the re-arm below and leave the list
+    // standing still, with nothing on screen to say why.
+    console.error("Fetching the next page failed", error);
   } finally {
     busy = false;
   }
 }
 
-async function onVisible() {
-  if (busy) return;
-  await loadOnce();
-
+async function rearm() {
   // Still in view (see ⚠️ 1)? Re-observing hands us the current state again.
   if (chained < CHAIN_LIMIT && observer && sentinel.value) {
     chained += 1;
     observer.unobserve(sentinel.value);
     observer.observe(sentinel.value);
   }
+}
+
+async function onVisible() {
+  if (busy) return;
+  await loadOnce();
+  await rearm();
 }
 
 onMounted(() => {
@@ -116,5 +126,12 @@ onBeforeUnmount(() => {
   onBeforeRouteUpdate(() => {
     if (!props.reset_callback) return;
     props.reset_callback();
+
+    // ⚠️ A route update REUSES this instance (that is what the guard is for),
+    // so the chain budget would carry over from the previous artist or album.
+    // Spent budget plus a sentinel that never left the viewport = a second page
+    // that never arrives. The new list is a new reader question; re-arm for it.
+    chained = 0;
+    rearm();
   });
 </script>
