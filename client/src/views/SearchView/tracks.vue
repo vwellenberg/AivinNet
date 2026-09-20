@@ -73,8 +73,8 @@ const scrollerItems = computed(() => {
 
     if (search.tracks.more) {
         items.push({
-            // set to random to force re-render
-            id: Math.random(),
+            // Stable (#142) — see AlbumsFetcher: visibility triggers the next page.
+            id: 'search-tracks-fetcher',
             component: AlbumsFetcher,
             props: {
                 fetch_callback: search.loadTracks,
