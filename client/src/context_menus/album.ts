@@ -4,6 +4,7 @@ import useTracklist from '@/stores/queue/tracklist'
 import { getAlbumTracks } from '@/requests/album'
 import { addAlbumToPlaylist } from '@/requests/playlists'
 import { removeAlbumCover, uploadAlbumCover } from '@/requests/coverart'
+import { fetchCoverFromMusicBrainz } from '@/requests/musicbrainz'
 import { NotifType, Notification } from '@/stores/notification'
 import { toggleAlbumPin } from '@/helpers/pinAlbum'
 import { downloadTracksIndividually } from '@/helpers/downloadTracks'
@@ -163,6 +164,29 @@ export default async (album?: Album) => {
         icon: DeleteIcon,
     }
 
+    // The automatic counterpart to `find_cover_online` above: that one opens a
+    // gallery to pick from, this one searches and decides on its own, and only
+    // accepts a match it can verify. It lived in the album header until #226,
+    // as a magnifier one row away from the OTHER magnifier in this menu — two
+    // identical glyphs for two different actions, which is a coin toss. Here
+    // the two sit together and their labels do the distinguishing.
+    const fetch_cover_auto = <Option>{
+        label: 'Fetch cover automatically',
+        action: async () => {
+            if (!album.albumhash) return
+
+            const res = await fetchCoverFromMusicBrainz(album.albumhash)
+            if (res.success) {
+                albumStore.bumpCoverVersion()
+                new Notification('Cover found', NotifType.Success)
+                return
+            }
+
+            new Notification(res.error || 'No cover found online', NotifType.Error)
+        },
+        icon: SearchIcon,
+    }
+
     // ⚠️ Titles and numbers, NOT the cover — and deliberately a separate entry
     // rather than a second job for "Find cover online". They fail differently:
     // a wrong cover is one picture to replace, a wrong track list is rewritten
@@ -196,7 +220,7 @@ export default async (album?: Album) => {
     // rejects all three with 403 for a non-admin since AivinNet#105, so offering
     // them here would only produce an error toast.
     if (loggedInUserIsAdmin()) {
-        options.push(find_cover_online, upload_cover, remove_cover, fetch_metadata)
+        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata)
     }
 
     options.push(download_album, download_tracks, get_find_on_social('album', '', album))

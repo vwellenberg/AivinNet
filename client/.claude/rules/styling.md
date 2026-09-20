@@ -907,6 +907,48 @@ Sechs Dinge, die dabei mit hochkamen:
   Ein Parameter für die Glyph-*Farbe* heißt `$glyph-color`, sonst emittiert der nächste Aufrufer
   `color: 1rem` — vom Browser wortlos verworfen.
 
+## ⚠️ Ein `<button>` als Grid-Container zentriert seine SPUR
+
+`display: grid` auf einem `<button>` verhält sich nicht wie auf einem `<div>`: Das
+UA-Stylesheet zentriert die Tracks. Eine `auto`-Spalte ist damit nur so breit wie ihre eigene
+längste Zeile und sitzt danach **mittig** in der Platte — `width: 100%` ändert daran nichts, das
+setzt den *Container*, nicht die Spur darin.
+
+Sichtbar wird es erst im Vergleich zweier Platten mit **unterschiedlich langem** Text, und dann
+liest es sich als Ausrichtungsfehler statt als Zentrierung. Gemessen an den beiden Quellen-Knöpfen
+des Metadaten-Dialogs (#226):
+
+| | Platte | Label | gerendert |
+|---|---|---|---|
+| „Look it up online" | 640 px | 199 px | zentriert → sieht zentriert aus |
+| „Read the file names" | 640 px | 364 px | zentriert → sieht linksbündig aus |
+
+Gemeldet wurde das wörtlich als „das eine ist weiter links orientiert, das andere zentral" — und
+genau so steht es auch im Quelltext, der `text-align: left` sagt und recht behält: Der Text *ist*
+linksbündig, nur eben innerhalb einer zu schmalen, mittig sitzenden Spur.
+
+**Also eine explizite Spur deklarieren** (`grid-template-columns: 1fr`, oder `1fr max-content` für
+ein angehängtes Etikett). Ein `1fr`-Track schluckt den freien Platz, und die Frage, wo der
+Container ihn ausrichtet, stellt sich nicht mehr. Festgehalten in `typeScale.test.ts`.
+
+## ⚠️ `$small` ist ein Abstand, keine Schriftgröße
+
+`$smaller` · `$small` · `$medium` · `$large` sind 0,25 / 0,5 / 0,75 / 1,5 rem — **Gaps und
+Paddings**. Die Namen lesen sich wie eine Typo-Skala, und `font-size: $small` kompiliert
+anstandslos zu **8 px**: halb so groß wie der Fließtext und kleiner als alles andere in der App.
+
+Der Fehler ist in der Datei, die ihn macht, unsichtbar — `font-size: $small` neben `gap: $small`
+und `padding: $small` sieht nach *einer* konsequent benutzten Skala aus. Lint, Typecheck und Build
+sagen nichts, und im Screenshot ist es eine kleine graue Zeile, also genau das, wonach ein
+Untertitel aussehen soll.
+
+⚠️ **`$medium` ist davon ausgenommen, und das ist ein Befund, keine Nachlässigkeit.** Die erste
+Fassung des Zensus verbot alle vier Token und fand **neun** bestehende Komponenten mit
+`font-size: $medium` (Disc-Leiste, Player-Bar, Ordner-Zeile, Seek-Bar, Now-Playing-Kopf,
+Settings-Liste, Dropdown, Track-Dauer). 0,75 rem sind 12 px, das ist lesbar, und neun Dateien, die
+sich einig sind, sind eine Konvention. Die Grenze läuft dort, wo Text aufhört lesbar zu sein —
+nicht dort, wo die Benennung aufhört, sauber zu sein.
+
 ## ⚠️ `aspect-ratio` braucht eine Dimension zum Auflösen
 
 `aspect-ratio: 1.5` allein ergibt nichts — es braucht Höhe **oder** Breite. Früher kam die Höhe
