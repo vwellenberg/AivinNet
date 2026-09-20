@@ -66,8 +66,16 @@ interface Job<T> {
     error: string | null
 }
 
-/** How long to wait for a worker before giving up on it. */
-const POLL_TIMEOUT_MS = 30_000
+// TWO ceilings, because the two jobs are nothing alike.
+//
+// A lookup is one throttled HTTP call and answers in seconds. A write walks
+// EVERY selected file: back it up, rewrite its tags, reindex it, reconcile the
+// album and artist maps, migrate the references. The album this was built for
+// has 94 of them. Under one ceiling the write reported a timeout while the
+// server was still rewriting the library, and the natural retry hit the
+// server's "an apply is already running" guard and read as a second failure.
+const LOOKUP_TIMEOUT_MS = 30_000
+const WRITE_TIMEOUT_MS = 15 * 60_000
 const POLL_INTERVAL_MS = 400
 
 async function start(url: string, props: object): Promise<{ job: string | null; error: string | null }> {
@@ -83,30 +91,37 @@ async function start(url: string, props: object): Promise<{ job: string | null; 
  * — without a ceiling the dialog would spin for ever with no way to tell the
  * two apart.
  */
-export async function pollJob<T>(jobId: string): Promise<{ result: T | null; error: string | null }> {
-    const deadline = Date.now() + POLL_TIMEOUT_MS
+export async function pollJob<T>(
+    jobId: string,
+    { timeout = LOOKUP_TIMEOUT_MS, what = 'lookup' }: { timeout?: number; what?: string } = {}
+): Promise<{ result: T | null; error: string | null }> {
+    const deadline = Date.now() + timeout
 
     while (Date.now() < deadline) {
         const { data, status } = await useAxios({ url: `/metadata/job/${jobId}`, method: 'GET' })
 
         if (status !== 200) {
-            return { result: null, error: (data?.error as string) || 'The lookup was lost' }
+            return { result: null, error: (data?.error as string) || `The ${what} was lost` }
         }
 
         const job = data as Job<T>
         if (job.state === 'done') return { result: job.result, error: null }
-        if (job.state === 'error') return { result: null, error: job.error || 'The lookup failed' }
+        if (job.state === 'error') return { result: null, error: job.error || `The ${what} failed` }
 
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
     }
 
-    return { result: null, error: 'The lookup took too long' }
+    return { result: null, error: `The ${what} took too long` }
 }
 
-async function run<T>(url: string, props: object): Promise<{ result: T | null; error: string | null }> {
+async function run<T>(
+    url: string,
+    props: object,
+    options: { timeout?: number; what?: string } = {}
+): Promise<{ result: T | null; error: string | null }> {
     const { job, error } = await start(url, props)
-    if (!job) return { result: null, error: error || 'Could not start the lookup' }
-    return pollJob<T>(job)
+    if (!job) return { result: null, error: error || `Could not start the ${options.what || 'lookup'}` }
+    return pollJob<T>(job, options)
 }
 
 export function fetchReleaseCandidates(albumhash: string) {
@@ -124,6 +139,7 @@ export function fetchPreview(albumhash: string, source: MetadataSource, mbid?: s
 export function applyChanges(changes: TrackChange[]) {
     return run<{ applied: { filepath: string; new_trackhash: string }[]; failed: { filepath: string; error: string }[] }>(
         '/metadata/album/apply',
-        { changes }
+        { changes },
+        { timeout: WRITE_TIMEOUT_MS, what: 'write' }
     )
 }

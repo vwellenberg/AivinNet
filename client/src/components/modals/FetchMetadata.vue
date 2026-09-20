@@ -67,26 +67,38 @@
             </p>
 
             <div class="table rounded-sm">
-                <div v-for="(row, index) in rows" :key="index" class="row" :class="{ skip: !row.proposed }">
+                <div v-for="(row, index) in rows" :key="index" class="row" :class="{ skip: !isWritable(row) }">
                     <input
-                        v-if="row.proposed && row.current"
+                        v-if="isWritable(row)"
                         :id="`meta-row-${index}`"
                         v-model="checked[index]"
                         type="checkbox"
                     />
                     <span v-else class="nobox" aria-hidden="true"></span>
 
-                    <label class="cell now" :for="`meta-row-${index}`">
+                    <!-- ⚠️ A `for=` on a row that renders no checkbox points at
+                         nothing, while the cell keeps its pointer cursor: it
+                         looks clickable and does nothing. Only a writable row
+                         gets labels. -->
+                    <component
+                        :is="isWritable(row) ? 'label' : 'span'"
+                        class="cell now"
+                        :for="labelFor(row, index)"
+                    >
                         <span class="num">{{ row.current?.track ?? '–' }}</span>
                         <span class="title ellip">{{ row.current?.title ?? '— not in the library —' }}</span>
-                    </label>
+                    </component>
 
                     <span class="arrow" aria-hidden="true">→</span>
 
-                    <label class="cell next" :for="`meta-row-${index}`">
+                    <component
+                        :is="isWritable(row) ? 'label' : 'span'"
+                        class="cell next"
+                        :for="labelFor(row, index)"
+                    >
                         <span class="num">{{ row.proposed?.track ?? row.current?.track ?? '–' }}</span>
                         <span class="title ellip">{{ row.proposed?.title ?? '— no proposal —' }}</span>
-                    </label>
+                    </component>
 
                     <span v-if="row.delta !== null" class="delta" :class="{ off: !row.confident }">
                         {{ row.confident ? '✓' : `${Math.round(row.delta)}s off` }}
@@ -116,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 
 import {
     applyChanges,
@@ -129,6 +141,7 @@ import {
     TrackChange,
 } from '@/requests/metadata'
 import useAlbumStore from '@/stores/pages/album'
+import useModal from '@/stores/modal'
 import { Notification, NotifType } from '@/stores/notification'
 
 import Spinner from '@/components/shared/Spinner.vue'
@@ -158,6 +171,7 @@ emit('setTitle', 'Fetch titles & numbers')
 type Step = 'source' | 'candidates' | 'preview'
 
 const albumStore = useAlbumStore()
+const modal = useModal()
 
 const step = ref<Step>('source')
 const busy = ref(false)
@@ -169,21 +183,43 @@ const summary = ref<PreviewSummary | null>(null)
 const checked = ref<boolean[]>([])
 const cameFrom = ref<MetadataSource>('musicbrainz')
 
-/** Rows that could actually be written: both a file and a proposal. */
-const changeableRows = computed(() => rows.value.filter(row => row.current && row.proposed))
+/** A row is writable when it has both a file to write to and something to write. */
+const isWritable = (row: PreviewRow) => !!row.current && !!row.proposed
+const labelFor = (row: PreviewRow, index: number) => (isWritable(row) ? `meta-row-${index}` : undefined)
+
+const changeableRows = computed(() => rows.value.filter(isWritable))
 const checkedCount = computed(() => checked.value.filter(Boolean).length)
 
-async function guard<T>(work: () => Promise<{ result: T | null; error: string | null }>) {
+/**
+ * Run one step, with the dialog in its busy state.
+ *
+ * ⚠️ `isWrite` locks the modal. The host dismisses on a backdrop click, on
+ * Escape and on Back, and during a LOOKUP that is harmless — nothing has
+ * changed and the job is forgotten. During a write it is not: the worker keeps
+ * rewriting the files, but the component that would report how many succeeded
+ * and refresh the page showing the old titles is gone, so the outcome reaches
+ * nobody. The lock is released in the `finally`, including when the poll gives
+ * up.
+ */
+async function guard<T>(work: () => Promise<{ result: T | null; error: string | null }>, isWrite = false) {
     busy.value = true
     error.value = ''
+    if (isWrite) modal.setLocked(true)
+
     try {
         const { result, error: failure } = await work()
         if (failure) error.value = failure
         return result
     } finally {
         busy.value = false
+        if (isWrite) modal.setLocked(false)
     }
 }
+
+// A component can be torn down by something other than its own code path
+// (a route change, a reload of the modal host). Leaving the lock set would
+// make every later modal in this session undismissable.
+onUnmounted(() => modal.setLocked(false))
 
 async function loadCandidates() {
     const result = await guard(() => fetchReleaseCandidates(props.albumhash))
@@ -204,7 +240,7 @@ function intoPreview(result: { rows: PreviewRow[]; summary?: PreviewSummary; err
     cameFrom.value = source
     // Pre-tick only what the server is sure about. A row that is 40 seconds off
     // is exactly the one a person should have to look at and decide on.
-    checked.value = result.rows.map(row => !!row.current && !!row.proposed && row.confident)
+    checked.value = result.rows.map(row => isWritable(row) && row.confident)
     step.value = 'preview'
 }
 
@@ -221,7 +257,7 @@ async function previewFilenames() {
     // The file names make no claim about identity, so nothing is pre-ticked by
     // confidence. Tick every row that has a proposal instead — the person is
     // looking at their own file names, which is evidence enough to start from.
-    checked.value = result.rows.map(row => !!row.current && !!row.proposed)
+    checked.value = result.rows.map(isWritable)
 }
 
 function back() {
@@ -249,7 +285,7 @@ async function apply() {
         return
     }
 
-    const result = await guard(() => applyChanges(changes))
+    const result = await guard(() => applyChanges(changes), true)
     if (!result) return
 
     if (result.failed.length) {

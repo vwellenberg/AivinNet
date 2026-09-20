@@ -10,7 +10,7 @@
                 authlogin: modal.component == modal.options.login,
             }"
             :style="{
-                maxWidth: modal.component == modal.options.setRootDirs ? '56rem' : '30rem',
+                maxWidth: modalWidth,
             }"
         >
             <!-- TODO: MOVE MAX WIDTH TO CLASS -->
@@ -76,7 +76,7 @@ import { deletePlaylist as delPlaylist } from '@/requests/playlists'
 import useModalStore, { ModalOptions } from '@/stores/modal'
 import usePlaylistsStore from '@/stores/pages/playlists'
 import { useRouter } from 'vue-router'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 import AuthLogin from './modals/AuthLogin.vue'
 import ConfirmModal from './modals/ConfirmModal.vue'
@@ -101,6 +101,16 @@ const router = useRouter()
 // backdrop) we pop our own entry so history stays clean. `pushed` guards against
 // double-pushes and feedback loops. The login modal is intentionally excluded —
 // it must not be dismissable.
+// The default column is 30rem. Two modals outgrow it: the directory browser,
+// and the metadata preview — its rows are three columns of track titles, and at
+// 30rem they truncate to "Building Blacks…", which is where a comparison of old
+// against new stops being one.
+const modalWidth = computed(() => {
+    if (modal.component == ModalOptions.setRootDirs) return '56rem'
+    if (modal.component == ModalOptions.fetchMetadata) return '44rem'
+    return '30rem'
+})
+
 let pushed = false
 const isBackDismissable = () => modal.visible && modal.component !== ModalOptions.login
 
@@ -122,6 +132,13 @@ function onPopState() {
         // Back consumed our pushed entry; just close the modal (don't re-pop).
         pushed = false
         modal.hideModal()
+
+        // Refused (a write is running): put the entry back, or the NEXT Back
+        // press would navigate the app away from a modal that is still open.
+        if (modal.visible) {
+            history.pushState({ aivinnetModal: true }, '')
+            pushed = true
+        }
     }
 }
 
