@@ -2,9 +2,13 @@
     <div v-if="album_disc.is_album_disc_number" class="album_disc_header no-select">
         <div class="disc_number">
             Disc {{ album_disc.album_page_disc_number }}
-            <span @click="$emit('playDisc', album_disc.album_page_disc_number || 0)" class="play">
-                <PlaySvg /> Play Disc {{ album_disc.album_page_disc_number }}</span
+            <button
+                type="button"
+                class="play"
+                @click="$emit('playDisc', album_disc.album_page_disc_number || 0)"
             >
+                <PlaySvg /> Play Disc {{ album_disc.album_page_disc_number }}
+            </button>
         </div>
         <div class="play"></div>
     </div>
@@ -45,6 +49,12 @@ defineEmits<{
     }
 
     .play {
+        // Restated for the <button> (#137).
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        font: inherit;
+        padding: 0;
         margin-left: $small;
         opacity: 0;
         cursor: pointer;
@@ -65,6 +75,13 @@ defineEmits<{
         .play {
             opacity: 1;
         }
+    }
+
+    // ⚠️ A control that is `opacity: 0` until hover becomes a TRAP once it is a
+    // real button: the keyboard can focus it while nothing is drawn. It shows
+    // itself on focus too (#137).
+    .play:focus-visible {
+        opacity: 1;
     }
 
     // Touch devices can't hover — keep "Play Disc" reachable (it's the only

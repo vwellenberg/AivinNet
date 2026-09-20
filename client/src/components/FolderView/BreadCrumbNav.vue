@@ -1,15 +1,19 @@
 <template>
     <div class="breadcrumb-nav">
-        <div
+        <!-- A crumb navigates, so it is a button (#137). The inner <a> has no
+             href and is a style hook only, so it stays out of the tab order. -->
+        <button
             v-for="path in props.subPaths ? props.subPaths : localSubPaths"
             :key="path.path"
+            type="button"
             class="path"
             :class="{ inthisfolder: path.active }"
+            :aria-current="path.active ? 'location' : undefined"
             @click.prevent="$emit('navigate', path.path)"
         >
             <a class="text">{{ path.name }}</a>
             <!-- 👆 the a tag was misused to avoid rewriting css after moving this code to a component -->
-        </div>
+        </button>
     </div>
 </template>
 
@@ -75,6 +79,11 @@ onMounted(() => {
     gap: $smaller;
 
     .path {
+        // Restated for the <button> (#137).
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        font: inherit;
         white-space: nowrap;
         margin: auto 0;
         cursor: pointer;

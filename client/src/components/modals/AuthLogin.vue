@@ -47,9 +47,10 @@
                 <button class="submit btn-pill" :class="{ long: selected.username !== '' }">Login</button>
             </form>
         </div>
-        <div v-if="guestAllowed" class="guestlink" @click="() => guestLogin()">
+        <!-- A second way to log in, so a real control (#137). -->
+        <button v-if="guestAllowed" type="button" class="guestlink" @click="() => guestLogin()">
             <span>Or continue as guest </span>
-        </div>
+        </button>
     </div>
 </template>
 
@@ -148,6 +149,12 @@ onMounted(async () => {
     }
 
     .guestlink {
+        // Restated for the <button> (#137).
+        width: 100%;
+        background-color: transparent;
+        border: none;
+        color: inherit;
+        font: inherit;
         padding: 1rem;
         width: fit-content;
         margin: 0 auto;

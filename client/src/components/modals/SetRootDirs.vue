@@ -2,7 +2,7 @@
   <br /><br />
   <div style="position: relative">
     <div id="bread-nav" class="bread-nav rounded-sm">
-      &nbsp;&nbsp;<span @click="fetchDirs('$root')">$root</span>&nbsp;&nbsp;<BreadCrumbNav
+      &nbsp;&nbsp;<button type="button" class="root-crumb" @click="fetchDirs('$root')">$root</button>&nbsp;&nbsp;<BreadCrumbNav
         :sub-paths="subPaths"
         @navigate="fetchDirs"
       />
@@ -123,6 +123,17 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
+// The `$root` crumb is a button now (#137); as a <span> it inherited
+// everything, so the inherited look is restated rather than invented.
+.root-crumb {
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
 .bread-nav {
   background-color: $candy-pink;
   border: $candy-border;

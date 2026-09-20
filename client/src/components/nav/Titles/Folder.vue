@@ -1,8 +1,12 @@
 <template>
     <div id="folder-nav-title">
         <div class="fname">
-            <div
+            <!-- Navigates to the root folder: a control with a name, since a
+                 folder glyph says nothing on its own (#137). -->
+            <button
+                type="button"
                 class="icon"
+                aria-label="Go to the top folder"
                 @click="
                     $router.push({
                         name: Routes.folder,
@@ -11,7 +15,7 @@
                 "
             >
                 <FolderSvg />
-            </div>
+            </button>
             <BreadCrumbNav @navigate="navigate" />
         </div>
         <!-- Two controls, not one grouped control: folders and tracks have
@@ -147,6 +151,12 @@ const currentFolderSort = computed(() => {
         -webkit-overflow-scrolling: touch;
 
         .icon {
+            // Restated for the <button> (#137).
+            background-color: transparent;
+            border: none;
+            color: inherit;
+            font: inherit;
+            padding: 0;
             aspect-ratio: 1;
             margin: 0 $small;
             display: flex;

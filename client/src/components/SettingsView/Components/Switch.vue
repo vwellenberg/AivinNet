@@ -1,7 +1,10 @@
 <template>
-  <div class="switch rounded" :class="{ toggled: state }">
+  <!-- A real button with the switch role (#137). It was a <div>, so the whole
+       settings panel could be read but not operated from the keyboard; the
+       host passes the click and the label through (fallthrough attrs). -->
+  <button type="button" role="switch" :aria-checked="!!state" class="switch rounded" :class="{ toggled: state }">
     <div class="circle circular"></div>
-  </div>
+  </button>
 </template>
 
 <script setup lang="ts">
@@ -16,6 +19,11 @@ defineProps<{
 // — the two things "es fehlen Schatten" pointed at, and the only 1px strokes
 // left in this panel.
 .switch {
+  // Was a <div>; as a button the base reset would drop the padding and the
+  // inline-flex layout it needs, so both are restated here. The frame, fill and
+  // knob below are unchanged.
+  display: block;
+  padding: 0;
   height: 1.875rem;
   width: 3.25rem;
   background-color: $candy-pink-soft;

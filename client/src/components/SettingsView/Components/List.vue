@@ -7,9 +7,11 @@
                     {{ i.title }}
                 </div>
             </div>
-            <div class="icon" @click="i.action">
+            <!-- A <button> with a name (#137): as a div this was neither
+                 reachable nor announced, and "remove" is not a thing to guess. -->
+            <button type="button" class="icon" :aria-label="`Remove ${i.title}`" @click="i.action">
                 <DeleteSvg />
-            </div>
+            </button>
         </div>
         <div v-if="!items.length" class="option-list-item" style="opacity: 0.5">
             Root directories not configured. Use the "Configure" button above to configure
