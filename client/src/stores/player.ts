@@ -578,9 +578,8 @@ export const usePlayer = defineStore('player', () => {
         audioElem.onended = null
         audioElem.onplay = null
         audioElem.ontimeupdate = null
-
-        // removes listener added in stores/tracker.ts
-        audioElem.removeEventListener('timeupdate', () => {})
+        // The play tracker's own timeupdate listener stays: it is wired once
+        // per element (stores/tracker.ts) and follows whichever one is playing.
     }
 
     assignEventHandlers(audio)
