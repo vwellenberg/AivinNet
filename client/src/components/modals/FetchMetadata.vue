@@ -409,7 +409,7 @@ async function apply() {
             padding: $smaller $small;
 
             &:not(:last-child) {
-                border-bottom: 1px solid $mem-line;
+                border-bottom: $mem-hairline;
             }
 
             &.skip {

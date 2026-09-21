@@ -64,7 +64,7 @@ $about-step: 1rem;
         font-size: 0.85rem;
         opacity: 0.55;
         margin-bottom: $small;
-        border-bottom: solid 1px $separator;
+        border-bottom: solid $mem-hairline-w $separator;
         padding-bottom: 1rem;
     }
 

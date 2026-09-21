@@ -32,7 +32,7 @@
 
     background-color: $candy-pink-deep;
     color: $mem-ink;
-    border: 1px solid $mem-line;
+    border: $mem-hairline;
 
     padding: $smaller;
     margin-bottom: $small;

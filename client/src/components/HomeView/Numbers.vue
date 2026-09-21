@@ -47,7 +47,7 @@ function parseCount() {
     font-weight: bolder;
     display: flex;
     flex-direction: column;
-    border-right: solid 1px $gray5;
+    border-right: solid $mem-hairline-w $gray5;
     padding-right: 1rem;
 
     .text {

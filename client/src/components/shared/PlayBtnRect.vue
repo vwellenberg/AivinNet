@@ -2,7 +2,7 @@
     <!-- Primary "Play" CTA: a bold teal memphis button with a subtle sprinkle
          texture and ink label + glyph, one consistent look on every header. -->
     <button
-        class="playbtnrect shadow-sm circular btn-active"
+        class="playbtnrect shadow-md circular btn-active"
         @click="playFrom(source)"
     >
         <playBtnSvg />

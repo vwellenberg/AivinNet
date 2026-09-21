@@ -150,7 +150,7 @@ button {
 }
 
 .separator {
-  border-top: 1px $separator solid;
+  border-top: $mem-hairline-w solid $separator;
   color: transparent;
   margin: $small 0 $small 0;
   opacity: 1;
@@ -248,7 +248,7 @@ button {
   opacity: 1;
   padding: 0 $smaller;
   border-radius: $candy-radius-pill;
-  border: 1px solid $mem-line;
+  border: $mem-hairline;
   background-color: $candy-lavender;
   color: $mem-ink;
   font-size: 12px !important;

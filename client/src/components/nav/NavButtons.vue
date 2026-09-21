@@ -19,7 +19,7 @@ import ArrowSvg from '../../assets/icons/right-arrow.svg'
     grid-template-columns: 1fr 1fr;
     gap: $medium;
     padding-right: 1rem;
-    border-right: 1px solid $gray5;
+    border-right: $mem-hairline-w solid $gray5;
     height: max-content;
 
     & > * {
@@ -32,7 +32,7 @@ import ArrowSvg from '../../assets/icons/right-arrow.svg'
         padding: 0;
         border-radius: 5rem;
         background-color: transparent;
-        border: 1px solid $gray5;
+        border: $mem-hairline-w solid $gray5;
 
         &:hover {
             background-color: $gray4;

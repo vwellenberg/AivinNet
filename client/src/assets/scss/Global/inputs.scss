@@ -14,7 +14,7 @@ input[type='number'] {
     padding: 4px 5px;
     border-radius: 3px;
     background-color: $candy-pink-soft;
-    border: 1px solid $mem-line;
+    border: $mem-hairline;
 }
 
 input[type='search'] {

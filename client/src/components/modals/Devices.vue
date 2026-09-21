@@ -383,7 +383,7 @@ async function playHereOnly() {
             flex: 1 1 100%;
             min-width: 0;
             padding-top: $small;
-            border-top: 1px solid rgba(125, 125, 125, 0.25);
+            border-top: $mem-hairline-w solid rgba(125, 125, 125, 0.25);
 
             label {
                 display: flex;

@@ -260,7 +260,7 @@ onMounted(async () => {
     .asettings {
         margin: 0 0 1rem 0;
         padding-bottom: 1rem;
-        border-bottom: solid 1px $separator;
+        border-bottom: solid $mem-hairline-w $separator;
     }
 
     .ahead {
@@ -342,7 +342,7 @@ onMounted(async () => {
         padding-bottom: 1rem;
 
         .usettins {
-            border-top: solid 1px $separator;
+            border-top: solid $mem-hairline-w $separator;
         }
     }
 

@@ -78,7 +78,7 @@ defineEmits<{
       z-index: 20;
       border: $candy-border;
       border-radius: $candy-radius-sm;
-      @include candy-shadow(2px, 3px);
+      @include candy-shadow(3px, 3px);
       transform: rotate(-2.5deg);
       // `box-shadow` and `transform` have to be listed once the mixin's own
       // transition is overridden by this one — a later `transition` wins whole,

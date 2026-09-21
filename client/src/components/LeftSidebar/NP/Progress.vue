@@ -280,7 +280,7 @@ const tooltipLeft = computed(() => hover.barLeft + hover.ratio * hover.barWidth)
         padding: 2px 6px;
         border-radius: $candy-radius-sm;
         background: $candy-white;
-        border: 1px solid $mem-line;
+        border: $mem-hairline;
         color: $candy-text;
         font-size: $medium;
         line-height: 1.2;
