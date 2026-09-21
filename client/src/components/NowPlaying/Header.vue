@@ -170,7 +170,7 @@ function handleFav() {
             font-weight: 500;
             color: $candy-text;
             background-color: $candy-pink-soft;
-            border: 1px solid $mem-line;
+            border: $mem-hairline;
             padding: 1px $smaller;
             min-width: 2.5rem;
             text-align: center;
@@ -241,7 +241,7 @@ function handleFav() {
         /* Responsive */
         @include allPhones {
             .right-group button.speaker {
-                border-top: 1px solid transparent !important;
+                border-top: $mem-hairline-w solid transparent !important;
                 border-top-left-radius: 0 !important;
                 border-top-right-radius: 0 !important;
             }

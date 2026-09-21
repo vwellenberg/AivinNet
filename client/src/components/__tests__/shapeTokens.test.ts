@@ -78,6 +78,27 @@ describe("shape tokens", () => {
   // of them, 8px context-menu rows inside a 10px menu among them. Each one was
   // decided per element: `$candy-radius-sm` (buttons, rows, thumbnails) or the
   // new `$candy-radius-xs` (tags inside a line of text, skeleton bars).
+  // #141. The design has TWO line weights: `$candy-border-w` (3px) for plates,
+  // rows and cards, and the hairline (1px) for chips inside a line of text,
+  // tooltips, small inputs and separators. Before this the hairline existed only
+  // as seventeen copies of `1px solid $mem-line`, so nothing said it was a role
+  // or where it stopped. A literal 1px now means someone is inventing a third.
+  it("the hairline is a token, never a literal 1px", () => {
+    const candy = readFileSync(CANDY, "utf-8");
+    expect(candy).toMatch(/\$mem-hairline-w:\s*1px;/);
+    expect(candy).toMatch(/\$mem-hairline:\s*\$mem-hairline-w solid \$mem-line;/);
+    expect(offenders(/(border(-top|-bottom|-left|-right)?|outline):[^;]*\b1px\b/)).toEqual([]);
+  });
+
+  // #141, second half. Hard shadows step 3px (resting) and 4px (raised); the
+  // modal and the Now-Playing panel float higher on purpose. A 2px offset was
+  // on three elements against more than a thousand at 3px or 4px — drift, and
+  // the mixins accept any value, so only this stops a fourth step appearing.
+  it("no hard shadow is shallower than the resting 3px", () => {
+    expect(offenders(/(candy-shadow|mem-shadow|candy-raised)\(\s*[12]px/, "")).toEqual([]);
+    expect(offenders(/(candy-shadow|mem-shadow|candy-raised)\(\s*\d+px\s*,\s*[12]px/, "")).toEqual([]);
+  });
+
   it("no corner is a spacing token", () => {
     expect(offenders(/border-radius:[^;]*\$(smaller|small|medium|large)\b/, "")).toEqual([]);
   });

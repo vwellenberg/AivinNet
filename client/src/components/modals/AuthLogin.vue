@@ -182,7 +182,7 @@ onMounted(async () => {
 
     .head {
         text-align: center;
-        border-bottom: solid 1px $separator;
+        border-bottom: solid $mem-hairline-w $separator;
         padding: 1rem;
         user-select: none;
 

@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
         font-family: $mono-font;
         color: $candy-text;
         background-color: $candy-pink-soft;
-        border: 1px solid $mem-line;
+        border: $mem-hairline;
     }
 }
 </style>

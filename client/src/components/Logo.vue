@@ -112,7 +112,7 @@
     width: 6px;
     height: 6px;
     background-color: $mem-coral;
-    border: 1px solid $mem-line;
+    border: $mem-hairline;
   }
 }
 

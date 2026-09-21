@@ -94,7 +94,7 @@ onMounted(() => {
 
     span {
       background-color: $candy-lavender;
-      border: 1px solid $mem-line;
+      border: $mem-hairline;
       color: $mem-ink;
       font-size: 1rem;
       padding: $smaller 1rem;

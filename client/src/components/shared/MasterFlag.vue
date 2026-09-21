@@ -25,7 +25,7 @@ defineProps<{
   border-radius: $candy-radius-pill;
   text-transform: uppercase;
   background-color: $candy-lavender;
-  border: 1px solid $mem-line;
+  border: $mem-hairline;
   color: $candy-black;
 
   // Highlighted variant (e.g. the primary version chip on album headers).

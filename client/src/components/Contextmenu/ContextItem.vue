@@ -10,7 +10,7 @@
         <div class="icon image" v-html="option.icon"></div>
         <div class="label ellip">{{ option.label }}</div>
         <div v-if="hasChildren && !option.singleChild" class="more" v-html="ExpandIcon"></div>
-        <div v-if="children" ref="childRef" class="children rounded shadow-sm">
+        <div v-if="children" ref="childRef" class="children rounded shadow-md">
             <div className="wrapper">
                 <div
                     v-for="child in children"

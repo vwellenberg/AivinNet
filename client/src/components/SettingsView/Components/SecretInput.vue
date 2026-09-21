@@ -55,7 +55,7 @@ onMounted(() => {
         gap: 1rem;
         position: relative;
         background-color: $candy-pink-soft;
-        border: 1px solid $mem-line;
+        border: $mem-hairline;
 
         input {
             height: 100%;

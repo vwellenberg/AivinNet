@@ -813,7 +813,7 @@ onBeforeUnmount(teardown);
 
     &.drag-over {
       background-color: $candy-pink-soft;
-      outline: 1px dashed $mem-line;
+      outline: $mem-hairline-w dashed $mem-line;
     }
 
     .sidebar-folder-header {

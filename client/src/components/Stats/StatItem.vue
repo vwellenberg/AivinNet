@@ -15,7 +15,7 @@
                 },
             }"
         >
-            <img class="staticon statimage shadow-sm" :src="paths.images.thumb.small + props.image" alt="" />
+            <img class="staticon statimage shadow-md" :src="paths.images.thumb.small + props.image" alt="" />
         </router-link>
     </div>
 </template>

@@ -16,10 +16,6 @@
 }
 
 // shadows — hard offsets only (memphis: no blur), theme-aware colour
-.shadow-sm {
-  @include candy-shadow(2px, 2px);
-}
-
 .shadow-md {
   @include candy-shadow(3px, 3px);
 }

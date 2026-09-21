@@ -107,6 +107,15 @@ $candy-text-faint: var(--mem-content-faint); // placeholders, disabled
 $candy-border-w: 3px;
 // Every border/outline: ink in light, paper in dark.
 $candy-border: $candy-border-w solid $mem-line;
+// THE HAIRLINE — the design's second line weight, and a role rather than a
+// slip (#141). A 3px ink frame is right on a plate, a row or a card; on a
+// chip inside a line of text, a 40px number field, a tooltip, a table
+// separator or the 6px moon on the logo it would be heavier than the thing
+// it frames. Those take the hairline. It had seventeen spellings of
+// `1px solid $mem-line` before it had a name, so nothing said where it
+// belonged and where it did not.
+$mem-hairline-w: 1px;
+$mem-hairline: $mem-hairline-w solid $mem-line;
 // The two corner radii are SHAPE TOKENS (see "Shape tokens" below): they emit
 // `var(--shape-radius…, <memphis value>)`, so a theme can round the whole app
 // differently while Memphis, which sets nothing, computes exactly the value it

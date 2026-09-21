@@ -181,7 +181,7 @@ function handleGoBack() {
             // margin: $smaller $small 0 0;
             padding: 2px $smaller;
             border-radius: $candy-radius-xs;
-            border: solid 1px $mem-line;
+            border: $mem-hairline;
             color: $candy-text;
             font-size: 10px;
             font-weight: bold;
