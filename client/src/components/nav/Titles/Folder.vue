@@ -141,7 +141,7 @@ const currentFolderSort = computed(() => {
         // Hug the path instead of stretching the pill across its whole track.
         justify-self: start;
         background-color: $gray5;
-        border-radius: $small;
+        border-radius: $candy-radius-sm;
         height: 2.188rem;
         display: flex;
         align-items: center;

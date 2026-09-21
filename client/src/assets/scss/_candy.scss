@@ -114,8 +114,14 @@ $candy-border: $candy-border-w solid $mem-line;
 // twin — a `var()` cannot be subtracted from in Sass.
 $candy-radius-static: 14px;
 $candy-radius-sm-static: 10px;
+$candy-radius-xs-static: 4px;
 $candy-radius: var(--shape-radius, #{$candy-radius-static}); // cards, panels, modals
 $candy-radius-sm: var(--shape-radius-sm, #{$candy-radius-sm-static}); // buttons, inputs, thumbnails
+// Tags that sit INSIDE a line of text: role chips, the time pill, breadcrumb
+// segments, skeleton bars. Deliberately tighter than a button — a 10px corner
+// on a 1rem-tall tag reads as a pill. Named so the intent is in the token and
+// not in a spacing variable that happened to be 4px (#140).
+$candy-radius-xs: var(--shape-radius-xs, #{$candy-radius-xs-static}); // inline tags, skeleton bars
 $candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every theme
 
 // ---------------------------------------------------------------------------

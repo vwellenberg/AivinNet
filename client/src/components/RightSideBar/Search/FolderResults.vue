@@ -34,7 +34,7 @@ const search = useSearch();
     button {
       padding: $small $medium;
       border: none;
-      border-radius: $small;
+      border-radius: $candy-radius-sm;
       background-color: $gray;
       color: inherit;
       cursor: pointer;

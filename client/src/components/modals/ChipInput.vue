@@ -85,7 +85,7 @@ function onKeydown(e: KeyboardEvent) {
         // Lavender accent chip → static ink label + paper outline.
         color: $mem-ink;
         border: 1px solid $mem-line;
-        border-radius: $smaller;
+        border-radius: $candy-radius-xs;
         padding: 0.15rem 0.5rem;
         font-size: 0.85rem;
         white-space: nowrap;

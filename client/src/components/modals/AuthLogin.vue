@@ -274,7 +274,7 @@ onMounted(async () => {
 
         .submit.long {
             width: 100%;
-            border-radius: $small;
+            border-radius: $candy-radius-sm;
         }
     }
 }

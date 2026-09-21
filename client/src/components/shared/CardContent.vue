@@ -44,7 +44,7 @@ defineProps<{
     .itemcount {
         margin-top: $small;
         height: 1rem;
-        border-radius: $smaller;
+        border-radius: $candy-radius-xs;
     }
 
     .help {
@@ -57,7 +57,7 @@ defineProps<{
 
     .name {
         width: 80%;
-        border-radius: $smaller;
+        border-radius: $candy-radius-xs;
         height: 1rem;
         margin-top: $small;
     }

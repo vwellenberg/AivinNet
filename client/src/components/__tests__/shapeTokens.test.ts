@@ -65,8 +65,21 @@ describe("shape tokens", () => {
     const candy = readFileSync(CANDY, "utf-8");
     expect(candy).toMatch(/\$candy-radius:\s*var\(--shape-radius,\s*#\{\$candy-radius-static\}\)/);
     expect(candy).toMatch(/\$candy-radius-sm:\s*var\(--shape-radius-sm,\s*#\{\$candy-radius-sm-static\}\)/);
+    expect(candy).toMatch(/\$candy-radius-xs:\s*var\(--shape-radius-xs,\s*#\{\$candy-radius-xs-static\}\)/);
     expect(candy).toMatch(/\$candy-radius-static:\s*14px;/);
     expect(candy).toMatch(/\$candy-radius-sm-static:\s*10px;/);
+    expect(candy).toMatch(/\$candy-radius-xs-static:\s*4px;/);
+  });
+
+  // #140. `$smaller`/`$small`/`$medium`/`$large` are SPACING — gaps and
+  // paddings. As a radius they are a category error with a concrete cost: change
+  // a gap and corners across the app bend with it, and no look can reach them,
+  // because they bypass `--shape-radius-*`. When this was written there were 19
+  // of them, 8px context-menu rows inside a 10px menu among them. Each one was
+  // decided per element: `$candy-radius-sm` (buttons, rows, thumbnails) or the
+  // new `$candy-radius-xs` (tags inside a line of text, skeleton bars).
+  it("no corner is a spacing token", () => {
+    expect(offenders(/border-radius:[^;]*\$(smaller|small|medium|large)\b/, "")).toEqual([]);
   });
 
   it("the detail head and the play CTA are the look's to paint (#200)", () => {

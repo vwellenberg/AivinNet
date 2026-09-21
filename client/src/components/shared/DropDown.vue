@@ -148,7 +148,7 @@ onClickOutside(dropOptionsRef, e => {
             font-weight: 500;
             cursor: pointer;
             padding: $small;
-            border-radius: $small;
+            border-radius: $candy-radius-sm;
             transition: background-color 0.2s ease-out;
 
             &:hover {

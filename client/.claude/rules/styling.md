@@ -577,7 +577,7 @@ Theme hätte die App umfärben, aber nicht umformen können. Seit #198 liest jed
 |---|---|---|
 | `--shape-shadow` · `-hover` · `-lift` | `mem-shadow($x, $y, $state)` (+ `candy-shadow`) | `3px 3px 0 var(--mem-shadow)` usw. |
 | `--shape-press` | `mem-press($x, $y)` | `translate(3px, 3px)` |
-| `--shape-radius` · `-sm` | `$candy-radius` · `$candy-radius-sm` | `14px` · `10px` |
+| `--shape-radius` · `-sm` · `-xs` | `$candy-radius` · `$candy-radius-sm` · `$candy-radius-xs` | `14px` · `10px` · `4px` |
 | `--shape-sprinkle` · `--shape-doodles` | `mem-sprinkle` · `mem-grid` | die heutigen Grafiken |
 
 **Der Fallback IST das Design.** Memphis setzt keines dieser Properties und rechnet deshalb
@@ -600,6 +600,12 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   harte Tintenkante. Beim Schreiben des Zensus standen 13 solche Stellen in 11 Dateien.
 - **Rechnen nur mit den `-static`-Zwillingen oder in `calc()`**: `$candy-radius` ist ein
   `var()`, Sass kann davon nichts abziehen (`calc(#{$candy-radius} - #{$candy-border-w})`).
+- **Keine Ecke aus einem Abstands-Token** (#140). `border-radius: $small` sah aus wie ein Wert
+  aus der Skala und war eine Kategorienverwechslung: wer den Abstand ändert, verbiegt Ecken, und
+  kein Look erreicht sie, weil sie an `--shape-radius-*` vorbeigehen. Knöpfe, Zeilen und
+  Vorschaubilder nehmen `$candy-radius-sm`; Etiketten **in** einer Textzeile (Rollen-Chip,
+  Zeit-Pille, Brotkrume) und Skeleton-Balken `$candy-radius-xs` — 10 px auf einem 1rem hohen
+  Etikett lesen sich als Pille.
 - **Memphis-Stylesheets definieren kein `--shape-*`** — sonst wäre der Fallback tot und der
   Gleichheitsbeweis wertlos.
 

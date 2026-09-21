@@ -180,7 +180,7 @@ function handleGoBack() {
         .role {
             // margin: $smaller $small 0 0;
             padding: 2px $smaller;
-            border-radius: $smaller;
+            border-radius: $candy-radius-xs;
             border: solid 1px $mem-line;
             color: $candy-text;
             font-size: 10px;

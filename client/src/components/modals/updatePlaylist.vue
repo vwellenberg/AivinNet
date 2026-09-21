@@ -223,7 +223,7 @@ function update_playlist(e: Event) {
         #update-pl-img-preview {
             width: 4.5rem;
             height: 4.5rem;
-            border-radius: $small;
+            border-radius: $candy-radius-sm;
             object-fit: cover;
             background-color: $gray4;
             position: relative;
@@ -237,7 +237,7 @@ function update_playlist(e: Event) {
             gap: $smaller;
             place-items: center;
             place-content: center;
-            border-radius: $small;
+            border-radius: $candy-radius-sm;
             border: dashed 2px $mem-line;
             cursor: pointer;
             padding: $medium;
@@ -253,7 +253,7 @@ function update_playlist(e: Event) {
             width: 100%;
             height: 100%;
             background-color: $candy-text-faint;
-            border-radius: $small;
+            border-radius: $candy-radius-sm;
             transition: all 0.2s ease-out;
             display: flex;
             place-content: center;

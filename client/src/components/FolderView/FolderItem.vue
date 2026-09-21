@@ -82,7 +82,7 @@ function showContextMenu(e: MouseEvent) {
   align-items: center;
   background-color: $candy-pink;
   border: $candy-border;
-  border-radius: $medium;
+  border-radius: $candy-radius-sm;
   position: relative;
   padding: 0 0 0 1rem;
   gap: $small;

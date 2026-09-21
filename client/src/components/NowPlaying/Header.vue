@@ -174,7 +174,7 @@ function handleFav() {
             padding: 1px $smaller;
             min-width: 2.5rem;
             text-align: center;
-            border-radius: $smaller;
+            border-radius: $candy-radius-xs;
             font-variant-numeric: tabular-nums;
             // Pills keep their size; the bar between them is the elastic part.
             //
