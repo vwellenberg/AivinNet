@@ -208,7 +208,7 @@ import { menus } from "./navitems";
     height: 1.5rem;
     width: 1.5rem;
     margin: 0 $small 0 $small;
-    border-radius: $small;
+    border-radius: $candy-radius-sm;
     // NOTE: no opacity here on purpose. The old set was filled SF-Symbols mass,
     // and 0.75 took the edge off it; on 2.4px strokes the same rule just made
     // every glyph a mid grey next to its own label, which reads as "weaker" and

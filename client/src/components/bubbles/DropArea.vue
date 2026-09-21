@@ -11,7 +11,7 @@
   // Drop target renders over an arbitrary page ground -> theme-aware.
   color: $mem-content-text;
   padding: $medium;
-  border-radius: $small;
+  border-radius: $candy-radius-sm;
   height: 5rem;
   position: relative;
   display: grid;

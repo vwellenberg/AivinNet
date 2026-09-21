@@ -146,7 +146,7 @@ const tileStyle = computed(() => ({
     .statimage {
         height: 54px;
         width: 54px;
-        border-radius: $smaller;
+        border-radius: $candy-radius-sm;
         border: $candy-border;
     }
 }

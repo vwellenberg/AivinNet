@@ -184,7 +184,7 @@ function runChildAction(action: () => void) {
     align-items: center;
     padding: 0.4rem;
     position: relative;
-    border-radius: $small;
+    border-radius: $candy-radius-sm;
     transition: background-color 0.2s ease-out;
 
     .more {

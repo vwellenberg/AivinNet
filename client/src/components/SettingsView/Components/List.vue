@@ -51,7 +51,7 @@ const icon_ = getIcon()
 
     .list-items {
         border: $candy-border;
-        border-radius: $small;
+        border-radius: $candy-radius-sm;
         margin-top: 1rem;
         overflow: hidden;
         padding: 1rem 0;
