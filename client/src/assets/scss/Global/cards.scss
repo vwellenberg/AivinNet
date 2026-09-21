@@ -28,7 +28,7 @@
 
 // The one list. Read by the anatomy below, by the row geometry further down and
 // by the census test — a second copy is how the drift above started.
-$card-types: ".p-card, .trackcard, .artist-card, .album-card, .foldercard";
+$card-types: ".p-card, .trackcard, .artist-card, .album-card, .foldercard, .favcard";
 
 /// The buffer between a caption line and the hatch strokes around it (#486).
 /// It is both the cover's padding and the negative margin that pulls the cover

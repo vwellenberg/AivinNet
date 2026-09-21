@@ -3,11 +3,12 @@
  * label) and by the tiles (which decide whether their help text still says
  * anything the label has not already said).
  */
-export type CardType = 'album' | 'artist' | 'folder' | 'playlist' | 'track'
+export type CardType = 'album' | 'artist' | 'favorite' | 'folder' | 'playlist' | 'track'
 
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
     album: 'Album',
     artist: 'Artist',
+    favorite: 'Favorites',
     folder: 'Folder',
     playlist: 'Playlist',
     track: 'Track',
