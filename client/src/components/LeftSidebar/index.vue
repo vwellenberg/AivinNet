@@ -21,13 +21,21 @@
               @dragover.prevent
               @drop="onDropToFolder(entry.id, $event)"
             >
+              <!-- A composed control, not a <button>: the header is also a
+                   drag source and a drop target, and a dragged <button> does
+                   not start a drag in Firefox. So the role, the tab stop and the
+                   keys are spelled out (#137) — all three, or it is not one. -->
               <div
                 class="sidebar-folder-header"
                 :class="markerClass('folder', entry.id)"
+                role="button"
+                tabindex="0"
+                :aria-expanded="!folderStore.isCollapsed(entry.id)"
                 draggable="true"
                 @dragstart="onFolderDragStart(entry.id, $event)"
                 @dragend="clearDrag"
                 @click="folderStore.toggleCollapse(entry.id)"
+                @keydown.enter.space.prevent="folderStore.toggleCollapse(entry.id)"
                 @contextmenu.prevent="onFolderContextMenu($event, entry.folder)"
                 @dragover.prevent="onFolderHeaderDragOver(entry.folder, $event)"
                 @drop.stop="onFolderHeaderDrop(entry.folder, $event)"
@@ -589,6 +597,7 @@ onBeforeUnmount(teardown);
 // Drag & drop: rows are positioned so the drop line can sit on their edge.
 .sidebar-playlist-item,
 .sidebar-folder-header {
+  @include focus-ring;
   position: relative;
 }
 

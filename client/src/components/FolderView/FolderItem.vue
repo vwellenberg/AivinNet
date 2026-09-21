@@ -1,16 +1,11 @@
 <template>
-  <router-link :to="{ name: Routes.folder, params: { path: folder.path } }">
+  <!-- The folder PAGE: the whole row is a link, which the keyboard already has. -->
+  <router-link v-if="folder_page" :to="{ name: Routes.folder, params: { path: folder.path } }">
     <div
       v-auto-animate
       class="f-item"
-      :class="{
-        selected: is_checked,
-        context_menu_showing: context_menu_showing,
-      }"
-      @click="(e) => (folder_page ? null : handleClick(e))"
-      @mouseover="mouse_over = true"
-      @mouseleave="mouse_over = false"
-      @contextmenu.prevent="(e) => (!folder_page ? null : showContextMenu(e))"
+      :class="{ context_menu_showing: context_menu_showing }"
+      @contextmenu.prevent="showContextMenu"
     >
       <SymLinkSvg v-if="folder.is_sym" />
       <FolderSvg v-else />
@@ -20,12 +15,47 @@
           {{ folder.trackcount.toLocaleString() + ` File${folder.trackcount == 1 ? "" : "s"}` }}
         </div>
       </div>
-      <div v-if="!folder_page" class="check">
-        <CheckSvg v-if="!is_checked && mouse_over" />
-        <CheckFilledSvg v-if="is_checked" />
-      </div>
     </div>
   </router-link>
+
+  <!-- ⚠️ The folder PICKER (SetRootDirs) is a different control, and it used to
+       be the same markup (#137). Inside the router-link, Enter reached the <a>,
+       not the row's click handler, so the keyboard LEFT THE DIALOG for the folder
+       page instead of stepping into the folder — and the tick was a hover-only
+       <div> no keyboard could reach at all. Two real controls now: open, tick. -->
+  <div
+    v-else
+    v-auto-animate
+    class="f-item is-picker"
+    :class="{ selected: is_checked }"
+    @mouseover="mouse_over = true"
+    @mouseleave="mouse_over = false"
+  >
+    <button type="button" class="f-open" :aria-disabled="is_checked" @click="open">
+      <SymLinkSvg v-if="folder.is_sym" />
+      <FolderSvg v-else />
+      <div class="info">
+        <div class="f-item-text ellip">{{ folder.name }}</div>
+        <div class="f-count" v-if="folder.trackcount">
+          {{ folder.trackcount.toLocaleString() + ` File${folder.trackcount == 1 ? "" : "s"}` }}
+        </div>
+      </div>
+    </button>
+    <!-- The empty box used to appear on hover only. On a control that would be
+         an invisible tab stop, so focus shows it as well. -->
+    <button
+      type="button"
+      class="check"
+      :aria-pressed="is_checked"
+      :aria-label="`Select ${folder.name}`"
+      @click="emit('check')"
+      @focus="check_focus = true"
+      @blur="check_focus = false"
+    >
+      <CheckSvg v-if="!is_checked && (mouse_over || check_focus)" />
+      <CheckFilledSvg v-if="is_checked" />
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -54,19 +84,12 @@ const emit = defineEmits<{
 }>();
 
 const mouse_over = ref(false);
+const check_focus = ref(false);
 const context_menu_showing = ref(false);
 
-function handleClick(e: MouseEvent) {
-  e.preventDefault();
-  // check if the click was on the checkbox
-  if (e.target instanceof Element && e.target.closest(".check")) {
-    emit("check");
-    return;
-  }
-
-  if (!props.is_checked) {
-    emit("navigate");
-  }
+/** Step into the folder — unless it is ticked, which pins the picker to it. */
+function open() {
+  if (!props.is_checked) emit("navigate");
 }
 
 function showContextMenu(e: MouseEvent) {
@@ -108,15 +131,45 @@ function showContextMenu(e: MouseEvent) {
   }
 
   .check {
+    // `outline: none` sat here. On a <div> it removed nothing; on the button it
+    // is now, it would have removed the only sign of keyboard focus.
+    @include focus-ring;
     z-index: 10;
     position: absolute;
     top: $smaller;
     right: $smaller;
-
-    border: none;
-    outline: none;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    justify-content: center;
     color: $candy-black;
     transform: scale(0.75);
+  }
+
+  // Picker rows: the row is only the plate; the open button inside it takes over
+  // the padding, the grid and the gap the row used to carry itself.
+  &.is-picker {
+    padding: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .f-open {
+    @include focus-ring;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    align-items: center;
+    gap: $small;
+    padding: 0 0 0 1rem;
+    border-radius: inherit;
+    cursor: pointer;
+
+    &[aria-disabled="true"] {
+      cursor: default;
+    }
   }
 
   .f-item-text {
