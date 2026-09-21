@@ -503,11 +503,11 @@ const isFavoritesPage = route.path.startsWith('/favorites')
 }
 
 .songlist-item.drag-over-top {
-    border-top: 2px solid $mem-line;
+    border-top: $mem-ring-w solid $mem-line;
 }
 
 .songlist-item.drag-over-bottom {
-    border-bottom: 2px solid $mem-line;
+    border-bottom: $mem-ring-w solid $mem-line;
 }
 
 .songlist-item[draggable="true"] {

@@ -212,7 +212,7 @@ onMounted(() => {
     padding: 0.1rem 0.35rem;
     text-align: center;
     background-color: $mem-panel;
-    border: 2px solid $mem-line;
+    border: $mem-ring-w solid $mem-line;
     border-radius: $candy-radius-pill;
     font-size: 0.72rem;
     font-weight: 700;
@@ -251,7 +251,7 @@ onMounted(() => {
       right: 0;
       bottom: -0.62rem;
       height: 8px;
-      border: 2px solid $candy-black;
+      border: $mem-ring-w solid $candy-black;
       border-radius: $candy-radius-pill;
       background-color: $candy-pink;
       background-image: linear-gradient($mem-teal, $mem-teal);

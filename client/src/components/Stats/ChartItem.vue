@@ -215,7 +215,7 @@ function getRouterParams() {
         margin-top: 0.45rem;
         height: 0.65rem;
         max-width: 26rem;
-        border: 2px solid $mem-line;
+        border: $mem-ring-w solid $mem-line;
         border-radius: $candy-radius-pill;
         overflow: hidden;
 
@@ -276,7 +276,7 @@ function getRouterParams() {
 
     .chartimage {
         // Glued-on cover: full ink frame, like the song list's inlay covers.
-        border: 2px solid $mem-line;
+        border: $mem-ring-w solid $mem-line;
         border-radius: 0.25rem;
         height: 48px;
         // Square crop: playlist banner thumbs are 250px HIGH with free

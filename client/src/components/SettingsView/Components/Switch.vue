@@ -42,7 +42,7 @@ defineProps<{
     // Static-white knob with a static ink ring: the knob rides ON the track
     // fill, so a paper (var) border would vanish in dark — keep it ink.
     background-color: $mem-panel-static;
-    border: 2px solid $mem-ink;
+    border: $mem-ring-w solid $mem-ink;
     position: absolute;
     top: 50%;
     margin-top: -0.5625rem;

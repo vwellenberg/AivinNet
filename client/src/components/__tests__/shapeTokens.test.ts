@@ -90,6 +90,18 @@ describe("shape tokens", () => {
     expect(offenders(/(border(-top|-bottom|-left|-right)?|outline):[^;]*\b1px\b/)).toEqual([]);
   });
 
+  // #233. The third line weight, found by the census after #141: 160 elements
+  // at 2px, arrived with the cassette inlay (the ring around track number and
+  // duration in every song row). Intentional, so it is named, not flattened —
+  // `$mem-ring-w` for strokes around things that sit on a surface,
+  // `$focus-ring-w` for the keyboard outline, which must not move with them.
+  it("the ring and the focus outline are tokens, never a literal 2px", () => {
+    const candy = readFileSync(CANDY, "utf-8");
+    expect(candy).toMatch(/\$mem-ring-w:\s*2px;/);
+    expect(candy).toMatch(/\$focus-ring-w:\s*2px;/);
+    expect(offenders(/(border(-top|-bottom|-left|-right)?|outline):[^;]*\b2px\b/, "")).toEqual([]);
+  });
+
   // #141, second half. Hard shadows step 3px (resting) and 4px (raised); the
   // modal and the Now-Playing panel float higher on purpose. A 2px offset was
   // on three elements against more than a thousand at 3px or 4px — drift, and
