@@ -80,6 +80,10 @@ export default defineStore(
     let prev_date = 0;
     let can_submit = true;
 
+    // player.ts re-assigns on every track start and cannot remove the previous
+    // listener, so without this each play added one more for the whole session.
+    const wiredElements = new WeakSet<HTMLAudioElement>();
+
     const queue = useQueue();
 
     function resetData() {
@@ -136,7 +140,11 @@ export default defineStore(
         trackhash.value = queue.currenttrackhash;
       }
 
-      audioSource.playingSource.addEventListener(
+      const element = audioSource.playingSource;
+      if (wiredElements.has(element)) return;
+      wiredElements.add(element);
+
+      element.addEventListener(
         "timeupdate",
         throttle(() => {
           if (audioSource.playingSource.paused) {
