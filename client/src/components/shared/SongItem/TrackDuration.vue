@@ -131,7 +131,7 @@ defineEmits<{
             display: none;
         }
 
-        transition: opacity 0.2s ease-out;
+        transition: opacity $motion-move ease-out;
     }
 
     .song-duration.help-text {
@@ -142,7 +142,7 @@ defineEmits<{
         text-transform: uppercase;
         color: $orange;
         opacity: 0;
-        transition: opacity 0.2s ease-out;
+        transition: opacity $motion-move ease-out;
 
         @include allPhones {
             right: 2.5rem;

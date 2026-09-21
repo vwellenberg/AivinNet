@@ -216,7 +216,7 @@ onMounted(async () => {
 
     .head.selected .back {
         opacity: 1;
-        transition: all 0.25s;
+        transition: all $motion-settle;
     }
 
     .aivinnet-logo {

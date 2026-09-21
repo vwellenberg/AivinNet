@@ -95,7 +95,7 @@ function handlePlay() {
   aspect-ratio: 1;
 
   svg {
-    transition: transform 0.2s ease;
+    transition: transform $motion-move ease;
   }
 }
 </style>

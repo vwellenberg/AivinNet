@@ -208,7 +208,7 @@ onMounted(async () => {
                 font-size: 0.8rem;
                 font-weight: 600;
                 opacity: 0;
-                transition: opacity 0.15s ease;
+                transition: opacity $motion-tint ease;
             }
 
             &.editable:hover .avatar-overlay {

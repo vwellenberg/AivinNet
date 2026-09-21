@@ -88,7 +88,7 @@ const settings = useSettings()
         color: $candy-text;
 
         svg {
-            transition: opacity 0.15s ease, transform 0.1s ease;
+            transition: opacity $motion-tint ease, transform $motion-press ease;
         }
     }
 

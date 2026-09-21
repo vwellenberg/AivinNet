@@ -278,8 +278,8 @@ defineEmits<{
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.2s ease-out, height 0.2s ease-out, transform 0.2s ease-out,
-                background-color 0.2s ease-out;
+            transition: opacity $motion-move ease-out, height $motion-move ease-out, transform $motion-move ease-out,
+                background-color $motion-move ease-out;
 
             svg {
                 transform: rotate(-90deg) scale(0.92);

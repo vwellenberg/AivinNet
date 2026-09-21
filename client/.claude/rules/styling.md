@@ -1028,7 +1028,14 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   `pointer-events: none`) leihen sich `btn-action` nur für die Platte und bekommen deshalb
   `animation: none`. Wer eine Rolle für reine Geometrie borgt, prüft, was er sich an Verhalten
   mitgeholt hat.
-- Das Vokabular (Dauern, Kurven, Staffelung) steht in `_motion.scss`.
+- Das Vokabular (Dauern, Kurven, Staffelung) steht in `_motion.scss` — und wird **benutzt, nicht
+  nur definiert** (#173). Die Skala existierte monatelang, während daneben die Zahlen weiter von
+  Hand geschrieben wurden (66 → 72 Stellen, jede neue Animation brachte eigene Werte mit).
+  `motionScale.test.ts` macht beides rot: einen Skalenwert als Literal (`0.2s` statt
+  `$motion-move`) und jedes andere Literal, das nicht als **benannte Ausnahme mit Grund** in der
+  Liste steht. Ausnahmen sind Schleifen und Charakterstücke (Spinner, Pulse, Lauflicht) und ein
+  paar bewusst langsamere Blenden. ⚠️ Der Equalizer (`PlayingMeter.vue`) läuft **absichtlich** mit
+  vier verschiedenen Dauern, damit die Balken nie im Takt sind — nie gleichziehen.
 
 ## Klick-Feedback
 

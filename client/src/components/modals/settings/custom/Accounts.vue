@@ -233,7 +233,7 @@ onMounted(async () => {
     .list-leave-active {
         // moving elements
         // eg. when expanding a userinfo card
-        transition: all 0.1s ease;
+        transition: all $motion-press ease;
     }
 
     .list-enter-active {
@@ -311,7 +311,7 @@ onMounted(async () => {
             cursor: pointer;
             color: $candy-text;
             margin-left: 1rem;
-            transition: all 0.25s ease;
+            transition: all $motion-settle ease;
 
             &:hover {
                 color: $candy-pink-deep;

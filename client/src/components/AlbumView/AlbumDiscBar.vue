@@ -60,7 +60,7 @@ defineEmits<{
         cursor: pointer;
         display: flex;
         align-items: center;
-        transition: opacity 0.2s ease-out;
+        transition: opacity $motion-move ease-out;
 
         svg {
             height: 12px;

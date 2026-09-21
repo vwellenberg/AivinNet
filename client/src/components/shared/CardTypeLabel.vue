@@ -65,7 +65,7 @@ defineProps<{
     box-shadow: mem-shadow(3px, 3px);
     overflow: hidden;
     // Motion only — the paint is a cut (styling.md), together with the plate.
-    transition: box-shadow 0.12s ease-out;
+    transition: box-shadow $motion-shadow ease-out;
 
     // The glyph cell carries the ENTITY colour (see $mem-entities in
     // _candy.scss): the smallest possible dose — one small field that already

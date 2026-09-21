@@ -24,7 +24,7 @@ defineProps<{
     letter-spacing: 0.04em;
     flex-shrink: 0;
     // Motion only — the paint is a cut (styling.md).
-    transition: box-shadow 0.12s ease-out;
+    transition: box-shadow $motion-shadow ease-out;
 
     // The text token travels with the fill (#422) and reaches the link by
     // INHERITANCE — the global anchor rule is `color: inherit`, and the sticker

@@ -83,7 +83,7 @@ defineEmits<{
       // `box-shadow` and `transform` have to be listed once the mixin's own
       // transition is overridden by this one — a later `transition` wins whole,
       // not per-property.
-      transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      transition: filter $motion-tint ease, box-shadow $motion-tint ease, transform $motion-tint ease;
     }
 
     // Straightens under the pointer: the tilt says "stuck on", the snap-to-square
@@ -108,7 +108,7 @@ defineEmits<{
       opacity: 0;
       z-index: 30;
       pointer-events: none;
-      transition: opacity 0.15s ease;
+      transition: opacity $motion-tint ease;
 
       svg {
         width: 1.4rem;

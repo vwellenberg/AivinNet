@@ -53,7 +53,7 @@ onClickOutside(avatarRef, () => {
     position: relative;
     aspect-ratio: 1;
     cursor: pointer;
-    transition: background-color 0.2s ease-out, color 0.2s ease-out;
+    transition: background-color $motion-move ease-out, color $motion-move ease-out;
 
     display: grid;
     place-items: center;
@@ -88,7 +88,7 @@ onClickOutside(avatarRef, () => {
 
     .profiledrop-fade-enter-active,
     .profiledrop-fade-leave-active {
-        transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+        transition: opacity $motion-move ease-out, transform $motion-move ease-out;
     }
 
     .profiledrop-fade-enter-from,

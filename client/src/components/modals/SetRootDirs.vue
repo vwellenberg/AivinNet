@@ -226,14 +226,14 @@ onMounted(() => {
 
   .f-item {
     background-color: $candy-pink-soft;
-    transition: background-color 0.2s ease-out;
+    transition: background-color $motion-move ease-out;
 
     &:hover {
       background-color: $candy-pink-deep;
     }
 
     > svg {
-      transition: color 0.2s ease-out;
+      transition: color $motion-move ease-out;
     }
   }
 

@@ -103,7 +103,7 @@ function onLogout() {
         max-height: 36px;
         border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.2s ease-out, opacity 0.2s ease-out, box-shadow 0.2s ease-out;
+        transition: background-color $motion-move ease-out, opacity $motion-move ease-out, box-shadow $motion-move ease-out;
 
         &:hover {
             background-color: $candy-pink-soft;

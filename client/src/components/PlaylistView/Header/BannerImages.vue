@@ -21,13 +21,13 @@ const playlist = usePStore()
     background: $candy-pink-soft;
     border: $candy-border;
     border-radius: $candy-radius-sm;
-    transition: all 0.2s ease-in-out;
+    transition: all $motion-move ease-in-out;
 
     img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: all 0.2s ease-in-out;
+        transition: all $motion-move ease-in-out;
     }
 
     // The component's own aspect-ratio sizing is replaced by the square

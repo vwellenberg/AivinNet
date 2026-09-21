@@ -694,7 +694,7 @@ onBeforeUnmount(teardown);
   cursor: col-resize;
   z-index: 10;
   background-color: transparent;
-  transition: background-color 0.15s ease;
+  transition: background-color $motion-tint ease;
 
   &:hover,
   &.active {
@@ -878,7 +878,7 @@ onBeforeUnmount(teardown);
         width: 0.7rem;
         height: 0.7rem;
         opacity: 0.6;
-        transition: transform 0.15s ease;
+        transition: transform $motion-tint ease;
 
         &.open {
           transform: rotate(90deg);
@@ -1030,7 +1030,7 @@ onBeforeUnmount(teardown);
       justify-content: center;
       cursor: pointer;
       opacity: 0;
-      transition: opacity 0.15s ease;
+      transition: opacity $motion-tint ease;
 
       svg {
         height: $control-dense-glyph;

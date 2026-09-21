@@ -258,7 +258,7 @@ function clearAll() {
       border-radius: $candy-radius-pill;
       // Reserved on both sides of the pointer state, so revealing it can never
       // resize the chip under the pointer.
-      transition: opacity 0.15s ease;
+      transition: opacity $motion-tint ease;
 
       svg {
         width: 0.7rem;

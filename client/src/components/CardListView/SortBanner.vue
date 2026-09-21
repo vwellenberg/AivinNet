@@ -144,7 +144,7 @@ const artistitems = [
         margin: -2px 0;
         margin-right: -6px;
         margin-left: 2px;
-        transition: transform 0.1s linear;
+        transition: transform $motion-press linear;
     }
 
     // ON state. Yellow is this design system's "active" signal (the playing

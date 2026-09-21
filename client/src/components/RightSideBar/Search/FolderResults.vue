@@ -38,7 +38,7 @@ const search = useSearch();
       background-color: $gray;
       color: inherit;
       cursor: pointer;
-      transition: background-color 0.2s ease-out;
+      transition: background-color $motion-move ease-out;
 
       &:hover {
         background-color: $gray4;

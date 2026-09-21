@@ -292,7 +292,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // here. Same reason as every other transition in this file — see the note at
   // `mem-row-plate`. The numbers are the tokens' values (0.12s / 40ms) and must
   // be changed together with them.
-  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out 40ms;
+  transition: transform $motion-shadow ease-out, box-shadow $motion-shadow ease-out $motion-lag;
 
   &:hover {
     @include candy-shadow($x + 1, $y + 1, hover);
@@ -502,7 +502,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // `_candy.scss` (see vite.config.ts), so its tokens are not resolvable here.
   // The 40ms on the shadow is $motion-lag — it trails the surface, like every
   // other raised plate (#143).
-  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out 40ms;
+  transition: transform $motion-shadow ease-out, box-shadow $motion-shadow ease-out $motion-lag;
   @include mem-row-plate-press;
 }
 
@@ -613,7 +613,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   //
   // Läuft, weil das Element NEU ist: eine Caption erscheint, wenn ihr Abschnitt
   // erscheint. Nichts muss einen Zustand mitführen.
-  animation: mem-sticker-slap 0.25s ease-out;
+  animation: mem-sticker-slap $motion-settle ease-out;
 }
 
 // ---------------------------------------------------------------------------
@@ -1072,14 +1072,14 @@ $mem-seg-reserve: 4px !default;
     // Die Füllung darunter bleibt ein CUT (styling.md): hier bewegt sich nur
     // dieses Band, die Farbe der Zeile wechselt weiterhin in einem Bild.
     transform-origin: top;
-    animation: mem-band-drop 0.2s ease-out;
+    animation: mem-band-drop $motion-move ease-out;
   }
 
   // Die Sprinkle-Textur wischt herein, statt aufzublenden — dieselbe
   // Unterscheidung: eine Opazität, die hochfährt, ist ein Fade und damit gegen
   // die Regel; eine Fläche, die durchs Bild fährt, ist Bewegung.
   &::before {
-    animation: mem-texture-wipe 0.2s ease-out;
+    animation: mem-texture-wipe $motion-move ease-out;
   }
 }
 
