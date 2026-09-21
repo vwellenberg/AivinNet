@@ -29,21 +29,36 @@
                     secondchild: index == 1,
                 }"
             >
-                <div class="userinfo" @click="() => selectUser(user.id)">
-                    <Avatar :name="user.username" :size="47" />
-                    <div class="details">
-                        <div class="name">
-                            {{ user.firstname || user.username }}
+                <!-- Two controls side by side, not one row that swallows a
+                     second: the row used to be a clickable <div> with the delete
+                     glyph inside it, held apart only by `@click.stop` — neither
+                     reachable by keyboard (#137). -->
+                <div class="userinfo">
+                    <button
+                        type="button"
+                        class="user-toggle"
+                        :aria-expanded="user.id === selectedUser"
+                        @click="selectUser(user.id)"
+                    >
+                        <Avatar :name="user.username" :size="47" />
+                        <div class="details">
+                            <div class="name">
+                                {{ user.firstname || user.username }}
+                            </div>
+                            <div class="roles">
+                                <span class="role" v-for="role in user.roles" :key="role">{{ role }}</span>
+                            </div>
                         </div>
-                        <div class="roles">
-                            <span class="role" v-for="role in user.roles" :key="role">{{ role }}</span>
-                        </div>
-                    </div>
-                    <DeleteSvg
-                        class="delete"
+                    </button>
+                    <button
                         v-if="auth.user.username !== user.username"
-                        @click.stop="() => deleteUser(user)"
-                    />
+                        type="button"
+                        class="delete"
+                        :aria-label="`Delete ${user.username}`"
+                        @click="deleteUser(user)"
+                    >
+                        <DeleteSvg />
+                    </button>
                 </div>
                 <div class="usettins" v-if="user.id === selectedUser">
                     <ToggleSetting
@@ -294,10 +309,25 @@ onMounted(async () => {
 
         .userinfo {
             display: grid;
-            grid-template-columns: max-content 1fr max-content;
+            grid-template-columns: 1fr max-content;
             align-items: center;
             // gap: 1rem;
             padding-bottom: 1rem;
+        }
+
+        // The avatar and the details used to be the row's first two grid
+        // cells; they now sit in the toggle, which takes over that layout.
+        .user-toggle {
+            @include focus-ring;
+            font: inherit;
+            color: inherit;
+            text-align: left;
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            align-items: center;
+            width: 100%;
+            cursor: pointer;
+            border-radius: $candy-radius-sm;
         }
 
         .details {
@@ -308,6 +338,7 @@ onMounted(async () => {
         }
 
         .delete {
+            @include focus-ring;
             cursor: pointer;
             color: $candy-text;
             margin-left: 1rem;
@@ -321,6 +352,10 @@ onMounted(async () => {
         .delete {
             height: 1.5rem;
             color: $gray1;
+
+            svg {
+                height: 100%;
+            }
         }
     }
 

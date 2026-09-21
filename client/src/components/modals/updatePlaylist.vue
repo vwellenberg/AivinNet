@@ -31,21 +31,32 @@
             @change="handleUpload"
         />
         <div id="upload" class="boxed rounded-sm">
-            <div class="clickable" tabindex="0" @click="selectFiles" @keydown.space.enter.stop="selectFiles">
+            <!-- A real button: the tabindex + keydown pair it replaced made it
+                 reachable, but not a control — no role, no name for a screen
+                 reader, and a Space that scrolled the modal behind it (#137). -->
+            <button type="button" class="clickable" @click="selectFiles">
                 <ImageIcon />
                 Click to {{ playlist.has_image ? 'update' : 'upload' }} cover image
-            </div>
+            </button>
             <div
                 id="update-pl-img-preview"
                 class="image"
                 :style="{
                     backgroundImage: `url(${playlist.image})`,
                 }"
-                tabindex="0"
             >
-                <div v-if="!image && playlist.has_image" class="delete-icon" @click="pStore.removeBanner()">
+                <!-- The preview itself carried `tabindex="0"` and did nothing —
+                     a tab stop that only existed so something in here could be
+                     focused. The remove button is that something now. -->
+                <button
+                    v-if="!image && playlist.has_image"
+                    type="button"
+                    class="delete-icon"
+                    aria-label="Remove cover image"
+                    @click="pStore.removeBanner()"
+                >
                     <DeleteIcon />
-                </div>
+                </button>
             </div>
         </div>
         <button type="button" class="find-cover-online rounded-sm btn-pill" @click="openFindCoverOnline">
@@ -230,6 +241,10 @@ function update_playlist(e: Event) {
         }
 
         .clickable {
+            // The button reset sets its own font; this was a <div> reading the
+            // modal's. Keep the label exactly as it was.
+            font: inherit;
+            color: inherit;
             font-weight: 500;
             height: 100%;
             width: 100%;
@@ -249,7 +264,9 @@ function update_playlist(e: Event) {
         }
 
         .delete-icon {
+            @include focus-ring;
             position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             background-color: $candy-text-faint;

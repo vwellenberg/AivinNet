@@ -51,11 +51,21 @@ const REGIONS: Record<string, string> = {
 const TODO: Record<string, string> = {
   "components/Contextmenu/ContextItem.vue":
     "the submenu lives INSIDE the clickable item, so a <button> would nest controls — needs menu semantics",
-  "components/FolderView/FolderItem.vue": "a whole row with selection, drag and a context menu",
-  "components/LeftSidebar/index.vue": "the folder header is draggable and toggles — row semantics first",
-  "components/modals/settings/custom/Accounts.vue": "a user row that also carries its own buttons",
-  "components/modals/updatePlaylist.vue": "already keyboard-operable (tabindex + keydown), but not a real control",
 };
+
+/**
+ * A COMPOSED control: an element that is not a <button> for a reason — a drag
+ * source (a dragged <button> does not start a drag in Firefox), a menu item that
+ * contains its submenu — and therefore spells out what a button gives for free.
+ * All three, or it is not a control: a role without a tab stop cannot be
+ * reached, and a tab stop without keys does nothing once reached.
+ */
+const WIDGET_ROLE =
+  /\brole="(button|menuitem|menuitemcheckbox|menuitemradio|option|switch|tab|checkbox|radio|link|treeitem)"/;
+
+function isComposedControl(attrs: string): boolean {
+  return WIDGET_ROLE.test(attrs) && /\s:?tabindex=/.test(attrs) && /(?:^|\s)(@keydown|v-on:keydown)\b/.test(attrs);
+}
 
 function vueFiles(dir: string): string[] {
   const out: string[] = [];
@@ -77,7 +87,7 @@ function offenders(file: string): string[] {
   for (const [, tag, attrs] of template.matchAll(/<([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g)) {
     const name = tag.toLowerCase();
     if (!HTML.has(name) || INTERACTIVE.has(name)) continue;
-    if (/(?:^|\s)(@click|v-on:click)\b/.test(attrs)) found.push(name);
+    if (/(?:^|\s)(@click|v-on:click)\b/.test(attrs) && !isComposedControl(attrs)) found.push(name);
   }
   return found;
 }
@@ -126,6 +136,32 @@ describe("clickable elements", () => {
       /\.play:focus-visible\s*\{\s*opacity: 1;/
     );
     expect(readFileSync("src/components/shared/Input.vue", "utf-8")).toMatch(/\.showpass:focus-visible/);
+  });
+
+  it("recognises a composed control only with all three parts", () => {
+    // The census would go silently green if this predicate broke, so it is
+    // checked on its own (testing.md: a source-scanning test guards its input).
+    expect(isComposedControl(' role="button" tabindex="0" @keydown.enter="x"')).toBe(true);
+    expect(isComposedControl(' role="button" @keydown.enter="x"')).toBe(false);
+    expect(isComposedControl(' tabindex="0" @keydown.enter="x"')).toBe(false);
+    expect(isComposedControl(' role="button" tabindex="0"')).toBe(false);
+    expect(isComposedControl(' role="presentation" tabindex="0" @keydown="x"')).toBe(false);
+  });
+
+  it("keeps the folder picker inside the picker (#137)", () => {
+    // Inside the router-link, Enter reached the <a> instead of the row's click
+    // handler: the keyboard LEFT the dialog for the folder page. And the tick
+    // was a hover-only <div>. Picker rows are two real buttons now, and no link.
+    const item = readFileSync("src/components/FolderView/FolderItem.vue", "utf-8");
+    const picker = item.slice(item.indexOf('class="f-item is-picker"'));
+    expect(picker).toMatch(/<button type="button" class="f-open"/);
+    expect(picker).toMatch(/class="check"\s+:aria-pressed="is_checked"/);
+    expect(picker.slice(0, picker.indexOf("</template>"))).not.toMatch(/router-link/);
+    // The tick shows on focus, not just on hover — or it is an invisible tab stop.
+    expect(picker).toMatch(/mouse_over \|\| check_focus/);
+    // A declaration, not the word: the comment above `.check` explains why the
+    // declaration went, and must not fail its own rule.
+    expect(item).not.toMatch(/^\s*outline:\s*none/m);
   });
 
   it("does not put a control inside a control", () => {

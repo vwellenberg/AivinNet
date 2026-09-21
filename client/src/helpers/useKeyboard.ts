@@ -2,6 +2,7 @@ import useQueue from "@/stores/queue";
 import useModal from "@/stores/modal";
 import useContextMenu from "@/stores/context";
 import useSettings from "@/stores/settings";
+import { controlOwnsKey, focusCameFromKeyboard, trackFocusOrigin } from "@/utils/keyOwnership";
 
 let key_down_fired = "";
 
@@ -20,6 +21,7 @@ function resetKeyFired() {
 
 export default function (queue: typeof useQueue, modal: typeof useModal) {
   const q = queue();
+  trackFocusOrigin();
 
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
@@ -51,6 +53,10 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
 
       return;
     }
+
+    // A control the keyboard landed on keeps Space and Enter — see keyOwnership.ts
+    // for why this used to break every button in the app.
+    if (controlOwnsKey(target, e.key, focusCameFromKeyboard())) return;
 
     if (key_down_fired == e.key.toLowerCase()) {
       return;
