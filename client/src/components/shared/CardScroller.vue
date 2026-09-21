@@ -25,11 +25,11 @@
         <div ref="grid" class="recentitems">
             <component
                 :is="getComponent(i.type)"
-                v-for="(i, index) in itemlist.slice(0, columns)"
+                v-for="i in renderable.slice(0, columns)"
                 :key="i"
                 class="hlistitem"
                 v-bind="getProps(i)"
-                @playThis="() => $emit('playThis', index)"
+                @playThis="() => $emit('playThis', itemlist.indexOf(i))"
             ></component>
         </div>
     </div>
@@ -46,6 +46,7 @@ import SeeAll from '../shared/SeeAll.vue'
 import AlbumCard from './AlbumCard.vue'
 import ArtistCard from './ArtistCard.vue'
 import CardContent from './CardContent.vue'
+import FavoriteCard from './FavoriteCard.vue'
 import FolderCard from './FolderCard.vue'
 import TrackCard from './TrackCard.vue'
 
@@ -104,6 +105,19 @@ const itemlist = computed(() => {
     return props.items
 })
 
+/**
+ * ⚠️ Only items this row can DRAW take a column.
+ *
+ * `getComponent()` answers `undefined` for a type it does not know, and
+ * `<component :is="undefined">` renders nothing at all — no element, no error.
+ * Sliced after that, the unknown item still used up one of the row's slots:
+ * "Recently played" received seven items for six columns, one of them a
+ * `favorite` nobody had built a card for, and came up with FIVE tiles while
+ * the rows around it showed six (#227). Filtering first means a type the
+ * client does not know costs nothing but itself.
+ */
+const renderable = computed(() => itemlist.value.filter(i => getComponent(i.type) !== undefined))
+
 function getComponent(type: string) {
     if (type == 'placeholder') {
         return CardContent
@@ -120,6 +134,8 @@ function getComponent(type: string) {
             return FolderCard
         case 'playlist':
             return PlaylistCard
+        case 'favorite':
+            return FavoriteCard
     }
 }
 
@@ -152,6 +168,10 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
         case 'playlist':
             return {
                 playlist: item.item,
+            }
+        case 'favorite':
+            return {
+                favorite: item.item,
             }
     }
 }
