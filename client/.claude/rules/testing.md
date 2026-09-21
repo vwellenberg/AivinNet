@@ -106,3 +106,18 @@ sucht, muss im Fehlerfall ausgeben, was tatsächlich dastand — sonst sagt der 
 Backend-Formate nachbilden, nicht schönen: `image`-Strings mit `?pathhash=`-Suffix,
 `image="None"` (String, truthy) für bildlose Playlists, Trackhash-Listen mit Orphans. Ein Test
 mit geschöntem `hash.webp` hat einen echten Bug übersehen.
+
+## Request-Funktionen: Vertrag mit dem Server
+
+`requests/__tests__/requestContract.test.ts` ruft **jede** exportierte Funktion aus
+`src/requests/` auf, fängt den Request bei axios ab und prüft ihn gegen `api-contract.json`
+(vom Server erzeugt, siehe `.claude/rules/api-endpoints.md` im Repo-Root). Daraus folgt:
+
+- **Neue Request-Funktion ⇒ eine realistische Zeile in `CALLS`.** Der Zensus im selben Test wird
+  sonst rot. Argumente an den echten Typen ausrichten (`CommandBody`, `SetQueueBody` …) — ein
+  ausgedachter Body meldet Verstöße, die im Client gar nicht existieren.
+- **Requests gehören nach `src/requests/`.** Wer aus einem Store oder einer Komponente direkt
+  `useAxios`/`axios` importiert, fällt aus dem Abgleich — ein zweiter Zensus lehnt das ab.
+  `BYPASSES_REQUESTS` listet die Altfälle; die Liste darf nur schrumpfen.
+- `FormData.keys()` kennt die TS-Lib dieses Projekts nicht (kein `DOM.Iterable`) — `forEach`
+  benutzen. Vitest merkt das nicht, erst `yarn typecheck`.

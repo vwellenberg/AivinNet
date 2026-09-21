@@ -146,3 +146,22 @@ Zeichen. Also im Test auf **403** prüfen, nie auf „nicht 200".
 Neue oder geänderte Endpoints und Request-Modelle brauchen **`tests_api/`-Abdeckung** des echten
 Request-Zyklus. Multipart-Optionalität und das File-Mapping von `flask_openapi3` brechen nur dort
 sichtbar — zweimal live passiert (#36→#167/#39).
+
+## ⚠️ Vertrag mit dem Client: `api-contract.json` neu erzeugen
+
+`tests_api/test_api_contract.py` leitet aus der OpenAPI-Spec der echten App einen kompakten
+Vertrag ab (Methode, Pfad, Query-/Body-Felder, Pflichtfelder, JSON vs. multipart) und vergleicht
+ihn mit `client/src/requests/__tests__/api-contract.json`. **Jede Änderung an Pfad, Methode oder
+Request-Modell macht die `API Tests` rot**, bis die Datei neu erzeugt ist — Absicht, denn erst
+dann prüft `requestContract.test.ts` alle Client-Requests gegen den neuen Stand:
+
+```bash
+AIVINNET_WRITE_API_CONTRACT=1 uv run pytest tests_api/test_api_contract.py   # auf Linux, bjoern
+```
+
+Die erzeugte Datei gehört in **denselben** PR. Wird danach ein Client-Test rot, ist das der
+Befund, nicht das Hindernis: der Client schickt etwas, das der Server nicht (mehr) liest.
+
+Falle, die der Abgleich beim ersten Lauf zweimal gefunden hat: **Ein Pydantic-`alias` ist der
+Name auf dem Draht.** `AlbumLimitSchema.limit` heißt nach außen `albumlimit`; der Client schickte
+`limit`, das wurde still ignoriert und der Server nahm seinen Standardwert.

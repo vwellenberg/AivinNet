@@ -5,8 +5,6 @@ import useAxios from './useAxios'
 
 const {
     album: albumUrl,
-    albumartists: albumArtistsUrl,
-    albumbio: albumBioUrl,
     albumsByArtistUrl,
     albumVersions,
 } = paths.api
@@ -42,44 +40,12 @@ const getAlbumData = async (albumhash: string, albumlimit: number) => {
     return data as AlbumData
 }
 
-const getAlbumArtists = async (hash: string) => {
-    const { data, error } = await useAxios({
-        url: albumArtistsUrl,
-        props: {
-            hash: hash,
-        },
-    })
-
-    if (error) {
-        console.error(error)
-    }
-
-    return data.artists
-}
-
-const getAlbumBio = async (hash: string) => {
-    const { data, status } = await useAxios({
-        url: albumBioUrl,
-        props: {
-            hash: hash,
-        },
-    })
-
-    if (data) {
-        return data.bio
-    }
-
-    if (status == 404) {
-        return null
-    }
-}
-
 export const getAlbumsFromArtist = async (albumartists: {}, limit: number = 2, base_title: string) => {
     const { data } = await useAxios({
         url: albumsByArtistUrl,
         props: {
             albumartists: albumartists,
-            limit: limit,
+            albumlimit: limit,
             base_title,
         },
     })
@@ -164,4 +130,4 @@ export async function reorderPinnedAlbums(positions: { albumhash: string; positi
     })
 }
 
-export { getAlbumData as getAlbum, getAlbumArtists, getAlbumBio }
+export { getAlbumData as getAlbum }

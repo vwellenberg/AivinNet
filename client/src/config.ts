@@ -62,12 +62,6 @@ export const paths = {
 
         // Single album
         album: '/album',
-        get albumartists() {
-            return this.album + '/artists'
-        },
-        get albumbio() {
-            return this.album + '/bio'
-        },
         get albumsByArtistUrl() {
             return this.album + '/from-artist'
         },
@@ -83,9 +77,6 @@ export const paths = {
             base: '/playlists',
             get new() {
                 return this.base + '/new'
-            },
-            get artists() {
-                return this.base + '/artists'
             },
         },
         search: {

@@ -84,7 +84,7 @@ export const getArtistAlbums = async (hash: string, limit = 6, all = false) => {
 
     const { data, error } = await useAxios({
         method: 'GET',
-        url: paths.api.artist + `/${hash}/albums?limit=${limit}&all=${all}`,
+        url: paths.api.artist + `/${hash}/albums?albumlimit=${limit}&all=${all}`,
     })
 
     if (error) {
@@ -118,19 +118,4 @@ export const getSimilarArtists = async (hash: string, limit = 6) => {
     }
 
     return data as Artist[]
-}
-
-export async function saveArtistAsPlaylist(name: string, hash: string) {
-    const { data, error } = await useAxios({
-        url: paths.api.artist + `/${hash}/playlist`,
-        props: {
-            name,
-        },
-    })
-
-    if (error) {
-        console.error(error)
-    }
-
-    return data
 }

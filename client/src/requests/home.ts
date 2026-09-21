@@ -20,7 +20,7 @@ export async function getRecentlyPlayed(limit: number) {
 
 export async function getHomePageData(limit: number) {
     const { data } = await useAxios({
-        url: paths.api.home.base + '?limit=' + limit,
+        url: paths.api.home.base + '/?limit=' + limit,
         method: 'GET',
     })
 

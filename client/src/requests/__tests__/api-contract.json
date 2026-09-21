@@ -1,0 +1,1065 @@
+{
+  "DELETE /auth/profile/delete": {
+    "body": {
+      "allowed": [
+        "username"
+      ],
+      "required": [
+        "username"
+      ],
+      "type": "json"
+    }
+  },
+  "DELETE /auth/profile/image": {},
+  "DELETE /backup/delete": {
+    "body": {
+      "allowed": [
+        "backup_dir"
+      ],
+      "required": [
+        "backup_dir"
+      ],
+      "type": "json"
+    }
+  },
+  "DELETE /playlistfolders/{folder_id}": {},
+  "DELETE /playlists/{playlistid}/delete": {},
+  "DELETE /playlists/{playlistid}/remove-img": {},
+  "GET /album/pinned": {},
+  "GET /album/similar": {
+    "query": {
+      "allowed": [
+        "albumlimit",
+        "artisthash"
+      ],
+      "required": [
+        "artisthash"
+      ]
+    }
+  },
+  "GET /album/{albumhash}/tracks": {},
+  "GET /artist/{artisthash}": {
+    "query": {
+      "allowed": [
+        "albumlimit",
+        "all",
+        "tracklimit"
+      ],
+      "required": []
+    }
+  },
+  "GET /artist/{artisthash}/albums": {
+    "query": {
+      "allowed": [
+        "albumlimit",
+        "all"
+      ],
+      "required": []
+    }
+  },
+  "GET /artist/{artisthash}/similar": {
+    "query": {
+      "allowed": [
+        "artistlimit"
+      ],
+      "required": []
+    }
+  },
+  "GET /artist/{artisthash}/summary": {},
+  "GET /artist/{artisthash}/tracks": {},
+  "GET /auth/getpaircode": {},
+  "GET /auth/logout": {},
+  "GET /auth/pair": {
+    "query": {
+      "allowed": [
+        "code",
+        "setcookie"
+      ],
+      "required": []
+    }
+  },
+  "GET /auth/user": {},
+  "GET /auth/users": {
+    "query": {
+      "allowed": [
+        "simplified"
+      ],
+      "required": []
+    }
+  },
+  "GET /backup/list": {},
+  "GET /colors/album/{albumhash}": {},
+  "GET /coverart/search": {
+    "query": {
+      "allowed": [
+        "limit",
+        "q"
+      ],
+      "required": [
+        "q"
+      ]
+    }
+  },
+  "GET /download/album/{albumhash}": {},
+  "GET /download/playlist/{playlist_id}": {},
+  "GET /download/track/{trackhash}": {},
+  "GET /favorites": {
+    "query": {
+      "allowed": [
+        "album_limit",
+        "artist_limit",
+        "track_limit"
+      ],
+      "required": []
+    }
+  },
+  "GET /favorites/albums": {
+    "query": {
+      "allowed": [
+        "limit",
+        "start"
+      ],
+      "required": []
+    }
+  },
+  "GET /favorites/artists": {
+    "query": {
+      "allowed": [
+        "limit",
+        "start"
+      ],
+      "required": []
+    }
+  },
+  "GET /favorites/check": {
+    "query": {
+      "allowed": [
+        "hash",
+        "type"
+      ],
+      "required": [
+        "hash",
+        "type"
+      ]
+    }
+  },
+  "GET /favorites/tracks": {
+    "query": {
+      "allowed": [
+        "limit",
+        "start"
+      ],
+      "required": []
+    }
+  },
+  "GET /file/{trackhash}/legacy": {
+    "query": {
+      "allowed": [
+        "filepath"
+      ],
+      "required": [
+        "filepath"
+      ]
+    }
+  },
+  "GET /folder/show-in-files": {
+    "query": {
+      "allowed": [
+        "path"
+      ],
+      "required": [
+        "path"
+      ]
+    }
+  },
+  "GET /folder/tracks/all": {
+    "query": {
+      "allowed": [
+        "path"
+      ],
+      "required": [
+        "path"
+      ]
+    }
+  },
+  "GET /getall/{itemtype}": {
+    "query": {
+      "allowed": [
+        "limit",
+        "reverse",
+        "sortby",
+        "start"
+      ],
+      "required": []
+    }
+  },
+  "GET /img/artist/medium/{imgpath}": {},
+  "GET /img/artist/small/{imgpath}": {},
+  "GET /img/artist/{imgpath}": {},
+  "GET /img/playlist/{imgpath}": {},
+  "GET /img/thumbnail/medium/{imgpath}": {
+    "query": {
+      "allowed": [
+        "fb",
+        "pathhash"
+      ],
+      "required": []
+    }
+  },
+  "GET /img/thumbnail/small/{imgpath}": {
+    "query": {
+      "allowed": [
+        "fb",
+        "pathhash"
+      ],
+      "required": []
+    }
+  },
+  "GET /img/thumbnail/xsmall/{imgpath}": {
+    "query": {
+      "allowed": [
+        "fb",
+        "pathhash"
+      ],
+      "required": []
+    }
+  },
+  "GET /img/thumbnail/{imgpath}": {
+    "query": {
+      "allowed": [
+        "fb",
+        "pathhash"
+      ],
+      "required": []
+    }
+  },
+  "GET /img/user/{imgpath}": {},
+  "GET /logger/stats": {},
+  "GET /logger/top-albums": {
+    "query": {
+      "allowed": [
+        "duration",
+        "limit",
+        "offset",
+        "order_by"
+      ],
+      "required": []
+    }
+  },
+  "GET /logger/top-artists": {
+    "query": {
+      "allowed": [
+        "duration",
+        "limit",
+        "offset",
+        "order_by"
+      ],
+      "required": []
+    }
+  },
+  "GET /logger/top-playlists": {
+    "query": {
+      "allowed": [
+        "duration",
+        "limit",
+        "offset",
+        "order_by"
+      ],
+      "required": []
+    }
+  },
+  "GET /logger/top-tracks": {
+    "query": {
+      "allowed": [
+        "duration",
+        "limit",
+        "offset",
+        "order_by"
+      ],
+      "required": []
+    }
+  },
+  "GET /metadata/job/{job_id}": {},
+  "GET /musicbrainz/missing-count": {},
+  "GET /musicbrainz/status": {},
+  "GET /nothome/": {
+    "query": {
+      "allowed": [
+        "limit"
+      ],
+      "required": []
+    }
+  },
+  "GET /nothome/recents/added": {
+    "query": {
+      "allowed": [
+        "limit"
+      ],
+      "required": []
+    }
+  },
+  "GET /nothome/recents/played": {
+    "query": {
+      "allowed": [
+        "limit"
+      ],
+      "required": []
+    }
+  },
+  "GET /notsettings": {},
+  "GET /notsettings/get-root-dirs": {},
+  "GET /notsettings/trigger-scan": {},
+  "GET /playlistfolders": {},
+  "GET /playlists": {
+    "query": {
+      "allowed": [
+        "no_images"
+      ],
+      "required": []
+    }
+  },
+  "GET /playlists/{playlistid}": {
+    "query": {
+      "allowed": [
+        "limit",
+        "no_tracks",
+        "start"
+      ],
+      "required": []
+    }
+  },
+  "GET /plugins/": {},
+  "GET /search/": {
+    "query": {
+      "allowed": [
+        "itemtype",
+        "limit",
+        "q",
+        "start"
+      ],
+      "required": [
+        "itemtype",
+        "q"
+      ]
+    }
+  },
+  "GET /search/top": {
+    "query": {
+      "allowed": [
+        "limit",
+        "q",
+        "start"
+      ],
+      "required": [
+        "q"
+      ]
+    }
+  },
+  "POST /album": {
+    "body": {
+      "allowed": [
+        "albumhash",
+        "albumlimit"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /album/from-artist": {
+    "body": {
+      "allowed": [
+        "albumartists",
+        "albumlimit",
+        "base_title"
+      ],
+      "required": [
+        "albumartists",
+        "base_title"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /album/other-versions": {
+    "body": {
+      "allowed": [
+        "albumhash",
+        "og_album_title"
+      ],
+      "required": [
+        "albumhash",
+        "og_album_title"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /album/pinned/order": {
+    "body": {
+      "allowed": [
+        "positions"
+      ],
+      "required": [
+        "positions"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /album/{albumhash}/pin_unpin": {},
+  "POST /auth/login": {
+    "body": {
+      "allowed": [
+        "password",
+        "username"
+      ],
+      "required": [
+        "password",
+        "username"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /auth/profile/create": {
+    "body": {
+      "allowed": [
+        "email",
+        "id",
+        "password",
+        "roles",
+        "username"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "POST /auth/profile/guest/create": {},
+  "POST /auth/refresh": {},
+  "POST /backup/create": {},
+  "POST /backup/restore": {
+    "body": {
+      "allowed": [
+        "backup_dir"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "POST /coverart/album": {
+    "body": {
+      "allowed": [
+        "albumhash",
+        "url"
+      ],
+      "required": [
+        "albumhash",
+        "url"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /coverart/album/embed": {
+    "body": {
+      "allowed": [
+        "albumhash"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /coverart/album/remove": {
+    "body": {
+      "allowed": [
+        "albumhash"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /coverart/album/undo": {
+    "body": {
+      "allowed": [
+        "albumhash"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /coverart/album/upload": {
+    "body": {
+      "allowed": [
+        "albumhash",
+        "image"
+      ],
+      "files": [
+        "image"
+      ],
+      "required": [
+        "albumhash",
+        "image"
+      ],
+      "type": "multipart"
+    }
+  },
+  "POST /coverart/playlist/{playlistid}": {
+    "body": {
+      "allowed": [
+        "url"
+      ],
+      "required": [
+        "url"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/command": {
+    "body": {
+      "allowed": [
+        "device_id",
+        "payload",
+        "target_device",
+        "type"
+      ],
+      "required": [
+        "device_id",
+        "type"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/join": {
+    "body": {
+      "allowed": [
+        "device_id"
+      ],
+      "required": [
+        "device_id"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/leave": {
+    "body": {
+      "allowed": [
+        "device_id"
+      ],
+      "required": [
+        "device_id"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/poll": {
+    "body": {
+      "allowed": [
+        "client_sent_ms",
+        "device_id",
+        "known_version",
+        "mute",
+        "volume"
+      ],
+      "required": [
+        "device_id"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/queue-set": {
+    "body": {
+      "allowed": [
+        "currentindex",
+        "device_id",
+        "from",
+        "playing",
+        "position_ms",
+        "repeat",
+        "trackhashes"
+      ],
+      "required": [
+        "currentindex",
+        "device_id",
+        "from",
+        "playing",
+        "trackhashes"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/register": {
+    "body": {
+      "allowed": [
+        "device_id",
+        "name",
+        "type"
+      ],
+      "required": [
+        "device_id",
+        "name",
+        "type"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /devicesync/resolve": {
+    "body": {
+      "allowed": [
+        "trackhashes"
+      ],
+      "required": [
+        "trackhashes"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /favorites/add": {
+    "body": {
+      "allowed": [
+        "hash",
+        "type"
+      ],
+      "required": [
+        "hash",
+        "type"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /favorites/remove": {
+    "body": {
+      "allowed": [
+        "hash",
+        "type"
+      ],
+      "required": [
+        "hash",
+        "type"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /file/silence": {
+    "body": {
+      "allowed": [
+        "ending_file",
+        "starting_file"
+      ],
+      "required": [
+        "ending_file",
+        "starting_file"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /folder": {
+    "body": {
+      "allowed": [
+        "folder",
+        "foldersort_reverse",
+        "limit",
+        "sortfoldersby",
+        "sorttracksby",
+        "start",
+        "tracks_only",
+        "tracksort_reverse"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "POST /folder/dir-browser": {
+    "body": {
+      "allowed": [
+        "folder"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "POST /logger/track/log": {
+    "body": {
+      "allowed": [
+        "duration",
+        "source",
+        "timestamp",
+        "trackhash"
+      ],
+      "required": [
+        "duration",
+        "source",
+        "timestamp",
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /lyrics": {
+    "body": {
+      "allowed": [
+        "filepath",
+        "trackhash"
+      ],
+      "required": [
+        "filepath",
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /lyrics/check": {
+    "body": {
+      "allowed": [
+        "filepath",
+        "trackhash"
+      ],
+      "required": [
+        "filepath",
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /metadata/album/apply": {
+    "body": {
+      "allowed": [
+        "changes"
+      ],
+      "required": [
+        "changes"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /metadata/album/candidates": {
+    "body": {
+      "allowed": [
+        "albumhash"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /metadata/album/preview": {
+    "body": {
+      "allowed": [
+        "albumhash",
+        "mbid",
+        "source"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /musicbrainz/fetch-cover": {
+    "body": {
+      "allowed": [
+        "albumhash"
+      ],
+      "required": [
+        "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /musicbrainz/fetch-missing-covers": {
+    "body": {
+      "allowed": [
+        "limit",
+        "retry_failed"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "POST /notsettings/add-root-dirs": {
+    "body": {
+      "allowed": [
+        "new_dirs",
+        "removed"
+      ],
+      "required": [
+        "new_dirs",
+        "removed"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlistfolders": {
+    "body": {
+      "allowed": [
+        "name"
+      ],
+      "required": [
+        "name"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlistfolders/move": {
+    "body": {
+      "allowed": [
+        "folder_id",
+        "playlist_id",
+        "position"
+      ],
+      "required": [
+        "playlist_id"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlistfolders/reorder": {
+    "body": {
+      "allowed": [
+        "positions"
+      ],
+      "required": [
+        "positions"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlists/new": {
+    "body": {
+      "allowed": [
+        "name"
+      ],
+      "required": [
+        "name"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlists/save-item": {
+    "body": {
+      "allowed": [
+        "itemhash",
+        "itemtype",
+        "playlist_name",
+        "sortoptions"
+      ],
+      "required": [
+        "itemhash",
+        "itemtype",
+        "playlist_name"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlists/sidebar-order": {
+    "body": {
+      "allowed": [
+        "positions"
+      ],
+      "required": [
+        "positions"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlists/{playlistid}/add": {
+    "body": {
+      "allowed": [
+        "itemhash",
+        "itemtype",
+        "sortoptions"
+      ],
+      "required": [
+        "itemhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /playlists/{playlistid}/pin_unpin": {},
+  "POST /playlists/{playlistid}/prune-orphans": {},
+  "POST /playlists/{playlistid}/remove-tracks": {
+    "body": {
+      "allowed": [
+        "tracks"
+      ],
+      "required": [
+        "tracks"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /plugins/lastfm/session/create": {
+    "body": {
+      "allowed": [
+        "token"
+      ],
+      "required": [
+        "token"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /plugins/lastfm/session/delete": {},
+  "POST /plugins/lyrics/search": {
+    "body": {
+      "allowed": [
+        "album",
+        "artist",
+        "filepath",
+        "title",
+        "trackhash"
+      ],
+      "required": [
+        "album",
+        "artist",
+        "filepath",
+        "title",
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /plugins/setactive": {
+    "body": {
+      "allowed": [
+        "active",
+        "plugin"
+      ],
+      "required": [
+        "plugin"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /plugins/settings": {
+    "body": {
+      "allowed": [
+        "plugin",
+        "settings"
+      ],
+      "required": [
+        "plugin",
+        "settings"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /auth/profile/image": {
+    "body": {
+      "allowed": [
+        "image"
+      ],
+      "files": [
+        "image"
+      ],
+      "required": [
+        "image"
+      ],
+      "type": "multipart"
+    }
+  },
+  "PUT /auth/profile/update": {
+    "body": {
+      "allowed": [
+        "email",
+        "id",
+        "password",
+        "roles",
+        "username"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "PUT /notsettings/update": {
+    "body": {
+      "allowed": [
+        "key",
+        "value"
+      ],
+      "required": [
+        "key",
+        "value"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /playlistfolders/{folder_id}": {
+    "body": {
+      "allowed": [
+        "name"
+      ],
+      "required": [
+        "name"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /playlists/{playlistid}/move-track": {
+    "body": {
+      "allowed": [
+        "before_trackhash",
+        "trackhash"
+      ],
+      "required": [
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /playlists/{playlistid}/rename": {
+    "body": {
+      "allowed": [
+        "name"
+      ],
+      "required": [
+        "name"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /playlists/{playlistid}/reorder": {
+    "body": {
+      "allowed": [
+        "trackhashes"
+      ],
+      "required": [
+        "trackhashes"
+      ],
+      "type": "json"
+    }
+  },
+  "PUT /playlists/{playlistid}/update": {
+    "body": {
+      "allowed": [
+        "image",
+        "name",
+        "settings"
+      ],
+      "files": [
+        "image"
+      ],
+      "required": [
+        "name",
+        "settings"
+      ],
+      "type": "multipart"
+    }
+  },
+  "PUT /track/{trackhash}/tags": {
+    "body": {
+      "allowed": [
+        "album",
+        "albumartists",
+        "artists",
+        "title",
+        "track"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  }
+}

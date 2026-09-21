@@ -1,11 +1,11 @@
 import { paths } from '@/config'
-import { Artist, Playlist, Track } from '@/interfaces'
+import { Playlist, Track } from '@/interfaces'
 import { NotifType, Notification, useToast } from '@/stores/notification'
 import useAxios from './useAxios'
 import useFolder from '@/stores/pages/folder'
 import { recordRecentPlaylist } from '@/utils/recentPlaylists'
 
-const { new: newPlaylistUrl, base: basePlaylistUrl, artists: playlistArtistsUrl } = paths.api.playlist
+const { new: newPlaylistUrl, base: basePlaylistUrl } = paths.api.playlist
 
 /**
  * Persist the manual library-sidebar order of playlists by explicit position
@@ -226,30 +226,6 @@ export async function updatePlaylist(pid: number, playlist: FormData, pStore: an
 
     pStore.updatePInfo(data.data)
     new Notification('Playlist updated!')
-}
-
-/**
- * Gets the artists in a playlist.
- * @param pid The playlist id to fetch tracks for.
- * @returns {Promise<Artist[]>} A promise that resolves to an array of artists.
- */
-export async function getPlaylistArtists(pid: number): Promise<Artist[]> {
-    const { data, error } = await useAxios({
-        url: playlistArtistsUrl,
-        props: {
-            pid: pid,
-        },
-    })
-
-    if (error) {
-        new Notification('Something funny happened!', NotifType.Error)
-    }
-
-    if (data) {
-        return data.data as Artist[]
-    }
-
-    return []
 }
 
 export async function deletePlaylist(pid: number) {
