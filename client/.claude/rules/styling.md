@@ -600,9 +600,13 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   harte Tintenkante. Beim Schreiben des Zensus standen 13 solche Stellen in 11 Dateien.
 - **Rechnen nur mit den `-static`-Zwillingen oder in `calc()`**: `$candy-radius` ist ein
   `var()`, Sass kann davon nichts abziehen (`calc(#{$candy-radius} - #{$candy-border-w})`).
-- **Zwei Strichstärken, beide mit Namen** (#141): `$candy-border` (3 px) für Platten, Zeilen und
-  Karten, `$mem-hairline` (1 px) für Chips in einer Textzeile, Tooltips, kleine Eingaben und
-  Trenner. Die Hairline ist eine Rolle, keine Nachlässigkeit — ein 3-px-Rahmen um einen 6-px-Punkt
+- **Drei Strichstärken, alle mit Namen** (#141, #233): `$candy-border` (3 px) für Platten, Zeilen
+  und Karten; `$mem-ring-w` (2 px) für Ringe um Dinge, die **auf** einer Fläche sitzen und kleiner
+  sind als eine Platte (Tracknummer-Scheibe, Dauer-Pille, Zähl-Chip, Chart-Balken, Schalter-Knopf,
+  Drop-Marker); `$mem-hairline` (1 px) für Chips in einer Textzeile, Tooltips, kleine Eingaben und
+  Trenner. Die Fokus-Umrandung hat mit `$focus-ring-w` einen eigenen Namen, obwohl sie heute gleich
+  breit ist wie der Ring: Wer Badge-Ringe verbreitert, darf nicht nebenbei ändern, was ein
+  Tastaturnutzer verfolgt. Die Hairline ist eine Rolle, keine Nachlässigkeit — ein 3-px-Rahmen um einen 6-px-Punkt
   oder ein 40-px-Zahlenfeld ist schwerer als das, was er einfasst. Ein literales `1px` in `border`
   oder `outline` erfindet eine dritte Stärke und ist getestet.
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben

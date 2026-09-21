@@ -90,7 +90,7 @@
 .logo-orbit {
   position: absolute;
   inset: -5px;
-  border: 2px dashed $mem-line;
+  border: $mem-ring-w dashed $mem-line;
   border-radius: 50%;
   opacity: 0;
   transform: scale(0.72);

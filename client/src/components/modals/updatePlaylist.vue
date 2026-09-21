@@ -238,7 +238,7 @@ function update_playlist(e: Event) {
             place-items: center;
             place-content: center;
             border-radius: $candy-radius-sm;
-            border: dashed 2px $mem-line;
+            border: dashed $mem-ring-w $mem-line;
             cursor: pointer;
             padding: $medium;
 

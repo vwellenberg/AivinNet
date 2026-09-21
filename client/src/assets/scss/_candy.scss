@@ -116,6 +116,16 @@ $candy-border: $candy-border-w solid $mem-line;
 // belonged and where it did not.
 $mem-hairline-w: 1px;
 $mem-hairline: $mem-hairline-w solid $mem-line;
+// THE RING — the middle weight, between the hairline and the plate border.
+// Strokes around things that sit ON a surface and are smaller than a plate:
+// the track-number disc and the duration pill in every song row, count chips,
+// the lyrics timestamp, the chart meter and cover, the switch knob, the logo
+// orbit, drop markers, the dashed upload box. It arrived with the cassette
+// inlay and ran as sixteen literal `2px`s until #233 named it.
+$mem-ring-w: 2px;
+// The keyboard focus outline. Its own name, not the ring's: widening every
+// badge ring must never thin or thicken what a keyboard user follows.
+$focus-ring-w: 2px;
 // The two corner radii are SHAPE TOKENS (see "Shape tokens" below): they emit
 // `var(--shape-radius…, <memphis value>)`, so a theme can round the whole app
 // differently while Memphis, which sets nothing, computes exactly the value it
@@ -664,7 +674,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // ---------------------------------------------------------------------------
 @mixin mem-count-chip($entity) {
   @include mem-entity-tint($entity);
-  border: 2px solid $mem-line;
+  border: $mem-ring-w solid $mem-line;
   border-radius: $candy-radius-pill;
   padding: 0 0.45rem;
   font-size: $medium;
