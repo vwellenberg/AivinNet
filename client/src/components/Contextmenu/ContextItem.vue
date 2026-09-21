@@ -185,7 +185,7 @@ function runChildAction(action: () => void) {
     padding: 0.4rem;
     position: relative;
     border-radius: $candy-radius-sm;
-    transition: background-color 0.2s ease-out;
+    transition: background-color $motion-move ease-out;
 
     .more {
         height: 1.5rem;
@@ -206,7 +206,7 @@ function runChildAction(action: () => void) {
         padding: $small $smaller;
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
+        transition: opacity $motion-settle ease-out, visibility $motion-settle ease-out;
 
         ::-webkit-scrollbar-thumb {
             background-color: transparent;

@@ -95,7 +95,7 @@ onMounted(() => {
             font-weight: 500;
             padding: $smaller $small;
             border-radius: $candy-radius-xs;
-            transition: background-color 0.2s ease-out;
+            transition: background-color $motion-move ease-out;
         }
 
         &::before {

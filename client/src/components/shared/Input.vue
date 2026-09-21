@@ -70,7 +70,7 @@ function toggleShowPassword() {
         cursor: pointer;
         opacity: 0;
 
-        transition: all 0.2s ease-in-out;
+        transition: all $motion-move ease-in-out;
         transition-delay: 0;
 
         svg {

@@ -129,7 +129,7 @@ const browselist: BrowseItem[] = [
     // Hard offset shadow: the tile sits above the grid ground (memphis).
     @include candy-raised(3px, 3px, $press: false);
     color: $candy-text;
-    transition: background-color 0.2s ease-out, color 0.2s ease-out, box-shadow 0.12s ease-out;
+    transition: background-color $motion-move ease-out, color $motion-move ease-out, box-shadow $motion-shadow ease-out;
 
     // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): sechs
     // Platten nebeneinander, die vorher als einziger Block der Startseite

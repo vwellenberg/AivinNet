@@ -254,7 +254,7 @@ function update_playlist(e: Event) {
             height: 100%;
             background-color: $candy-text-faint;
             border-radius: $candy-radius-sm;
-            transition: all 0.2s ease-out;
+            transition: all $motion-move ease-out;
             display: flex;
             place-content: center;
             place-items: center;
@@ -264,7 +264,7 @@ function update_playlist(e: Event) {
                 transform: scale(1);
                 // White delete glyph over the image overlay — static light.
                 color: $mem-panel-static;
-                transition: transform 0.2s ease-out;
+                transition: transform $motion-move ease-out;
             }
 
             &:hover {

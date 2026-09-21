@@ -78,7 +78,7 @@ onMounted(() => {
     @include candy-box($candy-pink-soft, $candy-radius-sm);
     margin-top: 1.25rem;
     cursor: pointer;
-    transition: background-color 0.2s ease-out;
+    transition: background-color $motion-move ease-out;
 
     &:hover {
       background-color: $candy-pink-deep;

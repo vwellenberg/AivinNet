@@ -153,7 +153,7 @@ function onContextMenu(e: MouseEvent) {
             width: 2.5rem;
             height: 2.5rem;
             opacity: 0;
-            transition: opacity 0.2s ease-in-out, background-color 0.2s ease-out;
+            transition: opacity $motion-move ease-in-out, background-color $motion-move ease-out;
         }
     }
 

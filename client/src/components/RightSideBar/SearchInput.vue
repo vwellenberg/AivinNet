@@ -206,7 +206,7 @@ function handleButton() {
             margin-right: $smaller;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out, background-color 0.2s ease-out;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out, background-color $motion-move ease-out;
             width: 1.75rem;
             aspect-ratio: 1;
 

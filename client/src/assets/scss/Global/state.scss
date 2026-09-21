@@ -11,7 +11,7 @@
   // circle with a static ink ring so it reads over any cover in both themes.
   background-color: $mem-panel-static;
   border: $candy-border-w solid $mem-ink;
-  transition: opacity 0.2s ease-out, visibility 0.2s ease-out;
+  transition: opacity $motion-move ease-out, visibility $motion-move ease-out;
 
   &.active {
     opacity: 1;
@@ -26,7 +26,7 @@
     @for $i from 1 through 9 {
       #Line_#{$i} {
         animation: pulse 0.6s infinite;
-        animation-delay: $i * 0.12s;
+        animation-delay: $i * $motion-shadow;
         transform: scaleY(0.8);
         transform-origin: center;
       }

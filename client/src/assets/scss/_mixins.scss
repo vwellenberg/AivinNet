@@ -97,7 +97,7 @@
     // (vite.config.ts), so `$motion-*` does not resolve here. The numbers are
     // the tokens' ($motion-move / $motion-shadow / $motion-lag) and change
     // with them.
-    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.12s ease 40ms;
+    transition: opacity $motion-move ease, transform $motion-move ease, box-shadow $motion-shadow ease $motion-lag;
 
     @if $placement == center {
       left: calc(50% - 1.625rem); // half of width

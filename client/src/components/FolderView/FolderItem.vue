@@ -89,7 +89,7 @@ function showContextMenu(e: MouseEvent) {
   // Grid mode: a raised tile like every other card. (List mode flattens the
   // row and drops the shadow again — see FolderList.vue.)
   @include candy-raised(3px, 3px, $press: false);
-  transition: background-color 0.2s ease-out, box-shadow 0.12s ease-out;
+  transition: background-color $motion-move ease-out, box-shadow $motion-shadow ease-out;
 
   &.context_menu_showing {
     background-color: $candy-pink-deep;

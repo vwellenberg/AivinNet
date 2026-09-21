@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync, statSync } from 'fs'
+import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -29,7 +31,24 @@ import { describe, expect, it } from 'vitest'
 // stops being tidy.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob('/src/**/*.{vue,scss}', { as: 'raw', eager: true }) as Record<string, string>
+// ⚠️ `.scss` comes from the DISK. A raw `import.meta.glob` returns stylesheets as
+// an EMPTY string under Vitest (testing.md) — the first version of this file read
+// them that way, so every `.scss` passed the census by containing nothing. Found
+// while writing motionScale.test.ts; the guard below now checks for content.
+function scssFiles(dir: string): string[] {
+    const out: string[] = []
+    for (const name of readdirSync(dir)) {
+        const path = join(dir, name)
+        if (statSync(path).isDirectory()) out.push(...scssFiles(path))
+        else if (name.endsWith('.scss')) out.push(path)
+    }
+    return out
+}
+
+const SOURCES: Record<string, string> = {
+    ...(import.meta.glob('/src/**/*.vue', { as: 'raw', eager: true }) as Record<string, string>),
+    ...Object.fromEntries(scssFiles('src').map(f => ['/' + f.split('\\').join('/'), readFileSync(f, 'utf-8')])),
+}
 
 /** Spacing tokens too small to be text at any size the app uses. */
 const SPACING_TOKENS = ['$smaller', '$small']
@@ -52,6 +71,9 @@ describe('the type scale', () => {
         // A source-scanning test goes silently green when its input breaks
         // (.claude/rules/testing.md).
         expect(Object.keys(SOURCES).length).toBeGreaterThan(100)
+        const scss = Object.entries(SOURCES).filter(([path]) => path.endsWith('.scss'))
+        expect(scss.length).toBeGreaterThan(10)
+        expect(scss.every(([, source]) => source.length > 0), '.scss arrived empty').toBe(true)
         expect(offendersIn('a { font-size: $small; }')).toEqual(['font-size: $small'])
         expect(offendersIn('a { font-size: $smaller; }')).toEqual(['font-size: $smaller'])
         // Spacing keeps the tokens; only `font-size` is the offence.

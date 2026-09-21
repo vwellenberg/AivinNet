@@ -149,7 +149,7 @@ onClickOutside(dropOptionsRef, e => {
             cursor: pointer;
             padding: $small;
             border-radius: $candy-radius-sm;
-            transition: background-color 0.2s ease-out;
+            transition: background-color $motion-move ease-out;
 
             &:hover {
                 background-color: $candy-pink-soft;
