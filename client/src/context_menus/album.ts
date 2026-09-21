@@ -170,8 +170,14 @@ export default async (album?: Album) => {
     // as a magnifier one row away from the OTHER magnifier in this menu — two
     // identical glyphs for two different actions, which is a coin toss. Here
     // the two sit together and their labels do the distinguishing.
+    //
+    // ⚠️ The label is short on purpose, with the telling word FIRST. The menu is
+    // a fixed 14rem and "Fetch cover automatically" needed 180px of 161 — the
+    // ellipsis ate "automatically", the one word that separates this entry from
+    // "Find cover online" right above it. Caught by the deploy gate
+    // (scripts/menu-label-fit.js), the third time after #549 and #561.
     const fetch_cover_auto = <Option>{
-        label: 'Fetch cover automatically',
+        label: 'Auto-fetch cover',
         action: async () => {
             if (!album.albumhash) return
 
