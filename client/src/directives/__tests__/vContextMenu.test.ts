@@ -203,9 +203,11 @@ describe("v-context-menu", () => {
     expect(onMenu).toHaveBeenCalledTimes(2);
   });
 
-  it("turns off the platform's own long-press sheet", () => {
+  it("turns off the platform's own long-press selection", () => {
     const { tile } = setup();
-    expect(tile.style.getPropertyValue("-webkit-touch-callout")).toBe("none");
+    // Only the selection is observable here. `-webkit-touch-callout` (iOS's
+    // link preview / "Save image" sheet) is set alongside it, but it exists
+    // in Safari alone: jsdom and Chromium drop the declaration on write.
     expect(tile.style.getPropertyValue("user-select")).toBe("none");
   });
 
