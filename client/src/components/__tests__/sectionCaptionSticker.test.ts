@@ -39,7 +39,6 @@ const NOT_ON_THE_GROUND: Record<string, string> = {
   "components/DeviceSync/GestureOverlay.vue": "the join prompt paints its own veil sheet",
   // The two sidebar entries that used to sit here (QueueActions, the sidebar's
   // own TopResults) went with the panel rewrite — see #416.
-  "components/RightSideBar/Search/Top/TopItem.vue": "the top-result card's own title, on the card",
   "components/SettingsView/About.vue": "inside the settings modal",
   "components/modals/RootDirsPrompt.vue": "inside a modal",
   "views/PairView.vue": "on the pairing plate",
@@ -386,8 +385,8 @@ describe("the search page's Top tab", () => {
     }
   });
 
-  // The sticker must NOT hang off the bare `h3` selector in this file: it also
-  // reaches the title inside the top-result card, which sits on a panel.
+  // The sticker must NOT hang off a bare `h3` selector in this file: it would
+  // reach any heading a result component renders inside the page.
   it("scopes the sticker to the class, not to the element", () => {
     const stickerAt = STYLE.indexOf("mem-sticker");
     expect(stickerAt).toBeGreaterThan(-1);
