@@ -17,6 +17,7 @@ import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import App from "./App.vue";
 import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
+import vContextMenu from "./directives/vContextMenu";
 
 import "./assets/scss/index.scss";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
@@ -47,6 +48,9 @@ app.use(VWave as Plugin, {
 app.use(MotionPlugin);
 
 app.directive("tooltip", vTooltip);
+// Right-click, the context-menu key AND a touch long-press — iOS fires no
+// `contextmenu` for a touch. See directives/vContextMenu.ts.
+app.directive("context-menu", vContextMenu);
 
 app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);

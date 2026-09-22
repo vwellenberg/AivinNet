@@ -269,3 +269,18 @@ button {
   width: 0.9rem;
   margin-left: $smaller;
 }
+
+// Elements with `v-context-menu` (directives/vContextMenu.ts) open their menu
+// on a touch long-press, so the platform's own long-press has to stay out of
+// the way: iOS would lay its link preview / "Save image" sheet over the menu,
+// and on touch the press would start a text selection. `touch-callout` exists
+// for touch only; selection is switched off only where a coarse pointer is
+// present, so mouse users can still select and copy a name.
+[data-context-menu] {
+  -webkit-touch-callout: none;
+
+  @media (any-pointer: coarse) {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

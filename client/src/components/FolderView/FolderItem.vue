@@ -3,9 +3,9 @@
   <router-link v-if="folder_page" :to="{ name: Routes.folder, params: { path: folder.path } }">
     <div
       v-auto-animate
+      v-context-menu="showContextMenu"
       class="f-item"
       :class="{ context_menu_showing: context_menu_showing }"
-      @contextmenu.prevent="showContextMenu"
     >
       <SymLinkSvg v-if="folder.is_sym" />
       <FolderSvg v-else />

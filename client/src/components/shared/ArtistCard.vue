@@ -1,5 +1,6 @@
 <template>
     <RouterLink
+        v-context-menu="showContextMenu"
         :to="{
             name: Routes.artist,
             params: {
@@ -7,7 +8,6 @@
             },
         }"
         class="artist-card"
-        @contextmenu.prevent="showContextMenu"
         :class="{ 'context-menu-open': contextMenuFlag }"
     >
         <CardTypeLabel type="artist" />

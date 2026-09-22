@@ -18,6 +18,12 @@
 // the touch target below the app's 44px floor. The whole tile is the link, and
 // the play disc on the artwork is its only control.
 //
+// Its menu therefore comes from the tile itself: right-click, the context-menu
+// key, or a touch long-press — all three through `v-context-menu` on the tile
+// root (directives/vContextMenu.ts), never `@contextmenu` alone. iOS Safari
+// fires no `contextmenu` for a touch, so with no ⋮ button that left every tile
+// menu unreachable on an iPhone. `cardAnatomy.test.ts` enforces it.
+//
 // EVERY card type CardScroller can render belongs in $card-types. The folder,
 // mix and favourites tiles were once missing from that list and each one
 // drifted on its own (the folder card measured 176x245 next to a 176x248

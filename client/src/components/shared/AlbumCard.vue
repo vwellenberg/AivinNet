@@ -1,11 +1,11 @@
 <template>
     <RouterLink
+        v-context-menu="showMenu"
         :to="{
             name: Routes.album,
             params: { albumhash: album.albumhash },
         }"
         class="album-card"
-        @contextmenu.prevent="showMenu"
         :class="{ 'context-menu-open': contextMenuFlag }"
     >
         <CardTypeLabel type="album" />
