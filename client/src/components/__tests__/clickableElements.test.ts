@@ -48,10 +48,9 @@ const REGIONS: Record<string, string> = {
 };
 
 /** Genuine controls still to convert — with why each was not mechanical. */
-const TODO: Record<string, string> = {
-  "components/Contextmenu/ContextItem.vue":
-    "the submenu lives INSIDE the clickable item, so a <button> would nest controls — needs menu semantics",
-};
+// Empty since the context menu got the menu pattern (#137). Kept, because the
+// next gap needs somewhere to be written down with its reason.
+const TODO: Record<string, string> = {};
 
 /**
  * A COMPOSED control: an element that is not a <button> for a reason — a drag
