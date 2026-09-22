@@ -73,6 +73,10 @@ const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     'src/components/shared/Input.vue': { values: ['1s'], why: 'show-password hint delay' },
     // `var(--btn-pop-delay, 0s)`: "no delay" as a fallback, not a duration.
     'src/assets/scss/Global/_buttons.scss': { values: ['0s'], why: 'zero-delay fallback' },
+    // `visibility 0s`: visibility is not animated — only WHEN it flips is timed
+    // (at once on open so the menu can take focus, after the fade on close).
+    'src/components/ContextMenu.vue': { values: ['0s'], why: 'visibility flips, never fades' },
+    'src/components/Contextmenu/ContextItem.vue': { values: ['0s'], why: 'visibility flips, never fades' },
 }
 
 const DECL = /(?<![-\w])(transition|animation)(-duration|-delay)?\s*:[^;{}]*;/g

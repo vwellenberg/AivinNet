@@ -1015,6 +1015,16 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Falz. Beide Hälften stecken seit #168 in **einem** Mixin: `mem-arrival($beyond: hold)` für alles
   nebeneinander, `mem-arrival($beyond: drop)` für alles untereinander. Neue Reihen binden das ein
   statt die Staffel ein viertes Mal auszuschreiben. Festgehalten in `motionArrival.test.ts`.
+- ⚠️ **Unter „weniger Bewegung" transitioniert JEDES Element JEDE Eigenschaft.** Die Policy
+  (`motion-policy.scss`) setzt `transition-duration: 0.01ms !important` auf `*` — und ein Element
+  ohne eigene Transition hat als Standard `transition-property: all`. Ein vererbtes `visibility`
+  sickert dadurch **einen Frame pro Verschachtelungsebene** nach unten: Gemessen war das
+  Untermenü sichtbar, sein `.wrapper` und die Einträge darin zwei Frames später noch `hidden`,
+  und `focus()` auf einen versteckten Eintrag scheitert wortlos (#137). Wer etwas einblendet und
+  dann fokussiert, wartet deshalb auf die **Bedingung** (`utils/focusWhenVisible.ts`), nie auf
+  eine geratene Anzahl Frames. Und `visibility` selbst schaltet beim Öffnen **sofort** und nur
+  beim Schließen verzögert (`.context-menu`, `.children` mit `is-open`) — eine
+  `visibility`-Transition startet bei Fortschritt 0, also noch `hidden`.
 - **`animation-fill-mode: backwards` ist erlaubt, `both` nicht.** `both` hält zusätzlich den
   **letzten** Frame, und ein Animations-`scale(1)` schlägt jedes deklarierte `transform` — Hover
   und Press wären in allen fünf Rollen still tot. `backwards` gilt nur *während* einer Verzögerung.

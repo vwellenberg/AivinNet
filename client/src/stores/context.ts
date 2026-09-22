@@ -36,8 +36,25 @@ export default defineStore("context-menu", {
         this.elem = document.getElementById("context-menu");
       }
 
+      // ⚠️ A click the KEYBOARD produced (Enter/Space on a button) carries no
+      // pointer position: x and y are 0, so the menu opened in the top-left
+      // corner of the window, far from the control that opened it. Anchor it
+      // under that control instead (#137).
+      //
+      // Keyed on the coordinates, NOT on `detail === 0`: a mouse `contextmenu`
+      // event reports detail 0 as well, and that first version pinned every
+      // right-click menu to the row's left edge — measured 303px against a
+      // pointer at 700.
+      let { x, y } = e;
+      const source = (e.currentTarget ?? e.target) as Element | null;
+      if (x === 0 && y === 0 && source instanceof Element) {
+        const box = source.getBoundingClientRect();
+        x = box.left;
+        y = box.bottom;
+      }
+
       const virtualElement = {
-        getBoundingClientRect: generateGetBoundingClientRect(e.x, e.y),
+        getBoundingClientRect: generateGetBoundingClientRect(x, y),
       } as VirtualElement;
 
       // Promise.resolve so plain-array getters work too — a sync getter used

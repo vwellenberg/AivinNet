@@ -1,28 +1,48 @@
 <template>
-    <!-- TODO:  -->
+    <!-- A menu item (#137). Not a <button>: the submenu lives INSIDE this
+         element, and a button cannot contain controls. So it is the WAI-ARIA
+         menu pattern spelled out — role, a tab stop the menu moves focus to
+         (-1: arrows move between items, Tab leaves the menu), and the keys. -->
     <div
         ref="parentRef"
         class="context-item"
+        role="menuitem"
+        tabindex="-1"
+        :aria-haspopup="opensSubmenu ? 'menu' : undefined"
+        :aria-expanded="opensSubmenu ? childrenShown : undefined"
         @mouseenter="handleMouseEnter"
         @mouseleave="handleMouseLeave"
         @click="runAction"
+        @keydown="onItemKey"
     >
         <div class="icon image" v-html="option.icon"></div>
         <div class="label ellip">{{ option.label }}</div>
         <div v-if="hasChildren && !option.singleChild" class="more" v-html="ExpandIcon"></div>
-        <div v-if="children" ref="childRef" class="children rounded shadow-md">
+        <div
+            v-if="children"
+            ref="childRef"
+            class="children rounded shadow-md"
+            :class="{ 'is-open': childrenShown }"
+            :style="{ visibility: childrenShown ? 'visible' : 'hidden', opacity: childrenShown ? '1' : '0' }"
+            role="menu"
+        >
             <div className="wrapper">
-                <div
-                    v-for="child in children"
-                    :key="child.label"
-                    class="context-item"
-                    :class="[{ critical: child.critical }, child.type]"
-                    @click="child.action && runChildAction(child.action)"
-                >
-                    <div class="label ellip">
-                        {{ child.label }}
+                <template v-for="(child, index) in children" :key="child.label ?? `separator-${index}`">
+                    <div v-if="child.type === 'separator'" class="context-item separator" role="separator"></div>
+                    <div
+                        v-else
+                        class="context-item"
+                        :class="[{ critical: child.critical }, child.type]"
+                        role="menuitem"
+                        tabindex="-1"
+                        @click="child.action && runChildAction(child.action)"
+                        @keydown="onChildKey($event, child)"
+                    >
+                        <div class="label ellip">
+                            {{ child.label }}
+                        </div>
                     </div>
-                </div>
+                </template>
             </div>
         </div>
     </div>
@@ -30,11 +50,12 @@
 
 <script setup lang="ts">
 import { createPopper, Instance, Modifier, Placement, Rect } from '@popperjs/core'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import { contextChildrenShowMode } from '@/enums'
 import { ExpandIcon } from '@/icons'
 import { Option } from '@/interfaces'
+import { focusWhenVisible } from '@/utils/focusWhenVisible'
 
 const props = defineProps<{
     option: Option
@@ -139,14 +160,15 @@ async function showChildren() {
             offsetModifier,
         ],
     })
-    childRef.value ? (childRef.value.style.visibility = 'visible') : null
-    childRef.value ? (childRef.value.style.opacity = '1') : null
+    // Visibility, opacity and the open-state transition all follow
+    // `childrenShown`, in ONE render (template). They used to be written here as
+    // inline styles, a render BEFORE the `is-open` class existed — so the flip
+    // ran under the closing transition, with its delay, and the submenu stayed
+    // `hidden` for its first 250ms: the keyboard's focus() was refused (#137).
     childrenShown.value = true
 }
 
 function hideChildren() {
-    childRef.value ? (childRef.value.style.visibility = 'hidden') : null
-    childRef.value ? (childRef.value.style.opacity = '0') : null
     popperInstance?.destroy()
     childrenShown.value = false
 }
@@ -168,6 +190,78 @@ function runAction() {
 
     props.option.action && props.option.action()
     hideContextMenu()
+}
+
+// ---------------------------------------------------------------------------
+// The keyboard (#137). Up/Down/Home/End between items and Escape belong to the
+// menu (ContextMenu.vue); an item answers what is about ITSELF: activate it, or
+// open its submenu. Every key handled here stops, or the global shortcuts in
+// helpers/useKeyboard.ts would see it too — arrows seek and change volume there.
+// ---------------------------------------------------------------------------
+
+/** Whether this item opens a submenu rather than doing something. */
+const opensSubmenu = computed(() => !!props.option.children && !props.option.singleChild)
+
+function childItems(): HTMLElement[] {
+    return Array.from(childRef.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+}
+
+async function openSubmenuAndFocus() {
+    if (!childrenShown.value) await showChildren()
+    await nextTick()
+    await focusWhenVisible(childItems()[0])
+}
+
+function onItemKey(e: KeyboardEvent) {
+    // Keys pressed inside the submenu bubble up to here; they are onChildKey's.
+    if (e.target !== parentRef.value) return
+
+    if (e.key === 'Enter' || e.key === ' ') {
+        opensSubmenu.value ? openSubmenuAndFocus() : runAction()
+    } else if (e.key === 'ArrowRight' && opensSubmenu.value) {
+        openSubmenuAndFocus()
+    } else {
+        return
+    }
+
+    e.preventDefault()
+    e.stopPropagation()
+}
+
+function onChildKey(e: KeyboardEvent, child: Option) {
+    const items = childItems()
+    const at = items.indexOf(e.target as HTMLElement)
+
+    switch (e.key) {
+        case 'Enter':
+        case ' ':
+            if (child.action) runChildAction(child.action)
+            break
+        case 'ArrowDown':
+            items[(at + 1) % items.length]?.focus()
+            break
+        case 'ArrowUp':
+            items[(at - 1 + items.length) % items.length]?.focus()
+            break
+        case 'Home':
+            items[0]?.focus()
+            break
+        case 'End':
+            items[items.length - 1]?.focus()
+            break
+        // Back to the item that opened it — Escape closes ONE level, not the
+        // whole menu, which is what a nested menu is expected to do.
+        case 'ArrowLeft':
+        case 'Escape':
+            hideChildren()
+            parentRef.value?.focus()
+            break
+        default:
+            return
+    }
+
+    e.preventDefault()
+    e.stopPropagation()
 }
 
 function runChildAction(action: () => void) {
@@ -206,7 +300,13 @@ function runChildAction(action: () => void) {
         padding: $small $smaller;
         opacity: 0;
         visibility: hidden;
-        transition: opacity $motion-settle ease-out, visibility $motion-settle ease-out;
+        // Same as the menu itself: visible at once on open (or the first child
+        // cannot take focus), hidden only after the fade on close.
+        transition: opacity $motion-settle ease-out, visibility 0s linear $motion-settle;
+
+        &.is-open {
+            transition: opacity $motion-settle ease-out, visibility 0s;
+        }
 
         ::-webkit-scrollbar-thumb {
             background-color: transparent;
@@ -239,8 +339,15 @@ function runChildAction(action: () => void) {
         }
     }
 
-    &:hover {
+    // The keyboard's position in the menu reads the way the pointer's does.
+    &:hover,
+    &:focus-visible {
         background: $candy-pink-soft;
+    }
+
+    &:focus-visible {
+        outline: $focus-ring-w solid $mem-line;
+        outline-offset: -$focus-ring-w;
     }
 
     .icon {
