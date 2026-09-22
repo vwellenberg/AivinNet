@@ -8,10 +8,10 @@
        keeps the clip it actually needs (below), the tile stays open. This was
        the only one of the five cards that clipped itself. -->
   <router-link
+    v-context-menu="showMenu"
     :to="{ name: 'PlaylistView', params: { pid: playlist.id } }"
     class="p-card"
     :class="{ 'context-menu-open': contextMenuFlag }"
-    v-context-menu="showMenu"
   >
     <CardTypeLabel type="playlist" />
     <div v-if="!playlist.has_image && playlist.images.length" class="image card-art no-scroll">

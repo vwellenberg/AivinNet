@@ -12,13 +12,13 @@
          long-press, and from the keyboard via the context-menu key — the way
          it does on every tile (v-context-menu). -->
     <RouterLink
+        v-context-menu="onContextMenu"
         :to="{
             name: res_type === 'artist' ? Routes.artist : Routes.album,
             params: res_type === 'artist' ? { hash: item.artisthash || ' ' } : { albumhash: item.albumhash || ' ' },
         }"
         class="top-result-item"
         :class="{ 'context-menu-open': context_menu_showing }"
-        v-context-menu="onContextMenu"
     >
         <CardTypeLabel :type="res_type" />
         <div class="card-art" :class="{ 'is-round': res_type === 'artist' }">

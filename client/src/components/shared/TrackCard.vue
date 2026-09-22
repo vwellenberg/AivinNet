@@ -1,5 +1,6 @@
 <template>
   <RouterLink
+    v-context-menu="showMenu"
     :to="{
       name: Routes.album,
       params: {
@@ -8,7 +9,6 @@
     }"
     class="trackcard"
     :class="{ 'context-menu-open': contextMenuFlag }"
-    v-context-menu="showMenu"
   >
     <CardTypeLabel type="track" />
     <div class="image card-art">

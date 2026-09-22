@@ -1,5 +1,6 @@
 <template>
   <RouterLink
+    v-context-menu="showMenu"
     :to="{
       name: Routes.folder,
       params: {
@@ -8,7 +9,6 @@
     }"
     class="foldercard"
     :class="{ 'context-menu-open': contextMenuFlag }"
-    v-context-menu="showMenu"
   >
     <CardTypeLabel type="folder" />
     <div class="rimg card-art is-glyph">
