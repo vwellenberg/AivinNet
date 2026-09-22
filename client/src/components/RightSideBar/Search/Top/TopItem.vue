@@ -8,8 +8,9 @@
 
          Like every tile, the whole card is the link and the play disc on the
          artwork is its only control. The `⋮` button the track result carried
-         went with the panel: the same menu opens on right-click, and from the
-         keyboard via the context-menu key — the way it does on every tile. -->
+         went with the panel: the same menu opens on right-click, on a touch
+         long-press, and from the keyboard via the context-menu key — the way
+         it does on every tile (v-context-menu). -->
     <RouterLink
         :to="{
             name: res_type === 'artist' ? Routes.artist : Routes.album,
@@ -17,7 +18,7 @@
         }"
         class="top-result-item"
         :class="{ 'context-menu-open': context_menu_showing }"
-        @contextmenu.prevent="onContextMenu"
+        v-context-menu="onContextMenu"
     >
         <CardTypeLabel :type="res_type" />
         <div class="card-art" :class="{ 'is-round': res_type === 'artist' }">
@@ -102,7 +103,7 @@ const item = computed(() => {
 
 const context_menu_showing = ref(false)
 
-// Right-click anywhere on the card opens the menu for its result type.
+// Right-click or long-press anywhere on the card opens the menu for its result type.
 function onContextMenu(e: MouseEvent) {
     switch (res_type.value) {
         case 'track':

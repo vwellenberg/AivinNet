@@ -7,6 +7,8 @@
       },
     }"
     class="trackcard"
+    :class="{ 'context-menu-open': contextMenuFlag }"
+    v-context-menu="showMenu"
   >
     <CardTypeLabel type="track" />
     <div class="image card-art">
@@ -30,15 +32,23 @@ import { playSources } from "@/enums";
 import { Track } from "@/interfaces";
 
 import { Routes } from "@/router";
+import { ref } from "vue";
+import { showTrackContextMenu } from "@/helpers/contextMenuHandler";
 import ArtistName from "../shared/ArtistName.vue";
 import CardTypeLabel from "../shared/CardTypeLabel.vue";
 import PlayBtn from "../shared/PlayBtn.vue";
 import { isTypeEcho } from "@/utils/cardTypes";
 
-defineProps<{
+const props = defineProps<{
   track: Track;
   playSource: playSources;
 }>();
+
+const contextMenuFlag = ref(false);
+
+function showMenu(e: MouseEvent) {
+  showTrackContextMenu(e, props.track, contextMenuFlag);
+}
 
 defineEmits<{
   playThis: (index: number) => void;

@@ -5,7 +5,7 @@
             params: { albumhash: album.albumhash },
         }"
         class="album-card"
-        @contextmenu.prevent="showMenu"
+        v-context-menu="showMenu"
         :class="{ 'context-menu-open': contextMenuFlag }"
     >
         <CardTypeLabel type="album" />

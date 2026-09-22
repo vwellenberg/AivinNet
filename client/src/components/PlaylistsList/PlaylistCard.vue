@@ -7,7 +7,12 @@
        separate plates (#382) it carries no surface of its own; the artwork
        keeps the clip it actually needs (below), the tile stays open. This was
        the only one of the five cards that clipped itself. -->
-  <router-link :to="{ name: 'PlaylistView', params: { pid: playlist.id } }" class="p-card">
+  <router-link
+    :to="{ name: 'PlaylistView', params: { pid: playlist.id } }"
+    class="p-card"
+    :class="{ 'context-menu-open': contextMenuFlag }"
+    v-context-menu="showMenu"
+  >
     <CardTypeLabel type="playlist" />
     <div v-if="!playlist.has_image && playlist.images.length" class="image card-art no-scroll">
       <PlaylistImages :images="playlist.images" size="large" />
@@ -31,7 +36,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import { paths } from "../../config";
+import { showPlaylistContextMenu } from "@/helpers/contextMenuHandler";
 import { Playlist } from "../../interfaces";
 import { playSources } from '@/enums'
 import CardTypeLabel from '../shared/CardTypeLabel.vue'
@@ -40,9 +47,15 @@ import PlaylistImages from '../shared/PlaylistImages.vue'
 import { isTypeEcho } from '@/utils/cardTypes'
 
 const imguri = paths.images.playlist;
-defineProps<{
+const props = defineProps<{
   playlist: Playlist;
 }>();
+
+const contextMenuFlag = ref(false);
+
+function showMenu(e: MouseEvent) {
+  showPlaylistContextMenu(e, props.playlist, contextMenuFlag);
+}
 </script>
 
 <style lang="scss">

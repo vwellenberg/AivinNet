@@ -7,6 +7,8 @@
       },
     }"
     class="foldercard"
+    :class="{ 'context-menu-open': contextMenuFlag }"
+    v-context-menu="showMenu"
   >
     <CardTypeLabel type="folder" />
     <div class="rimg card-art is-glyph">
@@ -33,14 +35,16 @@
 </template>
 
 <script setup lang="ts">
-import { playSources } from "@/enums";
+import { ContextSrc, playSources } from "@/enums";
+import { ref } from "vue";
+import { showFolderContextMenu } from "@/helpers/contextMenuHandler";
 import { Routes } from "@/router";
 import CardTypeLabel from "../shared/CardTypeLabel.vue";
 import PlayBtn from "../shared/PlayBtn.vue";
 import FolderSvg from "@/assets/icons/folder.svg";
 import { isTypeEcho } from "@/utils/cardTypes";
 
-defineProps<{
+const props = defineProps<{
   folder: {
     path: string;
     count: number;
@@ -48,6 +52,12 @@ defineProps<{
     time?: string;
   };
 }>();
+
+const contextMenuFlag = ref(false);
+
+function showMenu(e: MouseEvent) {
+  showFolderContextMenu(e, contextMenuFlag, ContextSrc.FolderCard, props.folder.path);
+}
 
 const name = (path: string) => {
   // remove trailing slash

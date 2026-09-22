@@ -33,6 +33,15 @@ const SCROLLER = "/src/components/shared/CardScroller.vue";
 // image + one text zone skeleton.
 const EXEMPT = new Set(["CardContent"]);
 
+// Tiles that deliberately open NO context menu, with the reason. Every other
+// tile must bind `v-context-menu` on its root (see the census at the bottom).
+const NO_MENU: Record<string, string> = {
+  // "You played from your favourites" stands for a page, not an item: there is
+  // no favourites menu to open (src/context_menus/ has none), and the play disc
+  // already does the one thing a menu would offer.
+  "/src/components/shared/FavoriteCard.vue": "no favourites menu exists",
+};
+
 /** Resolve an import specifier from CardScroller.vue to a key in SOURCES. */
 function resolve(specifier: string): string {
   if (specifier.startsWith("@/")) return specifier.replace("@/", "/src/");
@@ -74,8 +83,8 @@ function cardComponents(): Map<string, string> {
   return cards;
 }
 
-/** The class list of a single-file component's root element. */
-function rootClasses(source: string): string[] {
+/** The opening tag of a single-file component's root element, attributes included. */
+function rootTag(source: string): string {
   const template = source.slice(source.indexOf("<template>"));
   let i = 0;
 
@@ -108,14 +117,17 @@ function rootClasses(source: string): string[] {
     const raw = template.slice(lt + 1, j);
     const name = (raw.match(/^[\w.-]+/) || [""])[0];
     // <template> itself is the wrapper, not the root element.
-    if (name && name !== "template") {
-      const match = raw.match(/\bclass="([^"]*)"/);
-      return match ? match[1].trim().split(/\s+/) : [];
-    }
+    if (name && name !== "template") return raw;
     i = j + 1;
   }
 
-  return [];
+  return "";
+}
+
+/** The class list of a single-file component's root element. */
+function rootClasses(source: string): string[] {
+  const match = rootTag(source).match(/\bclass="([^"]*)"/);
+  return match ? match[1].trim().split(/\s+/) : [];
 }
 
 /**
@@ -258,5 +270,45 @@ describe("card row anatomy", () => {
   it.each([...cards])("%s leaves surface and elevation to the shared parts", (_name, file) => {
     const style = SOURCES[file].slice(SOURCES[file].indexOf("<style"));
     expect(style).not.toMatch(/@include\s+candy-(box|raised)/);
+  });
+
+  // ---------------------------------------------------------------------
+  // The menu. Tiles carry no ⋮ button (Global/cards.scss), so the menu has
+  // to come from the tile itself — and `@contextmenu` alone reaches it only
+  // by right-click and on Android: iOS Safari fires no `contextmenu` for a
+  // touch, and on an iPhone not one tile menu could be opened.
+  // `v-context-menu` binds both the right-click and a long-press, so a tile
+  // that uses it cannot have one without the other.
+  // ---------------------------------------------------------------------
+  it("keeps its menu exemptions honest", () => {
+    for (const [file, reason] of Object.entries(NO_MENU)) {
+      expect(SOURCES[file], `NO_MENU names ${file}, which does not exist`).toBeTruthy();
+      expect(reason.trim(), `NO_MENU entry ${file} gives no reason`).not.toBe("");
+      expect(rootTag(SOURCES[file]), `${file} is in NO_MENU but binds v-context-menu — drop the exemption`).not.toMatch(
+        /\sv-context-menu=/
+      );
+    }
+  });
+
+  it.each([...cards].filter(([, file]) => !(file in NO_MENU)))(
+    "%s opens its menu through v-context-menu on the tile root",
+    (_name, file) => {
+      // The value has to be there, not just the attribute: an empty binding
+      // would register the gesture and hand it nothing to call.
+      expect(
+        rootTag(SOURCES[file]),
+        `${file} has no v-context-menu="…" on its root, so iOS cannot open its menu by touch. ` +
+          `Bind the handler with v-context-menu, or list the tile in NO_MENU with a reason.`
+      ).toMatch(/\sv-context-menu="[^"\s][^"]*"/);
+    }
+  );
+
+  it.each([...cards])("%s does not bind contextmenu by hand", (_name, file) => {
+    const template = SOURCES[file].slice(0, SOURCES[file].indexOf("</template>")).replace(/<!--[\s\S]*?-->/g, "");
+    expect(
+      template,
+      `${file} listens to contextmenu directly — that path has no long-press, so iOS cannot open it. ` +
+        `Use v-context-menu instead.`
+    ).not.toMatch(/(@|v-on:)contextmenu\b/);
   });
 });

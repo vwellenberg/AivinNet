@@ -1180,6 +1180,32 @@ wären beim Suchen nach dem sichtbaren Fehler durchgerutscht. Der Zensus dazu st
 `rowHover.test.ts` („track row hover is pointer-gated"): In den vier Track-Zeilen-Komponenten
 muss jede `:hover`-Regel innerhalb eines Gates liegen.
 
+## ⚠️ iOS feuert kein `contextmenu` — Menüs über `v-context-menu`, nie `@contextmenu` allein
+
+iOS Safari löst für einen langen Druck **kein** `contextmenu` aus (Android schon, Desktop per
+Rechtsklick und Menütaste). Die Kacheln tragen bewusst keinen ⋮-Knopf (`Global/cards.scss`) —
+mit `@contextmenu.prevent` allein war auf dem iPhone also **kein einziges** Kachelmenü erreichbar,
+und niemand merkte es, weil jeder Test am Desktop oder unter Android lief.
+
+`v-context-menu="handler"` (`directives/vContextMenu.ts`) bindet beides: `contextmenu` und einen
+eigenen Long-Press (500 ms ruhiger Finger; Bewegung > 10 px, Scroll, zweiter Finger oder
+`touchcancel` brechen ab). Worauf es ankommt, falls jemand daran schraubt:
+
+- **Den Klick danach schlucken.** Der gehobene Finger erzeugt sonst einen Klick, der dem Link der
+  Kachel folgt und einen Moment später als Klick *außerhalb* des gerade geöffneten Menüs zählt
+  (`ContextMenu.vue`) — Menü zu, Seite weg. Primär über ein abgebrochenes `touchend`, dazu ein
+  Capture-Klickfilter mit **Frist** statt Flag: ein Flag bliebe stehen, wenn gar kein Klick kommt,
+  und fräße den nächsten echten (Maus, Enter auf der fokussierten Kachel).
+- **Android nicht doppelt.** Dort kommt das native `contextmenu` etwa gleichzeitig mit dem Timer.
+  Das Menü-Store *toggelt* — der zweite Aufruf schlösse das Menü wieder. Wer zuerst kommt, gewinnt.
+- **Echte Koordinaten mitgeben.** Das Store verankert ein Menü ohne Zeigerposition (`x===0 &&
+  y===0`) an der Kachelecke; der Long-Press dispatcht deshalb ein echtes `contextmenu` am Finger.
+- `-webkit-touch-callout: none` setzt die Direktive selbst — sonst legt iOS seine Link-Vorschau
+  bzw. „Bild sichern" über das eigene Menü.
+
+Der Zensus in `cardAnatomy.test.ts` verlangt `v-context-menu` auf der Wurzel **jeder** Kachel und
+verbietet `@contextmenu` darin; bewusst menülose Kacheln stehen mit Begründung in `NO_MENU`.
+
 ## ⚠️ Regler-Geometrie hat EINE Quelle
 
 `range-geometry($h, $thumb)` in `_candy.scss` setzt `--range-h` (Leistenhöhe), `--range-thumb`

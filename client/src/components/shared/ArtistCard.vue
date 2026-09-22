@@ -7,7 +7,7 @@
             },
         }"
         class="artist-card"
-        @contextmenu.prevent="showContextMenu"
+        v-context-menu="showContextMenu"
         :class="{ 'context-menu-open': contextMenuFlag }"
     >
         <CardTypeLabel type="artist" />
