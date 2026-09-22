@@ -118,6 +118,27 @@ function rootClasses(source: string): string[] {
   return [];
 }
 
+/**
+ * Every component that renders the round play disc over its artwork, as its
+ * source file (a path, not a name: two tiles may share a file name).
+ *
+ * CardScroller's switch is not the whole set of tiles. The search page's top
+ * result renders on its own, and because no row ever mixed it with another
+ * type, it drifted furthest of all: its own white panel with the picture
+ * inside, no hatch, a flat round portrait, no arrival (#139). What it did have
+ * is the play disc — `<PlayBtn>` is the tile's one control, rendered by tiles
+ * and nothing else — so that is the feature this census hangs off, not a list
+ * of files a new tile would have to be added to.
+ */
+function playDiscHosts(): Set<string> {
+  const hosts = new Set<string>();
+  for (const [file, source] of Object.entries(SOURCES)) {
+    const template = source.slice(0, source.indexOf("</template>")).replace(/<!--[\s\S]*?-->/g, "");
+    if (/<PlayBtn\b/.test(template)) hosts.add(file);
+  }
+  return hosts;
+}
+
 /** The selectors of the shared anatomy list, e.g. ["p-card", "trackcard", …]. */
 function anatomyClasses(): Set<string> {
   // Comments go FIRST. The file explains itself in prose that names the very
@@ -137,8 +158,24 @@ function anatomyClasses(): Set<string> {
 }
 
 describe("card row anatomy", () => {
-  const cards = cardComponents();
+  const rowCards = cardComponents();
+  const discHosts = playDiscHosts();
+  // Every check below runs over BOTH: the tiles a row can render, and every
+  // other component that draws a tile's play disc.
+  // Keyed by FILE: CardScroller may import a tile under an alias, and two
+  // tiles in different folders may share a name — keyed by name, one of them
+  // would silently skip every check below. The label is the path.
+  const cards = new Map([...rowCards.values(), ...discHosts].map(file => [file.replace("/src/", ""), file]));
   const listed = anatomyClasses();
+
+  it("recognises every row tile by its play disc", () => {
+    // The guard on playDiscHosts(): the row tiles are known tiles, so a scan
+    // that misses any of them has stopped reading templates — and would let a
+    // standalone tile through as vacuously as it lets these through.
+    for (const file of rowCards.values()) {
+      expect(discHosts.has(file), `${file} is a row tile but the play-disc scan did not find it`).toBe(true);
+    }
+  });
 
   it("finds the card components CardScroller can render", () => {
     // A guard on the parsing above: if the switch is rewritten in a shape this
@@ -148,7 +185,7 @@ describe("card row anatomy", () => {
     // caller ever produced a `favorite` item, so it rendered nowhere — counted
     // here, unseen on screen. The floor is a parser guard, not a target; it
     // moves with a deliberate removal and stays put for an accidental one.
-    expect(cards.size).toBeGreaterThanOrEqual(5);
+    expect(rowCards.size).toBeGreaterThanOrEqual(5);
   });
 
   it("reads the anatomy selector list", () => {

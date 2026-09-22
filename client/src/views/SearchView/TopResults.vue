@@ -159,9 +159,8 @@ const noResults = computed(
   // theme-aware `color` does nothing about a saturated shape running behind
   // the word.
   //
-  // Scoped to the class, NOT to `h3`: the bare element selector in this file
-  // also reaches the title *inside* the top-result card, which sits on a panel
-  // and must not become a sticker on a plate.
+  // Scoped to the class, NOT to `h3`: an element selector here would reach
+  // every heading a result component brings into the page with it.
   .section-title {
     @include mem-sticker;
     // On a sticker the inset is a MARGIN — as padding it would fatten the chip
@@ -181,39 +180,9 @@ const noResults = computed(
   // rendered inside the right sidebar, which had its own panel. That stopped
   // being true with #515: the sidebar IS the Now Playing panel, and the search
   // tabs that lived there are gone.)
-
-  h3 {
-    margin: $small;
-    // The top-result card's own title. It sits on the card's panel, so it keeps
-    // the theme-aware content colour rather than a plate.
-    color: $mem-content-text;
-  }
-
-  .top-result-item {
-    height: max-content;
-    margin: 0;
-
-    h3 {
-      margin-left: 0;
-    }
-
-    @include largePhones {
-      max-width: 100%;
-    }
-
-    @include mediumPhones {
-      min-width: unset;
-      max-width: 100%;
-    }
-  }
-
-  .right-search-top-albums-or-artists {
-    display: flex;
-    width: calc(100% - 1.25rem);
-    overflow-x: auto;
-
-    @include hideScrollbars;
-  }
+  //
+  // The top-result card needs nothing from this page either: it is a tile in
+  // the shared anatomy (Global/cards.scss) and sizes itself (#139).
 
   @include allPhones {
     padding-left: 1rem;

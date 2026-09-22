@@ -24,11 +24,15 @@
 // playlist in the same "Recently played" row, at a 16px radius instead of 14px
 // and with no offset shadow at all). `src/components/__tests__/cardAnatomy.test.ts`
 // fails if a card type appears in CardScroller without being listed here.
+//
+// Not only CardScroller's: the search page's top result (`.top-result-item`,
+// Search/Top/TopItem.vue) is a tile too, standing alone. It built its own card
+// until #139 and was the one link on that page without hatch or arrival.
 // ============================================================================
 
 // The one list. Read by the anatomy below, by the row geometry further down and
 // by the census test — a second copy is how the drift above started.
-$card-types: ".p-card, .trackcard, .artist-card, .album-card, .foldercard, .favcard";
+$card-types: ".p-card, .trackcard, .artist-card, .album-card, .foldercard, .favcard, .top-result-item";
 
 /// The buffer between a caption line and the hatch strokes around it (#486).
 /// It is both the cover's padding and the negative margin that pulls the cover
