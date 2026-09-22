@@ -4,8 +4,8 @@
     <div
       v-auto-animate
       class="f-item"
+      v-context-menu="showContextMenu"
       :class="{ context_menu_showing: context_menu_showing }"
-      @contextmenu.prevent="showContextMenu"
     >
       <SymLinkSvg v-if="folder.is_sym" />
       <FolderSvg v-else />

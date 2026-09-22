@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, withDirectives } from "vue";
@@ -203,12 +205,62 @@ describe("v-context-menu", () => {
     expect(onMenu).toHaveBeenCalledTimes(2);
   });
 
-  it("turns off the platform's own long-press selection", () => {
-    const { tile } = setup();
-    // Only the selection is observable here. `-webkit-touch-callout` (iOS's
-    // link preview / "Save image" sheet) is set alongside it, but it exists
-    // in Safari alone: jsdom and Chromium drop the declaration on write.
-    expect(tile.style.getPropertyValue("user-select")).toBe("none");
+  it("marks the element for the stylesheet that mutes the platform's long-press", () => {
+    const { wrapper, tile } = setup();
+    expect(tile.hasAttribute("data-context-menu")).toBe(true);
+
+    // Read off disk: a `.scss` through import.meta.glob comes back empty under
+    // test (.claude/rules/testing.md). Comments go first, so the rule cannot
+    // pass by being mentioned in prose.
+    const scss = readFileSync("src/assets/scss/Global/basic.scss", "utf8").replace(/\/\/[^\n]*/g, "");
+    expect(scss).toContain("[data-context-menu]");
+    const rule = scss.slice(scss.indexOf("[data-context-menu]"));
+    expect(rule).toMatch(/-webkit-touch-callout:\s*none/);
+    expect(rule).toMatch(/any-pointer:\s*coarse[\s\S]*user-select:\s*none/);
+
+    wrapper.unmount();
+    expect(tile.hasAttribute("data-context-menu")).toBe(false);
+  });
+
+  // The menu is open; then the gesture is cancelled while the finger is still
+  // down — the menu taking focus scrolls, or the finger slides towards it. The
+  // lifted finger's click must still be eaten.
+  it("still eats the click when the open gesture is cancelled before release", () => {
+    const { art, onMenu, onLink } = setup();
+    const row = document.createElement("div");
+    document.body.appendChild(row);
+
+    touch(art, "touchstart", [{ x: 10, y: 10 }]);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    row.dispatchEvent(new Event("scroll"));
+    touch(art, "touchmove", [{ x: 10, y: 60 }]);
+    const end = touch(art, "touchend");
+    const ev = click(art);
+
+    expect(onMenu).toHaveBeenCalledTimes(1);
+    expect(end.defaultPrevented).toBe(true);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(onLink).not.toHaveBeenCalled();
+  });
+
+  it("opens once when the browser's contextmenu comes after release (Windows touch)", () => {
+    const { art, onMenu } = setup();
+
+    touch(art, "touchstart", [{ x: 10, y: 10 }]);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    touch(art, "touchend");
+    click(art);
+    vi.advanceTimersByTime(50);
+    const late = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+    art.dispatchEvent(late);
+
+    expect(late.defaultPrevented).toBe(true);
+    expect(onMenu).toHaveBeenCalledTimes(1);
+
+    // …but a real right-click a moment later is a new request.
+    vi.advanceTimersByTime(1000);
+    art.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }));
+    expect(onMenu).toHaveBeenCalledTimes(2);
   });
 
   it("stops listening when the tile goes away", () => {

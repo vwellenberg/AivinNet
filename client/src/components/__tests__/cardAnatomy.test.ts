@@ -126,7 +126,9 @@ function rootTag(source: string): string {
 
 /** The class list of a single-file component's root element. */
 function rootClasses(source: string): string[] {
-  const match = rootTag(source).match(/\bclass="([^"]*)"/);
+  // `\s`, not `\b`: a word boundary also sits between ":" and "class", so a
+  // `:class="{ … }"` listed first would be read as the class list.
+  const match = rootTag(source).match(/\sclass="([^"]*)"/);
   return match ? match[1].trim().split(/\s+/) : [];
 }
 

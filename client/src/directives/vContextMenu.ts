@@ -29,8 +29,15 @@ interface State {
   timer: ReturnType<typeof setTimeout> | undefined;
   /** Where the finger went down — null while no touch is in progress. */
   start: { x: number; y: number } | null;
-  /** This touch has already opened the menu (ours or the browser's event). */
+  /**
+   * The current (or just-lifted) touch has opened the menu — by our timer or
+   * by the browser's own event. Reset only by the next touchstart: a gesture
+   * that opened the menu stays "opened" even if a scroll or a drifting finger
+   * cancels it afterwards.
+   */
   fired: boolean;
+  /** When that touch lifted — a `contextmenu` shortly after still belongs to it. */
+  endedAt: number;
   /**
    * Until when a click is the lifted finger's and gets eaten — it would follow
    * the link. A deadline rather than a flag: when the browser honours the
@@ -49,6 +56,7 @@ function bind(el: HTMLElement, handler: Handler): State {
     timer: undefined,
     start: null,
     fired: false,
+    endedAt: 0,
     swallowUntil: 0,
     unbind: () => {},
   };
@@ -69,11 +77,14 @@ function bind(el: HTMLElement, handler: Handler): State {
   const onContextMenu = (e: MouseEvent) => {
     e.preventDefault();
 
-    if (state.start) {
-      // Android fires its own `contextmenu` for a long-press, at about the
-      // same moment as the timer below. Whichever comes first opens the menu;
-      // the other would toggle it shut again (showContextMenu closes an open
-      // menu), so it is dropped.
+    // Android fires its own `contextmenu` for a long-press, at about the same
+    // moment as the timer below; Chrome on a Windows touchscreen fires it only
+    // on release, after touchend. Whichever comes first opens the menu; the
+    // other would toggle it shut again (showContextMenu closes an open menu),
+    // so it is dropped.
+    const touching = state.start !== null;
+    const justLifted = state.fired && Date.now() - state.endedAt <= CLICK_WINDOW_MS;
+    if (touching || justLifted) {
       if (state.fired) return;
       state.fired = true;
       clearTimer();
@@ -85,6 +96,7 @@ function bind(el: HTMLElement, handler: Handler): State {
   const onTouchStart = (e: TouchEvent) => {
     cancel();
     state.fired = false;
+    state.endedAt = 0;
     state.swallowUntil = 0;
     if (e.touches.length !== 1) return;
 
@@ -118,14 +130,18 @@ function bind(el: HTMLElement, handler: Handler): State {
   };
 
   const onTouchEnd = (e: TouchEvent) => {
-    const opened = state.start !== null && state.fired;
+    // `fired`, not `start`: once the menu is open, a scroll (the menu taking
+    // focus can scroll) or a finger sliding towards it cancels the gesture —
+    // and the click it would still produce must be eaten all the same.
+    const opened = state.fired;
     cancel();
     // Cancelling touchend stops the browser from synthesising the mouse
     // events and the click for this touch — the click would follow the tile's
     // link and, a moment later, count as a click outside the menu that just
     // opened (ContextMenu.vue), closing it again.
     if (!opened) return;
-    state.swallowUntil = Date.now() + CLICK_WINDOW_MS;
+    state.endedAt = Date.now();
+    state.swallowUntil = state.endedAt + CLICK_WINDOW_MS;
     if (e.cancelable) e.preventDefault();
   };
 
@@ -138,11 +154,11 @@ function bind(el: HTMLElement, handler: Handler): State {
     e.stopImmediatePropagation();
   };
 
-  // Keeps the tile inert to the platform's own long-press: no iOS link
-  // preview or "Save image" sheet, no text selection handles on Android.
-  el.style.setProperty("-webkit-touch-callout", "none");
-  el.style.setProperty("-webkit-user-select", "none");
-  el.style.setProperty("user-select", "none");
+  // Hook for the stylesheet (Global/basic.scss), which keeps the element
+  // inert to the platform's own long-press — no iOS link preview or "Save
+  // image" sheet, and on touch no selection handles. A stylesheet rather than
+  // inline styles, so selection can stay on for the mouse.
+  el.setAttribute("data-context-menu", "");
 
   el.addEventListener("contextmenu", onContextMenu);
   el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -153,6 +169,7 @@ function bind(el: HTMLElement, handler: Handler): State {
 
   state.unbind = () => {
     cancel();
+    el.removeAttribute("data-context-menu");
     el.removeEventListener("contextmenu", onContextMenu);
     el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onTouchMove);

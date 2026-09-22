@@ -1195,16 +1195,28 @@ eigenen Long-Press (500 ms ruhiger Finger; Bewegung > 10 px, Scroll, zweiter Fin
   Kachel folgt und einen Moment später als Klick *außerhalb* des gerade geöffneten Menüs zählt
   (`ContextMenu.vue`) — Menü zu, Seite weg. Primär über ein abgebrochenes `touchend`, dazu ein
   Capture-Klickfilter mit **Frist** statt Flag: ein Flag bliebe stehen, wenn gar kein Klick kommt,
-  und fräße den nächsten echten (Maus, Enter auf der fokussierten Kachel).
-- **Android nicht doppelt.** Dort kommt das native `contextmenu` etwa gleichzeitig mit dem Timer.
-  Das Menü-Store *toggelt* — der zweite Aufruf schlösse das Menü wieder. Wer zuerst kommt, gewinnt.
+  und fräße den nächsten echten (Maus, Enter auf der fokussierten Kachel). „Hat geöffnet" hängt am
+  Gesten-Merker (`fired`), **nicht** daran, ob die Geste noch läuft: Scrollt das Öffnen des Menüs
+  (Fokus) oder rutscht der Finger danach Richtung Menü, bricht die Geste ab — der Klick beim
+  Loslassen kommt trotzdem.
+- **Nicht doppelt.** Android schickt ein natives `contextmenu` etwa gleichzeitig mit dem Timer,
+  Chrome auf Windows-Touchscreens erst **nach** dem Loslassen. Das Menü-Store *toggelt* — der
+  zweite Aufruf schlösse das Menü wieder. Wer zuerst kommt, gewinnt; der Nachzügler wird bis zum
+  Ende der Klick-Frist der Geste zugerechnet. ⚠️ Headless-Chromium erzeugt aus CDP-Touch **kein**
+  natives `contextmenu` (gemessen: `trusted=0`) — dieser Zweig ist nur per Unit-Test belegt.
 - **Echte Koordinaten mitgeben.** Das Store verankert ein Menü ohne Zeigerposition (`x===0 &&
   y===0`) an der Kachelecke; der Long-Press dispatcht deshalb ein echtes `contextmenu` am Finger.
-- `-webkit-touch-callout: none` setzt die Direktive selbst — sonst legt iOS seine Link-Vorschau
-  bzw. „Bild sichern" über das eigene Menü.
+- Die Direktive setzt `data-context-menu`; `Global/basic.scss` hängt daran
+  `-webkit-touch-callout: none` (sonst legt iOS Link-Vorschau bzw. „Bild sichern" über das Menü)
+  und `user-select: none` nur unter `any-pointer: coarse` — mit der Maus bleiben Namen
+  markierbar. Keine Inline-Styles: `-webkit-touch-callout` kennt außer Safari keine Engine, der
+  Wert ließe sich also nirgends sonst prüfen, und ein `:style`-String würde ihn überschreiben.
 
 Der Zensus in `cardAnatomy.test.ts` verlangt `v-context-menu` auf der Wurzel **jeder** Kachel und
 verbietet `@contextmenu` darin; bewusst menülose Kacheln stehen mit Begründung in `NO_MENU`.
+Außerhalb der Kacheln nutzt es bisher nur die Ordner-Zeile (`FolderItem.vue`). Mit
+`@contextmenu` allein stehen noch `SongItem` (hat einen ⋮-Knopf), `SidebarPlaylistItem` und die
+Ordner-/Album-Zeilen in `LeftSidebar/index.vue` — wer dort anfasst, stellt um.
 
 ## ⚠️ Regler-Geometrie hat EINE Quelle
 
