@@ -30,6 +30,7 @@ from aivinnet.lib.taglib import extract_thumb, get_tags
 from aivinnet.models import Track
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistMapEntry, ArtistStore
+from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
@@ -132,7 +133,11 @@ def _index_file(filepath: str) -> None:
         "playcount": 0,
         "playduration": 0,
     }
-    TrackStore.add_track(track_to_dataclass(track_dict, config))
+    track = track_to_dataclass(track_dict, config)
+    TrackStore.add_track(track)
+    # The folder view looks files up by their hash, and the hash may just have
+    # changed with the tags.
+    FolderStore.index_file(filepath, track.trackhash)
 
 
 def _reindex_file(filepath: str) -> None:

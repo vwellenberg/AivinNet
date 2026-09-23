@@ -9,7 +9,11 @@ import useAxios from './useAxios'
 // work happens on a worker and we poll.
 // ---------------------------------------------------------------------------
 
-export type MetadataSource = 'musicbrainz' | 'filenames'
+/**
+ * Where a proposal comes from. `tags` proposes no new tags at all: it keeps
+ * them and names the FILES after them (#144).
+ */
+export type MetadataSource = 'musicbrainz' | 'filenames' | 'tags'
 
 export interface ReleaseCandidate {
     mbid: string
@@ -31,12 +35,22 @@ export interface TrackSide {
     duration: number
 }
 
+/** What the file would be called once the row is applied (#144). */
+export interface FileNamePlan {
+    current: string
+    /** null when the tags give no usable name (no title). */
+    proposed: string | null
+    status: 'unchanged' | 'rename' | 'conflict' | 'no-name'
+}
+
 export interface PreviewRow {
     current: TrackSide | null
     proposed: TrackSide | null
     /** Seconds between the two durations; null when either side has none. */
     delta: number | null
     confident: boolean
+    /** Absent on rows with no file behind them (a release track we lack). */
+    filename?: FileNamePlan
 }
 
 export interface PreviewSummary {
@@ -58,6 +72,16 @@ export interface TrackChange {
     title?: string
     track?: number
     disc?: number
+    /**
+     * The name the preview SHOWED — the server works names out, the client
+     * only echoes the one the person confirmed.
+     */
+    filename?: string
+}
+
+export interface ApplyResult {
+    applied: { filepath: string; new_trackhash?: string; new_filepath?: string; warning?: string }[]
+    failed: { filepath: string; error: string }[]
 }
 
 interface Job<T> {
@@ -137,7 +161,7 @@ export function fetchPreview(albumhash: string, source: MetadataSource, mbid?: s
 }
 
 export function applyChanges(changes: TrackChange[]) {
-    return run<{ applied: { filepath: string; new_trackhash: string }[]; failed: { filepath: string; error: string }[] }>(
+    return run<ApplyResult>(
         '/metadata/album/apply',
         { changes },
         { timeout: WRITE_TIMEOUT_MS, what: 'write' }

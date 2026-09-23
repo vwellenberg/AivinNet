@@ -75,7 +75,7 @@ export default defineStore('newModal', {
         showFindCoverOnlineModal(props: { type: 'playlist' | 'album'; id: number | string; query: string }) {
             this.showModal(ModalOptions.findCoverOnline, props)
         },
-        showFetchMetadataModal(props: { albumhash: string; albumTitle: string }) {
+        showFetchMetadataModal(props: { albumhash: string; albumTitle: string; startWith?: 'tags' }) {
             this.showModal(ModalOptions.fetchMetadata, props)
         },
         showDeletePlaylistModal(pid: number) {

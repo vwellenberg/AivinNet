@@ -10,7 +10,7 @@ import { toggleAlbumPin } from '@/helpers/pinAlbum'
 import { downloadTracksIndividually } from '@/helpers/downloadTracks'
 import usePinnedAlbums from '@/stores/pages/pinnedAlbums'
 
-import { AddToQueueIcon, DeleteIcon, DownloadIcon, ImageIcon, PlayNextIcon, PlusIcon, PushPinIcon, SearchIcon } from '@/icons'
+import { AddToQueueIcon, DeleteIcon, DownloadIcon, ImageIcon, PencilIcon, PlayNextIcon, PlusIcon, PushPinIcon, SearchIcon } from '@/icons'
 import { getBaseUrl, paths } from '@/config'
 import { Album, Option, Playlist, Track } from '@/interfaces'
 import useModal from '@/stores/modal'
@@ -230,6 +230,23 @@ export default async (album?: Album) => {
         icon: SearchIcon,
     }
 
+    // Names the FILES after their tags (#144): "03 - Title.mp3". The same dialog
+    // as the entry above, opened straight at its rename-only source — the
+    // tags are not touched, so nothing moves in playlists or history.
+    const rename_files = <Option>{
+        label: 'Rename files',
+        action: () => {
+            if (!album.albumhash) return
+
+            useModal().showFetchMetadataModal({
+                albumhash: album.albumhash,
+                albumTitle: album.title || 'this album',
+                startWith: 'tags',
+            })
+        },
+        icon: PencilIcon,
+    }
+
     const is_pinned = usePinnedAlbums().isPinned(album.albumhash) || !!album.is_pinned
     const pin: Option = {
         label: is_pinned ? 'Unpin from library' : 'Pin to library',
@@ -244,7 +261,7 @@ export default async (album?: Album) => {
     // rejects all three with 403 for a non-admin since AivinNet#105, so offering
     // them here would only produce an error toast.
     if (loggedInUserIsAdmin()) {
-        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata)
+        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata, rename_files)
     }
 
     options.push(download_album, download_tracks, get_find_on_social('album', '', album))

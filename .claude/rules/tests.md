@@ -64,6 +64,25 @@ Konsequenzen für neue Tests in `tests/`:
 jeder Wiederholungs-Registrierung grün. Für **Tabellen-Logik** gehört ein Test gegen die echten
 SQLite-Tabellen dazu (`tests_api/test_device_table.py`), inklusive FK-Usern im Fixture.
 
+## ⚠️ Eine Testinstanz mit kopierter Datenbank kennt die ECHTE Bibliothek
+
+Wer für einen End-to-End-Test eine zweite App-Instanz mit einer Kopie von `aivinnet.db` startet
+und `rootDirs` auf einen Testordner umbiegt, hat **nichts isoliert**: die `track`-Zeilen der
+Kopie tragen die echten Pfade, und weil diese Dateien existieren, behält die Instanz sie beim
+Start (`filter_modded` wirft nur Zeilen fehlender Dateien raus) und arbeitet mit ihnen. So hat
+der erste E2E-Lauf von #144 die 94 **echten** Dateien eines Albums umbenannt statt der Kopie
+(sofort zurückbenannt, 2026-09-23). Die Suche fand das Album unter beiden Pfaden — der Test
+sah grün aus.
+
+Deshalb, alle drei:
+
+- In der Kopie **`DELETE FROM track`** vor dem Start — Nutzer, Server-ID (JWT) und Einstellungen
+  bleiben, die Bibliothek nicht. Danach einmal `/notsettings/trigger-scan`: ohne periodische
+  Scans indexiert der Start nichts von selbst.
+- **Harter Abbruch** im Testskript, sobald ein Pfad außerhalb des Testordners auftaucht — vor
+  jedem schreibenden Aufruf, nicht erst in der Auswertung.
+- **Prüfsumme** der Namensliste des echten Ordners vor und nach dem Lauf vergleichen.
+
 ## Was in welchen PR gehört (Pflicht)
 
 - **Bugfix ⇒ Regressionstest**, der den Bug reproduziert: vor dem Fix rot, danach grün.

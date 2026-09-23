@@ -18,6 +18,13 @@
                         For rips the internet has never heard of — game soundtracks, bootlegs, your own recordings.
                     </span>
                 </button>
+                <button type="button" class="source rounded-sm" :disabled="busy" @click="previewRename">
+                    <span class="name">Rename the files</span>
+                    <span class="hint">
+                        The tags are right, the file names are not. Keeps the tags and names each file after them:
+                        “03 - Title.mp3”.
+                    </span>
+                </button>
             </div>
         </template>
 
@@ -64,7 +71,15 @@
                 <span v-if="summary && summary.unmatched_remote">
                     {{ summary.unmatched_remote }} track(s) of the release have no counterpart here.
                 </span>
+                <span v-if="renameOnly && !changeableRows.length"> Every file is already named after its tags. </span>
             </p>
+
+            <!-- Offered only where it would do something, and not in the
+                 rename-only mode, where renaming is the whole point. -->
+            <label v-if="!renameOnly && anyRenames" class="rename-toggle">
+                <input v-model="renameFiles" type="checkbox" />
+                <span>Rename the files too (<em>03 - Title.mp3</em>)</span>
+            </label>
 
             <div class="table rounded-sm">
                 <div v-for="(row, index) in rows" :key="index" class="row" :class="{ skip: !isWritable(row) }">
@@ -87,6 +102,7 @@
                     >
                         <span class="num">{{ row.current?.track ?? '–' }}</span>
                         <span class="title ellip">{{ row.current?.title ?? '— not in the library —' }}</span>
+                        <span v-if="showsFileName(row)" class="file ellip">{{ row.filename?.current }}</span>
                     </component>
 
                     <span class="arrow" aria-hidden="true">→</span>
@@ -97,7 +113,12 @@
                         :for="labelFor(row, index)"
                     >
                         <span class="num">{{ row.proposed?.track ?? row.current?.track ?? '–' }}</span>
-                        <span class="title ellip">{{ row.proposed?.title ?? '— no proposal —' }}</span>
+                        <span class="title ellip">{{
+                            row.proposed?.title ?? (renameOnly ? row.current?.title : '— no proposal —')
+                        }}</span>
+                        <span v-if="showsFileName(row)" class="file ellip" :class="row.filename?.status">
+                            {{ fileNote(row) }}
+                        </span>
                     </component>
 
                     <span v-if="row.delta !== null" class="delta" :class="{ off: !row.confident }">
@@ -114,7 +135,7 @@
                     :disabled="busy || !checkedCount"
                     @click="apply"
                 >
-                    {{ busy ? 'Writing…' : `Write ${checkedCount} file(s)` }}
+                    {{ busy ? 'Writing…' : `${renameOnly ? 'Rename' : 'Write'} ${checkedCount} file(s)` }}
                 </button>
             </div>
         </template>
@@ -149,6 +170,8 @@ import Spinner from '@/components/shared/Spinner.vue'
 const props = defineProps<{
     albumhash: string
     albumTitle: string
+    /** Open straight into one source — the album menu's "Rename files" does. */
+    startWith?: MetadataSource
 }>()
 
 const emit = defineEmits<{
@@ -156,7 +179,10 @@ const emit = defineEmits<{
     (e: 'hideModal'): void
 }>()
 
-emit('setTitle', 'Fetch titles & numbers')
+// The title names what the dialog is doing NOW: it can be opened as "Rename
+// files" and then switched to a source that rewrites tags, or the other way.
+const titleFor = (source?: MetadataSource) => (source === 'tags' ? 'Rename files' : 'Fetch titles & numbers')
+emit('setTitle', titleFor(props.startWith))
 
 // ---------------------------------------------------------------------------
 // ⚠️ Three steps, and the middle one is not a formality.
@@ -183,9 +209,39 @@ const summary = ref<PreviewSummary | null>(null)
 const checked = ref<boolean[]>([])
 const cameFrom = ref<MetadataSource>('musicbrainz')
 
-/** A row is writable when it has both a file to write to and something to write. */
-const isWritable = (row: PreviewRow) => !!row.current && !!row.proposed
+/** Only renaming (#144): the tags stay, the files are named after them. */
+const renameOnly = computed(() => cameFrom.value === 'tags')
+/** The "rename the files too" box. On by default: it is what people asked for. */
+const renameFiles = ref(true)
+
+const renames = (row: PreviewRow) => row.filename?.status === 'rename'
+const anyRenames = computed(() => rows.value.some(renames))
+
+/**
+ * A row is writable when it has a file behind it and something to write:
+ * new tags, or — renaming only — a new name.
+ */
+const isWritable = (row: PreviewRow) => !!row.current && (renameOnly.value ? renames(row) : !!row.proposed)
 const labelFor = (row: PreviewRow, index: number) => (isWritable(row) ? `meta-row-${index}` : undefined)
+
+/** Whether the file name belongs on this row: only when renaming is on. */
+const showsFileName = (row: PreviewRow) => !!row.filename && (renameOnly.value || renameFiles.value)
+
+function fileNote(row: PreviewRow) {
+    const plan = row.filename
+    if (!plan) return ''
+    switch (plan.status) {
+        case 'rename':
+            return plan.proposed
+        case 'unchanged':
+            return renameOnly.value ? 'already named right' : plan.current
+        case 'conflict':
+            // Nothing is overwritten — the server re-checks this on write too.
+            return `${plan.proposed} is taken — stays ${plan.current}`
+        default:
+            return `no title to name it after — stays ${plan.current}`
+    }
+}
 
 const changeableRows = computed(() => rows.value.filter(isWritable))
 const checkedCount = computed(() => checked.value.filter(Boolean).length)
@@ -238,6 +294,7 @@ function intoPreview(result: { rows: PreviewRow[]; summary?: PreviewSummary; err
     rows.value = result.rows
     summary.value = result.summary ?? null
     cameFrom.value = source
+    emit('setTitle', titleFor(source))
     // Pre-tick only what the server is sure about. A row that is 40 seconds off
     // is exactly the one a person should have to look at and decide on.
     checked.value = result.rows.map(row => isWritable(row) && row.confident)
@@ -260,9 +317,23 @@ async function previewFilenames() {
     checked.value = result.rows.map(isWritable)
 }
 
-function back() {
-    step.value = cameFrom.value === 'filenames' ? 'source' : 'candidates'
+async function previewRename() {
+    const result = await guard(() => fetchPreview(props.albumhash, 'tags'))
+    if (!result) return
+
+    intoPreview(result, 'tags')
+    // The name comes straight from the tags the person already sees in the
+    // library, so every row that would change is a starting point.
+    checked.value = result.rows.map(isWritable)
 }
+
+function back() {
+    step.value = cameFrom.value === 'musicbrainz' ? 'candidates' : 'source'
+    // The source step offers all three, so it carries the general title.
+    emit('setTitle', titleFor())
+}
+
+if (props.startWith === 'tags') previewRename()
 
 async function apply() {
     const changes: TrackChange[] = []
@@ -280,21 +351,49 @@ async function apply() {
         if (Object.keys(change).length > 1) changes.push(change)
     })
 
+    // File names. Sent as the preview showed them; the server renames after all
+    // tag writes, and skips a file whose tags failed (its name came from them).
+    if (renameOnly.value || renameFiles.value) {
+        rows.value.forEach((row, index) => {
+            if (!checked.value[index] || !row.current?.filepath || !renames(row) || !row.filename?.proposed) return
+
+            const existing = changes.find(change => change.filepath === row.current?.filepath)
+            if (existing) existing.filename = row.filename.proposed
+            else changes.push({ filepath: row.current.filepath, filename: row.filename.proposed })
+        })
+    }
+
     if (!changes.length) {
         error.value = 'Nothing selected differs from what is already there.'
         return
     }
 
+    // In the rename-only mode no row carries a proposal, so the loop above
+    // added nothing and only file names are sent.
+
     const result = await guard(() => applyChanges(changes), true)
     if (!result) return
 
+    const verb = renameOnly.value ? 'renamed' : 'updated'
+    // A renamed track whose lyrics file could not follow it (the new name was
+    // taken) plays fine and shows no lyrics — worth saying, in the same message:
+    // a second notification would replace the first.
+    const stayed = result.applied.filter(entry => entry.warning).length
+    const lyricsNote = stayed ? ` — ${stayed} lyrics file(s) kept the old name` : ''
     if (result.failed.length) {
-        new Notification(`${result.applied.length} written, ${result.failed.length} failed`, NotifType.Error)
+        new Notification(
+            `${result.applied.length} ${verb}, ${result.failed.length} failed${lyricsNote}`,
+            NotifType.Error
+        )
     } else {
-        new Notification(`${result.applied.length} track(s) updated`, NotifType.Success)
+        new Notification(
+            `${result.applied.length} track(s) ${verb}${lyricsNote}`,
+            stayed ? NotifType.Info : NotifType.Success
+        )
     }
 
-    // The titles just changed, so the page is showing the old ones.
+    // The titles (and the file paths) just changed, so the page is showing the
+    // old ones.
     await albumStore.fetchTracksAndArtists(props.albumhash)
     emit('hideModal')
 }
@@ -310,6 +409,14 @@ async function apply() {
         margin: 0;
         color: $candy-text-muted;
         font-size: $medium;
+    }
+
+    .rename-toggle {
+        display: flex;
+        gap: $small;
+        align-items: center;
+        font-size: $medium;
+        cursor: pointer;
     }
 
     .warning {
@@ -437,6 +544,20 @@ async function apply() {
 
             .next .title {
                 font-weight: 600;
+            }
+
+            // The file name, a second line under the title (#144). Spans the
+            // title column only — the number column stays empty below.
+            .file {
+                grid-column: 2;
+                font-size: 0.8rem;
+                color: $candy-text-muted;
+
+                &.conflict,
+                &.no-name {
+                    color: $red;
+                    font-weight: 600;
+                }
             }
 
             .delta {

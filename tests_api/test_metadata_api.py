@@ -461,3 +461,220 @@ class TestPreviewSourceValidation:
         res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "wishful thinking"})
 
         assert res.status_code == 400
+
+    def test_the_file_name_source_warns_about_the_order_only_when_it_is_true(self, metadata_api, monkeypatch):
+        """It used to be a constant True: the dialog warned on every album."""
+        api, module = metadata_api
+
+        def ordered(tracks):
+            stub_album(monkeypatch, module, tracks)
+            res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+            return await_job(api, res.json["job"])["result"]["summary"]["ordered_by_filepath"]
+
+        numbered = [
+            FakeTrack("h1", "/m/A/01. A.mp3", "A", 60, track=1),
+            FakeTrack("h2", "/m/A/02. B.mp3", "B", 60, track=2),
+        ]
+        all_one = [
+            FakeTrack("h1", "/m/A/01. A.mp3", "1", 60, track=1),
+            FakeTrack("h2", "/m/A/02. B.mp3", "1", 60, track=1),
+        ]
+
+        assert ordered(numbered) is False
+        assert ordered(all_one) is True
+
+    def test_the_tags_source_is_accepted(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(monkeypatch, module, [])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "tags"})
+
+        assert res.status_code == 200
+
+
+class TestFileNames:
+    """#144: the preview says what each file will be CALLED, and apply renames it.
+
+    The name is worked out on the server from the values a row ends up with, so
+    what the preview shows is what the file gets. apply then takes the confirmed
+    name rather than working it out again.
+    """
+
+    def test_the_preview_names_each_file_after_its_new_tags(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/The Guild 2/02. Game Won.mp3", "02", 67),
+                FakeTrack("h2", "/m/The Guild 2/68. Night Woods1.mp3", "68", 181),
+            ],
+        )
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+        rows = await_job(api, res.json["job"])["result"]["rows"]
+
+        assert [r["filename"] for r in rows] == [
+            {"current": "02. Game Won.mp3", "proposed": "02 - Game Won.mp3", "status": "rename"},
+            {"current": "68. Night Woods1.mp3", "proposed": "68 - Night Woods1.mp3", "status": "rename"},
+        ]
+
+    def test_the_tags_source_names_every_file_and_changes_no_tag(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/A/track1.mp3", "Night Woods", 181, track=68),
+                FakeTrack("h2", "/m/A/02 - Already Right.mp3", "Already Right", 60, track=2),
+            ],
+        )
+        looked_up = []
+        monkeypatch.setattr(module, "fetch_release_tracks", lambda *a, **k: looked_up.append(1) or [])
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "tags"})
+        rows = await_job(api, res.json["job"])["result"]["rows"]
+        by_file = {r["current"]["filepath"]: r for r in rows}
+
+        assert [r["proposed"] for r in rows] == [None, None]
+        assert by_file["/m/A/track1.mp3"]["filename"]["proposed"] == "68 - Night Woods.mp3"
+        assert by_file["/m/A/track1.mp3"]["filename"]["status"] == "rename"
+        assert by_file["/m/A/02 - Already Right.mp3"]["filename"]["status"] == "unchanged"
+        assert looked_up == []
+
+    def test_a_row_without_a_proposal_keeps_its_name(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/A/a.mp3", "Opening", 100, track=1),
+                FakeTrack("h2", "/m/A/b.mp3", "Bonus", 50, track=2),
+            ],
+        )
+        monkeypatch.setattr(
+            module, "fetch_release_tracks", lambda *_a, **_k: [FakeRemote("The Opening", 1, length=100_000)]
+        )
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "mbid": "x"})
+        rows = await_job(api, res.json["job"])["result"]["rows"]
+        by_file = {r["current"]["filepath"]: r["filename"] for r in rows if r["current"]}
+
+        assert by_file["/m/A/a.mp3"]["proposed"] == "01 - The Opening.mp3"
+        assert by_file["/m/A/b.mp3"] == {"current": "b.mp3", "proposed": "b.mp3", "status": "unchanged"}
+
+    def test_apply_renames_after_the_tags_with_the_confirmed_names(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        order = []
+
+        def fake_edit(filepath, fields):
+            order.append(("tags", filepath))
+            return type("T", (), {"trackhash": "new-hash"})()
+
+        def fake_rename(moves):
+            order.append(("rename", list(moves)))
+            return [{"filepath": p, "new_filepath": f"/m/{n}"} for p, n in moves], []
+
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
+        monkeypatch.setattr(module, "rename_files", fake_rename)
+
+        res = api.post(
+            "/metadata/album/apply",
+            json={
+                "changes": [
+                    {"filepath": "/m/01.mp3", "title": "Opening", "filename": "01 - Opening.mp3"},
+                    # A rename alone: no tag is touched.
+                    {"filepath": "/m/02.mp3", "filename": "02 - Second.mp3"},
+                ]
+            },
+        )
+        done = await_job(api, res.json["job"])
+
+        assert order == [
+            ("tags", "/m/01.mp3"),
+            ("rename", [("/m/01.mp3", "01 - Opening.mp3"), ("/m/02.mp3", "02 - Second.mp3")]),
+        ]
+        assert done["result"]["applied"] == [
+            {"filepath": "/m/01.mp3", "new_trackhash": "new-hash", "new_filepath": "/m/01 - Opening.mp3"},
+            {"filepath": "/m/02.mp3", "new_filepath": "/m/02 - Second.mp3"},
+        ]
+
+    def test_a_file_whose_tags_failed_is_not_renamed(self, metadata_api, monkeypatch):
+        """The name was worked out from tags that never reached the file."""
+        api, module = metadata_api
+        from aivinnet.lib.track_edit import TrackEditError
+
+        def fake_edit(filepath, fields):
+            raise TrackEditError("file is read-only")
+
+        renamed = []
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
+        monkeypatch.setattr(module, "rename_files", lambda moves: renamed.extend(moves) or ([], []))
+
+        res = api.post(
+            "/metadata/album/apply",
+            json={"changes": [{"filepath": "/m/01.mp3", "title": "Opening", "filename": "01 - Opening.mp3"}]},
+        )
+        done = await_job(api, res.json["job"])
+
+        assert renamed == []
+        assert done["result"]["failed"] == [{"filepath": "/m/01.mp3", "error": "file is read-only"}]
+
+    def test_the_rename_is_real_end_to_end(self, metadata_api, monkeypatch, tmp_path):
+        """Through the real track_rename and a real file: the one test here that moves bytes."""
+        api, _module = metadata_api
+        import aivinnet.lib.track_rename as track_rename
+
+        audio = tmp_path / "68. Night Woods1.mp3"
+        audio.write_bytes(b"ID3")
+        (tmp_path / "68. Night Woods1.lrc").write_text("[00:01.00] la")
+
+        track = type("T", (), {"filepath": str(audio), "trackhash": "h"})()
+        monkeypatch.setattr(track_rename.TrackStore, "get_flat_list", staticmethod(lambda: [track]))
+        monkeypatch.setattr(track_rename.TrackTable, "update_filepath", staticmethod(lambda old, new: 1))
+        monkeypatch.setattr(track_rename.FolderStore, "move_filepath", staticmethod(lambda *a: None))
+
+        res = api.post(
+            "/metadata/album/apply",
+            json={"changes": [{"filepath": str(audio), "filename": "68 - Night Woods1.mp3"}]},
+        )
+        done = await_job(api, res.json["job"])
+
+        assert done["result"]["failed"] == []
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["68 - Night Woods1.lrc", "68 - Night Woods1.mp3"]
+        # The Track object itself follows the file.
+        assert track.filepath == str(tmp_path / "68 - Night Woods1.mp3")
+
+    def test_the_whole_album_decides_the_disc_prefix_and_the_number_width(self, metadata_api, monkeypatch):
+        """Decided over the album's FINAL values, not per row and not from the old tags."""
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/A/a.mp3", "Intro", 60, track=1, disc=1),
+                FakeTrack("h2", "/m/A/b.mp3", "Outro", 60, track=120, disc=2),
+            ],
+        )
+
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "tags"})
+        rows = await_job(api, res.json["job"])["result"]["rows"]
+
+        assert [r["filename"]["proposed"] for r in rows] == ["1-001 - Intro.mp3", "2-120 - Outro.mp3"]
+
+    def test_a_source_without_discs_keeps_the_discs_the_tags_have(self, metadata_api, monkeypatch):
+        api, module = metadata_api
+        stub_album(
+            monkeypatch,
+            module,
+            [
+                FakeTrack("h1", "/m/A/01. Intro.mp3", "x", 60, track=1, disc=1),
+                FakeTrack("h2", "/m/A/02. Outro.mp3", "y", 60, track=1, disc=2),
+            ],
+        )
+
+        # The file names carry no disc, so every row keeps its CURRENT disc —
+        # and the current tags still say two discs.
+        res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
+        rows = await_job(api, res.json["job"])["result"]["rows"]
+        assert [r["filename"]["proposed"] for r in rows] == ["1-01 - Intro.mp3", "2-02 - Outro.mp3"]
