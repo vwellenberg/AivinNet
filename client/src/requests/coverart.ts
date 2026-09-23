@@ -118,6 +118,49 @@ export async function removeAlbumCover(albumhash: string): Promise<boolean> {
 }
 
 /**
+ * Uploads a local image file as an artist's picture. The server crops it to a
+ * square and recomputes the accent colour, which comes back with it.
+ */
+export async function uploadArtistImage(artisthash: string, file: File): Promise<{ image: string; color: string } | null> {
+    const form = new FormData()
+    form.append('artisthash', artisthash)
+    form.append('image', file)
+
+    const { data, status } = await useAxios({
+        url: `${paths.api.coverart}/artist/upload`,
+        props: form,
+        method: 'POST',
+        headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    if (status !== 200 || !data?.image) {
+        new Notification(data?.error || 'Failed to upload picture', NotifType.Error)
+        return null
+    }
+
+    return { image: data.image, color: data.color || '' }
+}
+
+/**
+ * Removes an artist's picture so it falls back to the generic icon. The
+ * server remembers it, so no library scan fetches a new one.
+ */
+export async function removeArtistImage(artisthash: string): Promise<boolean> {
+    const { data, status } = await useAxios({
+        url: `${paths.api.coverart}/artist/remove`,
+        props: { artisthash },
+        method: 'POST',
+    })
+
+    if (status !== 200 || !data?.success) {
+        new Notification('Failed to remove picture', NotifType.Error)
+        return false
+    }
+
+    return true
+}
+
+/**
  * Uploads a local image file as an album's cover.
  *
  * multipart/form-data, not JSON: this is the only album request that carries

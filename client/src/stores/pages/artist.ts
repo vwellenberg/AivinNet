@@ -27,6 +27,10 @@ export default defineStore('artistPage', {
         },
         fetched_similar_hash: '',
         stats: <StatItem[]>[],
+        // Bumped when the picture is uploaded or removed: the file keeps its
+        // name (<artisthash>.webp), so without a changing query the browser
+        // would keep showing the cached old one.
+        imageVersion: 0,
     }),
     actions: {
         async getData(hash: string) {
@@ -61,9 +65,16 @@ export default defineStore('artistPage', {
             this.fetched_similar_hash = this.info.artisthash
             this.similar_artists = await getSimilarArtists(this.info.artisthash, maxAbumCards.value)
         },
+        imageUrl() {
+            return paths.images.artist.large + this.info.image + (this.imageVersion ? '?v=' + this.imageVersion : '')
+        },
         extractColors() {
-            const url = paths.images.artist.large + this.info.image
-            setColorsToStore(this, url, true)
+            setColorsToStore(this, this.imageUrl(), true)
+        },
+        pictureChanged(color: string) {
+            this.info.color = color
+            this.imageVersion = Date.now()
+            this.extractColors()
         },
         setBgColor() {
             const c = this.info.color

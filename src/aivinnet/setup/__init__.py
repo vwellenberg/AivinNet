@@ -7,6 +7,7 @@ from dataclasses import asdict
 from time import time
 
 from aivinnet.config import UserConfig
+from aivinnet.lib.artist_image import user_set_dir
 from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
@@ -42,7 +43,10 @@ def run_setup():
     # On every start, not only on a scan: the stale face dates from a scan
     # with online metadata on, and nothing but a start is guaranteed to come.
     paths = Paths()
-    purge_placeholder_artist_images([paths.sm_artist_img_path, paths.md_artist_img_path, paths.lg_artist_img_path])
+    purge_placeholder_artist_images(
+        [paths.sm_artist_img_path, paths.md_artist_img_path, paths.lg_artist_img_path],
+        user_set_dir=user_set_dir(),
+    )
 
 
 def load_into_mem():

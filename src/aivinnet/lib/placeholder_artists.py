@@ -32,9 +32,12 @@ def is_placeholder_artist(name: str) -> bool:
     return create_hash(name, decode=True) in PLACEHOLDER_ARTIST_HASHES
 
 
-def purge_placeholder_artist_images(folders: list[Path]) -> list[Path]:
+def purge_placeholder_artist_images(folders: list[Path], user_set_dir: Path | None = None) -> list[Path]:
     """
     Delete cached images of placeholder artists; return what was removed.
+
+    A picture the owner uploaded for "Unknown" on purpose is kept: it has a
+    marker in `user_set_dir` (see `artist_image.py`).
 
     Needed besides the lookup guard because the guard only stops NEW downloads:
     an install that scanned with online metadata on still has the file, and the
@@ -45,6 +48,9 @@ def purge_placeholder_artist_images(folders: list[Path]) -> list[Path]:
 
     for folder in folders:
         for artisthash in PLACEHOLDER_ARTIST_HASHES:
+            if user_set_dir is not None and (user_set_dir / artisthash).exists():
+                continue
+
             path = folder / f"{artisthash}.webp"
 
             if path.exists():

@@ -1,5 +1,5 @@
 """
-Album/playlist cover art endpoints.
+Album/playlist cover art endpoints, plus the hand-picked artist picture.
 
 Three ways to give an album a cover — search iTunes/Deezer for it, upload a
 local file, or take the one it has and write it into the audio files — plus the
@@ -17,10 +17,11 @@ from aivinnet import models
 from aivinnet.api.auth import admin_required
 from aivinnet.api.formfields import FileStorage
 from aivinnet.db.userdata import PlaylistTable
-from aivinnet.lib import album_cover_edit, playlistlib
+from aivinnet.lib import album_cover_edit, artist_image, playlistlib
 from aivinnet.lib import coverart as coverartlib
 from aivinnet.lib.album_cover_edit import AlbumCoverError, embed_album_cover
 from aivinnet.store.albums import AlbumStore
+from aivinnet.store.artists import ArtistStore
 from aivinnet.utils.dates import create_new_date, date_string_to_time_passed
 
 tag = Tag(name="Cover art", description="Search album covers online and apply them")
@@ -199,6 +200,63 @@ def upload_album_cover(form: UploadAlbumCoverForm):
     album_cover_edit.write_cover_through(form.albumhash)
 
     return {"success": True, "image": filename}
+
+
+class UploadArtistImageForm(BaseModel):
+    artisthash: str = Field(..., description="The artist hash")
+    # Plain FileStorage, never a union — see api/formfields.py.
+    image: FileStorage = Field(..., description="The image file")
+
+
+@api.post("/artist/upload")
+@admin_required()
+def upload_artist_image(form: UploadArtistImageForm):
+    """
+    Save an uploaded image file as the artist's picture.
+
+    Cropped to a square and kept against the online lookup and the placeholder
+    purge (see lib/artist_image.py). Also recomputes the artist's accent colour.
+    """
+    if ArtistStore.artistmap.get(form.artisthash) is None:
+        return {"error": "Artist not found"}, 404
+
+    try:
+        # Same ceiling and the same one-byte-past trick as the album upload.
+        content = form.image.read(coverartlib.MAX_DOWNLOAD_BYTES + 1)
+    except OSError:
+        return {"error": "Image could not be read"}, 400
+
+    if not content:
+        return {"error": "Image is empty"}, 400
+
+    if len(content) > coverartlib.MAX_DOWNLOAD_BYTES:
+        return {"error": "Image is too large"}, 400
+
+    filename = artist_image.save_artist_image_bytes(form.artisthash, content)
+    if not filename:
+        return {"error": "Failed: Invalid image"}, 400
+
+    color = artist_image.refresh_artist_color(form.artisthash)
+    return {"success": True, "image": filename, "color": color}
+
+
+class ArtistHashBody(BaseModel):
+    artisthash: str = Field(..., description="The artist hash")
+
+
+@api.post("/artist/remove")
+@admin_required()
+def remove_artist_image(body: ArtistHashBody):
+    """
+    Remove the artist's picture so it falls back to the generic icon — and
+    stays that way: no scan fetches a new one afterwards.
+    """
+    if ArtistStore.artistmap.get(body.artisthash) is None:
+        return {"error": "Artist not found"}, 404
+
+    artist_image.remove_artist_image(body.artisthash)
+    artist_image.refresh_artist_color(body.artisthash)
+    return {"success": True}
 
 
 @api.post("/album/embed")

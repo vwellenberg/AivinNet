@@ -42,3 +42,14 @@ def test_purge_removes_the_cached_face_in_every_size(tmp_path):
 
 def test_purge_without_cached_faces_is_a_no_op(tmp_path):
     assert purge_placeholder_artist_images([tmp_path]) == []
+
+
+def test_purge_keeps_a_picture_the_owner_set_on_purpose(tmp_path):
+    unknown = create_hash("Unknown", decode=True)
+    user_set = tmp_path / "user-set"
+    user_set.mkdir()
+    (user_set / unknown).touch()
+    (tmp_path / f"{unknown}.webp").write_bytes(b"chosen by hand")
+
+    assert purge_placeholder_artist_images([tmp_path], user_set_dir=user_set) == []
+    assert (tmp_path / f"{unknown}.webp").exists()
