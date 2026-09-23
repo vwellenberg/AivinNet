@@ -119,5 +119,10 @@ mit geschöntem `hash.webp` hat einen echten Bug übersehen.
 - **Requests gehören nach `src/requests/`.** Wer aus einem Store oder einer Komponente direkt
   `useAxios`/`axios` importiert, fällt aus dem Abgleich — ein zweiter Zensus lehnt das ab.
   `BYPASSES_REQUESTS` listet die Altfälle; die Liste darf nur schrumpfen.
+- **Der Scrobble geht am Abgleich vorbei** — `sendLogData` reicht ihn an den Worker
+  `public/workers/logtrack.js`, der sein Body selbst mit `fetch` baut. Der Vertrags-Test liest
+  die Worker-Datei deshalb im **Quelltext** und prüft Pfad, Methode und Felder gegen dieselbe
+  Vertragsdatei. Wer dort etwas umbenennt, muss den Server mitziehen —
+  `tests_api/test_scrobble_log.py` ist das andere Ende.
 - `FormData.keys()` kennt die TS-Lib dieses Projekts nicht (kein `DOM.Iterable`) — `forEach`
   benutzen. Vitest merkt das nicht, erst `yarn typecheck`.
