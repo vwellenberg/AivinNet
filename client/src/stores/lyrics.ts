@@ -81,8 +81,13 @@ export default defineStore("lyrics", {
           const settings = useSettings();
           const plugin = useLyricsPlugin();
 
+          // The sub-options are loaded whether the plugin is on or not, so the
+          // plugin's own switch has to be asked first: off means no lookup.
+          const pluginOn = !!settings.use_lyrics_plugin;
+
           // catch HasUnSyncedLyricsError instance
           if (e instanceof HasUnSyncedLyricsError) {
+            if (!pluginOn) return;
             if (!settings.lyrics_plugin_settings.overide_unsynced) return;
             plugin.searchLyrics();
           }
@@ -91,7 +96,7 @@ export default defineStore("lyrics", {
           this.lyrics = <LyricsLine[]>[];
           this.copyright = "";
 
-          if (settings.lyrics_plugin_settings.auto_download) {
+          if (pluginOn && settings.lyrics_plugin_settings.auto_download) {
             plugin.searchLyrics();
           }
         });

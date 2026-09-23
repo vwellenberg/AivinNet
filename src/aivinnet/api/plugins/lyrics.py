@@ -2,6 +2,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import Field
 
 from aivinnet.api.apischemas import TrackHashSchema
+from aivinnet.db.userdata import PluginTable
 from aivinnet.lib.lyrics import Lyrics as Lyrics_class
 from aivinnet.lib.trackslib import resolve_track_filepath
 from aivinnet.plugins.lyrics import Lyrics
@@ -22,6 +23,10 @@ class LyricsSearchBody(TrackHashSchema):
     )
 
 
+def is_lyrics_finder_active() -> bool:
+    return any(p.name == "lyrics_finder" and p.active for p in PluginTable.get_all())
+
+
 @api.post("/search")
 def search_lyrics(body: LyricsSearchBody):
     """
@@ -32,6 +37,14 @@ def search_lyrics(body: LyricsSearchBody):
     album = body.album
     filepath = body.filepath
     trackhash = body.trackhash
+
+    # ⚠️ The switch is enforced HERE, not only in the client. This request is
+    # what sends title and artist to Musixmatch, and the client decides to make
+    # it from its own copy of the plugin settings — which a stale tab, an old
+    # client or a sub-option left on (`auto_download`) can get wrong. Off means
+    # nothing leaves the machine, whoever asks.
+    if not is_lyrics_finder_active():
+        return {"error": "The lyrics finder is switched off"}, 403
 
     finder = Lyrics()
     data = finder.search_lyrics_by_title_and_artist(title, artist)
