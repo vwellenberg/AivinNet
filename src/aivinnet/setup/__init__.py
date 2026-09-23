@@ -13,6 +13,8 @@ from aivinnet.lib.mapstuff import (
     map_favorites,
     map_scrobble_data,
 )
+from aivinnet.lib.placeholder_artists import purge_placeholder_artist_images
+from aivinnet.settings import Paths
 from aivinnet.setup.sqlite import run_migrations, setup_sqlite
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
@@ -36,6 +38,11 @@ def run_setup():
 
     setup_sqlite()
     run_migrations()
+
+    # On every start, not only on a scan: the stale face dates from a scan
+    # with online metadata on, and nothing but a start is guaranteed to come.
+    paths = Paths()
+    purge_placeholder_artist_images([paths.sm_artist_img_path, paths.md_artist_img_path, paths.lg_artist_img_path])
 
 
 def load_into_mem():
