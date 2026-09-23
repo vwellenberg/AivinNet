@@ -253,7 +253,11 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   single-threaded Server friert dabei die ganze App ein. `utils/net.py::prefer_ipv4()` läuft
   global in `app_builder.config_app`; neue Outbound-Calls zusätzlich mit harter Deadline um
   Futures absichern (`lib/coverart.py::search_covers`) und Pools mit `shutdown(wait=False)`
-  schließen.
+  schließen. **Wächter:** `tests/test_outbound_timeouts.py` — ein Zensus über *jeden*
+  `requests.*`-Aufruf in `src/`, denn `requests` hat **kein** Default-Timeout. Ein Fund beim
+  Schreiben des Zensus: Last.fm postete Scrobbles ohne jede Deadline. Und ein Timeout fehlt
+  auch im Hintergrund nicht folgenlos — `@background` ist kein Daemon, ein hängender Call hält
+  den Prozess beim Beenden offen (genau der SIGKILL-Pfad weiter unten).
 - **⚠️ TRACKHASH HÄNGT AN DEN TAGS, NICHT AN DER DATEI** (`create_hash(title, album, *artists)`):
   ein Formatwechsel ändert **keinen** Hash, eine Tag-Korrektur **jeden** betroffenen — Playlists,
   Favoriten und Scrobbles zeigen danach ins Leere und müssen mitgezogen werden. Zweite Falle: die
