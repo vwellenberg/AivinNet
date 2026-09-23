@@ -214,7 +214,12 @@ $settings-close-inset: 0.625rem;
         border-right: none;
         padding-top: $settings-close-inset;
 
+        // `width: auto`, not the row's own `100%`: a full-width box keeps
+        // its width and pushes the margin out past the pane, so the row
+        // stayed under the button (measured: right edge 355 vs button 317).
+        // Auto lets the column's stretch hand it the width minus the lane.
         .group:first-child .gitem:first-child {
+            width: auto;
             margin-right: calc(#{$bar-control} + #{$settings-close-inset});
         }
     }

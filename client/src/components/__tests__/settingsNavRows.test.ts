@@ -159,5 +159,8 @@ describe("the settings pane list on a phone", () => {
   it("keeps the first row out of the close button's lane", () => {
     const first = block(list, ".group:first-child .gitem:first-child").body;
     expect(first).toMatch(/margin-right:[^;]*\$bar-control[^;]*\$settings-close-inset/);
+    // The row's own `width: 100%` would keep it full width and push the margin
+    // out past the pane — the first draft of this fix did exactly that.
+    expect(first).toMatch(/width:\s*auto;/);
   });
 });
