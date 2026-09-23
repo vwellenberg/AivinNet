@@ -134,3 +134,30 @@ describe("the settings pane row", () => {
     expect(ownDeclarations(block(body, "&.about").body)).toMatch(/margin-top:/);
   });
 });
+
+describe("the settings pane list on a phone", () => {
+  // On a phone the list IS the modal's first screen, and the absolutely
+  // positioned close button sits over its first row. The list started at the
+  // pane's 1rem padding while the button sat at 0.625rem: two 44px plates 6px
+  // out of line and overlapping — reported as the rows being "smaller" with the
+  // height not fitting, although every row measured 44px.
+  const SETTINGS = styleBlock(read("src/components/modals/Settings.vue"));
+  const closeBody = block(SETTINGS, "> .close").body;
+  const phone = block(SETTINGS, ".settingsmodal.isSmallPhone").body;
+  const list = block(phone, ".settingssidebar").body;
+
+  it("finds the rules it is meant to police", () => {
+    expect(closeBody, "close button not found").not.toBe("");
+    expect(list, "phone list rule not found").not.toBe("");
+  });
+
+  it("starts the list on the close button's line, from one number", () => {
+    expect(closeBody).toMatch(/top:\s*\$settings-close-inset;/);
+    expect(ownDeclarations(list)).toMatch(/padding-top:\s*\$settings-close-inset;/);
+  });
+
+  it("keeps the first row out of the close button's lane", () => {
+    const first = block(list, ".group:first-child .gitem:first-child").body;
+    expect(first).toMatch(/margin-right:[^;]*\$bar-control[^;]*\$settings-close-inset/);
+  });
+});
