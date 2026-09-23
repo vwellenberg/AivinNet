@@ -1,9 +1,8 @@
 <template>
   <!-- The tiles are the shared `StatItem` — same anatomy, same icon per kind
-    as the charts screen. What is NOT reused is `Stats.vue` around them: it
-    splits its list into "all but the last" and "the last", which is how the
-    charts screen sets the top track apart. Four equal numbers have nothing to
-    set apart, and the split showed up as a gap in the middle of the row. -->
+    as the charts screen. `Stats.vue` around them is not reused: it fetches on
+    every mount and shows the date range and the top track, where this block
+    wants a cached answer and the numbers only (see WANTED below). -->
   <div v-if="items.length" class="library-numbers">
     <StatItem
       v-for="item in items"

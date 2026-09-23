@@ -1,23 +1,19 @@
 <template>
+    <!-- ONE row. Upstream split it into "all but the last" and "the last", the
+        last pinned to the far edge by a `1fr` column — a place of honour for
+        whatever the backend happens to send last: the library count on /stats,
+        completeness on an album, top album on an artist. None of them is set
+        apart by meaning, so on a wide window the split just read as a tile
+        that drifted away from its row. -->
     <div class="statshead" v-if="statItems.length">
-        <div class="left">
-            <StatItem
-                v-for="item in statItems.slice(0, statItems.length - 1)"
-                :key="item.cssclass"
-                :value="item.value"
-                :text="item.text"
-                :icon="item.cssclass"
-                :image="item.image"
-            />
-        </div>
-        <div class="right">
-            <StatItem
-                :value="statItems[statItems.length - 1].value"
-                :text="statItems[statItems.length - 1].text"
-                :icon="statItems[statItems.length - 1].cssclass"
-                :image="statItems[statItems.length - 1].image"
-            />
-        </div>
+        <StatItem
+            v-for="item in statItems"
+            :key="item.cssclass"
+            :value="item.value"
+            :text="item.text"
+            :icon="item.cssclass"
+            :image="item.image"
+        />
     </div>
     <div class="statsdates" v-if="date">
         <div class="date">
@@ -67,10 +63,9 @@ defineOptions({
 
 <style lang="scss">
 .statshead {
-    display: grid;
-    grid-template-columns: 1fr max-content;
+    display: flex;
     overflow-x: auto;
-    gap: 1.5rem;
+    gap: 2rem;
     // No left inset — the tiles start where the page's captions, cards and rows
     // start. Measured against the leading edge: 319px here against 303px for
     // the head and the chart rows on the stats page, and 315px on album/artist
@@ -83,9 +78,10 @@ defineOptions({
     // genre banner next to it and the search tab chips).
     @include hideScrollbars;
 
-    .left {
-        display: flex;
-        gap: 2rem;
+    // Scroll sideways on a narrow window rather than squeeze the tiles below
+    // what their numbers need — same answer as `LibraryNumbers.vue`.
+    .statitem {
+        flex-shrink: 0;
     }
 
     .streamduration {
