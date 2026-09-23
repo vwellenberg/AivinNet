@@ -11,7 +11,7 @@ never asked whether the plugin was active.
 import pytest
 
 BODY = {
-    "trackhash": "abc123def456",
+    "trackhash": "abc123def4567890",
     "title": "Song",
     "artist": "Artist",
     "album": "Album",
