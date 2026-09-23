@@ -48,11 +48,6 @@ export const FuseTrackOptions = {
   ],
 };
 
-export enum contextChildrenShowMode {
-  click = "click",
-  hover = "hover",
-}
-
 // rewrite the above as an object
 export const discographyAlbumTypes = {
   all: "all",
@@ -86,7 +81,6 @@ interface Plugin {
 }
 
 export interface DBSettings {
-  enableWatchDog: boolean;
   rootDirs: string[];
   excludeDirs: string[];
   artistSeparators: string[];
@@ -96,12 +90,11 @@ export interface DBSettings {
   removeRemasterInfo: boolean;
   mergeAlbums: boolean;
   showAlbumsAsSingles: boolean;
-  enablePeriodicScans: boolean
-  scanInterval: number
+  writeCoverToFiles: boolean;
+  enableOnlineMetadata: boolean;
   plugins: Plugin[];
   version: string;
   lastfmApiKey: string;
   lastfmApiSecret: string;
   lastfmSessionKey: string;
-  showPlaylistsInFolderView: boolean;
 }

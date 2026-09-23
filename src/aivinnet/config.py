@@ -1,5 +1,5 @@
 import json
-from dataclasses import InitVar, asdict, dataclass, field
+from dataclasses import InitVar, asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -86,11 +86,6 @@ class UserConfig(metaclass=Singleton):
     writeCoverToFiles: bool = True
 
     # misc
-    enablePeriodicScans: bool = False
-    scanInterval: int = 10
-    enableWatchdog: bool = False
-    showPlaylistsInFolderView: bool = False
-
     # Largest album or playlist that may be downloaded as one archive, in MB.
     #
     # A cap rather than "as much as you like", because building an archive is
@@ -117,7 +112,6 @@ class UserConfig(metaclass=Singleton):
     enableOnlineMetadata: bool = False
 
     # plugins
-    enablePlugins: bool = True
     lastfmApiKey: str = "0553005e93f9a4b4819d835182181806"
     lastfmApiSecret: str = "5e5306fbf3e8e3bc92f039b6c6c4bd4e"
     lastfmSessionKeys: dict[str, str] = field(default_factory=dict)
@@ -136,7 +130,15 @@ class UserConfig(metaclass=Singleton):
             return
 
         # loop through the config file and set the values
+        known = {f.name for f in fields(self)}
         for key, value in config.items():
+            # A key this version no longer declares (a retired option such as
+            # `enablePeriodicScans`) is dropped rather than attached: it would sit
+            # on the singleton as a dead attribute that nothing reads. The next
+            # write takes it out of the file too — `write_to_file` saves fields only.
+            if key not in known:
+                continue
+
             if key == "artistSplitIgnoreList":
                 # Merge with default values and user file values instead of overwriting
                 default_values = load_default_artist_ignore_list()

@@ -7,6 +7,7 @@ import pathlib
 
 from aivinnet.lib.pydub.pydub import AudioSegment
 from aivinnet.lib.pydub.pydub.silence import detect_leading_silence, detect_silence
+from aivinnet.lib.silence import LEADING, MISSING, TRAILING, SilenceCache
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.threading import ProcessWithReturnValue
 
@@ -56,41 +57,51 @@ def get_silence_paddings(ending_file: str, starting_file: str):
     """
     Returns the ending silence of a track and the starting silence of the next.
     """
-    # ⚠️ Both paths arrive straight from a request body, and what happens next is
-    # `.exists()` followed by spawning a process that decodes the whole file. That
-    # made the endpoint two things at once: an oracle telling any logged-in
-    # account whether an arbitrary path exists on the server, and — because the
-    # handler blocks on join() while bjoern serves one request at a time — a way
-    # to stop the entire app with a single call on a large file.
+    # ⚠️ Both paths arrive straight from a request body, and what used to happen
+    # next was `.exists()` followed by spawning a process that decodes the whole
+    # file. That made the endpoint two things at once: an oracle telling any
+    # logged-in account whether an arbitrary path exists on the server, and —
+    # because the handler blocked on join() while bjoern serves one request at a
+    # time — a way to stop the entire app with a single call on a large file.
     #
     # Checked HERE rather than only in the handler: this is a library function
     # that spawns processes on whatever it is handed, and it should not depend on
     # its caller having validated. Same reasoning as lib/loginguard.py.
+    #
+    # The decoding no longer happens in the request at all: see lib/silence.py.
+    # This answers at once with what is known, and `pending` tells the client to
+    # ask again once the background worker has measured the rest.
     if not is_indexed_track_path(str(starting_file)) or not is_indexed_track_path(str(ending_file)):
-        return {"starting_file": 0, "ending_file": 0}
+        return {"starting_file": 0, "ending_file": 0, "pending": False}
 
-    starting_file = pathlib.Path(starting_file)
-    ending_file = pathlib.Path(ending_file)
+    ending = SILENCE.lookup(TRAILING, str(ending_file))
+    starting = SILENCE.lookup(LEADING, str(starting_file))
 
-    silence = {"starting_file": 0, "ending_file": 0}
-    ending_thread = None
-    starting_thread = None
+    return {
+        "starting_file": 0 if starting is MISSING or starting is None else starting,
+        "ending_file": 0 if ending is MISSING or ending is None else ending,
+        "pending": ending is MISSING or starting is MISSING,
+    }
 
-    if ending_file.exists():
-        ending_thread = ProcessWithReturnValue(target=get_trailing_silence_start, args=(ending_file,))
-        ending_thread.start()
 
-    if os.path.exists(starting_file):
-        starting_thread = ProcessWithReturnValue(target=get_leading_silence_end, args=(starting_file,))
-        starting_thread.start()
+def measure_silence(kind: str, path: str):
+    """
+    Measure one file. Blocking — only ever called by SILENCE's worker thread.
 
-    if ending_thread:
-        silence["ending_file"] = ending_thread.join()
+    Still a separate PROCESS, not just the worker thread: pydub's silence
+    detection is a pure-Python loop that holds the GIL, and in a thread it would
+    slow the request thread down for the whole decode. Daemon, so a measurement
+    in flight never holds up a stopping server.
+    """
+    target = get_leading_silence_end if kind == LEADING else get_trailing_silence_start
 
-    if starting_thread:
-        silence["starting_file"] = starting_thread.join()
+    process = ProcessWithReturnValue(target=target, args=(pathlib.Path(path),))
+    process.daemon = True
+    process.start()
+    return process.join()
 
-    return silence
+
+SILENCE = SilenceCache(measure_silence)
 
 
 def is_indexed_track_path(filepath: str) -> bool:

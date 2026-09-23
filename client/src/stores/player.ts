@@ -387,6 +387,8 @@ export const usePlayer = defineStore('player', () => {
         }
     }
 
+    let silenceWorker: Worker | null = null
+
     const handleNextAudioCanPlay = async () => {
         // INFO: Keep a key for this query to ignore the result if the track has changed
         const key = queue.currenttrack.trackhash + queue.next.trackhash
@@ -398,7 +400,12 @@ export const usePlayer = defineStore('player', () => {
             return
         }
 
+        // One worker at a time. The worker keeps asking while the server is still
+        // measuring (public/workers/silence.js), so one left over from an earlier
+        // track would go on polling for an answer nobody reads any more.
+        silenceWorker?.terminate()
         const worker = new Worker('/workers/silence.js')
+        silenceWorker = worker
 
         worker.postMessage({
             ending_file: queue.currenttrack.filepath,
@@ -406,6 +413,9 @@ export const usePlayer = defineStore('player', () => {
         })
 
         worker.onmessage = e => {
+            worker.terminate()
+            if (silenceWorker === worker) silenceWorker = null
+
             // INFO: if the track has changed, abort.
             if (queue.currenttrack.trackhash + queue.next.trackhash !== key) {
                 return

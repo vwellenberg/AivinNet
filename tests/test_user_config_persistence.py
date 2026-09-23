@@ -55,3 +55,23 @@ def test_setting_changed_on_a_later_run_survives_a_restart(settings_file):
     _start().usersOnLogin = False
 
     assert _start().usersOnLogin is False
+
+
+def test_a_retired_option_in_an_old_file_is_dropped(settings_file):
+    """
+    Options removed from the config (periodic scans, watchdog, ...) still sit in
+    every existing settings.json. Loading must not attach them to the singleton,
+    and the next write takes them out of the file.
+    """
+    settings_file.write_text(json.dumps({"enablePeriodicScans": True, "enablePlugins": True, "rootDirs": ["/m"]}))
+
+    config = _start()
+
+    assert config.rootDirs == ["/m"]
+    assert not hasattr(config, "enablePeriodicScans")
+
+    config.usersOnLogin = False
+
+    saved = json.loads(settings_file.read_text())
+    assert "enablePeriodicScans" not in saved
+    assert "enablePlugins" not in saved

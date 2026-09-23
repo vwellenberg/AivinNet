@@ -4,7 +4,8 @@ import { SettingType } from "../enums";
 import useSettings from "@/stores/settings";
 
 const toggle_lyrics_plugin = <Setting>{
-  title: "Enable plugin",
+  title: "Find lyrics online",
+  desc: "Off by default. Adds a search for lyrics a track does not have yet",
   type: SettingType.binary,
   state: () => useSettings().use_lyrics_plugin,
   action: () => useSettings().toggleLyricsPlugin(),
@@ -20,7 +21,7 @@ const auto_download_lyrics = <Setting>{
 };
 
 const auto_download_on_unsynced = <Setting>{
-  title: "Overide unsynced lyrics",
+  title: "Override unsynced lyrics",
   desc: "Automatically download lyrics even if unsynced lyrics are locally available",
   type: SettingType.binary,
   state: () => useSettings().lyrics_plugin_settings.overide_unsynced,

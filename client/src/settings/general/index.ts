@@ -5,10 +5,10 @@ import { SettingCategory } from '@/interfaces/settings'
 import * as strings from '../strings'
 import albums from './albums'
 import restore from './backup'
-import contextChildrenShowMode from './context-children-show-mode'
 import font from './font'
 import musicbrainz from './musicbrainz'
 import nowPlaying from './now-playing-group'
+import onlineMetadata from './online-metadata'
 import pageGradient from './page-gradient'
 import rootDirSettings from './root-dirs'
 import separators from './separators'
@@ -39,7 +39,6 @@ export const general = {
                 ...pageGradient,
                 ...font,
                 ...sidebarSettings,
-                ...contextChildrenShowMode,
                 ...nowPlaying,
             ],
         },
@@ -77,8 +76,8 @@ export const library = {
             show_if: () => useSettings().feat !== null,
             title: 'Artists',
             icon: ArtistSvg,
-            desc: 'Customize artist separators',
-            settings: [separators],
+            desc: 'Artist separators, and artist data from the internet',
+            settings: [separators, ...onlineMetadata],
         },
         {
             show_if: () => useSettings().feat !== null,

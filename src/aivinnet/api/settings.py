@@ -179,8 +179,9 @@ def _writable_config_keys() -> set[str]:
     config's own method on the process-wide singleton, and every later write in the
     running server then raises TypeError until a restart. A name that is merely
     unknown is no better: it silently attaches a dead attribute nobody reads, so the
-    request answers 200 and the setting never applies (that is exactly what the
-    client's `enableWatchDog` has been doing — the field is `enableWatchdog`).
+    request answers 200 and the setting never applies (the client's watchdog toggle
+    did exactly that for years: it sent `enableWatchDog`, the field was
+    `enableWatchdog`).
     """
     return {f.name for f in fields(UserConfig) if not f.name.startswith("_")} - PROTECTED_CONFIG_KEYS
 

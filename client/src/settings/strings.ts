@@ -23,12 +23,6 @@ export const sidebarStrings = <S>{
   },
 };
 
-export const contextChildrenShowModeStrings = <S>{
-  settings: {
-    show_mode: "Show right click menu dropdowns on",
-  },
-};
-
 export const showMasterFlag = <S>{
   settings: {
     show_flag: "Master flag",
