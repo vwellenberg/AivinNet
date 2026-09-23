@@ -5,7 +5,6 @@ import { nextTick } from 'vue'
 
 import ContextMenu from '../ContextMenu.vue'
 import ContextItem from '../Contextmenu/ContextItem.vue'
-import { contextChildrenShowMode } from '@/enums'
 import useContextStore from '@/stores/context'
 
 // ---------------------------------------------------------------------------
@@ -118,7 +117,6 @@ describe('a submenu', () => {
                     label: 'Add to playlist',
                     children: async () => [{ label: 'Mix' }, { type: 'separator' }, { label: 'Road trip', action: pick }],
                 },
-                childrenShowMode: contextChildrenShowMode.click,
             },
         })
         const item = wrapper.find('[role="menuitem"]').element as HTMLElement

@@ -11,7 +11,7 @@ paths:
 
 Alle Personalisierung basiert auf der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus
 der eigenen Bibliothek. Externe Quellen: der Swing-Music-Cloud-Server (Mixes) und — außerhalb
-der Empfehlungen — der ab Werk aktive Lyrics-Finder (Musixmatch, siehe CLAUDE.md
+der Empfehlungen — der Lyrics-Finder (Musixmatch, bei Neuinstallationen aus, siehe CLAUDE.md
 „Empfehlungen / Mixes"-Abschnitt und `plugins/register.py`).
 
 - **Cron `mixes`** (`crons/mixes.py`, alle 12 h): erst `ArtistMixes`, dann `BecauseYouListened`
@@ -47,7 +47,7 @@ neue Quelle eingetragen wird:
 | Wohin | Was | Wann |
 |---|---|---|
 | `smcloud.mungaist.com` | Top-5-Tracks eines Artists: Titel, Artists, Album im **Klartext** | Cron `mixes`, alle 12 h |
-| `apic-desktop.musixmatch.com` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (ab Werk aktiv, abschaltbar) |
+| `apic-desktop.musixmatch.com` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (Neuinstallation: aus; Settings → Plugins) |
 | `musicbrainz.org` / `coverartarchive.org` | Albumtitel + Album-Artist im Klartext | **nur auf Anforderung**: Cover holen, und seit #221 Titel/Nummern holen |
 | Deezer / Last.fm | Artist-Namen | nur mit `enableOnlineMetadata` (ab Werk **aus**) |
 

@@ -52,14 +52,12 @@
 import { createPopper, Instance, Modifier, Placement, Rect } from '@popperjs/core'
 import { computed, nextTick, ref } from 'vue'
 
-import { contextChildrenShowMode } from '@/enums'
 import { ExpandIcon } from '@/icons'
 import { Option } from '@/interfaces'
 import { focusWhenVisible } from '@/utils/focusWhenVisible'
 
 const props = defineProps<{
     option: Option
-    childrenShowMode: contextChildrenShowMode
 }>()
 
 const emit = defineEmits<{
@@ -75,9 +73,9 @@ const childrenShown = ref(false)
 const childRef = ref<HTMLElement>()
 const parentRef = ref<HTMLElement>()
 
-const hasChildren = computed(() => {
-    return props.option.children && props.childrenShowMode === contextChildrenShowMode.hover
-})
+// Submenus open on hover as well as on click. That used to be a setting
+// ("click" only) — an upstream option nobody here needs; click still works.
+const hasChildren = computed(() => !!props.option.children)
 
 let popperInstance: Instance | null = null
 

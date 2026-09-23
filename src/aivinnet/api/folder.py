@@ -15,11 +15,9 @@ from aivinnet import settings
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
 from aivinnet.db.libdata import TrackTable
-from aivinnet.db.userdata import FavoritesTable, PlaylistTable
 from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
 from aivinnet.lib.sortlib import sort_folders
-from aivinnet.serializers.track import serialize_track, serialize_tracks
-from aivinnet.store.tracks import TrackStore
+from aivinnet.serializers.track import serialize_track
 from aivinnet.utils.wintools import is_windows
 
 tag = Tag(name="Folders", description="Get folders and tracks in a directory")
@@ -98,7 +96,6 @@ def get_folder_tree(body: FolderTree):
 
     Returns a list of all the folders and tracks in the given folder.
     """
-    og_req_dir = body.folder
     req_dir = body.folder
     tracks_only = body.tracks_only
 
@@ -115,51 +112,6 @@ def get_folder_tree(body: FolderTree):
         return {
             "folders": folders,
             "tracks": [],
-        }
-
-    if req_dir.startswith("$playlist"):
-        splits = req_dir.split("/")
-
-        if len(splits) == 2:
-            pid = splits[1]
-            playlist = PlaylistTable.get_by_id(int(pid))
-            tracks = TrackStore.get_tracks_by_trackhashes(
-                playlist.trackhashes[body.start : body.start + body.limit if body.limit != -1 else None]
-            )
-
-            return {
-                "path": f"$playlist/{playlist.name}",
-                "folders": [],
-                "tracks": serialize_tracks(tracks),
-            }
-
-        playlists = PlaylistTable.get_all()
-        playlists = sorted(
-            playlists,
-            key=lambda p: p.name.casefold(),
-        )
-
-        return {
-            "path": req_dir,
-            "folders": [
-                {
-                    "name": p.name,
-                    "path": f"$playlist/{p.id}",
-                    "trackcount": p.count,
-                }
-                for p in playlists
-            ],
-            "tracks": [],
-        }
-
-    if req_dir == "$favorites":
-        tracks, _total = FavoritesTable.get_fav_tracks(body.start, body.limit)
-        tracks = TrackStore.get_tracks_by_trackhashes([t.hash for t in tracks])
-
-        return {
-            "tracks": serialize_tracks(tracks),
-            "folders": [],
-            "path": req_dir,
         }
 
     # Resolve path to prevent directory traversal attacks
@@ -190,23 +142,6 @@ def get_folder_tree(body: FolderTree):
         tracksort_reverse=body.tracksort_reverse,
         foldersort_reverse=body.foldersort_reverse,
     )
-
-    if og_req_dir == "$home" and config.showPlaylistsInFolderView:
-        # Get all playlists and return them as a list of folders
-        playlists_item = {
-            "name": "Playlists",
-            "path": "$playlists",
-            "trackcount": sum(p.count for p in PlaylistTable.get_all()),
-        }
-
-        favorites_item = {
-            "name": "Favorites",
-            "path": "$favorites",
-            "trackcount": FavoritesTable.get_fav_tracks(0, -1)[1],
-        }
-
-        results["folders"].insert(0, playlists_item)
-        results["folders"].insert(0, favorites_item)
 
     return results
 

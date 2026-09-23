@@ -297,11 +297,16 @@ Artist-Mixe — dorthin gehen Track-Metadaten (Titel, Artist, Album) im **Klarte
 Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
 
 **Zweite externe Quelle (seit 2026-08-06): der Lyrics-Finder.** Das Plugin `lyrics_finder`
-(Musixmatch, inoffizielle Desktop-API) ist **ab Werk aktiv** inklusive `auto_download` — beim
-Öffnen der Lyrics-Seite ohne lokale Lyrics gehen **Titel + Artist im Klartext** an
-`apic-desktop.musixmatch.com`; gefundene Lyrics werden als `.lrc` neben die Audiodatei
-geschrieben. Abschaltbar in den Settings; ein Opt-out überlebt Neustarts (Marker-Mechanik in
-`plugins/register.py`). Sonst verlässt nichts das Haus.
+(Musixmatch, inoffizielle Desktop-API) ist bei **Neuinstallationen aus**; ältere Installationen
+behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen der Lyrics-Seite ohne
+lokale Lyrics **Titel + Artist im Klartext** an `apic-desktop.musixmatch.com`; gefundene Lyrics
+landen als `.lrc` neben der Audiodatei. Schalter: Settings → Plugins → Lyrics (`plugins/register.py`).
+
+⚠️ **Ein Config-Feld ohne Schalter im Client ist für den User nicht vorhanden.** Die
+Plugins-Seite flog im Mai 2026 wegen Last.fm raus und nahm den Lyrics-Schalter mit;
+`enableOnlineMetadata` und `writeCoverToFiles` hatten nie einen — die Doku verwies trotzdem
+monatelang auf „die Settings". Wer ein Feld in `config.py` anlegt oder eine Settings-Seite
+entfernt, prüft, dass es in `client/src/settings/` erreichbar bleibt.
 
 Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommendations.md`.
 
