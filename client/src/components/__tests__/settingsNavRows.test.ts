@@ -50,6 +50,7 @@ describe("the settings pane list", () => {
       "Album Cover",
       "Backup",
       "Playback",
+      "Lyrics",
       "About",
     ]);
   });
