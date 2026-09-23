@@ -39,6 +39,28 @@ class FolderStore:
             cls.map[track.filepath] = track.trackhash
 
     @classmethod
+    def index_file(cls, filepath: str, trackhash: str) -> None:
+        """
+        Record one file under its CURRENT trackhash.
+
+        ⚠️ The folder view finds a file's track through this map, by hash. A tag
+        edit changes the hash, and until this existed nothing told the map: the
+        folder of an album whose titles had just been repaired listed 0 of its
+        94 files, and stayed that way until the next full rescan.
+        """
+        filepath = pathlib.Path(filepath).as_posix()
+        cls.filepaths.add(filepath)
+        cls.map[filepath] = trackhash
+
+    @classmethod
+    def move_filepath(cls, old: str, new: str, trackhash: str) -> None:
+        """Follow a renamed file (the trackhash does not change with the path)."""
+        old = pathlib.Path(old).as_posix()
+        cls.filepaths.discard(old)
+        cls.map.pop(old, None)
+        cls.index_file(new, trackhash)
+
+    @classmethod
     def get_tracks_by_filepaths(cls, filepaths: list[str]):
         """
         Generator which tries to match TrackStore with track hash

@@ -38,6 +38,18 @@ umzug = {vorher[fp]: nachher[fp] for fp in vorher
 # dann playlist.trackhashes, favorite.hash und scrobble.trackhash durchziehen
 ```
 
+## Dateien umbenennen: der Hash bleibt, drei Stellen ziehen mit
+
+Ein Rename (`lib/track_rename.py`, #144) ändert **keinen** Hash — dafür alles, was den Pfad
+führt: die `track`-Zeile (`TrackTable.update_filepath`, `last_mod` bleibt, deshalb sieht der
+nächste Scan die Datei als unverändert), die Track-Objekte im `TrackStore` und den
+`FolderStore`, dazu die `.lrc` gleichen Namens daneben.
+
+⚠️ **`FolderStore.map` (Pfad → Hash) ist die Stelle, die vergessen wird.** Die Ordneransicht
+findet ihre Tracks darüber — und bis #144 hat auch eine **Tag-Änderung** sie nicht nachgezogen:
+„The Guild 2" zeigte nach der Titel-Reparatur 0 von 94 Dateien im Ordner, bis zum nächsten
+vollen Scan. Wer Pfad oder Hash ändert, ruft `FolderStore.index_file` / `move_filepath`.
+
 ## ⚠️ Die Hashes in der Datenbank sind nicht die des laufenden Servers
 
 Die `track`-Tabelle trägt teils noch Hashes aus der alten SHA1-Ära; `create_hash` rechnet

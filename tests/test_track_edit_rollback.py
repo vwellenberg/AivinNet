@@ -57,6 +57,7 @@ _AIVINNET_MOCKS = {
         "aivinnet.store",
         "aivinnet.store.albums",
         "aivinnet.store.artists",
+        "aivinnet.store.folder",
         "aivinnet.store.tracks",
     ]
 }

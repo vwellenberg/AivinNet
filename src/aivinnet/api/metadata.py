@@ -22,6 +22,7 @@ is not optional here.
 """
 
 import logging
+import os
 import threading
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -29,10 +30,11 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
-from aivinnet.lib import filename_meta, mbjobs
+from aivinnet.lib import filename_meta, filename_pattern, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
 from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
+from aivinnet.lib.track_rename import rename_files
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
 
@@ -123,12 +125,17 @@ def album_candidates(body: AlbumCandidatesBody):
 # untouched.
 MUSICBRAINZ = "musicbrainz"
 FILENAMES = "filenames"
+# The third source proposes no new tags at all: it keeps them and names the
+# FILES after them (#144) — for an album whose tags are already right, or were
+# just repaired, and whose files still carry the rip's names.
+TAGS = "tags"
+SOURCES = (MUSICBRAINZ, FILENAMES, TAGS)
 
 
 class AlbumPreviewBody(AlbumHashSchema):
     source: str = Field(
         MUSICBRAINZ,
-        description=f"Where the proposal comes from: '{MUSICBRAINZ}' or '{FILENAMES}'",
+        description=f"Where the proposal comes from: '{MUSICBRAINZ}', '{FILENAMES}' or '{TAGS}'",
     )
     mbid: str | None = Field(None, description="The MusicBrainz release to compare against")
 
@@ -144,8 +151,9 @@ def _preview_from_filenames(albumhash: str) -> dict:
     """
     rows = []
     proposals = 0
+    local = _local_tracks(albumhash)
 
-    for track in _local_tracks(albumhash):
+    for track in local:
         number, title = filename_meta.parse(track.filepath)
 
         proposed = None
@@ -185,12 +193,123 @@ def _preview_from_filenames(albumhash: str) -> dict:
             "confident": 0,
             "unmatched_local": len(rows) - proposals,
             "unmatched_remote": 0,
-            "ordered_by_filepath": True,
+            # ⚠️ Measured, not assumed. This was a constant `True`, so the dialog
+            # warned "every file carries the same track number" on every album
+            # read from its file names — including one whose numbers had just
+            # been repaired. A warning that is always on is read as noise.
+            "ordered_by_filepath": track_numbers_are_useless(local),
         },
     }
 
 
+def _preview_from_tags(albumhash: str) -> dict:
+    """Every file with its tags as they are — the name comes from `_with_filenames`."""
+    rows = [
+        {
+            "current": {
+                "trackhash": track.trackhash,
+                "filepath": track.filepath,
+                "title": track.title,
+                "track": track.track,
+                "disc": track.disc,
+                "duration": track.duration,
+            },
+            "proposed": None,
+            "delta": None,
+            "confident": False,
+        }
+        for track in _local_tracks(albumhash)
+    ]
+    return {
+        "rows": rows,
+        "summary": {
+            "matched": 0,
+            "confident": 0,
+            "unmatched_local": 0,
+            "unmatched_remote": 0,
+            "ordered_by_filepath": False,
+        },
+    }
+
+
+def _occupied(filepaths: list[str]) -> dict[str, set[str]]:
+    """The names already taken in each folder these files live in."""
+    occupied: dict[str, set[str]] = {}
+    for filepath in filepaths:
+        folder = os.path.dirname(filepath)
+        if folder not in occupied:
+            try:
+                occupied[folder] = set(os.listdir(folder))
+            except OSError:
+                occupied[folder] = set()
+    return occupied
+
+
+def _with_filenames(result: dict, *, every_file: bool) -> dict:
+    """
+    Add to each row the file name its tags would give it, once applied (#144).
+
+    The name is worked out from the values the row ENDS UP with — the proposal
+    where there is one, the current tag where not — so the preview shows the
+    name the file will really get. Number width and the disc prefix are
+    decided over the whole album for the same reason: "1-03" only makes sense
+    if the album really has a second disc after the change.
+
+    `every_file`: whether rows without a proposal are named too. They are when
+    the source is the tags themselves; otherwise a row nobody is changing keeps
+    its name, and still counts as taken for the others.
+    """
+    rows = [row for row in result.get("rows", []) if row.get("current")]
+    finals = []
+    for row in rows:
+        current, proposed = row["current"], row.get("proposed") or {}
+        final = {key: current.get(key) for key in ("title", "track", "disc")}
+        for key in final:
+            if proposed.get(key) is not None:
+                final[key] = proposed[key]
+        finals.append(final)
+
+    width = filename_pattern.number_width([final["track"] or 0 for final in finals])
+    multi_disc = len({final["disc"] for final in finals if final["disc"] and final["disc"] > 0}) > 1
+
+    wanted = []
+    for row, final in zip(rows, finals, strict=True):
+        filepath = row["current"]["filepath"]
+        if every_file or row.get("proposed"):
+            name = filename_pattern.target_name(
+                final["title"],
+                final["track"],
+                final["disc"],
+                os.path.splitext(filepath)[1],
+                width=width,
+                multi_disc=multi_disc,
+            )
+        else:
+            name = os.path.basename(filepath)
+        wanted.append((filepath, name))
+
+    planned = filename_pattern.plan(wanted, _occupied([path for path, _ in wanted]))
+    for row, plan in zip(rows, planned, strict=True):
+        row["filename"] = {
+            "current": os.path.basename(plan.filepath),
+            "proposed": plan.target,
+            "status": plan.status,
+        }
+
+    return result
+
+
 def _preview(albumhash: str, mbid: str | None, source: str = MUSICBRAINZ) -> dict:
+    if source == TAGS:
+        return _with_filenames(_preview_from_tags(albumhash), every_file=True)
+
+    result = _preview_rows(albumhash, mbid, source)
+    if result.get("error"):
+        return result
+    return _with_filenames(result, every_file=False)
+
+
+def _preview_rows(albumhash: str, mbid: str | None, source: str) -> dict:
     if source == FILENAMES:
         return _preview_from_filenames(albumhash)
 
@@ -265,7 +384,7 @@ def album_preview(body: AlbumPreviewBody):
     if _album_or_none(body.albumhash) is None:
         return {"error": "Album not found"}, 404
 
-    if body.source not in (MUSICBRAINZ, FILENAMES):
+    if body.source not in SOURCES:
         return {"error": f"Unknown source {body.source!r}"}, 400
 
     if body.source == MUSICBRAINZ and not body.mbid:
@@ -287,6 +406,10 @@ class TrackChange(BaseModel):
     title: str | None = Field(None, description="New track title")
     track: int | None = Field(None, description="New track number", ge=0)
     disc: int | None = Field(None, description="New disc number", ge=0)
+    # The name the preview showed, not a request to work one out: what is
+    # written is what the person saw. It is still validated as input
+    # (`track_rename.valid_name`) and re-checked for conflicts on disk.
+    filename: str | None = Field(None, description="New file name (same folder, same type)")
 
 
 class AlbumApplyBody(BaseModel):
@@ -303,29 +426,44 @@ _applying = False
 
 
 def _apply(changes: list[TrackChange]) -> dict:
-    applied = []
+    applied: dict[str, dict] = {}
     failed = []
+    moves: list[tuple[str, str]] = []
 
     for change in changes:
         fields = change.model_dump(exclude_none=True)
         fields.pop("filepath", None)
-        if not fields:
-            continue
+        filename = fields.pop("filename", None)
 
-        try:
-            track = edit_track_tags_by_filepath(change.filepath, fields)
-        except TrackNotFoundError:
-            failed.append({"filepath": change.filepath, "error": "Track not found"})
-            continue
-        except TrackEditError as e:
-            failed.append({"filepath": change.filepath, "error": str(e)})
-            continue
+        if fields:
+            try:
+                track = edit_track_tags_by_filepath(change.filepath, fields)
+            except TrackNotFoundError:
+                failed.append({"filepath": change.filepath, "error": "Track not found"})
+                continue
+            except TrackEditError as e:
+                failed.append({"filepath": change.filepath, "error": str(e)})
+                # No rename either: the name was worked out from tags that are
+                # not on the file.
+                continue
 
-        # The hash changes whenever the title did, so the client needs the new
-        # one to keep talking about the same track.
-        applied.append({"filepath": change.filepath, "new_trackhash": track.trackhash})
+            # The hash changes whenever the title did, so the client needs the
+            # new one to keep talking about the same track.
+            applied[change.filepath] = {"filepath": change.filepath, "new_trackhash": track.trackhash}
 
-    return {"applied": applied, "failed": failed}
+        if filename:
+            moves.append((change.filepath, filename))
+
+    # Renames go last, as one batch: every tag edit addresses its file by the
+    # path it was given, and a batch can order the moves so that files which
+    # swap numbers free each other's names first.
+    if moves:
+        renamed, rename_failed = rename_files(moves)
+        for entry in renamed:
+            applied.setdefault(entry["filepath"], {"filepath": entry["filepath"]}).update(entry)
+        failed.extend(rename_failed)
+
+    return {"applied": list(applied.values()), "failed": failed}
 
 
 @api.post("/album/apply")
