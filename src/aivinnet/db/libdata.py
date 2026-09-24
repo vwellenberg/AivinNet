@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import JSON, Integer, String, delete, select
+from sqlalchemy import JSON, Integer, String, delete, select, update
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aivinnet.config import UserConfig
@@ -68,6 +68,19 @@ class TrackTable(Base):
                 clean.append(d)
 
             return tracks_to_dataclasses(clean)
+
+    @classmethod
+    def update_filepath(cls, old: str, new: str) -> int:
+        """
+        Point a track's row at its renamed file. Returns the rows changed.
+
+        Only the path: `last_mod` stays, and that is what lets the next rescan
+        recognise the file as unchanged (a rename keeps the mtime) instead of
+        dropping the row and indexing it again from scratch.
+        """
+        with DbEngine.manager(commit=True) as conn:
+            result = conn.execute(update(TrackTable).where(TrackTable.filepath == old).values(filepath=new))
+            return result.rowcount
 
     @classmethod
     def remove_tracks_by_filepaths(cls, filepaths: set[str]):

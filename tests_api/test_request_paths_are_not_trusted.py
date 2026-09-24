@@ -114,28 +114,38 @@ class TestResolveTrackFilepath:
 class TestSilencePaddings:
     def test_unknown_paths_answer_zero_without_touching_them(self, library, monkeypatch):
         """
-        No process is spawned, and the answer is identical for a path that
+        Nothing is measured, and the answer is identical for a path that
         exists and one that does not — so it is not an oracle either.
         """
         import aivinnet.lib.trackslib as trackslib
+        from aivinnet.lib.silence import SilenceCache
 
         def explode(*_args, **_kwargs):
-            raise AssertionError("a process was spawned for an unindexed path")
+            raise AssertionError("an unindexed path was measured")
 
-        monkeypatch.setattr(trackslib, "ProcessWithReturnValue", explode)
+        cache = SilenceCache(explode, autostart=False)
+        monkeypatch.setattr(trackslib, "SILENCE", cache)
 
         missing = get_silence_paddings("/etc/passwd", "/definitely/not/here.mp3")
         present = get_silence_paddings("/etc/passwd", "/etc/hosts")
+        cache.drain()
 
-        assert missing == {"starting_file": 0, "ending_file": 0}
+        assert missing == {"starting_file": 0, "ending_file": 0, "pending": False}
         assert present == missing
 
     def test_indexed_paths_are_still_processed(self, library, monkeypatch):
+        """
+        Measured in the background: the first answer is `pending`, the one after
+        the measurement carries the values.
+        """
         import aivinnet.lib.trackslib as trackslib
+        from aivinnet.lib.silence import SilenceCache
 
         started = []
 
         class _FakeProcess:
+            daemon = False
+
             def __init__(self, target=None, args=()):
                 started.append(args[0])
 
@@ -146,9 +156,14 @@ class TestSilencePaddings:
                 return 42
 
         monkeypatch.setattr(trackslib, "ProcessWithReturnValue", _FakeProcess)
+        cache = SilenceCache(trackslib.measure_silence, autostart=False)
+        monkeypatch.setattr(trackslib, "SILENCE", cache)
 
         mp3, flac = library
-        result = get_silence_paddings(mp3, flac)
+        assert get_silence_paddings(mp3, flac) == {"starting_file": 0, "ending_file": 0, "pending": True}
+        assert started == [], "the request itself must not measure"
+
+        cache.drain()
 
         assert len(started) == 2, "both indexed files should be measured"
-        assert result == {"starting_file": 42, "ending_file": 42}
+        assert get_silence_paddings(mp3, flac) == {"starting_file": 42, "ending_file": 42, "pending": False}

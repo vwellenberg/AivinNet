@@ -353,6 +353,36 @@ describe('requests are sent from src/requests/ only', () => {
     })
 })
 
+describe('the scrobble worker', () => {
+    // The play log is the one request that does not go through src/requests/:
+    // `sendLogData` hands it to a Web Worker, which builds its own body with
+    // `fetch`. It is also the most-called write path there is, and nothing in
+    // the UI reacts when the server rejects it, so it is read from source and
+    // held against the same contract. The server end is pinned in
+    // tests_api/test_scrobble_log.py.
+    const source = readFileSync('public/workers/logtrack.js', 'utf-8')
+
+    const path = source.match(/url\s*=\s*base_url\s*\+\s*"([^"]+)"/)?.[1]
+    const method = source.match(/method:\s*"(\w+)"/)?.[1]
+    const fields = (source.match(/JSON\.stringify\(\{([^}]*)\}\)/)?.[1] ?? '')
+        .split(',')
+        .map(field => field.trim())
+        .filter(Boolean)
+
+    it('reads the worker (guards this parser)', () => {
+        expect(path).toBe('/logger/track/log')
+        expect(method).toBe('POST')
+        expect(fields.length).toBeGreaterThanOrEqual(4)
+    })
+
+    it('posts a body the server reads in full', () => {
+        const data = Object.fromEntries(fields.map(field => [field, 'value']))
+        const { problems } = violations({ method, url: path, data })
+
+        expect(problems).toEqual([])
+    })
+})
+
 describe('the checker itself', () => {
     // A contract check whose matcher breaks goes quietly green; these pin it.
     it('reads a contract with the known shapes', () => {

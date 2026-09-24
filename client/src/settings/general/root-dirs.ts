@@ -32,39 +32,4 @@ const list_root_dirs: Setting = {
     action: () => triggerScan(),
 }
 
-const show_playlists_in_folders: Setting = {
-    title: 'Show playlists in folder view',
-    desc: 'Browse playlists and favorites in folders screen (meant for mobile app)',
-    type: SettingType.binary,
-    state: () => settings().show_playlists_in_folders,
-    action: () => settings().toggleShowPlaylistsInFolders(),
-}
-
-// const enable_scans: Setting = {
-//   title: "Enable periodic scans",
-//   type: SettingType.binary,
-//   state: () => useSettingsStore().enablePeriodicScans,
-//   action: () => useSettingsStore().togglePeriodicScans(),
-// };
-
-// const useWatchdog: Setting = {
-//   title: "Watch root dirs for new music",
-//   experimental: true,
-//   type: SettingType.binary,
-//   state: () => useSettingsStore().enableWatchDog,
-//   action: () => useSettingsStore().toggleWatchdog(),
-// };
-
-// const periodicScanInterval: Setting = {
-//   title: "Periodic scan interval (minutes)",
-//   type: SettingType.free_number_input,
-//   state: () => useSettingsStore().periodicInterval,
-//   action: (newValue: number) => useSettingsStore().updatePeriodicInterval(newValue),
-// };
-
-export default [
-    change_root_dirs,
-    list_root_dirs,
-    show_playlists_in_folders,
-    // useWatchdog, enable_scans, periodicScanInterval
-]
+export default [change_root_dirs, list_root_dirs]

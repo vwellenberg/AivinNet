@@ -96,6 +96,11 @@ function handleGoBack() {
 // The modal's height is $settings-modal-h (_variables.scss), read by
 // `.m-content.settings` in modal.vue. A local `$modalheight: 38rem` used to sit
 // here without a single reference.
+
+// Where the close button sits, from the modal's top-right corner. The phone's
+// tab list reads the same number, so its first row lands on the button's line.
+$settings-close-inset: 0.625rem;
+
 .settingsmodal {
     display: grid;
     grid-template-columns: 15rem 1fr;
@@ -115,8 +120,8 @@ function handleGoBack() {
     > .close {
         @include btn-action($glyph: 1.5rem);
         position: absolute;
-        top: 0.625rem;
-        right: 0.625rem;
+        top: $settings-close-inset;
+        right: $settings-close-inset;
         z-index: 2;
     }
 
@@ -197,8 +202,26 @@ function handleGoBack() {
 .settingsmodal.isSmallPhone {
     grid-template-columns: 1fr;
 
+    // Only the LIST view renders the sidebar on a phone (the detail view swaps
+    // it out), so this is the one layout where the close button sits over a
+    // row instead of in a pane head. With the list starting at the pane's 1rem
+    // padding and the button at its own 0.625rem, the two 44px plates stood
+    // 6px apart vertically and overlapped horizontally — reported as the rows
+    // looking smaller, "vertikale Höhe passt nicht", though both measured 44px.
+    // The list starts on the button's line, and the first row stops short of
+    // it: one lane, two plates side by side.
     .settingssidebar {
         border-right: none;
+        padding-top: $settings-close-inset;
+
+        // `width: auto`, not the row's own `100%`: a full-width box keeps
+        // its width and pushes the margin out past the pane, so the row
+        // stayed under the button (measured: right edge 355 vs button 317).
+        // Auto lets the column's stretch hand it the width minus the lane.
+        .group:first-child .gitem:first-child {
+            width: auto;
+            margin-right: calc(#{$bar-control} + #{$settings-close-inset});
+        }
     }
 }
 </style>

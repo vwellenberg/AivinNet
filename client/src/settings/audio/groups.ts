@@ -16,8 +16,6 @@ const use_crossfade: Setting = {
     type: SettingType.binary,
     state: () => settings().use_crossfade,
     action: () => settings().toggleCrossfade(),
-    // @ts-ignore
-    experimental: !window.chrome,
 }
 
 const crossfade: Setting = {

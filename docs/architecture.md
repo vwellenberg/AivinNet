@@ -89,8 +89,8 @@ Nur die DB zu ändern wirkt bis zum nächsten Neustart wie ein No-op.
 
 `lib/index.py::index_everything()` ist der eine Einstiegspunkt (`@background` = eigener Thread).
 Ausgelöst durch: Root-Verzeichnis geändert, `GET /notsettings/trigger-scan`, tag-relevante
-Einstellung geändert. **Es gibt keinen periodischen Scan** — `periodic_scan.py` ist vollständig
-auskommentiert.
+Einstellung geändert. **Es gibt keinen periodischen Scan** — das auskommentierte
+`periodic_scan.py` und seine Einstellungen sind entfernt.
 
 ```
 IndexTracks()                       lib/tagger.py
@@ -186,7 +186,11 @@ trotzdem noch — für die Stille-Erkennung (`POST /file/silence` → vendortes 
 
 Pfadauflösung: erst über den `filepath`-Query, sonst über den Trackhash mit der höchsten
 Bitrate, die tatsächlich auf der Platte liegt. Path-Traversal wird gegen die Root-Verzeichnisse
-geprüft. `POST /file/silence` liefert die Stille-Paddings für den Gapless-Übergang des Clients.
+geprüft. `POST /file/silence` liefert die Stille-Paddings für den Gapless-Übergang des Clients —
+**ohne zu dekodieren**: gemessen wird in einem Hintergrund-Worker (`lib/silence.py`, Cache pro
+Pfad + mtime), die Antwort kommt sofort, notfalls mit `pending: true`, und der Client fragt nach
+(`client/public/workers/silence.js`). Vorher wartete der Handler auf zwei komplette Decodes und
+hielt damit bei jedem Trackwechsel die ganze App an.
 
 ## Bilder
 

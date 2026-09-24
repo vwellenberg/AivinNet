@@ -381,3 +381,37 @@ def test_ordinary_settings_still_write(api_client, as_role):
         assert UserConfig().usersOnLogin is (not before)
     finally:
         UserConfig().usersOnLogin = before
+
+
+@pytest.mark.parametrize("key", ["enableOnlineMetadata", "writeCoverToFiles"])
+def test_the_switches_the_settings_screen_now_offers_write(api_client, as_role, key):
+    """Both were config fields without a switch in the app — the docs pointed to
+    "the settings" for them anyway. The client now sends exactly these keys."""
+    from aivinnet.config import UserConfig
+
+    as_role("admin")
+    api = api_client(*BLUEPRINTS)
+    before = getattr(UserConfig(), key)
+
+    try:
+        res = api.put("/notsettings/update", json={"key": key, "value": not before})
+
+        assert res.status_code == 200
+        assert getattr(UserConfig(), key) is (not before)
+    finally:
+        setattr(UserConfig(), key, before)
+
+
+@pytest.mark.parametrize(
+    "key", ["enablePeriodicScans", "scanInterval", "enableWatchdog", "enablePlugins", "showPlaylistsInFolderView"]
+)
+def test_retired_options_are_refused(api_client, as_role, key):
+    """Removed with the settings review: nothing read them any more. The setter's
+    allow-list follows the dataclass, so a stale client gets a 400 rather than a
+    200 for a switch that does nothing."""
+    as_role("admin")
+    api = api_client(*BLUEPRINTS)
+
+    res = api.put("/notsettings/update", json={"key": key, "value": True})
+
+    assert res.status_code == 400

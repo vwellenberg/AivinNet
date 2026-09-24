@@ -45,8 +45,7 @@ many to scan. Favourites are their own section — tracks, albums, and artists
 each with a page.
 
 **Playback.** Gapless, with optional silence-padding removal and an optional
-crossfade whose length you set yourself — outside Chromium it carries an
-"experimental" badge. A queue you can rearrange by dragging, shuffle and repeat,
+crossfade whose length you set yourself. A queue you can rearrange by dragging, shuffle and repeat,
 and a now-playing screen that is the queue itself, with the lyrics one click away.
 
 **Lyrics.** Synced lyrics from `.lrc` files next to the track or from embedded
@@ -67,8 +66,7 @@ tracks over a week, a month, a year, or all time.
 
 **Accounts.** Multiple users with their own playlists, favourites, and history,
 plus an optional shared guest login, so a visitor can listen without an account
-of their own. Last.fm scrobbling is per user, with your own API key if you
-have one.
+of their own.
 
 **Backup and restore.** One button writes the whole instance — users, playlists,
 favourites, play history, and artwork — to `~/aivinnet.backup`, and restores it
@@ -183,9 +181,9 @@ which needs no open ports and works behind CGNAT.
 
 ## Privacy
 
-**Out of the box, nothing about your library leaves the machine.** Three things
-can talk to the internet — artist images and similar artists during a scan,
-lyrics lookup, and Last.fm scrobbling — and each is off until you switch it on.
+**Out of the box, nothing about your library leaves the machine.** Two things
+can talk to the internet — artist images and similar artists during a scan, and
+lyrics lookup — and each is off until you switch it on.
 What goes where: [docs/privacy.md](docs/privacy.md).
 
 ## Tech Stack

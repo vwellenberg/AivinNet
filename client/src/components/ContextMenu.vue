@@ -22,7 +22,6 @@
         class="context-item"
         :class="[{ critical: option.critical }, option.type]"
         :option="option"
-        :children-show-mode="settings.contextChildrenShowMode"
         @hideContextMenu="context.hideContextMenu()"
       />
     </template>
@@ -35,12 +34,10 @@ import { nextTick, ref, watch } from "vue";
 
 import useContextStore from "@/stores/context";
 import { focusWhenVisible } from "@/utils/focusWhenVisible";
-import useSettingsStore from "@/stores/settings";
 
 import ContextItem from "./Contextmenu/ContextItem.vue";
 
 const context = useContextStore();
-const settings = useSettingsStore();
 const contextMenuRef = ref<HTMLElement>();
 
 // ---------------------------------------------------------------------------

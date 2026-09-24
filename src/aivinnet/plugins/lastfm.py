@@ -13,6 +13,9 @@ from aivinnet.plugins import Plugin, plugin_method
 from aivinnet.settings import Paths
 from aivinnet.utils.threading import background
 
+LASTFM_TIMEOUT = (5, 15)
+"""Connect, then read. A scrobble is worth a few seconds, never a hung thread."""
+
 
 class LastFmPlugin(Plugin):
     """
@@ -51,7 +54,11 @@ class LastFmPlugin(Plugin):
 
         final_url = url + "&" + "&".join(f"{k}={quote_plus(str(v))}" for k, v in data.items())
 
-        return requests.post(final_url)
+        # Every caller needs the deadline, for two different reasons: the session
+        # exchange runs INSIDE a request (one stuck call freezes the whole app —
+        # bjoern is single-threaded), and `scrobble()` runs in a @background
+        # thread, which is not a daemon and would hold the process open at exit.
+        return requests.post(final_url, timeout=LASTFM_TIMEOUT)
 
     def get_session_key(self, token: str):
         data = {

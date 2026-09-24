@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-import { DBSettings, contextChildrenShowMode } from '@/enums'
+import { DBSettings } from '@/enums'
 import { pluginSetActive, updatePluginSettings } from '@/requests/plugins'
 
 import { updateConfig } from '@/requests/settings'
@@ -18,7 +18,6 @@ import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 export default defineStore('settings', {
     state: () => ({
         version: '',
-        contextChildrenShowMode: contextChildrenShowMode.hover,
         artist_top_tracks_count: 5,
         // repeat_all: true,
         // repeat_one: false,
@@ -37,10 +36,6 @@ export default defineStore('settings', {
         root_dir_set: false,
         root_dirs: <string[]>[],
 
-        enablePeriodicScans: false,
-        periodicInterval: 0,
-        enableWatchDog: false,
-
         volume: 1.0,
         mute: false,
         // The volume to come back to when the speaker button turns sound back
@@ -54,8 +49,9 @@ export default defineStore('settings', {
         hide_remaster: true,
         merge_albums: false,
         show_albums_as_singles: false,
+        write_cover_to_files: true,
+        online_metadata: false,
         separators: <string[]>[],
-        show_playlists_in_folders: false,
 
         // client
         font: <UiFont>'default',
@@ -120,19 +116,19 @@ export default defineStore('settings', {
             this.merge_albums = settings.mergeAlbums
             this.separators = settings.artistSeparators
             this.show_albums_as_singles = settings.showAlbumsAsSingles
-            this.show_playlists_in_folders = settings.showPlaylistsInFolderView
-
-            this.enablePeriodicScans = settings.enablePeriodicScans
-            this.periodicInterval = settings.scanInterval
-            this.enableWatchDog = settings.enableWatchDog
+            this.write_cover_to_files = settings.writeCoverToFiles
+            this.online_metadata = settings.enableOnlineMetadata
 
             this.lastfm_api_key = settings.lastfmApiKey
             this.lastfm_api_secret = settings.lastfmApiSecret
             this.lastfm_session_key = settings.lastfmSessionKey
-            this.use_lyrics_plugin = settings.plugins.find(p => p.name === 'lyrics_finder')?.active
-
-            if (this.use_lyrics_plugin) {
-                this.lyrics_plugin_settings = settings.plugins.find(p => p.name === 'lyrics_finder')?.settings
+            const lyricsPlugin = settings.plugins.find(p => p.name === 'lyrics_finder')
+            this.use_lyrics_plugin = lyricsPlugin?.active
+            // Taken whether the plugin is on or not: switching it on in the
+            // settings then shows the stored sub-options, instead of an empty
+            // object that the next sub-toggle would send back as the whole set.
+            if (lyricsPlugin) {
+                this.lyrics_plugin_settings = lyricsPlugin.settings
             }
         },
         setArtistSeparators(separators: string[]) {
@@ -189,16 +185,6 @@ export default defineStore('settings', {
         },
         toggleMovePlayedPlaylistToTop() {
             this.move_played_playlist_to_top = !this.move_played_playlist_to_top
-        },
-        // context menu 👇
-        setContextChildrenShowMode(mode: contextChildrenShowMode) {
-            this.contextChildrenShowMode = mode
-        },
-        toggleContextChildrenShowMode() {
-            this.contextChildrenShowMode =
-                this.contextChildrenShowMode === contextChildrenShowMode.click
-                    ? contextChildrenShowMode.hover
-                    : contextChildrenShowMode.click
         },
         // repeat 👇
         toggleRepeatMode() {
@@ -358,22 +344,6 @@ export default defineStore('settings', {
             return true
         },
 
-        async updatePeriodicInterval(interval: number) {
-            return await this.genericToggleSetting('scanInterval', interval, 'periodicInterval')
-        },
-
-        async toggleWatchdog() {
-            return await this.genericToggleSetting('enableWatchDog', !this.enableWatchDog, 'enableWatchDog')
-        },
-
-        async togglePeriodicScans() {
-            return await this.genericToggleSetting(
-                'enablePeriodicScans',
-                !this.enablePeriodicScans,
-                'enablePeriodicScans'
-            )
-        },
-
         async toggleExtractFeaturedArtists() {
             return await this.genericToggleSetting('extractFeaturedArtists', !this.feat, 'feat')
         },
@@ -401,9 +371,11 @@ export default defineStore('settings', {
                 'show_albums_as_singles'
             )
         },
-        async toggleShowPlaylistsInFolders() {
-            return await this.genericToggleSetting('showPlaylistsInFolderView', !this.show_playlists_in_folders, 'show_playlists_in_folders'
-            )
+        async toggleWriteCoverToFiles() {
+            return await this.genericToggleSetting('writeCoverToFiles', !this.write_cover_to_files, 'write_cover_to_files')
+        },
+        async toggleOnlineMetadata() {
+            return await this.genericToggleSetting('enableOnlineMetadata', !this.online_metadata, 'online_metadata')
         },
         async setLastfmApiKey(key: string) {
             return await this.genericToggleSetting('lastfmApiKey', key, 'lastfm_api_key')
