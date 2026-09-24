@@ -97,20 +97,8 @@ export const paths = {
                 return this.base + '/loadmore'
             },
         },
-        logger: {
-            base: '/logger',
-            get logTrack() {
-                return this.base + '/track/log'
-            },
-        },
         getall: {
             base: '/getall',
-            get albums() {
-                return this.base + '/albums'
-            },
-            get artists() {
-                return this.base + '/artists'
-            },
         },
         colors: {
             base: '/colors',
@@ -125,9 +113,6 @@ export const paths = {
             },
             get add_root_dir() {
                 return this.base + '/add-root-dirs'
-            },
-            get remove_root_dir() {
-                return this.base + '/remove-root-dirs'
             },
             get trigger_scan() {
                 return this.base + '/trigger-scan'

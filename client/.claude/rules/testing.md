@@ -113,6 +113,14 @@ mit geschöntem `hash.webp` hat einen echten Bug übersehen.
 `src/requests/` auf, fängt den Request bei axios ab und prüft ihn gegen `api-contract.json`
 (vom Server erzeugt, siehe `.claude/rules/api-endpoints.md` im Repo-Root). Daraus folgt:
 
+- ⚠️ **Der Glob muss `**` sein.** `src/requests/` hat Unterverzeichnisse (`plugins/`,
+  `settings/`), und ein flaches `*.ts` ließ 15 Funktionen ungeprüft — ohne ein Wort zu sagen,
+  denn ein Zensus über eine zu kleine Menge ist grün. Schlüssel in `CALLS` ist deshalb der Pfad
+  unter `requests/` ohne Endung: `album/getAlbum`, `plugins/index/pluginSetActive`.
+- ⚠️ **Kein `foo.ts` neben ein `foo/`-Verzeichnis legen.** Vite löst die Datei zuerst auf, der
+  Import `@/requests/plugins` zeigt dann still woandershin und die Funktionen des Verzeichnisses
+  sind weg. Neue Funktionen kommen in das bestehende `index.ts`.
+
 - **Neue Request-Funktion ⇒ eine realistische Zeile in `CALLS`.** Der Zensus im selben Test wird
   sonst rot. Argumente an den echten Typen ausrichten (`CommandBody`, `SetQueueBody` …) — ein
   ausgedachter Body meldet Verstöße, die im Client gar nicht existieren.

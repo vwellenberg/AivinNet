@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { paths } from '@/config'
 import { Album } from '@/interfaces'
-import useAxios from '@/requests/useAxios'
+import { getAllItems } from '@/requests/getall'
 import { Routes, router } from '@/router'
 
 const state = () => {
@@ -54,14 +53,15 @@ const state = () => {
         canFetch.value = false
 
         try {
-            const res = await useAxios({
-                url:
-                    (router.currentRoute.value.name == Routes.AlbumList
-                        ? paths.api.getall.albums
-                        : paths.api.getall.artists) +
-                    `?start=${start}&limit=${pageSize}&sortby=${sortby.value}&reverse=${reverse_string.value}`,
-                method: 'GET',
-            })
+            const res = await getAllItems(
+                router.currentRoute.value.name == Routes.AlbumList ? 'albums' : 'artists',
+                {
+                    start,
+                    limit: pageSize,
+                    sortby: sortby.value,
+                    reverse: reverse_string.value,
+                }
+            )
 
             // ⚠️ `useAxios` RESOLVES on failure — it returns `{ error, data:
             // undefined }`. Reading `data.total` off that threw a TypeError
