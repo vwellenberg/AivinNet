@@ -231,7 +231,7 @@ class TopResults:
         return all_items, get_titles(all_items)
 
     @staticmethod
-    def get_track_items(item: Track | Album | Artist, limit=5):
+    def get_track_items(item: Track | Album | Artist | None, limit=5):
         tracks: list[Track] = []
 
         # INFO: If the item is a track, return empty list
@@ -253,7 +253,7 @@ class TopResults:
         return tracks
 
     @staticmethod
-    def get_album_items(item: Track | Album | Artist, limit=6):
+    def get_album_items(item: Track | Album | Artist | None, limit=6):
         albums: list[Album] = []
 
         # INFO: If the item is a track or album, search for albums
@@ -286,8 +286,9 @@ class TopResults:
         all_results = artists + tracks + albums
         all_results = sorted(all_results, key=lambda x: int(x._score), reverse=True)
 
-        # INFO: Get the top result
-        top_result = all_results[0]
+        # INFO: Get the top result. There is none when nothing matched — an empty
+        # library before its first scan, or a query that fits nothing in it.
+        top_result = all_results[0] if all_results else None
         top_tracks = []
 
         if not albums_only:
