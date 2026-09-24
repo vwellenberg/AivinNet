@@ -108,6 +108,22 @@ $g-border: solid $candy-border-w $mem-line;
     z-index: 50;
 }
 
+// The playlist edit mode (components/PlaylistView/EditList.vue) takes the whole
+// screen on a phone: the player bar and its navigation step aside, and the list
+// gets their height — the edit screen phones already know for this. The
+// scroller then reserves no bar, only the home-indicator inset.
+#app-grid.editing-playlist {
+    @include allPhones {
+        .b-bar {
+            display: none;
+        }
+
+        .p-edit-scroller {
+            padding-bottom: calc(#{$padbottom} + env(safe-area-inset-bottom, 0px));
+        }
+    }
+}
+
 .content-page {
     // `both-edges`, not plain `stable`: the gutter is 12px and the scrollbar
     // auto-hides, so reserving it on one side only left every list sitting

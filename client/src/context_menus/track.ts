@@ -4,9 +4,10 @@ import { router as Router, Routes } from '@/router'
 
 import { Option } from '@/interfaces'
 import { openInFiles } from '@/requests/folders'
-import { addTracksToPlaylist, removeTracks } from '@/requests/playlists'
+import { addTracksToPlaylist } from '@/requests/playlists'
+import { removePlaylistTrack } from '@/helpers/playlistTrackEdits'
 
-import { AddToQueueIcon, AlbumIcon, ArtistIcon, DeleteIcon, DownloadIcon, FolderIcon, PencilIcon, PlayNextIcon, PlusIcon, SearchIcon } from '@/icons'
+import { AddToQueueIcon, AlbumIcon, ArtistIcon, DeleteIcon, DownloadIcon, FolderIcon, PencilIcon, PlaylistIcon, PlayNextIcon, PlusIcon, SearchIcon } from '@/icons'
 import { getBaseUrl, paths } from '@/config'
 import useModalStore from '@/stores/modal'
 import usePlaylistStore from '@/stores/pages/playlist'
@@ -144,20 +145,28 @@ export default async (track: Track): Promise<Option[]> => {
     //   critical: true,
     // };
 
+    // On the playlist page `track.index` is the row's index into the page
+    // store's `allTracks` (the list getter sets it from the search refIndex).
+    //
+    // The row used to be dropped whatever the server answered — the request
+    // swallowed its own failure — so a refused removal still vanished from the
+    // list until the next reload. The shared helper removes it only once the
+    // server has.
     const getRemoveFromPlaylistOption = () =>
         <Option>{
             label: 'Remove From Playlist',
-            action: () => {
-                removeTracks(parseInt(route.params.pid as string), [
-                    { trackhash: track.trackhash, index: track.index },
-                ]).then(() => {
-                    const store = usePlaylistStore()
-                    store.removeTrackByIndex(track.index)
-                    store.fetchAll(parseInt(route.params.pid as string), true)
-                })
-            },
+            action: () => removePlaylistTrack(track.index),
             icon: DeleteIcon,
             critical: true,
+        }
+
+    // The playlist page's edit mode, opened on this track: grips to reorder,
+    // buttons to remove (components/PlaylistView/EditList.vue).
+    const getEditOrderOption = () =>
+        <Option>{
+            label: 'Edit order',
+            action: () => usePlaylistStore().startEditing(track.trackhash),
+            icon: PlaylistIcon,
         }
 
     const download_track: Option = {
@@ -218,7 +227,7 @@ export default async (track: Track): Promise<Option[]> => {
     }
 
     if (route.name === Routes.playlist && on_playlist) {
-        options.splice(0, 0, getRemoveFromPlaylistOption())
+        options.splice(0, 0, getRemoveFromPlaylistOption(), getEditOrderOption())
     }
 
     if (route.name === Routes.nowPlaying) {

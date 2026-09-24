@@ -239,7 +239,12 @@ export async function deletePlaylist(pid: number) {
     }
 }
 
-export async function removeTracks(pid: number, tracks: { trackhash: string; index: number }[]) {
+/**
+ * Resolves to whether the server removed them. `notify: false` drops the
+ * success toast for a caller that has already told the user (the edit mode's
+ * own "Removed … / Undo"); a failure is always reported.
+ */
+export async function removeTracks(pid: number, tracks: { trackhash: string; index: number }[], notify = true) {
     const { status } = await useAxios({
         url: paths.api.playlist.base + `/${pid}/remove-tracks`,
         props: {
@@ -248,11 +253,12 @@ export async function removeTracks(pid: number, tracks: { trackhash: string; ind
     })
 
     if (status === 200) {
-        new Notification('Tracks removed')
-        return
+        if (notify) new Notification('Tracks removed')
+        return true
     }
 
     new Notification('Unable to remove tracks', NotifType.Error)
+    return false
 }
 
 export async function removeBannerImage(playlistid: number) {

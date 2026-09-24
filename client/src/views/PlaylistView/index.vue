@@ -5,7 +5,17 @@
         @dragleave="onScrollerDragLeave"
         @drop="stopAutoScroll"
         @dragend="stopAutoScroll">
+        <!-- The edit mode (grips to reorder, buttons to remove) is a plain,
+             non-virtual list: a row in the hand must not be recycled while the
+             list scrolls under it. Same id, so the one auto-scroll helper and
+             the veil's scroll handler find it. -->
+        <div v-if="playlist.editing" id="contentscroller" class="scroller p-edit-scroller">
+            <Header />
+            <AfterHeader editing caps_list :count="playlist.allTracks.length" @done="playlist.stopEditing()" />
+            <EditList />
+        </div>
         <DynamicScroller
+            v-else
             id="contentscroller"
             :items="scrollerItems"
             :min-item-size="72"
@@ -25,6 +35,7 @@
                         v-bind="item.props"
                         @playThis="playFromPlaylistPage(item.props.index - 1)"
                         @trackDropped="onTrackDropped"
+                        @edit="playlist.startEditing()"
                     ></component>
                 </DynamicScrollerItem>
             </template>
@@ -37,7 +48,7 @@ import { computed, watch } from 'vue'
 import { onBeforeUnmount } from 'vue'
 
 import { isMedium, isSmall, isSmallPhone } from '@/stores/content-width'
-import { dropSources, FromOptions } from '@/enums'
+import { dropSources } from '@/enums'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import usePlaylistStore from '@/stores/pages/playlist'
@@ -49,14 +60,13 @@ import Header from '@/components/PlaylistView/Header.vue'
 import NoItems from '@/components/shared/NoItems.vue'
 import SongItem from '@/components/shared/SongItem.vue'
 import AfterHeader from '@/components/PlaylistView/AfterHeader.vue'
+import EditList from '@/components/PlaylistView/EditList.vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import AlbumsFetcher from '@/components/ArtistView/AlbumsFetcher.vue'
-import { movePlaylistTrack } from '@/requests/playlists'
+import { movePlaylistTrackTo } from '@/helpers/playlistTrackEdits'
 import { Track } from '@/interfaces'
 import { pageGradient } from '@/utils/colortools/pageGradient'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
-import { resolveMove } from '@/utils/playlistMove'
-import { rangeAligns } from '@/utils/queueMove'
 import { trackBandFade } from '@/utils/songItemMethods'
 
 const queue = useQueue()
@@ -71,10 +81,11 @@ watch(() => route.params.pid, async (newPid, oldPid) => {
     }
 })
 
-// Only regular (numeric-id) playlists carry per-track added_at; the custom
-// "recentlyadded"/"recentlyplayed" playlists served through this view don't,
-// so they keep the plain layout without the "Date added" column.
-const supportsDateAdded = computed(() => /^\d+$/.test(route.params.pid as string))
+// Only regular (numeric-id) playlists are STORED: they carry per-track
+// added_at, and their order is the user's to change. The custom
+// "recentlyadded"/"recentlyplayed" playlists served through this view are
+// computed by the server — no "Date added" column, no edit mode.
+const isStoredPlaylist = computed(() => /^\d+$/.test(route.params.pid as string))
 
 interface ScrollerItem {
     id: string | number
@@ -125,8 +136,9 @@ const scrollerItems = computed(() => {
         //   plain 4rem   bar + $small  (0.5rem)  padding
         size: captionCapsList ? 3.15 * 16 : 4.5 * 16,
         props: {
-            show_date_added: supportsDateAdded.value,
+            show_date_added: isStoredPlaylist.value,
             caps_list: captionCapsList,
+            editable: isStoredPlaylist.value && playlist.allTracks.length > 0,
         },
     }
 
@@ -155,7 +167,7 @@ const scrollerItems = computed(() => {
                 is_last: i === playlist.tracks.length - 1,
                 droppable: !playlist.query,
                 source: dropSources.playlist,
-                show_date_added: supportsDateAdded.value,
+                show_date_added: isStoredPlaylist.value,
                 // Fade follows the RENDERED position (i) for the same reason
                 // the frame caps do: under an in-playlist search track.index
                 // points into the unfiltered list.
@@ -215,54 +227,9 @@ async function onTrackDropped(source: dropSources, _track: Track, newIndex: numb
     // one took the source and ignored it.
     if (source !== dropSources.playlist) return
 
-    // Resolve the move to trackhash anchors BEFORE mutating the list. Sending
-    // the whole tracklist (the old behaviour) truncated the playlist to whatever
-    // had been paginated in and dropped every orphan hash with it.
-    const move = resolveMove(playlist.allTracks, oldIndex, newIndex)
-    if (!move) return
-
-    // Is the queue playing this playlist, and do its indices still line up with
-    // the ones this drag is expressed in? Then the same move has to happen
-    // there, or the running queue keeps playing the order the user just dragged
-    // away from.
-    //
-    // Alignment is proven over the SLICE the move touches, by trackhash, not by
-    // comparing lengths: the two lists are legitimately different lengths. The
-    // page paginates (a fresh visit holds ~13 of 43 rows) while the queue was
-    // built from the fully fetched list — a length test rejected every mirror in
-    // the normal case and only ever passed on a playlist small enough to load in
-    // one page. What actually matters is that the queue agrees with the page
-    // about every row between the drag's two ends; if it does not (tracks added
-    // to the queue, queue reordered on its own), mirroring by index would move
-    // the wrong track, and we skip.
-    const queueFrom = tracklist.from
-    const mirrorToQueue =
-        queueFrom?.type === FromOptions.playlist &&
-        queueFrom.id === playlist.info.id &&
-        rangeAligns(
-            playlist.allTracks,
-            tracklist.tracklist,
-            Math.min(oldIndex, move.finalIndex),
-            Math.max(oldIndex, move.finalIndex)
-        )
-
-    playlist.moveTrack(oldIndex, newIndex)
-
-    const ok = await movePlaylistTrack(playlist.info.id, move.trackhash, move.beforeTrackhash)
-
-    if (!ok) {
-        // Put the row back so the list stops claiming an order the server never
-        // accepted. The queue was deliberately left alone until now, so there is
-        // nothing to roll back there.
-        playlist.moveTrack(move.undo.from, move.undo.to)
-        return
-    }
-
-    // Mirrored only after the server agreed: rolling a queue move back is not
-    // free in a group session (the mutation goes out as a broadcast and comes
-    // back asynchronously), and there is no reason to risk it for an order the
-    // server may reject.
-    if (mirrorToQueue) tracklist.moveTrack(oldIndex, newIndex)
+    // The move itself — anchors, optimistic reorder, rollback, queue mirror —
+    // is shared with the edit mode (helpers/playlistTrackEdits.ts).
+    await movePlaylistTrackTo(oldIndex, newIndex)
 }
 
 // Edge auto-scroll while reordering: dragging a row near the top/bottom edge of
@@ -318,11 +285,35 @@ onBeforeUnmount(() => stopAutoScroll())
 
 onBeforeRouteLeave(() => {
     stopAutoScroll()
+    // At once, not with resetAll's delayed reset: the edit mode also hides the
+    // player bar on a phone (App.vue), and the next page must not open without
+    // it. Unmounting EditList settles any removal still waiting for its undo.
+    playlist.stopEditing()
     playlist.resetAll()
 })
 </script>
 
 <style lang="scss">
+// The edit mode's plain scroller (see the template). It stands in for the
+// virtual scroller, which gets its left inset and gutter from
+// `.vue-recycle-scroller` (app-grid.scss) — the same box, so the header does
+// not jump sideways when the mode switches.
+.p-edit-scroller {
+    overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
+    padding-left: $padleft;
+
+    // The caption bar stays in reach while the list scrolls under it: "Done"
+    // must be one tap away anywhere in a long list. Its top padding is the gap
+    // to the header, so it sticks that much above the edge and the bar itself
+    // lands on it.
+    > .p-after-header {
+        position: sticky;
+        top: calc(-1 * #{$medium});
+        z-index: 6;
+    }
+}
+
 .playlist-virtual-scroller {
     .nothing {
         height: 25rem;

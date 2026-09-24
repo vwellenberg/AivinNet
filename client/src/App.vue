@@ -9,6 +9,7 @@
             useSidebar: settings.use_sidebar && xl,
             NoSideBorders: settings.is_alt_layout || !xxl,
             is_alt_layout: settings.is_alt_layout,
+            'editing-playlist': playlistPage.editing,
         }"
     >
         <LeftSidebar v-if="!isMobile" />
@@ -39,6 +40,7 @@ import useDeviceSync from "@/stores/devicesync";
 import { content_height, content_width, isMobile, resizer_width } from "@/stores/content-width";
 import useLyrics from "@/stores/lyrics";
 import useModal from "@/stores/modal";
+import usePlaylistPage from "@/stores/pages/playlist";
 import useQueue from "@/stores/queue";
 import useSettings from "@/stores/settings";
 import useTracker from "@/stores/tracker";
@@ -72,6 +74,8 @@ const modal = useModal();
 const lyrics = useLyrics();
 const router = useRouter();
 const settings = useSettings();
+// The playlist edit mode takes the whole screen on a phone (app-grid.scss).
+const playlistPage = usePlaylistPage();
 useTracker();
 
 handleShortcuts(useQueue, useModal);
