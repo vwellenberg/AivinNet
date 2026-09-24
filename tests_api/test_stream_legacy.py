@@ -89,3 +89,43 @@ def test_an_unknown_path_falls_back_to_the_trackhash(stream):
 
     assert res.status_code == 200
     assert res.data == PAYLOAD
+
+
+def test_a_path_now_held_by_another_track_falls_back_to_the_trackhash(api_client, monkeypatch, tmp_path):
+    """Renaming a renumbered album frees and re-takes names (#144).
+
+    A queue saved on another device still asks for this track under its OLD
+    name — which now belongs to a different track. The hash still identifies
+    the right file, so it must be looked up instead of answering 404 (or,
+    worse, sending the other track).
+    """
+    import aivinnet.api.stream as stream_api
+
+    root = tmp_path / "music"
+    root.mkdir()
+    ours = root / "04 - Ours.mp3"
+    ours.write_bytes(PAYLOAD)
+    theirs = root / "03 - Theirs.mp3"
+    theirs.write_bytes(b"not this one")
+
+    our_track = SimpleNamespace(filepath=str(ours), trackhash=HASH, bitrate=320)
+    their_track = SimpleNamespace(filepath=str(theirs), trackhash="1111111111111111", bitrate=320)
+
+    monkeypatch.setattr(stream_api, "UserConfig", lambda: SimpleNamespace(rootDirs=[str(root)]))
+    monkeypatch.setattr(
+        stream_api.TrackStore,
+        "get_tracks_by_filepaths",
+        lambda paths: [t for t in (our_track, their_track) if t.filepath in paths],
+    )
+    monkeypatch.setattr(
+        stream_api.TrackStore,
+        "trackhashmap",
+        {HASH: SimpleNamespace(tracks=[our_track]), their_track.trackhash: SimpleNamespace(tracks=[their_track])},
+    )
+    api = api_client("aivinnet.api.stream")
+
+    # Our track used to be "03 - Theirs.mp3".
+    res = api.get(_url(theirs))
+
+    assert res.status_code == 200
+    assert res.data == PAYLOAD

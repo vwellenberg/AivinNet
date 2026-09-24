@@ -19,6 +19,7 @@ export { getUrl }
 import updateMediaNotif from '@/helpers/mediaNotification'
 import { crossFade } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
+import { createSkipGuard, MAX_FAILED_IN_A_ROW } from '@/utils/skipGuard'
 
 class AudioSource {
     private sources: HTMLAudioElement[] = []
@@ -140,6 +141,7 @@ export const usePlayer = defineStore('player', () => {
     const toast = useToast()
     const settings = useSettings()
     const tracklist = useTracklist()
+    const skipGuard = createSkipGuard()
 
     audioSource.assignSettings(settings)
 
@@ -280,8 +282,23 @@ export const usePlayer = defineStore('player', () => {
             return toast.showNotification('Player Error: ' + e.message, NotifType.Error)
         }
 
+        // Read before skipping: afterwards `currenttrack` is the NEXT track, and
+        // the toast named a track that had not even been tried yet.
+        const title = queue.currenttrack.title
+
+        if (!skipGuard.failed()) {
+            // Local only — never playPause(), which would broadcast a pause to
+            // a whole group off one device's failures.
+            audioSource.pausePlayingSource()
+            queue.setPlaying(false)
+            return toast.showNotification(
+                `Stopped: ${MAX_FAILED_IN_A_ROW} tracks in a row could not be loaded. Start the playlist or album again.`,
+                NotifType.Error
+            )
+        }
+
         queue.playNext() // skip unplayable track
-        toast.showNotification("Can't load: " + queue.currenttrack.title, NotifType.Error)
+        toast.showNotification("Can't load: " + title, NotifType.Error)
     }
 
     const runActionsOnPlay = () => {
@@ -312,6 +329,7 @@ export const usePlayer = defineStore('player', () => {
     }
 
     const onAudioCanPlay = () => {
+        skipGuard.loaded()
         if (!queue.playing) {
             audioSource.pausePlayingSource()
             return

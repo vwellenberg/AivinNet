@@ -9,7 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // renaming is on, and never for a row whose name is taken.
 // ---------------------------------------------------------------------------
 
-const { requests } = vi.hoisted(() => ({
+const { requests, followFileChanges } = vi.hoisted(() => ({
+    followFileChanges: vi.fn(),
     requests: {
         fetchPreview: vi.fn(),
         fetchReleaseCandidates: vi.fn(),
@@ -19,6 +20,7 @@ const { requests } = vi.hoisted(() => ({
 
 vi.mock('@/requests/metadata', () => requests)
 vi.mock('@/stores/pages/album', () => ({ default: () => ({ fetchTracksAndArtists: vi.fn() }) }))
+vi.mock('@/stores/queue/tracklist', () => ({ default: () => ({ followFileChanges }) }))
 vi.mock('@/stores/notification', () => ({ Notification: vi.fn(), NotifType: {} }))
 
 import FetchMetadata from '@/components/modals/FetchMetadata.vue'
@@ -116,6 +118,55 @@ describe('the metadata dialog renames files (#144)', () => {
         await flushPromises()
 
         expect((Notification as any).mock.calls.at(-1)[0]).toContain('1 lyrics file(s) kept the old name')
+    })
+
+    it('hands the queue every file’s new path, hash and tags — and no tags where the write failed', async () => {
+        // Without this the queue keeps paths and hashes the server no longer
+        // knows, and every queued track of the album fails to load.
+        requests.applyChanges.mockResolvedValueOnce({
+            result: {
+                applied: [
+                    {
+                        filepath: '/m/68. Night Woods1.mp3',
+                        new_trackhash: 'cccccccccccccccc',
+                        new_filepath: '/m/68 - Night Woods1.mp3',
+                    },
+                ],
+                failed: [{ filepath: '/m/02. Game Won.mp3', error: 'read-only' }],
+            },
+            error: null,
+        } as any)
+        const w = await openWithFilenames()
+
+        await w.find('button.apply').trigger('click')
+        await flushPromises()
+
+        expect(followFileChanges).toHaveBeenCalledTimes(1)
+        expect(followFileChanges.mock.calls[0][0]).toEqual([
+            {
+                filepath: '/m/68. Night Woods1.mp3',
+                new_trackhash: 'cccccccccccccccc',
+                new_filepath: '/m/68 - Night Woods1.mp3',
+                title: 'Night Woods1',
+                track: 68,
+                disc: undefined,
+            },
+        ])
+    })
+
+    it('a rename alone gives the queue the new path and no tags', async () => {
+        requests.applyChanges.mockResolvedValueOnce({
+            result: { applied: [{ filepath: '/m/68. Night Woods1.mp3', new_filepath: '/m/68 - Night Woods1.mp3' }], failed: [] },
+            error: null,
+        } as any)
+        const w = await openWithFilenames()
+
+        await w.find('button.apply').trigger('click')
+        await flushPromises()
+
+        expect(followFileChanges.mock.calls[0][0]).toEqual([
+            { filepath: '/m/68. Night Woods1.mp3', new_filepath: '/m/68 - Night Woods1.mp3' },
+        ])
     })
 
     it('sends no name at all when the person unticks "Rename the files too"', async () => {

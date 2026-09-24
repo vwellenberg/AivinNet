@@ -59,12 +59,17 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
     track = None
     tracks = TrackStore.get_tracks_by_filepaths([filepath])
 
-    if len(tracks) > 0 and os.path.exists(tracks[0].filepath):
-        for t in tracks:
-            if os.path.exists(t.filepath) and t.trackhash == requested_trackhash:
-                track = t
-                break
-    else:
+    for t in tracks:
+        if os.path.exists(t.filepath) and t.trackhash == requested_trackhash:
+            track = t
+            break
+
+    # INFO: A path that names a DIFFERENT track is as stale as a missing one.
+    # Renaming a renumbered album (#144) hands old names to other files, so a
+    # queue saved before the rename asks for this track under a name another
+    # track now carries. The hash still identifies it — look that up rather
+    # than answer 404 (sending the file at the path would play the wrong song).
+    if track is None:
         group = TrackStore.trackhashmap.get(requested_trackhash)
 
         # When finding by trackhash, sort by bitrate
