@@ -3,7 +3,7 @@ import { Folder } from '@/interfaces'
 import { NotifType, useToast } from '@/stores/notification'
 import useAxios from '../useAxios'
 
-const { add_root_dir, get_root_dirs, remove_root_dir } = paths.api.settings
+const { add_root_dir, get_root_dirs } = paths.api.settings
 
 export async function getRootDirs() {
     const { data, error } = await useAxios({
@@ -35,17 +35,6 @@ export async function addRootDirs(new_dirs: string[], removed: string[]) {
     )
 
     return data.root_dirs as string[]
-}
-
-export async function removeRootDirs(dirs: string[]) {
-    const { error } = await useAxios({
-        url: remove_root_dir,
-        props: { dirs },
-    })
-
-    if (error) {
-        useToast().showNotification('Error removing root dirs', NotifType.Error)
-    }
 }
 
 export async function getFolders(folder: string = '$home') {

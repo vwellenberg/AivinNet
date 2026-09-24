@@ -1,10 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { paths } from '@/config'
-import useAxios from '@/requests/useAxios'
-
 import { Artist } from '@/interfaces'
+import { getAllItems } from '@/requests/getall'
 
 /**
  * Everything whose name does not start with A–Z shares one key at the front of
@@ -114,11 +112,11 @@ export default defineStore('searchBrowse', () => {
             const all: Artist[] = []
 
             for (;;) {
-                const { status, data } = await useAxios({
-                    url:
-                        paths.api.getall.artists +
-                        `?start=${all.length}&limit=${PAGE}&sortby=name&reverse=0`,
-                    method: 'GET',
+                const { status, data } = await getAllItems('artists', {
+                    start: all.length,
+                    limit: PAGE,
+                    sortby: 'name',
+                    reverse: '0',
                 })
 
                 // `useAxios` does not throw — it resolves with the status and

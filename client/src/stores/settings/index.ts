@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { DBSettings } from '@/enums'
-import { pluginSetActive, updatePluginSettings } from '@/requests/plugins'
+import { createLastfmSession, deleteLastfmSession, pluginSetActive, updatePluginSettings } from '@/requests/plugins'
 
 import { updateConfig } from '@/requests/settings'
 import useDeviceSync from '@/stores/devicesync'
@@ -9,7 +9,6 @@ import { usePlayer } from '@/stores/player'
 import { content_width, isMobile } from '../content-width'
 import { getLastFmApiSig } from '@/context_menus/hashing'
 import useAxios from '@/requests/useAxios'
-import { paths } from '@/config'
 import { router, Routes } from '@/router'
 import { themeForNow } from '@/utils/autoTheme'
 import type { Look } from '@/utils/theme'
@@ -408,13 +407,7 @@ export default defineStore('settings', {
             this.lastfm_integration_started = true
         },
         async finishLastfmAuth() {
-            const res = await useAxios({
-                url: paths.api.plugins + '/lastfm/session/create',
-                method: 'POST',
-                props: {
-                    token: this.lasftfm_token,
-                },
-            })
+            const res = await createLastfmSession(this.lasftfm_token)
 
             if (res.status !== 200) {
                 return
@@ -424,10 +417,7 @@ export default defineStore('settings', {
             this.lastfm_integration_started = false
         },
         async disconnectLastfm() {
-            const res = await useAxios({
-                url: paths.api.plugins + '/lastfm/session/delete',
-                method: 'POST',
-            })
+            const res = await deleteLastfmSession()
 
             if (res.status !== 200) {
                 return

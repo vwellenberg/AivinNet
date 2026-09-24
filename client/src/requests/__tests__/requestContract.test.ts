@@ -47,7 +47,16 @@ vi.mock('axios', () => {
     return { default: axios }
 })
 
-const MODULES = import.meta.glob('/src/requests/*.ts', { eager: true }) as Record<string, Record<string, unknown>>
+// `**` on purpose: requests/plugins/ and requests/settings/ are modules too,
+// and a flat glob left 15 of them unchecked without ever saying so.
+const MODULES = import.meta.glob(['/src/requests/**/*.ts', '!/src/requests/**/__tests__/**'], {
+    eager: true,
+}) as Record<string, Record<string, unknown>>
+
+/** 'album', 'plugins/index' — the path under src/requests/, without .ts. */
+function moduleId(path: string): string {
+    return path.replace('/src/requests/', '').replace(/\.ts$/, '')
+}
 
 const playlist = { id: 7, name: 'Mix', count: 3 } as any
 const track = { trackhash: 't1', filepath: '/music/a.flac', title: 'A' } as any
@@ -90,6 +99,22 @@ const CALLS: Record<string, unknown[]> = {
     'auth/sendPairRequest': [],
     'auth/pairWithCode': ['ABC123'],
     'colors/fetchAlbumColor': ['alb1'],
+    'getall/getAllItems': ['albums', { start: 0, limit: 30, sortby: 'created_date', reverse: '1' }],
+    'plugins/index/pluginSetActive': ['lyrics_finder', true],
+    'plugins/index/updatePluginSettings': ['lyrics_finder', { auto_download: false }],
+    'plugins/index/createLastfmSession': ['token-123'],
+    'plugins/index/deleteLastfmSession': [],
+    'plugins/lyrics/findLyrics': ['Blue', 'The Artist', '/music/a.flac', 'Blue Album', 't1'],
+    'settings/index/getAllSettings': [],
+    'settings/index/updateConfig': ['rootDirs', ['/music']],
+    'settings/index/getBackups': [],
+    'settings/index/restoreBackup': ['/backups/2026-09-01'],
+    'settings/index/backupNow': [],
+    'settings/index/deleteBackup': ['/backups/2026-09-01'],
+    'settings/rootdirs/getRootDirs': [],
+    'settings/rootdirs/addRootDirs': [['/music/new'], []],
+    'settings/rootdirs/getFolders': ['$home'],
+    'settings/rootdirs/triggerScan': [],
     'coverart/searchCoversOnline': ['blue album'],
     'coverart/saveOnlineCoverForPlaylist': [7, 'https://example.org/c.jpg', pStore],
     'coverart/saveOnlineCoverForAlbum': ['alb1', 'https://example.org/c.jpg'],
@@ -184,9 +209,8 @@ const NOT_REQUESTS: Record<string, string> = {
 function exportedFunctions(): string[] {
     const names: string[] = []
     for (const [path, module] of Object.entries(MODULES)) {
-        const file = path.split('/').pop()!.replace(/\.ts$/, '')
         for (const [name, value] of Object.entries(module)) {
-            if (typeof value === 'function') names.push(`${file}/${name}`)
+            if (typeof value === 'function') names.push(`${moduleId(path)}/${name}`)
         }
     }
     return names.sort()
@@ -281,8 +305,8 @@ afterEach(() => {
 
 /** Call a request function and collect what it sent, without waiting for it to finish. */
 async function capture(id: string): Promise<any[]> {
-    const [file, name] = id.split('/')
-    const fn = MODULES[`/src/requests/${file}.ts`][name] as (...args: unknown[]) => unknown
+    const cut = id.lastIndexOf('/')
+    const fn = MODULES[`/src/requests/${id.slice(0, cut)}.ts`][id.slice(cut + 1)] as (...args: unknown[]) => unknown
     // The stub answers `{}`, so a caller that then reads `data.items` throws —
     // irrelevant here, the request was already sent. Not awaited: a poller
     // would never finish under fake timers.
@@ -322,9 +346,7 @@ describe('client requests match the server contract', () => {
  * src/requests/ (and CALLS) is how it gets covered.
  */
 const BYPASSES_REQUESTS: Record<string, string> = {
-    '/src/stores/pages/itemlist.ts': 'predates the contract check',
-    '/src/stores/searchBrowse.ts': 'predates the contract check',
-    '/src/stores/settings/index.ts': 'predates the contract check (Last.fm session)',
+    '/src/stores/settings/index.ts': 'asks Last.fm itself for the auth token — never touches our API',
     '/src/config.ts': 'imports axios only to set its base URL',
 }
 
