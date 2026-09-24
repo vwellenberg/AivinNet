@@ -19,7 +19,7 @@
                 <img
                     v-else
                     id="artist-avatar"
-                    :src="paths.images.artist.large + artist.image"
+                    :src="store.imageUrl()"
                     @load="store.setBgColor"
                     @error="imageFailed = true"
                 />
@@ -35,7 +35,6 @@ import { storeToRefs } from 'pinia'
 import { Ref, computed, onMounted, ref } from 'vue'
 import { onBeforeRouteUpdate } from 'vue-router'
 
-import { paths } from '@/config'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import useArtistStore from '@/stores/pages/artist'

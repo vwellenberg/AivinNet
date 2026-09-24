@@ -44,6 +44,7 @@ GUARDED_ROUTES = [
     ("POST", "/coverart/album/remove", {"albumhash": ALBUM_HASH}),
     ("POST", "/coverart/album/undo", {"albumhash": ALBUM_HASH}),
     ("POST", "/coverart/album/embed", {"albumhash": ALBUM_HASH}),
+    ("POST", "/coverart/artist/remove", {"artisthash": ALBUM_HASH}),
     ("POST", "/musicbrainz/fetch-cover", {"albumhash": ALBUM_HASH}),
     ("POST", "/musicbrainz/fetch-missing-covers", {"limit": 1}),
     ("PUT", f"/track/{TRACK_HASH}/tags", {"title": "renamed"}),
@@ -196,6 +197,19 @@ def test_non_admin_cover_upload_is_refused(api_client, as_role):
     res = api.post(
         "/coverart/album/upload",
         data={"albumhash": ALBUM_HASH, "image": (io.BytesIO(b"not-a-real-image"), "cover.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert res.status_code == 403
+
+
+def test_non_admin_artist_image_upload_is_refused(api_client, as_role):
+    as_role("user")
+    api = api_client(*BLUEPRINTS)
+
+    res = api.post(
+        "/coverart/artist/upload",
+        data={"artisthash": ALBUM_HASH, "image": (io.BytesIO(b"not-a-real-image"), "me.png")},
         content_type="multipart/form-data",
     )
 

@@ -96,6 +96,8 @@ const CALLS: Record<string, unknown[]> = {
     'coverart/undoAlbumCover': ['alb1'],
     'coverart/removeAlbumCover': ['alb1'],
     'coverart/uploadAlbumCover': ['alb1', file],
+    'coverart/uploadArtistImage': ['art1', file],
+    'coverart/removeArtistImage': ['art1'],
     'devicesync/registerDevice': ['dev1', 'Laptop', 'desktop'],
     'devicesync/pollSession': [{ device_id: 'dev1', known_version: 0, client_sent_ms: 0, volume: 1, mute: false }],
     'devicesync/sendCommand': [{ device_id: 'dev1', type: 'play', payload: {} }],

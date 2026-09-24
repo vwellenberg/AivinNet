@@ -506,6 +506,33 @@
       "type": "multipart"
     }
   },
+  "POST /coverart/artist/remove": {
+    "body": {
+      "allowed": [
+        "artisthash"
+      ],
+      "required": [
+        "artisthash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /coverart/artist/upload": {
+    "body": {
+      "allowed": [
+        "artisthash",
+        "image"
+      ],
+      "files": [
+        "image"
+      ],
+      "required": [
+        "artisthash",
+        "image"
+      ],
+      "type": "multipart"
+    }
+  },
   "POST /coverart/playlist/{playlistid}": {
     "body": {
       "allowed": [

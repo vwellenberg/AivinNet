@@ -12,6 +12,8 @@ from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ReadTimeout
 
 from aivinnet import settings
+from aivinnet.lib.artist_image import is_user_set
+from aivinnet.lib.placeholder_artists import is_placeholder_artist
 from aivinnet.models.artist import Artist
 from aivinnet.store.artists import ArtistStore
 
@@ -169,7 +171,8 @@ class CheckArtistImages:
         """
         img_path = settings.Paths().sm_artist_img_path / f"{artist.artisthash}.webp"
 
-        if img_path.exists():
+        # A user-set artist with no file had its picture removed on purpose.
+        if img_path.exists() or is_placeholder_artist(artist.name) or is_user_set(artist.artisthash):
             return
 
         url = get_artist_image_link(artist.name)
