@@ -50,6 +50,15 @@ findet ihre Tracks darüber — und bis #144 hat auch eine **Tag-Änderung** sie
 „The Guild 2" zeigte nach der Titel-Reparatur 0 von 94 Dateien im Ordner, bis zum nächsten
 vollen Scan. Wer Pfad oder Hash ändert, ruft `FolderStore.index_file` / `move_filepath`.
 
+⚠️ **Die vierte Stelle liegt im Browser: die Queue.** Sie hält eigene, persistierte Kopien der
+Tracks, und gestreamt wird über Pfad **und** Hash (`/file/<hash>/legacy?filepath=`). Retitle +
+Rename im Metadaten-Dialog änderte beides; die Queue kannte danach nur noch Werte, die der
+Server nicht mehr auflösen kann — jeder Titel 404, der Player sprang durch die ganze Queue
+(live 2026-09-24, Battle Realms). Deshalb: wer Tags oder Namen per Client ändert, zieht die
+Queue nach — Einzeledit `tracklist.retagTrack` (per Hash), Batch `tracklist.followFileChanges`
+(per **altem Pfad**, der Hash ist nicht eindeutig). Andere Geräte behalten ihre alte Queue; der
+Player hört dort nach `utils/skipGuard.ts` drei Fehlschlägen in Folge auf, statt durchzurasen.
+
 ## ⚠️ Die Hashes in der Datenbank sind nicht die des laufenden Servers
 
 Die `track`-Tabelle trägt teils noch Hashes aus der alten SHA1-Ära; `create_hash` rechnet

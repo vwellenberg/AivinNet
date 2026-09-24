@@ -164,6 +164,7 @@ import {
 import useAlbumStore from '@/stores/pages/album'
 import useModal from '@/stores/modal'
 import { Notification, NotifType } from '@/stores/notification'
+import useTracklist from '@/stores/queue/tracklist'
 
 import Spinner from '@/components/shared/Spinner.vue'
 
@@ -391,6 +392,22 @@ async function apply() {
             stayed ? NotifType.Info : NotifType.Success
         )
     }
+
+    // The queue holds its own copies of these tracks, and after a retitle plus
+    // a rename the server knows neither their old hash nor their old path —
+    // left alone, every one of them fails to load and the player skips
+    // through the whole queue.
+    useTracklist().followFileChanges(
+        result.applied.map(entry => {
+            const sentChange = changes.find(change => change.filepath === entry.filepath)
+            // Tags only count where the server says they were written: a file
+            // whose tag write failed is not in `applied` with a new hash.
+            const tags = entry.new_trackhash
+                ? { title: sentChange?.title, track: sentChange?.track, disc: sentChange?.disc }
+                : {}
+            return { ...entry, ...tags }
+        })
+    )
 
     // The titles (and the file paths) just changed, so the page is showing the
     // old ones.

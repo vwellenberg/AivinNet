@@ -31,6 +31,16 @@ export type From =
     | fromArtist
     | fromFav
 
+/** One file the metadata dialog changed, keyed by the path it HAD. */
+export interface FileChange {
+    filepath: string
+    new_filepath?: string
+    new_trackhash?: string
+    title?: string
+    track?: number
+    disc?: number
+}
+
 export function shuffleArray<T>(items: T[]): T[] {
     const shuffled = items.slice()
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -398,6 +408,33 @@ export default defineStore('tracklist', {
                 if (track.trackhash === oldHash) {
                     Object.assign(track, updated)
                 }
+            })
+        },
+        /**
+         * Carry the metadata dialog's batch (retitle, renumber, rename) over to
+         * the queue, the way `retagTrack` does for a single edit.
+         *
+         * Without it the queue keeps the old path AND the old hash, and after
+         * "fetch titles + rename the files" the server knows neither: every
+         * queued track of that album 404s, and the player's skip-on-error runs
+         * through the whole queue.
+         *
+         * Matched by the OLD path, not by hash: a hash is not unique (an album
+         * whose files all said "Track 1" has one), a path is. Same no-reload
+         * contract as `retagTrack` — currentindex stays put.
+         */
+        followFileChanges(changes: FileChange[]) {
+            const byPath = new Map(changes.map(change => [change.filepath, change]))
+
+            this.tracklist.forEach(track => {
+                const change = byPath.get(track.filepath)
+                if (!change) return
+
+                if (change.new_filepath) track.filepath = change.new_filepath
+                if (change.new_trackhash) track.trackhash = change.new_trackhash
+                if (change.title !== undefined) track.title = change.title
+                if (change.track !== undefined) track.track = change.track
+                if (change.disc !== undefined) track.disc = change.disc
             })
         },
         /**

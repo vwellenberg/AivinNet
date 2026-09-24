@@ -70,6 +70,74 @@ describe('tracklist.retagTrack', () => {
     })
 })
 
+describe('tracklist.followFileChanges', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+    })
+
+    // The metadata dialog retitles AND renames: afterwards neither the old
+    // trackhash nor the old path exists on the server, so a queue that still
+    // carries them cannot play a single one of those tracks — every entry
+    // 404s and the player skips through the whole queue.
+    it('moves a queued track to its new path, hash and tags, matched by the OLD path', () => {
+        const tl = useTracklist()
+        tl.tracklist = [
+            mk({ filepath: '/m/W - Freedom Combat.mp3', trackhash: 'aaaaaaaaaaaaaaaa', title: 'W - Freedom Combat', track: 0 }),
+            mk({ filepath: '/m/other.mp3', trackhash: 'bbbbbbbbbbbbbbbb', title: 'Other' }),
+        ]
+
+        tl.followFileChanges([
+            {
+                filepath: '/m/W - Freedom Combat.mp3',
+                new_filepath: '/m/38 - Wolf - Freedom Combat.mp3',
+                new_trackhash: 'cccccccccccccccc',
+                title: 'Wolf - Freedom Combat',
+                track: 38,
+            },
+        ])
+
+        expect(tl.tracklist[0]).toMatchObject({
+            filepath: '/m/38 - Wolf - Freedom Combat.mp3',
+            trackhash: 'cccccccccccccccc',
+            title: 'Wolf - Freedom Combat',
+            track: 38,
+        })
+        expect(tl.tracklist[1]).toMatchObject({ filepath: '/m/other.mp3', trackhash: 'bbbbbbbbbbbbbbbb', title: 'Other' })
+    })
+
+    it('matches by path, not by hash: files sharing one hash each keep their own change', () => {
+        // An album whose files all said "Track 1" has ONE trackhash for all of
+        // them — the very album the dialog exists to repair.
+        const tl = useTracklist()
+        tl.tracklist = [
+            mk({ filepath: '/m/a.mp3', trackhash: 'dddddddddddddddd', title: 'Track 1' }),
+            mk({ filepath: '/m/b.mp3', trackhash: 'dddddddddddddddd', title: 'Track 1' }),
+        ]
+
+        tl.followFileChanges([
+            { filepath: '/m/a.mp3', new_trackhash: '1111111111111111', title: 'Alpha' },
+            { filepath: '/m/b.mp3', new_trackhash: '2222222222222222', title: 'Beta' },
+        ])
+
+        expect(tl.tracklist.map(t => [t.filepath, t.trackhash, t.title])).toEqual([
+            ['/m/a.mp3', '1111111111111111', 'Alpha'],
+            ['/m/b.mp3', '2222222222222222', 'Beta'],
+        ])
+    })
+
+    it('a rename alone moves only the path; the same track twice in the queue both follow', () => {
+        const tl = useTracklist()
+        const before = { filepath: '/m/old.mp3', trackhash: 'eeeeeeeeeeeeeeee', title: 'Same' }
+        tl.tracklist = [mk(before), mk(before)]
+
+        tl.followFileChanges([{ filepath: '/m/old.mp3', new_filepath: '/m/01 - Same.mp3' }])
+
+        for (const t of tl.tracklist) {
+            expect(t).toMatchObject({ filepath: '/m/01 - Same.mp3', trackhash: 'eeeeeeeeeeeeeeee', title: 'Same' })
+        }
+    })
+})
+
 describe('tracklist.setFromPlaylist sidebar recency hook', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
