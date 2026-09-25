@@ -1218,6 +1218,25 @@ Außerhalb der Kacheln nutzt es bisher nur die Ordner-Zeile (`FolderItem.vue`). 
 `@contextmenu` allein stehen noch `SongItem` (hat einen ⋮-Knopf), `SidebarPlaylistItem` und die
 Ordner-/Album-Zeilen in `LeftSidebar/index.vue` — wer dort anfasst, stellt um.
 
+## Der Bearbeiten-Modus der Playlist ist eine eigene, NICHT virtualisierte Liste
+
+`components/PlaylistView/EditList.vue` (Griff zum Umsortieren, Knopf zum Entfernen) rendert alle
+Tracks ohne `DynamicScroller`: Eine Zeile, die gerade am Finger hängt, darf beim Scrollen nicht
+recycelt werden. Die Zeilen tragen trotzdem `.songlist-item` — Platte, Band, Perforation und
+Rahmen kommen aus derselben Quelle wie die Songliste, nur das Grid ist eigenes (entfernen · Cover
+· Titel · Griff, **keine** Dauer-Spalte; `songlistDurationColumn.test.ts` nimmt `.edit-row`
+deshalb aus). Drei Dinge dazu:
+
+- **Der Griff hat `touch-action: none`, die Zeile nicht.** Sonst frisst entweder der Seiten-Scroll
+  die Ziehgeste, oder die ganze Liste lässt sich mit dem Finger nicht mehr scrollen.
+- **Auf dem Handy tritt die Player-Leiste zur Seite** (`#app-grid.editing-playlist`,
+  `app-grid.scss`), der Scroller reserviert dann keine Bar, nur den Home-Indikator. Die Klasse
+  setzt `App.vue` aus `playlist.editing`; beim Verlassen der Route wird der Modus **sofort**
+  beendet, nicht mit dem verzögerten `resetAll()` — sonst öffnete die nächste Seite ohne Leiste.
+- **Die Kopfleiste („Edit order · N" + „Done") klebt oben** — „Done" muss in einer langen Liste
+  überall einen Tipp entfernt sein. Sie klebt um ihr eigenes `padding-top` über der Kante, damit
+  der Balken selbst an der Kante sitzt.
+
 ## ⚠️ Regler-Geometrie hat EINE Quelle
 
 `range-geometry($h, $thumb)` in `_candy.scss` setzt `--range-h` (Leistenhöhe), `--range-thumb`

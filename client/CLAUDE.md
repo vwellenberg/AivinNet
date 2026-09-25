@@ -289,7 +289,7 @@ passende Datei gelesen wird:
 | Rule | greift bei | Inhalt |
 |---|---|---|
 | `styling.md` | `src/assets/scss/**`, `src/**/*.scss`, `src/**/*.vue`, `vite.config.ts` | **Schraffur-Policy** (was sie bedeutet, wo sie wegbleibt, nie hinter Text), Zeilen-Platten, Hover-Token, Rollen, Hard-Shadows, Icon-/viewBox-Fallen, 44-px-Touch-Ziele, Regler-Geometrie, Sass-Interpolation, Bewegung |
-| `stores-and-state.md` | `src/stores/**`, `src/utils/playlistMove.ts`, `src/utils/shufflePicker.ts`, `src/requests/**` | Playlist-Schreibpfade, optimistische Rollbacks, Zufall-im-Getter, virtualisierte Queue |
+| `stores-and-state.md` | `src/stores/**`, `src/utils/playlistMove.ts`, `src/utils/dragReorder.ts`, `src/helpers/playlistTrackEdits.ts`, `src/utils/shufflePicker.ts`, `src/requests/**` | Playlist-Schreibpfade, optimistische Rollbacks, Zufall-im-Getter, virtualisierte Queue |
 | `device-sync.md` | `src/stores/devicesync.ts`, `src/utils/deviceSync/**`, `src/components/DeviceSync/**`, `src/components/modals/Devices.vue`, `src/views/PairView.vue` | Seams, Timing, Auto-Rejoin, Feld-Bugs |
 | `infinite-scroll.md` | `src/components/ArtistView/AlbumsFetcher.vue`, `src/components/shared/GenericTrackPagination.vue`, `src/views/AlbumListView/main.vue`, `src/views/FolderView.vue`, `src/views/SearchView/*.vue`, `src/stores/pages/itemlist.ts` | Sichtbarkeit statt Remount als Auslöser, Ketten-Bremse, `useAxios` löst bei Fehlern **auf**, Blättern übers Listenende |
 | `testing.md` | `src/**/__tests__/**`, `vite.config.ts` | Vitest-0.34-Fallen, Fixtures |
