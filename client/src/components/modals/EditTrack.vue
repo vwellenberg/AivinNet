@@ -15,6 +15,19 @@
         <label for="et-track">Track number</label>
         <input id="et-track" v-model.number="trackNo" type="number" min="0" class="et-input et-number rounded-sm" />
 
+        <!-- Only when the name would change: the pattern is built from the
+             title and the number, so an artist or album edit has nothing to
+             rename (#144). -->
+        <label v-if="nameChanges" class="et-rename">
+            <input v-model="renameFile" type="checkbox" />
+            <span>
+                Rename the file too
+                <!-- Not a made-up pattern: the real name depends on the album
+                     (number width, disc prefix) and is reported after saving. -->
+                <span class="et-hint">{{ fileName }} → named after the new number and title, like the album</span>
+            </span>
+        </label>
+
         <p class="et-warning">Saving writes these tags into the file on disk.</p>
 
         <button type="submit" class="btn-pill" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
@@ -22,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { Track } from '@/interfaces'
 import { editTrackTags, EditTrackTagsPayload } from '@/requests/track'
@@ -50,6 +63,18 @@ const albumartists = ref<string[]>([...origAlbumArtists])
 const trackNo = ref<number | undefined>(props.track.track)
 
 const saving = ref(false)
+
+/** On by default, like the album dialog's box: a renamed title is what the file should say too. */
+const renameFile = ref(true)
+const fileName = computed(() => (props.track.filepath ?? '').split('/').pop() ?? '')
+const fileSuffix = computed(() => {
+    const dot = fileName.value.lastIndexOf('.')
+    return dot > 0 ? fileName.value.slice(dot) : ''
+})
+
+const numberChanged = () =>
+    typeof trackNo.value === 'number' && !Number.isNaN(trackNo.value) && trackNo.value !== props.track.track
+const nameChanges = computed(() => title.value.trim() !== props.track.title || numberChanged())
 
 onMounted(() => {
     document.getElementById('et-title')?.focus()
@@ -82,9 +107,11 @@ function save() {
     if (al !== props.track.album) payload.album = al
     if (!sameArray(ar, origArtists)) payload.artists = ar
     if (!sameArray(aa, origAlbumArtists)) payload.albumartists = aa
-    if (typeof trackNo.value === 'number' && !Number.isNaN(trackNo.value) && trackNo.value !== props.track.track) {
-        payload.track = trackNo.value
-    }
+    if (numberChanged()) payload.track = trackNo.value
+
+    // The server names the file after the tags it just wrote, with the album's
+    // number width and disc prefix — the same name the album dialog would give.
+    if (nameChanges.value && renameFile.value) payload.rename_file = true
 
     if (Object.keys(payload).length === 0) {
         emit('hideModal')
@@ -140,6 +167,22 @@ function save() {
 
     .et-number {
         width: 8rem;
+    }
+
+    .et-rename {
+        display: flex;
+        gap: $small;
+        align-items: baseline;
+        margin-top: $medium;
+        cursor: pointer;
+
+        .et-hint {
+            display: block;
+            color: $candy-text-muted;
+            font-size: 0.8rem;
+            font-weight: 400;
+            overflow-wrap: anywhere;
+        }
     }
 
     .et-warning {

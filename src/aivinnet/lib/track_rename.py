@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from pathlib import Path
 
 from aivinnet.db.libdata import TrackTable
@@ -33,6 +34,8 @@ from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
 
 log = logging.getLogger(__name__)
+
+_rename_lock = threading.Lock()
 
 # The longest name ext4 and most other file systems accept, in bytes.
 _MAX_NAME_BYTES = 255
@@ -134,13 +137,48 @@ def _move_one(old: str, new: str, tracks: list) -> str | None:
     return _move_lyrics(old, new)
 
 
+def name_after_tags(track) -> str | None:
+    """
+    The name a track's CURRENT tags give its file, or None when they give none.
+
+    Number width and the disc prefix come from the whole album, exactly as the
+    album dialog decides them — so a track renamed on its own ends up with the
+    name the album-wide rename would have given it, not "3 - Title" next to
+    "03 - Other".
+
+    The title is the one the library SHOWS (`Track.title`, after the config's
+    feat./prod./remaster cleaning), not the raw tag — the same one the album
+    dialog uses, so the two entry points never name one file two ways. The tag
+    itself keeps everything.
+    """
+    album = TrackStore.get_tracks_by_albumhash(track.albumhash) or [track]
+    return filename_pattern.target_name(
+        track.title,
+        track.track,
+        track.disc,
+        os.path.splitext(track.filepath)[1],
+        width=filename_pattern.number_width([t.track or 0 for t in album]),
+        multi_disc=len({t.disc for t in album if t.disc and t.disc > 0}) > 1,
+    )
+
+
 def rename_files(moves: list[tuple[str, str]]) -> tuple[list[dict], list[dict]]:
     """
     Rename each ``(filepath, new name)``. Returns ``(applied, failed)``.
 
     One file failing does not stop the others. A file whose name is already
     right is neither: it is simply left alone.
+
+    ⚠️ One rename at a time, server-wide. Two callers exist — the album apply on
+    its worker thread and the track editor in the request — and a batch plans
+    against the folder as it is when it starts: a single rename landing in the
+    middle would show up as a taken name or a vanished source.
     """
+    with _rename_lock:
+        return _rename_files(moves)
+
+
+def _rename_files(moves: list[tuple[str, str]]) -> tuple[list[dict], list[dict]]:
     applied: list[dict] = []
     failed: list[dict] = []
 

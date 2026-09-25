@@ -45,6 +45,12 @@ führt: die `track`-Zeile (`TrackTable.update_filepath`, `last_mod` bleibt, desh
 nächste Scan die Datei als unverändert), die Track-Objekte im `TrackStore` und den
 `FolderStore`, dazu die `.lrc` gleichen Namens daneben.
 
+Zwei Einstiege, ein Muster: der Album-Dialog (`api/metadata.py`, Namen aus der Vorschau) und der
+Einzel-Editor (`PUT /track/<hash>/tags` mit `rename_file`). Der Editor rechnet den Namen über
+`track_rename.name_after_tags` — Nummernbreite und CD-Präfix kommen dort vom **ganzen Album**,
+sonst stünde ein einzeln umbenanntes `3 - Titel` neben `03 - Anderes`. Ein Rename, der nicht geht,
+macht die Tags nicht rückgängig: die Antwort meldet ihn in `rename`, der Request bleibt 200.
+
 ⚠️ **`FolderStore.map` (Pfad → Hash) ist die Stelle, die vergessen wird.** Die Ordneransicht
 findet ihre Tracks darüber — und bis #144 hat auch eine **Tag-Änderung** sie nicht nachgezogen:
 „The Guild 2" zeigte nach der Titel-Reparatur 0 von 94 Dateien im Ordner, bis zum nächsten

@@ -9,6 +9,28 @@ export interface EditTrackTagsPayload {
     artists?: string[]
     albumartists?: string[]
     track?: number
+    /** Also name the file after the new tags ("03 - Title.mp3", #144). */
+    rename_file?: boolean
+}
+
+/** How the rename went, when one was asked for. The tags are written either way. */
+interface RenameOutcome {
+    name?: string
+    unchanged?: boolean
+    warning?: string
+    error?: string
+}
+
+/** One message for both halves: a second notification would replace the first. */
+function savedMessage(rename?: RenameOutcome): { text: string; type: NotifType } {
+    if (!rename || rename.unchanged) return { text: 'Track tags updated', type: NotifType.Success }
+    if (rename.error) {
+        return { text: `Tags updated — the file kept its name: ${rename.error}`, type: NotifType.Info }
+    }
+    if (rename.warning) {
+        return { text: `Tags updated, file renamed to ${rename.name} — the lyrics file kept the old name`, type: NotifType.Info }
+    }
+    return { text: `Tags updated, file renamed to ${rename.name}`, type: NotifType.Success }
 }
 
 /**
@@ -26,7 +48,8 @@ export async function editTrackTags(trackhash: string, tags: EditTrackTagsPayloa
     })
 
     if (status === 200 && data?.track) {
-        new Notification('Track tags updated', NotifType.Success)
+        const { text, type } = savedMessage(data.rename as RenameOutcome | undefined)
+        new Notification(text, type)
         return data.track as Track
     }
 
