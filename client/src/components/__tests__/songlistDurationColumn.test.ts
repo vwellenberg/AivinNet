@@ -119,7 +119,7 @@ describe('track row grid', () => {
     // row's plate, band and frame, but carries remove · cover · title · grip —
     // no duration group, so there is no duration column to size.
     const rowGrids = declarations.filter(
-        d => /songlist-item|ah-bar/.test(d.selector) && !/\.edit-row/.test(d.selector)
+        d => /songlist-item|ah-bar/.test(d.selector) && !/\.edit-row\b/.test(d.selector)
     )
 
     it('finds the row grids it is supposed to be checking', () => {
