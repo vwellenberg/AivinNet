@@ -38,7 +38,12 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     // it to whatever the text needs.
     align-items: flex-start;
     overflow: hidden;
-    margin: 0 1rem 1rem;
+    // ⚠️ No SIDE margin (#239). The page's content column is the edge: the
+    // track list, the card rows and the section captions below all start and
+    // end on it, and this plate was the one thing inset from it — 16px on each
+    // side at every width, so the head visibly ended short of the list under
+    // it on all three pages. Only the gap below stays.
+    margin: 0 0 1rem;
     // The fill is a look token: Memphis reads its text against the panel, a
     // cover-tinted look lets the page's own tint stand as the head (#200).
     @include candy-box(var(--look-detail-head-fill, #{$mem-panel}), $candy-radius);
@@ -167,7 +172,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
 // ---------------------------------------------------------------------------
 @include largePhones {
     #{$detail-heads} {
-        margin: 0 $small $small;
+        margin: 0 0 $small;
     }
 
     .dh-art {
