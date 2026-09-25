@@ -223,13 +223,13 @@ function startDrag(e: PointerEvent, i: number) {
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
     window.addEventListener('pointercancel', onPointerCancel)
-    scroller()?.addEventListener('scroll', track, { passive: true })
+    scroller()?.addEventListener('scroll', followFinger, { passive: true })
     navigator.vibrate?.(10)
 }
 
 // Where the row is now. The list scrolling under a still finger moves the row
 // through it just as much as the finger does, so both count.
-function track() {
+function followFinger() {
     const d = drag.value
     if (!d) return
     const scrolled = (scroller()?.scrollTop ?? d.startScroll) - d.startScroll
@@ -242,7 +242,7 @@ function onPointerMove(e: PointerEvent) {
     const d = drag.value
     if (!d || e.pointerId !== d.pointerId) return
     d.lastY = e.clientY
-    track()
+    followFinger()
     autoScroll.update(e.clientY)
 }
 
@@ -261,7 +261,7 @@ function endDrag(commit: boolean) {
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
     window.removeEventListener('pointercancel', onPointerCancel)
-    scroller()?.removeEventListener('scroll', track)
+    scroller()?.removeEventListener('scroll', followFinger)
     autoScroll.stop()
 
     const moved = rows.value[d.from]

@@ -217,7 +217,9 @@ describe("the edit list", () => {
 });
 
 describe("the caption bar", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
 
   it("offers Edit on an editable list, and nothing on a generated one", async () => {
     const editable = mount(AfterHeader, { props: { caps_list: true, editable: true } });

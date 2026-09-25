@@ -114,7 +114,13 @@ describe('track row grid', () => {
      * Rows, and the caption row that has to line up with them. Matched on the
      * selector chain, so a new variant is picked up without being listed here.
      */
-    const rowGrids = declarations.filter(d => /songlist-item|ah-bar/.test(d.selector))
+    //
+    // Not the edit mode's row (PlaylistView/EditList.vue): it wears the track
+    // row's plate, band and frame, but carries remove · cover · title · grip —
+    // no duration group, so there is no duration column to size.
+    const rowGrids = declarations.filter(
+        d => /songlist-item|ah-bar/.test(d.selector) && !/\.edit-row/.test(d.selector)
+    )
 
     it('finds the row grids it is supposed to be checking', () => {
         expect(rowGrids.length).toBeGreaterThanOrEqual(5)

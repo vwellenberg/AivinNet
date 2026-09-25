@@ -89,7 +89,7 @@ const isStoredPlaylist = computed(() => /^\d+$/.test(route.params.pid as string)
 
 interface ScrollerItem {
     id: string | number
-    component: typeof Header | typeof SongItem | typeof NoItems | typeof AlbumsFetcher
+    component: typeof Header | typeof AfterHeader | typeof SongItem | typeof NoItems | typeof AlbumsFetcher
     size: number
     props?: {}
 }
