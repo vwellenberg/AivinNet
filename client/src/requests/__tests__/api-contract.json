@@ -1082,6 +1082,7 @@
         "album",
         "albumartists",
         "artists",
+        "rename_file",
         "title",
         "track"
       ],

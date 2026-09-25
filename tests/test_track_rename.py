@@ -180,6 +180,40 @@ def test_a_file_the_library_does_not_know_is_not_touched(album, tmp_path):
     assert stranger.exists()
 
 
+def test_renames_run_one_at_a_time(monkeypatch):
+    """The album apply (worker) and the editor (request) share one lock."""
+    seen = []
+    monkeypatch.setattr(
+        track_rename, "_rename_files", lambda moves: seen.append(track_rename._rename_lock.locked()) or ([], [])
+    )
+
+    track_rename.rename_files([])
+
+    assert seen == [True]
+    assert not track_rename._rename_lock.locked()
+
+
+class AlbumTrack:
+    def __init__(self, filepath, title, track, disc=1):
+        self.filepath, self.title, self.track, self.disc, self.albumhash = filepath, title, track, disc, "a"
+
+
+def test_a_single_track_is_named_the_way_its_album_would_be(monkeypatch):
+    """The editor renames one track; its name must match the album-wide pattern."""
+    album = [AlbumTrack(f"/m/A/{n}.mp3", f"T{n}", n) for n in (1, 2, 120)]
+    monkeypatch.setattr(track_rename, "TrackStore", MagicMock(get_tracks_by_albumhash=lambda _h: album))
+
+    # Three digits because the ALBUM goes past 99 — not because this track does.
+    assert track_rename.name_after_tags(AlbumTrack("/m/A/x.flac", "Game Lost", 3)) == "003 - Game Lost.flac"
+
+
+def test_a_single_track_on_a_two_disc_album_gets_its_disc(monkeypatch):
+    album = [AlbumTrack("/m/A/a.mp3", "A", 1, 1), AlbumTrack("/m/A/b.mp3", "B", 1, 2)]
+    monkeypatch.setattr(track_rename, "TrackStore", MagicMock(get_tracks_by_albumhash=lambda _h: album))
+
+    assert track_rename.name_after_tags(album[1]) == "2-01 - B.mp3"
+
+
 def test_one_failure_does_not_stop_the_rest(album):
     folder, _library, _ = album("a.mp3", "b.mp3", "01 - Taken.mp3")
 
