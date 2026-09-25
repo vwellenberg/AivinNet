@@ -320,9 +320,39 @@ $control-dense-glyph: 1rem;
     z-index: 1;
   }
 
+  // ⚠️ Lifting the label above the texture is not enough (#237): the texture
+  // still shows THROUGH it, between and inside the letters — "Play" read with
+  // sprinkle strokes crossing it, and on hover the hatch did the same. So the
+  // label and the glyph carry a cover: `inherit`, i.e. whatever fill the button
+  // has at this moment — resting, hovered, or a caller's own (the lyrics
+  // finder's coral error plate) — with nothing for any caller to keep in step.
+  // Direct children only: a nested svg (a spinner inside a wrapper) inherits
+  // from its own parent and stays out of it.
+  > svg,
+  > .text {
+    background-color: inherit;
+  }
+
+  // A few pixels of buffer so the strokes stop short of the letters.
+  > .text {
+    padding: 0 3px;
+    border-radius: 3px;
+  }
+
   svg {
     width: $glyph;
     height: $glyph;
+    // A fixed-width button (the 6rem Play) gives up space when the label
+    // grows, and a flex item shrinks by default — the glyph did, measured
+    // 28px -> 16px once the label carried its cover padding. The glyph is a
+    // fixed size; the label is what may truncate.
+    flex-shrink: 0;
+  }
+
+  // Round: on the play discs the glyph sits in a circle, and a square cover
+  // would print a clean square into the texture.
+  > svg {
+    border-radius: 50%;
   }
 
   // The shared pointer signal (#422), like every other button. The v1.4.0
@@ -424,6 +454,15 @@ $control-dense-glyph: 1rem;
   svg {
     width: $glyph;
     height: $glyph;
+  }
+
+  // The glyph gets the same cover as btn-primary's (#237): pin, download and
+  // overflow sat with the hatch running through their icons. `inherit` follows
+  // every fill the call sites give it (the yellow open-menu state included),
+  // and on the bare variant it inherits `transparent` at rest, i.e. nothing.
+  > svg {
+    background-color: inherit;
+    border-radius: 50%;
   }
 
   // Hover only. An open context menu is deliberately NOT folded in here: in

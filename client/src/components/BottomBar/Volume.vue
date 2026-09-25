@@ -10,8 +10,9 @@
             :title="settings.is_silent ? 'Unmute' : 'Mute'"
             @click="settings.toggleMute"
         >
-            <VolumeMuteSvg v-if="settings.is_silent" />
-            <VolumeMidSvg v-else-if="settings.volume > 0.5" />
+            <VolumeMuteSvg v-if="level === 'mute'" />
+            <VolumeHighSvg v-else-if="level === 'high'" />
+            <VolumeMidSvg v-else-if="level === 'mid'" />
             <VolumeLowSvg v-else />
         </button>
         <input
@@ -31,12 +32,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
+import VolumeHighSvg from '@/assets/icons/volume-high.svg'
 import VolumeLowSvg from '@/assets/icons/volume-low.svg'
 import VolumeMidSvg from '@/assets/icons/volume-mid.svg'
 import VolumeMuteSvg from '@/assets/icons/volume-mute.svg'
 import useSettingsStore from '@/stores/settings'
+import { volumeLevel } from '@/utils/volumeLevel'
 
 const settings = useSettingsStore()
+
+const level = computed(() => volumeLevel(settings.volume, settings.is_silent))
 
 const changeVolume = (event: Event) => {
     const target = event.target as HTMLInputElement
