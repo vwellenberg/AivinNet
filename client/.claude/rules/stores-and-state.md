@@ -55,7 +55,10 @@ gekostet hat.
 - **Entfernen im Bearbeiten-Modus wartet auf das Undo** (8 s, so lang wie der Aktions-Toast): Die
   Zeile verschwindet sofort vom Schirm, der Server hört erst nach Ablauf davon — oder beim
   Verlassen des Modus. Ein Undo braucht so keinen zweiten Schreibpfad (Wiedereinfügen würde
-  `added_at` neu setzen). Moves um eine noch versteckte Zeile herum übersetzt `landingGap()`
+  `added_at` neu setzen). ⚠️ Die wartende Löschung merkt sich **Playlist-ID, Trackhash und
+  Index beim Auslösen**: Ein Wechsel zu einer anderen Playlist in derselben View leert den Store
+  (`resetTracks()`), **bevor** die Liste abgebaut wird — die erste Fassung suchte die Zeile dann
+  im leeren Store, fand sie nicht und verwarf die Löschung still. Moves um eine noch versteckte Zeile herum übersetzt `landingGap()`
   (`utils/dragReorder.ts`) über die Referenz der **folgenden** sichtbaren Zeile in den Drop-Gap
   des Stores.
 

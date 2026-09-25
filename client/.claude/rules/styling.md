@@ -1227,6 +1227,14 @@ Rahmen kommen aus derselben Quelle wie die Songliste, nur das Grid ist eigenes (
 · Titel · Griff, **keine** Dauer-Spalte; `songlistDurationColumn.test.ts` nimmt `.edit-row`
 deshalb aus). Drei Dinge dazu:
 
+- **⚠️ Das Ziehen schreibt die Offsets direkt an die Zeilen, nicht in reaktiven Zustand.** Ein
+  Finger feuert bis zu 60 Moves pro Sekunde, und mit den Offsets im State rendert jeder davon die
+  **ganze** Liste neu — hier sind das bis zu rund tausend Zeilen. Vue hört vom Drag genau zweimal
+  (Anheben, Ablegen); dazwischen schreibt `followFinger()` nur die Zeilen zwischen alter und neuer
+  Landestelle. `EditList.test.ts` zählt die Renders über einen Spion auf `trackBandFade`.
+- **Griff und Minus nehmen die Farbe der Zeile** (`color: inherit` nach `btn-quiet`). Die Rolle
+  pinnt `$mem-content-text`; auf einer gehoverten Zeile ist die Fläche aber die Ink-Kontrastfläche,
+  und der Griff verschwand genau dann, wenn der Zeiger nach ihm griff.
 - **Der Griff hat `touch-action: none`, die Zeile nicht.** Sonst frisst entweder der Seiten-Scroll
   die Ziehgeste, oder die ganze Liste lässt sich mit dem Finger nicht mehr scrollen.
 - **Auf dem Handy tritt die Player-Leiste zur Seite** (`#app-grid.editing-playlist`,
@@ -1235,7 +1243,12 @@ deshalb aus). Drei Dinge dazu:
   beendet, nicht mit dem verzögerten `resetAll()` — sonst öffnete die nächste Seite ohne Leiste.
 - **Die Kopfleiste („Edit order · N" + „Done") klebt oben** — „Done" muss in einer langen Liste
   überall einen Tipp entfernt sein. Sie klebt um ihr eigenes `padding-top` über der Kante, damit
-  der Balken selbst an der Kante sitzt.
+  der Balken selbst an der Kante sitzt. Sie wohnt **in** `EditList`, nicht in der Seite: Sie zählt
+  die Zeilen auf dem Schirm (eine Löschung im Undo-Fenster ist dort schon weg), und „Done" muss
+  diese Löschung abschließen, bevor der Modus zugeht.
+- **Der Wechsel zwischen den Modi behält die Scroll-Position** (`PlaylistView/index.vue`): Kopf,
+  Leiste und 72-px-Zeile sind in beiden gleich, ein Offset meint also dieselbe Stelle. Sonst warf
+  „Done" in einer langen Playlist an den Anfang zurück.
 
 ## ⚠️ Regler-Geometrie hat EINE Quelle
 
