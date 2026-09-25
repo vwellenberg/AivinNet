@@ -34,8 +34,20 @@ SERVE="${SERVE:-$default_serve}"
 # using a stored copy — a stale index.html cannot quietly ask for a chunk that
 # is gone. The window that remains is a tab that was ALREADY OPEN across a
 # deploy and lazy-loads a route afterwards; it holds its index.html in memory.
-# A week covers that generously.
-GRACE_DAYS="${GRACE_DAYS:-7}"
+#
+# ⚠️ In MINUTES. It was 7 days, and a week does cover such a tab — but the unit
+# was wrong for how often this client is deployed (several times a day), so the
+# window never expired anything: 1776 files / 57 MB against 116 / 2.4 MB in the
+# build, measured 2026-09-25. A day is still longer than any tab that matters.
+GRACE_MINUTES="${GRACE_MINUTES:-1440}"
+
+# The variable was GRACE_DAYS until 2026-09-25. Setting the old name now does
+# nothing, and "my retention setting is ignored" is exactly the kind of silence
+# this deploy already had too much of.
+if [[ -n "${GRACE_DAYS:-}" ]]; then
+	echo "GRACE_DAYS is gone — use GRACE_MINUTES (currently ${GRACE_MINUTES})" >&2
+	exit 1
+fi
 
 cd "$REPO"
 yarn build
@@ -53,33 +65,9 @@ fi
 cp -r "$REPO/dist/"* "$SERVE/"
 echo "DEPLOYED into $SERVE"
 
-# ---------------------------------------------------------------------------
-# Prune orphans.
-#
-# Every deploy writes ~130 newly hashed files and leaves the previous ~130 in
-# place, so the serve dir grows without bound (measured: 1099 assets against
-# 131 in the build).
-#
-# Two conditions, both required: the file is NOT part of the current build, AND
-# it has not been touched for GRACE_DAYS. Deleting purely by "not in the build"
-# would pull the rug from under any tab still running the previous version.
-# ---------------------------------------------------------------------------
-if [[ -d "$SERVE/assets" && -d "$REPO/dist/assets" ]]; then
-    pruned=0
-
-    while IFS= read -r name; do
-        file="$SERVE/assets/$name"
-        # -mtime +N is "older than N days"; the copy above refreshes every file
-        # that is still current, so age here means "missed the last N days of
-        # deploys".
-        if [[ -n "$(find "$file" -maxdepth 0 -mtime "+$GRACE_DAYS" 2>/dev/null)" ]]; then
-            rm -f "$file"
-            pruned=$((pruned + 1))
-        fi
-    done < <(comm -23 <(ls -1 "$SERVE/assets" | sort) <(ls -1 "$REPO/dist/assets" | sort))
-
-    orphans=$(comm -23 <(ls -1 "$SERVE/assets" | sort) <(ls -1 "$REPO/dist/assets" | sort) | wc -l)
-    echo "PRUNED $pruned orphaned asset(s) older than ${GRACE_DAYS}d; $orphans still within the grace window"
+bash "$REPO/scripts/prune-serve-assets.sh" "$SERVE/assets" "$REPO/dist/assets" "$GRACE_MINUTES"
+if [[ -d "$SERVE/assets" ]]; then
+	echo "SERVE now holds $(du -sh "$SERVE/assets" | cut -f1) of assets against $(du -sh "$REPO/dist/assets" | cut -f1) in the build"
 fi
 
 curl -s http://localhost:1970/ | grep -oE "index\.[a-z0-9]+\.(js|css)" | head -2
