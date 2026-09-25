@@ -329,12 +329,24 @@ Meldung:
 
 ```bash
 cd ~/AivinNet && git log --oneline -1          # enthält der Checkout den Commit?
-grep -oh "<neuer Text>" ~/.config/aivinnet/client/assets/*.js | sort -u
+
+# ⚠️ NICHT über assets/*.js greppen — dort liegen auch die Chunks der letzten
+# Deploys, und ein Treffer darin beweist gar nichts (genau so wurde ein längst
+# gelöschter Endpunkt als "noch ausgeliefert" gemeldet). Nur die Datei prüfen,
+# die die ausgelieferte index.html wirklich lädt:
+S=~/.config/aivinnet/client
+entry=$(grep -oE "assets/index[A-Za-z0-9._-]*\.js" $S/index.html | head -1)
+grep -c "<neuer Text>" "$S/$entry"
 ```
 
-⚠️ **Der Deploy kopiert, er räumt nicht sofort auf.** `scripts/deploy-client.sh` löscht verwaiste
-Assets erst nach `GRACE_DAYS` (7) — absichtlich, damit ein Tab mit dem vorherigen Bundle nicht ins
-Leere läuft. Wer etwas entfernt, weil es **nicht mehr ausgeliefert werden darf** (Lizenz), ist
+⚠️ **Der Deploy kopiert, er räumt nicht sofort auf.** `scripts/prune-serve-assets.sh` (vom
+Deploy aufgerufen, getestet in `tests/test_prune_serve_assets.py`) löscht verwaiste Assets erst
+nach `GRACE_MINUTES` (1440 = ein Tag) — absichtlich, damit ein Tab mit dem vorherigen Bundle
+nicht ins Leere läuft. **Die Einheit war bis 2026-09-25 `GRACE_DAYS` (7), und das war der
+Fehler:** eine Woche klingt harmlos, heißt bei mehreren Deploys pro Tag aber „rund zwanzig Builds
+aufbewahren" — gemessen 1776 Dateien / 57 MB gegen 116 / 2,4 MB im Build, und nichts davon je alt
+genug zum Löschen. Eine Aufbewahrungsfrist muss zur **Deploy-Frequenz** passen, nicht zum
+Bauchgefühl. Wer etwas entfernt, weil es **nicht mehr ausgeliefert werden darf** (Lizenz), ist
 damit noch nicht fertig: Die Datei liegt weiter unter `~/.config/aivinnet/client/assets/` und ist
 per URL abrufbar. Dann gezielt löschen und gegenprüfen (real passiert bei den Apple-Schriften,
 #201):
