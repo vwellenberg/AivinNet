@@ -2,6 +2,8 @@
 paths:
   - "src/stores/**"
   - "src/utils/playlistMove.ts"
+  - "src/utils/dragReorder.ts"
+  - "src/helpers/playlistTrackEdits.ts"
   - "src/utils/shufflePicker.ts"
   - "src/requests/**"
 ---
@@ -28,6 +30,37 @@ zwischen zwei gerenderten Zeilen passieren kann. `/reorder` lehnt Nicht-Permutat
 
 Die Index-Arithmetik (Drop-Gap → finaler Index → Undo) liegt in `utils/playlistMove.ts` und ist
 gegen ein Modell des Server-Splices getestet — **nicht inline in der View wiederholen**.
+
+## Verschieben und Entfernen auf der Playlist-Seite: EIN Weg (`helpers/playlistTrackEdits.ts`)
+
+Drei Aufrufer schreiben in die Trackliste der Seite: der Maus-Drag auf den Song-Zeilen, der
+Bearbeiten-Modus (`components/PlaylistView/EditList.vue`) und das Track-Menü. Alle drei gehen
+durch `movePlaylistTrackTo()` / `removePlaylistTrack()` — Anker, optimistischer Move mit
+Rollback, Queue-Spiegel. Eine zweite Kopie davon ist genau die Drift, die hier zweimal Daten
+gekostet hat.
+
+- **Entfernen ist NICHT optimistisch, und die Zeile wird beim Eintreffen der Antwort per
+  REFERENZ gesucht**, nicht über den Index beim Absenden: Im Bearbeiten-Modus kann dazwischen ein
+  Move landen, und der alte Index zeigt dann auf den Nachbarn. Duplikate (derselbe Track zweimal)
+  unterscheidet ohnehin nur die Referenz.
+- **`removeTrackByIndex` zieht Kopf und Seiten-Cursor nach** (`info.count`, `info.duration`,
+  `loadedHashCount`). Vorher folgte der Löschung ein `fetchAll(id, true)` — das kehrt bei
+  geladenen Tracks zurück, **bevor** es `info` anfasst, war also ein No-op: der Kopf zählte den
+  Track weiter, und die nächste Seite begann einen Hash zu spät (ein Track fiel aus der Liste).
+  Das gleiche No-op steht noch im „Add to Playlist"-Pfad von `context_menus/track.ts`.
+- **`removeTracks` meldet jetzt, ob es geklappt hat.** Vorher löste es in beiden Fällen auf, und
+  das Track-Menü nahm die Zeile auch bei einem abgelehnten Request aus der Liste.
+- **Der Bearbeiten-Modus serialisiert seine Moves** (`busy`): Ein Rollback arbeitet mit Indizes,
+  und ein zweiter Move dazwischen ließe sie auf falsche Zeilen zeigen.
+- **Entfernen im Bearbeiten-Modus wartet auf das Undo** (8 s, so lang wie der Aktions-Toast): Die
+  Zeile verschwindet sofort vom Schirm, der Server hört erst nach Ablauf davon — oder beim
+  Verlassen des Modus. Ein Undo braucht so keinen zweiten Schreibpfad (Wiedereinfügen würde
+  `added_at` neu setzen). ⚠️ Die wartende Löschung merkt sich **Playlist-ID, Trackhash und
+  Index beim Auslösen**: Ein Wechsel zu einer anderen Playlist in derselben View leert den Store
+  (`resetTracks()`), **bevor** die Liste abgebaut wird — die erste Fassung suchte die Zeile dann
+  im leeren Store, fand sie nicht und verwarf die Löschung still. Moves um eine noch versteckte Zeile herum übersetzt `landingGap()`
+  (`utils/dragReorder.ts`) über die Referenz der **folgenden** sichtbaren Zeile in den Drop-Gap
+  des Stores.
 
 ## ⚠️ Derselbe Track ist mehrere Objekte — Zustand pro HASH veröffentlichen (#543)
 

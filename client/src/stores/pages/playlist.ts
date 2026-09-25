@@ -30,6 +30,12 @@ export default defineStore('playlist-tracks', {
             btn: '',
         },
         uploadImgUrl: '',
+        // The edit mode (components/PlaylistView/EditList.vue): the list is
+        // reordered by grip and pruned by button instead of played.
+        editing: false,
+        // The track the edit mode opened on (from its context menu), by hash,
+        // so the list can scroll it into view. Empty when opened from the page.
+        editFocus: '',
     }),
     actions: {
         /**
@@ -143,8 +149,43 @@ export default defineStore('playlist-tracks', {
             this.extractColors(this.info.image)
             this.info.has_image = true
         },
+        /**
+         * Drop a row the server has already removed from the playlist.
+         *
+         * The server's list is one shorter now, so the header and the
+         * pagination cursor follow: `info.count` and `info.duration` are what
+         * the header shows, and `loadedHashCount` is the offset of the next
+         * page — left as it was, the next page would start one hash too late
+         * and silently skip a track. (The re-fetch that used to follow a
+         * removal did none of this: with tracks loaded, `fetchAll(id, true)`
+         * returns before touching `info`.)
+         */
         removeTrackByIndex(index: number) {
-            this.allTracks.splice(index, 1)
+            const [gone] = this.allTracks.splice(index, 1)
+            if (!gone) return
+
+            if (this.info.count) this.info.count -= 1
+            if (this.info.duration && gone.duration) {
+                this.info.duration = Math.max(0, this.info.duration - gone.duration)
+            }
+            if (this.loadedHashCount) this.loadedHashCount -= 1
+        },
+        /**
+         * Enter the edit mode. It works on the WHOLE list, so the rest is
+         * loaded first — a grip can only move a row between rows that exist,
+         * and a playlist that stops at its first page would offer a
+         * reordering of page one. The in-playlist search is cleared: the edit
+         * list shows every track in stored order, never a filtered view.
+         */
+        async startEditing(focusTrackhash = '') {
+            if (!this.allLoaded) await this.fetchAll(this.info.id, false, true)
+            this.query = ''
+            this.editFocus = focusTrackhash
+            this.editing = true
+        },
+        stopEditing() {
+            this.editing = false
+            this.editFocus = ''
         },
         moveTrack(from: number, to: number) {
             const [item] = this.allTracks.splice(from, 1)
@@ -159,6 +200,7 @@ export default defineStore('playlist-tracks', {
             this.allTracks = []
             this.allLoaded = false
             this.loadedHashCount = 0
+            this.stopEditing()
         },
         resetAll() {
             setTimeout(() => {

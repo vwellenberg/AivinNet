@@ -1,12 +1,14 @@
 import { Option, Playlist } from "../interfaces";
 import { playFromPlaylist } from "@/helpers/usePlayFrom";
 import { togglePlaylistPin } from "@/helpers/pinPlaylist";
-import { AddToQueueIcon, DeleteIcon, DownloadIcon, PencilIcon, PlayIcon, PlayNextIcon, PushPinIcon } from "@/icons";
+import { AddToQueueIcon, DeleteIcon, DownloadIcon, PencilIcon, PlayIcon, PlaylistIcon, PlayNextIcon, PushPinIcon } from "@/icons";
 import { getPlaylist } from "@/requests/playlists";
 import { getBaseUrl, paths } from "@/config";
 import { downloadTracksIndividually } from "@/helpers/downloadTracks";
 import useModalStore from "@/stores/modal";
 import usePlaylistFolders from "@/stores/playlistFolders";
+import usePlaylistStore from "@/stores/pages/playlist";
+import { isStoredPlaylistId } from "@/utils/storedPlaylist";
 import useTracklist from "@/stores/queue/tracklist";
 
 /**
@@ -58,6 +60,16 @@ export default async (playlist: Playlist, on_page = false) => {
     label: "Edit",
     icon: PencilIcon,
     action: () => modal.showEditPlaylistModal(),
+  };
+
+  // The page's edit mode — grips to reorder, buttons to remove
+  // (components/PlaylistView/EditList.vue). Page-only for the same reason as
+  // Edit: it acts on the PAGE store's list. And only for a stored playlist —
+  // the generated ones ("Recently added" …) have an order the server computes.
+  const editOrder: Option = {
+    label: "Edit order",
+    icon: PlaylistIcon,
+    action: () => usePlaylistStore().startEditing(),
   };
 
   const del: Option = {
@@ -132,6 +144,7 @@ export default async (playlist: Playlist, on_page = false) => {
     downloadZip,
     downloadTracks,
     ...(on_page ? [edit] : []),
+    ...(on_page && isStoredPlaylistId(playlist.id) ? [editOrder] : []),
     del,
   ];
 };

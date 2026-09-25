@@ -4,10 +4,21 @@
         gap to the header above as padding, because the scroller measures this
         component's height and a margin would not be part of it.
     -->
-    <div class="p-after-header" :class="{ 'with-date': showDateHeading, 'caps-list': caps_list }">
-        <div class="ah-bar">
-            <div class="ah-label">All Tracks</div>
+    <div
+        class="p-after-header"
+        :class="{ 'with-date': showDateHeading, 'caps-list': caps_list, 'is-editing': editing }"
+    >
+        <div class="ah-bar" :class="{ 'has-action': editing || editable }">
+            <div v-if="editing" class="ah-label">
+                Edit order <span class="ah-count">· {{ count }}</span>
+            </div>
+            <div v-else class="ah-label">All Tracks</div>
             <div v-if="showDateHeading" class="date-added-heading">Date added</div>
+            <!-- The way into the edit mode (grips to reorder, buttons to remove)
+                 and back out of it. It lives on the caption because that is
+                 what it acts on: the list right under it. -->
+            <button v-if="editing" type="button" class="ah-edit is-done" @click="$emit('done')">Done</button>
+            <button v-else-if="editable" type="button" class="ah-edit" @click="$emit('edit')">Edit</button>
         </div>
     </div>
 </template>
@@ -26,9 +37,22 @@ const props = defineProps<{
     // under it that cap would be a lid on an empty box, so it stays a plain
     // caption.
     caps_list?: boolean
+    // The list can be edited (a stored playlist with tracks): offer "Edit".
+    editable?: boolean
+    // The edit mode is on: the caption names it and offers "Done".
+    editing?: boolean
+    // How many tracks the edit mode is working on.
+    count?: number
 }>()
 
-const showDateHeading = computed(() => Boolean(props.show_date_added) && !isSmall.value && !isMedium.value)
+defineEmits<{
+    (e: 'edit'): void
+    (e: 'done'): void
+}>()
+
+const showDateHeading = computed(
+    () => Boolean(props.show_date_added) && !props.editing && !isSmall.value && !isMedium.value
+)
 </script>
 
 <style lang="scss">
@@ -156,6 +180,45 @@ const showDateHeading = computed(() => Boolean(props.show_date_added) && !isSmal
 
 .p-after-header.caps-list.with-date > .ah-bar {
     padding-left: $songlist-lead;
+}
+
+// ---------------------------------------------------------------------------
+// EDIT / DONE
+//
+// A 44px control on a 2.4rem bar: the bar grows to hold it rather than the
+// button shrinking under the touch floor (styling.md). It grows only when there
+// IS a button — a caption without one keeps the slim cap.
+// ---------------------------------------------------------------------------
+.p-after-header > .ah-bar.has-action {
+    height: auto;
+    min-height: 2.4rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.p-after-header .ah-edit {
+    @include btn-action($size: $bar-control, $width: auto, $hatch: false);
+    margin-left: auto;
+    // The caption's letter case and tracking are for the label, not the control.
+    text-transform: none;
+    letter-spacing: 0.02em;
+
+    &.is-done {
+        @include btn-primary($h: $bar-control, $pad: 0 1rem, $glyph: 1rem);
+    }
+}
+
+// In the date-column grid the control takes the last cell, the one above the
+// duration column.
+.p-after-header.with-date > .ah-bar > .ah-edit {
+    grid-column: -2;
+    justify-self: end;
+}
+
+.p-after-header .ah-count {
+    opacity: 0.7;
+    font-weight: 500;
+    letter-spacing: 0.04em;
 }
 
 .isSmall .p-after-header.caps-list > .ah-bar {
