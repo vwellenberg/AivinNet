@@ -11,7 +11,6 @@
              the veil's scroll handler find it. -->
         <div v-if="playlist.editing" id="contentscroller" class="scroller p-edit-scroller">
             <Header />
-            <AfterHeader editing caps_list :count="playlist.allTracks.length" @done="playlist.stopEditing()" />
             <EditList />
         </div>
         <DynamicScroller
@@ -44,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, nextTick, watch } from 'vue'
 import { onBeforeUnmount } from 'vue'
 
 import { isMedium, isSmall, isSmallPhone } from '@/stores/content-width'
@@ -68,6 +67,7 @@ import { Track } from '@/interfaces'
 import { pageGradient } from '@/utils/colortools/pageGradient'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
 import { trackBandFade } from '@/utils/songItemMethods'
+import { isStoredPlaylistId } from '@/utils/storedPlaylist'
 
 const queue = useQueue()
 const tracklist = useTracklist()
@@ -85,7 +85,7 @@ watch(() => route.params.pid, async (newPid, oldPid) => {
 // added_at, and their order is the user's to change. The custom
 // "recentlyadded"/"recentlyplayed" playlists served through this view are
 // computed by the server — no "Date added" column, no edit mode.
-const isStoredPlaylist = computed(() => /^\d+$/.test(route.params.pid as string))
+const isStoredPlaylist = computed(() => isStoredPlaylistId(route.params.pid))
 
 interface ScrollerItem {
     id: string | number
@@ -271,6 +271,24 @@ async function playFromPlaylistPage(index: number) {
     queue.play(index)
 }
 
+// The two modes share the header, the caption height and the 72px row, so a
+// scroll offset means the same place in both: carry it across the switch, or
+// "Done" throws the user back to the top of a long playlist. Read before the
+// swap (a `pre` watcher runs before the render), written after it — one frame
+// later, so the virtual scroller has laid out its first measurement.
+// (Opened from a track's menu, EditList scrolls to that track afterwards.)
+watch(
+    () => playlist.editing,
+    async () => {
+        const offset = document.getElementById('contentscroller')?.scrollTop ?? 0
+        await nextTick()
+        requestAnimationFrame(() => {
+            const el = document.getElementById('contentscroller')
+            if (el && !playlist.editFocus) el.scrollTop = offset
+        })
+    }
+)
+
 // The name arrives with the fetch, not with the mount: this component is
 // reused across playlists (the route param changes, setup does not re-run), so
 // reading the store once would name the PREVIOUS playlist forever. Watch the
@@ -306,8 +324,9 @@ onBeforeRouteLeave(() => {
     // The caption bar stays in reach while the list scrolls under it: "Done"
     // must be one tap away anywhere in a long list. Its top padding is the gap
     // to the header, so it sticks that much above the edge and the bar itself
-    // lands on it.
-    > .p-after-header {
+    // lands on it. (It sits inside EditList, whose box spans the whole list —
+    // that is the range it sticks over.)
+    .p-edit-list > .p-after-header {
         position: sticky;
         top: calc(-1 * #{$medium});
         z-index: 6;

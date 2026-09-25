@@ -8,6 +8,7 @@ import { downloadTracksIndividually } from "@/helpers/downloadTracks";
 import useModalStore from "@/stores/modal";
 import usePlaylistFolders from "@/stores/playlistFolders";
 import usePlaylistStore from "@/stores/pages/playlist";
+import { isStoredPlaylistId } from "@/utils/storedPlaylist";
 import useTracklist from "@/stores/queue/tracklist";
 
 /**
@@ -143,7 +144,7 @@ export default async (playlist: Playlist, on_page = false) => {
     downloadZip,
     downloadTracks,
     ...(on_page ? [edit] : []),
-    ...(on_page && /^\d+$/.test(String(playlist.id)) ? [editOrder] : []),
+    ...(on_page && isStoredPlaylistId(playlist.id) ? [editOrder] : []),
     del,
   ];
 };

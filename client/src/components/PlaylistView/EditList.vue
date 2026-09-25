@@ -6,10 +6,20 @@
          on a row opens its menu instead.
 
          Not virtualised, on purpose. A row that is being dragged must not be
-         recycled while the list scrolls under it, and the edit rows are light
-         (no menus, no links, no hover machinery). -->
+         recycled while the list scrolls under it. What keeps a long list
+         cheap instead is the drag itself: it moves rows by writing their
+         transforms directly, so a move of the finger re-renders nothing. -->
     <div ref="root" class="p-edit-list">
-        <ol class="edit-list" :class="{ 'is-dragging': drag !== null, 'is-settling': settling }" aria-label="Tracks">
+        <!-- The caption lives here, not in the page: it counts what is ON
+             SCREEN (a removal waiting for its undo is already gone from it),
+             and "Done" has to settle that removal before the mode closes. -->
+        <AfterHeader editing caps_list :count="rows.length" @done="done" />
+        <ol
+            ref="list"
+            class="edit-list"
+            :class="{ 'is-dragging': liftedKey !== null, 'is-settling': settling }"
+            aria-label="Tracks"
+        >
             <li
                 v-for="(track, i) in rows"
                 :key="keyOf(track)"
@@ -18,11 +28,11 @@
                     trackBandClass(i),
                     {
                         'is-last': i === rows.length - 1,
-                        'is-lifted': drag?.from === i,
+                        'is-lifted': liftedKey === keyOf(track),
                         'is-dropped': dropped === keyOf(track),
                     },
                 ]"
-                :style="{ '--band-fade': trackBandFade(i + 1, rows.length), transform: transformOf(i) }"
+                :style="{ '--band-fade': trackBandFade(i + 1, rows.length) }"
                 :data-trackhash="track.trackhash"
             >
                 <button
@@ -62,11 +72,14 @@ import { paths } from '@/config'
 import { NotifType } from '@/enums'
 import { movePlaylistTrackTo, removePlaylistTrack } from '@/helpers/playlistTrackEdits'
 import { Track } from '@/interfaces'
+import { removeTracks } from '@/requests/playlists'
 import usePlaylistStore from '@/stores/pages/playlist'
 import { Notification } from '@/stores/notification'
 import { clampTravel, landingGap, landingIndex, makeRoomShift } from '@/utils/dragReorder'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
 import { trackBandClass, trackBandFade } from '@/utils/songItemMethods'
+
+import AfterHeader from './AfterHeader.vue'
 
 const playlist = usePlaylistStore()
 const imguri = paths.images.thumb.small
@@ -144,7 +157,7 @@ async function move(from: number, to: number): Promise<void> {
 async function onGripKey(e: KeyboardEvent, i: number) {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     e.preventDefault()
-    if (busy.value || drag.value) return
+    if (busy.value || drag) return
 
     const to = i + (e.key === 'ArrowUp' ? -1 : 1)
     if (to < 0 || to >= rows.value.length) return
@@ -158,12 +171,19 @@ async function focusGrip(track: Track) {
     await nextTick()
     const key = keyOf(track)
     const index = rows.value.findIndex(t => keyOf(t) === key)
-    const grips = listEl()?.querySelectorAll<HTMLElement>('.edit-grip')
+    const grips = root.value?.querySelectorAll<HTMLElement>('.edit-grip')
     grips?.[index]?.focus({ preventScroll: true })
 }
 
 // ---------------------------------------------------------------------------
 // Dragging by the grip
+//
+// ⚠️ Deliberately NOT reactive. A move of the finger fires up to 60 times a
+// second, and with the offsets in reactive state every one of them re-rendered
+// the whole list — about a thousand rows on the longest playlists here. The
+// drag writes the transforms of the few rows it touches straight onto their
+// elements; Vue hears about it twice, when a row is picked up and when it is
+// put down.
 // ---------------------------------------------------------------------------
 
 interface Drag {
@@ -175,9 +195,12 @@ interface Drag {
     startScroll: number
     rowHeight: number
     travel: number
+    /** The row elements, in list order, as they were when the row was picked up. */
+    els: HTMLElement[]
 }
 
-const drag = ref<Drag | null>(null)
+let drag: Drag | null = null
+const liftedKey = ref<number | null>(null)
 // One frame without transitions after a drop: the store has already reordered
 // the rows, and animating them back from their make-room offsets would show
 // the old order for a moment.
@@ -188,28 +211,30 @@ const FALLBACK_ROW_HEIGHT = 72
 
 const scroller = () => document.getElementById('contentscroller')
 const root = ref<HTMLElement>()
-const listEl = () => root.value
+const list = ref<HTMLElement>()
 // A little calmer than the mouse drag's defaults: a thumb covers what it is
 // about to scroll into view.
 const autoScroll = createDragAutoScroller(scroller, { zone: 80, maxSpeed: 16 })
 
 function startDrag(e: PointerEvent, i: number) {
-    if (drag.value || busy.value) return
+    if (drag || busy.value) return
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.preventDefault()
 
     const grip = e.currentTarget as HTMLElement
-    const row = grip.closest('li')
-    drag.value = {
+    const els = Array.from(list.value?.children ?? []) as HTMLElement[]
+    drag = {
         from: i,
         to: i,
         pointerId: e.pointerId,
         startY: e.clientY,
         lastY: e.clientY,
         startScroll: scroller()?.scrollTop ?? 0,
-        rowHeight: row?.offsetHeight || FALLBACK_ROW_HEIGHT,
+        rowHeight: els[i]?.offsetHeight || FALLBACK_ROW_HEIGHT,
         travel: 0,
+        els,
     }
+    liftedKey.value = keyOf(rows.value[i])
 
     // Keep the pointer on the grip: without the capture a finger that leaves
     // the grip's box would hand its moves to whatever lies under it.
@@ -230,16 +255,33 @@ function startDrag(e: PointerEvent, i: number) {
 // Where the row is now. The list scrolling under a still finger moves the row
 // through it just as much as the finger does, so both count.
 function followFinger() {
-    const d = drag.value
+    const d = drag
     if (!d) return
     const scrolled = (scroller()?.scrollTop ?? d.startScroll) - d.startScroll
-    const count = rows.value.length
+    const count = d.els.length
     d.travel = clampTravel(d.from, d.lastY - d.startY + scrolled, d.rowHeight, count)
+
+    const before = d.to
     d.to = landingIndex(d.from, d.travel, d.rowHeight, count)
+
+    // The row in the hand tilts; the tilt is the app's "picked up" (#143).
+    d.els[d.from].style.transform = `translateY(${d.travel}px) rotate(-1.2deg)`
+
+    // Only the rows between the old and the new landing slot change their
+    // offset — the rest of the list is left alone.
+    if (d.to !== before) {
+        const lo = Math.min(before, d.to, d.from)
+        const hi = Math.max(before, d.to, d.from)
+        for (let i = lo; i <= hi; i++) {
+            if (i === d.from) continue
+            const shift = makeRoomShift(i, d.from, d.to, d.rowHeight)
+            d.els[i].style.transform = shift ? `translateY(${shift}px)` : ''
+        }
+    }
 }
 
 function onPointerMove(e: PointerEvent) {
-    const d = drag.value
+    const d = drag
     if (!d || e.pointerId !== d.pointerId) return
     d.lastY = e.clientY
     followFinger()
@@ -247,16 +289,17 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp(e: PointerEvent) {
-    if (drag.value && e.pointerId === drag.value.pointerId) endDrag(true)
+    if (drag && e.pointerId === drag.pointerId) endDrag(true)
 }
 
 function onPointerCancel(e: PointerEvent) {
-    if (drag.value && e.pointerId === drag.value.pointerId) endDrag(false)
+    if (drag && e.pointerId === drag.pointerId) endDrag(false)
 }
 
 function endDrag(commit: boolean) {
-    const d = drag.value
+    const d = drag
     if (!d) return
+    drag = null
 
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
@@ -264,22 +307,16 @@ function endDrag(commit: boolean) {
     scroller()?.removeEventListener('scroll', followFinger)
     autoScroll.stop()
 
-    const moved = rows.value[d.from]
+    // Hand the rows back to the layout: clear what the drag wrote, with the
+    // transitions off for a frame so they do not animate back into place.
     settling.value = true
-    drag.value = null
+    for (const el of d.els) el.style.transform = ''
     requestAnimationFrame(() => (settling.value = false))
+    liftedKey.value = null
 
+    const moved = rows.value[d.from]
     if (commit && d.to !== d.from) move(d.from, d.to)
     if (moved) focusGrip(moved)
-}
-
-function transformOf(i: number): string | undefined {
-    const d = drag.value
-    if (!d) return undefined
-    // The row in the hand tilts; the tilt is the app's "picked up" (#143).
-    if (i === d.from) return `translateY(${d.travel}px) rotate(-1.2deg)`
-    const shift = makeRoomShift(i, d.from, d.to, d.rowHeight)
-    return shift ? `translateY(${shift}px)` : undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -290,15 +327,31 @@ function transformOf(i: number): string | undefined {
 // (stores/notification.ts keeps an action toast for 8 s).
 const UNDO_MS = 8000
 
-let pending: { track: Track; timer: ReturnType<typeof setTimeout> } | null = null
+interface Pending {
+    track: Track
+    timer: ReturnType<typeof setTimeout>
+    // Where the removal was asked for. The page can move on before the undo
+    // runs out — to another playlist in the same view, which empties the store
+    // — and the removal still has to reach the playlist it was meant for.
+    pid: number
+    trackhash: string
+    index: number
+}
+
+let pending: Pending | null = null
 
 function remove(track: Track) {
     // One undo at a time: a second removal settles the first.
     commitPending()
 
     hidden.add(track)
-    const timer = setTimeout(commitPending, UNDO_MS)
-    pending = { track, timer }
+    pending = {
+        track,
+        timer: setTimeout(commitPending, UNDO_MS),
+        pid: playlist.info.id,
+        trackhash: track.trackhash,
+        index: playlist.allTracks.indexOf(track),
+    }
 
     announcement.value = `Removed ${track.title}`
     new Notification(`Removed “${track.title}”`, NotifType.Info, {
@@ -319,31 +372,39 @@ function undo(track: Track) {
 
 function commitPending() {
     if (!pending) return
-    const { track, timer } = pending
+    const { track, timer, pid, trackhash, index } = pending
     clearTimeout(timer)
     pending = null
 
-    const index = playlist.allTracks.indexOf(track)
-    if (index === -1) {
-        hidden.delete(track)
+    const now = playlist.allTracks.indexOf(track)
+    if (playlist.info.id === pid && now !== -1) {
+        // The row stays hidden while the request runs; if the server refuses,
+        // it comes back (the request reports the failure itself).
+        removePlaylistTrack(now, false).then(() => hidden.delete(track))
         return
     }
 
-    // The row stays hidden while the request runs; if the server refuses, it
-    // comes back (the request reports the failure itself).
-    removePlaylistTrack(index, false).then(() => hidden.delete(track))
+    // The page has moved on (another playlist, or the list was reloaded): there
+    // is no row left to update, but the removal was asked for.
+    hidden.delete(track)
+    removeTracks(pid, [{ trackhash, index }], false)
 }
 
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+function done() {
+    commitPending()
+    playlist.stopEditing()
+}
+
 onMounted(async () => {
     if (!playlist.editFocus) return
     await nextTick()
     // Opened from a track's menu: start where that track is.
     // Trackhashes are hex, safe inside the quoted attribute value.
-    const row = listEl()?.querySelector<HTMLElement>(`[data-trackhash="${playlist.editFocus}"]`)
+    const row = root.value?.querySelector<HTMLElement>(`[data-trackhash="${playlist.editFocus}"]`)
     row?.scrollIntoView({ block: 'center' })
     const focused = rows.value.find(t => t.trackhash === playlist.editFocus)
     if (focused) flash(focused)
@@ -352,12 +413,10 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     // Leaving — "Done", another page, another playlist — settles what is
     // still waiting for its undo; the removal was asked for.
-    if (drag.value) endDrag(false)
+    if (drag) endDrag(false)
     commitPending()
     clearTimeout(droppedTimer)
 })
-
-defineExpose({ commitPending })
 </script>
 
 <style lang="scss">
@@ -446,6 +505,11 @@ defineExpose({ commitPending })
 .edit-row .edit-remove,
 .edit-row .edit-grip {
     @include btn-quiet($size: $bar-control);
+    // The row's colour, not the role's: on a hovered row the fill is the ink
+    // contrast surface and the row flips its text to --mem-hover-text
+    // (SongItem.vue). The role's own $mem-content-text would stay ink there,
+    // and the grip would vanish exactly when the pointer reaches for it.
+    color: inherit;
 }
 
 // A coral disc with an ink bar: "take this out". Static fills, so the ink is

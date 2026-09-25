@@ -15,6 +15,7 @@ import useQueueStore from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import { loggedInUserIsAdmin } from '@/settings/utils'
 import { getAddToPlaylistOptions, get_find_on_social } from './utils'
+import { isStoredPlaylistId } from '@/utils/storedPlaylist'
 
 /**
  * Returns a list of context menu items for a track.
@@ -24,7 +25,7 @@ import { getAddToPlaylistOptions, get_find_on_social } from './utils'
 
 export default async (track: Track): Promise<Option[]> => {
     const route = router.currentRoute.value
-    const on_playlist = route.name === Routes.playlist && !Number.isNaN(parseInt(route.params.pid as string))
+    const on_playlist = route.name === Routes.playlist && isStoredPlaylistId(route.params.pid)
 
     const track_artists = Object.values(
         [...track.artists, ...track.albumartists].reduce((acc, artist) => {

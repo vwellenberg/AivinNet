@@ -23,6 +23,19 @@ vi.mock("@/requests/playlists", () => ({
   removeBannerImage: vi.fn(),
 }));
 
+// Counts renders of the list: the template calls trackBandFade once per row.
+const renderProbe = vi.hoisted(() => vi.fn());
+vi.mock("@/utils/songItemMethods", async () => {
+  const actual = (await vi.importActual("@/utils/songItemMethods")) as Record<string, unknown>;
+  return {
+    ...actual,
+    trackBandFade: (...args: unknown[]) => {
+      renderProbe();
+      return (actual.trackBandFade as (...a: unknown[]) => number)(...args);
+    },
+  };
+});
+
 const move = vi.mocked(movePlaylistTrack);
 const remove = vi.mocked(removeTracks);
 
@@ -213,6 +226,56 @@ describe("the edit list", () => {
     await flushPromises();
     expect(shown(wrapper)).toEqual(["Title a", "Title c", "Title d"]);
     expect(order()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  // Switching to another playlist in the same view empties the store BEFORE
+  // the edit list unmounts. The removal still belongs to the playlist it was
+  // made in — it used to look itself up in the emptied store and vanish.
+  it("still removes from the right playlist when the page switches away", async () => {
+    const { playlist, wrapper } = setup();
+    await wrapper.findAll(".edit-remove")[2].trigger("click"); // "c"
+
+    playlist.resetTracks(); // what the route watch does on a switch
+    playlist.info = { id: 8, name: "Other" } as never;
+    wrapper.unmount();
+    await flushPromises();
+
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "c", index: 2 }], false);
+  });
+
+  it("counts the rows on screen, and Done settles the removal and closes the mode", async () => {
+    const { playlist, wrapper } = setup();
+    playlist.editing = true;
+    expect(wrapper.find(".ah-count").text()).toContain("4");
+
+    await wrapper.findAll(".edit-remove")[0].trigger("click");
+    expect(wrapper.find(".ah-count").text()).toContain("3");
+
+    await wrapper.find("button.ah-edit").trigger("click");
+    await flushPromises();
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false);
+    expect(playlist.editing).toBe(false);
+  });
+
+  it("moves the rows by writing their transforms, not by re-rendering the list", async () => {
+    const { wrapper } = setup();
+    const grip = wrapper.findAll(".edit-grip")[0].element;
+    pointer("pointerdown", 100, grip);
+    await wrapper.vm.$nextTick();
+
+    // Every render of the list calls trackBandFade once per row; a finger
+    // moving must not cause a single one (the longest playlists here hold
+    // about a thousand rows, and a move fires up to 60 times a second).
+    renderProbe.mockClear();
+    for (let y = 110; y <= 100 + 2.6 * 72; y += 10) pointer("pointermove", y);
+    await wrapper.vm.$nextTick();
+
+    expect(renderProbe).not.toHaveBeenCalled();
+    const rows = wrapper.findAll(".edit-row").map(r => r.element as HTMLElement);
+    expect(rows[3].style.transform).toContain("translateY(-72px)");
+    expect(rows[0].style.transform).toContain("rotate");
+    pointer("pointerup", 100 + 2.6 * 72);
+    await flushPromises();
   });
 });
 
