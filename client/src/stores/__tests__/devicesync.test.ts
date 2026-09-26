@@ -1448,6 +1448,8 @@ describe('devicesync store', () => {
         // sits 50 ms behind → the estimate moves 60 % of the way.
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 50)
         vi.advanceTimersByTime(750)
+        expect(__latencyForTest().seek).toBe(90) // still settling: three readings first
+        vi.advanceTimersByTime(250)
 
         expect(__latencyForTest().seek).toBe(120)
         expect(JSON.parse(localStorage.getItem('aivinnet.sync_latency') as string).seek).toBe(120)
@@ -1476,7 +1478,7 @@ describe('devicesync store', () => {
 
         // This device has not measured its start latency yet: it sounds 80 ms late.
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 80)
-        vi.advanceTimersByTime(750)
+        vi.advanceTimersByTime(1000)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
         // ...and learned from it: 50 + 0.6 * 80.
         expect(__latencyForTest().start).toBe(98)
@@ -1486,6 +1488,37 @@ describe('devicesync store', () => {
         vi.advanceTimersByTime(1500)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
         expect(lastRate()).toBeGreaterThan(1)
+    })
+
+    it('a late timer is not learned as device latency (it climbed past 300 ms under load)', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        // A busy main thread: the timer due at 1450 ms fires 100 ms late, so
+        // the device sounds 100 ms behind although its own delay is right.
+        vi.setSystemTime(now + 100)
+        vi.advanceTimersByTime(1450)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+        // 100 ms is the landing seek's job — re-positioning would re-buffer.
+        expect(playerMock.seekGroupStandbyMs).not.toHaveBeenCalled()
+
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 100)
+        vi.advanceTimersByTime(1100)
+
+        expect(__latencyForTest().start).toBe(50)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
     })
 
     it('the leader books the next track for the exact end of the current one', async () => {

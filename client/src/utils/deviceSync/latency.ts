@@ -49,13 +49,24 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Update an estimate from the residual error (device position minus expected
- * position, ms) measured once the action settled. Behind (negative residual)
- * means the delay was underestimated.
+ * Update an estimate from one observation.
+ *
+ * `leadMs` is how far ahead of the anchor the element really was when the
+ * action happened — the estimate itself when the action ran on time, less
+ * when a busy main thread fired it late. `residualMs` is the error (device
+ * position minus expected position) once the action had settled; the delay
+ * this device actually had is their difference.
+ *
+ * Learning from the residual alone counted every late timer as latency: under
+ * CPU load the estimate climbed past 300 ms, every transition started that
+ * much early, and the corrections that followed fought each other.
  */
-export function learnLatency(current: number, residualMs: number): number {
-    if (!Number.isFinite(residualMs) || Math.abs(residualMs) > MAX_RESIDUAL_MS) return current
-    return clamp(Math.round(current - residualMs * LEARN_RATE), 0, MAX_LATENCY_MS)
+export function learnLatency(current: number, leadMs: number, residualMs: number): number {
+    if (!Number.isFinite(residualMs) || !Number.isFinite(leadMs) || Math.abs(residualMs) > MAX_RESIDUAL_MS) {
+        return current
+    }
+    const observed = leadMs - residualMs
+    return clamp(Math.round(current + (observed - current) * LEARN_RATE), 0, MAX_LATENCY_MS)
 }
 
 export function loadLatency(): LatencyModel {

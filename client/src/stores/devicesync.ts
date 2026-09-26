@@ -71,14 +71,23 @@ const MAX_EXECUTED_IDS = 500
 /** Transport commands; the state carries them, see `handleCommands`. */
 const TRANSPORT_TYPES = new Set<SyncCommandType>(['play', 'pause', 'seek', 'track_change', 'set_repeat'])
 
-/** How long an action's audible result settles before it is measured (ms). */
-const SETTLE_MS = 700
+/**
+ * How long an action's audible result settles before it is measured (ms).
+ * Long enough for three readings past the stall (see SETTLED_READING_MS):
+ * one reading is not a measurement on Firefox, whose currentTime jitters.
+ */
+const SETTLE_MS = 1000
 /** Stop waiting for a stalled element (buffering) to settle after this (ms). */
 const SETTLE_GIVEUP_MS = 6000
 /** A jump smaller than this (ms) is no jump: the playing element carries on. */
 const JUMP_MS = 60
-/** A standby this far off its start position (ms) is re-positioned before it plays. */
-const STANDBY_SLACK_MS = 20
+/**
+ * A prepared (or paused) element this far off where it should start (ms) is
+ * re-positioned before it plays; anything less is left to the landing seek.
+ * Re-positioning costs a re-buffer of its own, and at 20 ms every slightly
+ * late timer paid one.
+ */
+const RESTART_SLACK_MS = 250
 /** A paused element this far off the anchor (ms) is re-positioned — free, nothing sounds. */
 const PAUSED_SLACK_MS = 40
 /**
@@ -144,7 +153,7 @@ function clearPending() {
  * until it has, then measures the residual error and learns from it. Seeking
  * again before a seek had landed is what produced ten seeks in a row.
  */
-let settle: { kind: LatencyKind | 'load'; at: number } | null = null
+let settle: { kind: LatencyKind | 'load'; at: number; lead: number } | null = null
 /** Rate steering is engaged (hysteresis, see driftSteer.ts). */
 let steering = false
 /** The last few error readings since the clock last jumped; decisions use their median. */
@@ -283,9 +292,13 @@ function resetRate(player: ReturnType<typeof usePlayer>) {
     steering = false
 }
 
-/** Open a settle window for an action taken just now — earlier readings are void. */
-function settleAfter(kind: LatencyKind | 'load') {
-    settle = { kind, at: Date.now() }
+/**
+ * Open a settle window for an action taken just now — earlier readings are
+ * void. `leadMs`: how far ahead of the anchor the element was placed (see
+ * `learnLatency`); irrelevant for a load, whose delay is the network's.
+ */
+function settleAfter(kind: LatencyKind | 'load', leadMs = 0) {
+    settle = { kind, at: Date.now(), lead: leadMs }
     readings = []
 }
 
@@ -703,19 +716,24 @@ export default defineStore('devicesync', {
 
             // 1. A prepared standby: cut over. When this starts sound it runs
             //    `latency.start` early (holdUntilDue), so "where the anchor will
-            //    be once it sounds" is the prepared position itself — unless the
-            //    commit came late (a throttled timer), then it is moved on.
+            //    be once it sounds" is the prepared position itself. A commit
+            //    that came far too late (a throttled timer) is moved on first —
+            //    that start re-buffers, so it teaches nothing about the device.
             if (key && player.groupStandbyReady(key)) {
+                let startsAt = player.groupStandbyTimeMs()
+                let clean = true
                 if (this.playing) {
                     const soundsAt = this.expectedMs(latency.start)
-                    if (Math.abs(player.groupStandbyTimeMs() - soundsAt) > STANDBY_SLACK_MS) {
+                    if (Math.abs(startsAt - soundsAt) > RESTART_SLACK_MS) {
                         player.seekGroupStandbyMs(soundsAt)
+                        startsAt = soundsAt
+                        clean = false
                     }
                 }
                 resetRate(player)
                 player.switchToGroupStandby(current, this.playing, loadedTrackhash !== current.trackhash)
                 loadedTrackhash = current.trackhash
-                if (this.playing) settleAfter('start')
+                if (this.playing) settleAfter(clean ? 'start' : 'load', this.leadOf(startsAt))
                 else settle = null
                 return
             }
@@ -742,13 +760,20 @@ export default defineStore('devicesync', {
                 return
             }
 
-            // 4. Same track, resume: sit where the anchor will be once it sounds.
+            // 4. Same track, resume: it sits where it paused, which is where the
+            //    anchor will be once it sounds when this runs on time. Far off
+            //    (a late tap on the autoplay prompt) it is moved there first.
             if (player.isPaused()) {
                 const soundsAt = this.expectedMs(latency.start)
-                if (Math.abs(player.getCurrentTimeMs() - soundsAt) > STANDBY_SLACK_MS) player.hardSeekMs(soundsAt)
+                let startsAt = player.getCurrentTimeMs()
+                const clean = Math.abs(startsAt - soundsAt) <= RESTART_SLACK_MS
+                if (!clean) {
+                    player.hardSeekMs(soundsAt)
+                    startsAt = soundsAt
+                }
                 resetRate(player)
                 void audioSource.playPlayingSource()
-                settleAfter('start')
+                settleAfter(clean ? 'start' : 'load', this.leadOf(startsAt))
                 return
             }
 
@@ -760,8 +785,22 @@ export default defineStore('devicesync', {
         seekCompensated() {
             const player = usePlayer()
             resetRate(player)
-            player.hardSeekMs(this.expectedMs(latency.seek))
-            settleAfter('seek')
+            const target = this.expectedMs(latency.seek)
+            player.hardSeekMs(target)
+            settleAfter('seek', this.leadOf(target))
+        },
+
+        /**
+         * How many ms from now the anchor reaches `positionMs` (incl. this
+         * device's trim) — how far AHEAD of the group an element sitting there
+         * is. Unclamped, unlike `expectedMs`: a track start is ahead of an
+         * anchor that has not begun yet, and that difference is the lead a
+         * latency is learned against.
+         */
+        leadOf(positionMs: number): number {
+            if (!this.anchor) return 0
+            const { position_ms, at_server_ms } = this.anchor
+            return at_server_ms + (positionMs - this.audioOffsetMs - position_ms) - estimator.serverNow()
         },
 
         /** Expected position (ms, incl. this device's trim) `aheadMs` from now. */
@@ -870,11 +909,11 @@ export default defineStore('devicesync', {
                     if (age > SETTLE_GIVEUP_MS) settle = null
                     return
                 }
-                const landed = settle.kind
+                const { kind: landed, lead } = settle
                 const residual = median(readings.filter(r => r.at - since >= SETTLED_READING_MS).map(r => r.error))
                 settle = null
                 if (landed !== 'load') {
-                    latency = { ...latency, [landed]: learnLatency(latency[landed], residual) }
+                    latency = { ...latency, [landed]: learnLatency(latency[landed], lead, residual) }
                     saveLatency(latency)
                 }
                 // The landing of a transition itself (not of a correction):
