@@ -627,9 +627,9 @@ ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht 
 dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
 schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
 
-## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis, Stream (#199) und Desktop 98 (#241)
+## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis, Stream (#199), Desktop 98 (#241), Virtual Grid (#259)
 
-**Look** (Formsprache: Memphis, Stream, Desktop 98) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
+**Look** (Formsprache: Memphis, Stream, Desktop 98, Virtual Grid) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
 keine Liste. Eine Liste „Memphis / Memphis Dark / Stream" mischt ein Design mit einer Helligkeit
 und bricht beim ersten Look, der ebenfalls beide Modi hat. Modell und Body-Klassen:
 `utils/theme.ts` (`themeBodyClasses(look, mode)`); gespeichert als `look` + das alte `theme`-Feld
@@ -722,6 +722,39 @@ ist keine Deko — `body.use-figtree-font` und `body.theme-dark` stehen in `Glob
 Beweis beim Bau: Memphis hell/dunkel und Stream pixelgenau master gegen Branch
 (`~/uitest/regress98.js` + `imgdiff.py`; Rauschen master gegen master: 5–50 px auf denselben
 Seiten), Kontrast jedes sichtbaren Texts auf sechs Seiten (`~/uitest/contrast98.js`).
+
+### Virtual Grid (#259) — der vierte Look
+
+Dunkles Glas über einem Neon-Gitter, Himmel Indigo → Pflaume, Cyan für Play/Fortschritt, Magenta
+für „dieser hier". **Nur dunkel**, gebaut wie Stream auf den dunklen Klassen:
+`body.theme-dark.theme-virtualgrid`. Überschriften in VT323, Fließtext IBM Plex Sans (beide OFL,
+selbst gehostet, nur unter diesem Look geladen).
+
+- **Mehrere Bilder im Grund: Größe als Liste.** `--shape-doodles` darf eine *Liste* sein
+  (Scanlines, Gitter, Himmel); `--shape-doodles-size` nennt dann eine Größe pro Bild. Beide
+  Properties expandieren an Ort und Stelle, die Listen bleiben deckungsgleich. Das Gitter liegt
+  **in** dieser Liste, nicht in `--mem-grid-line`: Memphis' Gitterebenen liegen *unter* dem
+  Bild-Slot, ein deckender Himmel verdeckte sie. Der Himmel ist `100% 100%` groß (kein Naht-Problem
+  wie bei fester 3840×1600-Kachel).
+- **Der Horizont ist Pflaume, nicht Pink/Pfirsich wie im Prototyp.** Ein paar Labels stehen direkt
+  auf dem Grund; Weiß und das gedämpfte `#e2daff` müssen am hellsten Punkt 4,5:1 halten (das
+  Prototyp-`#cfc6ff` fiel dort darunter).
+- **Scanlines im Grund, nicht über der App.** Über dem Inhalt streifen sie jedes Wort; unter
+  78-%-Glas lesen sie sich als Textur. Statisch — für reduzierte Bewegung gibt es nichts
+  abzuschalten.
+- **Eine Anzeigeschrift mit kleiner x-Höhe liest eine Nummer kleiner.** VT323 hat x-Höhe 0,40,
+  Plex 0,52 — bei gleicher `font-size` wurden Captions zu Krümeln. `--look-display-adjust` setzt
+  `font-size-adjust` überall, wo `--look-display-font` gilt (Sticker, Detail-Titel). Wer die
+  Anzeigeschrift lokal abwählt (`font-family: inherit` bei Mini-Labels wie „See all", „Disc 1",
+  den Band-Captions), setzt auch `font-size-adjust: inherit`.
+- **Ein breites Auswahlfeld quetscht die Beschreibung.** Die Einstellungszeile war ein starres
+  `1fr max-content`-Raster; mit vier Looks blieb dem Text eine Ein-Wort-Spalte. Zeilen mit
+  Auswahlfeld (`.has-select`) brechen jetzt um: nebeneinander, solange es passt, sonst darunter.
+
+Beweis beim Bau: alle vier übrigen Looks pixelgleich master gegen Branch, **inklusive jeder Seite
+des Einstellungsdialogs** (`~/uitest/regressvg.js`); Kontrast mit **zusammengesetzten**
+Glas-Hintergründen über jedem Himmels-Stopp (`~/uitest/vgcheck.js`) — `contrast98.js` ignoriert
+durchscheinende Flächen und ist für einen Glas-Look zu grob.
 
 ## ⚠️ Hard-Shadow-System
 
