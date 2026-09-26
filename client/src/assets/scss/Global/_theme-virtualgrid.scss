@@ -1,0 +1,162 @@
+// ============================================================================
+// VIRTUAL GRID — a vaporwave evening: glass panels over a neon grid (#259).
+//
+// The fourth LOOK (utils/theme.ts), the second direction from #241. The mood is
+// the "iVirtual Soundscape" / "Landscapes" covers after sunset: an indigo sky
+// running into a magenta horizon, a cyan wire grid over it, dark glass panels
+// with neon edges, cyan for play and progress, magenta for "this one".
+//
+// Built on the DARK classes like Stream (`body.theme-virtualgrid` always comes
+// with `body.theme-dark`), so every component's dark-ground answer applies
+// first and this block only reshapes it. Nothing here is a component rule:
+//
+//   colour  the `--mem-*` roles (Global/index.scss)
+//   form    the `--shape-*` tokens (_candy.scss) — only a look file defines them
+//   accent  the `--look-*` tokens (_candy.scss "LOOK TOKENS")
+//
+// The plate frame is the neon tube: `--shape-frame` is translucent cyan, and
+// the rest shadow is a soft glow instead of an offset. `--mem-line` stays a
+// pale lavender on purpose — it also inks glyphs, rings and focus outlines,
+// which have to stay legible, and a cyan glyph on a cyan-glowing plate is not.
+// ============================================================================
+
+$vgrid-night: #1c1240;
+$vgrid-glass: #1f1450;
+$vgrid-glass-soft: #2c1d66;
+$vgrid-cyan: #7ff4ff;
+$vgrid-magenta: #ff4fd8;
+$vgrid-violet: #6b2a8f;
+$vgrid-plum: #9a2a87;
+$vgrid-text: #f4f1ff;
+// Measured against the brightest ground under it (the horizon band) — the
+// prototype's #cfc6ff falls under 4.5:1 there.
+$vgrid-muted: #e2daff;
+$vgrid-deep: #12092e;
+
+// THE SKY. Three layers in the ground's artwork slot (`--shape-doodles`, one
+// `--shape-doodles-size` per layer): CRT scan lines on top, the cyan wire grid,
+// the sky itself. The grid lives here and not in Memphis's own grid layers
+// (`--mem-grid-line`): those sit UNDER the artwork slot, and an opaque sky would
+// cover them.
+//
+// The sky is sized to the ground (100% 100%), not to the doodle canvas's
+// 3840x1600 — a gradient repeated at a fixed height shows a seam. The horizon
+// is plum rather than the prototype's pink and peach: a few labels stand on the
+// ground directly, and white or muted text has to keep 4.5:1 at the brightest
+// point of it.
+//
+// The scan lines are the prototype's CRT overlay, but in the GROUND, not over
+// the whole app: over the content they would stripe every word. Under 78 %
+// glass they read as texture. Static, so there is nothing for reduced motion
+// to switch off.
+$vgrid-scanlines: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+$vgrid-wire-h: linear-gradient(rgba(90, 240, 255, 0.28) 1px, transparent 1px);
+$vgrid-wire-v: linear-gradient(90deg, rgba(90, 240, 255, 0.28) 1px, transparent 1px);
+$vgrid-sky: linear-gradient(
+    180deg,
+    #{$vgrid-night} 0%,
+    #33206e 30%,
+    #5a2690 52%,
+    #{$vgrid-plum} 70%,
+    #4a2380 86%,
+    #{$vgrid-night} 100%
+);
+
+// `body.theme-dark.theme-virtualgrid`, like Stream: this file is imported
+// BEFORE the `:root` / `body.theme-dark` blocks in Global/index.scss, and the
+// doubled class outranks the dark block that follows it.
+body.theme-dark.theme-virtualgrid {
+    // --- Surfaces: dark glass ------------------------------------------------
+    --mem-ground: #{$vgrid-night};
+    --mem-grid-line: transparent;
+    --mem-panel: #{$vgrid-glass};
+    --mem-soft: #{$vgrid-glass-soft};
+    // Track lists are glass: the grid shows through, the text reads on it.
+    --mem-veil: rgba(24, 14, 58, 0.82);
+
+    // --- Lines ---------------------------------------------------------------
+    --mem-line: #{$vgrid-text};
+
+    // --- Text ----------------------------------------------------------------
+    --mem-content-text: #{$vgrid-text};
+    --mem-content-muted: #{$vgrid-muted};
+    --mem-content-faint: rgba(244, 241, 255, 0.62);
+    --mem-text: #{$vgrid-text};
+    --mem-text-muted: #{$vgrid-muted};
+
+    // --- Pointer: a neon-violet plate, white on it ---------------------------
+    --mem-hover: #{$vgrid-violet};
+    --mem-hover-text: #ffffff;
+
+    // --- Textures: the ground carries them, plates stay smooth --------------
+    --mem-hatch: none;
+    --mem-hatch-accent: none;
+    --mem-hatch-hover: none;
+    --shape-sprinkle: none;
+    --shape-doodles: #{$vgrid-scanlines}, #{$vgrid-wire-h}, #{$vgrid-wire-v}, #{$vgrid-sky};
+    --shape-doodles-size: auto, 64px 64px, 64px 64px, 100% 100%;
+
+    // --- Form: neon edges, glow instead of offset ---------------------------
+    --shape-frame: rgba(127, 244, 255, 0.55);
+    --mem-shadow: rgba(127, 244, 255, 0.35);
+    --shape-shadow: 0 0 14px rgba(127, 244, 255, 0.22);
+    --shape-shadow-hover: 0 0 18px rgba(127, 244, 255, 0.45);
+    --shape-shadow-lift: 0 10px 26px rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 79, 216, 0.45);
+    // Pressing dims into the glass a pixel instead of pushing into a shadow
+    // that is not there.
+    --shape-press: translateY(1px);
+    --shape-radius: 10px;
+    --shape-radius-sm: 6px;
+    --shape-radius-xs: 3px;
+
+    // --- Accents and states --------------------------------------------------
+    // Cyan means play and progress, magenta means "this one".
+    --look-tint: transparent;
+    --look-tint-text: #{$vgrid-text};
+    --look-active-fill: #{$vgrid-plum};
+    --look-active-text: #ffffff;
+    --look-marker: none;
+    // Section captions are small neon signs: glass, cyan frame, cyan words.
+    --look-sticker-fill: rgba(24, 14, 58, 0.85);
+    --look-sticker-text: #{$vgrid-cyan};
+    // The band over a track list: magenta fading into the glass.
+    --look-bar-fill: #2a1a63;
+    --look-bar-image: linear-gradient(90deg, rgba(255, 79, 216, 0.55), rgba(127, 244, 255, 0.18));
+    --look-bar-text: #ffffff;
+    --look-playing-fill: rgba(255, 79, 216, 0.3);
+    --look-filled-text: #ffffff;
+    --look-filled-muted: #{$vgrid-muted};
+    --look-context-fill: rgba(127, 244, 255, 0.2);
+    --look-menu-hover: #{$vgrid-violet};
+    --look-menu-hover-text: #ffffff;
+    --look-on-fill: transparent;
+    --look-on-glyph: #{$vgrid-cyan};
+    --look-selected-fill: #{$vgrid-cyan};
+    --look-selected-text: #{$vgrid-deep};
+    --look-switch-on: #{$vgrid-magenta};
+    --look-band: transparent;
+    --look-perforation: rgba(127, 244, 255, 0.22);
+    --look-row-edge: transparent;
+    --look-badge-line: transparent;
+    --look-track: rgba(127, 244, 255, 0.18);
+    --look-track-played: #{$vgrid-cyan};
+    --look-track-buffered: rgba(127, 244, 255, 0.36);
+    --look-track-seek: rgba(255, 79, 216, 0.45);
+    --look-thumb-line: transparent;
+
+    // --- Detail pages: a glass head, the title in the terminal face ---------
+    --look-detail-head-fill: rgba(24, 14, 58, 0.82);
+    --shape-detail-title: 3.4rem;
+    --shape-detail-title-phone: 2.2rem;
+    --look-play-fill: #{$vgrid-cyan};
+    --look-play-glyph: #{$vgrid-deep};
+
+    --mem-scrollbar-thumb: rgba(127, 244, 255, 0.35);
+    --mem-scrollbar-thumb-hover: rgba(127, 244, 255, 0.55);
+
+    // Body text in IBM Plex Sans, headings in VT323 — both self-hosted
+    // (assets/fonts, index.scss) and only fetched under this look.
+    --app-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif;
+    --look-display-font: "VT323", ui-monospace, monospace;
+}

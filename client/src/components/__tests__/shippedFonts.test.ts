@@ -30,6 +30,10 @@ const ALLOWED_FONTS: Record<string, string> = {
   "SpaceGrotesk-Variable-latin-ext.woff2": "SIL OFL 1.1",
   "PixelifySans-Variable-latin.woff2": "SIL OFL 1.1 (PixelifySans-OFL.txt)",
   "PixelifySans-Variable-latin-ext.woff2": "SIL OFL 1.1 (PixelifySans-OFL.txt)",
+  "VT323-Regular-latin.woff2": "SIL OFL 1.1 (VT323-OFL.txt)",
+  "VT323-Regular-latin-ext.woff2": "SIL OFL 1.1 (VT323-OFL.txt)",
+  "IBMPlexSans-Variable-latin.woff2": "SIL OFL 1.1 (IBMPlexSans-OFL.txt)",
+  "IBMPlexSans-Variable-latin-ext.woff2": "SIL OFL 1.1 (IBMPlexSans-OFL.txt)",
 };
 
 /** Families that may be NAMED in a stack but never shipped as a file. */

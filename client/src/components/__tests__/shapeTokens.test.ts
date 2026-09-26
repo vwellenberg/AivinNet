@@ -34,6 +34,7 @@ const FILES = sources("src");
 const CANDY = "src/assets/scss/_candy.scss";
 const STREAM = "src/assets/scss/Global/_theme-stream.scss";
 const DESKTOP98 = "src/assets/scss/Global/_theme-desktop98.scss";
+const VIRTUALGRID = "src/assets/scss/Global/_theme-virtualgrid.scss";
 
 /** `line: text` for every line matching `re`, outside the owner file(s). */
 function offenders(re: RegExp, owner: string | string[] = CANDY): string[] {
@@ -141,7 +142,7 @@ describe("shape tokens", () => {
     // dead code and the pixel-equality argument of #198 void. The one file
     // allowed to set them are the look files, each only under its own class.
     // Same for the accent family `--look-*` (#199).
-    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, [STREAM, DESKTOP98])).toEqual([]);
+    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, [STREAM, DESKTOP98, VIRTUALGRID])).toEqual([]);
   });
 
   it("the Stream look sets its tokens only under body.theme-stream", () => {
@@ -168,6 +169,25 @@ describe("shape tokens", () => {
     for (const [, selector] of withShape) {
       expect(selector.trim().split(/\n/).pop()?.trim()).toBe("body.theme-desktop98:not(.theme-dark)");
     }
+  });
+
+  it("the Virtual Grid look sets its tokens only under its own dark class (#259)", () => {
+    const look = readFileSync(VIRTUALGRID, "utf-8")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/#\{[^}]*\}/g, "X");
+    const blocks = [...look.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const withShape = blocks.filter(([, , body]) => /--(shape|look)-/.test(body));
+    expect(withShape.length).toBeGreaterThan(0);
+    for (const [, selector] of withShape) {
+      expect(selector.trim().split(/\n/).pop()?.trim()).toBe("body.theme-dark.theme-virtualgrid");
+    }
+  });
+
+  it("the ground's artwork size is a look token with the Memphis canvas as fallback", () => {
+    // A look that puts several images in the artwork slot lists one size per
+    // image; without the token they would all be stretched to 3840x1600.
+    const candy = readFileSync(CANDY, "utf-8");
+    expect(candy).toMatch(/background-size: var\(--shape-doodles-size, 3840px 1600px\), \$size \$size, \$size \$size;/);
   });
 
   it("the plate frame's colour and style are look tokens with the Memphis values as fallback", () => {

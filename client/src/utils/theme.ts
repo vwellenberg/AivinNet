@@ -2,25 +2,26 @@
  * Two independent axes decide how the app looks:
  *
  *   LOOK  the form language — `memphis` (grid paper, ink frames, hard offset
- *         shadows), `stream` (flat and dark) or `desktop98` (grey bevelled
- *         windows on a desktop-blue ground, #241)
+ *         shadows), `stream` (flat and dark), `desktop98` (grey bevelled
+ *         windows on a desktop-blue ground, #241) or `virtualgrid` (dark glass
+ *         over a neon grid, #259)
  *   MODE  light or dark — the store's `theme` field, plus Auto dark mode
  *
  * They are kept apart on purpose. A single list ("Memphis / Memphis Dark /
  * Stream") mixes a design with a brightness, and falls apart the moment a
  * second look has both modes too.
  *
- * Stream is dark only, Desktop 98 light only. Neither overwrites the mode: the
+ * Stream and Virtual Grid are dark only, Desktop 98 light only. Neither overwrites the mode: the
  * user's light/dark choice (and Auto) stay stored and come back unchanged on
  * switching back to Memphis. A one-mode look is built ON that mode's classes —
  * every component already has its answer for it — and its own body class
  * reshapes that through the `--mem-*` colour and `--shape-*` / `--look-*` form
  * tokens (Global/index.scss).
  */
-export type Look = 'memphis' | 'stream' | 'desktop98'
+export type Look = 'memphis' | 'stream' | 'desktop98' | 'virtualgrid'
 export type Mode = 'light' | 'dark'
 
-export const LOOKS: readonly Look[] = ['memphis', 'stream', 'desktop98']
+export const LOOKS: readonly Look[] = ['memphis', 'stream', 'desktop98', 'virtualgrid']
 
 /**
  * A stored look this build knows, or Memphis. A look written by a newer build
@@ -32,7 +33,7 @@ export function normalizeLook(look: unknown): Look {
 
 /** The one mode a look is drawn in, or null when it has both. */
 export function fixedMode(look: Look): Mode | null {
-    if (look === 'stream') return 'dark'
+    if (look === 'stream' || look === 'virtualgrid') return 'dark'
     if (look === 'desktop98') return 'light'
     return null
 }
@@ -42,7 +43,7 @@ export function lookHasModes(look: Look): boolean {
     return fixedMode(look) === null
 }
 
-type ThemeClass = 'theme-dark' | 'theme-stream' | 'theme-desktop98'
+type ThemeClass = 'theme-dark' | 'theme-stream' | 'theme-desktop98' | 'theme-virtualgrid'
 
 /** Which body classes are on. Every class is listed, on or off. */
 export function themeBodyClasses(look: Look, mode: Mode): Record<ThemeClass, boolean> {
@@ -50,5 +51,6 @@ export function themeBodyClasses(look: Look, mode: Mode): Record<ThemeClass, boo
         'theme-dark': (fixedMode(look) ?? mode) === 'dark',
         'theme-stream': look === 'stream',
         'theme-desktop98': look === 'desktop98',
+        'theme-virtualgrid': look === 'virtualgrid',
     }
 }

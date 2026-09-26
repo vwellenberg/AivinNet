@@ -176,6 +176,8 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-radius(-sm)    corner radii (above)
 //   --shape-sprinkle       the terrazzo dash texture
 //   --shape-doodles        the doodle layer of the page ground
+//   --shape-doodles-size   its background-size (one entry per layer, when a
+//                          look puts several images in that slot)
 //
 // Already runtime before this, and still the way to reach them:
 //   borders     → colour `--mem-line` (the WIDTH stays a Sass number: ~100
@@ -911,13 +913,18 @@ $mem-seg-reserve: 4px !default;
 // covers an ultrawide (3440x1440 leaves ~3150x1370 of ground) in one copy. Keep
 // these two numbers equal to the SVG's width/height; a smaller value here crops
 // the artwork, a larger one stretches it.
+//
+// A look may put a LIST of images in the artwork slot (Virtual Grid: scan
+// lines, wire grid, sky, #259). `--shape-doodles-size` then lists one size per
+// image — both custom properties expand in place, so the layer and size lists
+// stay aligned.
 @mixin mem-grid($size: 46px, $w: 2px, $doodles: true) {
   background-color: $mem-ground;
   @if $doodles {
     background-image: var(--shape-doodles, url("@/assets/images/memphis-doodles.svg")),
       linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
-    background-size: 3840px 1600px, $size $size, $size $size;
+    background-size: var(--shape-doodles-size, 3840px 1600px), $size $size, $size $size;
   } @else {
     background-image: linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
