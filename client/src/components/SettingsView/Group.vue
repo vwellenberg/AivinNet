@@ -8,6 +8,7 @@
                 :class="{
                     inactive: setting.inactive && setting.inactive(),
                     'is-list': setting.type === SettingType.root_dirs,
+                    'has-select': setting.type === SettingType.select,
                     panel: PANEL_TYPES.includes(setting.type),
                 }"
             >
@@ -282,6 +283,27 @@ const PANEL_TYPES = [
 
             .desc {
                 margin-top: $smaller;
+            }
+        }
+    }
+
+    // A segmented select can be wider than half the row — the Theme select with
+    // four looks (#259) — and in the two-column grid above it squeezed its
+    // description into a column one word wide. These rows wrap instead: the
+    // control stays beside the text while both fit, and moves under it when
+    // not. Side by side the geometry is the grid's (same gap, text filling the
+    // rest, control centred by its auto margin).
+    .setting > .setting-item.has-select {
+        display: flex;
+        flex-wrap: wrap;
+
+        .text {
+            flex: 1 1 14rem;
+        }
+
+        @include smallPhones {
+            .text {
+                flex-basis: 100%;
             }
         }
     }

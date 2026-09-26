@@ -226,6 +226,8 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-well-style              the border style of a sunken field (search)
 //   --look-display-font             the typeface of detail titles and section captions
 //   --look-display-glow             a text-shadow on the detail title (a neon glow)
+//   --look-display-adjust           `font-size-adjust` for that face (a small-x-height
+//                                   face reads a size smaller than the body text)
 //   --shape-frame · -frame-style    the plate frame's colour and border style
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
@@ -646,6 +648,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // labels rather than headings and keep the body face.
   @if not $fill {
     font-family: var(--look-display-font, inherit);
+    font-size-adjust: var(--look-display-adjust, none);
   }
   text-shadow: none;
   // Der Sticker-Anschlag (#143): ein Sticker wird aufgeklebt, nicht

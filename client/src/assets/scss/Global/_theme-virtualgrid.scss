@@ -150,8 +150,10 @@ body.theme-dark.theme-virtualgrid {
     // --- Detail pages: a glass head, the title in the terminal face ---------
     --look-detail-head-fill: rgba(24, 14, 58, 0.82);
     --look-display-glow: 0 0 12px rgba(255, 79, 216, 0.75);
-    --shape-detail-title: 3.4rem;
-    --shape-detail-title-phone: 2.2rem;
+    // Stated for the adjusted face below: 2.75rem of VT323 at x-height 0.5
+    // renders like 3.4rem of the raw font.
+    --shape-detail-title: 2.75rem;
+    --shape-detail-title-phone: 1.8rem;
     --look-play-fill: #{$vgrid-cyan};
     --look-play-glyph: #{$vgrid-deep};
 
@@ -163,4 +165,8 @@ body.theme-dark.theme-virtualgrid {
     --app-font: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
         sans-serif;
     --look-display-font: "VT323", ui-monospace, monospace;
+    // VT323's x-height is 0.40 of its size, Plex's 0.52: at the same font-size
+    // the terminal face reads a size smaller, and the small captions ("Disc 1")
+    // turned into specks. Normalised to 0.5, it matches the body text.
+    --look-display-adjust: 0.5;
 }
