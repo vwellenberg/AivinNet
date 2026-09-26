@@ -31,6 +31,11 @@ from uuid import uuid4
 # simultaneously.
 LEAD_MS = 1500
 
+# The furthest ahead a caller may schedule a track change explicitly. The group
+# leader hands over to the next track a few seconds before the current one
+# ends, timed to its last sample; anything further out is a client bug.
+MAX_SCHEDULE_AHEAD_MS = 15000
+
 # A member/device is shown as offline this long after its last poll (UI only).
 OFFLINE_MS = 5000
 
@@ -69,6 +74,13 @@ class Session:
     anchor: dict[str, int] = field(default_factory=lambda: {"position_ms": 0, "at_server_ms": 0})
     # Pending transport (global) + targeted commands, pruned by time.
     pending: list[dict[str, Any]] = field(default_factory=list)
+    # What was playing before an EARLY track change (scheduled further out
+    # than LEAD_MS — the leader's hand-over at the end of a track), kept until
+    # that change takes effect: {"currentindex", "playing", "anchor",
+    # "command_id"}. A user mutation that arrives first withdraws the early
+    # change, or a seek or pause in a track's last seconds would be followed
+    # by the pre-planned jump to the next track.
+    early: dict[str, Any] | None = None
 
 
 class GroupSessionManager:
@@ -136,6 +148,52 @@ class GroupSessionManager:
                 continue
             kept.append(cmd)
         session.pending = kept
+
+    def _withdraw_early_change(self, session: Session, now: int) -> None:
+        """
+        Settle an early track change before another mutation is applied.
+
+        Once its time has come it simply IS the state. Before that, the new
+        mutation wins: the session goes back to what is still playing and the
+        early command is withdrawn, so the mutation applies to the track the
+        listener actually hears.
+        """
+        early = session.early
+        if early is None:
+            return
+        session.early = None
+        if session.anchor["at_server_ms"] <= now:
+            return
+        session.currentindex = early["currentindex"]
+        session.playing = early["playing"]
+        session.anchor = early["anchor"]
+        session.pending = [c for c in session.pending if c["id"] != early["command_id"]]
+
+    @staticmethod
+    def _current_hash(trackhashes: list[str], index: int) -> str | None:
+        return trackhashes[index] if 0 <= index < len(trackhashes) else None
+
+    def _edit_counts_from_early_change(
+        self, session: Session, now: int, trackhashes: list[str], currentindex: int
+    ) -> bool:
+        """An early change is still pending and the edit names its target as current."""
+        if session.early is None or session.anchor["at_server_ms"] <= now:
+            return False
+        target = self._current_hash(session.trackhashes, session.currentindex)
+        return target is not None and self._current_hash(trackhashes, currentindex) == target
+
+    def _renumber_early_fallback(self, session: Session, trackhashes: list[str]) -> None:
+        """Point the early change's fallback at the still-playing track in the edited list."""
+        early = session.early
+        if early is None:
+            return
+        playing = self._current_hash(session.trackhashes, early["currentindex"])
+        found = [i for i, h in enumerate(trackhashes) if h == playing]
+        if not found:
+            # The playing track itself was removed: nothing left to fall back to.
+            session.early = None
+            return
+        early["currentindex"] = min(found, key=lambda i: abs(i - early["currentindex"]))
 
     # --- presence -----------------------------------------------------------
 
@@ -242,12 +300,26 @@ class GroupSessionManager:
         playing: bool,
         position_ms: int,
         repeat: str,
+        live: bool = False,
     ) -> dict[str, Any] | None:
         """
-        Replace the session queue and schedule an implicit ``track_change``.
+        Replace the session queue.
 
-        The sender must be a member (else ``None``). Bumps the version, resets the
-        anchor to the scheduled execution time and returns the scheduled command.
+        Two kinds of queue-set exist, and ``live`` tells them apart:
+
+        * **A new start** (``live=False``, e.g. "play this album"): the queue
+          starts at ``position_ms`` ``LEAD_MS`` from now, announced by an
+          implicit ``track_change`` command.
+        * **An edit while listening** (``live=True``: add, remove, reorder, or
+          the first joiner seeding the group): ``position_ms`` is the sender's
+          playhead *at send time*. If the current track carries on, the anchor
+          is left alone — nothing about playback changes, so nobody seeks.
+          Otherwise the position holds *now*. Anchoring a live playhead
+          ``LEAD_MS`` in the future replayed the last 1.5 s on every device for
+          every edit.
+
+        Returns ``{"command": cmd}`` (``None`` for a live edit), or ``None``
+        when the sender is not a member. Always bumps the version.
         """
         with self._lock:
             session = self._sessions.get(userid)
@@ -255,15 +327,37 @@ class GroupSessionManager:
                 return None
 
             now = self._now()
-            exec_at = now + LEAD_MS
+            if live and self._edit_counts_from_early_change(session, now, trackhashes, currentindex):
+                # The sender already counts from the booked next track (clients
+                # do while a change is on its way): the booking stands, only its
+                # fallback is renumbered into the edited list.
+                self._renumber_early_fallback(session, trackhashes)
+            else:
+                self._withdraw_early_change(session, now)
+
+            continues = (
+                live
+                and playing == session.playing
+                and self._current_hash(trackhashes, currentindex) is not None
+                and self._current_hash(trackhashes, currentindex)
+                == self._current_hash(session.trackhashes, session.currentindex)
+            )
 
             session.trackhashes = list(trackhashes)
             session.from_ = dict(from_) if from_ else {}
             session.currentindex = currentindex
-            session.playing = playing
             session.repeat = repeat
-            session.anchor = {"position_ms": position_ms, "at_server_ms": exec_at}
             session.version += 1
+
+            if live:
+                if not continues:
+                    session.playing = playing
+                    session.anchor = {"position_ms": position_ms, "at_server_ms": now}
+                return {"command": None}
+
+            exec_at = now + LEAD_MS
+            session.playing = playing
+            session.anchor = {"position_ms": position_ms, "at_server_ms": exec_at}
 
             command = self._make_command(
                 ctype="track_change",
@@ -273,7 +367,7 @@ class GroupSessionManager:
                 now=now,
             )
             session.pending.append(command)
-            return command
+            return {"command": command}
 
     def apply_transport(
         self,
@@ -281,6 +375,7 @@ class GroupSessionManager:
         device_id: str,
         ctype: str,
         payload: dict[str, Any],
+        execute_at_ms: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Apply a global transport mutation, scheduled ``LEAD_MS`` in the future.
@@ -288,6 +383,13 @@ class GroupSessionManager:
         Requires an existing session; the sender need NOT be a member (any device
         of the user may control playback). Bumps the version and returns the
         scheduled command, or ``None`` if there is no session / unknown type.
+
+        ``execute_at_ms`` asks for a later execution time and is only valid for
+        ``track_change``: the leader schedules the next track for the exact end
+        of the current one. It never runs sooner than ``LEAD_MS`` (the other
+        devices must hear about it first) and is refused beyond
+        ``MAX_SCHEDULE_AHEAD_MS``. Such an early change stays revocable: any
+        other mutation before its time withdraws it.
         """
         with self._lock:
             session = self._sessions.get(userid)
@@ -296,6 +398,20 @@ class GroupSessionManager:
 
             now = self._now()
             exec_at = now + LEAD_MS
+            if execute_at_ms is not None:
+                if ctype != "track_change" or execute_at_ms > now + MAX_SCHEDULE_AHEAD_MS:
+                    return None
+                exec_at = max(exec_at, execute_at_ms)
+
+            # A repeat toggle changes nothing that is playing, so it leaves an
+            # early track change standing; everything else settles it first.
+            if ctype != "set_repeat":
+                self._withdraw_early_change(session, now)
+            before = {
+                "currentindex": session.currentindex,
+                "playing": session.playing,
+                "anchor": dict(session.anchor),
+            }
 
             if ctype == "play":
                 pos = self._expected_position(session, exec_at)
@@ -327,6 +443,8 @@ class GroupSessionManager:
                 now=now,
             )
             session.pending.append(command)
+            if exec_at > now + LEAD_MS:
+                session.early = {**before, "command_id": command["id"]}
             return command
 
     def apply_targeted(

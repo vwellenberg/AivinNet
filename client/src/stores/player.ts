@@ -12,6 +12,7 @@ import useSettings from './settings'
 import useTracker from './tracker'
 
 import { paths } from '@/config'
+import type { Track } from '@/interfaces'
 // Imported for the two call sites below, re-exported so every existing
 // `import { getUrl } from '@/stores/player'` keeps working (#181).
 import { getUrl } from '@/utils/streamUrl'
@@ -66,6 +67,16 @@ class AudioSource {
             then_destroy: true,
         })
 
+        this.playingSourceIndex = 1 - this.playingSourceIndex
+    }
+
+    /**
+     * Group-mode cut: the standby becomes the playing source at once. No fade —
+     * every device of the group switches at the same instant, and a fade whose
+     * length depends on a local setting would smear that instant.
+     */
+    swapSources() {
+        this.playingSource.pause()
         this.playingSourceIndex = 1 - this.playingSourceIndex
     }
 
@@ -220,7 +231,7 @@ export const usePlayer = defineStore('player', () => {
 
     /** Hard-seek the active element (and mirror queue.duration.current), like `seek`. */
     function hardSeekMs(ms: number) {
-        const seconds = ms / 1000
+        const seconds = Math.max(0, ms) / 1000
         try {
             audioSource.playingSource.currentTime = seconds
             queue.setCurrentDuration(seconds)
@@ -229,6 +240,108 @@ export const usePlayer = defineStore('player', () => {
                 console.error('Seek error: no audio')
             }
         }
+    }
+
+    /** Whether the active element is paused (or has not started). */
+    function isPaused(): boolean {
+        return audioSource.playingSource.paused
+    }
+
+    /**
+     * The trackhash the active element holds, per its source URL — '' when it
+     * holds none. The group mirror must not guess this from the queue: a
+     * device that played solo since its last group has something else loaded.
+     */
+    function loadedTrackhash(): string {
+        const el = audioSource.playingSource
+        if (!el.src) return ''
+        const match = /\/([^/?#]+)\/legacy\?/.exec(el.src)
+        return match ? decodeURIComponent(match[1]) : ''
+    }
+
+    /** Whether the active element's clock is running (playing, not seeking, data at hand). */
+    function isAdvancing(): boolean {
+        const el = audioSource.playingSource
+        return !el.paused && !el.ended && !el.seeking && el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA
+    }
+
+    /** Length of the loaded track per the active element, when it knows it. */
+    function durationMs(): number | null {
+        const seconds = audioSource.playingSource.duration
+        return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null
+    }
+
+    // --- group-mode transitions ---------------------------------------------
+    // A scheduled group transition (next track, a jump within the track, a new
+    // queue) is PREPARED on the standby element during the command lead time —
+    // loaded, positioned, paused — and switched to at the scheduled instant.
+    // Loading on the playing element at that instant instead made every device
+    // start late by its own load time.
+
+    /** What the standby element was prepared for; '' when nothing is. */
+    let groupStandbyKey = ''
+
+    function prepareGroupStandby(track: Track, positionMs: number, key: string) {
+        const el = audioSource.standbySource
+        // A solo preload may still hang `handleNextAudioCanPlay` on it, which
+        // would advance the queue on its own once the data arrives.
+        clearEventHandlers(el)
+        el.pause()
+        el.playbackRate = 1
+        el.muted = settings.mute
+        el.volume = settings.volume
+
+        // Idempotent: a state re-delivered for the same transition (another
+        // member joined meanwhile) must not restart a load or a seek that is
+        // about to be ready.
+        const uri = getUrl(track.filepath, track.trackhash)
+        if (el.src !== new URL(uri, document.baseURI).href) {
+            el.src = uri
+            el.load()
+        }
+        const seconds = Math.max(0, positionMs) / 1000
+        if (Math.abs(el.currentTime - seconds) > 0.001) el.currentTime = seconds
+        groupStandbyKey = key
+    }
+
+    /** True when the standby prepared under `key` can start without waiting. */
+    function groupStandbyReady(key: string): boolean {
+        const el = audioSource.standbySource
+        return (
+            key !== '' &&
+            groupStandbyKey === key &&
+            el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA &&
+            !el.seeking
+        )
+    }
+
+    /** Current position of the prepared standby element (ms). */
+    function groupStandbyTimeMs(): number {
+        return Math.round(audioSource.standbySource.currentTime * 1000)
+    }
+
+    /** Re-position the prepared standby (free: it is paused). */
+    function seekGroupStandbyMs(ms: number) {
+        audioSource.standbySource.currentTime = Math.max(0, ms) / 1000
+    }
+
+    /**
+     * Cut over to the prepared standby: the playing element stops dead and the
+     * standby becomes the playing source, started when `play` is set.
+     */
+    function switchToGroupStandby(track: Track, play: boolean, trackChanged: boolean) {
+        clearEventHandlers(audio)
+        audioSource.swapSources()
+        audio = audioSource.playingSource
+        groupStandbyKey = ''
+
+        currentAudioData = { filepath: track.filepath, silence: { starting_file: 0, ending_file: 0 } }
+        maxSeekPercent.value = 0
+        queue.setCurrentDuration(audio.currentTime)
+        assignEventHandlers(audio)
+        if (trackChanged) tracker.changeKey()
+
+        if (play) void audioSource.playPlayingSource()
     }
 
     const audio_onerror = (err: Event | string) => {
@@ -623,6 +736,15 @@ export const usePlayer = defineStore('player', () => {
         setPlaybackRate,
         getCurrentTimeMs,
         hardSeekMs,
+        isPaused,
+        loadedTrackhash,
+        isAdvancing,
+        durationMs,
+        prepareGroupStandby,
+        groupStandbyReady,
+        groupStandbyTimeMs,
+        seekGroupStandbyMs,
+        switchToGroupStandby,
     }
 })
 

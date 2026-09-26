@@ -14,6 +14,15 @@ const { playerMock, audioSourceMock, requestsMock } = vi.hoisted(() => ({
         setVolume: vi.fn(),
         clearNextAudio: vi.fn(),
         clearMovingNextTimeout: vi.fn(),
+        isPaused: vi.fn(() => true),
+        loadedTrackhash: vi.fn(() => ''),
+        isAdvancing: vi.fn(() => false),
+        durationMs: vi.fn((): number | null => null),
+        prepareGroupStandby: vi.fn(),
+        groupStandbyReady: vi.fn(() => false),
+        groupStandbyTimeMs: vi.fn(() => 0),
+        seekGroupStandbyMs: vi.fn(),
+        switchToGroupStandby: vi.fn(),
     },
     audioSourceMock: {
         playPlayingSource: vi.fn(() => Promise.resolve()),
@@ -80,7 +89,7 @@ const mkPoll = (over: Partial<any> = {}): any => ({
 // against the 10s hook budget. Under a starved CI worker that intermittently
 // blew up as "Hook timed out in 10000ms". Static imports move that cost to
 // collection, which has no timeout.
-import useDeviceSyncStore, { __resetDeviceSyncTestState } from '@/stores/devicesync'
+import useDeviceSyncStore, { __latencyForTest, __resetDeviceSyncTestState } from '@/stores/devicesync'
 import useQueueStore from '@/stores/queue'
 import useTracklistStore from '@/stores/queue/tracklist'
 import useSettingsStore from '@/stores/settings'
@@ -110,9 +119,18 @@ describe('devicesync store', () => {
         requestsMock.resolveTracks.mockResolvedValue([])
         playerMock.getCurrentTimeMs.mockReset()
         playerMock.getCurrentTimeMs.mockReturnValue(0)
+        playerMock.isPaused.mockReturnValue(true)
+        playerMock.loadedTrackhash.mockReturnValue('')
+        playerMock.isAdvancing.mockReturnValue(false)
+        playerMock.durationMs.mockReturnValue(null)
+        playerMock.groupStandbyReady.mockReturnValue(false)
+        playerMock.groupStandbyTimeMs.mockReturnValue(0)
+        requestsMock.sendCommand.mockResolvedValue({ status: 200, data: {} })
+        // Cleared BEFORE the reset: it re-reads this device's persisted
+        // latency estimates, and one test's learning must not leak into the next.
+        localStorage.clear()
         __resetDeviceSyncTestState()
         setActivePinia(createPinia())
-        localStorage.clear()
     })
 
     afterEach(() => {
@@ -171,50 +189,59 @@ describe('devicesync store', () => {
         expect(requestsMock.sendCommand).not.toHaveBeenCalled()
     })
 
-    it('executes a re-delivered command only once (dedupe by id)', async () => {
-        const { useDeviceSync } = await setup()
+    it('executes a re-delivered targeted command only once (dedupe by id)', async () => {
+        const { useDeviceSync, useSettings } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
         const ds = useDeviceSync()
         await ds.register()
+        const settings = useSettings()
 
-        const cmd = { id: 'c1', type: 'seek', payload: { position_ms: 5000 }, execute_at_ms: 0, target_device: null }
+        const cmd = { id: 'v1', type: 'set_volume', payload: { volume: 0.3 }, execute_at_ms: 0, target_device: 'devA' }
         requestsMock.pollSession.mockResolvedValueOnce(mkPoll({ version: 1, joined: true, commands: [cmd] }))
         await ds.poll()
-        requestsMock.pollSession.mockResolvedValueOnce(mkPoll({ version: 2, joined: true, commands: [cmd] }))
-        await ds.poll()
+        expect(settings.volume).toBe(0.3)
 
-        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        // The server re-delivers it during its grace window, after the user
+        // turned the volume up here — the stale command must not win again.
+        settings.setVolume(0.8)
+        requestsMock.pollSession.mockResolvedValueOnce(mkPoll({ version: 1, joined: true, commands: [cmd] }))
+        await ds.poll()
+        expect(settings.volume).toBe(0.8)
     })
 
-    it('schedules a future command at the offset-adjusted local time', async () => {
+    it('commits a future state at the offset-adjusted local time, early by the start latency', async () => {
         vi.useFakeTimers()
         vi.setSystemTime(100000)
-        const { useDeviceSync } = await setup()
+        const { useDeviceSync, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
+        // This device takes 50 ms to start sounding.
+        localStorage.setItem('aivinnet.sync_latency', JSON.stringify({ start: 50, seek: 90 }))
+        __resetDeviceSyncTestState()
         const ds = useDeviceSync()
         await ds.register()
 
-        // server ahead by 1000 ms (server_now 101000 at local 100000)
+        // server ahead by 1000 ms (server_now 101000 at local 100000); the
+        // group starts h2 at server 102500 → local 101500, minus 50 ms.
+        requestsMock.resolveTracks.mockResolvedValue([mkTrack('h1'), mkTrack('h2')])
         requestsMock.pollSession.mockResolvedValueOnce(
             mkPoll({
                 server_now_ms: 101000,
                 joined: true,
-                commands: [
-                    { id: 'c1', type: 'seek', payload: { position_ms: 3000 }, execute_at_ms: 102500, target_device: null },
-                ],
+                state: mkState({ currentindex: 1, playing: true, anchor: { position_ms: 0, at_server_ms: 102500 } }),
             })
         )
         await ds.poll()
 
-        // localExec = 102500 - offset(1000) = 101500 → delay 1500 ms from local now
-        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
-        vi.advanceTimersByTime(1499)
-        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
+        expect(useQueue().currentindex).toBe(0) // not yet: still the state in effect
+        vi.advanceTimersByTime(1449)
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
         vi.advanceTimersByTime(1)
-        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        expect(playerMock.playCurrent).toHaveBeenCalledTimes(1)
+        expect(useQueue().currentindex).toBe(1)
     })
 
-    it('executes a missed (past) command immediately with catch-up position', async () => {
+    it('catches up with a state whose time has already passed', async () => {
         vi.useFakeTimers()
         vi.setSystemTime(100000)
         const { useDeviceSync } = await setup()
@@ -222,19 +249,19 @@ describe('devicesync store', () => {
         const ds = useDeviceSync()
         await ds.register()
 
-        // offset 0 (server_now == local). Command was due 1000 ms ago.
+        // offset 0 (server_now == local). The group started playing at 5 s
+        // one second ago: this device joins in at 6 s, not at 5 s.
+        requestsMock.resolveTracks.mockResolvedValue([mkTrack('h1'), mkTrack('h2')])
         requestsMock.pollSession.mockResolvedValueOnce(
             mkPoll({
                 server_now_ms: 100000,
                 joined: true,
-                commands: [
-                    { id: 'c9', type: 'play', payload: { position_ms: 5000 }, execute_at_ms: 99000, target_device: null },
-                ],
+                state: mkState({ playing: true, anchor: { position_ms: 5000, at_server_ms: 99000 } }),
             })
         )
         await ds.poll()
 
-        // play implies playing → catch-up 1000 ms added to the position
+        expect(playerMock.playCurrent).toHaveBeenCalledTimes(1)
         expect(playerMock.hardSeekMs).toHaveBeenCalledWith(6000)
     })
 
@@ -550,7 +577,7 @@ describe('devicesync store', () => {
         expect(ds.joined).toBe(false)
     })
 
-    it('cancels pending scheduled commands on leave — no hijack of solo playback', async () => {
+    it('drops a held group state on leave — no hijack of solo playback', async () => {
         vi.useFakeTimers()
         vi.setSystemTime(100000)
         const { useDeviceSync } = await setup()
@@ -558,13 +585,12 @@ describe('devicesync store', () => {
         const ds = useDeviceSync()
         await ds.register()
 
+        requestsMock.resolveTracks.mockResolvedValue([mkTrack('h1'), mkTrack('h2')])
         requestsMock.pollSession.mockResolvedValueOnce(
             mkPoll({
                 server_now_ms: 100000,
                 joined: true,
-                commands: [
-                    { id: 'c1', type: 'seek', payload: { position_ms: 3000 }, execute_at_ms: 102000, target_device: null },
-                ],
+                state: mkState({ playing: true, anchor: { position_ms: 3000, at_server_ms: 102000 } }),
             })
         )
         await ds.poll()
@@ -573,28 +599,38 @@ describe('devicesync store', () => {
         await ds.leave()
         vi.advanceTimersByTime(5000)
 
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
+        expect(playerMock.switchToGroupStandby).not.toHaveBeenCalled()
         expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
     })
 
-    it('clamps a stale track_change index into the current queue bounds', async () => {
+    it('never executes a transport command on its own — the state carries it', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(100000)
         const { useDeviceSync, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
         const ds = useDeviceSync()
         await ds.register()
 
+        // The command and the state describing it arrive in the same poll.
+        // Executing both is how every seek ran twice; only the state counts.
         requestsMock.resolveTracks.mockResolvedValue([mkTrack('h1'), mkTrack('h2')])
         requestsMock.pollSession.mockResolvedValueOnce(
             mkPoll({
+                server_now_ms: 100000,
                 joined: true,
-                state: mkState(),
+                state: mkState({ anchor: { position_ms: 0, at_server_ms: 99000 } }),
                 commands: [
-                    { id: 'tc', type: 'track_change', payload: { index: 99 }, execute_at_ms: 0, target_device: null },
+                    { id: 'tc', type: 'track_change', payload: { index: 1 }, execute_at_ms: 99500, target_device: null },
+                    { id: 'sk', type: 'seek', payload: { position_ms: 9000 }, execute_at_ms: 101500, target_device: null },
                 ],
             })
         )
         await ds.poll()
+        vi.advanceTimersByTime(5000)
 
-        expect(useQueue().currentindex).toBe(1)
+        expect(useQueue().currentindex).toBe(0)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalledWith(9000)
     })
 
     it('the applying guard never spans the resolve await — user actions still intercept', async () => {
@@ -776,33 +812,22 @@ describe('devicesync store', () => {
         expect(requestsMock.sendCommand).not.toHaveBeenCalled()
     })
 
-    it('applies this device audio offset when steering (Bluetooth latency trim)', async () => {
-        const { useDeviceSync, useTracklist, useQueue } = await setup()
+    it('applies this device audio offset to where it should be (Bluetooth latency trim)', async () => {
+        const { useDeviceSync } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
         const ds = useDeviceSync()
         await ds.register()
 
-        useTracklist().tracklist = [mkTrack('h1')]
-        useQueue().currentindex = 0
-        useQueue().playing = true
         ds.joined = true
-        ds.playing = true
-        // Anchor says position 10_000 ms; a +300 ms trim means this device must
-        // run 300 ms AHEAD to compensate a delayed output path.
+        ds.playing = false
         ds.anchor = { position_ms: 10_000, at_server_ms: 1000 }
+        expect(ds.expectedMs()).toBe(10_000)
+
+        // A +300 ms trim means this device must run 300 ms AHEAD to
+        // compensate a delayed output path — steering aims there.
         ds.setAudioOffset(300)
         expect(ds.audioOffsetMs).toBe(300)
-
-        // Sitting exactly on the un-trimmed position is now 300 ms too late →
-        // steering must pull forward (rate > 1) or seek, never report 'none'.
-        playerMock.getCurrentTimeMs.mockReturnValue(10_000)
-        playerMock.setPlaybackRate.mockClear()
-        playerMock.hardSeekMs.mockClear()
-        ds.steerTick()
-
-        const rateCalls = playerMock.setPlaybackRate.mock.calls.map(c => c[0])
-        const corrected = rateCalls.some(r => r > 1) || playerMock.hardSeekMs.mock.calls.length > 0
-        expect(corrected).toBe(true)
+        expect(ds.expectedMs()).toBe(10_300)
     })
 
     it('persists the audio offset across store instances', async () => {
@@ -1173,5 +1198,521 @@ describe('devicesync store', () => {
         useQueue().clearQueue()
         expect(tl.tracklist).toEqual([])
         expect(requestsMock.setQueue).not.toHaveBeenCalled()
+    })
+
+    // --- transitions, steering and the booked hand-over ----------------------
+    // Measured with two browsers on one clock (~/syncprobe on the server): the
+    // state that describes a transport command arrives with the command, i.e.
+    // up to 1.5 s EARLY, and was applied on arrival — each device at its own
+    // poll phase. A Next started the new track early and then restarted it,
+    // a seek ran twice, a pause stopped every device at a different moment,
+    // and the steerer re-seeked every 250 ms because each seek itself cost
+    // more than its 80 ms threshold.
+
+    const THREE = ['h1', 'h2', 'h3']
+
+    /**
+     * Joined and playing h1 of [h1, h2, h3] on a clock where server == local,
+     * the join's own load already settled and the element on the anchor —
+     * the steady state every transition starts from.
+     */
+    async function playingGroup(start = 100_000) {
+        vi.useFakeTimers()
+        vi.setSystemTime(start)
+        const { useDeviceSync, useQueue, useTracklist } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        requestsMock.resolveTracks.mockResolvedValue(THREE.map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({
+                server_now_ms: start,
+                joined: true,
+                state: mkState({
+                    trackhashes: THREE,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: start },
+                }),
+            })
+        )
+        await ds.poll()
+
+        playerMock.isPaused.mockReturnValue(false)
+        playerMock.isAdvancing.mockReturnValue(true)
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()))
+        vi.advanceTimersByTime(1000)
+        vi.clearAllMocks()
+
+        return { ds, queue: useQueue(), tracklist: useTracklist(), start }
+    }
+
+    /** A poll answer on the shared clock, carrying `state`. */
+    const at = (state: any, over: Partial<any> = {}) =>
+        mkPoll({ server_now_ms: Date.now(), version: 2, joined: true, state, ...over })
+
+    async function settleMicrotasks() {
+        for (let i = 0; i < 6; i++) await Promise.resolve()
+    }
+
+    /** The playbackRate the steerer set last. */
+    const lastRate = () => {
+        const calls = playerMock.setPlaybackRate.mock.calls
+        return calls[calls.length - 1]?.[0]
+    }
+
+    it('a track change is prepared on arrival and switched to at its time — once', async () => {
+        const { ds, queue } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                }),
+                {
+                    commands: [
+                        {
+                            id: 'tc',
+                            type: 'track_change',
+                            payload: { index: 1, position_ms: 0, playing: true },
+                            execute_at_ms: now + 1500,
+                            target_device: null,
+                        },
+                    ],
+                }
+            )
+        )
+        await ds.poll()
+
+        // Nothing sounds different yet: the old track plays on, the next one
+        // loads on the standby element.
+        expect(playerMock.prepareGroupStandby).toHaveBeenCalledWith(
+            expect.objectContaining({ trackhash: 'h2' }),
+            0,
+            expect.any(String)
+        )
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
+        expect(playerMock.switchToGroupStandby).not.toHaveBeenCalled()
+        expect(queue.currentindex).toBe(0)
+
+        vi.advanceTimersByTime(1500)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledWith(expect.objectContaining({ trackhash: 'h2' }), true, true)
+        expect(queue.currentindex).toBe(1)
+
+        // ...and nothing restarts it afterwards.
+        vi.advanceTimersByTime(5000)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+    })
+
+    it('a seek happens once, at its time — not on arrival and again on the command', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        playerMock.groupStandbyTimeMs.mockReturnValue(60_000)
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, playing: true, anchor: { position_ms: 60_000, at_server_ms: now + 1500 } }))
+        )
+        await ds.poll()
+        expect(playerMock.prepareGroupStandby).toHaveBeenCalledWith(
+            expect.objectContaining({ trackhash: 'h1' }),
+            60_000,
+            expect.any(String)
+        )
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+
+        vi.advanceTimersByTime(6000)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledWith(expect.objectContaining({ trackhash: 'h1' }), true, false)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+    })
+
+    it('a pause stops at its time on every device, exactly on the anchor', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, playing: false, anchor: { position_ms: 2500, at_server_ms: now + 1500 } }))
+        )
+        await ds.poll()
+        expect(audioSourceMock.pausePlayingSource).not.toHaveBeenCalled()
+
+        vi.advanceTimersByTime(1499)
+        expect(audioSourceMock.pausePlayingSource).not.toHaveBeenCalled()
+        vi.advanceTimersByTime(1)
+        expect(audioSourceMock.pausePlayingSource).toHaveBeenCalledTimes(1)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledWith(2500)
+    })
+
+    it('a resume starts early by this device start latency, right where it paused', async () => {
+        const { ds } = await playingGroup()
+        // Paused at 2.5 s.
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, playing: false, anchor: { position_ms: 2500, at_server_ms: Date.now() } }))
+        )
+        await ds.poll()
+        playerMock.isPaused.mockReturnValue(true)
+        playerMock.getCurrentTimeMs.mockImplementation(() => 2500)
+        vi.clearAllMocks()
+
+        const now = Date.now()
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, playing: true, anchor: { position_ms: 2500, at_server_ms: now + 1500 } }), {
+                version: 3,
+            })
+        )
+        await ds.poll()
+
+        // Default start latency is 50 ms: play() goes out at 1450 ms.
+        vi.advanceTimersByTime(1449)
+        expect(audioSourceMock.playPlayingSource).not.toHaveBeenCalled()
+        vi.advanceTimersByTime(1)
+        expect(audioSourceMock.playPlayingSource).toHaveBeenCalledTimes(1)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+        expect(playerMock.prepareGroupStandby).not.toHaveBeenCalled()
+    })
+
+    it('a queue edit while listening leaves the audio alone (it used to jump back 1.5 s)', async () => {
+        const { ds, tracklist, start } = await playingGroup()
+
+        requestsMock.resolveTracks.mockResolvedValue([...THREE, 'h9'].map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    queue_id: 'q2',
+                    trackhashes: [...THREE, 'h9'],
+                    playing: true,
+                    // A live edit keeps the anchor: it lies in the past.
+                    anchor: { position_ms: 0, at_server_ms: start },
+                })
+            )
+        )
+        await ds.poll()
+
+        expect(tracklist.tracklist.map((t: any) => t.trackhash)).toEqual([...THREE, 'h9'])
+        expect(playerMock.playCurrent).not.toHaveBeenCalled()
+        expect(playerMock.switchToGroupStandby).not.toHaveBeenCalled()
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+        expect(audioSourceMock.pausePlayingSource).not.toHaveBeenCalled()
+    })
+
+    it('sends queue edits as live, new starts not', async () => {
+        const { ds, tracklist, queue } = await playingGroup()
+
+        tracklist.insertAt([mkTrack('h9')], 3)
+        expect(requestsMock.setQueue).toHaveBeenLastCalledWith(expect.objectContaining({ live: true }))
+
+        queue.clearQueue()
+        expect(requestsMock.setQueue).toHaveBeenLastCalledWith(expect.objectContaining({ live: false }))
+
+        ds.lastMirroredHashKey = 'something else'
+        ds.intercept('play', 1)
+        expect(requestsMock.setQueue).toHaveBeenLastCalledWith(expect.objectContaining({ live: false, position_ms: 0 }))
+    })
+
+    it('seeks once when off and lets the seek land before judging again (no seek storm)', async () => {
+        const { ds } = await playingGroup()
+
+        // 400 ms behind — say, after a buffering stall.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
+        // One odd reading is not acted on (median of three)...
+        vi.advanceTimersByTime(250)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+        // ...a second one is.
+        vi.advanceTimersByTime(250)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        // Aimed ahead by this device's seek latency (default 90 ms).
+        expect(playerMock.hardSeekMs).toHaveBeenLastCalledWith(ds.expectedMs() + 90)
+
+        // It still reads as behind while the seek lands — no second seek.
+        vi.advanceTimersByTime(500)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+    })
+
+    it('learns its seek latency from where a seek actually landed', async () => {
+        const { ds } = await playingGroup()
+
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
+        vi.advanceTimersByTime(500)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+
+        // The seek cost 140 ms here, not the 90 assumed: settled, the device
+        // sits 50 ms behind → the estimate moves 60 % of the way.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 50)
+        vi.advanceTimersByTime(750)
+        expect(__latencyForTest().seek).toBe(90) // still settling: three readings first
+        vi.advanceTimersByTime(250)
+
+        expect(__latencyForTest().seek).toBe(120)
+        expect(JSON.parse(localStorage.getItem('aivinnet.sync_latency') as string).seek).toBe(120)
+        // The residual itself is small: eased out by rate, not seeked.
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        expect(lastRate()).toBeCloseTo(1.025, 6)
+    })
+
+    it('a transition that landed far off gets ONE compensated seek, then rate steering', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+        vi.advanceTimersByTime(1500)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+
+        // This device has not measured its start latency yet: it sounds 80 ms late.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 80)
+        vi.advanceTimersByTime(1000)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        // ...and learned from it: 50 + 0.6 * 80.
+        expect(__latencyForTest().start).toBe(98)
+
+        // Still reading 80 ms late after the correction settles (a stubborn
+        // seek estimate): no second seek — rate takes it from here.
+        vi.advanceTimersByTime(1500)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        expect(lastRate()).toBeGreaterThan(1)
+    })
+
+    it('a late timer is not learned as device latency (it climbed past 300 ms under load)', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        // A busy main thread: the timer due at 1450 ms fires 100 ms late, so
+        // the device sounds 100 ms behind although its own delay is right.
+        vi.setSystemTime(now + 100)
+        vi.advanceTimersByTime(1450)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+        // 100 ms is the landing seek's job — re-positioning would re-buffer.
+        expect(playerMock.seekGroupStandbyMs).not.toHaveBeenCalled()
+
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 100)
+        vi.advanceTimersByTime(1100)
+
+        expect(__latencyForTest().start).toBe(50)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+    })
+
+    it('the leader books the next track for the exact end of the current one', async () => {
+        const { ds, start } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        // h1 is 4.5 s long and has played 1 s: 3.5 s left, inside the window.
+        playerMock.durationMs.mockReturnValue(4500)
+
+        vi.advanceTimersByTime(250)
+        expect(requestsMock.sendCommand).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'track_change',
+                payload: { index: 1, position_ms: 0, playing: true },
+                execute_at_ms: start + 4500,
+            })
+        )
+
+        // One booking per anchor, and `ended` must not advance a second time.
+        vi.advanceTimersByTime(1000)
+        ds.onTrackEnded()
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
+    })
+
+    it('the end of a repeat-none queue is not booked — `ended` still pauses the group', async () => {
+        const { ds, queue } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        useSettingsStore().repeat = 'none'
+        queue.currentindex = 2 // the last row
+        playerMock.durationMs.mockReturnValue(4500)
+
+        vi.advanceTimersByTime(1000)
+        expect(requestsMock.sendCommand).not.toHaveBeenCalled()
+
+        // Marking this anchor "booked" made `ended` stand down: the group
+        // stayed "playing" past the end of its queue.
+        ds.onTrackEnded()
+        expect(requestsMock.sendCommand).toHaveBeenCalledWith(expect.objectContaining({ type: 'pause' }))
+    })
+
+    it('an edit during a held Next carries the track the group is heading to', async () => {
+        const { ds, tracklist } = await playingGroup()
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: Date.now() + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        // "Play next" lands on row 1 — exactly the row the group is heading to.
+        tracklist.insertAt([mkTrack('h9')], 1)
+
+        // Sent with the track still sounding here (index 0), the server
+        // re-anchored h1 and silently undid the Next.
+        expect(requestsMock.setQueue).toHaveBeenLastCalledWith(
+            expect.objectContaining({ trackhashes: ['h1', 'h9', 'h2', 'h3'], currentindex: 2, playing: true, live: true })
+        )
+    })
+
+    it('a booking that failed leaves the advance to `ended`', async () => {
+        const { ds } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        playerMock.durationMs.mockReturnValue(4500)
+        requestsMock.sendCommand.mockResolvedValueOnce({ status: 400, data: {} })
+
+        vi.advanceTimersByTime(250)
+        await settleMicrotasks()
+        ds.onTrackEnded()
+
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(2)
+        expect(requestsMock.sendCommand).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: 'track_change', payload: { index: 1, position_ms: 0, playing: true } })
+        )
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0].execute_at_ms).toBeUndefined()
+    })
+
+    it('a second Next during the lead counts from the track the group is heading to', async () => {
+        const { ds } = await playingGroup()
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: Date.now() + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        ds.intercept('playNext')
+        expect(requestsMock.sendCommand).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: 'track_change', payload: { index: 2, position_ms: 0, playing: true } })
+        )
+
+        // ...and Previous right after a Next goes back to the track still playing here.
+        ds.intercept('playPrev')
+        expect(requestsMock.sendCommand).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: 'track_change', payload: { index: 0, position_ms: 0, playing: true } })
+        )
+    })
+
+    it('only the newest held state takes effect', async () => {
+        const { ds, queue } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+        // Withdrawn before its time: the group pauses h1 instead.
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, playing: false, anchor: { position_ms: 2800, at_server_ms: now + 1800 } }), {
+                version: 3,
+            })
+        )
+        await ds.poll()
+
+        vi.advanceTimersByTime(3000)
+        expect(playerMock.switchToGroupStandby).not.toHaveBeenCalled()
+        expect(queue.currentindex).toBe(0)
+        expect(audioSourceMock.pausePlayingSource).toHaveBeenCalledTimes(1)
+    })
+
+    it('a stale poll answer cannot roll back a newer state', async () => {
+        const { ds, queue } = await playingGroup()
+
+        let releaseOld: (v: any) => void = () => {}
+        requestsMock.pollSession.mockReturnValueOnce(new Promise(r => (releaseOld = r)))
+        const oldPoll = ds.poll()
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, currentindex: 2, playing: true, anchor: { position_ms: 0, at_server_ms: 1 } }), {
+                version: 3,
+            })
+        )
+        await ds.poll()
+        expect(queue.currentindex).toBe(2)
+
+        releaseOld(
+            at(mkState({ trackhashes: THREE, currentindex: 1, playing: true, anchor: { position_ms: 0, at_server_ms: 1 } }))
+        )
+        await oldPoll
+        expect(queue.currentindex).toBe(2)
+        expect(ds.sessionVersion).toBe(3)
+    })
+
+    it('a transition committed late (throttled timer) moves the standby on before it sounds', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        playerMock.groupStandbyTimeMs.mockReturnValue(0)
+
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        // A hidden tab's timer fires 800 ms late: the wall clock runs on while
+        // the timer (due at 1470 ms, start latency 30) waits.
+        vi.setSystemTime(now + 800)
+        vi.advanceTimersByTime(1470)
+
+        // Where the group will be once this device sounds: 800 ms into h2.
+        expect(playerMock.seekGroupStandbyMs).toHaveBeenCalledWith(800)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaving resets a steering rate instead of leaving solo playback stretched', async () => {
+        const { ds } = await playingGroup()
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) + 60)
+        vi.advanceTimersByTime(500)
+        expect(lastRate()).toBeCloseTo(0.97, 6)
+
+        ds.toSolo()
+        expect(playerMock.setPlaybackRate).toHaveBeenLastCalledWith(1)
     })
 })

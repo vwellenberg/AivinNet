@@ -125,7 +125,15 @@ const CALLS: Record<string, unknown[]> = {
     'coverart/removeArtistImage': ['art1'],
     'devicesync/registerDevice': ['dev1', 'Laptop', 'desktop'],
     'devicesync/pollSession': [{ device_id: 'dev1', known_version: 0, client_sent_ms: 0, volume: 1, mute: false }],
-    'devicesync/sendCommand': [{ device_id: 'dev1', type: 'play', payload: {} }],
+    // The leader's booked hand-over carries the one optional field worth pinning.
+    'devicesync/sendCommand': [
+        {
+            device_id: 'dev1',
+            type: 'track_change',
+            payload: { index: 1, position_ms: 0, playing: true },
+            execute_at_ms: 1_700_000_004_000,
+        },
+    ],
     'devicesync/setQueue': [
         {
             device_id: 'dev1',
@@ -133,8 +141,9 @@ const CALLS: Record<string, unknown[]> = {
             from: { type: 'album', albumhash: 'alb1' },
             currentindex: 0,
             playing: true,
-            position_ms: 0,
+            position_ms: 61_250,
             repeat: 'none',
+            live: true,
         },
     ],
     'devicesync/resolveTracks': [['t1']],

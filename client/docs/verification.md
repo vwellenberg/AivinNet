@@ -64,9 +64,43 @@ pyjwt.encode({"sub": {"id": 1}, "iat": …, "nbf": …, "exp": …,
 | `previewproxy.js` + `run*.sh` | Branch-`dist` über einen Proxy servieren und messen |
 | `queueseams.js`, `verify3.js` | E2E für Queue-Seams und Group-Sync |
 | `shuffleverify.js`, `endlessverify.js`, `groupshuffle.js` | E2E für die Zufallswiedergabe: wiederholt sie einen Song, stoppt sie auf der letzten Zeile, würfelt die Gruppe? |
+| `~/syncprobe/runprobe.sh` (**eigener Ordner**) | **Wie synchron spielt die Gruppe wirklich?** Zeitverläufe statt Schnappschuss — siehe unten |
 
 **Für Mobile-Befunde immer `MOBILE=1`** — erst mit `hasTouch` greifen die
 `@media (hover: none)`-Zweige, und genau dort stecken die Touch-Bugs.
+
+## Group-Sync messen (Timing)
+
+`verify3.js` prüft Zustände („gleicher Track, < 0,3 s auseinander" 5 s nach dem Klick). Ob ein
+Übergang **sauber** war — Doppelstart, doppelter Seek, Rücksprung, Lücke —, sieht man damit
+nicht. Dafür liegt unter `~/syncprobe`:
+
+```bash
+SRC=~/AivinNet TAG=baseline bash ~/syncprobe/runprobe.sh          # der Stand im Checkout
+SRC=<branch-klon> CLIENT=<klon>/client/dist TAG=neu bash ~/syncprobe/runprobe.sh
+ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "langsames Handy"
+```
+
+- `syncprobe.js` fährt zwei Browser-„Geräte" (Desktop + Phone-Emulation, das Phone mit
+  verstellter Uhr, damit der Offset-Schätzer echte Arbeit hat) durch Join, Next, Seek, Add to
+  queue, Pause, Play und ein Trackende; jede Seite schreibt alle 10 ms die Position jedes
+  `<audio>` mit, dazu Media-Events und jede `/devicesync`-Antwort. Server, Seiten und Skript
+  teilen **eine** Uhr, also sind Positionen und Server-Anker direkt vergleichbar.
+- `syncanalyze.py out/<tag>.json --timeline` druckt pro Schritt Events, Abstand der Geräte und
+  Abweichung vom Anker in 100-ms-Schritten. `runprobe.sh` ruft es selbst auf.
+- `ratebench.js` (Runner `runbench.sh`) misst, was eine `playbackRate`-Änderung dem Media-Clock
+  tatsächlich bringt — Herkunft der Schwellen in `driftSteer.ts`.
+- ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit
+  konsistentem DB-Snapshot, Last.fm-Keys entfernt, Scans/Watchdog aus. Das ist nötig, weil die
+  Gruppe pro **Nutzer** existiert: eine Probe gegen `:1970` wäre der echten Gruppe beigetreten,
+  und jedes Gerät mit Rejoin-Marker hätte sie gehört. Die Bibliothek der Kopie zeigt aber auf
+  die **echten** Dateien (siehe `tests.md` im Repo-Root) — die Probe streamt nur, sie schreibt
+  nichts. Wer sie um Tag- oder Datei-Aktionen erweitert, isoliert zuerst die Bibliothek.
+- Token: wie oben geprägt, per `TOKEN=` oder in `~/uitest/.probe_token`. Danach löschen.
+- **Ein Lauf misst unter der Last, die gerade auf dem Server liegt** (vier Kerne, zwei Browser,
+  der Server, oft eine zweite Sitzung): Vergleiche nur zwischen Läufen derselben Runde, und
+  eine Stress-Variante immer auch gegen den alten Stand fahren, bevor man ihr Ergebnis dem
+  eigenen Code zuschreibt.
 
 ## Drift finden, ohne zu wissen wonach man sucht
 

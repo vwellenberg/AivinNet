@@ -10,6 +10,7 @@ from itertools import pairwise
 from aivinnet.lib.groupsession import (
     COMMAND_GRACE_MS,
     LEAD_MS,
+    MAX_SCHEDULE_AHEAD_MS,
     OFFLINE_MS,
     REAP_MS,
     TARGETED_COMMAND_TTL_MS,
@@ -85,7 +86,7 @@ def test_set_queue_bumps_stores_and_schedules_track_change():
         playing=True,
         position_ms=0,
         repeat="one",
-    )
+    )["command"]
 
     assert current_version(mgr) == v_before + 1
     assert cmd is not None
@@ -282,7 +283,7 @@ def test_snapshot_state_delta_and_queue_id_changes():
 def test_command_is_pruned_after_grace_period():
     mgr, clock = make_manager()
     mgr.join(USER, A)
-    cmd = mgr.set_queue(USER, A, ["h1"], {}, 0, True, 0, "all")
+    cmd = mgr.set_queue(USER, A, ["h1"], {}, 0, True, 0, "all")["command"]
 
     # Present while within the grace window.
     cmds = mgr.snapshot(USER, A, known_version=-1)["commands"]
@@ -330,3 +331,214 @@ def test_fresh_manager_reports_no_session():
     assert snap["joined"] is False
     assert "state" not in snap
     assert snap["commands"] == []
+
+
+# --- queue edits while listening (live queue-set) ----------------------------
+
+
+def playing_session(t_start: int = 1_000_000):
+    """A member A playing h2 of [h1, h2, h3], started at t_start + LEAD_MS."""
+    mgr, clock = make_manager(t_start)
+    mgr.join(USER, A)
+    mgr.set_queue(USER, A, ["h1", "h2", "h3"], {}, 1, True, 0, "all")
+    return mgr, clock
+
+
+def test_a_live_edit_keeps_the_group_playing_where_it_is():
+    """
+    Regression: "add to queue" replayed the last 1.5 s on every device. The
+    sender's playhead was anchored LEAD_MS in the FUTURE, so at execution time
+    the group was told to be where it had been 1.5 s earlier. A live edit
+    that keeps the current track must not touch the anchor at all.
+    """
+    mgr, clock = playing_session()
+    anchor_before = mgr.snapshot(USER, A, known_version=-1)["state"]["anchor"]
+    v_before = current_version(mgr)
+
+    clock["t"] += 60_000
+    result = mgr.set_queue(USER, A, ["h1", "h2", "h3", "h9"], {}, 1, True, 58_437, "all", live=True)
+
+    assert result == {"command": None}
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["trackhashes"] == ["h1", "h2", "h3", "h9"]
+    assert state["anchor"] == anchor_before  # untouched: nobody seeks
+    assert state["playing"] is True
+    assert current_version(mgr) == v_before + 1  # still re-mirrored by everyone
+    assert all(c["created_ms"] < clock["t"] for c in mgr._sessions[USER].pending)  # no new command
+
+
+def test_a_live_edit_that_changes_the_track_anchors_the_playhead_now():
+    mgr, clock = playing_session()
+    clock["t"] += 60_000
+    t = clock["t"]
+
+    # The current track is h3 now (the sender's list diverged): its playhead
+    # holds NOW, not LEAD_MS from now.
+    mgr.set_queue(USER, A, ["h1", "h3"], {}, 1, True, 12_000, "all", live=True)
+
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["anchor"] == {"position_ms": 12_000, "at_server_ms": t}
+
+
+def test_a_live_seed_holds_the_playhead_now():
+    """The first joiner seeds an empty group with the song it is playing."""
+    mgr, clock = make_manager()
+    mgr.join(USER, A)
+    t = clock["t"]
+
+    result = mgr.set_queue(USER, A, ["h1", "h2"], {}, 0, True, 42_000, "all", live=True)
+
+    assert result == {"command": None}
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["anchor"] == {"position_ms": 42_000, "at_server_ms": t}
+    assert state["playing"] is True
+
+
+# --- early track change (the leader's hand-over at the end of a track) -------
+
+
+def test_an_early_track_change_runs_at_the_requested_time():
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    end = clock["t"] + 4_000
+
+    cmd = mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=end)
+
+    assert cmd is not None
+    assert cmd["execute_at_ms"] == end
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["currentindex"] == 2
+    assert state["anchor"] == {"position_ms": 0, "at_server_ms": end}
+
+
+def test_an_early_track_change_never_runs_sooner_than_the_lead():
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    now = clock["t"]
+
+    cmd = mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=now + 200)
+
+    assert cmd["execute_at_ms"] == now + LEAD_MS
+    assert mgr._sessions[USER].early is None  # an ordinary change, nothing to withdraw
+
+
+def test_an_early_execution_time_is_refused_too_far_out_or_for_other_types():
+    mgr, clock = playing_session()
+    now = clock["t"]
+
+    too_far = now + MAX_SCHEDULE_AHEAD_MS + 1
+    assert mgr.apply_transport(USER, A, "track_change", {"index": 2}, execute_at_ms=too_far) is None
+    assert mgr.apply_transport(USER, A, "seek", {"position_ms": 1}, execute_at_ms=now + 4_000) is None
+    # Neither attempt mutated anything.
+    assert mgr.snapshot(USER, A, known_version=-1)["state"]["currentindex"] == 1
+
+
+def test_a_seek_before_the_early_change_withdraws_it():
+    """
+    The leader books the next track seconds ahead. A seek in those seconds
+    applies to the track the listener hears — and the booked jump must not
+    fire afterwards.
+    """
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    early = mgr.apply_transport(
+        USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=clock["t"] + 4_000
+    )
+
+    clock["t"] += 1_000
+    seek_at = clock["t"] + LEAD_MS
+    mgr.apply_transport(USER, A, "seek", {"position_ms": 30_000})
+
+    snap = mgr.snapshot(USER, A, known_version=-1)
+    assert snap["state"]["currentindex"] == 1  # back on the playing track
+    assert snap["state"]["playing"] is True
+    assert snap["state"]["anchor"] == {"position_ms": 30_000, "at_server_ms": seek_at}
+    assert all(c["id"] != early["id"] for c in snap["commands"])  # withdrawn
+
+
+def test_a_pause_before_the_early_change_freezes_the_track_still_playing():
+    mgr, clock = playing_session()
+    started = clock["t"] + LEAD_MS
+    clock["t"] += 200_000
+    mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=clock["t"] + 4_000)
+
+    clock["t"] += 1_000
+    pause_at = clock["t"] + LEAD_MS
+    mgr.apply_transport(USER, A, "pause", {})
+
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["currentindex"] == 1
+    assert state["playing"] is False
+    # Frozen on the OLD track's clock, not on the booked track's (which would
+    # come out negative: its anchor lies after the pause).
+    assert state["anchor"] == {"position_ms": pause_at - started, "at_server_ms": pause_at}
+
+
+def test_the_early_change_stands_once_its_time_has_come():
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    end = clock["t"] + 4_000
+    mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=end)
+
+    clock["t"] = end + 3_000  # the next track has been playing for 3 s
+    pause_at = clock["t"] + LEAD_MS
+    mgr.apply_transport(USER, A, "pause", {})
+
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["currentindex"] == 2
+    assert state["anchor"] == {"position_ms": pause_at - end, "at_server_ms": pause_at}
+
+
+def test_a_live_edit_during_an_early_change_keeps_the_playing_track_going():
+    mgr, clock = playing_session()
+    anchor_playing = mgr.snapshot(USER, A, known_version=-1)["state"]["anchor"]
+    clock["t"] += 200_000
+    mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=clock["t"] + 4_000)
+
+    clock["t"] += 500
+    # The sender still hears h2 (index 1) and appends a track.
+    mgr.set_queue(USER, A, ["h1", "h2", "h3", "h9"], {}, 1, True, 200_000, "all", live=True)
+
+    state = mgr.snapshot(USER, A, known_version=-1)["state"]
+    assert state["currentindex"] == 1
+    assert state["anchor"] == anchor_playing  # continuous, no seek anywhere
+    assert mgr._sessions[USER].early is None  # the leader books again for the new queue
+
+
+def test_a_live_edit_counting_from_the_booked_track_keeps_the_booking():
+    """
+    Clients count from the track the group is heading to while a change is on
+    its way. An "add to queue" in a track's last seconds therefore names the
+    booked track as current — withdrawing the booking here would anchor the
+    booked track at the old track's position.
+    """
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    end = clock["t"] + 4_000
+    early = mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=end)
+
+    clock["t"] += 500
+    # h0 inserted at the top: the booked h3 is now index 3, the playing h2 index 2.
+    mgr.set_queue(USER, A, ["h0", "h1", "h2", "h3"], {}, 3, True, 199_000, "all", live=True)
+
+    snap = mgr.snapshot(USER, A, known_version=-1)
+    assert snap["state"]["currentindex"] == 3
+    assert snap["state"]["anchor"] == {"position_ms": 0, "at_server_ms": end}
+    assert any(c["id"] == early["id"] for c in snap["commands"])
+    # ...and a pause before the hand-over still falls back to the right row.
+    mgr.apply_transport(USER, A, "pause", {})
+    assert mgr.snapshot(USER, A, known_version=-1)["state"]["currentindex"] == 2
+
+
+def test_a_repeat_toggle_leaves_the_early_change_standing():
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    end = clock["t"] + 4_000
+    early = mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=end)
+
+    mgr.apply_transport(USER, A, "set_repeat", {"repeat": "one"})
+
+    snap = mgr.snapshot(USER, A, known_version=-1)
+    assert snap["state"]["currentindex"] == 2
+    assert snap["state"]["anchor"] == {"position_ms": 0, "at_server_ms": end}
+    assert any(c["id"] == early["id"] for c in snap["commands"])

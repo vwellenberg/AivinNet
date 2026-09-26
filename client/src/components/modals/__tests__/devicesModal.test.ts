@@ -21,6 +21,7 @@ vi.mock('@/stores/player', () => ({
     usePlayer: () => ({
         clearNextAudio: vi.fn(),
         clearMovingNextTimeout: vi.fn(),
+        loadedTrackhash: vi.fn(() => ''),
         setVolume: vi.fn(),
         setMute: vi.fn(),
     }),

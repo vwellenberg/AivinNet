@@ -69,8 +69,8 @@ const LOCAL_BY_DESIGN: Record<string, string> = {
     setNewList:
         'The queue-REPLACEMENT primitive, never an entry point. Its callers are the setFromX ' +
         'actions — always followed by queue.play(), whose seam broadcasts the whole new list ' +
-        'via sendQueueSet (devicesync.ts::intercept "play") — and applyState, which IS the ' +
-        'mirror and runs under `applying`. Broadcasting here as well is the "Queue ersetzen ist ' +
+        'via sendQueueSet (devicesync.ts::intercept "play") — and the group mirror ' +
+        '(devicesync.ts::commit), which runs under `applying`. Broadcasting here as well is the "Queue ersetzen ist ' +
         'nicht Queue leeren" bug from .claude/rules/device-sync.md.',
     clearList:
         'Local primitive with two callers, both seamed: queue.clearQueue (intercept "clearQueue") ' +

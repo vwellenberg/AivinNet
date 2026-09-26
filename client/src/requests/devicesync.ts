@@ -18,6 +18,8 @@ export interface CommandBody {
     type: SyncCommandType
     payload: unknown
     target_device?: string
+    /** track_change only: server time to switch at (the leader's hand-over at a track's end). */
+    execute_at_ms?: number
 }
 
 export interface SetQueueBody {
@@ -28,6 +30,8 @@ export interface SetQueueBody {
     playing: boolean
     position_ms: number
     repeat: string
+    /** `position_ms` is this device's playhead right now: an edit while listening, not a new start. */
+    live?: boolean
 }
 
 /** Register (or refresh) this device in the persistent device registry. */

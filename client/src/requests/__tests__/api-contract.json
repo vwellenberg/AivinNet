@@ -548,6 +548,7 @@
     "body": {
       "allowed": [
         "device_id",
+        "execute_at_ms",
         "payload",
         "target_device",
         "type"
@@ -602,6 +603,7 @@
         "currentindex",
         "device_id",
         "from",
+        "live",
         "playing",
         "position_ms",
         "repeat",

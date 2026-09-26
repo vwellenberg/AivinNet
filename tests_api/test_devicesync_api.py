@@ -245,6 +245,85 @@ def test_queue_set_caps_trackhashes(ds):
     assert too_many.status_code == 400
 
 
+def test_live_queue_set_keeps_the_group_playing_and_schedules_nothing(ds):
+    """
+    Regression: every queue edit while listening ("add to queue") anchored the
+    sender's playhead LEAD_MS in the future, so all devices jumped back 1.5 s.
+    A live edit that keeps the current track leaves the anchor alone.
+    """
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+    start = {"device_id": "dev-a", "trackhashes": ["h1", "h2"], "from": {}, "currentindex": 0, "playing": True}
+    ds.client.post("/devicesync/queue-set", json=start)
+    anchor_before = _poll(ds, "dev-a", known_version=0)["state"]["anchor"]
+
+    ds.clock["t"] += 30_000
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        json={**start, "trackhashes": ["h1", "h2", "h3"], "position_ms": 28_512.75, "live": True},
+    )
+
+    assert res.status_code == 200
+    assert res.get_json() == {"command": None}
+    state = _poll(ds, "dev-a", known_version=0)["state"]
+    assert state["trackhashes"] == ["h1", "h2", "h3"]
+    assert state["anchor"] == anchor_before
+
+
+def test_track_change_accepts_an_explicit_fractional_execution_time(ds):
+    """The leader books the next track for the exact end of the current one."""
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+    ds.client.post(
+        "/devicesync/queue-set",
+        json={"device_id": "dev-a", "trackhashes": ["h1", "h2"], "from": {}, "currentindex": 0, "playing": True},
+    )
+    end = ds.clock["t"] + 4_000.6
+
+    res = ds.client.post(
+        "/devicesync/command",
+        json={
+            "device_id": "dev-a",
+            "type": "track_change",
+            "payload": {"index": 1, "position_ms": 0, "playing": True},
+            "execute_at_ms": end,
+        },
+    )
+
+    assert res.status_code == 200
+    assert res.get_json()["command"]["execute_at_ms"] == round(end)
+    assert _poll(ds, "dev-a", known_version=0)["state"]["anchor"] == {"position_ms": 0, "at_server_ms": round(end)}
+
+
+def test_an_execution_time_is_refused_off_track_change_and_too_far_out(ds):
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+    ds.client.post(
+        "/devicesync/queue-set",
+        json={"device_id": "dev-a", "trackhashes": ["h1", "h2"], "from": {}, "currentindex": 0, "playing": True},
+    )
+    version = _poll(ds, "dev-a", known_version=0)["version"]
+
+    seek = ds.client.post(
+        "/devicesync/command",
+        json={"device_id": "dev-a", "type": "seek", "payload": {"position_ms": 1}, "execute_at_ms": ds.clock["t"]},
+    )
+    far = ds.client.post(
+        "/devicesync/command",
+        json={
+            "device_id": "dev-a",
+            "type": "track_change",
+            "payload": {"index": 1},
+            "execute_at_ms": ds.clock["t"] + 3_600_000,
+        },
+    )
+
+    assert seek.status_code == 400
+    assert far.status_code == 400
+    # A refused command leaves the session untouched.
+    assert _poll(ds, "dev-a", known_version=0)["version"] == version
+
+
 # --- 6. track_change bounds ---------------------------------------------------
 
 
