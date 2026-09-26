@@ -25,7 +25,7 @@ import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
 import { learnLatency, loadLatency, saveLatency, type LatencyKind } from '@/utils/deviceSync/latency'
 import { resolveQueueMove } from '@/utils/queueMove'
-import { pickShuffleIndex } from '@/utils/shufflePicker'
+import { pickShuffleIndex, shuffleAvoidingFront } from '@/utils/shufflePicker'
 import { shiftAfterRemove } from '@/utils/shuffleIndexes'
 import type {
     DeviceSummary,
@@ -52,7 +52,7 @@ import { NotifType, useToast } from '@/stores/notification'
 import { audioSource, usePlayer } from '@/stores/player'
 import useQueue from '@/stores/queue'
 import type { From } from '@/stores/queue/tracklist'
-import useTracklist, { shuffleArray } from '@/stores/queue/tracklist'
+import useTracklist from '@/stores/queue/tracklist'
 import useSettings from '@/stores/settings'
 
 type RepeatMode = 'all' | 'one' | 'none'
@@ -1423,12 +1423,17 @@ export default defineStore('devicesync', {
                     break
                 }
                 case 'shuffleQueue': {
+                    // The same shuffle as solo (`tracklist.shuffleList`): the
+                    // group restarts at index 0, so the track playing now stays
+                    // out of the front row. This used to be a copy that put it
+                    // FIRST — every device restarted the song that was on.
+                    //
+                    // `currentindex`, not `groupPosition()`: the queue-set
+                    // replaces a held transition, so the song to keep off the
+                    // front is the one still sounding here.
                     const hashes = tracklist.tracklist.map(t => t.trackhash)
-                    const currentHash = hashes[queue.currentindex]
-                    const rest = shuffleArray(hashes.filter((_, i) => i !== queue.currentindex))
-                    const shuffled = currentHash !== undefined ? [currentHash, ...rest] : rest
                     void this.sendQueueSet({
-                        trackhashes: shuffled,
+                        trackhashes: shuffleAvoidingFront(hashes, queue.currentindex),
                         from: tracklist.from as SyncFrom,
                         currentindex: 0,
                         playing: true,

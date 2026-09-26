@@ -1013,6 +1013,77 @@ describe('devicesync store', () => {
         )
     })
 
+    // -----------------------------------------------------------------------
+    // The one-shot "Shuffle" restarts at index 0, so the front row is what
+    // plays next. Solo keeps the playing track out of it — restarting the same
+    // song at 0:00 is not a shuffle (#341). The group path carried its own
+    // copy from before that rule, and it put the playing track FIRST: every
+    // device restarted the song that was already on.
+    // -----------------------------------------------------------------------
+    it('intercept(shuffleQueue) keeps the playing track out of the front row and restarts at 0', async () => {
+        const { useDeviceSync, useTracklist, useQueue } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        ds.joined = true
+
+        const HASHES = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        const tl = useTracklist()
+        tl.tracklist = HASHES.map(mkTrack)
+        const queue = useQueue()
+        queue.playing = true
+        playerMock.getCurrentTimeMs.mockReturnValue(41000)
+
+        for (let i = 0; i < 60; i++) {
+            requestsMock.setQueue.mockClear()
+            queue.currentindex = i % HASHES.length
+
+            queue.shuffleQueue()
+
+            expect(requestsMock.setQueue).toHaveBeenCalledTimes(1)
+            const body = (requestsMock.setQueue.mock.calls[0] as any[])[0]
+            expect(body.trackhashes[0]).not.toBe(HASHES[queue.currentindex])
+            expect([...body.trackhashes].sort()).toEqual(HASHES)
+            // A new start, like solo's play(0): from the top, not live.
+            expect(body).toMatchObject({ currentindex: 0, position_ms: 0, playing: true, live: false })
+        }
+
+        // The server's echo is what reorders this device.
+        expect(tl.tracklist.map((t: any) => t.trackhash)).toEqual(HASHES)
+    })
+
+    // One rule, not two copies: given the same dice, the group sends exactly
+    // the order a solo shuffle lands on. Constant dice put the playing row h2
+    // first, so the swap that moves it out again runs on both sides too.
+    it('the group shuffles exactly like solo, given the same dice', async () => {
+        const { useDeviceSync, useTracklist, useQueue } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        const HASHES = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        const tl = useTracklist()
+        const queue = useQueue()
+        const dice = vi.spyOn(Math, 'random').mockReturnValue(0)
+
+        let solo: string[] = []
+        try {
+            tl.tracklist = HASHES.map(mkTrack)
+            queue.currentindex = 1
+            queue.shuffleQueue()
+            solo = tl.tracklist.map((t: any) => t.trackhash)
+
+            tl.tracklist = HASHES.map(mkTrack)
+            queue.currentindex = 1
+            ds.joined = true
+            queue.shuffleQueue()
+        } finally {
+            dice.mockRestore()
+        }
+
+        expect((requestsMock.setQueue.mock.calls[0] as any[])[0].trackhashes).toEqual(solo)
+    })
+
     it('mirroring an EMPTY group queue stops audio instead of letting the steerer hammer it to 0', async () => {
         const { useDeviceSync, useTracklist, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')

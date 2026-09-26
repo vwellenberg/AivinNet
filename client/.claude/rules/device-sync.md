@@ -103,6 +103,16 @@ sequentielle Zeile zurück — die Gruppe würde nach dem ersten Sprung wieder d
 Neu gewürfelt wird **nur bei echter Änderung**: der Poll läuft jede Sekunde, und ein Wurf pro Tick
 machte `nextindex` zum wandernden Ziel.
 
+⚠️ **Eine Regel, ein Ort — der Seam delegiert, er kopiert nicht.** Das einmalige Mischen der
+Queue (`queue.shuffleQueue`) läuft solo **und** in der Gruppe durch
+`utils/shufflePicker.ts::shuffleAvoidingFront`: Danach startet Index 0, also darf der laufende
+Track dort nicht landen. `intercept('shuffleQueue')` trug eine eigene Kopie aus der Zeit vor
+dieser Regel (#341) und legte ihn nach **vorn** — Shuffle startete den laufenden Song auf allen
+Geräten bei 0:00 neu. Nachgeschärft wurde nur der Solo-Pfad, und die Kopie im Seam fiel niemandem
+auf. Wer eine Solo-Regel ändert, sucht ihr Gegenstück im `intercept`; gemeinsame Logik gehört in
+einen reinen Helfer, den beide aufrufen. Wächter: der Paritätstest in `devicesync.test.ts`
+(gleiche Würfel → gleiche Reihenfolge).
+
 ⚠️ **`shuffle` ist — anders als `repeat` — KEIN geteilter Zustand.** Es gibt kein Feld dafür im
 Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader beim Ausspielen, der
 Drückende beim manuellen „Next"). Wer das ändern will, braucht ein Feld im Backend-State, nicht
