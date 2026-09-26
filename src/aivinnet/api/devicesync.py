@@ -64,6 +64,12 @@ class CommandBody(BaseModel):
     type: str = Field(description="Command type (transport or targeted)")
     payload: dict[str, Any] = Field(default_factory=dict, description="Command-specific payload")
     target_device: str | None = Field(None, description="Target device id (required for targeted commands)")
+    # float for the same reason as the positions: it is computed from clock
+    # arithmetic in the browser and may carry a fraction. Rounded server-side.
+    execute_at_ms: float | None = Field(
+        None,
+        description="track_change only: server time to switch at (the leader's hand-over at the end of a track)",
+    )
 
 
 class QueueSetBody(BaseModel):
@@ -78,6 +84,11 @@ class QueueSetBody(BaseModel):
     # silently never reached the server. Accept the real shape and round here.
     position_ms: float = Field(0, description="Playhead position of the current track (ms, may be fractional)")
     repeat: str = Field("all", description="Repeat mode ('all' / 'one' / 'off')")
+    live: bool = Field(
+        False,
+        description="position_ms is the sender's playhead at send time (queue edits while listening): "
+        "the group keeps playing instead of starting over",
+    )
 
 
 class ResolveBody(BaseModel):
@@ -118,10 +129,14 @@ def command(body: CommandBody):
 
     Transport types are scheduled LEAD_MS in the future and bump the version;
     targeted types execute immediately on their target and require ``target_device``.
-    ``track_change`` is validated against the current queue bounds.
+    ``track_change`` is validated against the current queue bounds and may ask
+    for a later ``execute_at_ms``.
     """
     userid = get_current_userid()
     ctype = body.type
+
+    if body.execute_at_ms is not None and ctype != "track_change":
+        return {"msg": "execute_at_ms is only valid for track_change."}, 400
 
     if ctype in TRANSPORT_TYPES:
         payload = dict(body.payload)
@@ -142,7 +157,8 @@ def command(body: CommandBody):
                 return {"msg": "Invalid track index."}, 400
             payload["index"] = max(0, min(index, queue_len - 1))
 
-        cmd = manager.apply_transport(userid, body.device_id, ctype, payload)
+        execute_at = round(body.execute_at_ms) if body.execute_at_ms is not None else None
+        cmd = manager.apply_transport(userid, body.device_id, ctype, payload, execute_at_ms=execute_at)
     elif ctype in TARGETED_TYPES:
         if not body.target_device:
             return {"msg": "target_device is required for targeted commands."}, 400
@@ -151,7 +167,7 @@ def command(body: CommandBody):
         return {"msg": f"Unknown command type: {ctype!r}."}, 400
 
     if cmd is None:
-        return {"msg": "Command rejected: no active session or invalid target."}, 400
+        return {"msg": "Command rejected: no active session, invalid target or execution time."}, 400
 
     return {"command": cmd}
 
@@ -160,7 +176,8 @@ def command(body: CommandBody):
 def queue_set(body: QueueSetBody):
     """
     Replace the session queue (the first joiner seeds the session with its local
-    state). Schedules an implicit ``track_change`` and bumps the version.
+    state) and bump the version. A new start schedules an implicit
+    ``track_change``; a ``live`` edit keeps the group playing and schedules none.
     """
     userid = get_current_userid()
 
@@ -170,7 +187,7 @@ def queue_set(body: QueueSetBody):
 
     currentindex = max(0, min(body.currentindex, len(trackhashes) - 1)) if trackhashes else 0
 
-    cmd = manager.set_queue(
+    result = manager.set_queue(
         userid,
         body.device_id,
         trackhashes,
@@ -179,11 +196,12 @@ def queue_set(body: QueueSetBody):
         body.playing,
         round(body.position_ms),
         body.repeat,
+        live=body.live,
     )
-    if cmd is None:
+    if result is None:
         return {"msg": "Cannot set queue: device is not a session member."}, 400
 
-    return {"command": cmd}
+    return {"command": result["command"]}
 
 
 @api.post("/resolve")

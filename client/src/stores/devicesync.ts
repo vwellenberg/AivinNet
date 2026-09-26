@@ -1,13 +1,16 @@
 // Multiroom device-sync store (client side of the "group session" feature).
 //
 // Server is the source of truth. This store short-polls the session, feeds a
-// Cristian clock-offset estimator, mirrors the authoritative queue/transport
-// state under a re-entrancy guard (`applying`), executes server-scheduled
-// commands at the right local time (with catch-up for missed ones), and steers
-// audio drift with a 250 ms playbackRate/seek loop while playing.
+// Cristian clock-offset estimator and mirrors the authoritative group state
+// under a re-entrancy guard (`applying`).
 //
-// C2 scope: the store + the store-side seams only. Nothing wires it into the
-// UI/App yet, so solo behavior is unchanged (nothing calls the new store).
+// Transport mutations are scheduled by the server LEAD_MS into the future, so
+// the state describing one arrives AHEAD of its time. It is held (`pending`),
+// its audio prepared on the standby element, and committed at its anchor time
+// — on every device at the same instant. While playing, a 250 ms loop steers
+// residual drift via playbackRate and compensated seeks, and learns this
+// device's start and seek latency from the result (utils/deviceSync/latency.ts).
+// The leader books each next track for the exact end of the current one.
 //
 // Module-level singletons live OUTSIDE the reactive state (same pattern as
 // player.ts's `audioSource`): timers, the estimator and the executed-command
@@ -16,11 +19,13 @@
 import { defineStore } from 'pinia'
 
 import { clampOffset, loadAudioOffset, saveAudioOffset } from '@/utils/deviceSync/audioOffset'
-import { computeCorrection, HARD_MS } from '@/utils/deviceSync/driftSteer'
+import { computeCorrection } from '@/utils/deviceSync/driftSteer'
 import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
+import { learnLatency, loadLatency, saveLatency, type LatencyKind } from '@/utils/deviceSync/latency'
 import { resolveQueueMove } from '@/utils/queueMove'
+import { pickShuffleIndex } from '@/utils/shufflePicker'
 import { shiftAfterRemove } from '@/utils/shuffleIndexes'
 import type {
     DeviceSummary,
@@ -63,8 +68,23 @@ const RECONNECT_AFTER = 3
 const FAILURES_TO_SOLO = 15
 /** Cap on the executed-command dedupe set (FIFO-trimmed). */
 const MAX_EXECUTED_IDS = 500
-/** A scheduled command this close to firing suppresses drift steering. */
-const STEER_SUPPRESS_MS = 1000
+/** Transport commands; the state carries them, see `handleCommands`. */
+const TRANSPORT_TYPES = new Set<SyncCommandType>(['play', 'pause', 'seek', 'track_change', 'set_repeat'])
+
+/** How long an action's audible result settles before it is measured (ms). */
+const SETTLE_MS = 700
+/** Stop waiting for a stalled element (buffering) to settle after this (ms). */
+const SETTLE_GIVEUP_MS = 6000
+/** A jump smaller than this (ms) is no jump: the playing element carries on. */
+const JUMP_MS = 60
+/** A standby this far off its start position (ms) is re-positioned before it plays. */
+const STANDBY_SLACK_MS = 20
+/** A paused element this far off the anchor (ms) is re-positioned — free, nothing sounds. */
+const PAUSED_SLACK_MS = 40
+/** The leader books the next track this long before the current one ends (ms)... */
+const BOOK_AHEAD_MS = 4000
+/** ...but no later than this before the end; `ended` handles anything shorter. */
+const BOOK_MIN_MS = 400
 
 // --- non-reactive module singletons -----------------------------------------
 
@@ -76,21 +96,54 @@ let pollingActive = false
 let steerTimer: any = null
 let visibilityHandler: (() => void) | null = null
 
-interface Scheduled {
-    handle: any
-    at: number
-}
-let scheduled: Scheduled[] = []
+/**
+ * Polls are numbered; a response older than one already applied is dropped.
+ * Two polls can be in flight (the loop, a visibility refocus, the immediate
+ * poll after a command), and a stale state landing last would roll the group
+ * back — or a solo response from just before a join would dissolve it again.
+ */
+let pollSeq = 0
+let appliedSeq = 0
 
-/** Cancel every pending scheduled command timer (on leave/solo/queue swap). */
-function clearScheduled() {
-    for (const s of scheduled) clearTimeout(s.handle)
-    scheduled = []
+/**
+ * The next group state, received ahead of its time.
+ *
+ * Applying it on receipt made every device act at its own poll phase: a track
+ * change started up to 1.5 s early and then restarted on the scheduled
+ * command, a seek ran twice, a pause stopped each device at a different
+ * moment — measured with two browsers on one clock (~/syncprobe on the server).
+ */
+interface Pending {
+    state: SyncState
+    /** The resolved list when the queue changes with this state, else null. */
+    tracks: Track[] | null
+    /** What the standby element was prepared for; '' = the playing element carries it. */
+    key: string
+    handle: any
+}
+let pending: Pending | null = null
+
+function clearPending() {
+    if (pending) clearTimeout(pending.handle)
+    pending = null
 }
 
 /**
+ * The last action whose audible result is still settling. Steering holds off
+ * until it has, then measures the residual error and learns from it. Seeking
+ * again before a seek had landed is what produced ten seeks in a row.
+ */
+let settle: { kind: LatencyKind | 'load'; at: number } | null = null
+/** Rate steering is engaged (hysteresis, see driftSteer.ts). */
+let steering = false
+let latency = loadLatency()
+
+/** The anchor the leader already booked the next track for — one booking per anchor. */
+let bookedFor = ''
+
+/**
  * Nesting depth of `withApplying` sections. A plain boolean would let an inner
- * section (e.g. a scheduled command firing during a mirror) clear the outer
+ * section (e.g. a pending state committing during a mirror) clear the outer
  * section's flag prematurely.
  */
 let applyDepth = 0
@@ -149,16 +202,21 @@ function wasGroupMember(): boolean {
  * imports the store statically and calls this in beforeEach instead.
  */
 export function __resetDeviceSyncTestState() {
-    clearScheduled()
+    clearPending()
     executedCommandIds.clear()
     estimator = new ClockOffsetEstimator()
     leaveSuppressUntil = 0
     autoRejoinSuppressUntil = 0
     applyDepth = 0
     joinInFlight = null
-    lastTransportAt = 0
     loadedTrackhash = ''
     appliedRate = 1
+    settle = null
+    steering = false
+    latency = loadLatency()
+    bookedFor = ''
+    pollSeq = 0
+    appliedSeq = 0
     pollingActive = false
     if (pollTimer) {
         clearTimeout(pollTimer)
@@ -172,6 +230,11 @@ export function __resetDeviceSyncTestState() {
         document.removeEventListener('visibilitychange', visibilityHandler)
         visibilityHandler = null
     }
+}
+
+/** TEST-ONLY: this device's current latency estimates. */
+export function __latencyForTest() {
+    return { ...latency }
 }
 
 // The trackhash currently loaded into the audio element and the last applied
@@ -193,40 +256,16 @@ function rememberCommandId(id: string) {
     }
 }
 
-function scheduledCommandNear(nowMs: number): boolean {
-    return scheduled.some(s => Math.abs(s.at - nowMs) <= STEER_SUPPRESS_MS)
-}
-
-/** Whether a command's effect is a moving (playing) position — drives catch-up. */
-function impliesPlaying(cmd: SyncCommand, playing: boolean): boolean {
-    const p = (cmd.payload ?? {}) as any
-    switch (cmd.type) {
-        case 'play':
-            return true
-        case 'track_change':
-            return p.playing !== false
-        case 'seek':
-            return playing
-        default:
-            return false
-    }
-}
-
-/**
- * When the last transport command was executed. Right after a play/seek/track
- * change the device should snap onto the anchor hard instead of easing in over
- * seconds via playbackRate — that easing is exactly what "slightly offset"
- * sounds like at the start of a track.
- */
-let lastTransportAt = 0
-/** Hard-seek threshold during that snap window, and how long it lasts. */
-const SNAP_WINDOW_MS = 2500
-const SNAP_HARD_MS = 80
-
 /** Reset drift steering to neutral rate — keeps `appliedRate` and the element in lockstep. */
 function resetRate(player: ReturnType<typeof usePlayer>) {
     player.setPlaybackRate(1)
     appliedRate = 1
+    steering = false
+}
+
+/** Open a settle window for an action taken just now. */
+function settleAfter(kind: LatencyKind | 'load') {
+    settle = { kind, at: Date.now() }
 }
 
 export default defineStore('devicesync', {
@@ -244,8 +283,9 @@ export default defineStore('devicesync', {
         lastMirroredHashKey: '',
         devices: [] as DeviceSummary[],
         scrobbleLeader: null as string | null,
+        /** The anchor in effect NOW (a pending one takes over at its time). */
         anchor: null as SyncAnchor | null,
-        /** Server truth for whether the session is playing. */
+        /** Server truth for whether the session is playing (in effect now). */
         playing: false,
         status: 'solo' as 'solo' | 'joined' | 'reconnecting',
         /** Autoplay-block overlay flag — consumed by the later UI PR. */
@@ -350,6 +390,7 @@ export default defineStore('devicesync', {
         async poll() {
             if (!this.deviceId) return
             const settings = useSettings()
+            const seq = ++pollSeq
             const t0 = Date.now()
 
             let res: PollResponse | null = null
@@ -366,6 +407,9 @@ export default defineStore('devicesync', {
                 res = null
             }
 
+            // A newer poll (or a join) has already been applied: this answer is stale.
+            if (seq < appliedSeq) return
+
             if (!res) {
                 this.pollFailures++
                 if (this.pollFailures >= RECONNECT_AFTER) {
@@ -377,6 +421,7 @@ export default defineStore('devicesync', {
                 }
                 return
             }
+            appliedSeq = seq
 
             estimator.addSample(t0, res.server_now_ms, Date.now())
             this.pollFailures = 0
@@ -420,6 +465,7 @@ export default defineStore('devicesync', {
                 }
                 this.joined = true
                 this.status = 'joined'
+                loadedTrackhash = usePlayer().loadedTrackhash()
                 this.startSteerLoop()
                 // Force a full re-mirror: the local list may have diverged
                 // while we were solo (queue_id alone would not notice).
@@ -447,6 +493,11 @@ export default defineStore('devicesync', {
             }
         },
 
+        /** Poll right away — after sending a command, to hear its state as early as possible. */
+        pollSoon() {
+            if (this.joined) void this.poll()
+        },
+
         /**
          * Run `fn` under the mirror re-entrancy guard. `fn` MUST be synchronous:
          * the guard must never span an await, or genuine user actions during
@@ -466,10 +517,16 @@ export default defineStore('devicesync', {
         /** Re-derive transport from the current anchor (used on tab re-focus). */
         hardResync() {
             if (!this.joined || !this.anchor) return
-            this.withApplying(() => this.reconcileTransport())
+            this.withApplying(() => this.alignTransport())
         },
 
         // --- authoritative state mirroring ----------------------------------
+
+        /**
+         * Take in a group state: commit it now if its anchor time has come,
+         * otherwise hold it until then (see `Pending`). Returns false when the
+         * queue could not be resolved, so the caller keeps known_version stale.
+         */
         async applyState(state: SyncState): Promise<boolean> {
             // Queue identity = the server-computed queue_id (sha1 of hashes) —
             // no O(N) key building on the unchanged hot path.
@@ -478,7 +535,10 @@ export default defineStore('devicesync', {
             let tracks: Track[] | null = null
             if (queueChanged) {
                 // Resolve OUTSIDE the applying guard (must not span an await).
-                tracks = await resolveTracks(state.trackhashes)
+                tracks =
+                    pending?.tracks && pending.state.queue_id === state.queue_id
+                        ? pending.tracks
+                        : await resolveTracks(state.trackhashes)
                 if (tracks.length === 0 && state.trackhashes.length > 0) {
                     // Resolve failed — keep the old mirror; queueId stays stale
                     // so the next poll retries.
@@ -486,11 +546,75 @@ export default defineStore('devicesync', {
                 }
             }
 
+            // Superseded by this state, whether it takes over now or later.
+            clearPending()
+
+            if (state.anchor.at_server_ms > estimator.serverNow()) {
+                this.holdUntilDue(state, tracks)
+            } else {
+                this.commit(state, tracks)
+            }
+            return true
+        },
+
+        /** Hold a future state, prepare its audio, and commit it on its anchor time. */
+        holdUntilDue(state: SyncState, tracks: Track[] | null) {
+            // Repeat changes nothing that sounds — mirror it now. Direct write,
+            // not toggleRepeatMode(): mirroring must not re-broadcast.
             this.withApplying(() => {
-                if (queueChanged && tracks) {
-                    // Pending scheduled commands were aimed at the OLD queue;
-                    // a stale track_change index must not fire into this one.
-                    clearScheduled()
+                useSettings().repeat = state.repeat as RepeatMode
+            })
+
+            const target = (tracks ?? useTracklist().tracklist)[state.currentindex]
+            const key = this.prepareStandbyFor(state, target)
+
+            // Starting sound takes this device `latency.start` ms — begin that
+            // much early, so it is audible exactly on the anchor.
+            const startsSound = state.playing && (!this.playing || key !== '')
+            const lead = startsSound ? latency.start : 0
+            const dueLocalMs = state.anchor.at_server_ms - estimator.offset - lead
+
+            const entry: Pending = { state, tracks, key, handle: null }
+            entry.handle = setTimeout(
+                () => {
+                    if (pending !== entry) return
+                    pending = null
+                    this.commit(state, tracks, key)
+                },
+                Math.max(0, dueLocalMs - Date.now())
+            )
+            pending = entry
+        },
+
+        /**
+         * Load the target of a transition that JUMPS — another track, or this
+         * one at another position — onto the standby element, positioned and
+         * paused. Returns the preparation key, or '' when the playing element
+         * carries the transition itself (a pause, a resume in place).
+         */
+        prepareStandbyFor(state: SyncState, target: Track | undefined): string {
+            if (!target?.filepath || !this.joined) return ''
+
+            const startMs = Math.max(0, state.anchor.position_ms + this.audioOffsetMs)
+            if (target.trackhash === loadedTrackhash) {
+                if (!state.playing) return ''
+                // Where the playing element will be by then if nothing happens.
+                const willBeAt =
+                    this.playing && this.anchor
+                        ? expectedPositionMs(this.anchor, state.anchor.at_server_ms, true) + this.audioOffsetMs
+                        : usePlayer().getCurrentTimeMs()
+                if (Math.abs(willBeAt - startMs) < JUMP_MS) return ''
+            }
+
+            const key = `${target.trackhash}@${startMs}@${state.anchor.at_server_ms}`
+            usePlayer().prepareGroupStandby(target, startMs, key)
+            return key
+        },
+
+        /** Make `state` the one in effect: mirror queue, index and flags, then align the audio. */
+        commit(state: SyncState, tracks: Track[] | null, key = '') {
+            this.withApplying(() => {
+                if (tracks) {
                     const tracklist = useTracklist()
                     tracklist.setNewList(tracks)
                     tracklist.from = state.from as From
@@ -515,19 +639,21 @@ export default defineStore('devicesync', {
                 this.anchor = state.anchor
                 this.playing = state.playing
 
-                this.reconcileTransport()
+                this.alignTransport(key)
             })
-            return true
         },
 
         /**
-         * Hard-align the audio element with the anchor: (re)load the current
-         * track, seek to the expected position, and match play/pause. A best-
-         * effort seek is fine — the steering loop converges any residual drift.
+         * Bring this device's audio onto the group state in effect.
+         *
+         * `key` names a standby prepared for exactly this transition — switching
+         * to it is instant. Without one the playing element is used: a new track
+         * is loaded now (join, catch-up after a missed transition), the same
+         * track is paused, resumed or re-positioned. Every path that moves the
+         * clock opens a settle window for the steerer.
          */
-        reconcileTransport() {
+        alignTransport(key = '') {
             if (!this.anchor) return
-            const anchor = this.anchor
 
             const queue = useQueue()
             const tracklist = useTracklist()
@@ -545,35 +671,95 @@ export default defineStore('devicesync', {
                     audioSource.pausePlayingSource()
                     resetRate(player)
                     loadedTrackhash = ''
+                    settle = null
                 }
                 // Missing-track gap: fewer tracks resolved than hashes and the
                 // current one is absent → stay paused-mirroring, do not crash.
                 return
             }
 
-            const expected = expectedPositionMs(anchor, estimator.serverNow(), this.playing) + this.audioOffsetMs
-            const trackDiffers = loadedTrackhash !== current.trackhash
-            const drift = Math.abs(player.getCurrentTimeMs() - expected) > HARD_MS
-            const playMismatch = queue.playing !== this.playing
-
-            if (!trackDiffers && !drift && !playMismatch) return
-
             queue.playing = this.playing
-            resetRate(player)
 
-            if (trackDiffers) {
-                player.playCurrent()
+            // 1. A prepared standby: cut over. When this starts sound it runs
+            //    `latency.start` early (holdUntilDue), so "where the anchor will
+            //    be once it sounds" is the prepared position itself — unless the
+            //    commit came late (a throttled timer), then it is moved on.
+            if (key && player.groupStandbyReady(key)) {
+                if (this.playing) {
+                    const soundsAt = this.expectedMs(latency.start)
+                    if (Math.abs(player.groupStandbyTimeMs() - soundsAt) > STANDBY_SLACK_MS) {
+                        player.seekGroupStandbyMs(soundsAt)
+                    }
+                }
+                resetRate(player)
+                player.switchToGroupStandby(current, this.playing, loadedTrackhash !== current.trackhash)
                 loadedTrackhash = current.trackhash
-            } else if (this.playing) {
-                void audioSource.playPlayingSource()
-            } else {
-                audioSource.pausePlayingSource()
+                if (this.playing) settleAfter('start')
+                else settle = null
+                return
             }
 
-            player.hardSeekMs(expected)
+            // 2. Another track and nothing prepared: load it on the playing element.
+            if (loadedTrackhash !== current.trackhash) {
+                resetRate(player)
+                player.playCurrent()
+                loadedTrackhash = current.trackhash
+                // Default start position; once it plays, the steerer lands it
+                // (its load time is unknown, so there is nothing to learn here).
+                player.hardSeekMs(this.expectedMs())
+                if (this.playing) settleAfter('load')
+                else settle = null
+                return
+            }
+
+            // 3. Same track, paused: position it exactly — free while silent.
+            if (!this.playing) {
+                audioSource.pausePlayingSource()
+                resetRate(player)
+                player.hardSeekMs(this.expectedMs())
+                settle = null
+                return
+            }
+
+            // 4. Same track, resume: sit where the anchor will be once it sounds.
+            if (player.isPaused()) {
+                const soundsAt = this.expectedMs(latency.start)
+                if (Math.abs(player.getCurrentTimeMs() - soundsAt) > STANDBY_SLACK_MS) player.hardSeekMs(soundsAt)
+                resetRate(player)
+                void audioSource.playPlayingSource()
+                settleAfter('start')
+                return
+            }
+
+            // 5. Same track, playing: only a real offset needs a (compensated) seek.
+            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > JUMP_MS) this.seekCompensated()
+        },
+
+        /** Seek the playing element to where the anchor will be once the seek has landed. */
+        seekCompensated() {
+            const player = usePlayer()
+            resetRate(player)
+            player.hardSeekMs(this.expectedMs(latency.seek))
+            settleAfter('seek')
+        },
+
+        /** Expected position (ms, incl. this device's trim) `aheadMs` from now. */
+        expectedMs(aheadMs = 0): number {
+            if (!this.anchor) return 0
+            return (
+                expectedPositionMs(this.anchor, estimator.serverNow() + aheadMs, this.playing) + this.audioOffsetMs
+            )
         },
 
         // --- command handling -----------------------------------------------
+
+        /**
+         * Only TARGETED commands are executed here. Transport commands are
+         * carried by the state: the same poll that delivers one delivers the
+         * version bump with its anchor, and that state is what gets committed
+         * at the anchor time. Executing both is exactly how every seek used to
+         * run twice.
+         */
         handleCommands(cmds: SyncCommand[]) {
             for (const cmd of cmds) {
                 if (executedCommandIds.has(cmd.id)) continue
@@ -584,8 +770,8 @@ export default defineStore('devicesync', {
                 if (cmd.target_device !== null && cmd.target_device !== undefined) {
                     if (cmd.target_device !== this.deviceId) continue
                     this.handleTargeted(cmd)
-                } else {
-                    this.scheduleCommand(cmd)
+                } else if (!TRANSPORT_TYPES.has(cmd.type)) {
+                    console.warn(`[devicesync] ignoring unknown group command ${cmd.type}`)
                 }
             }
         },
@@ -622,111 +808,6 @@ export default defineStore('devicesync', {
             }
         },
 
-        scheduleCommand(cmd: SyncCommand) {
-            const localExecMs = cmd.execute_at_ms - estimator.offset
-            const now = Date.now()
-            const delay = localExecMs - now
-
-            if (delay <= 0) {
-                // Missed window: execute now, catching up the position by however
-                // long ago the command was meant to fire (only while playing).
-                const catchUp = impliesPlaying(cmd, this.playing)
-                    ? Math.max(0, estimator.serverNow() - cmd.execute_at_ms)
-                    : 0
-                this.executeCommand(cmd, catchUp)
-                return
-            }
-
-            const entry: Scheduled = { handle: null, at: localExecMs }
-            entry.handle = setTimeout(() => {
-                scheduled = scheduled.filter(s => s !== entry)
-                this.executeCommand(cmd, 0)
-            }, delay)
-            scheduled.push(entry)
-        },
-
-        executeCommand(cmd: SyncCommand, extraMs = 0) {
-            // A timer that outlived the membership (leave/toSolo raced the
-            // clearScheduled) must never touch solo playback.
-            if (!this.joined) return
-
-            const p = (cmd.payload ?? {}) as any
-            const queue = useQueue()
-            const player = usePlayer()
-
-            // Opens the snap window: for the next couple of seconds the steerer
-            // is allowed to hard-seek small offsets instead of easing them out.
-            lastTransportAt = Date.now()
-
-            this.withApplying(() => {
-                switch (cmd.type) {
-                    case 'play': {
-                        queue.playing = true
-                        void audioSource.playPlayingSource()
-                        if (typeof p.position_ms === 'number') {
-                            player.hardSeekMs(p.position_ms + extraMs)
-                        }
-                        break
-                    }
-                    case 'pause': {
-                        queue.playing = false
-                        audioSource.pausePlayingSource()
-                        resetRate(player)
-                        if (typeof p.position_ms === 'number') {
-                            player.hardSeekMs(p.position_ms)
-                        }
-                        break
-                    }
-                    case 'seek': {
-                        resetRate(player)
-                        player.hardSeekMs((p.position_ms ?? 0) + extraMs)
-                        break
-                    }
-                    case 'track_change': {
-                        const tracklist = useTracklist()
-                        const len = tracklist.tracklist.length
-                        if (len === 0) break
-
-                        // Bounds-guard: a stale command may carry an index from
-                        // a longer, since-replaced queue.
-                        const index =
-                            typeof p.index === 'number'
-                                ? Math.max(0, Math.min(p.index, len - 1))
-                                : queue.currentindex
-                        const wantPlaying = p.playing !== false
-
-                        const indexMoved = queue.currentindex !== index
-                        queue.currentindex = index
-                        // Same reason as in applyState: the group's track change
-                        // is this device's track change, and the shuffle target
-                        // is stale the moment the index moves.
-                        if (indexMoved) queue.rollShuffleNext()
-                        queue.playing = wantPlaying
-                        resetRate(player)
-
-                        const target = tracklist.tracklist[index]
-                        if (target && loadedTrackhash === target.trackhash) {
-                            // Same track already loaded (e.g. a queue-set that
-                            // kept the current track): align without reloading.
-                            if (wantPlaying) void audioSource.playPlayingSource()
-                            else audioSource.pausePlayingSource()
-                        } else {
-                            player.playCurrent()
-                            loadedTrackhash = target?.trackhash ?? ''
-                        }
-                        player.hardSeekMs((p.position_ms ?? 0) + extraMs)
-                        break
-                    }
-                    case 'set_repeat': {
-                        useSettings().repeat = p.repeat as RepeatMode
-                        break
-                    }
-                    default:
-                        break
-                }
-            })
-        },
-
         // --- drift steering --------------------------------------------------
         startSteerLoop() {
             if (steerTimer) return
@@ -738,47 +819,46 @@ export default defineStore('devicesync', {
             steerTimer = null
         },
         steerTick() {
-            // needsGesture: audio is autoplay-blocked — steering would hard-seek
-            // a frozen element every tick for nothing.
+            // needsGesture: audio is autoplay-blocked — steering would seek a
+            // frozen element every tick for nothing.
             if (!this.joined || !this.anchor || this.applying || this.needsGesture) return
-            const anchor = this.anchor
-            // Don't fight a seek/track-change that's about to fire.
-            if (scheduledCommandNear(Date.now())) return
+
+            this.bookNextTrack()
 
             const player = usePlayer()
-            const expected = expectedPositionMs(anchor, estimator.serverNow(), this.playing) + this.audioOffsetMs
+            const error = player.getCurrentTimeMs() - this.expectedMs()
 
             if (!this.playing) {
-                // Paused: no rate steering, but recover a lost seek — e.g. the
-                // element was still loading when reconcileTransport seeked, so
-                // the position silently reset to 0.
-                if (Math.abs(player.getCurrentTimeMs() - expected) > HARD_MS) {
-                    player.hardSeekMs(expected)
-                    resetRate(player)
+                // Paused: recover a lost position — e.g. the element was still
+                // loading when it was positioned, so it silently reset to 0.
+                if (Math.abs(error) > PAUSED_SLACK_MS) player.hardSeekMs(this.expectedMs())
+                return
+            }
+
+            if (settle) {
+                const age = Date.now() - settle.at
+                if (age < SETTLE_MS || !player.isAdvancing()) {
+                    if (age > SETTLE_GIVEUP_MS) settle = null
+                    return
                 }
-                return
+                if (settle.kind !== 'load') {
+                    latency = { ...latency, [settle.kind]: learnLatency(latency[settle.kind], error) }
+                    saveLatency(latency)
+                }
+                settle = null
             }
 
-            const currentMs = player.getCurrentTimeMs()
+            // Buffering, ended, or blocked: a seek would only restart the wait.
+            if (!player.isAdvancing()) return
 
-            // Snap window right after a transport command: land ON the anchor
-            // instead of easing a fresh offset out over several seconds at
-            // ±4% rate (which is what an audible lag at track start was).
-            if (Date.now() - lastTransportAt < SNAP_WINDOW_MS && Math.abs(currentMs - expected) > SNAP_HARD_MS) {
-                player.hardSeekMs(expected)
-                resetRate(player)
-                return
-            }
-
-            const correction = computeCorrection(currentMs, expected)
-
-            if (correction.action === 'rate') {
+            const correction = computeCorrection(error, steering)
+            if (correction.action === 'seek') {
+                this.seekCompensated()
+            } else if (correction.action === 'rate') {
+                steering = true
                 player.setPlaybackRate(correction.rate)
                 appliedRate = correction.rate
-            } else if (correction.action === 'seek') {
-                player.hardSeekMs(correction.seekToMs)
-                resetRate(player)
-            } else if (appliedRate !== 1) {
+            } else if (appliedRate !== 1 || steering) {
                 resetRate(player)
             }
         },
@@ -832,6 +912,10 @@ export default defineStore('devicesync', {
         async runJoin() {
             const t0 = Date.now()
             const res = await joinGroup(this.deviceId)
+            // Any poll answered before the join landed speaks for the device
+            // as it was — solo. Applying one now would dissolve the fresh
+            // membership again.
+            appliedSeq = pollSeq + 1
             const snap = res?.data as PollResponse | undefined
 
             this.joined = true
@@ -846,28 +930,28 @@ export default defineStore('devicesync', {
             const player = usePlayer()
             player.clearMovingNextTimeout()
             player.clearNextAudio()
+            // Whatever solo playback left loaded — the mirror compares against it.
+            loadedTrackhash = player.loadedTrackhash()
 
             const snapState = snap?.state
             const emptySession = !snapState || (snapState.trackhashes?.length ?? 0) === 0
 
-            // Pin the clock down BEFORE the first mirror/scheduled command, so
-            // playback does not start on a single noisy offset sample.
+            // Pin the clock down BEFORE the first mirror, so playback does not
+            // start on a single noisy offset sample.
             if (snap && typeof snap.server_now_ms === 'number') {
                 estimator.addSample(t0, snap.server_now_ms, Date.now())
             }
             await this.calibrateClock()
 
             if (emptySession && useTracklist().tracklist.length > 0) {
-                // First joiner into an empty session seeds it from local state.
-                if (snap && typeof snap.server_now_ms === 'number') {
-                    estimator.addSample(t0, snap.server_now_ms, Date.now())
-                }
+                // First joiner into an empty session seeds it from local state —
+                // the song already playing here carries on (live), nobody jumps.
                 if (snap?.devices) this.devices = snap.devices
                 this.scrobbleLeader = snap?.scrobble_leader ?? null
                 if (typeof snap?.version === 'number') this.sessionVersion = snap.version
-                await this.sendQueueSet()
+                await this.sendQueueSet({ live: true })
             } else {
-                await this.applySnapshot(snap, t0)
+                await this.applySnapshot(snap)
             }
 
             this.startSteerLoop()
@@ -896,14 +980,11 @@ export default defineStore('devicesync', {
         /** Retry the blocked play() from a real user gesture and clear the flag. */
         completeGestureJoin() {
             this.needsGesture = false
-            this.withApplying(() => this.reconcileTransport())
+            this.withApplying(() => this.alignTransport())
         },
 
-        async applySnapshot(snap: PollResponse | undefined, t0: number) {
+        async applySnapshot(snap: PollResponse | undefined) {
             if (!snap) return
-            if (typeof snap.server_now_ms === 'number') {
-                estimator.addSample(t0, snap.server_now_ms, Date.now())
-            }
             this.devices = snap.devices ?? this.devices
             this.scrobbleLeader = snap.scrobble_leader ?? null
             const applied = snap.state ? await this.applyState(snap.state) : true
@@ -971,8 +1052,11 @@ export default defineStore('devicesync', {
         toSolo() {
             this.joined = false
             this.stopSteerLoop()
-            // Pending scheduled commands must not fire into solo playback.
-            clearScheduled()
+            // A held group state must not take over solo playback later.
+            clearPending()
+            settle = null
+            bookedFor = ''
+            if (appliedRate !== 1 || steering) resetRate(usePlayer())
             this.status = 'solo'
             this.restartPollingCadence()
         },
@@ -985,6 +1069,7 @@ export default defineStore('devicesync', {
             playing?: boolean
             position_ms?: number
             repeat?: string
+            live?: boolean
         }) {
             const tracklist = useTracklist()
             const queue = useQueue()
@@ -1000,29 +1085,49 @@ export default defineStore('devicesync', {
                 // Whole milliseconds: the API's position fields are integers.
                 position_ms: Math.round(opts?.position_ms ?? player.getCurrentTimeMs()),
                 repeat: opts?.repeat ?? settings.repeat,
+                live: opts?.live ?? false,
             })
 
-            this.reportSyncFailure(res, 'Could not share the queue with the group')
+            if (!this.reportSyncFailure(res, 'Could not share the queue with the group')) this.pollSoon()
         },
 
-        async sendCmd(type: SyncCommandType, payload: unknown, target_device?: string) {
-            const res = await sendCommand({ device_id: this.deviceId, type, payload, target_device })
-            this.reportSyncFailure(res, 'Group playback command failed')
+        async sendCmd(type: SyncCommandType, payload: unknown, target_device?: string, execute_at_ms?: number) {
+            const res = await sendCommand({ device_id: this.deviceId, type, payload, target_device, execute_at_ms })
+            const failed = this.reportSyncFailure(res, 'Group playback command failed')
+            if (failed && execute_at_ms !== undefined) {
+                // The booking did not land — let `ended` advance the group instead.
+                bookedFor = ''
+            }
+            if (!failed && TRANSPORT_TYPES.has(type)) this.pollSoon()
         },
 
         /**
-         * Surface a rejected sync call instead of swallowing it.
+         * Surface a rejected sync call instead of swallowing it; true when it failed.
          *
          * A silently dropped queue-set (422 on a fractional position) is exactly
          * what made group playback look "connected but dead": the UI showed the
          * group as joined while the server had no queue at all.
          */
-        reportSyncFailure(res: { status?: number } | undefined, what: string) {
+        reportSyncFailure(res: { status?: number } | undefined, what: string): boolean {
             const status = res?.status
-            if (status === undefined || (status >= 200 && status < 300)) return
+            if (status === undefined || (status >= 200 && status < 300)) return false
 
             console.error(`[devicesync] ${what} (HTTP ${status})`, res)
             useToast().showNotification(`${what} (HTTP ${status})`, NotifType.Error)
+            return true
+        },
+
+        /**
+         * The index a track change already on its way leads to, or null.
+         *
+         * Between a Next and its anchor time this device still plays — and
+         * shows — the old track, so a second Next must count from the track
+         * the group is heading to, or rapid skipping would never get past one.
+         */
+        upcomingIndex(): number | null {
+            if (!pending || pending.tracks) return null
+            const index = pending.state.currentindex
+            return index !== useQueue().currentindex ? index : null
         },
 
         // --- transport interception (called from queue/settings seams) ------
@@ -1081,10 +1186,24 @@ export default defineStore('devicesync', {
                     break
                 }
                 case 'playNext': {
-                    void this.sendCmd('track_change', { index: queue.nextindex, position_ms: 0, playing: true })
+                    const upcoming = this.upcomingIndex()
+                    const len = tracklist.tracklist.length
+                    let index = queue.nextindex
+                    if (upcoming !== null) {
+                        if (settings.repeat === 'one') index = upcoming
+                        else if (settings.shuffle && len > 1) index = pickShuffleIndex(len, upcoming, queue.shuffleRecent)
+                        else index = upcoming === len - 1 ? 0 : upcoming + 1
+                    }
+                    void this.sendCmd('track_change', { index, position_ms: 0, playing: true })
                     break
                 }
                 case 'playPrev': {
+                    // Right after a Next, Previous undoes it: back to the track
+                    // still playing here, from its start.
+                    if (this.upcomingIndex() !== null) {
+                        void this.sendCmd('track_change', { index: queue.currentindex, position_ms: 0, playing: true })
+                        break
+                    }
                     // Solo semantics preserved: >3 s into the track, Previous
                     // restarts the current track instead of jumping the group.
                     if (usePlayer().getCurrentTimeMs() > 3000) {
@@ -1098,7 +1217,8 @@ export default defineStore('devicesync', {
                 case 'insertTracks': {
                     // "Play next" / "add to queue" while joined: broadcast the
                     // would-be list as the new group queue (the server bounces
-                    // it back as authoritative state).
+                    // it back as authoritative state). Live: the song playing
+                    // now carries on — nobody seeks.
                     const toInsert = (args[0] as Track[]) ?? []
                     const at = typeof args[1] === 'number' ? args[1] : tracklist.tracklist.length
                     const hashes = tracklist.tracklist.map(t => t.trackhash)
@@ -1110,6 +1230,7 @@ export default defineStore('devicesync', {
                         playing: queue.playing,
                         position_ms: usePlayer().getCurrentTimeMs(),
                         repeat: useSettings().repeat,
+                        live: true,
                     })
                     break
                 }
@@ -1156,6 +1277,9 @@ export default defineStore('devicesync', {
                         playing: queue.playing,
                         position_ms: removedCurrent ? 0 : usePlayer().getCurrentTimeMs(),
                         repeat: settings.repeat,
+                        // The successor STARTS; any other removal is an edit
+                        // while the current song carries on.
+                        live: !removedCurrent,
                     })
                     break
                 }
@@ -1181,6 +1305,7 @@ export default defineStore('devicesync', {
                         playing: queue.playing,
                         position_ms: usePlayer().getCurrentTimeMs(),
                         repeat: settings.repeat,
+                        live: true,
                     })
                     break
                 }
@@ -1221,50 +1346,86 @@ export default defineStore('devicesync', {
             }
         },
 
-        /** Audio ended in group mode: only the scrobble leader advances the group. */
-        onTrackEnded() {
-            if (!this.isScrobbleLeader) return
-
+        /** Where the group goes when the current track ends: an index, or null to stop. */
+        indexAfterEnd(): number | null {
             const queue = useQueue()
-            const tracklist = useTracklist()
             const settings = useSettings()
-            const len = tracklist.tracklist.length
+            const len = useTracklist().tracklist.length
             const i = queue.currentindex
 
-            // Nothing left to advance to (the queue was cleared mid-track): a
-            // track_change into an empty session is refused with 400 and would
-            // surface as an error toast on the leader's device.
-            if (len === 0) return
-
-            if (settings.repeat === 'one') {
-                void this.sendCmd('track_change', { index: i, position_ms: 0, playing: true })
-                return
-            }
+            if (len === 0) return null
+            if (settings.repeat === 'one') return i
 
             // Permanent shuffle: the leader rolls for the whole group. It sends
             // the same pre-rolled target the solo path follows (`queue.nextindex`),
             // so the group jumps instead of walking the list — and because the
             // index travels inside the command, every device lands on the same
-            // track. Sequential order below would otherwise ignore the toggle
-            // entirely: shuffle only ever reached the group through a manual
-            // "Next". The queue end is no end while shuffling (#323), so this
+            // track. The queue end is no end while shuffling (#323), so this
             // sits above both repeat branches.
-            if (settings.shuffle && len > 1) {
-                void this.sendCmd('track_change', { index: queue.nextindex, position_ms: 0, playing: true })
-                return
-            }
+            if (settings.shuffle && len > 1) return queue.nextindex
 
-            if (settings.repeat === 'all') {
-                const next = len > 0 ? (i + 1) % len : 0
-                void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true })
+            if (settings.repeat === 'all') return (i + 1) % len
+            // repeat 'none': advance, or stop when the last track ends.
+            return i >= len - 1 ? null : i + 1
+        },
+
+        /** The anchor identity a booking belongs to. */
+        anchorKey(): string {
+            const anchor = this.anchor
+            return anchor ? `${this.queueId}|${useQueue().currentindex}|${anchor.at_server_ms}|${anchor.position_ms}` : ''
+        },
+
+        /**
+         * Leader only: book the next track for the exact end of this one.
+         *
+         * Waiting for `ended` cost a command round trip plus the lead time —
+         * about two seconds of silence between every two songs, on every
+         * device. Booked a few seconds ahead, every device has the next track
+         * loaded on its standby element and cuts over on the last sample.
+         */
+        bookNextTrack() {
+            if (!this.isScrobbleLeader || !this.playing || pending || !this.anchor) return
+
+            const queue = useQueue()
+            const track = useTracklist().tracklist[queue.currentindex]
+            if (!track || loadedTrackhash !== track.trackhash) return
+
+            const durationMs = usePlayer().durationMs() ?? (track.duration > 0 ? track.duration * 1000 : null)
+            if (durationMs === null) return
+
+            const endsAt = Math.round(this.anchor.at_server_ms + durationMs - this.anchor.position_ms)
+            const remaining = endsAt - estimator.serverNow()
+            if (remaining > BOOK_AHEAD_MS || remaining < BOOK_MIN_MS) return
+
+            const key = this.anchorKey()
+            if (bookedFor === key) return
+            bookedFor = key
+
+            const next = this.indexAfterEnd()
+            // The end of the queue: `ended` pauses the group, nothing to book.
+            if (next === null) return
+            void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true }, undefined, endsAt)
+        },
+
+        /** Audio ended in group mode: only the scrobble leader advances the group. */
+        onTrackEnded() {
+            if (!this.isScrobbleLeader) return
+
+            // Already booked, or another transition is on its way: the group
+            // switches on its own.
+            if (pending || (bookedFor !== '' && bookedFor === this.anchorKey())) return
+
+            // Nothing left to advance to (the queue was cleared mid-track): a
+            // track_change into an empty session is refused with 400 and would
+            // surface as an error toast on the leader's device.
+            if (useTracklist().tracklist.length === 0) return
+
+            const next = this.indexAfterEnd()
+            if (next === null) {
+                void this.sendCmd('pause', {})
                 return
             }
-            // repeat 'none': advance, or pause the group when the last track ends.
-            if (i >= len - 1) {
-                void this.sendCmd('pause', {})
-            } else {
-                void this.sendCmd('track_change', { index: i + 1, position_ms: 0, playing: true })
-            }
+            void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true })
         },
     },
 })
