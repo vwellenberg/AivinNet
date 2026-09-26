@@ -156,6 +156,8 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         font-weight: $detail-title-weight;
         line-height: 1.08;
         color: $candy-text;
+        // And may make it glow — Virtual Grid's neon title (#259).
+        text-shadow: var(--look-display-glow, none);
         margin: 0.25rem 0;
     }
 

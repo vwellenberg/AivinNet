@@ -143,9 +143,13 @@ body.theme-dark.theme-virtualgrid {
     --look-track-buffered: rgba(127, 244, 255, 0.36);
     --look-track-seek: rgba(255, 79, 216, 0.45);
     --look-thumb-line: transparent;
+    // The pastel type chips over cards are Memphis stickers; the card's
+    // subtitle already names the type (Stream does the same).
+    --look-type-label: none;
 
     // --- Detail pages: a glass head, the title in the terminal face ---------
     --look-detail-head-fill: rgba(24, 14, 58, 0.82);
+    --look-display-glow: 0 0 12px rgba(255, 79, 216, 0.75);
     --shape-detail-title: 3.4rem;
     --shape-detail-title-phone: 2.2rem;
     --look-play-fill: #{$vgrid-cyan};
