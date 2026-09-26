@@ -1452,6 +1452,38 @@ describe('devicesync store', () => {
         expect(lastRate()).toBeCloseTo(1.025, 6)
     })
 
+    it('a transition that landed far off gets ONE compensated seek, then rate steering', async () => {
+        const { ds } = await playingGroup()
+        const now = Date.now()
+        playerMock.groupStandbyReady.mockReturnValue(true)
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: now + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+        vi.advanceTimersByTime(1500)
+        expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
+
+        // This device has not measured its start latency yet: it sounds 80 ms late.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 80)
+        vi.advanceTimersByTime(750)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        // ...and learned from it: 30 + 0.6 * 80.
+        expect(__latencyForTest().start).toBe(78)
+
+        // Still reading 80 ms late after the correction settles (a stubborn
+        // seek estimate): no second seek — rate takes it from here.
+        vi.advanceTimersByTime(1500)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
+        expect(lastRate()).toBeGreaterThan(1)
+    })
+
     it('the leader books the next track for the exact end of the current one', async () => {
         const { ds, start } = await playingGroup()
         ds.scrobbleLeader = 'devA'

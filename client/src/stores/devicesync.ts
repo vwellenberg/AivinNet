@@ -81,6 +81,13 @@ const JUMP_MS = 60
 const STANDBY_SLACK_MS = 20
 /** A paused element this far off the anchor (ms) is re-positioned — free, nothing sounds. */
 const PAUSED_SLACK_MS = 40
+/**
+ * A transition that landed further off than this (ms) gets one compensated
+ * seek right away. Easing 60-100 ms out by rate took three seconds on a device
+ * that had not measured its start latency yet; right after a cut, one more
+ * small seek is not heard as a separate event.
+ */
+const LANDING_SEEK_MS = 50
 /** The leader books the next track this long before the current one ends (ms)... */
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */
@@ -841,11 +848,18 @@ export default defineStore('devicesync', {
                     if (age > SETTLE_GIVEUP_MS) settle = null
                     return
                 }
-                if (settle.kind !== 'load') {
-                    latency = { ...latency, [settle.kind]: learnLatency(latency[settle.kind], error) }
+                const landed = settle.kind
+                settle = null
+                if (landed !== 'load') {
+                    latency = { ...latency, [landed]: learnLatency(latency[landed], error) }
                     saveLatency(latency)
                 }
-                settle = null
+                // The landing of a transition itself (not of a correction):
+                // one seek now beats seconds of rate steering.
+                if (landed !== 'seek' && Math.abs(error) > LANDING_SEEK_MS) {
+                    this.seekCompensated()
+                    return
+                }
             }
 
             // Buffering, ended, or blocked: a seek would only restart the wait.
