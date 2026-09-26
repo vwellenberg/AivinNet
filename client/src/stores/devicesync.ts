@@ -19,7 +19,7 @@
 import { defineStore } from 'pinia'
 
 import { clampOffset, loadAudioOffset, saveAudioOffset } from '@/utils/deviceSync/audioOffset'
-import { computeCorrection } from '@/utils/deviceSync/driftSteer'
+import { computeCorrection, SEEK_MS } from '@/utils/deviceSync/driftSteer'
 import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
@@ -777,8 +777,10 @@ export default defineStore('devicesync', {
                 return
             }
 
-            // 5. Same track, playing: only a real offset needs a (compensated) seek.
-            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > JUMP_MS) this.seekCompensated()
+            // 5. Same track, playing: only a real offset needs a (compensated)
+            //    seek — judged on one reading here, so only beyond what the
+            //    steerer would seek for anyway (Firefox jitters by ±40 ms).
+            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > SEEK_MS) this.seekCompensated()
         },
 
         /** Seek the playing element to where the anchor will be once the seek has landed. */
@@ -1206,6 +1208,20 @@ export default defineStore('devicesync', {
             return index !== useQueue().currentindex ? index : null
         },
 
+        /**
+         * Where the group is — or is heading, while a transition in this queue
+         * is held. A live edit has to carry THAT: sent with the track still
+         * sounding here, the server saw a different current track, re-anchored
+         * it, and silently undid the Next or Pause pressed a second earlier.
+         */
+        groupPosition(): { index: number; playing: boolean } {
+            if (pending && !pending.tracks) {
+                return { index: pending.state.currentindex, playing: pending.state.playing }
+            }
+            const queue = useQueue()
+            return { index: queue.currentindex, playing: queue.playing }
+        },
+
         // --- transport interception (called from queue/settings seams) ------
         intercept(action: string, ...args: any[]) {
             const queue = useQueue()
@@ -1299,11 +1315,14 @@ export default defineStore('devicesync', {
                     const at = typeof args[1] === 'number' ? args[1] : tracklist.tracklist.length
                     const hashes = tracklist.tracklist.map(t => t.trackhash)
                     hashes.splice(at, 0, ...toInsert.map(t => t.trackhash))
+                    // "Play next" right after a Next lands exactly ON the row the
+                    // group is heading to, which slides down with the insert.
+                    const group = this.groupPosition()
                     void this.sendQueueSet({
                         trackhashes: hashes,
                         from: tracklist.from as SyncFrom,
-                        currentindex: queue.currentindex,
-                        playing: queue.playing,
+                        currentindex: at <= group.index ? group.index + toInsert.length : group.index,
+                        playing: group.playing,
                         position_ms: usePlayer().getCurrentTimeMs(),
                         repeat: useSettings().repeat,
                         live: true,
@@ -1343,14 +1362,18 @@ export default defineStore('devicesync', {
                     // everything after `at`. Never null — `successor` differs
                     // from `at` by construction, and the one case where it
                     // cannot (a queue of one) leaves no list to index into.
-                    const target = removedCurrent ? successor : queue.currentindex
+                    // Any other removal keeps where the group is — or is heading,
+                    // unless the row going away is exactly that target.
+                    const group = this.groupPosition()
+                    const keep = at === group.index ? { index: queue.currentindex, playing: queue.playing } : group
+                    const target = removedCurrent ? successor : keep.index
                     const index = hashes.length === 0 ? 0 : (shiftAfterRemove(target, at) as number)
 
                     void this.sendQueueSet({
                         trackhashes: hashes,
                         from: tracklist.from as SyncFrom,
                         currentindex: index,
-                        playing: queue.playing,
+                        playing: removedCurrent ? queue.playing : keep.playing,
                         position_ms: removedCurrent ? 0 : usePlayer().getCurrentTimeMs(),
                         repeat: settings.repeat,
                         // The successor STARTS; any other removal is an edit
@@ -1368,7 +1391,8 @@ export default defineStore('devicesync', {
                     const at = args[0] as number
                     const gap = args[1] as number
                     const hashes = tracklist.tracklist.map(t => t.trackhash)
-                    const move = resolveQueueMove(hashes.length, at, gap, queue.currentindex)
+                    const group = this.groupPosition()
+                    const move = resolveQueueMove(hashes.length, at, gap, group.index)
                     if (!move) break
 
                     const [hash] = hashes.splice(at, 1)
@@ -1378,7 +1402,7 @@ export default defineStore('devicesync', {
                         trackhashes: hashes,
                         from: tracklist.from as SyncFrom,
                         currentindex: move.currentindex,
-                        playing: queue.playing,
+                        playing: group.playing,
                         position_ms: usePlayer().getCurrentTimeMs(),
                         repeat: settings.repeat,
                         live: true,
@@ -1476,11 +1500,12 @@ export default defineStore('devicesync', {
 
             const key = this.anchorKey()
             if (bookedFor === key) return
-            bookedFor = key
 
             const next = this.indexAfterEnd()
-            // The end of the queue: `ended` pauses the group, nothing to book.
+            // The end of the queue: `ended` pauses the group, nothing to book —
+            // and nothing may be marked booked, or `ended` would stand down.
             if (next === null) return
+            bookedFor = key
             void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true }, undefined, endsAt)
         },
 

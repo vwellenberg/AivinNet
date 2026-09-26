@@ -505,6 +505,31 @@ def test_a_live_edit_during_an_early_change_keeps_the_playing_track_going():
     assert mgr._sessions[USER].early is None  # the leader books again for the new queue
 
 
+def test_a_live_edit_counting_from_the_booked_track_keeps_the_booking():
+    """
+    Clients count from the track the group is heading to while a change is on
+    its way. An "add to queue" in a track's last seconds therefore names the
+    booked track as current — withdrawing the booking here would anchor the
+    booked track at the old track's position.
+    """
+    mgr, clock = playing_session()
+    clock["t"] += 200_000
+    end = clock["t"] + 4_000
+    early = mgr.apply_transport(USER, A, "track_change", {"index": 2, "position_ms": 0}, execute_at_ms=end)
+
+    clock["t"] += 500
+    # h0 inserted at the top: the booked h3 is now index 3, the playing h2 index 2.
+    mgr.set_queue(USER, A, ["h0", "h1", "h2", "h3"], {}, 3, True, 199_000, "all", live=True)
+
+    snap = mgr.snapshot(USER, A, known_version=-1)
+    assert snap["state"]["currentindex"] == 3
+    assert snap["state"]["anchor"] == {"position_ms": 0, "at_server_ms": end}
+    assert any(c["id"] == early["id"] for c in snap["commands"])
+    # ...and a pause before the hand-over still falls back to the right row.
+    mgr.apply_transport(USER, A, "pause", {})
+    assert mgr.snapshot(USER, A, known_version=-1)["state"]["currentindex"] == 2
+
+
 def test_a_repeat_toggle_leaves_the_early_change_standing():
     mgr, clock = playing_session()
     clock["t"] += 200_000

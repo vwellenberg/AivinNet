@@ -1542,6 +1542,46 @@ describe('devicesync store', () => {
         expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
     })
 
+    it('the end of a repeat-none queue is not booked — `ended` still pauses the group', async () => {
+        const { ds, queue } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        useSettingsStore().repeat = 'none'
+        queue.currentindex = 2 // the last row
+        playerMock.durationMs.mockReturnValue(4500)
+
+        vi.advanceTimersByTime(1000)
+        expect(requestsMock.sendCommand).not.toHaveBeenCalled()
+
+        // Marking this anchor "booked" made `ended` stand down: the group
+        // stayed "playing" past the end of its queue.
+        ds.onTrackEnded()
+        expect(requestsMock.sendCommand).toHaveBeenCalledWith(expect.objectContaining({ type: 'pause' }))
+    })
+
+    it('an edit during a held Next carries the track the group is heading to', async () => {
+        const { ds, tracklist } = await playingGroup()
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(
+                mkState({
+                    trackhashes: THREE,
+                    currentindex: 1,
+                    playing: true,
+                    anchor: { position_ms: 0, at_server_ms: Date.now() + 1500 },
+                })
+            )
+        )
+        await ds.poll()
+
+        // "Play next" lands on row 1 — exactly the row the group is heading to.
+        tracklist.insertAt([mkTrack('h9')], 1)
+
+        // Sent with the track still sounding here (index 0), the server
+        // re-anchored h1 and silently undid the Next.
+        expect(requestsMock.setQueue).toHaveBeenLastCalledWith(
+            expect.objectContaining({ trackhashes: ['h1', 'h9', 'h2', 'h3'], currentindex: 2, playing: true, live: true })
+        )
+    })
+
     it('a booking that failed leaves the advance to `ended`', async () => {
         const { ds } = await playingGroup()
         ds.scrobbleLeader = 'devA'

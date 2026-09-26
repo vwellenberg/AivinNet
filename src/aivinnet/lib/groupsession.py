@@ -173,6 +173,28 @@ class GroupSessionManager:
     def _current_hash(trackhashes: list[str], index: int) -> str | None:
         return trackhashes[index] if 0 <= index < len(trackhashes) else None
 
+    def _edit_counts_from_early_change(
+        self, session: Session, now: int, trackhashes: list[str], currentindex: int
+    ) -> bool:
+        """An early change is still pending and the edit names its target as current."""
+        if session.early is None or session.anchor["at_server_ms"] <= now:
+            return False
+        target = self._current_hash(session.trackhashes, session.currentindex)
+        return target is not None and self._current_hash(trackhashes, currentindex) == target
+
+    def _renumber_early_fallback(self, session: Session, trackhashes: list[str]) -> None:
+        """Point the early change's fallback at the still-playing track in the edited list."""
+        early = session.early
+        if early is None:
+            return
+        playing = self._current_hash(session.trackhashes, early["currentindex"])
+        found = [i for i, h in enumerate(trackhashes) if h == playing]
+        if not found:
+            # The playing track itself was removed: nothing left to fall back to.
+            session.early = None
+            return
+        early["currentindex"] = min(found, key=lambda i: abs(i - early["currentindex"]))
+
     # --- presence -----------------------------------------------------------
 
     def register(self, userid: int, device_id: str, name: str, dtype: str) -> None:
@@ -305,7 +327,13 @@ class GroupSessionManager:
                 return None
 
             now = self._now()
-            self._withdraw_early_change(session, now)
+            if live and self._edit_counts_from_early_change(session, now, trackhashes, currentindex):
+                # The sender already counts from the booked next track (clients
+                # do while a change is on its way): the booking stands, only its
+                # fallback is renumbered into the edited list.
+                self._renumber_early_fallback(session, trackhashes)
+            else:
+                self._withdraw_early_change(session, now)
 
             continues = (
                 live
