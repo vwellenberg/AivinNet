@@ -500,6 +500,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     > .options-and-duration .options-icon svg {
         stroke: var(--look-filled-text, #{$mem-ink});
     }
+
 }
 
 .songlist-item.drag-over-top {

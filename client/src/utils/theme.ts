@@ -3,7 +3,7 @@
  *
  *   LOOK  the form language — `memphis` (grid paper, ink frames, hard offset
  *         shadows), `stream` (flat and dark) or `desktop98` (grey bevelled
- *         windows on a sky wallpaper, #241)
+ *         windows on a desktop-blue ground, #241)
  *   MODE  light or dark — the store's `theme` field, plus Auto dark mode
  *
  * They are kept apart on purpose. A single list ("Memphis / Memphis Dark /

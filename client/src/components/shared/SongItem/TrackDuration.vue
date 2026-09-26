@@ -156,6 +156,13 @@ defineEmits<{
     // it the same size instead of 10px smaller.
     .options-icon {
         @include btn-quiet($size: $control-compact, $glyph: $control-compact-glyph);
+        // The glyph is drawn in `currentColor`, and btn-quiet pins the page's
+        // content colour. On a row that is the wrong source: every filled row
+        // state (playing, context menu open, hovered) sets the ROW's colour for
+        // its fill, and the dots stayed page ink on it — invisible on the hover
+        // contrast surface and on Desktop 98's navy (#241). Inherited, they
+        // follow whatever the row says. The button's own hover still wins.
+        color: inherit;
 
         svg {
             // Always-visible options glyph on the page ground -> theme-aware

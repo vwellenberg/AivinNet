@@ -222,7 +222,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --look-perforation · -row-edge  the dashes between song rows, their trailing ink edge
 //   --look-menu-hover · -text       the highlighted context menu item
 //   --shape-well-style              the border style of a sunken field (search)
-//   --look-display-font             the typeface of detail titles
+//   --look-display-font             the typeface of detail titles and section captions
 //   --shape-frame · -frame-style    the plate frame's colour and border style
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
@@ -639,6 +639,11 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // var(--mem-ground)`) are unnecessary on a panel — and so is the
   // theme-aware content colour: this text reads against the panel now.
   color: if($fill, $mem-ink, var(--look-sticker-text, #{$candy-text}));
+  // A look's display face (#241). Captions with a fill of their own are
+  // labels rather than headings and keep the body face.
+  @if not $fill {
+    font-family: var(--look-display-font, inherit);
+  }
   text-shadow: none;
   // Der Sticker-Anschlag (#143): ein Sticker wird aufgeklebt, nicht
   // eingeblendet — von oben, schräg, beim Aufsetzen gestaucht, und der harte
