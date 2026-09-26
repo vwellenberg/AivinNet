@@ -433,7 +433,7 @@ $control-dense-glyph: 1rem;
   line-height: 1.2;
   cursor: pointer;
   background-color: if($rest == surface, $mem-panel, transparent);
-  border: $candy-border-w solid if($rest == surface, $mem-line, transparent);
+  border: $candy-border-w $mem-frame-style if($rest == surface, $mem-frame, transparent);
   // The hatch means "you can press this" (styling.md). It needs a SURFACE, so
   // only the plated variant gets it at rest — `$rest: bare` is transparent
   // until hover and takes the texture together with its plate, below.
@@ -476,7 +476,7 @@ $control-dense-glyph: 1rem;
     // moved when the pointer colour changed.
     background-color: var(--mem-hover);
     color: var(--mem-hover-text);
-    border-color: $mem-line;
+    border-color: $mem-frame;
     // The surface just went dark (light theme) or light (dark theme), so the
     // texture takes the inverted sprite. This is also where `$rest: bare` gets
     // its texture at all, together with the plate it only grows on hover.
@@ -530,7 +530,7 @@ $control-dense-glyph: 1rem;
   justify-content: center;
   background-color: transparent;
   // Reserved, not absent: hovering must not shift anything by 2px.
-  border: $candy-border-w solid transparent;
+  border: $candy-border-w $mem-frame-style transparent;
   border-radius: $radius;
   color: $mem-content-text;
   box-shadow: none;

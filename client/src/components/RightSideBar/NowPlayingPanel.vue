@@ -282,10 +282,8 @@ function handleFav() {
     // Headings are stickers, and stickers stay SMOOTH — the hatch means "you
     // can press this", and a caption is not pressable.
     .np-sticker {
-        @include mem-sticker;
+        @include mem-sticker($fill: $mem-blush);
         align-self: flex-start;
-        background-color: $mem-blush;
-        color: $mem-ink;
         font-size: 0.65rem;
         font-weight: 700;
         letter-spacing: 0.07em;

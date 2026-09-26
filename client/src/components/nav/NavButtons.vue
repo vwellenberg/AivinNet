@@ -30,7 +30,7 @@ import ArrowSvg from '../../assets/icons/right-arrow.svg'
         justify-content: center;
         align-items: center;
         padding: 0;
-        border-radius: 5rem;
+        border-radius: $candy-radius-pill;
         background-color: transparent;
         border: $mem-hairline-w solid $gray5;
 

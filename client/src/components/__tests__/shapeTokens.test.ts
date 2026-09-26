@@ -33,12 +33,14 @@ function sources(dir: string): string[] {
 const FILES = sources("src");
 const CANDY = "src/assets/scss/_candy.scss";
 const STREAM = "src/assets/scss/Global/_theme-stream.scss";
+const DESKTOP98 = "src/assets/scss/Global/_theme-desktop98.scss";
 
-/** `line: text` for every line matching `re`, outside the one owner file. */
-function offenders(re: RegExp, owner = CANDY): string[] {
+/** `line: text` for every line matching `re`, outside the owner file(s). */
+function offenders(re: RegExp, owner: string | string[] = CANDY): string[] {
+  const owners = new Set(Array.isArray(owner) ? owner : [owner]);
   const hits: string[] = [];
   for (const file of FILES) {
-    if (file.split("\\").join("/") === owner) continue;
+    if (owners.has(file.split("\\").join("/"))) continue;
     readFileSync(file, "utf-8")
       .split("\n")
       .forEach((line, i) => {
@@ -137,9 +139,9 @@ describe("shape tokens", () => {
   it("Memphis does not set any shape token itself — the fallbacks are the design", () => {
     // A `--shape-*` DEFINITION in a Memphis stylesheet would make the fallback
     // dead code and the pixel-equality argument of #198 void. The one file
-    // allowed to set them is the Stream look, and only under its own class.
+    // allowed to set them are the look files, each only under its own class.
     // Same for the accent family `--look-*` (#199).
-    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, STREAM)).toEqual([]);
+    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, [STREAM, DESKTOP98])).toEqual([]);
   });
 
   it("the Stream look sets its tokens only under body.theme-stream", () => {
@@ -152,5 +154,26 @@ describe("shape tokens", () => {
     const withShape = blocks.filter(([, , body]) => /--(shape|look)-/.test(body));
     expect(withShape.length).toBeGreaterThan(0);
     for (const [, selector] of withShape) expect(selector.trim()).toBe("body.theme-dark.theme-stream");
+  });
+
+  it("the Desktop 98 look sets its tokens only under its own light class (#241)", () => {
+    const look = readFileSync(DESKTOP98, "utf-8")
+      .replace(/\/\/.*$/gm, "")
+      .replace(/#\{[^}]*\}/g, "X");
+    const blocks = [...look.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const withShape = blocks.filter(([, , body]) => /--(shape|look)-/.test(body));
+    expect(withShape.length).toBeGreaterThan(0);
+    // The capture runs back to the previous `}` and so also holds the file's
+    // Sass variables; the selector is its last line.
+    for (const [, selector] of withShape) {
+      expect(selector.trim().split(/\n/).pop()?.trim()).toBe("body.theme-desktop98:not(.theme-dark)");
+    }
+  });
+
+  it("the plate frame's colour and style are look tokens with the Memphis values as fallback", () => {
+    const candy = readFileSync(CANDY, "utf-8");
+    expect(candy).toMatch(/\$mem-frame:\s*var\(--shape-frame, #\{\$mem-line\}\);/);
+    expect(candy).toMatch(/\$mem-frame-style:\s*var\(--shape-frame-style, solid\);/);
+    expect(candy).toMatch(/\$candy-border:\s*\$candy-border-w \$mem-frame-style \$mem-frame;/);
   });
 });

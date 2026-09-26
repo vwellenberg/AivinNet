@@ -80,9 +80,7 @@ const genres = computed(() => {
   // themes — `mem-sticker` sets the theme-aware pair for a panel surface, and
   // both halves have to move together (see the token note in _candy.scss).
   .genre-chip {
-    @include mem-sticker($candy-radius-pill, 0.3rem 0.85rem);
-    background-color: $mem-lavender;
-    color: $mem-ink;
+    @include mem-sticker($candy-radius-pill, 0.3rem 0.85rem, $fill: $mem-lavender);
     font-weight: 700;
     white-space: nowrap;
   }

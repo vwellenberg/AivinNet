@@ -340,7 +340,10 @@ function runChildAction(action: () => void) {
     // The keyboard's position in the menu reads the way the pointer's does.
     &:hover,
     &:focus-visible {
-        background: $candy-pink-soft;
+        // A look token (#241): Memphis keeps its soft pink, Desktop 98 the
+        // navy menu highlight of its era.
+        background: var(--look-menu-hover, #{$candy-pink-soft});
+        color: var(--look-menu-hover-text, inherit);
     }
 
     &:focus-visible {

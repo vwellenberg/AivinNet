@@ -182,9 +182,9 @@ context.$subscribe((mutation, state) => {
     transition: background-color $motion-move ease-out, color $motion-move ease-out;
 
     &:hover {
-      background-color: $candy-pink-deep;
+      background-color: var(--look-menu-hover, #{$candy-pink-deep});
       // Yellow accent on hover → pin static ink for the label.
-      color: $mem-ink;
+      color: var(--look-menu-hover-text, #{$mem-ink});
     }
   }
 }

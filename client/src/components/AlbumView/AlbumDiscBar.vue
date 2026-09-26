@@ -41,10 +41,10 @@ defineEmits<{
     // token rather than `opacity` (which would fade the frame with the text).
     // The nested `.play` span/svg inherit this colour.
     .disc_number {
-        @include mem-sticker(999px, 0.25rem 0.8rem);
+        @include mem-sticker($candy-radius-pill, 0.25rem 0.8rem);
         font-size: $medium;
         font-weight: 700;
-        color: $candy-text-muted;
+        color: var(--look-sticker-text, #{$candy-text-muted});
         display: flex;
     }
 
