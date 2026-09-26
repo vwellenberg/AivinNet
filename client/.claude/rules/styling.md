@@ -627,9 +627,9 @@ ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht 
 dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
 schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
 
-## ⚠️ Zwei Achsen: LOOK und MODUS — und ein zweiter Look heißt Stream (#199)
+## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis, Stream (#199) und Desktop 98 (#241)
 
-**Look** (Formsprache: Memphis, Stream) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
+**Look** (Formsprache: Memphis, Stream, Desktop 98) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
 keine Liste. Eine Liste „Memphis / Memphis Dark / Stream" mischt ein Design mit einer Helligkeit
 und bricht beim ersten Look, der ebenfalls beide Modi hat. Modell und Body-Klassen:
 `utils/theme.ts` (`themeBodyClasses(look, mode)`); gespeichert als `look` + das alte `theme`-Feld
@@ -642,8 +642,8 @@ und bricht beim ersten Look, der ebenfalls beide Modi hat. Modell und Body-Klass
   Dunkel-Antwort schon unter `body.theme-dark`; Stream formt sie nur um. Die doppelte Klasse ist
   auch die nötige Spezifität — die Datei wird *vor* den `:root`-/Dark-Blöcken importiert.
 - **Stream ist keine einzige Komponentenregel**, sondern andere Token-Werte in
-  `Global/_theme-stream.scss` — der einzige Ort, der `--shape-*` und `--look-*` definieren darf
-  (`shapeTokens.test.ts`, auch: nur unter genau diesem Selektor).
+  `Global/_theme-stream.scss`. Nur die Look-Dateien dürfen `--shape-*` und `--look-*` definieren,
+  jede nur unter ihrem eigenen Selektor (`shapeTokens.test.ts`).
 
 **`--look-*` ist die zweite Token-Familie** — gleiche Mechanik wie `--shape-*`, aber für die
 statischen **Akzent- und Zustandsfarben** (Pastell-Navigation, Gelb für „an"/„läuft", Blush-
@@ -677,6 +677,42 @@ Drei Stellen, an denen es beim Bauen gehakt hat:
   `--look-active-fill`/`-text`, in Memphis fällt das auf die eigene Tönung zurück.
 - **Ein Inline-Style löst `var()` ganz normal auf.** Die Seek-Leiste baut ihren Hintergrund in JS
   (`Progress.vue`); die Farben stehen dort als `var(--look-track-*, <hex>)` im String.
+
+### Desktop 98 (#241) — was beim dritten Look gelernt wurde
+
+Graue Fenster mit 3D-Kante auf einem Wolkenhimmel, Titelleisten als Überschriften, Navy als Auswahl.
+**Nur hell**, gebaut auf den hellen Klassen: `body.theme-desktop98:not(.theme-dark)`. Das `:not`
+ist keine Deko — `body.use-figtree-font` und `body.theme-dark` stehen in `Global/index.scss`
+**später** bei gleicher Spezifität und hätten sonst Schrift bzw. Farben zurückgeholt.
+`utils/theme.ts::fixedMode()` sagt pro Look, welcher Modus fest ist.
+
+- **Die 3D-Kante malt der Browser.** `border-style: outset` in Weiß ergibt oben/links hell,
+  unten/rechts grau — gemessen an Chrome, fast die Windows-Kante. Dafür sind Farbe **und Stil** des
+  Plattenrahmens Tokens: `$mem-frame` = `var(--shape-frame, $mem-line)`, `$mem-frame-style` =
+  `var(--shape-frame-style, solid)`, `$candy-border` ist aus beiden gebaut. Die schwarze Außenkante
+  unten/rechts ist der Ruhe-Schatten (`--shape-shadow: 1px 1px 0 …`). Breite bleibt Sass-Konstante.
+- **⚠️ Rahmenfarbe ≠ `--mem-line`.** `--mem-line` färbt auch Glyphen, Ringe, Haarlinien und den
+  Fokus-Ring. Auf Weiß gesetzt, wären die unsichtbar geworden (Fokus weiß auf weißer Liste). Also:
+  **Plattenrahmen** nehmen `$mem-frame`/`$mem-frame-style`, **Tintenlinien** bleiben bei `$mem-line`.
+  Wer einen Rahmen von Hand schreibt (`$candy-border-w solid $mem-line`), prüft, welches von beiden
+  gemeint ist — die Seitenleisten-Platten und `btn-action` waren Rahmen und standen schwarz da.
+- **Eine Überschrift mit eigener Füllung nimmt `mem-sticker(…, $fill: …)`.** Die Titelleiste
+  (`--look-sticker-image`) würde sonst über eine feste Pastellfläche (Genre-Chip, Now-Playing-Marke)
+  gemalt. Überschriften, die ihre Textfarbe selbst setzen, schreiben
+  `var(--look-sticker-text, <alte Farbe>)` — sonst Weiß-auf-Blau verloren.
+- **Eine Custom Property kann nicht auf sich selbst zurückfallen.** `--row-fill:
+  var(--look-active-fill, var(--row-fill))` ist ein Zyklus und damit ungültig. Die Ruhe-Füllung
+  steht deshalb zusätzlich als `--row-fill-rest` (`mem-row-plate-tint`); `mem-row-marker` fällt
+  darauf zurück. Ohne das behielt das Label-Cover die graue Ruhe-Tönung in der Navy-Auswahl.
+- **Der Windows-Verlauf besteht keinen Kontrast.** Weiß auf `#1084d0` (Titelleisten-Ende von 98)
+  misst 4,0:1; das Ende ist `#0e6fb4` (5,3:1). Der Himmel oben startet bei `#4a86da`, damit Text
+  direkt auf dem Grund 4,5:1 hält.
+- **Keine Schrift von Google-Servern.** Der Look nennt Tahoma/Verdana als Systemschrift; eine
+  Webschrift käme — wie Figtree — als Datei ins Repo (`assets/fonts`), nie als CDN-Link.
+
+Beweis beim Bau: Memphis hell/dunkel und Stream pixelgenau master gegen Branch
+(`~/uitest/regress98.js` + `imgdiff.py`; Rauschen master gegen master: 5–50 px auf denselben
+Seiten), Kontrast jedes sichtbaren Texts auf sechs Seiten (`~/uitest/contrast98.js`).
 
 ## ⚠️ Hard-Shadow-System
 

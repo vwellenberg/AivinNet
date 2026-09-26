@@ -1,0 +1,149 @@
+// ============================================================================
+// DESKTOP 98 — grey bevelled windows on a sky wallpaper (#241).
+//
+// The third LOOK (utils/theme.ts). The mood is the late-90s desktop the covers
+// of "iVirtual Soundscape" and "Landscapes" float their windows over: a blue
+// sky with clouds as the ground, #c0c0c0 surfaces with a light-top-left /
+// dark-bottom-right bevel, navy-to-blue title bars, navy selection.
+//
+// Built on the LIGHT classes (`body.theme-desktop98` never comes with
+// `body.theme-dark`), and like Stream it is the Memphis app with other token
+// values — nothing here is a component rule:
+//
+//   colour  the `--mem-*` roles (Global/index.scss)
+//   form    the `--shape-*` tokens (_candy.scss) — only a look file defines them
+//   accent  the `--look-*` tokens (_candy.scss "LOOK TOKENS")
+//
+// The bevel is the browser's own: the plate frame keeps its 3px width and
+// takes `border-style: outset` in white (`--shape-frame-style`,
+// `--shape-frame`), which draws white on the top and left edges and grey on
+// the bottom and right. The black outer edge Windows drew below and to the
+// right of every raised control is the rest shadow, 1px straight down-right.
+// `--mem-line` stays near-black on purpose: it also inks glyphs, rings,
+// hairlines and focus outlines, which have to stay visible on grey and white.
+// ============================================================================
+
+// The wallpaper: sky, clouds, drawn at the ground layer's fixed 3840x1600
+// (mem-grid in _candy.scss places the doodle layer at that size, never scaled).
+// Soft round clouds rather than pixel ones: they sit behind the whole UI and
+// should read as distance, not as detail.
+$desktop98-clouds: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="1600" viewBox="0 0 3840 1600"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%234a86da"/><stop offset="0.55" stop-color="%235d9be3"/><stop offset="1" stop-color="%23a6cdf4"/></linearGradient></defs><rect width="3840" height="1600" fill="url(%23s)"/><g fill="%23ffffff" fill-opacity="0.92"><ellipse cx="420" cy="260" rx="190" ry="52"/><ellipse cx="520" cy="220" rx="120" ry="58"/><ellipse cx="330" cy="235" rx="90" ry="40"/><ellipse cx="1420" cy="140" rx="230" ry="56"/><ellipse cx="1540" cy="100" rx="140" ry="62"/><ellipse cx="1310" cy="115" rx="100" ry="44"/><ellipse cx="2480" cy="420" rx="210" ry="50"/><ellipse cx="2590" cy="380" rx="120" ry="56"/><ellipse cx="3320" cy="190" rx="200" ry="52"/><ellipse cx="3430" cy="150" rx="110" ry="54"/><ellipse cx="880" cy="1180" rx="240" ry="58"/><ellipse cx="1010" cy="1135" rx="140" ry="64"/><ellipse cx="780" cy="1150" rx="100" ry="46"/><ellipse cx="2060" cy="920" rx="190" ry="48"/><ellipse cx="2160" cy="885" rx="110" ry="52"/><ellipse cx="3000" cy="1300" rx="230" ry="56"/><ellipse cx="3130" cy="1255" rx="130" ry="60"/><ellipse cx="190" cy="760" rx="170" ry="44"/><ellipse cx="3700" cy="800" rx="170" ry="46"/></g></svg>');
+
+$desktop98-grey: #c0c0c0;
+$desktop98-light: #dfdfdf;
+$desktop98-shadow: #808080;
+$desktop98-navy: #000080;
+// The title bar's light end. Windows 98 ran to #1084d0, and white text on that
+// end measures 4.0:1 — below 4.5 for the small caption text. A step deeper
+// keeps the gradient and reads 5.3:1 everywhere along it.
+$desktop98-blue-deep: #0e6fb4;
+$desktop98-ink: #0a0a0a;
+
+// `:not(.theme-dark)` states the real relationship (this look never comes with
+// Dark) and lifts the block above `body.use-figtree-font` and `body.theme-dark`
+// in Global/index.scss, which are declared later at the same specificity.
+body.theme-desktop98:not(.theme-dark) {
+    // --- Surfaces ------------------------------------------------------------
+    --mem-ground: #{#5d9be3};
+    --mem-grid-line: transparent;
+    --mem-panel: #{$desktop98-grey};
+    --mem-soft: #{$desktop98-light};
+    // Track lists sit in a white "well", the way Windows put list views.
+    --mem-veil: #ffffff;
+
+    // --- Lines ---------------------------------------------------------------
+    // Ink for everything that is a line or a glyph. The FRAME is separate below.
+    --mem-line: #{$desktop98-ink};
+
+    // --- Text ------------------------------------------------------------------
+    // The ground is a sky now, and text standing on it directly (captions are
+    // plates, but a few labels are not) needs the dark ink to read on the
+    // pale lower half and white would fail on it. Content sits on grey/white.
+    --mem-content-text: #{$desktop98-ink};
+    --mem-content-muted: #3a3a3a;
+    --mem-content-faint: rgba(10, 10, 10, 0.55);
+    --mem-text: #{$desktop98-ink};
+    --mem-text-muted: #3a3a3a;
+
+    // --- Pointer: the Windows selection, navy with white text ---------------
+    --mem-hover: #{$desktop98-navy};
+    --mem-hover-text: #ffffff;
+
+    // --- Textures: none; the bevel says "you can press this" ---------------
+    --mem-hatch: none;
+    --mem-hatch-accent: none;
+    --mem-hatch-hover: none;
+    --shape-sprinkle: none;
+    --shape-doodles: #{$desktop98-clouds};
+
+    // --- Form ------------------------------------------------------------------
+    --shape-frame: #ffffff;
+    --shape-frame-style: outset;
+    --shape-well-style: inset;
+    // The black outer edge of a raised control, 1px down-right. Hover keeps
+    // it: Windows did not lift things under the pointer.
+    --mem-shadow: #{$desktop98-ink};
+    --shape-shadow: 1px 1px 0 #{$desktop98-ink};
+    --shape-shadow-hover: 1px 1px 0 #{$desktop98-ink};
+    --shape-shadow-lift: 2px 2px 0 #{$desktop98-ink};
+    // A pressed button's face moves one pixel down-right.
+    --shape-press: translate(1px, 1px);
+    --shape-radius: 0;
+    --shape-radius-sm: 0;
+    --shape-radius-xs: 0;
+    --shape-radius-pill: 0;
+
+    // --- Accents and states --------------------------------------------------
+    // Memphis colours its navigation and states with six pastels; Windows had
+    // grey and one blue. Grey at rest, navy for "selected", navy for "playing".
+    --look-tint: #{$desktop98-grey};
+    --look-tint-text: #{$desktop98-ink};
+    --look-active-fill: #{$desktop98-navy};
+    --look-active-text: #ffffff;
+    --look-marker: none;
+    // Section captions are title bars.
+    --look-sticker-fill: #{$desktop98-navy};
+    --look-sticker-image: linear-gradient(90deg, #{$desktop98-navy}, #{$desktop98-blue-deep});
+    --look-sticker-text: #ffffff;
+    // The band over a track list is the list window's title bar.
+    --look-bar-fill: #{$desktop98-navy};
+    --look-bar-image: linear-gradient(90deg, #{$desktop98-navy}, #{$desktop98-blue-deep});
+    --look-bar-text: #ffffff;
+    --look-playing-fill: #{$desktop98-navy};
+    --look-filled-text: #ffffff;
+    --look-filled-muted: #dfe6ff;
+    --look-context-fill: #{$desktop98-navy};
+    --look-menu-hover: #{$desktop98-navy};
+    --look-menu-hover-text: #ffffff;
+    --look-on-fill: #{$desktop98-light};
+    --look-on-glyph: #{$desktop98-navy};
+    --look-selected-fill: #{$desktop98-navy};
+    --look-selected-text: #ffffff;
+    --look-switch-on: #{$desktop98-navy};
+    --look-band: transparent;
+    --look-perforation: transparent;
+    --look-row-edge: transparent;
+    --look-badge-line: transparent;
+    --look-track: #ffffff;
+    --look-track-played: #{$desktop98-navy};
+    --look-track-buffered: #{$desktop98-shadow};
+    --look-track-seek: rgba(0, 0, 128, 0.35);
+    --look-thumb-line: #{$desktop98-ink};
+
+    // --- Detail pages -----------------------------------------------------------
+    // A grey window, no cover tint behind it: the sky is the page.
+    --look-detail-head-fill: #{$desktop98-grey};
+    --look-veil-top: 0;
+    --look-veil-mid: 0;
+    --look-veil-end: 0;
+    --look-play-fill: #{$desktop98-grey};
+    --look-play-glyph: #{$desktop98-ink};
+
+    --mem-scrollbar-thumb: #{$desktop98-grey};
+    --mem-scrollbar-thumb-hover: #{$desktop98-shadow};
+
+    // The system face of the era; Tahoma ships with Windows, the rest fall back
+    // to the closest humanist sans.
+    --app-font: Tahoma, Verdana, "Segoe UI", "DejaVu Sans", Arial, sans-serif;
+    --look-display-font: Tahoma, Verdana, "Segoe UI", sans-serif;
+}

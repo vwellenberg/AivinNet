@@ -92,8 +92,8 @@ const showDateHeading = computed(
     // the pairing the plates exist to avoid.
     .ah-label,
     .date-added-heading {
-        @include mem-sticker(999px, 0.25rem 0.8rem);
-        color: $candy-text-muted;
+        @include mem-sticker($candy-radius-pill, 0.25rem 0.8rem);
+        color: var(--look-sticker-text, #{$candy-text-muted});
     }
 
     @media only screen and (max-width: 724px) {
@@ -143,11 +143,13 @@ const showDateHeading = computed(
 // ---------------------------------------------------------------------------
 .p-after-header.caps-list > .ah-bar {
     height: 2.4rem;
-    background-color: $mem-line;
+    // The ink band is Memphis; a look may paint it as a title bar (#241).
+    background-color: var(--look-bar-fill, #{$mem-line});
+    background-image: var(--look-bar-image, none);
     // Reads on the bar in both themes: ink bar on light, paper bar on dark
     // (`$mem-line` flips), and the ground flips with it.
-    color: $mem-ground;
-    border: $candy-border-w solid $mem-line;
+    color: var(--look-bar-text, #{$mem-ground});
+    border: $candy-border-w solid var(--look-bar-fill, #{$mem-line});
     border-bottom: none;
     border-top-left-radius: $candy-radius-sm;
     border-top-right-radius: $candy-radius-sm;
@@ -171,6 +173,9 @@ const showDateHeading = computed(
     .date-added-heading {
         padding: 0;
         background-color: transparent;
+        // The sticker's own image too: a look that paints captions as title
+        // bars would otherwise draw a second bar inside this one.
+        background-image: none;
         border: none;
         box-shadow: none;
         color: inherit;

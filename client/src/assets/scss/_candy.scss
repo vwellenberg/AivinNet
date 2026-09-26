@@ -106,7 +106,17 @@ $candy-text-faint: var(--mem-content-faint); // placeholders, disabled
 // value from their padding to keep a row's height constant.
 $candy-border-w: 3px;
 // Every border/outline: ink in light, paper in dark.
-$candy-border: $candy-border-w solid $mem-line;
+//
+// Colour and STYLE are look tokens (#241), each with the Memphis value as the
+// fallback: `--shape-frame` repaints the frame without touching `--mem-line`
+// (which also inks glyphs, rings and focus outlines, and must stay dark on a
+// light look), and `--shape-frame-style: outset` is how Desktop 98 gets its
+// bevel from the browser instead of from a hand-drawn shadow stack on every
+// surface. The WIDTH stays a Sass constant — ~100 layout calculations
+// subtract it.
+$mem-frame: var(--shape-frame, #{$mem-line});
+$mem-frame-style: var(--shape-frame-style, solid);
+$candy-border: $candy-border-w $mem-frame-style $mem-frame;
 // THE HAIRLINE — the design's second line weight, and a role rather than a
 // slip (#141). A 3px ink frame is right on a plate, a row or a card; on a
 // chip inside a line of text, a 40px number field, a tooltip, a table
@@ -141,7 +151,9 @@ $candy-radius-sm: var(--shape-radius-sm, #{$candy-radius-sm-static}); // buttons
 // on a 1rem-tall tag reads as a pill. Named so the intent is in the token and
 // not in a spacing variable that happened to be 4px (#140).
 $candy-radius-xs: var(--shape-radius-xs, #{$candy-radius-xs-static}); // inline tags, skeleton bars
-$candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every theme
+// Pills, sliders. A pill stays a pill in Memphis and Stream; Desktop 98 has no
+// round controls at all and squares them through the token (#241).
+$candy-radius-pill: var(--shape-radius-pill, 999px);
 
 // ---------------------------------------------------------------------------
 // SHAPE TOKENS — the Memphis form language, switchable at runtime (#198).
@@ -204,6 +216,14 @@ $candy-radius-pill: 999px; // pills, sliders — a pill stays a pill in every th
 //   --look-veil-top · -mid · -end   how strongly the cover tints the page
 //   --look-play-fill · -play-glyph  the primary play CTA
 //   --shape-detail-title · -phone   the title in a detail head
+//   --look-sticker-image · -text    a caption painted as more than a fill (title bar)
+//   --look-bar-fill · -image · -text the ink band over a track list (AfterHeader)
+//   --shape-radius-pill             pills and sliders
+//   --look-perforation · -row-edge  the dashes between song rows, their trailing ink edge
+//   --look-menu-hover · -text       the highlighted context menu item
+//   --shape-well-style              the border style of a sunken field (search)
+//   --look-display-font             the typeface of detail titles
+//   --shape-frame · -frame-style    the plate frame's colour and border style
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
   @return var(#{$token}, #{$x} #{$y} 0 var(--mem-shadow));
@@ -388,7 +408,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // that hand-rolls either half.
 // ---------------------------------------------------------------------------
 @mixin candy-row-base($radius: $candy-radius-sm) {
-  border: $candy-border-w solid transparent;
+  border: $candy-border-w $mem-frame-style transparent;
   border-radius: $radius;
   // NO transition, deliberately: the paint is a cut (styling.md). The fade
   // this replaces was written when hover was a blush TINT — fill and frame
@@ -419,7 +439,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 @mixin candy-row-hover($fill: var(--mem-hover), $radius: $candy-radius-sm) {
   background-color: $fill;
   color: var(--mem-hover-text);
-  border-color: $mem-line;
+  border-color: $mem-frame;
   border-radius: $radius;
 }
 
@@ -493,7 +513,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   @if $hatch {
     @include mem-hatch(38px, $on: surface);
   }
-  border: $candy-border-w solid $mem-line;
+  border: $candy-border;
   border-radius: $radius;
   color: $mem-content-text;
   box-shadow: mem-shadow(3px, 3px);
@@ -532,7 +552,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   @if $hatch {
     background-image: var(--mem-hatch-hover);
   }
-  border-color: $mem-line;
+  border-color: $mem-frame;
   box-shadow: mem-shadow(4px, 4px, hover);
 }
 
@@ -556,7 +576,11 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 }
 
 @mixin mem-row-plate-tint($fill) {
-  --row-fill: var(--look-tint, #{$fill});
+  // The resting fill under its own name as well: the "selected" marker below
+  // swaps `--row-fill` for a look's active fill and needs this to fall back to
+  // (a property cannot fall back to itself).
+  --row-fill-rest: var(--look-tint, #{$fill});
+  --row-fill: var(--row-fill-rest);
   background-color: var(--row-fill);
   @include mem-hatch(38px, $on: accent);
   color: var(--look-tint-text, #{$mem-ink});
@@ -567,7 +591,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   @include mem-row-plate-tint($candy-pink);
   --row-fill: var(--look-active-fill, var(--look-tint, #{$candy-pink}));
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
-  border-color: $mem-line;
+  border-color: $mem-frame;
 }
 
 // ---------------------------------------------------------------------------
@@ -588,7 +612,11 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // `width: fit-content` on purpose: a caption sticker is a label, not a bar
 // across the page.
 // ---------------------------------------------------------------------------
-@mixin mem-sticker($radius: $candy-radius-sm, $pad: 0.3rem 0.7rem) {
+// `$fill`: a caption with a colour of its own (the genre chip, the Now
+// Playing label). It keeps that fill in every look — a look's caption paint
+// (Desktop 98's title bar, #241) is for the plain panel captions, and drawn
+// over a static pastel it would bury the ink text the caller sets.
+@mixin mem-sticker($radius: $candy-radius-sm, $pad: 0.3rem 0.7rem, $fill: null) {
   display: inline-block;
   width: fit-content;
   max-width: 100%;
@@ -596,14 +624,21 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // The side padding is a look token: a sticker's text sits inside its plate,
   // a look without plates wants the words on the content edge.
   padding-inline: var(--look-sticker-inset, #{nth($pad, -1)});
-  background-color: var(--look-sticker-fill, #{$mem-panel});
+  @if $fill {
+    background-color: $fill;
+  } @else {
+    background-color: var(--look-sticker-fill, #{$mem-panel});
+    // A look may paint the caption as more than a fill — Desktop 98's are
+    // title bars, a navy-to-blue gradient with white text (#241).
+    background-image: var(--look-sticker-image, none);
+  }
   border: $candy-border;
   border-radius: $radius;
   box-shadow: mem-shadow(3px, 3px);
   // The ground halos that used to prop these captions up (`text-shadow: 0 0 8px
   // var(--mem-ground)`) are unnecessary on a panel — and so is the
   // theme-aware content colour: this text reads against the panel now.
-  color: $candy-text;
+  color: if($fill, $mem-ink, var(--look-sticker-text, #{$candy-text}));
   text-shadow: none;
   // Der Sticker-Anschlag (#143): ein Sticker wird aufgeklebt, nicht
   // eingeblendet — von oben, schräg, beim Aufsetzen gestaucht, und der harte
@@ -833,6 +868,13 @@ $mem-seg-reserve: 4px !default;
 // ---------------------------------------------------------------------------
 @mixin mem-row-marker($w: 9px) {
   padding-left: $w;
+  // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
+  // kept the resting tint while the row turned the look's active colour —
+  // a grey pill inside Desktop 98's navy selection (#241).
+  // The last fallback is the base plate's own fill (mem-row-plate), for a row
+  // that carries no tint class: without it, `--row-fill` would be invalid
+  // there in Memphis and the row would lose its surface.
+  --row-fill: var(--look-active-fill, var(--row-fill-rest, #{$mem-panel}));
   // A look without the zigzag still has to say "this one": it gets the active
   // fill instead. Memphis keeps the row's own tint here (the fallback).
   background-color: var(--look-active-fill, var(--row-fill));

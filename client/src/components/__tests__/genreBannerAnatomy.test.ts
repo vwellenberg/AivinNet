@@ -55,12 +55,16 @@ describe("genre banner anatomy", () => {
     // theme-aware text colour. Overriding the fill with a STATIC accent without
     // moving the text with it is the pairing failure the token note in
     // _candy.scss warns about — paper-on-lavender in the dark theme.
-    const fills = chips.filter(chip => /background-color:\s*\$mem-/.test(chip));
+    //
+    // Since #241 the base chip hands its fill to the mixin (`$fill:`), which
+    // writes the static ink itself and keeps a look's caption paint off it —
+    // so either spelling is the pairing.
+    const fills = chips.filter(chip => /background-color:\s*\$mem-|\$fill:\s*\$mem-/.test(chip));
     expect(fills.length, "neither chip overrides the sticker's fill any more").toBe(2);
     expect(
       blocks(css, ".genre-chip")[0],
       "a static accent fill needs static ink on it, in both themes"
-    ).toMatch(/color:\s*\$mem-ink/);
+    ).toMatch(/color:\s*\$mem-ink|\$fill:\s*\$mem-/);
 
     // ⚠️ EVERY chip block, not just the base. The label overrides the fill on
     // its own line, so a `color: $candy-text` written next to it is the same

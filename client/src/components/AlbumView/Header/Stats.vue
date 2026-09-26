@@ -47,10 +47,10 @@ const statsText = computed(() => {
   // No left inset: the playlist's meta line has none, and this 4px was one of
   // the offsets that made the two headers sit differently.
   padding-left: 0;
-  // Full-strength adaptive text + soft ground halo: the copied reference art
-  // puts saturated shapes behind the header, where muted grey failed.
-  color: $mem-content-text;
-  text-shadow: 0 0 8px var(--mem-ground);
+  // Full-strength text. The ground halo that stood here came from before the
+  // head was a plate (detail-head.scss): on the panel it only blurred the line
+  // — in the ground's colour, which under Desktop 98 is a sky blue glow.
+  color: $candy-text;
 
   .artistname {
     display: -webkit-box;

@@ -255,7 +255,7 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
 
             > a {
                 @include mem-sticker;
-                color: $candy-text-muted;
+                color: var(--look-sticker-text, #{$candy-text-muted});
                 min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;

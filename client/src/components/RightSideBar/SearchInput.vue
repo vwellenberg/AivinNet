@@ -137,6 +137,9 @@ function handleButton() {
         display: flex;
         align-items: center;
         @include candy-box($candy-pink-soft, $candy-radius-pill);
+        // A field is sunk into the surface, not raised off it — only a look
+        // with a bevel can tell the two apart (#241).
+        border-style: var(--shape-well-style, solid);
         color: $candy-text;
         transition: background-color $motion-tint $motion-curve;
 

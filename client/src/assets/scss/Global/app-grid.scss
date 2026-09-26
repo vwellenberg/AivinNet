@@ -73,7 +73,7 @@ $g-border: solid $candy-border-w $mem-line;
         height: unset;
         padding: 6px 8px;
         margin: $medium 1rem;
-        border-radius: 5rem;
+        border-radius: $candy-radius-pill;
         background-color: $candy-white;
         border: $candy-border;
     }
@@ -224,13 +224,15 @@ $g-border: solid $candy-border-w $mem-line;
     // is pointer-gated too (SongItem.vue), nothing would paint in their place:
     // the tapped row would simply lose its band, perforation and stripe (#457).
     &.rounded-sm:not(.current):not(.contexton) {
+        // Perforation and trailing edge are look tokens (#241): a Desktop 98
+        // list sits in a plain white well, without separators or ink stripes.
         background-image: repeating-linear-gradient(
                 90deg,
-                $mem-line 0 3px,
+                var(--look-perforation, #{$mem-line}) 0 3px,
                 transparent 3px 7px
             ),
             linear-gradient(var(--band, #{$mem-line}), var(--band, #{$mem-line})),
-            linear-gradient($mem-line, $mem-line);
+            linear-gradient(var(--look-row-edge, #{$mem-line}), var(--look-row-edge, #{$mem-line}));
         background-repeat: no-repeat;
         background-origin: border-box;
         background-position: $songlist-band-w bottom, left top, right top;
@@ -244,7 +246,7 @@ $g-border: solid $candy-border-w $mem-line;
     // same edge would double it.
     &.is-last.rounded-sm:not(.current):not(.contexton) {
         background-image: linear-gradient(var(--band, #{$mem-line}), var(--band, #{$mem-line})),
-            linear-gradient($mem-line, $mem-line);
+            linear-gradient(var(--look-row-edge, #{$mem-line}), var(--look-row-edge, #{$mem-line}));
         background-position: left top, right top;
         background-size: $songlist-band-w 100%, $candy-border-w 100%;
     }

@@ -11,7 +11,7 @@ import { getLastFmApiSig } from '@/context_menus/hashing'
 import useAxios from '@/requests/useAxios'
 import { router, Routes } from '@/router'
 import { themeForNow } from '@/utils/autoTheme'
-import type { Look } from '@/utils/theme'
+import { normalizeLook, type Look } from '@/utils/theme'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
 export default defineStore('settings', {
@@ -471,6 +471,10 @@ export default defineStore('settings', {
 
             // The font option was stored under another name before it was renamed.
             store.font = normalizeUiFont(store.font)
+
+            // A look this build does not know (stored by a newer one, or one
+            // that was removed) would leave the body with no look class at all.
+            store.look = normalizeLook(store.look)
 
             // reset plugin settings
             store.use_lyrics_plugin = false

@@ -23,8 +23,10 @@
 
   .activetab,
   .activetab:hover {
-    background-color: $candy-pink-deep;
+    // The selected segment's look tokens (_candy.scss): Memphis keeps its
+    // accent fill, a look paints the selection its own way (#241).
+    background-color: var(--look-selected-fill, #{$candy-pink-deep});
     // Yellow accent fill (light in both themes) → pin static ink.
-    color: $mem-ink;
+    color: var(--look-selected-text, #{$mem-ink});
   }
 }
