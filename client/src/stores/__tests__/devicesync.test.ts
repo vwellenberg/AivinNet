@@ -1371,8 +1371,8 @@ describe('devicesync store', () => {
         )
         await ds.poll()
 
-        // Default start latency is 30 ms: play() goes out at 1470 ms.
-        vi.advanceTimersByTime(1469)
+        // Default start latency is 50 ms: play() goes out at 1450 ms.
+        vi.advanceTimersByTime(1449)
         expect(audioSourceMock.playPlayingSource).not.toHaveBeenCalled()
         vi.advanceTimersByTime(1)
         expect(audioSourceMock.playPlayingSource).toHaveBeenCalledTimes(1)
@@ -1423,6 +1423,10 @@ describe('devicesync store', () => {
 
         // 400 ms behind — say, after a buffering stall.
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
+        // One odd reading is not acted on (median of three)...
+        vi.advanceTimersByTime(250)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+        // ...a second one is.
         vi.advanceTimersByTime(250)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
         // Aimed ahead by this device's seek latency (default 90 ms).
@@ -1437,7 +1441,7 @@ describe('devicesync store', () => {
         const { ds } = await playingGroup()
 
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
-        vi.advanceTimersByTime(250)
+        vi.advanceTimersByTime(500)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
 
         // The seek cost 140 ms here, not the 90 assumed: settled, the device
@@ -1474,8 +1478,8 @@ describe('devicesync store', () => {
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 80)
         vi.advanceTimersByTime(750)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
-        // ...and learned from it: 30 + 0.6 * 80.
-        expect(__latencyForTest().start).toBe(78)
+        // ...and learned from it: 50 + 0.6 * 80.
+        expect(__latencyForTest().start).toBe(98)
 
         // Still reading 80 ms late after the correction settles (a stubborn
         // seek estimate): no second seek — rate takes it from here.
@@ -1632,7 +1636,7 @@ describe('devicesync store', () => {
     it('leaving resets a steering rate instead of leaving solo playback stretched', async () => {
         const { ds } = await playingGroup()
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) + 60)
-        vi.advanceTimersByTime(250)
+        vi.advanceTimersByTime(500)
         expect(lastRate()).toBeCloseTo(0.97, 6)
 
         ds.toSolo()

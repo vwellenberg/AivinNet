@@ -83,11 +83,15 @@ const STANDBY_SLACK_MS = 20
 const PAUSED_SLACK_MS = 40
 /**
  * A transition that landed further off than this (ms) gets one compensated
- * seek right away. Easing 60-100 ms out by rate took three seconds on a device
+ * seek right away. Steering 60 ms out by rate took three seconds on a device
  * that had not measured its start latency yet; right after a cut, one more
  * small seek is not heard as a separate event.
  */
-const LANDING_SEEK_MS = 50
+const LANDING_SEEK_MS = 35
+/** Readings this long after an action are past its stall and count for its landing (ms). */
+const SETTLED_READING_MS = 400
+/** Readings the steerer takes the median of — Firefox's currentTime jitters by ±40 ms. */
+const READINGS = 3
 /** The leader books the next track this long before the current one ends (ms)... */
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */
@@ -143,6 +147,14 @@ function clearPending() {
 let settle: { kind: LatencyKind | 'load'; at: number } | null = null
 /** Rate steering is engaged (hysteresis, see driftSteer.ts). */
 let steering = false
+/** The last few error readings since the clock last jumped; decisions use their median. */
+let readings: { at: number; error: number }[] = []
+
+function median(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b)
+    const mid = sorted.length >> 1
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
 let latency = loadLatency()
 
 /** The anchor the leader already booked the next track for — one booking per anchor. */
@@ -220,6 +232,7 @@ export function __resetDeviceSyncTestState() {
     appliedRate = 1
     settle = null
     steering = false
+    readings = []
     latency = loadLatency()
     bookedFor = ''
     pollSeq = 0
@@ -270,9 +283,10 @@ function resetRate(player: ReturnType<typeof usePlayer>) {
     steering = false
 }
 
-/** Open a settle window for an action taken just now. */
+/** Open a settle window for an action taken just now — earlier readings are void. */
 function settleAfter(kind: LatencyKind | 'load') {
     settle = { kind, at: Date.now() }
+    readings = []
 }
 
 export default defineStore('devicesync', {
@@ -842,30 +856,39 @@ export default defineStore('devicesync', {
                 return
             }
 
+            const now = Date.now()
+            const advancing = player.isAdvancing()
+            if (advancing) {
+                readings.push({ at: now, error })
+                if (readings.length > READINGS) readings.shift()
+            }
+
             if (settle) {
-                const age = Date.now() - settle.at
-                if (age < SETTLE_MS || !player.isAdvancing()) {
+                const since = settle.at
+                const age = now - since
+                if (age < SETTLE_MS || !advancing) {
                     if (age > SETTLE_GIVEUP_MS) settle = null
                     return
                 }
                 const landed = settle.kind
+                const residual = median(readings.filter(r => r.at - since >= SETTLED_READING_MS).map(r => r.error))
                 settle = null
                 if (landed !== 'load') {
-                    latency = { ...latency, [landed]: learnLatency(latency[landed], error) }
+                    latency = { ...latency, [landed]: learnLatency(latency[landed], residual) }
                     saveLatency(latency)
                 }
                 // The landing of a transition itself (not of a correction):
                 // one seek now beats seconds of rate steering.
-                if (landed !== 'seek' && Math.abs(error) > LANDING_SEEK_MS) {
+                if (landed !== 'seek' && Math.abs(residual) > LANDING_SEEK_MS) {
                     this.seekCompensated()
                     return
                 }
             }
 
             // Buffering, ended, or blocked: a seek would only restart the wait.
-            if (!player.isAdvancing()) return
+            if (!advancing) return
 
-            const correction = computeCorrection(error, steering)
+            const correction = computeCorrection(median(readings.map(r => r.error)), steering)
             if (correction.action === 'seek') {
                 this.seekCompensated()
             } else if (correction.action === 'rate') {

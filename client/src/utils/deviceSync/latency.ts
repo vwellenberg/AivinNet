@@ -25,8 +25,12 @@ export type LatencyModel = Record<LatencyKind, number>
 
 const KEY = 'aivinnet.sync_latency'
 
-/** Starting point before a device has measured itself. */
-export const DEFAULT_LATENCY: LatencyModel = { start: 30, seek: 90 }
+/**
+ * Starting point before a device has measured itself. Headless Chromium
+ * measured ~85 ms to start and ~90 ms per seek, Firefox ~130 ms to start; a
+ * real device replaces these within a transition or two.
+ */
+export const DEFAULT_LATENCY: LatencyModel = { start: 50, seek: 90 }
 
 /** Upper bound for either estimate (ms). */
 export const MAX_LATENCY_MS = 600
