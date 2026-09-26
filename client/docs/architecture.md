@@ -136,9 +136,14 @@ und in `player.ts` (`onAudioEnded` → der Leader plant den Trackwechsel). `appl
 „ich spiegele gerade den Server" und verhindert, dass das Spiegeln erneut sendet.
 
 Mechanik in Stichworten: Poll-Loop (1 s joined, 5 s solo), Cristian-Uhrenabgleich
-(`utils/deviceSync/clockSync.ts`, niedrigste RTT gewinnt), serverseitig geplante Ausführung
-(`execute_at_ms` − Offset → lokaler Timer), Drift-Steuerung über `playbackRate` ±4 % mit
-Hard-Seek-Fenster, Per-Device-Latenz-Trim. Details und die Feld-Bugs stehen in CLAUDE.md.
+(`utils/deviceSync/clockSync.ts`, niedrigste RTT gewinnt). Der Server plant jede
+Transport-Änderung `LEAD_MS` voraus; der **Zustand** dazu kommt mit dem nächsten Poll, also *vor*
+seiner Zeit. Er wird gehalten, sein Audio auf dem Standby-Element vorbereitet und zur Anker-Zeit
+auf allen Geräten gleichzeitig übernommen — Transport-Kommandos selbst führt der Client nicht
+aus. Danach steuert ein 250-ms-Loop über `playbackRate` (2–4 %) und kompensierte Seeks nach;
+Start- und Seek-Latenz lernt jedes Gerät selbst (`utils/deviceSync/latency.ts`), der Leader
+bucht den nächsten Track auf das exakte Songende. Details, Messwerte und Feld-Bugs:
+`.claude/rules/device-sync.md`.
 
 ## Styling
 

@@ -22,6 +22,25 @@ Transport-Mutationen (play, pause, seek, track_change) werden **geplant**, nicht
 ausgeführt: `execute_at = now + LEAD_MS (1500)`. Sie wirken auf alle Member gleichzeitig,
 **inklusive Initiator** — die Clients rechnen Server-Zeit per Cristian-Offset in lokale Zeit um.
 
+⚠️ **Der Anker im Zustand IST der Plan.** Die Mutation schreibt `anchor.at_server_ms =
+execute_at` sofort, und der Client (ab 2026-09-26) richtet sich nur nach diesem Zustand: Er hält
+ihn bis zur Anker-Zeit und übernimmt ihn dann. Die Transport-Commands laufen weiter mit (alte
+Clients, Dedupe), ausgeführt werden sie nicht mehr. Wer hier eine Mutation baut, muss den Anker
+also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt" aussieht.
+
+- **`queue-set` mit `live: true`** — eine Queue-Bearbeitung beim Hören (Add/Remove/Reorder, Seed
+  des ersten Joiners): `position_ms` ist die Position **jetzt**. Läuft der aktuelle Track weiter
+  (gleicher Hash, gleicher `playing`), bleibt der Anker **unverändert**, sonst gilt die Position
+  ab `now` — kein Command. Ohne das wurde die Sende-Position `LEAD_MS` in die Zukunft gelegt:
+  jedes „Add to queue" warf alle Geräte 1,5 s zurück. Ein Neustart (neues Album) bleibt
+  `live: false` mit implizitem `track_change`.
+- **`track_change` mit `execute_at_ms`** — der Leader bucht den nächsten Track auf das exakte
+  Ende des laufenden (lückenlos). Nie früher als `LEAD_MS`, abgelehnt jenseits
+  `MAX_SCHEDULE_AHEAD_MS` (15 s) und für jeden anderen Typ. Solange sie aussteht, hält
+  `Session.early` den vorherigen Zustand: **jede andere Mutation vorher zieht die Buchung
+  zurück** (Zustand zurück, Command aus `pending` entfernt) — sonst folgte einem Seek oder einer
+  Pause in den letzten Sekunden eines Tracks trotzdem der geplante Sprung. `set_repeat` lässt sie
+  stehen.
 - Versionierter Snapshot, Delta nur bei einem Sprung von `known_version`.
 - Targeted Commands (`set_volume`, `set_mute`, `join_invite`, `play_here`) gehen nur ans
   Zielgerät, TTL 15 s wegen der 5-s-Kadenz im Solo-Modus.

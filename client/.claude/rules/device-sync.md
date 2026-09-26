@@ -17,13 +17,21 @@ der Wahrheit**, komplett im RAM (`lib/groupsession.py` im Backend, HTTP unter `/
 
 `stores/devicesync.ts` ist das Herzstück:
 
-- **Poll-Loop** — 1 s beigetreten, 5 s solo.
+- **Poll-Loop** — 1 s beigetreten, 5 s solo; Antworten sind nummeriert, eine ältere als die
+  zuletzt angewandte fliegt raus (sonst rollt ein spät landender Poll die Gruppe zurück).
 - **Cristian-Clock-Offset** (`utils/deviceSync/clockSync.ts`) — das Sample mit der niedrigsten
   RTT gewinnt.
-- **Geplante Command-Ausführung** — Server-`execute_at_ms` minus Offset → lokales `setTimeout`;
-  Catch-up wenn verpasst; Dedupe per Command-Id.
-- **Drift-Steering alle 250 ms** (`utils/deviceSync/driftSteer.ts`) — Deadband, `playbackRate`
-  ±4 %, Hard-Seek über 1 s; im Pause-Zustand nur Hard-Seek-Recovery.
+- **Zustand statt Kommandos** — jede Transport-Änderung kommt als Zustand mit Anker in der
+  Zukunft. Liegt der Anker vorn, wird der Zustand **gehalten** (`pending`), sein Audio auf dem
+  Standby-Element vorbereitet und zur Anker-Zeit übernommen (`commit` → `alignTransport`);
+  liegt er zurück, sofort (Join, Catch-up). Transport-**Kommandos** führt der Client nicht aus,
+  nur die gezielten (Volume, Mute, Invite, Play-here).
+- **Drift-Steering alle 250 ms** (`utils/deviceSync/driftSteer.ts`) — auf dem Median der letzten
+  drei Messungen: ab 25 ms `playbackRate` 2–4 %, bis unter 8 ms; über 100 ms ein kompensierter
+  Seek. Nach jedem Eingriff 1 s Ruhe, dann Messung — und aus ihr lernt das Gerät seine Start-
+  und Seek-Latenz (`utils/deviceSync/latency.ts`, in localStorage).
+- **Leader bucht den nächsten Track** ~4 s vor Songende auf dessen exaktes Ende (`bookNextTrack`,
+  `execute_at_ms` im Command) — die Gruppe spielt lückenlos durch.
 - **Mirror unter `applying`-Guard.**
 
 UI: Cast-Button in `BottomBar/Right.vue` (grün = beigetreten) → `modals/Devices.vue`;
@@ -44,8 +52,10 @@ if (ds.joined && !ds.applying) { ds.intercept('play', index); return }
   `insertAfterCurrent` („Play next") hat das getan und dabei nicht nur den Seam verloren, sondern
   auch das `clearNextAudio()` aus `insertAt` — es fügt genau auf `nextindex` ein, das vorgeladene
   Audio war also der gerade verdrängte Track (#434).
-- `player.ts` — `onAudioEnded`: der Leader plant `track_change`. Gapless und Crossfade sind im
-  Gruppenmodus **aus**.
+- `player.ts` — `onAudioEnded`: der Leader plant `track_change`, **falls** er den nächsten Track
+  nicht schon gebucht hat (`bookNextTrack`, dann tut `ended` nichts). Das Solo-Gapless und
+  Crossfade sind im Gruppenmodus **aus**; die Gruppe hat ihr eigenes Umschalten über das
+  Standby-Element (`prepareGroupStandby` / `switchToGroupStandby`, harter Schnitt ohne Fade).
 - `tracker.ts` — nur der Scrobble-Leader submittet; Nicht-Leader verwerfen die Akkumulation.
 - `settings` — repeat wird geteilt.
 
@@ -57,6 +67,12 @@ splicen ändert die Server-`queue_id` **nicht**, also re-mirrort niemand, und de
   dem laufenden Track lag: darunter ⇒ `currentindex - 1`; **auf** ihm ⇒ Index bleibt (der nächste
   rutscht nach) und `position_ms: 0`; letzter Track ⇒ in die verkürzte Liste geklemmt. Der Server
   klemmt zwar auch, aber er kann die Absicht nicht rekonstruieren.
+- **⚠️ Eine Bearbeitung beim Hören ist `live: true`.** Add, Remove (nicht des laufenden Tracks),
+  Reorder und der Seed des ersten Joiners schicken die Position *jetzt*. Ohne das Flag legte der
+  Server sie `LEAD_MS` in die Zukunft — jedes „Zur Queue hinzufügen" ließ **alle Geräte 1,6 s
+  zurückspringen** (gemessen). Mit dem Flag bleibt der Anker unverändert, solange der laufende
+  Track weiterläuft: niemand seekt. Ein Neustart (neues Album, Nachfolger nach Remove, Clear,
+  Shuffle) ist **nicht** live.
 - **⚠️ „Queue ersetzen" ist nicht „Queue leeren".** `PlayBtn.vue`/`TopTracks.vue` riefen
   `clearQueue()` als Vorspiel zu `setFromSearch(...)` + `play()`. Lokal ein No-op — mit dem Seam
   ein **queue-set einer leeren Queue**, das gegen das echte rennt (beide `void`, Reihenfolge der
@@ -80,8 +96,8 @@ der Index **im Command mitreist**, landen alle Geräte auf demselben Track. Vorh
 Stelle hart sequentiell — der Shuffle-Knopf sah aktiv aus und wirkte nur beim manuellen „Next"
 (#324).
 
-⚠️ **Ein gespiegelter Index-Sprung ist ein Track-Wechsel.** `applyState` und der
-`track_change`-Command schreiben `currentindex` bewusst direkt; ohne `rollShuffleNext()` bleibt
+⚠️ **Ein gespiegelter Index-Sprung ist ein Track-Wechsel.** `commit` schreibt `currentindex`
+bewusst direkt; ohne `rollShuffleNext()` bleibt
 das Ziel auf dem gerade gestarteten Track stehen, und der Getter fällt (seit #317) auf die
 sequentielle Zeile zurück — die Gruppe würde nach dem ersten Sprung wieder der Reihe nach laufen.
 Neu gewürfelt wird **nur bei echter Änderung**: der Poll läuft jede Sekunde, und ein Wurf pro Tick
@@ -121,8 +137,13 @@ Leave (ein Timeout-Race würde genau den Bug wieder einbauen).
 - **Bei Leave** verhindert das `leaveSuppressUntil`-Fenster, dass ein in-flight Poll das Gerät
   sofort re-adoptiert. Re-Adopt (Page-Reload mitten in der Session) erzwingt Full-Re-Mirror
   (`queueId`-Reset).
-- Scheduled Timer werden bei leave/toSolo/Queue-Wechsel gecancelt; `executeCommand` prüft
-  Membership; der `track_change`-Index wird geclampt.
+- Ein gehaltener Zustand (`pending`) fällt bei leave/toSolo und bei jedem neueren Zustand weg —
+  gilt immer nur der **neueste**. `toSolo()` setzt außerdem eine laufende Steuer-Rate zurück,
+  sonst spielte das Gerät solo den Rest des Tracks gestreckt weiter.
+- **Zwischen einem Next und seiner Anker-Zeit** zeigt und spielt das Gerät noch den alten Track.
+  Ein zweites Next zählt deshalb vom Track, zu dem die Gruppe unterwegs ist (`upcomingIndex`),
+  und Previous macht das Next rückgängig — sonst käme schnelles Skippen nie über einen Track
+  hinaus.
 - **Positionen immer als ganze Millisekunden senden.** `audio.currentTime * 1000` ist ein Float;
   ein Float ließ jedes `queue-set` mit **422** auflaufen → Server-Queue blieb leer → jedes
   `track_change` scheiterte mit 400. Symptom: „gleicher Song wird angezeigt, aber nichts startet,
@@ -135,21 +156,52 @@ Leave (ein Timeout-Race würde genau den Bug wieder einbauen).
 - **QR-Pairing:** Auf `/#/pair` darf der 401 der Boot-Requests kein Login-Modal öffnen
   (`useAxios` prüft die Route), sonst wirkt das Scannen kaputt.
 
-## Timing — vier Stellschrauben
+## Timing — was gemessen wurde und was daraus folgt
 
-Wenn „klingt versetzt" gemeldet wird, **in dieser Reihenfolge** prüfen:
+Gemessen mit zwei echten Browsern auf einer Uhr (`~/syncprobe`, siehe
+[docs/verification.md](../../docs/verification.md)). Der Dauerbetrieb lag schon vorher bei
+0–25 ms; kaputt waren die **Übergänge**. Jede dieser Regeln ist eine Ursache, kein Geschmack:
 
-1. **Clock-Kalibrierung beim Join** (`calibrateClock()`, 4 Polls à ~120 ms). Der Estimator behält
-   das Sample mit der niedrigsten RTT. Direkt nach dem Join gab es früher nur *eines* — ein
-   langsames Sample ⇒ Wiedergabe startet messbar versetzt und kriecht erst langsam in Position.
-2. **Snap-Window** (`SNAP_WINDOW_MS 2500`, `SNAP_HARD_MS 80`). In den ersten 2,5 s nach einem
-   Transport-Command wird ein Offset > 80 ms **hart gesucht** statt über playbackRate ausgeglichen.
-   Das langsame Ausgleichen war das, was am Track-Anfang als Verzögerung hörbar war.
-3. **Deadband 25 ms** (`driftSteer.ts`). 50 ms zwischen zwei Lautsprechern im selben Raum sind als
-   Kammfilter hörbar — das darf das Deadband nicht verschlucken.
-4. **Per-Device-Trim** (`utils/deviceSync/audioOffset.ts`, UI im Devices-Panel). Ausgabe-Latenz
-   (Bluetooth 100–200 ms, TV/Soundbar mehr) ist für jedes Protokoll unsichtbar und braucht einen
-   manuellen Regler (±1000 ms, lokal persistiert, wird auf `expectedPositionMs` addiert).
+1. **⚠️ Der Zustand kommt VOR seiner Zeit.** Der Server plant `LEAD_MS` (1,5 s) voraus, der Poll
+   liefert den Zustand samt Anker aber sofort. Wer ihn beim Empfang anwendet, handelt im Takt
+   des eigenen Polls: Next startete den neuen Track 1,2–1,4 s zu früh (je Gerät anders) und
+   setzte ihn zur Anker-Zeit auf 0 zurück, jeder Seek lief doppelt, Pause stoppte jedes Gerät zu
+   einer anderen Zeit. Also: halten, vorbereiten, zur Anker-Zeit übernehmen — und die
+   Transport-Kommandos daneben **nicht** ausführen.
+2. **Vorbereiten heißt: Standby-Element laden.** Erst zur Anker-Zeit zu laden, macht jedes Gerät
+   um seine eigene Ladezeit zu spät. Ein Sprung (anderer Track, Seek im laufenden Track) wird im
+   Lead-Fenster auf dem zweiten `<audio>` geladen und positioniert; zum Zeitpunkt harter
+   Schnitt. Nachher gemessen (2× Chromium): nach Seek, Pause/Play und Queue-Bearbeitung
+   ≤ 25 ms zwischen den Geräten, am Songende 2 ms Lücke statt ~1,5 s.
+3. **⚠️ Ein Seek kostet ~90 ms Stillstand** (Chromium: `currentTime` steht, bis der Renderer
+   neu gepuffert hat). Das alte Snap-Window seekte ab 80 ms Abweichung alle 250 ms — jeder Seek
+   erzeugte die nächste Abweichung: ~13 Seeks pro Gerät nach jedem Übergang. Jetzt: ein Seek
+   zielt um die gelernte Seek-Latenz voraus, und danach wird **1 s nicht geurteilt**.
+4. **⚠️ Eine Tempo-Korrektur hat Einschaltkosten** (`~/syncprobe/ratebench.js`): Chromium
+   verliert beim Verlassen von Rate 1.0 einmalig 20–30 ms, bei der Rückkehr ~10 ms. 4 % bringen
+   danach ~40 ms/s, **1 % brachte in vier Sekunden netto 14 ms**. Deshalb erst ab 25 ms steuern,
+   dann mit mindestens 2 %; über 100 ms ist ein kompensierter Seek schneller als Sekunden Echo.
+5. **Firefox' `currentTime` rauscht um ±40 ms.** Entscheidungen fallen auf dem Median der
+   letzten drei Messungen, die Landung eines Eingriffs auf dem Median dreier Messungen nach
+   dem Stillstand.
+6. **⚠️ Ein später Timer ist keine Gerätelatenz.** Gelernt wird die Verzögerung relativ zum
+   **tatsächlichen** Vorlauf (`learnLatency(estimate, lead, residual)`). Aus dem Restfehler
+   allein gelernt, zählte jede Timer-Verspätung unter CPU-Last als Latenz — die Schätzung
+   kletterte auf 328 ms, jeder Übergang startete entsprechend zu früh, die Korrekturen
+   bekämpften sich. Ein vorbereitetes Element wird außerdem erst bei > 250 ms Verspätung neu
+   positioniert: das kostet einen eigenen Re-Buffer, den der Lande-Seek billiger hat.
+7. **Clock-Kalibrierung beim Join** (`calibrateClock()`, 4 Polls à ~120 ms) — ein einzelnes,
+   langsames Sample ließ die Wiedergabe messbar versetzt starten.
+8. **Per-Device-Trim** (`utils/deviceSync/audioOffset.ts`, UI im Devices-Panel) bleibt als
+   Handregler — aber nur für Ausgabewege, die das Betriebssystem nicht kennt (Soundbar-DSP,
+   manche Bluetooth-Stacks). Die Latenz, die das OS meldet, rechnet Chromium schon in
+   `currentTime` ein (`AudioRendererImpl::CurrentMediaTime` = hörbarer Zeitstempel, nicht der
+   dekodierte); `AudioContext.outputLatency` zusätzlich abzuziehen hieße doppelt zählen.
+
+Unter Stress (Chrome + Firefox, 4×-CPU-gedrosseltes „Handy" auf ausgelastetem Server) liegen
+die Geräte Sekunden nach einem Übergang bis ~55 ms auseinander — so gut wie der alte Stand
+unter demselben Stress oder besser, aber ohne Doppelstart, Rücksprung und Stotter-Serie. Wer hier weiterdreht: vorher und nachher mit dem Probe messen,
+nie nach Gefühl.
 
 ## Gruppen-Bildung und Auto-Rejoin
 
@@ -173,6 +225,11 @@ Der erste E2E jointe **per API** und startete Chromium mit
 `--autoplay-policy=no-user-gesture-required` — beides umging genau die Pfade, die im Alltag
 brechen, und meldete grün, während das Feature kaputt war. Group-Sync **immer** über echte
 UI-Klicks und ohne Autoplay-Flag verifizieren (`~/uitest/verify3.js`).
+
+Und: **ein Schnappschuss pro Schritt misst Übergänge nicht.** `verify3.js` prüfte „< 0,3 s
+auseinander" 5,5 s nach dem Klick — Doppelstart, doppelter Seek und Rücksprung waren da längst
+vorbei, der Test grün. Zeitverläufe misst `~/syncprobe/runprobe.sh` (alle 10 ms jede
+`<audio>`-Position beider Geräte gegen den Server-Anker).
 
 Weitere Falle: Die Bottom-Bar tauscht auf Phones die Aux-Gruppe gegen die Navigation — ein Button,
 der nur dort hängt, **existiert auf dem Handy nicht**. Der Devices-Button liegt deshalb zusätzlich
