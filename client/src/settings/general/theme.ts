@@ -12,7 +12,7 @@ const settings = useSettingsStore
  */
 const look: Setting = {
     title: 'Theme',
-    desc: 'Memphis: grid paper, ink frames and hard shadows. Stream: flat and dark. Desktop 98: grey windows on a sky wallpaper.',
+    desc: 'Memphis: grid paper, ink frames and hard shadows. Stream: flat and dark. Desktop 98: grey windows on a blue desktop.',
     type: SettingType.select,
     options: [
         { title: 'Memphis', value: 'memphis' },

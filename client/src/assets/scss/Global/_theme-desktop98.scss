@@ -1,9 +1,9 @@
 // ============================================================================
-// DESKTOP 98 — grey bevelled windows on a sky wallpaper (#241).
+// DESKTOP 98 — grey bevelled windows on a desktop-blue ground (#241).
 //
 // The third LOOK (utils/theme.ts). The mood is the late-90s desktop the covers
 // of "iVirtual Soundscape" and "Landscapes" float their windows over: a blue
-// sky with clouds as the ground, #c0c0c0 surfaces with a light-top-left /
+// desktop as the ground, #c0c0c0 surfaces with a light-top-left /
 // dark-bottom-right bevel, navy-to-blue title bars, navy selection.
 //
 // Built on the LIGHT classes (`body.theme-desktop98` never comes with
@@ -23,11 +23,11 @@
 // hairlines and focus outlines, which have to stay visible on grey and white.
 // ============================================================================
 
-// The wallpaper: sky, clouds, drawn at the ground layer's fixed 3840x1600
-// (mem-grid in _candy.scss places the doodle layer at that size, never scaled).
-// Soft round clouds rather than pixel ones: they sit behind the whole UI and
-// should read as distance, not as detail.
-$desktop98-clouds: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="1600" viewBox="0 0 3840 1600"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%234a86da"/><stop offset="0.55" stop-color="%235d9be3"/><stop offset="1" stop-color="%23a6cdf4"/></linearGradient></defs><rect width="3840" height="1600" fill="url(%23s)"/><g fill="%23ffffff" fill-opacity="0.92"><ellipse cx="420" cy="260" rx="190" ry="52"/><ellipse cx="520" cy="220" rx="120" ry="58"/><ellipse cx="330" cy="235" rx="90" ry="40"/><ellipse cx="1420" cy="140" rx="230" ry="56"/><ellipse cx="1540" cy="100" rx="140" ry="62"/><ellipse cx="1310" cy="115" rx="100" ry="44"/><ellipse cx="2480" cy="420" rx="210" ry="50"/><ellipse cx="2590" cy="380" rx="120" ry="56"/><ellipse cx="3320" cy="190" rx="200" ry="52"/><ellipse cx="3430" cy="150" rx="110" ry="54"/><ellipse cx="880" cy="1180" rx="240" ry="58"/><ellipse cx="1010" cy="1135" rx="140" ry="64"/><ellipse cx="780" cy="1150" rx="100" ry="46"/><ellipse cx="2060" cy="920" rx="190" ry="48"/><ellipse cx="2160" cy="885" rx="110" ry="52"/><ellipse cx="3000" cy="1300" rx="230" ry="56"/><ellipse cx="3130" cy="1255" rx="130" ry="60"/><ellipse cx="190" cy="760" rx="170" ry="44"/><ellipse cx="3700" cy="800" rx="170" ry="46"/></g></svg>');
+// The wallpaper is plain desktop blue (#241: the clouds went on request). One
+// flat colour, not a gradient: the ground's image layer has a fixed 3840x1600
+// size (mem-grid), and a gradient in it would show a seam on any screen taller
+// than that. #4a86da keeps ink text standing on it at >= 4.5:1.
+$desktop98-desktop: #4a86da;
 
 $desktop98-grey: #c0c0c0;
 $desktop98-light: #dfdfdf;
@@ -44,7 +44,7 @@ $desktop98-ink: #0a0a0a;
 // in Global/index.scss, which are declared later at the same specificity.
 body.theme-desktop98:not(.theme-dark) {
     // --- Surfaces ------------------------------------------------------------
-    --mem-ground: #{#5d9be3};
+    --mem-ground: #{$desktop98-desktop};
     --mem-grid-line: transparent;
     --mem-panel: #{$desktop98-grey};
     --mem-soft: #{$desktop98-light};
@@ -56,7 +56,7 @@ body.theme-desktop98:not(.theme-dark) {
     --mem-line: #{$desktop98-ink};
 
     // --- Text ------------------------------------------------------------------
-    // The ground is a sky now, and text standing on it directly (captions are
+    // The ground is desktop blue now, and text standing on it directly (captions are
     // plates, but a few labels are not) needs the dark ink to read on the
     // pale lower half and white would fail on it. Content sits on grey/white.
     --mem-content-text: #{$desktop98-ink};
@@ -74,7 +74,7 @@ body.theme-desktop98:not(.theme-dark) {
     --mem-hatch-accent: none;
     --mem-hatch-hover: none;
     --shape-sprinkle: none;
-    --shape-doodles: #{$desktop98-clouds};
+    --shape-doodles: none;
 
     // --- Form ------------------------------------------------------------------
     --shape-frame: #ffffff;
@@ -131,7 +131,7 @@ body.theme-desktop98:not(.theme-dark) {
     --look-thumb-line: #{$desktop98-ink};
 
     // --- Detail pages -----------------------------------------------------------
-    // A grey window, no cover tint behind it: the sky is the page.
+    // A grey window, no cover tint behind it: the desktop is the page.
     --look-detail-head-fill: #{$desktop98-grey};
     --look-veil-top: 0;
     --look-veil-mid: 0;
@@ -145,5 +145,6 @@ body.theme-desktop98:not(.theme-dark) {
     // The system face of the era; Tahoma ships with Windows, the rest fall back
     // to the closest humanist sans.
     --app-font: Tahoma, Verdana, "Segoe UI", "DejaVu Sans", Arial, sans-serif;
-    --look-display-font: Tahoma, Verdana, "Segoe UI", sans-serif;
+    // Headings in the self-hosted pixel face (assets/fonts, index.scss).
+    --look-display-font: "Pixelify Sans", Tahoma, Verdana, sans-serif;
 }

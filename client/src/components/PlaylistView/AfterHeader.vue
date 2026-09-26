@@ -179,6 +179,9 @@ const showDateHeading = computed(
         border: none;
         box-shadow: none;
         color: inherit;
+        // And the look's display face: at 0.72rem uppercase a pixel face turns
+        // "C" into "O" (#241) — the bar's own small caps stay in the body face.
+        font-family: inherit;
         font-size: inherit;
     }
 }

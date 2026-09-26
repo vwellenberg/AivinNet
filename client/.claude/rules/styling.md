@@ -680,7 +680,7 @@ Drei Stellen, an denen es beim Bauen gehakt hat:
 
 ### Desktop 98 (#241) — was beim dritten Look gelernt wurde
 
-Graue Fenster mit 3D-Kante auf einem Wolkenhimmel, Titelleisten als Überschriften, Navy als Auswahl.
+Graue Fenster mit 3D-Kante auf Desktop-Blau, Titelleisten als Überschriften, Navy als Auswahl.
 **Nur hell**, gebaut auf den hellen Klassen: `body.theme-desktop98:not(.theme-dark)`. Das `:not`
 ist keine Deko — `body.use-figtree-font` und `body.theme-dark` stehen in `Global/index.scss`
 **später** bei gleicher Spezifität und hätten sonst Schrift bzw. Farben zurückgeholt.
@@ -705,10 +705,19 @@ ist keine Deko — `body.use-figtree-font` und `body.theme-dark` stehen in `Glob
   steht deshalb zusätzlich als `--row-fill-rest` (`mem-row-plate-tint`); `mem-row-marker` fällt
   darauf zurück. Ohne das behielt das Label-Cover die graue Ruhe-Tönung in der Navy-Auswahl.
 - **Der Windows-Verlauf besteht keinen Kontrast.** Weiß auf `#1084d0` (Titelleisten-Ende von 98)
-  misst 4,0:1; das Ende ist `#0e6fb4` (5,3:1). Der Himmel oben startet bei `#4a86da`, damit Text
-  direkt auf dem Grund 4,5:1 hält.
-- **Keine Schrift von Google-Servern.** Der Look nennt Tahoma/Verdana als Systemschrift; eine
-  Webschrift käme — wie Figtree — als Datei ins Repo (`assets/fonts`), nie als CDN-Link.
+  misst 4,0:1; das Ende ist `#0e6fb4` (5,3:1). Der Grund ist einfarbig `#4a86da` — ein
+  Verlauf in der Bildebene (feste 3840×1600, `mem-grid`) zeigte auf höheren Bildschirmen eine
+  Naht —, damit Text direkt auf dem Grund 4,5:1 hält.
+- **Ein Look mit DUNKLER Laufend-Füllung deckt jedes festgenagelte Tinte-Stück auf.** Memphis'
+  laufende Zeile ist gelb, also stand an mehreren Stellen einfach `$mem-ink` — der Titel
+  (`.title.is-current`) und das „…" der Zeile verschwanden auf Navy. Alles auf einer gefüllten
+  Zeile nimmt `--look-filled-text`. Und ein Glyph in `currentColor` erreicht man über `color`,
+  nicht über `stroke` — die alte `stroke`-Regel am „…" hatte nie gewirkt.
+- **Keine Schrift von Google-Servern.** Die Pixelschrift der Überschriften (Pixelify Sans, OFL)
+  liegt wie Figtree als `woff2` im Repo (`assets/fonts`, Lizenz daneben, `shippedFonts.test.ts`),
+  auf dieselben zwei Zeichenbereiche zugeschnitten; der Fließtext bleibt Tahoma/Verdana. Ein
+  Browser lädt eine `@font-face` erst, wenn ein Element sie benutzt — Memphis und Stream holen die
+  Datei also nie (gemessen: 0 Requests).
 
 Beweis beim Bau: Memphis hell/dunkel und Stream pixelgenau master gegen Branch
 (`~/uitest/regress98.js` + `imgdiff.py`; Rauschen master gegen master: 5–50 px auf denselben

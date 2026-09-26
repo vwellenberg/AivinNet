@@ -147,9 +147,11 @@ defineEmits<{
     }
 
     // Highlight the title of the currently-playing track (issue #67). This
-    // title always sits on the .current (yellow) row, so pin static ink.
+    // title always sits on the .current row, so it takes the filled-row text:
+    // static ink on Memphis's yellow, white on a look's dark playing fill
+    // (Desktop 98's navy, #241 — pinned ink made the title vanish there).
     .title.is-current {
-      color: $mem-ink;
+      color: var(--look-filled-text, #{$mem-ink});
     }
   }
 }
