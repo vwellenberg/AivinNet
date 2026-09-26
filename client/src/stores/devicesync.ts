@@ -1390,7 +1390,8 @@ export default defineStore('devicesync', {
             const track = useTracklist().tracklist[queue.currentindex]
             if (!track || loadedTrackhash !== track.trackhash) return
 
-            const durationMs = usePlayer().durationMs() ?? (track.duration > 0 ? track.duration * 1000 : null)
+            const tagSeconds = track.duration ?? 0
+            const durationMs = usePlayer().durationMs() ?? (tagSeconds > 0 ? tagSeconds * 1000 : null)
             if (durationMs === null) return
 
             const endsAt = Math.round(this.anchor.at_server_ms + durationMs - this.anchor.position_ms)

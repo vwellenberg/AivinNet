@@ -1487,7 +1487,7 @@ describe('devicesync store', () => {
         expect(requestsMock.sendCommand).toHaveBeenLastCalledWith(
             expect.objectContaining({ type: 'track_change', payload: { index: 1, position_ms: 0, playing: true } })
         )
-        expect(requestsMock.sendCommand.mock.calls[1][0].execute_at_ms).toBeUndefined()
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0].execute_at_ms).toBeUndefined()
     })
 
     it('a second Next during the lead counts from the track the group is heading to', async () => {
