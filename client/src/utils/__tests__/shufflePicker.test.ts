@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pickShuffleIndex, pushRecent, shuffleAvoidingFront } from '@/utils/shufflePicker'
+import { pickShuffleIndex, pushRecent } from '@/utils/shufflePicker'
 
 /** Deterministic RNG: walks the given values, then repeats the last one. */
 const rng = (...values: number[]) => {
@@ -87,90 +87,5 @@ describe('pushRecent', () => {
         const recent = [1, 2]
         pushRecent(recent, 3, 10)
         expect(recent).toEqual([1, 2])
-    })
-})
-
-// The one-shot shuffle of the whole queue. Both callers restart at index 0
-// afterwards, so the front row is what plays next.
-describe('shuffleAvoidingFront', () => {
-    const ROWS = ['a', 'b', 'c', 'd', 'e', 'f']
-    /** These rows are songs already: equal strings are the same song. */
-    const song = (row: string) => row
-
-    it('never puts the playing song first', () => {
-        for (let playing = 0; playing < ROWS.length; playing++) {
-            for (let r = 0; r < 30; r++) {
-                expect(shuffleAvoidingFront(ROWS, playing, song, rng(r / 30))[0]).not.toBe(ROWS[playing])
-            }
-        }
-    })
-
-    // The same song queued twice restarts just the same from its other row.
-    // These dice shuffle row 2 — the second "a" — to the front, and the swap
-    // that moves it away may only draw a row holding something else.
-    it('keeps every copy of the playing song off the front', () => {
-        expect(shuffleAvoidingFront(['a', 'b', 'a', 'c'], 0, song, rng(0.9, 0, 0.9, 0.6))[0]).not.toBe('a')
-
-        for (let r = 0; r < 30; r++) {
-            expect(shuffleAvoidingFront(['a', 'b', 'a', 'c', 'a', 'd'], 0, song, rng(r / 30))[0]).not.toBe('a')
-        }
-    })
-
-    it('keeps every row and leaves the input alone', () => {
-        const rows = ROWS.slice()
-
-        const shuffled = shuffleAvoidingFront(rows, 2, song, rng(0.3, 0.8, 0.1, 0.6, 0.9))
-
-        expect(shuffled.slice().sort()).toEqual(ROWS)
-        expect(rows).toEqual(ROWS)
-    })
-
-    // Every dice outcome for three rows, playing row "y": two Fisher–Yates
-    // draws (3 × 2 ways), then the swap draw (2 ways) that only a front
-    // collision reads — twelve equally likely paths. Each of the four orders
-    // without "y" in front has to come out of exactly three of them.
-    // A swap that always picks the same row would pass the test above and
-    // still bring the playing track straight back as the SECOND song.
-    it('leaves every other order equally likely', () => {
-        const counts: Record<string, number> = {}
-
-        for (const a of [0, 1, 2]) {
-            for (const b of [0, 1]) {
-                for (const c of [0, 1]) {
-                    const dice = rng((a + 0.5) / 3, (b + 0.5) / 2, (c + 0.5) / 2)
-                    const order = shuffleAvoidingFront(['x', 'y', 'z'], 1, song, dice).join('')
-                    counts[order] = (counts[order] ?? 0) + 1
-                }
-            }
-        }
-
-        expect(counts).toEqual({ xyz: 3, xzy: 3, zxy: 3, zyx: 3 })
-    })
-
-    it('leaves a single row where it is', () => {
-        expect(shuffleAvoidingFront(['only'], 0, song, rng(0.5))).toEqual(['only'])
-    })
-
-    it('shuffles a queue of nothing but the playing song without looking for another', () => {
-        expect(shuffleAvoidingFront(['a', 'a', 'a'], 1, song, rng(0.5))).toEqual(['a', 'a', 'a'])
-    })
-
-    // `clearQueue` leaves `currentindex` at 0 over an empty list, so the playing
-    // index can name no row at all — and its song must not be read then.
-    it('ignores a playing index that names no row', () => {
-        const byHash = (row: { hash: string }) => row.hash
-        const rows = [{ hash: 'a' }, { hash: 'b' }]
-
-        const shuffled = shuffleAvoidingFront(rows, 2, byHash, rng(0))
-
-        expect(shuffled.map(byHash).sort()).toEqual(['a', 'b'])
-        expect(shuffleAvoidingFront([], 0, byHash, rng(0.5))).toEqual([])
-    })
-
-    it('handles a random() that returns exactly 1 (some polyfills do)', () => {
-        const shuffled = shuffleAvoidingFront(['a', 'b', 'c', 'd'], 0, song, () => 1)
-
-        expect(shuffled.slice().sort()).toEqual(['a', 'b', 'c', 'd'])
-        expect(shuffled[0]).not.toBe('a')
     })
 })

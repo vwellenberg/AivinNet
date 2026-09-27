@@ -49,7 +49,7 @@ const ds = useDeviceSync()
 if (ds.joined && !ds.applying) { ds.intercept('play', index); return }
 ```
 
-- `queue.ts` — play, playPause, seek, playNext, playPrev, shuffleQueue, **clearQueue**;
+- `queue.ts` — play, playPause, seek, playNext, playPrev, **clearQueue**;
   `autoPlayNext` wird zum No-op.
 - `queue/tracklist.ts` — `insertAt`, `moveTrack` **und** `removeByIndex` (Add to queue / Reorder /
   Remove). Wer eine Queue-Mutation baut, ruft **eine dieser drei** auf, statt selbst zu splicen:
@@ -75,8 +75,8 @@ splicen ändert die Server-`queue_id` **nicht**, also re-mirrort niemand, und de
   Reorder und der Seed des ersten Joiners schicken die Position *jetzt*. Ohne das Flag legte der
   Server sie `LEAD_MS` in die Zukunft — jedes „Zur Queue hinzufügen" ließ **alle Geräte 1,6 s
   zurückspringen** (gemessen). Mit dem Flag bleibt der Anker unverändert, solange der laufende
-  Track weiterläuft: niemand seekt. Ein Neustart (neues Album, Nachfolger nach Remove, Clear,
-  Shuffle) ist **nicht** live.
+  Track weiterläuft: niemand seekt. Ein Neustart (neues Album, Nachfolger nach Remove, Clear)
+  ist **nicht** live.
 - **⚠️ „Queue ersetzen" ist nicht „Queue leeren".** `PlayBtn.vue`/`TopTracks.vue` riefen
   `clearQueue()` als Vorspiel zu `setFromSearch(...)` + `play()`. Lokal ein No-op — mit dem Seam
   ein **queue-set einer leeren Queue**, das gegen das echte rennt (beide `void`, Reihenfolge der
@@ -116,18 +116,15 @@ mit genau der Liste, die die Gruppe schon spielt, räumt ebenfalls ab, kommt abe
 Queue-ID und — beim Klick auf die laufende Zeile — ohne neuen Index zurück. Das fehlende Ziel ist
 die einzige Spur, die beide Tauschwege hinterlassen.
 
-⚠️ **Eine Regel, ein Ort — der Seam delegiert, er kopiert nicht.** Das einmalige Mischen der
-Queue (`queue.shuffleQueue`) läuft solo **und** in der Gruppe durch
-`utils/shufflePicker.ts::shuffleAvoidingFront`: Danach startet Index 0, also darf der laufende
-**Song** dort nicht landen — auch nicht über eine zweite Kopie in der Queue.
-`intercept('shuffleQueue')` trug eine eigene Kopie aus der Zeit vor dieser Regel
-(AivinNet-Client#341) und legte den laufenden Track nach **vorn**: Shuffle startete ihn auf allen
-Geräten bei 0:00 neu. Nachgeschärft wurde nur der Solo-Pfad, und die Kopie im Seam fiel niemandem
-auf. Wer eine Solo-Regel ändert, sucht ihr Gegenstück im `intercept`; gemeinsame Logik gehört in
-einen reinen Helfer, den beide aufrufen. Wächter: der Paritätstest in `devicesync.test.ts`
-(gleiche Würfel → gleiche Reihenfolge). Die nächste Kopie dieser Art steht noch im
-`removeTracks`-Seam (#264). Stand 2026-09-27 hat die Aktion **keinen Knopf** — er ging mit dem
-alten Queue-Panel (AivinNet-Client#524); prüfen lässt sie sich also nur über die Tests (#265).
+⚠️ **Eine Regel, ein Ort — der Seam delegiert, er kopiert nicht.** Das frühere einmalige Mischen
+der Queue (`queue.shuffleQueue`) trug im Gruppen-Seam eine eigene Kopie aus der Zeit vor der
+Solo-Regel „laufender Song nie auf Platz 1" (AivinNet-Client#341) und startete den laufenden Song
+auf allen Geräten bei 0:00 neu (#268). Nachgeschärft wurde nur der Solo-Pfad, die Kopie im Seam
+fiel niemandem auf. Die Aktion ist seitdem ganz entfernt (#265): Sie hatte seit dem alten
+Queue-Panel (AivinNet-Client#524) keinen Knopf mehr, und die Zufallswiedergabe deckt sie ab. Die
+Lehre bleibt: Wer eine Solo-Regel ändert, sucht ihr Gegenstück im `intercept`; gemeinsame Logik
+gehört in einen reinen Helfer, den beide aufrufen (Vorbild `resolveQueueMove` für `moveTrack`).
+Die nächste Kopie dieser Art steht noch im `removeTracks`-Seam (#264).
 
 ⚠️ **`shuffle` ist — anders als `repeat` — KEIN geteilter Zustand.** Es gibt kein Feld dafür im
 Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader beim Ausspielen, der

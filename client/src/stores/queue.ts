@@ -203,8 +203,8 @@ export default defineStore('Queue', {
             this.shuffleRecent = this.shuffleRecent.map(i => remapAfterMove(i, from, finalIndex))
         },
         /**
-         * Flip permanent shuffle ("random track") mode. Separate from
-         * `shuffleQueue()`, which reorders the visible queue once.
+         * Flip permanent shuffle ("random track") mode: the NEXT track is
+         * rolled, the queue keeps its order.
          */
         toggleShuffle() {
             const settings = useSettings()
@@ -371,24 +371,6 @@ export default defineStore('Queue', {
             const store = useTracklist()
             store.clearList()
             this.currentindex = 0
-        },
-        shuffleQueue() {
-            const ds = useDeviceSync()
-            if (ds.joined && !ds.applying) {
-                ds.intercept('shuffleQueue')
-                return
-            }
-
-            const { shuffleList } = useTracklist()
-            const { focusCurrentInSidebar } = useInterface()
-
-            // Keep the track playing right now out of the front row: playback
-            // restarts at index 0 below, and restarting the same song is not a
-            // shuffle.
-            shuffleList(this.currentindex)
-            this.currentindex = 0
-            this.play(this.currentindex)
-            focusCurrentInSidebar()
         },
     },
     getters: {

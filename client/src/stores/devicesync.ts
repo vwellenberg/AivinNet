@@ -25,7 +25,7 @@ import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
 import { learnLatency, loadLatency, saveLatency, type LatencyKind } from '@/utils/deviceSync/latency'
 import { resolveQueueMove } from '@/utils/queueMove'
-import { pickShuffleIndex, shuffleAvoidingFront } from '@/utils/shufflePicker'
+import { pickShuffleIndex } from '@/utils/shufflePicker'
 import { shiftAfterRemove } from '@/utils/shuffleIndexes'
 import type {
     DeviceSummary,
@@ -1491,25 +1491,6 @@ export default defineStore('devicesync', {
                         from: {} as SyncFrom,
                         currentindex: 0,
                         playing: false,
-                        position_ms: 0,
-                        repeat: settings.repeat,
-                    })
-                    break
-                }
-                case 'shuffleQueue': {
-                    // Solo's rule (`tracklist.shuffleList`), not a copy of it:
-                    // the group restarts at index 0, so the playing song stays
-                    // off the front row.
-                    //
-                    // `currentindex`, not `groupPosition()`: the queue-set
-                    // replaces a held transition, so the song to keep off the
-                    // front is the one still sounding here.
-                    const hashes = tracklist.tracklist.map(t => t.trackhash)
-                    void this.sendQueueSet({
-                        trackhashes: shuffleAvoidingFront(hashes, queue.currentindex, hash => hash),
-                        from: tracklist.from as SyncFrom,
-                        currentindex: 0,
-                        playing: true,
                         position_ms: 0,
                         repeat: settings.repeat,
                     })

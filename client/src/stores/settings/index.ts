@@ -24,8 +24,7 @@ export default defineStore('settings', {
         /**
          * Permanent shuffle ("random track") mode, a sticky shuffle toggle:
          * while on, the next track is picked at random from the queue and the
-         * visible queue order is left untouched. This is NOT the queue panel's
-         * one-shot "shuffle queue" action, which still reorders the list itself.
+         * visible queue order is left untouched.
          *
          * The flag lives here so it persists, but it is flipped through
          * `useQueue().toggleShuffle()` — that store owns the re-roll and already

@@ -75,10 +75,6 @@ const LOCAL_BY_DESIGN: Record<string, string> = {
     clearList:
         'Local primitive with two callers, both seamed: queue.clearQueue (intercept "clearQueue") ' +
         'and removeByIndex (intercept "removeTracks") for the last-track case.',
-    shuffleList:
-        'Local primitive; its only caller queue.shuffleQueue carries the seam (intercept ' +
-        '"shuffleQueue"), which shuffles with the same shuffleAvoidingFront and sends the order ' +
-        'as a queue-set, so every device lands on the same one.',
 }
 
 interface Action {
@@ -183,14 +179,11 @@ describe('queue seam census — inputs', () => {
                 'insertAt',
                 'moveTrack',
                 'clearList',
-                'shuffleList',
                 'removeByIndex',
                 'insertAfterCurrent',
             ])
         )
-        expect(QUEUE_ACTIONS.map(a => a.name)).toEqual(
-            expect.arrayContaining(['play', 'playTrackNext', 'clearQueue', 'shuffleQueue'])
-        )
+        expect(QUEUE_ACTIONS.map(a => a.name)).toEqual(expect.arrayContaining(['play', 'playTrackNext', 'clearQueue']))
         // Bodies, not empty shells: a brace-matcher that lost its place would
         // hand back slivers and every regex below would miss.
         expect(Math.max(...TRACKLIST_ACTIONS.map(a => a.body.length))).toBeGreaterThan(400)
@@ -198,7 +191,7 @@ describe('queue seam census — inputs', () => {
 
     it('finds the known mutations and the known guards', () => {
         expect(MUTATORS.map(a => a.name)).toEqual(
-            expect.arrayContaining(['setNewList', 'insertAt', 'moveTrack', 'clearList', 'shuffleList', 'removeByIndex'])
+            expect.arrayContaining(['setNewList', 'insertAt', 'moveTrack', 'clearList', 'removeByIndex'])
         )
         expect(GUARDED_NAMES).toEqual(expect.arrayContaining(['insertAt', 'moveTrack', 'removeByIndex']))
     })
@@ -241,7 +234,7 @@ describe('queue seam census', () => {
         // Guard over this lane's own input: if `calls()` ever stopped matching,
         // the list would empty out and the check below would pass vacuously.
         expect(CALLERS.map(({ action }) => action.name)).toEqual(
-            expect.arrayContaining(['addTracks', 'insertAfterCurrent', 'playTrackNext', 'clearQueue', 'shuffleQueue'])
+            expect.arrayContaining(['addTracks', 'insertAfterCurrent', 'playTrackNext', 'clearQueue'])
         )
 
         const offenders = CALLERS.filter(({ action }) => {
@@ -284,9 +277,8 @@ describe('queue seam census', () => {
                 'setFromPlaylist',
                 'setFromPlaylistFolder',
                 'setFromSearch',
-                // Both carry their own seam.
+                // Carries its own seam.
                 'clearQueue',
-                'shuffleQueue',
             ].sort()
         )
     })

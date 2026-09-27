@@ -21,7 +21,6 @@ import {
 } from '@/interfaces'
 import { resolveQueueMove } from '@/utils/queueMove'
 import { shiftAfterRemove } from '@/utils/shuffleIndexes'
-import { shuffleAvoidingFront } from '@/utils/shufflePicker'
 
 export type From =
     | fromFolder
@@ -70,16 +69,15 @@ export default defineStore('tracklist', {
             // Shuffle history and the pre-rolled target are indices into the OLD
             // list — meaningless now.
             //
-            // ⚠️ Clear, do NOT roll — the same trap as in `shuffleList`.
-            // `rollShuffleNext` starts by pushing `currentindex` into the
-            // history, and here that is still the index into the OLD list:
-            // every caller swaps the list first and writes the new index after
-            // (`setFromX` + `play(i)`, the group mirror's `commit`). Rolling here
-            // put that stale number straight back into the history just
-            // emptied, and Previous — which reads the history under shuffle —
-            // jumped to a row of the new list that never played. The roll
-            // belongs to whoever writes the new index: `play` does, and so does
-            // `commit` in devicesync.ts.
+            // ⚠️ Clear, do NOT roll. `rollShuffleNext` starts by pushing
+            // `currentindex` into the history, and here that is still the index
+            // into the OLD list: every caller swaps the list first and writes
+            // the new index after (`setFromX` + `play(i)`, the group mirror's
+            // `commit`). Rolling here put that stale number straight back into
+            // the history just emptied, and Previous — which reads the history
+            // under shuffle — jumped to a row of the new list that never
+            // played. The roll belongs to whoever writes the new index: `play`
+            // does, and so does `commit` in devicesync.ts.
             const queue = useQueue()
             queue.shuffleRecent = []
             queue.shuffleNextIndex = null
@@ -262,32 +260,6 @@ export default defineStore('tracklist', {
         clearList() {
             this.tracklist = []
             this.from = {} as From
-        },
-        /**
-         * Reorder the queue once (`queue.shuffleQueue`).
-         *
-         * `avoidFront` is the index of the track playing right now: its song
-         * must not land first, because the caller restarts playback at index 0.
-         * The rule is `shuffleAvoidingFront`, shared with the group seam.
-         */
-        shuffleList(avoidFront: number) {
-            this.tracklist = shuffleAvoidingFront(this.tracklist, avoidFront, track => track.trackhash)
-
-            // Every row has a new number now, so both shuffle indexes name
-            // arbitrary tracks — the same situation setNewList resets for, and
-            // the reason it does. Without this, Previous jumped to a track that
-            // never played and the next roll avoided the wrong ones.
-            //
-            // ⚠️ Clear, do NOT roll. `rollShuffleNext` starts by pushing
-            // `currentindex` into the history, and at this point that is still
-            // the PRE-shuffle index — it would put a stale number straight back
-            // into the array just emptied. The caller (`queue.shuffleQueue`)
-            // sets `currentindex = 0` and calls `play()` right after, and
-            // `play` rolls with the corrected index.
-            const queue = useQueue()
-            queue.shuffleRecent = []
-            queue.shuffleNextIndex = null
-            usePlayer().clearNextAudio()
         },
         removeByIndex(index: number) {
             // Group mode: same seam as insertAt. A local splice would leave the
