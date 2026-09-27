@@ -157,13 +157,29 @@ describe("the settings pane list on a phone", () => {
     expect(ownDeclarations(list)).toMatch(/padding-top:\s*\$settings-close-inset;/);
   });
 
-  it("keeps the first row out of the close button's lane", () => {
-    const first = block(list, ".group:first-child .gitem:first-child").body;
-    // The lane is as wide as the button standing in it — the phone tier.
-    expect(first).toMatch(/margin-right:[^;]*\$phone-list-row[^;]*\$settings-close-inset/);
-    // The row's own `width: 100%` would keep it full width and push the margin
-    // out past the pane — the first draft of this fix did exactly that.
-    expect(first).toMatch(/width:\s*auto;/);
+  it("grows the detail head around the phone's close button", () => {
+    // At 4rem the 56px button ran over the head's bottom rule.
+    const content = block(phone, ".content").body;
+    expect(content, "phone detail head rule not found").not.toBe("");
+    expect(content).toMatch(/grid-template-rows:\s*calc\(#\{\$phone-list-row\}\s*\+\s*2\s*\*\s*#\{\$settings-close-inset\}\)/);
+  });
+
+  it("stands the close button flush with the rows' edge", () => {
+    expect(ownDeclarations(block(phone, "> .close").body)).toMatch(/right:\s*1rem;/);
+  });
+
+  it("gives the close button's line to the list's title, not to a row", () => {
+    // The first row used to stop short of the button to leave it a lane, and
+    // was the one narrow plate in the column — reported as "komisch". The
+    // title takes that line now, the rows start below it at full width.
+    expect(read("src/components/modals/settings/Sidebar.vue")).toMatch(
+      /<div v-if="isSmallPhone" class="phone-title">/,
+    );
+    const title = block(list, ".phone-title").body;
+    expect(title, "phone title rule not found").not.toBe("");
+    expect(title).toMatch(/margin-right:[^;]*\$phone-list-row[^;]*\$settings-close-inset/);
+    expect(title).toMatch(/min-height:\s*\$phone-list-row;/);
+    expect(list, "a row still gives up the button's lane").not.toMatch(/\.gitem:first-child/);
   });
 });
 
@@ -199,22 +215,17 @@ describe("the settings list on a phone takes the phone-list tier", () => {
   // Reported as "etwas zu klein": 44px rows and 15px labels on a list that
   // fills the whole phone screen. The phone gets its own named size; the
   // desktop list keeps the chrome's $bar-control (asserted above).
-  const BUTTONS = read("src/assets/scss/Global/_buttons.scss");
   const SETTINGS = styleBlock(read("src/components/modals/Settings.vue"));
   const phone = block(SETTINGS, ".settingsmodal.isSmallPhone").body;
   const list = block(phone, ".settingssidebar").body;
   const row = blocks(list, ".gitem").find((b) => b.includes("min-height")) ?? "";
-
-  it("names the tier once", () => {
-    expect(BUTTONS).toMatch(/\$phone-list-row:\s*3\.25rem\s*;/);
-    expect(BUTTONS).toMatch(/\$phone-list-glyph:\s*1\.625rem\s*;/);
-  });
 
   it("sizes the rows and their glyphs from it", () => {
     expect(row, "phone row rule not found").not.toBe("");
     expect(ownDeclarations(row).match(/min-height:[^;]*;/g)).toEqual([
       "min-height: $phone-list-row;",
     ]);
+    expect(ownDeclarations(row)).toMatch(/font-size:\s*\$phone-list-font;/);
     expect(block(row, ".icon").body).toMatch(/height:\s*\$phone-list-glyph;/);
     // 8px, not 4: with 4 each plate's 3px offset shadow touched the next frame.
     expect(ownDeclarations(row)).toMatch(/margin-top:\s*\$small;/);

@@ -1,6 +1,14 @@
 <template>
     <div class="settingssidebar">
         <div class="groups">
+            <!--
+                On a phone this list is the modal's whole first screen, and the
+                close button sits in its top-right corner. The title takes the
+                rest of that line (the detail view's head does the same with
+                the group name), so the first row starts below both at full
+                width instead of being cut short to leave the button a lane.
+            -->
+            <div v-if="isSmallPhone" class="phone-title">Settings</div>
             <div
                 class="group"
                 v-for="group in settingGroups.filter(g => {
@@ -48,6 +56,7 @@
 import { SettingGroup } from '@/interfaces/settings'
 import settingGroups from '@/settings'
 import useAuth from '@/stores/auth'
+import { isSmallPhone } from '@/stores/content-width'
 
 import Avatar from '@/components/shared/Avatar.vue'
 

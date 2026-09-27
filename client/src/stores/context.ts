@@ -67,11 +67,26 @@ export default defineStore("context-menu", {
           createPopper(virtualElement, this.elem as HTMLElement, {
             placement: "right-start",
             modifiers: [
+              // top/left instead of a transform: a transformed ancestor becomes
+              // the containing block of `position: fixed`, and the submenus are
+              // fixed so the phone's scrolling menu cannot clip them.
+              {
+                name: "computeStyles",
+                options: { gpuAcceleration: false },
+              },
               {
                 name: "flip",
                 options: {
                   fallbackPlacements: ["left-start"],
                 },
+              },
+              // A phone menu is 280px wide: on a 360px screen neither side of a
+              // tap has that much room, and without `altAxis` the menu ran up
+              // to 40px off the right edge. Shift it back inside, with the same
+              // 8px of air the vertical axis gets.
+              {
+                name: "preventOverflow",
+                options: { altAxis: true, padding: 8 },
               },
             ],
             onFirstUpdate: () => {

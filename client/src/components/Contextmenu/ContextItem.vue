@@ -140,6 +140,12 @@ async function showChildren() {
 
     popperInstance = createPopper(parentRef.value as HTMLElement, childRef.value as HTMLElement, {
         placement: 'right-start',
+        // `fixed`: on a phone the menu scrolls (56px rows run past a short
+        // screen), and an absolutely positioned submenu inside a scroller is
+        // clipped by it. A fixed one is positioned against the viewport and
+        // escapes the clip — which needs the menu itself to carry no
+        // transform (`gpuAcceleration: false` in stores/context.ts).
+        strategy: 'fixed',
         modifiers: [
             {
                 name: 'preventOverflow',
@@ -395,6 +401,40 @@ function runChildAction(action: () => void) {
     // (see `.more` above), so a full-width label would run underneath it.
     &:has(> .more) > .label {
         padding-right: 1.5rem;
+    }
+}
+
+// Phones: Google's menu item anatomy (`$phone-list-*`, _buttons.scss) —
+// 56px row, 24px glyph, 16px from the menu's edge and 16px from glyph to
+// label, 16px label. The rows measured 32.8px here, under even the chrome's 44.
+// The menu's own 8px padding is part of the 16px inset.
+// Separators carry `.context-item` too — they stay 1px lines.
+@include largePhones {
+    .context-item:not(.separator) {
+        min-height: $phone-list-row;
+        // Google's 16px is measured from the menu's outer edge: the menu's
+        // 3px frame and 8px padding come off it.
+        padding: 0 calc(#{$phone-list-inset} - #{$small} - #{$candy-border-w});
+
+        .icon {
+            width: $phone-list-glyph;
+            height: $phone-list-glyph;
+            margin-right: $phone-list-gap;
+        }
+
+        // Centred on the row instead of pinned 6px off its bottom — at 56px
+        // that pin left the chevron well under the label.
+        .more {
+            top: 0;
+            bottom: 0;
+            right: $smaller;
+            margin: auto 0;
+        }
+
+        // The submenu: its own 3px frame, 4px padding and the wrapper's 4px.
+        .children .context-item:not(.separator) {
+            padding: 0 calc(#{$phone-list-inset} - #{$small} - #{$candy-border-w});
+        }
     }
 }
 

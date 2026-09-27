@@ -862,7 +862,7 @@ Fehler, sondern eine Entscheidung, die niemand aufgeschrieben hat.
 | `$bar-control` | 2.75rem · 44 px | Chrome: Top-Bar, Player-Bar, Header-Aktionen |
 | `$control-compact` | 2rem · 32 px | Bedienelemente **in einer Inhaltszeile**: Track-Zeile, Queue |
 | `$control-dense` | 1.75rem · 28 px | die **Sidebar**: Thumbnails, deren Overlays, Sektions-Buttons |
-| `$phone-list-row` | 3.25rem · 52 px | eine Liste, die am Handy **der ganze Bildschirm** ist: die Einstellungs-Liste samt Schließen-Knopf in ihrer ersten Zeile (Glyph `$phone-list-glyph`, 26 px). Desktop bleibt bei `$bar-control` |
+| `$phone-list-row` | 3.5rem · 56 px | **jede Listen- und Menüzeile am Handy** (≤ 660 px): Einstellungs-Liste samt Schließen-Knopf, Kontextmenü mit Untermenüs, Profilmenü. Googles Material-Maß, siehe unten. Desktop bleibt bei `$bar-control` bzw. der eigenen Dichte |
 
 ⚠️ **Ein Cover-Polster in einer Box mit fester Höhe verschiebt den Glyph.** `mem-hatch-clear`
 legt 2 px Polster um jedes Kind einer Zeilenplatte. Beim Icon der Einstellungs-Zeilen steckte das
@@ -889,6 +889,76 @@ Der Zensus ist getestet (`src/components/__tests__/controlScale.test.ts`): Er pr
 Komponenten auf Box-Geometrie an `.heart-button`, verlangt für die Zeilen- und Sidebar-Controls das
 jeweilige Token statt einer Literal-Größe und besteht darauf, dass Überlauf- und
 Entfernen-Trigger `<button>` mit `aria-label` sind.
+
+## ⚠️ Listen-Buttons am Handy folgen Google: 56 px (`$phone-list-*`)
+
+Auf Wunsch des Nutzers gilt für jede Zeile, die am Handy in einer **senkrechten Liste
+einzeiliger Einträge** angetippt wird, Googles Material-3-Anatomie. Die Zahlen stammen nicht aus
+der Erinnerung, sondern aus den Tokens, die Google mit seinen eigenen Web-Komponenten ausliefert
+(`npm pack @material/web`, Version 2.5, `tokens/versions/v0_192/_md-comp-list.scss` und
+`menu/internal/menuitem/menu-item-styles.css`; m3.material.io ist aus der Sandbox gesperrt):
+
+| | Material 3 | Token |
+|---|---|---|
+| Zeile einzeilig / zweizeilig / dreizeilig | 56 / 72 / 88 px | `$phone-list-row` (56) |
+| Icon | 24 px | `$phone-list-glyph` |
+| Rand bis Icon | 16 px | `$phone-list-inset` |
+| Icon bis Text | 16 px | `$phone-list-gap` |
+| Label (body-large) | 16 px | `$phone-list-font` |
+
+**Menüs und Listen haben bei Google dieselbe Anatomie** (`menu-item` 56 px wie `list-item`).
+Das ältere Material-1/2-Maß von 48 dp für Menüs ist abgelöst — wer auf eine Quelle mit 48 stößt,
+liest eine alte Fassung. Gegenprobe am Gerät des Nutzers: Google Plays Kontomenü misst im
+Screenshot **57 dp** Zeile und **24 dp** Icons (Maßstab: das Kreditkarten-Glyph, 20 dp breit).
+
+**Wer rechnet, zieht die eigene Anatomie ab.** Googles 16 px werden ab der **Außenkante** der
+Zeile gemessen; unsere Platte hat 3 px Rahmen und das Glyph ein 4-px-Cover
+(`mem-hatch-clear`), also `padding-left: calc($phone-list-inset - $candy-border-w - 4px)` und
+`gap: calc($phone-list-gap - 8px)`. Im Menü ist das 8-px-Padding des Menüs Teil des Randes.
+Einzige Abweichung mit Absicht: 8 px **zwischen** den Einstellungs-Zeilen statt Googles 0 —
+sonst fällt jeder 3-px-Offset-Schatten auf den Rahmen der nächsten Zeile.
+
+**Gemessen vor der Umstellung:** Einstellungs-Liste 52 px (vorher 44), Kontextmenü **32,8 px**,
+Untermenü 30 px, Profilmenü 36 px — die letzten drei lagen sogar unter unserer 44-px-Regel.
+Schon über Googles Maß und deshalb unverändert: Track-Zeilen (72 = Googles zweizeilig),
+Ordner-Zeilen (64), die beschriebenen Zeilen in den Einstellungs-Bereichen (≥ 113). Keine
+Listen-Buttons und deshalb nicht betroffen: Chrome, Player-Bar, Icon-Buttons (Google macht die
+ebenfalls kleiner als 56), die Browse-Kacheln und die Geräteliste (Container mit eigenen
+Bedienelementen).
+
+⚠️ **56-px-Zeilen machen ein Menü höher als ein kleines Handy.** Das Track-Menü hat elf Einträge,
+das sind 632 px Liste gegen 560 px sichtbaren Viewport. Das Menü scrollt deshalb am Handy
+(`max-height: calc(100dvh - 1rem)`) — und das zieht zwei Dinge nach sich, die zusammengehören:
+
+- **Ein Scroller clippt, was er absolut positioniert.** Die Untermenüs (Add to Playlist,
+  Search on) sitzen **im** Menüeintrag; sie laufen deshalb mit Popper-`strategy: 'fixed'`
+  und entkommen dem Clip.
+- **`fixed` entkommt nur, solange kein Vorfahr ein `transform` trägt** — ein transformierter
+  Vorfahr wird zum Containing Block. Popper positioniert per Default mit `transform`, das
+  Hauptmenü deshalb mit `computeStyles: { gpuAcceleration: false }` (top/left).
+
+Und 280 px Menübreite passen auf 360 px links wie rechts vom Finger nicht: ohne
+`preventOverflow: { altAxis: true }` lief das Menü bis zu 40 px über den rechten Rand. Gemessen
+wurde das mit einem echten Track-Menü am laufenden Client (390×844, 360×640, 360×560, Tipp
+links wie rechts, Untermenü unten im gescrollten Menü per `elementFromPoint` geprüft).
+
+⚠️ **Trennlinien tragen dieselbe Klasse wie die Zeilen** (`.context-item.separator`). Eine
+Zeilenregel auf die nackte Klasse macht jede Trennlinie zur leeren 56-px-Zeile — die
+Handy-Regel sitzt deshalb auf `.context-item:not(.separator)`. Und `overflow-y: auto` allein
+stellt auch `overflow-x` auf `auto`: Die Trennlinien ragen 4 px über die Padding-Box, also ließ
+sich das Menü seitlich verschieben (`overflow-x: hidden`).
+
+**Die Einstellungs-Liste am Handy hat eine Kopfzeile.** Das X steht oben rechts; früher wurde
+die erste Zeile („Appearance“) daneben gekürzt, damit das X eine Spur hat — die einzige schmale
+Platte der Spalte, gemeldet als „komisch“. Jetzt trägt die X-Zeile links den Titel „Settings“
+(dieselbe Form wie der Kopf der Detailansicht und Googles Kopfzeile mit E-Mail + X), und die
+Liste beginnt darunter in voller Breite. Das X steht dabei bündig mit den Zeilen (`right: 1rem`
+= Listen-Padding), und der Kopf der Detailansicht wächst auf 56 + 2 × 10 px, sonst ragt das
+56-px-X über seine Trennlinie.
+
+Der Zensus ist `phoneListAnatomy.test.ts`: Er kennt die Tokens, jeden Wirt und die drei
+Scroll-Bedingungen. Ein neuer Wirt (eine weitere Liste tippbarer Einzeiler) wird dort in
+`HOSTS` eingetragen.
 
 ## ⚠️ Die Chrome hat EINE Kantenlänge: `$bar-control`
 
