@@ -140,7 +140,8 @@ Mechanik in Stichworten: Poll-Loop (1 s joined, 5 s solo), Cristian-Uhrenabgleic
 Transport-Änderung `LEAD_MS` voraus; der **Zustand** dazu kommt mit dem nächsten Poll, also *vor*
 seiner Zeit. Er wird gehalten, sein Audio auf dem Standby-Element vorbereitet und zur Anker-Zeit
 auf allen Geräten gleichzeitig übernommen — Transport-Kommandos selbst führt der Client nicht
-aus. Danach steuert ein 250-ms-Loop über `playbackRate` (2–4 %) und kompensierte Seeks nach;
+aus. Danach steuert ein 250-ms-Loop stufenlos per Resampling (`playbackRate` ±0,5 %,
+`preservesPitch` aus) und kompensierten Seeks nach;
 Start- und Seek-Latenz lernt jedes Gerät selbst (`utils/deviceSync/latency.ts`), der Leader
 bucht den nächsten Track auf das exakte Songende. Details, Messwerte und Feld-Bugs:
 `.claude/rules/device-sync.md`.

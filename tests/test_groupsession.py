@@ -9,6 +9,7 @@ from itertools import pairwise
 
 from aivinnet.lib.groupsession import (
     COMMAND_GRACE_MS,
+    DIAG_SAMPLES,
     LEAD_MS,
     MAX_SCHEDULE_AHEAD_MS,
     OFFLINE_MS,
@@ -542,3 +543,37 @@ def test_a_repeat_toggle_leaves_the_early_change_standing():
     assert snap["state"]["currentindex"] == 2
     assert snap["state"]["anchor"] == {"position_ms": 0, "at_server_ms": end}
     assert any(c["id"] == early["id"] for c in snap["commands"])
+
+
+# --- sync diagnostics ----------------------------------------------------------
+
+
+def test_polls_keep_a_short_sync_history_per_device():
+    mgr, clock = make_manager()
+    mgr.register(USER, A, "Chrome on Android", "mobile")
+    mgr.register(USER, B, "Chrome on Windows", "desktop")
+
+    mgr.touch(USER, A, diag={"build": "1.7.55", "error_ms": -3.5, "rtt_ms": 8, "rate": 1.002})
+    clock["t"] += 1000
+    mgr.touch(USER, A, diag={"build": "1.7.55", "error_ms": -1.0, "rtt_ms": 7, "rate": 1.0})
+    mgr.touch(USER, B)  # a poll without a report adds nothing
+
+    by_id = {d["device_id"]: d for d in mgr.diagnostics(USER)}
+    assert by_id[A]["build"] == "1.7.55"
+    assert by_id[A]["fields"][:3] == ["server_ms", "error_ms", "rtt_ms"]
+    assert [s[1] for s in by_id[A]["samples"]] == [-3.5, -1.0]
+    assert by_id[A]["samples"][1][0] - by_id[A]["samples"][0][0] == 1000
+    assert by_id[B]["samples"] == []
+    # Another user's devices never show up.
+    assert mgr.diagnostics(USER + 1) == []
+
+
+def test_the_sync_history_is_bounded():
+    mgr, _ = make_manager()
+    mgr.register(USER, A, "A", "mobile")
+    for i in range(DIAG_SAMPLES + 5):
+        mgr.touch(USER, A, diag={"error_ms": float(i)})
+
+    samples = mgr.diagnostics(USER)[0]["samples"]
+    assert len(samples) == DIAG_SAMPLES
+    assert samples[0][1] == 5.0  # the oldest fell out

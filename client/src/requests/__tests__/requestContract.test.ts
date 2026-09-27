@@ -124,7 +124,16 @@ const CALLS: Record<string, unknown[]> = {
     'coverart/uploadArtistImage': ['art1', file],
     'coverart/removeArtistImage': ['art1'],
     'devicesync/registerDevice': ['dev1', 'Laptop', 'desktop'],
-    'devicesync/pollSession': [{ device_id: 'dev1', known_version: 0, client_sent_ms: 0, volume: 1, mute: false }],
+    'devicesync/pollSession': [
+        {
+            device_id: 'dev1',
+            known_version: 0,
+            client_sent_ms: 0,
+            volume: 1,
+            mute: false,
+            diag: { build: '1.7.55', error_ms: -2.5, rtt_ms: 9, rate: 1.00125, trim_ms: 0, start_ms: 70, seek_ms: 90 },
+        },
+    ],
     // The leader's booked hand-over carries the one optional field worth pinning.
     'devicesync/sendCommand': [
         {

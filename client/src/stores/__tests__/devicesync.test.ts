@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const { playerMock, audioSourceMock, requestsMock } = vi.hoisted(() => ({
     playerMock: {
         setPlaybackRate: vi.fn(),
+        setFineSteering: vi.fn(),
         getCurrentTimeMs: vi.fn(() => 0),
         hardSeekMs: vi.fn(),
         playCurrent: vi.fn(),
@@ -1339,6 +1340,36 @@ describe('devicesync store', () => {
         expect(ds.devices.find(d => d.device_id === 'devB')?.joined).toBe(true)
     })
 
+    it('a poll landing mid-join does not wipe the queue the join is about to seed', async () => {
+        const { useDeviceSync, useTracklist } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        useTracklist().tracklist = [mkTrack('h1'), mkTrack('h2')]
+
+        // The group exists but is empty — this device is its first member.
+        const empty = mkPoll({
+            server_now_ms: Date.now(),
+            joined: true,
+            state: mkState({ queue_id: 'q-empty', trackhashes: [], currentindex: 0 }),
+        })
+        requestsMock.joinGroup.mockResolvedValueOnce({ status: 200, data: empty })
+        requestsMock.pollSession.mockResolvedValue(empty)
+
+        const joining = ds.join()
+        // The regular poll loop fires while the join calibrates its clock.
+        await new Promise(r => setTimeout(r, 30))
+        await ds.poll()
+        await joining
+
+        // Mirroring that empty group queue first wiped the local one, and the
+        // seed then had nothing to send (seen in a probe run: joined, silent).
+        expect(useTracklist().tracklist.map((t: any) => t.trackhash)).toEqual(['h1', 'h2'])
+        expect(requestsMock.setQueue).toHaveBeenCalledWith(
+            expect.objectContaining({ trackhashes: ['h1', 'h2'], live: true })
+        )
+    })
+
     it('marks this device as a member as soon as the join request lands', async () => {
         const { useDeviceSync } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
@@ -1596,10 +1627,10 @@ describe('devicesync store', () => {
 
         // 400 ms behind — say, after a buffering stall.
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
-        // One odd reading is not acted on (median of three)...
-        vi.advanceTimersByTime(250)
+        // Odd readings are not acted on (median of five)...
+        vi.advanceTimersByTime(500)
         expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
-        // ...a second one is.
+        // ...a majority is.
         vi.advanceTimersByTime(250)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
         // Aimed ahead by this device's seek latency (default 90 ms).
@@ -1614,24 +1645,53 @@ describe('devicesync store', () => {
         const { ds } = await playingGroup()
 
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 400)
-        vi.advanceTimersByTime(500)
+        vi.advanceTimersByTime(750)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
 
-        // The seek cost 140 ms here, not the 90 assumed: settled, the device
-        // sits 50 ms behind → the estimate moves 60 % of the way.
-        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 50)
+        // The seek cost 120 ms here, not the 90 assumed: settled, the device
+        // sits 30 ms behind → the estimate moves 60 % of the way.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 30)
         vi.advanceTimersByTime(750)
         expect(__latencyForTest().seek).toBe(90) // still settling: three readings first
         vi.advanceTimersByTime(250)
 
-        expect(__latencyForTest().seek).toBe(120)
-        expect(JSON.parse(localStorage.getItem('aivinnet.sync_latency') as string).seek).toBe(120)
-        // The residual itself is small: eased out by rate, not seeked.
+        expect(__latencyForTest().seek).toBe(108)
+        expect(JSON.parse(localStorage.getItem('aivinnet.sync_latency') as string).seek).toBe(108)
+        // The residual itself is small: steered out by rate (capped at 0.5 %), not seeked.
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
-        expect(lastRate()).toBeCloseTo(1.025, 6)
+        expect(lastRate()).toBeCloseTo(1.005, 6)
     })
 
-    it('a transition that landed far off gets ONE compensated seek, then rate steering', async () => {
+    it('holds a few ms, not 25: a 5 ms offset is already steered', async () => {
+        const { ds } = await playingGroup()
+
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 5)
+        vi.advanceTimersByTime(750)
+        expect(lastRate()).toBeCloseTo(1.0025, 6)
+
+        // Back on the anchor: exactly 1.0 again — free, the resampler never stops.
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()))
+        vi.advanceTimersByTime(750)
+        expect(lastRate()).toBe(1)
+        expect(playerMock.hardSeekMs).not.toHaveBeenCalled()
+    })
+
+    it('steers by resampling: joining switches pitch preservation off, leaving back on', async () => {
+        const { ds } = await playingGroup()
+        // The adopted membership turned it on (playingGroup polls as a member)...
+        vi.clearAllMocks()
+        ds.toSolo()
+        // ...and solo playback gets the default back.
+        expect(playerMock.setFineSteering).toHaveBeenCalledWith(false)
+
+        // A fresh join turns it on before anything plays (the rest of the join
+        // — clock calibration — waits on timers this test does not run).
+        void ds.join()
+        await settleMicrotasks()
+        expect(playerMock.setFineSteering).toHaveBeenLastCalledWith(true)
+    })
+
+    it('a stubborn offset gets at most two seeks, then full-rate steering (no seek loop)', async () => {
         const { ds } = await playingGroup()
         const now = Date.now()
         playerMock.groupStandbyReady.mockReturnValue(true)
@@ -1649,18 +1709,28 @@ describe('devicesync store', () => {
         vi.advanceTimersByTime(1500)
         expect(playerMock.switchToGroupStandby).toHaveBeenCalledTimes(1)
 
-        // This device has not measured its start latency yet: it sounds 80 ms late.
+        // This device has not measured its start latency yet: it sounds 80 ms
+        // late → one landing seek, and the estimate learns: 50 + 0.6 * 80.
         playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 80)
         vi.advanceTimersByTime(1000)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
-        // ...and learned from it: 50 + 0.6 * 80.
         expect(__latencyForTest().start).toBe(98)
 
-        // Still reading 80 ms late after the correction settles (a stubborn
-        // seek estimate): no second seek — rate takes it from here.
-        vi.advanceTimersByTime(1500)
-        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(1)
-        expect(lastRate()).toBeGreaterThan(1)
+        // Still 80 ms late after it settled: one more seek fits the budget...
+        vi.advanceTimersByTime(1250)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(2)
+
+        // ...a third does not: the old snap window seeked ten times in a row
+        // like this. Full rate takes it from here.
+        vi.advanceTimersByTime(1250)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(2)
+        expect(lastRate()).toBeCloseTo(1.005, 6)
+
+        // But only until the window has passed: at 0.5 % a 150 ms offset
+        // would take half a minute (seen in a probe run after a machine-wide
+        // stall), so a still-large error gets its seek again.
+        vi.advanceTimersByTime(6000)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(3)
     })
 
     it('a late timer is not learned as device latency (it climbed past 300 ms under load)', async () => {
@@ -1881,11 +1951,31 @@ describe('devicesync store', () => {
 
     it('leaving resets a steering rate instead of leaving solo playback stretched', async () => {
         const { ds } = await playingGroup()
-        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) + 60)
-        vi.advanceTimersByTime(500)
-        expect(lastRate()).toBeCloseTo(0.97, 6)
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) + 10)
+        vi.advanceTimersByTime(750)
+        expect(lastRate()).toBeCloseTo(0.995, 6)
 
         ds.toSolo()
-        expect(playerMock.setPlaybackRate).toHaveBeenLastCalledWith(1)
+        // Rate 1.0 and pitch preservation back, on both elements.
+        expect(playerMock.setFineSteering).toHaveBeenLastCalledWith(false)
+    })
+
+    it('reports its own sync with every joined poll — and nothing while solo', async () => {
+        const { ds } = await playingGroup()
+        playerMock.getCurrentTimeMs.mockImplementation(() => Math.round(ds.expectedMs()) - 4)
+        vi.advanceTimersByTime(750)
+
+        requestsMock.pollSession.mockResolvedValueOnce(at(undefined as any, { state: undefined }))
+        await ds.poll()
+        const body = (requestsMock.pollSession.mock.calls[0] as any[])[0]
+        expect(body.diag).toEqual(
+            expect.objectContaining({ error_ms: -4, rate: 1.002, trim_ms: 0, start_ms: 50, seek_ms: 90 })
+        )
+        expect(body.diag.build).toMatch(/^\d+\.\d+\.\d+$/)
+
+        ds.toSolo()
+        requestsMock.pollSession.mockResolvedValueOnce(mkPoll({ server_now_ms: Date.now() }))
+        await ds.poll()
+        expect((requestsMock.pollSession.mock.calls[1] as any[])[0].diag).toBeUndefined()
     })
 })

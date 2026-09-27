@@ -447,3 +447,55 @@ def test_leave_resets_membership_and_last_leave_deletes_session(ds):
     poll = _poll(ds, "dev-a", known_version=0)
     assert poll["joined"] is False
     assert poll["version"] == 0
+
+
+# --- sync diagnostics ----------------------------------------------------------
+
+
+def test_poll_accepts_a_sync_report_and_diag_returns_it(ds, monkeypatch):
+    _register(ds, "dev-a", name="Chrome on Android", dtype="mobile")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/poll",
+        json={
+            "device_id": "dev-a",
+            "known_version": 0,
+            "diag": {"build": "1.7.55", "error_ms": -2.75, "rtt_ms": 9, "rate": 1.00125, "trim_ms": 0},
+        },
+    )
+    assert res.status_code == 200
+
+    out = ds.client.get("/devicesync/diag")
+    assert out.status_code == 200
+    [device] = out.get_json()["devices"]
+    assert device["device_id"] == "dev-a"
+    assert device["build"] == "1.7.55"
+    sample = dict(zip(device["fields"], device["samples"][0], strict=True))
+    assert sample["error_ms"] == -2.75
+    assert sample["rate"] == 1.00125
+
+    # Scoped to the caller: another user sees nothing of it.
+    from aivinnet.api import devicesync
+
+    monkeypatch.setattr(devicesync, "get_current_userid", lambda: USERID + 1)
+    assert ds.client.get("/devicesync/diag").get_json() == {"devices": []}
+
+
+def test_poll_without_a_report_still_works(ds):
+    _register(ds, "dev-a")
+    res = ds.client.post("/devicesync/poll", json={"device_id": "dev-a", "known_version": 0})
+    assert res.status_code == 200
+    assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["samples"] == []
+
+
+def test_a_sync_report_with_infinity_is_refused(ds):
+    """/devicesync/diag must stay valid JSON — `Infinity` is not."""
+    _register(ds, "dev-a")
+    res = ds.client.post(
+        "/devicesync/poll",
+        data='{"device_id": "dev-a", "diag": {"rtt_ms": 1e999}}',
+        content_type="application/json",
+    )
+    assert res.status_code == 422
+    assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["samples"] == []

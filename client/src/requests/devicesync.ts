@@ -5,12 +5,25 @@ import useAxios from './useAxios'
 
 const api = paths.api.devicesync
 
+/** A joined device's own view of its sync — the server keeps it for `/devicesync/diag`. */
+export interface SyncDiag {
+    build: string
+    /** Audio position minus expected position (median of the steerer's readings); null while unknown. */
+    error_ms: number | null
+    rtt_ms: number | null
+    rate: number
+    trim_ms: number
+    start_ms: number
+    seek_ms: number
+}
+
 export interface PollBody {
     device_id: string
     known_version: number
     client_sent_ms: number
     volume: number
     mute: boolean
+    diag?: SyncDiag
 }
 
 export interface CommandBody {

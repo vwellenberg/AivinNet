@@ -19,7 +19,7 @@
 import { defineStore } from 'pinia'
 
 import { clampOffset, loadAudioOffset, saveAudioOffset } from '@/utils/deviceSync/audioOffset'
-import { computeCorrection, SEEK_MS } from '@/utils/deviceSync/driftSteer'
+import { computeCorrection, MAX_RATE_DELTA, SEEK_MS } from '@/utils/deviceSync/driftSteer'
 import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
@@ -45,7 +45,9 @@ import {
     resolveTracks,
     sendCommand,
     setQueue,
+    type SyncDiag,
 } from '@/requests/devicesync'
+import pkg from '../../package.json'
 
 import type { Track } from '@/interfaces'
 import { NotifType, useToast } from '@/stores/notification'
@@ -92,15 +94,29 @@ const RESTART_SLACK_MS = 250
 const PAUSED_SLACK_MS = 40
 /**
  * A transition that landed further off than this (ms) gets one compensated
- * seek right away. Steering 60 ms out by rate took three seconds on a device
- * that had not measured its start latency yet; right after a cut, one more
- * small seek is not heard as a separate event.
+ * seek right away. Fine steering (±0.5 %) needs ~4 s for 20 ms; right after a
+ * cut, one more small seek is not heard as a separate event.
  */
-const LANDING_SEEK_MS = 35
+const LANDING_SEEK_MS = 20
 /** Readings this long after an action are past its stall and count for its landing (ms). */
 const SETTLED_READING_MS = 400
-/** Readings the steerer takes the median of — Firefox's currentTime jitters by ±40 ms. */
-const READINGS = 3
+/**
+ * Readings the steerer takes the median of: Firefox's currentTime jitters by
+ * ±40 ms, and a continuously following rate must not chase single readings.
+ */
+const READINGS = 5
+/** A rate this close to the one set already is not worth a new write. */
+const RATE_EPSILON = 0.00005
+/**
+ * At most this many seeks per window. A seek that keeps missing (a stubborn
+ * stall, an estimate still converging) must not turn into a seek loop — the
+ * old snap window did exactly that, ten times in a row. Beyond the budget the
+ * device steers at full rate instead.
+ */
+const MAX_SEEKS = 2
+const SEEK_WINDOW_MS = 8000
+/** A seek decided on a single reading (refocus, trim slider) needs this much offset (ms). */
+const RESYNC_SEEK_MS = 100
 /** The leader books the next track this long before the current one ends (ms)... */
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */
@@ -154,10 +170,10 @@ function clearPending() {
  * again before a seek had landed is what produced ten seeks in a row.
  */
 let settle: { kind: LatencyKind | 'load'; at: number; lead: number } | null = null
-/** Rate steering is engaged (hysteresis, see driftSteer.ts). */
-let steering = false
 /** The last few error readings since the clock last jumped; decisions use their median. */
 let readings: { at: number; error: number }[] = []
+/** When the recent compensated seeks happened (see MAX_SEEKS). */
+let recentSeeks: number[] = []
 
 function median(values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b)
@@ -240,8 +256,8 @@ export function __resetDeviceSyncTestState() {
     loadedTrackhash = ''
     appliedRate = 1
     settle = null
-    steering = false
     readings = []
+    recentSeeks = []
     latency = loadLatency()
     bookedFor = ''
     pollSeq = 0
@@ -289,7 +305,6 @@ function rememberCommandId(id: string) {
 function resetRate(player: ReturnType<typeof usePlayer>) {
     player.setPlaybackRate(1)
     appliedRate = 1
-    steering = false
 }
 
 /**
@@ -435,6 +450,7 @@ export default defineStore('devicesync', {
                     client_sent_ms: t0,
                     volume: settings.volume,
                     mute: settings.mute,
+                    diag: this.joined ? this.syncReport() : undefined,
                 })
             } catch {
                 // network/parse failure — treated the same as a null response below.
@@ -500,6 +516,8 @@ export default defineStore('devicesync', {
                 this.joined = true
                 this.status = 'joined'
                 loadedTrackhash = usePlayer().loadedTrackhash()
+                usePlayer().setFineSteering(true)
+                appliedRate = 1
                 this.startSteerLoop()
                 // Force a full re-mirror: the local list may have diverged
                 // while we were solo (queue_id alone would not notice).
@@ -509,6 +527,13 @@ export default defineStore('devicesync', {
                 // (but still process this response's commands below).
                 if (!res.state) forceStateRefresh = true
             }
+
+            // A join in flight owns the first mirror: it seeds an empty group
+            // with this device's queue once the clock is calibrated. A poll
+            // landing in that window mirrored the still-EMPTY group queue
+            // first — the local queue was wiped, the seed saw nothing to send,
+            // and the device sat in the group with nothing to play.
+            if (joinInFlight) return
 
             // The server sends `state` to EVERY device of the user (also
             // non-members). Only members may mirror it — a solo device must
@@ -524,6 +549,26 @@ export default defineStore('devicesync', {
                 // On a failed state apply keep known_version stale so the
                 // server re-sends the state on the next poll.
                 this.sessionVersion = res.version
+            }
+        },
+
+        /**
+         * This device's own view of its sync, sent with every joined poll. The
+         * server keeps a short history (`GET /devicesync/diag`): "it sounds a
+         * bit off" is unanswerable without knowing where each device's audio
+         * actually was, and only the device knows that.
+         */
+        syncReport(): SyncDiag {
+            // While an action settles, the readings are its stall, not the sync.
+            const error = this.playing && !settle && readings.length > 0 ? median(readings.map(r => r.error)) : null
+            return {
+                build: pkg.version,
+                error_ms: error === null ? null : Math.round(error * 10) / 10,
+                rtt_ms: Number.isFinite(estimator.rtt) ? estimator.rtt : null,
+                rate: appliedRate,
+                trim_ms: this.audioOffsetMs,
+                start_ms: latency.start,
+                seek_ms: latency.seek,
             }
         },
 
@@ -790,9 +835,9 @@ export default defineStore('devicesync', {
             }
 
             // 5. Same track, playing: only a real offset needs a (compensated)
-            //    seek — judged on one reading here, so only beyond what the
-            //    steerer would seek for anyway (Firefox jitters by ±40 ms).
-            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > SEEK_MS) this.seekCompensated()
+            //    seek. Judged on ONE reading here (no median), so the bar sits
+            //    well above Firefox's ±40 ms jitter; the steerer takes the rest.
+            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > RESYNC_SEEK_MS) this.seekCompensated()
         },
 
         /** Seek the playing element to where the anchor will be once the seek has landed. */
@@ -802,6 +847,14 @@ export default defineStore('devicesync', {
             const target = this.expectedMs(latency.seek)
             player.hardSeekMs(target)
             settleAfter('seek', this.leadOf(target))
+            recentSeeks.push(Date.now())
+        },
+
+        /** Whether another seek fits the budget (see MAX_SEEKS). */
+        maySeek(): boolean {
+            const now = Date.now()
+            recentSeeks = recentSeeks.filter(at => now - at < SEEK_WINDOW_MS)
+            return recentSeeks.length < MAX_SEEKS
         },
 
         /**
@@ -932,7 +985,7 @@ export default defineStore('devicesync', {
                 }
                 // The landing of a transition itself (not of a correction):
                 // one seek now beats seconds of rate steering.
-                if (landed !== 'seek' && Math.abs(residual) > LANDING_SEEK_MS) {
+                if (landed !== 'seek' && Math.abs(residual) > LANDING_SEEK_MS && this.maySeek()) {
                     this.seekCompensated()
                     return
                 }
@@ -941,15 +994,18 @@ export default defineStore('devicesync', {
             // Buffering, ended, or blocked: a seek would only restart the wait.
             if (!advancing) return
 
-            const correction = computeCorrection(median(readings.map(r => r.error)), steering)
-            if (correction.action === 'seek') {
+            const steadyError = median(readings.map(r => r.error))
+            const correction = computeCorrection(steadyError)
+            if (correction.action === 'seek' && this.maySeek()) {
                 this.seekCompensated()
-            } else if (correction.action === 'rate') {
-                steering = true
-                player.setPlaybackRate(correction.rate)
-                appliedRate = correction.rate
-            } else if (appliedRate !== 1 || steering) {
-                resetRate(player)
+                return
+            }
+            // Out of seek budget, a large error is steered at full rate.
+            const rate =
+                correction.action === 'rate' ? correction.rate : 1 - Math.sign(steadyError) * MAX_RATE_DELTA
+            if (Math.abs(rate - appliedRate) > RATE_EPSILON || (rate === 1 && appliedRate !== 1)) {
+                player.setPlaybackRate(rate)
+                appliedRate = rate
             }
         },
 
@@ -1022,6 +1078,9 @@ export default defineStore('devicesync', {
             player.clearNextAudio()
             // Whatever solo playback left loaded — the mirror compares against it.
             loadedTrackhash = player.loadedTrackhash()
+            // Group steering resamples; see player.ts `setFineSteering`.
+            player.setFineSteering(true)
+            appliedRate = 1
 
             const snapState = snap?.state
             const emptySession = !snapState || (snapState.trackhashes?.length ?? 0) === 0
@@ -1146,7 +1205,10 @@ export default defineStore('devicesync', {
             clearPending()
             settle = null
             bookedFor = ''
-            if (appliedRate !== 1 || steering) resetRate(usePlayer())
+            recentSeeks = []
+            // Solo playback: rate 1.0 and pitch preservation back to the default.
+            usePlayer().setFineSteering(false)
+            appliedRate = 1
             this.status = 'solo'
             this.restartPollingCadence()
         },
