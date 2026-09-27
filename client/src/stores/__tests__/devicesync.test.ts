@@ -137,6 +137,8 @@ describe('devicesync store', () => {
         // command dedupe, leave-suppress window).
         vi.clearAllMocks()
         requestsMock.pollSession.mockReset()
+        requestsMock.registerDevice.mockReset()
+        requestsMock.registerDevice.mockResolvedValue({ status: 200, data: {} })
         requestsMock.resolveTracks.mockReset()
         requestsMock.resolveTracks.mockResolvedValue([])
         playerMock.getCurrentTimeMs.mockReset()
@@ -673,6 +675,74 @@ describe('devicesync store', () => {
         await ds.poll()
         await Promise.resolve()
         expect(requestsMock.joinGroup).toHaveBeenCalledTimes(1)
+    })
+
+    // --- presence self-heal ----------------------------------------------------
+    // The server keeps its device list in RAM, and only /register fills it —
+    // which the app calls once, at start. After a backend restart (every
+    // deploy) no device was listed anywhere, and no auto-rejoin could see a
+    // group again, until each device was reloaded by hand (2026-09-27).
+
+    it('comes back into the device list after a server restart — without a reload', async () => {
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        // The server as it behaves: a poll lists this device only while its
+        // RAM presence knows it, and only /register puts it there.
+        let known = false
+        requestsMock.registerDevice.mockImplementation(() => {
+            known = true
+            return Promise.resolve({ status: 200, data: {} })
+        })
+        const me = peer({ device_id: 'devA', joined: false, is_leader: false })
+        requestsMock.pollSession.mockImplementation(() => Promise.resolve(mkPoll({ devices: known ? [me] : [] })))
+
+        const ds = useDeviceSync()
+        await ds.register() // app start
+        ds.joined = true // in a group when the backend went down
+        ds.status = 'joined'
+        requestsMock.registerDevice.mockClear()
+
+        known = false // the restart
+        await ds.poll()
+        // Dropped to solo as before — and announced again on that very answer
+        // (not a solo cadence later), under the identity it already has.
+        expect(ds.joined).toBe(false)
+        expect(requestsMock.registerDevice).toHaveBeenCalledTimes(1)
+        expect(requestsMock.registerDevice).toHaveBeenCalledWith('devA', ds.deviceName, ds.deviceType)
+
+        await flushPromises()
+        await ds.poll()
+        expect(ds.me?.device_id).toBe('devA')
+    })
+
+    it('re-announces at most once per cooldown — /register writes the device table, a poll must not', async () => {
+        vi.useFakeTimers()
+        vi.setSystemTime(100000)
+        const { useDeviceSync } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        requestsMock.registerDevice.mockClear()
+
+        // Listed → the server knows this device, nothing to repair.
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({ devices: [peer({ device_id: 'devA', joined: false, is_leader: false }), peer()] })
+        )
+        await ds.poll()
+        expect(requestsMock.registerDevice).not.toHaveBeenCalled()
+
+        // Forgotten (the list still has devB — it is about OUR id, not an empty
+        // list), and the announcement does not stick: no second one per poll.
+        requestsMock.pollSession.mockResolvedValue(mkPoll({ devices: [peer()] }))
+        await ds.poll()
+        await ds.poll()
+        await ds.poll()
+        expect(requestsMock.registerDevice).toHaveBeenCalledTimes(1)
+
+        // ...but it is tried again once the cooldown has passed.
+        vi.advanceTimersByTime(30000)
+        await ds.poll()
+        expect(requestsMock.registerDevice).toHaveBeenCalledTimes(2)
     })
 
     it('a solo (non-joined) device never mirrors group state onto its local queue', async () => {
