@@ -66,6 +66,11 @@ PRESENCE_TTL_MS = 30 * 60 * 1000
 DIAG_SAMPLES = 1800
 DIAG_FIELDS = ("error_ms", "rtt_ms", "rate", "trim_ms", "start_ms", "seek_ms")
 
+# Sync calibrations: the listening device's raw measurement of each run (every
+# click's report and arrival), kept per user for the last few runs. A trim that
+# comes out wrong in a real room cannot be judged from its result alone.
+CALIBRATION_LOGS = 10
+
 # Targeted commands whose target has to be a session member. `join_invite` is
 # the one exception — it is how a device becomes a member in the first place.
 # The sync_* commands carry a calibration between members: the listening
@@ -124,6 +129,8 @@ class GroupSessionManager:
         self._presence: dict[int, dict[str, dict[str, Any]]] = {}
         # userid -> Session
         self._sessions: dict[int, Session] = {}
+        # userid -> the last CALIBRATION_LOGS calibration runs (oldest first)
+        self._calibrations: dict[int, deque[dict[str, Any]]] = {}
 
     # --- internal helpers (assume the lock is held) -------------------------
 
@@ -616,6 +623,17 @@ class GroupSessionManager:
                 }
                 for did, entry in self._presence.get(userid, {}).items()
             ]
+
+    def log_calibration(self, userid: int, entry: dict[str, Any]) -> None:
+        """Keep one calibration run's raw measurement (RAM only, bounded)."""
+        with self._lock:
+            logs = self._calibrations.setdefault(userid, deque(maxlen=CALIBRATION_LOGS))
+            logs.append({"server_ms": self._now(), **entry})
+
+    def calibrations(self, userid: int) -> list[dict[str, Any]]:
+        """The user's recent calibration runs, oldest first."""
+        with self._lock:
+            return list(self._calibrations.get(userid, ()))
 
     def compute_leader(self, userid: int) -> str | None:
         """Public wrapper: the current scrobble/transport leader for a user."""

@@ -82,7 +82,7 @@ function scene(opts: {
         noise: 0.01,
     })
     const recording = { samples, sampleRate: SR, startServerMs: recordingStart }
-    const offsets = Object.fromEntries(ids.map(id => [id, measureClicks(recording, sounded[id])]))
+    const offsets = Object.fromEntries(ids.map(id => [id, measureClicks(recording, sounded[id]).offsetsMs]))
     return { recording, sounded, offsets, plan }
 }
 
@@ -125,9 +125,11 @@ describe('measureClicks + relativeLatencies', () => {
     })
 
     it('leaves out a device whose clicks never came — nothing is guessed for it', () => {
-        const { offsets } = scene({ hidden: { phone: 0, pc: 150 }, shared: 20, gains: { pc: 0 } })
+        const { offsets, recording, sounded } = scene({ hidden: { phone: 0, pc: 150 }, shared: 20, gains: { pc: 0 } })
 
         expect(offsets.pc).toEqual([null, null, null, null])
+        // The log still says why: every window was listened to, nothing stood out.
+        measureClicks(recording, sounded.pc).strengths.forEach(s => expect(s).toBeLessThan(8))
         expect(relativeLatencies(offsets)).toEqual({ phone: 0 })
         expect(suggestTrims(relativeLatencies(offsets))).toEqual({})
     })
@@ -137,9 +139,12 @@ describe('measureClicks + relativeLatencies', () => {
         const outside = [recording.startServerMs - 5000, ...sounded.pc.slice(1, 3), null]
 
         const pc = measureClicks(recording, outside)
-        expect(pc[0]).toBeNull()
-        expect(pc[3]).toBeNull()
-        expect(pc[1]).toBeCloseTo(170, 0)
+        expect(pc.offsetsMs[0]).toBeNull()
+        expect(pc.offsetsMs[3]).toBeNull()
+        expect(pc.offsetsMs[1]).toBeCloseTo(170, 0)
+        // Strength says how clearly a click stood out; nothing to say outside the recording.
+        expect(pc.strengths[0]).toBeNull()
+        expect(pc.strengths[1]).toBeGreaterThan(20)
     })
 })
 

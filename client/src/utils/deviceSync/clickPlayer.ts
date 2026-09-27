@@ -49,7 +49,11 @@ export interface CalibrationClock {
 }
 
 export type MeasureError = 'muted' | 'late' | 'blocked' | 'failed' | 'aborted'
-export type MeasureResult = { sounded_ms: (number | null)[] } | { error: MeasureError }
+/** Notes on how the clicks were played, for the calibration log (numbers and short strings). */
+export type ClickDetails = Record<string, number | string | boolean | null>
+export type MeasureResult =
+    | { sounded_ms: (number | null)[]; details?: ClickDetails }
+    | { error: MeasureError; details?: ClickDetails }
 
 export interface Reading {
     /** Local wall clock (Date.now()). */
@@ -73,6 +77,31 @@ export function soundedAt(readings: Reading[], positionMs: number): number | nul
     const near = readings.filter(r => Math.abs(r.media - positionMs) <= CLOCK_SPAN_MS)
     if (near.length < MIN_READINGS) return null
     return median(near.map(r => r.at - r.media)) + positionMs
+}
+
+const round1 = (ms: number) => Math.round(ms * 10) / 10
+
+/**
+ * How steady the media clock ran against the wall clock: the spread of
+ * (wall − media) over all readings, and how far it moved between the first
+ * and the last second. A fresh element whose reported latency is still
+ * settling shows up as drift — a click would then sound at another delay than
+ * the long-running music it is meant to stand for.
+ */
+export function clockStats(readings: Reading[]): { spreadMs: number | null; driftMs: number | null } {
+    if (readings.length < MIN_READINGS) return { spreadMs: null, driftMs: null }
+    const origins = readings.map(r => r.at - r.media)
+    const middle = median(origins)
+    const spreadMs = round1(median(origins.map(o => Math.abs(o - middle))))
+    const first = readings[0].at
+    const last = readings[readings.length - 1].at
+    const early = readings.filter(r => r.at - first <= 1000).map(r => r.at - r.media)
+    const late = readings.filter(r => last - r.at <= 1000).map(r => r.at - r.media)
+    const driftMs =
+        early.length >= MIN_READINGS && late.length >= MIN_READINGS && last - first > 2000
+            ? round1(median(late) - median(early))
+            : null
+    return { spreadMs, driftMs }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -166,7 +195,8 @@ export async function playMeasurement(opts: {
 
         const late = opts.clock.serverNow() + opts.startLatencyMs - zeroAt
         if (late > leadIn - MIN_LEAD_IN_MS / 2) return { error: 'late' }
-        if (late > CATCH_UP_ABOVE_MS) el.currentTime = late / 1000
+        const caughtUp = late > CATCH_UP_ABOVE_MS ? late : 0
+        if (caughtUp) el.currentTime = caughtUp / 1000
 
         try {
             await el.play()
@@ -187,7 +217,15 @@ export async function playMeasurement(opts: {
             const local = soundedAt(readings, position)
             return local === null ? null : local + offset
         })
-        return sounded.some(s => s !== null) ? { sounded_ms: sounded } : { error: 'failed' }
+        const clock = clockStats(readings)
+        const details: ClickDetails = {
+            lead_in_ms: Math.round(leadIn),
+            caught_up_ms: Math.round(caughtUp),
+            readings: readings.length,
+            clock_spread_ms: clock.spreadMs,
+            clock_drift_ms: clock.driftMs,
+        }
+        return sounded.some(s => s !== null) ? { sounded_ms: sounded, details } : { error: 'failed', details }
     } finally {
         el.removeEventListener('timeupdate', read)
         release()

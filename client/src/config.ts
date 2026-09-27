@@ -206,6 +206,9 @@ export const paths = {
             get command() {
                 return this.base + '/command'
             },
+            get calibrationLog() {
+                return this.base + '/calibration-log'
+            },
             get queueSet() {
                 return this.base + '/queue-set'
             },

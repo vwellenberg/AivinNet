@@ -204,6 +204,8 @@ export interface CalibrationReport {
     device: string
     sounded_ms?: (number | null)[]
     error?: string
+    /** How the clicks were played and the clock they were reported by (the calibration log). */
+    details?: Record<string, number | string | boolean | null>
 }
 
 /** Where reports for this device go while it is the listener. */
@@ -1044,13 +1046,22 @@ export default defineStore('devicesync', {
             measuring = abort
             const settings = useSettings()
             try {
-                return await playMeasurement({
+                const result = await playMeasurement({
                     clicksServerMs: [...clicksMs].sort((a, b) => a - b),
                     clock: calibrationClock,
                     volume: settings.mute ? 0 : settings.volume,
                     startLatencyMs: latency.start,
                     signal: abort.signal,
                 })
+                // The clock the report rests on: its error is part of what the
+                // listener hears as this device's delay.
+                const details = {
+                    ...result.details,
+                    rtt_ms: Number.isFinite(estimator.rtt) ? estimator.rtt : null,
+                    clock_offset_ms: Math.round(estimator.offset * 10) / 10,
+                    user_agent: navigator.userAgent.slice(0, 300),
+                }
+                return { ...result, details }
             } finally {
                 if (measuring === abort) measuring = null
             }

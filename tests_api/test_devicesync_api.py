@@ -528,7 +528,7 @@ def test_poll_accepts_a_sync_report_and_diag_returns_it(ds, monkeypatch):
     from aivinnet.api import devicesync
 
     monkeypatch.setattr(devicesync, "get_current_userid", lambda: USERID + 1)
-    assert ds.client.get("/devicesync/diag").get_json() == {"devices": []}
+    assert ds.client.get("/devicesync/diag").get_json() == {"devices": [], "calibrations": []}
 
 
 def test_poll_without_a_report_still_works(ds):
@@ -548,3 +548,63 @@ def test_a_sync_report_with_infinity_is_refused(ds):
     )
     assert res.status_code == 422
     assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["samples"] == []
+
+
+def _calibration_log(**over):
+    body = {
+        "device_id": "dev-a",
+        "run": "r1",
+        "details": {"sample_rate": 48000, "user_agent": "Chrome/140 on Windows"},
+        "devices": [
+            {
+                "device_id": "dev-a",
+                "name": "This device",
+                "status": "heard",
+                "sounded_ms": [1_000_000.5, None],
+                "offsets_ms": [12.5, None],
+                "strengths": [40.0, None],
+                "latency_ms": 0,
+                "suggested_trim_ms": 0,
+                "current_trim_ms": 0,
+                "details": {"rtt_ms": 8, "readings": 212},
+            }
+        ],
+    }
+    body.update(over)
+    return body
+
+
+def test_a_calibration_run_is_kept_and_shows_in_diag(ds, monkeypatch):
+    res = ds.client.post("/devicesync/calibration-log", json=_calibration_log())
+    assert res.status_code == 200
+
+    [run] = ds.client.get("/devicesync/diag").get_json()["calibrations"]
+    assert run["run"] == "r1"
+    assert run["server_ms"] == ds.clock["t"]
+    assert run["details"]["sample_rate"] == 48000
+    assert run["devices"][0]["offsets_ms"] == [12.5, None]
+    assert run["devices"][0]["details"] == {"rtt_ms": 8, "readings": 212}
+
+    # Scoped to the caller.
+    from aivinnet.api import devicesync
+
+    monkeypatch.setattr(devicesync, "get_current_userid", lambda: USERID + 1)
+    assert ds.client.get("/devicesync/diag").get_json()["calibrations"] == []
+
+
+def test_a_calibration_log_refuses_what_would_bloat_or_break_it(ds):
+    too_many_clicks = _calibration_log(devices=[{"device_id": "x", "sounded_ms": [1.0] * 17}])
+    nested_detail = _calibration_log(details={"x": {"y": 1}})
+    many_details = _calibration_log(details={f"k{i}": i for i in range(33)})
+    long_detail = _calibration_log(details={"user_agent": "x" * 301})
+    for body in (too_many_clicks, nested_detail, many_details, long_detail):
+        assert ds.client.post("/devicesync/calibration-log", json=body).status_code == 422
+
+    # `Infinity` would come back out of /devicesync/diag as invalid JSON.
+    infinite = ds.client.post(
+        "/devicesync/calibration-log",
+        data='{"device_id": "a", "run": "r", "devices": [{"device_id": "x", "offsets_ms": [1e999]}]}',
+        content_type="application/json",
+    )
+    assert infinite.status_code == 422
+    assert ds.client.get("/devicesync/diag").get_json()["calibrations"] == []

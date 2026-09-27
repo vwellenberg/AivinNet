@@ -1972,7 +1972,13 @@ describe('devicesync store — sync calibration commands', () => {
         expect(requestsMock.sendCommand).toHaveBeenCalledWith({
             device_id: 'devA',
             type: 'sync_click_report',
-            payload: { run: 'r1', device: 'devA', sounded_ms: [5000.5, 8600.25] },
+            payload: {
+                run: 'r1',
+                device: 'devA',
+                sounded_ms: [5000.5, 8600.25],
+                // The clock the report rests on travels with it.
+                details: expect.objectContaining({ rtt_ms: null, clock_offset_ms: 0, user_agent: expect.any(String) }),
+            },
             target_device: 'phone',
         })
     })
@@ -1987,7 +1993,9 @@ describe('devicesync store — sync calibration commands', () => {
 
         expect(clickMock.playMeasurement).toHaveBeenCalledWith(expect.objectContaining({ volume: 0 }))
         expect(requestsMock.sendCommand).toHaveBeenCalledWith(
-            expect.objectContaining({ payload: { run: 'r1', device: 'devA', error: 'muted' } })
+            expect.objectContaining({
+                payload: expect.objectContaining({ run: 'r1', device: 'devA', error: 'muted' }),
+            })
         )
     })
 

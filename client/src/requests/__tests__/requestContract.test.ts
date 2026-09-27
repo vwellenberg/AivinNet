@@ -158,6 +158,27 @@ const CALLS: Record<string, unknown[]> = {
     'devicesync/resolveTracks': [['t1']],
     'devicesync/joinGroup': ['dev1'],
     'devicesync/leaveGroup': ['dev1'],
+    'devicesync/logCalibration': [
+        {
+            device_id: 'dev1',
+            run: 'r1',
+            details: { sample_rate: 48000 },
+            devices: [
+                {
+                    device_id: 'dev2',
+                    name: 'Chrome on Windows',
+                    status: 'heard',
+                    sounded_ms: [1_700_000_004_000.5],
+                    offsets_ms: [201.25],
+                    strengths: [38.5],
+                    latency_ms: 155,
+                    suggested_trim_ms: 155,
+                    current_trim_ms: 0,
+                    details: { rtt_ms: 9 },
+                },
+            ],
+        },
+    ],
     'favorite/addFavorite': ['track', 't1'],
     'favorite/removeFavorite': ['track', 't1'],
     'favorite/getAllFavs': [6, 6, 6],
