@@ -19,7 +19,9 @@ A self-hosted music player frontend, branded as **AivinNet**. This is a fork of 
 ### Dark theme
 
 The whole palette flips through the moon toggle in the top bar. With **Auto dark mode** on, it also
-switches itself: dark from 20:00, light from 08:00, always in Berlin time so every device agrees.
+switches itself by the clock: light from 08:00, dark from 20:00 by default. Both hours and the time
+zone are adjustable under Settings → Appearance; the zone defaults to the device's own, or can be
+pinned (e.g. `Europe/Berlin`) so a machine set to another zone still follows home time.
 
 |                                                     |                                                        |
 | --------------------------------------------------- | ------------------------------------------------------ |

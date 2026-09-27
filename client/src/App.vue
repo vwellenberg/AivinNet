@@ -102,7 +102,7 @@ watch(
     { immediate: true }
 );
 
-// Auto dark mode: decide the theme from the time of day in Berlin BEFORE the
+// Auto dark mode: decide the theme from the time of day (utils/autoTheme.ts) BEFORE the
 // watch below runs its immediate pass, so a reload never paints the wrong theme
 // first. The setting is restored from persistence synchronously, so it is already
 // known here. No-op unless the user turned Auto dark mode on.

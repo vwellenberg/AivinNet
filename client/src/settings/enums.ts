@@ -7,6 +7,8 @@ export enum SettingType {
   root_dirs,
   free_number_input,
   locked_number_input,
+  // Native <select>: for lists too long for the segmented `select` (hours, zones).
+  dropdown,
 
   // custom components 👇
   quick_actions,

@@ -43,6 +43,13 @@
                         :source="setting.state !== null ? setting.state : () => ''"
                         :setter-fn="setting.action"
                     />
+                    <NativeSelect
+                        v-if="setting.type === SettingType.dropdown"
+                        :options="setting.options"
+                        :source="setting.state !== null ? setting.state : () => ''"
+                        :setter-fn="setting.action"
+                        :label="setting.title"
+                    />
                     <NumberInput
                         v-if="setting.type === SettingType.free_number_input"
                         :value="setting.state && setting.state()"
@@ -96,6 +103,7 @@ import ReloadSvg from '@/assets/icons/reload.svg'
 import List from './Components/List.vue'
 import LockedNumberInput from './Components/LockedNumberInput.vue'
 import NumberInput from './Components/NumberInput.vue'
+import NativeSelect from './Components/NativeSelect.vue'
 import Select from './Components/Select.vue'
 import SeparatorsInput from './Components/SeparatorsInput.vue'
 import Switch from './Components/Switch.vue'
