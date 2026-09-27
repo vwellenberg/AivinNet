@@ -862,6 +862,16 @@ Fehler, sondern eine Entscheidung, die niemand aufgeschrieben hat.
 | `$bar-control` | 2.75rem · 44 px | Chrome: Top-Bar, Player-Bar, Header-Aktionen |
 | `$control-compact` | 2rem · 32 px | Bedienelemente **in einer Inhaltszeile**: Track-Zeile, Queue |
 | `$control-dense` | 1.75rem · 28 px | die **Sidebar**: Thumbnails, deren Overlays, Sektions-Buttons |
+| `$phone-list-row` | 3.25rem · 52 px | eine Liste, die am Handy **der ganze Bildschirm** ist: die Einstellungs-Liste samt Schließen-Knopf in ihrer ersten Zeile (Glyph `$phone-list-glyph`, 26 px). Desktop bleibt bei `$bar-control` |
+
+⚠️ **Ein Cover-Polster in einer Box mit fester Höhe verschiebt den Glyph.** `mem-hatch-clear`
+legt 2 px Polster um jedes Kind einer Zeilenplatte. Beim Icon der Einstellungs-Zeilen steckte das
+unter dem globalen `border-box` **innerhalb** von `height: 24px`: 20 px Platz für ein 24-px-Icon,
+das Icon lief unten über und saß gemessen **2 px unter der Zeilenmitte** — gemeldet wurde aber
+„Schrift nicht vertikal zentriert", weil der Text neben einem abgesackten Icon zu hoch wirkt. Eine
+Glyph-Box mit Cover also `box-sizing: content-box` + `place-items: center`, und die Mitte am
+laufenden Client **vermessen** (Glyph-Mitte und Großbuchstaben-Mitte gegen Zeilenmitte), nicht am
+Screenshot schätzen.
 
 Dazu je ein `*-glyph`-Token; die 52-px-Play-Scheibe auf einer Kachel bleibt bewusst eine
 Call-Site-Entscheidung (primäre CTA, auf das Artwork gesized, kein Mitglied einer Stufe).

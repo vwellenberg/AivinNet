@@ -159,9 +159,76 @@ describe("the settings pane list on a phone", () => {
 
   it("keeps the first row out of the close button's lane", () => {
     const first = block(list, ".group:first-child .gitem:first-child").body;
-    expect(first).toMatch(/margin-right:[^;]*\$bar-control[^;]*\$settings-close-inset/);
+    // The lane is as wide as the button standing in it — the phone tier.
+    expect(first).toMatch(/margin-right:[^;]*\$phone-list-row[^;]*\$settings-close-inset/);
     // The row's own `width: 100%` would keep it full width and push the margin
     // out past the pane — the first draft of this fix did exactly that.
     expect(first).toMatch(/width:\s*auto;/);
+  });
+});
+
+describe("the settings row's glyph and label share the row's centre", () => {
+  // Reported from a phone as "Schrift nicht zentral vertikal". Measured: the
+  // label's capitals sat 0.5px above the row's centre, the glyph 2px BELOW it
+  // — and next to a sunken glyph the label reads as riding high. The cause was
+  // the hatch cover's 2px padding: under the global border-box it went inside
+  // the icon's fixed 24px height, left 20px for a 24px glyph, and the glyph
+  // spilled out of the bottom of its box.
+  const SIDEBAR = styleBlock(read("src/components/modals/settings/Sidebar.vue"));
+  const body = blocks(SIDEBAR, ".gitem").find((b) => b.includes("mem-row-plate(")) ?? "";
+
+  it("puts the cover's padding around the glyph box, not inside it", () => {
+    const icon = block(body, ".icon").body;
+    expect(icon, ".icon not found").not.toBe("");
+    expect(icon).toMatch(/box-sizing:\s*content-box;/);
+    expect(icon).toMatch(/place-items:\s*center;/);
+  });
+
+  it("gives the glyph a height, not only a width", () => {
+    const svg = block(body, "svg").body;
+    expect(svg).toMatch(/height:\s*\$bar-glyph;/);
+  });
+
+  it("nudges the label onto the optical centre", () => {
+    expect(read("src/components/modals/settings/Sidebar.vue")).toMatch(/<span class="label">/);
+    expect(block(body, ".label").body).toMatch(/padding-top:\s*3px;/);
+  });
+});
+
+describe("the settings list on a phone takes the phone-list tier", () => {
+  // Reported as "etwas zu klein": 44px rows and 15px labels on a list that
+  // fills the whole phone screen. The phone gets its own named size; the
+  // desktop list keeps the chrome's $bar-control (asserted above).
+  const BUTTONS = read("src/assets/scss/Global/_buttons.scss");
+  const SETTINGS = styleBlock(read("src/components/modals/Settings.vue"));
+  const phone = block(SETTINGS, ".settingsmodal.isSmallPhone").body;
+  const list = block(phone, ".settingssidebar").body;
+  const row = blocks(list, ".gitem").find((b) => b.includes("min-height")) ?? "";
+
+  it("names the tier once", () => {
+    expect(BUTTONS).toMatch(/\$phone-list-row:\s*3\.25rem\s*;/);
+    expect(BUTTONS).toMatch(/\$phone-list-glyph:\s*1\.625rem\s*;/);
+  });
+
+  it("sizes the rows and their glyphs from it", () => {
+    expect(row, "phone row rule not found").not.toBe("");
+    expect(ownDeclarations(row).match(/min-height:[^;]*;/g)).toEqual([
+      "min-height: $phone-list-row;",
+    ]);
+    expect(block(row, ".icon").body).toMatch(/height:\s*\$phone-list-glyph;/);
+    // 8px, not 4: with 4 each plate's 3px offset shadow touched the next frame.
+    expect(ownDeclarations(row)).toMatch(/margin-top:\s*\$small;/);
+  });
+
+  it("keeps About's gap, which the phone's row margin would otherwise outrank", () => {
+    // About has no caption; the gap is its whole separation (see above).
+    expect(ownDeclarations(block(row, "&.about").body)).toMatch(/margin-top:\s*1\.25rem;/);
+  });
+
+  it("sizes the close button in the same lane from it", () => {
+    const close = block(phone, "> .close").body;
+    expect(close, "phone close rule not found").not.toBe("");
+    expect(ownDeclarations(close)).toMatch(/width:\s*\$phone-list-row;/);
+    expect(ownDeclarations(close)).toMatch(/height:\s*\$phone-list-row;/);
   });
 });

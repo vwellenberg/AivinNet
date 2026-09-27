@@ -34,7 +34,7 @@
                     >
                         <Avatar :size="24" :name="auth.user.username || ''" v-if="item.title === 'Profile'" />
                         <span class="icon" v-html="item.icon" v-else></span>
-                        <span>
+                        <span class="label">
                             {{ item.title }}
                         </span>
                     </button>
@@ -155,11 +155,30 @@ defineEmits<{
         }
 
         svg {
+            display: block;
             width: $bar-glyph;
+            height: $bar-glyph;
         }
 
+        // `content-box`: the cover's 2px padding goes AROUND the glyph box.
+        // Under the global border-box it went INSIDE the 24px height, left
+        // 20px for a 24px glyph, and the glyph overflowed downwards — measured
+        // 2px below the row's centre on every entry, which made the label
+        // next to it read as sitting too high.
         .icon {
+            box-sizing: content-box;
+            width: $bar-glyph;
             height: $bar-glyph;
+            display: grid;
+            place-items: center;
+            flex: none;
+        }
+
+        // Space Grotesk's cap band sits 0.5px above its line box's centre.
+        // One more pixel on top than below puts the capitals on the plate's
+        // middle.
+        .label {
+            padding-top: 3px;
         }
 
         // Pointer-gated at the source (#457) — a latched tap would leave one
