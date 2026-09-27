@@ -10,7 +10,14 @@ import { content_width, isMobile } from '../content-width'
 import { getLastFmApiSig } from '@/context_menus/hashing'
 import useAxios from '@/requests/useAxios'
 import { router, Routes } from '@/router'
-import { themeForNow } from '@/utils/autoTheme'
+import {
+    DARK_FROM_HOUR,
+    DEVICE_TIME_ZONE,
+    LIGHT_FROM_HOUR,
+    normalizeHour,
+    normalizeTimeZoneSetting,
+    themeForNow,
+} from '@/utils/autoTheme'
 import { normalizeLook, type Look } from '@/utils/theme'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
@@ -80,11 +87,16 @@ export default defineStore('settings', {
         // Mode: 'light' = grid paper, 'dark' = the near-black ground.
         theme: <'light' | 'dark'>'light',
         /**
-         * Pick the theme from the time of day in Berlin: light 08:00–19:59,
-         * dark otherwise. Evaluated on app start and re-checked while the app
-         * stays open (see App.vue). Toggling the theme by hand switches this off.
+         * Pick the theme from the time of day: light from `auto_theme_light_from`
+         * to `auto_theme_dark_from`, dark otherwise, read in `auto_theme_zone`.
+         * Evaluated on app start and re-checked while the app stays open (see
+         * App.vue). Toggling the theme by hand switches this off.
          */
         auto_theme: false,
+        /** IANA zone the schedule is read in, or 'device' for the browser's own. */
+        auto_theme_zone: <string>DEVICE_TIME_ZONE,
+        auto_theme_light_from: LIGHT_FROM_HOUR,
+        auto_theme_dark_from: DARK_FROM_HOUR,
         /**
          * Cover-tinted veil over the grid ground on the detail pages (album,
          * artist, playlist). Off leaves the bare grid paper. Read centrally in
@@ -152,11 +164,29 @@ export default defineStore('settings', {
 
             if (this.auto_theme) this.applyAutoTheme()
         },
-        /** Set the theme from the current Berlin time (no-op unless auto is on). */
+        /** Set the theme from the current time (no-op unless auto is on). */
         applyAutoTheme() {
             if (!this.auto_theme) return
 
-            this.theme = themeForNow()
+            this.theme = themeForNow(new Date(), {
+                timeZone: this.auto_theme_zone,
+                lightFrom: this.auto_theme_light_from,
+                darkFrom: this.auto_theme_dark_from,
+            })
+        },
+        // The schedule setters re-apply at once: waiting for the next 5-minute
+        // check would make a changed hour look like it did nothing.
+        setAutoThemeZone(zone: string) {
+            this.auto_theme_zone = normalizeTimeZoneSetting(zone)
+            this.applyAutoTheme()
+        },
+        setAutoThemeLightFrom(hour: number) {
+            this.auto_theme_light_from = normalizeHour(hour, LIGHT_FROM_HOUR)
+            this.applyAutoTheme()
+        },
+        setAutoThemeDarkFrom(hour: number) {
+            this.auto_theme_dark_from = normalizeHour(hour, DARK_FROM_HOUR)
+            this.applyAutoTheme()
         },
         togglePageGradient() {
             this.use_page_gradient = !this.use_page_gradient
@@ -475,6 +505,12 @@ export default defineStore('settings', {
             // A look this build does not know (stored by a newer one, or one
             // that was removed) would leave the body with no look class at all.
             store.look = normalizeLook(store.look)
+
+            // Hand-edited or corrupted storage must not leave the schedule on
+            // NaN, which would compare false everywhere and pin the app to dark.
+            store.auto_theme_light_from = normalizeHour(store.auto_theme_light_from, LIGHT_FROM_HOUR)
+            store.auto_theme_dark_from = normalizeHour(store.auto_theme_dark_from, DARK_FROM_HOUR)
+            store.auto_theme_zone = normalizeTimeZoneSetting(store.auto_theme_zone)
 
             // reset plugin settings
             store.use_lyrics_plugin = false
