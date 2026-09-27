@@ -246,7 +246,7 @@ describe('sync calibration — with the microphone', () => {
 
     it('closing the panel during the microphone prompt ends it all — no recording, no clicks', async () => {
         let grant: (capture: any) => void = () => {}
-        micModule.startMicCapture.mockImplementation(() => new Promise(resolve => (grant = resolve)))
+        micModule.startMicCapture.mockImplementation((() => new Promise(resolve => (grant = resolve))) as any)
         const cal = useSyncCalibration()
         const starting = cal.start()
         cal.cancel() // the panel closes while the browser still asks
