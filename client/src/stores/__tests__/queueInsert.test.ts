@@ -315,6 +315,63 @@ describe('tracklist.shuffleList: the bookkeeping cannot survive a reshuffle', ()
     })
 })
 
+// ---------------------------------------------------------------------------
+// Replacing the queue: `setFromX` + `play(i)`.
+//
+// Every caller swaps the list FIRST and sets the new index after. A roll inside
+// the swap pushed the index of the OLD list into the history it had just
+// emptied — and under shuffle `previndex` reads that history, so Previous
+// jumped to a row of the new list that never played.
+// ---------------------------------------------------------------------------
+describe('tracklist.setNewList: a new queue starts a new shuffle history', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        clearNextAudio.mockClear()
+        useTracklist().tracklist = Array.from({ length: 6 }, (_, i) => track(i))
+    })
+
+    // The old index (3) and the new start (0) deliberately differ. Replacing
+    // from index 0 and starting on 0 dedupes the stale entry into a history
+    // that looks exactly like a clean reset.
+    it('does not carry the old current index into the new history', () => {
+        const queue = useQueue()
+        const tracklist = useTracklist()
+
+        useSettings().shuffle = true
+        queue.currentindex = 3
+        queue.shuffleRecent = [1, 5, 3]
+        queue.shuffleNextIndex = 2
+
+        const album = Array.from({ length: 6 }, (_, i) => track(10 + i))
+        tracklist.setFromAlbum('X', 'albumhash', album)
+        queue.play(0)
+
+        // Only what played in THIS list: its first row, just started.
+        expect(queue.shuffleRecent).toEqual([0])
+        // Nothing played before it here, so Previous is the row above,
+        // wrapping. The stale entry made it row 3 — a track that never played.
+        expect(queue.previndex).toBe(5)
+    })
+
+    // The header "Play" under shuffle — where the bug hit EVERY time: the
+    // random entry never equals the old index, so nothing dedupes it away.
+    it('does the same when the new queue is entered at random (playSource)', () => {
+        const queue = useQueue()
+        const tracklist = useTracklist()
+
+        useSettings().shuffle = true
+        queue.currentindex = 3
+        queue.shuffleRecent = [1, 5, 3]
+        queue.shuffleNextIndex = 2
+
+        tracklist.setFromAlbum('X', 'albumhash', Array.from({ length: 6 }, (_, i) => track(10 + i)))
+        queue.playSource()
+
+        // Wherever it entered, that row is the whole history of this queue.
+        expect(queue.shuffleRecent).toEqual([queue.currentindex])
+    })
+})
+
 describe('tracklist.removeByIndex: the shuffle bookkeeping follows', () => {
     beforeEach(() => {
         setActivePinia(createPinia())

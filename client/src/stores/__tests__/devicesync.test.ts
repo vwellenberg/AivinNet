@@ -431,6 +431,98 @@ describe('devicesync store', () => {
         expect(queue.nextindex).not.toBe(1)
     })
 
+    // A joined device mirroring `hashes` at `index`, with permanent shuffle on.
+    async function joinShuffling(hashes: string[], index: number) {
+        const { useDeviceSync, useTracklist, useQueue } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+
+        requestsMock.resolveTracks.mockResolvedValueOnce(hashes.map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({ version: 1, joined: true, state: mkState({ trackhashes: hashes, currentindex: index }) })
+        )
+        await ds.poll()
+
+        const queue = useQueue()
+        queue.toggleShuffle()
+
+        return { ds, queue, tracklist: useTracklist() }
+    }
+
+    // The mirror swaps the list (`setNewList`) BEFORE it writes the new index.
+    // A roll inside the swap pushed the index of the OLD queue into the history
+    // it had just emptied — and under shuffle the group's Previous reads it.
+    it('a replaced group queue starts its own shuffle history — Previous stays inside it', async () => {
+        const { ds, queue } = await joinShuffling(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], 3)
+
+        // Someone starts an album for the whole group, on its first row. The
+        // group's Shuffle is the same case from here: a new list, a new index.
+        const album = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6']
+        requestsMock.resolveTracks.mockResolvedValueOnce(album.map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({ version: 2, joined: true, state: mkState({ queue_id: 'q2', trackhashes: album, currentindex: 0 }) })
+        )
+        await ds.poll()
+
+        expect(queue.shuffleRecent).toEqual([0])
+
+        queue.playPrev()
+
+        // Nothing played before a1 in this queue, so Previous is the row above
+        // it, wrapping. The stale entry sent every device to row 3 — a4, a
+        // track that never played.
+        expect(requestsMock.sendCommand).toHaveBeenLastCalledWith(
+            expect.objectContaining({ type: 'track_change', payload: { index: 5, position_ms: 0, playing: true } })
+        )
+    })
+
+    // The other half of not rolling inside the swap: the mirror has to roll
+    // for the new queue itself — also when the index NUMBER does not move.
+    // Without a target `nextindex` falls back to the row below, and the
+    // leader's auto-advance (`indexAfterEnd`) walks the new queue in order.
+    it('a replaced group queue gets a shuffle target even when the index stays put', async () => {
+        const before = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        const { ds, queue } = await joinShuffling(before, 2)
+
+        // Someone adds a track while listening: a new list, the same row playing.
+        const edited = [...before, 'h7']
+        requestsMock.resolveTracks.mockResolvedValueOnce(edited.map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({ version: 2, joined: true, state: mkState({ queue_id: 'q2', trackhashes: edited, currentindex: 2 }) })
+        )
+        await ds.poll()
+
+        expect(queue.currentindex).toBe(2)
+        // Rolled FROM the row playing now — the history holds it, and only it.
+        expect(queue.shuffleRecent).toEqual([2])
+        // Which row the roll picks is random; that it rolled a real one is not.
+        expect(queue.shuffleNextIndex).not.toBeNull()
+        expect(queue.shuffleNextIndex).not.toBe(2)
+        expect(queue.shuffleNextIndex as number).toBeLessThan(edited.length)
+    })
+
+    // A swap does not always reach the mirror. `setFromX` while joined swaps
+    // the LOCAL list before `play(i)` sends anything; when that is the list the
+    // group already plays, `play` sends a plain track_change — and when it
+    // lands on the row already playing, the state comes back with the same
+    // queue id AND the same index. The swap cleared the bookkeeping all the same.
+    it('replaying the group queue on its playing row still leaves a shuffle target', async () => {
+        const before = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+        const { ds, queue, tracklist } = await joinShuffling(before, 2)
+
+        // Clicking the playing row in the view of the album the group plays.
+        tracklist.setFromAlbum('A', 'albumhash', before.map(mkTrack))
+        requestsMock.pollSession.mockResolvedValueOnce(
+            mkPoll({ version: 2, joined: true, state: mkState({ trackhashes: before, currentindex: 2 }) })
+        )
+        await ds.poll()
+
+        expect(queue.shuffleRecent).toEqual([2])
+        expect(queue.shuffleNextIndex).not.toBeNull()
+        expect(queue.shuffleNextIndex).not.toBe(2)
+    })
+
     it('poll failures escalate to reconnecting then dissolve to solo (joined=false)', async () => {
         const { useDeviceSync } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')

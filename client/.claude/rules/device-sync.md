@@ -103,6 +103,15 @@ sequentielle Zeile zurück — die Gruppe würde nach dem ersten Sprung wieder d
 Neu gewürfelt wird **nur bei echter Änderung**: der Poll läuft jede Sekunde, und ein Wurf pro Tick
 machte `nextindex` zum wandernden Ziel.
 
+⚠️ **Ein Listentausch ist auch eine echte Änderung — selbst wenn die Index-ZAHL bleibt.**
+`setNewList` räumt die Shuffle-Buchhaltung nur ab und würfelt **nicht**: Es kennt den neuen Index
+noch nicht, und mit dem alten gewürfelt landete dessen Zahl in der Historie — Zurück schickte die
+ganze Gruppe auf eine Zeile der neuen Queue, die nie lief. Also würfelt `commit`, sobald der Index
+sich bewegt **oder kein Ziel da ist**. Bewusst nicht „sobald `tracks` kam": Ein lokales `setFromX`
+mit genau der Liste, die die Gruppe schon spielt, räumt ebenfalls ab, kommt aber ohne neue
+Queue-ID und — beim Klick auf die laufende Zeile — ohne neuen Index zurück. Das fehlende Ziel ist
+die einzige Spur, die beide Tauschwege hinterlassen.
+
 ⚠️ **`shuffle` ist — anders als `repeat` — KEIN geteilter Zustand.** Es gibt kein Feld dafür im
 Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader beim Ausspielen, der
 Drückende beim manuellen „Next"). Wer das ändern will, braucht ein Feld im Backend-State, nicht

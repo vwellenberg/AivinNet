@@ -657,14 +657,26 @@ export default defineStore('devicesync', {
                 }
 
                 const queue = useQueue()
-                // A mirrored index move IS a track change for this device, so the
-                // shuffle target has to be rolled again — otherwise it still points
-                // at the track that just started. Only on an actual change: the
-                // poll runs every second and re-rolling on every tick would make
-                // `nextindex` a moving target.
+                // The shuffle target is rolled here, by whoever writes the index,
+                // and only on an actual change: the poll runs every second, and
+                // re-rolling on every tick would make `nextindex` a moving target.
+                // Two changes need it:
+                //
+                // - The index moved. A mirrored move IS a track change for this
+                //   device; without a roll the target still points at the track
+                //   that just started.
+                // - The list was swapped. `setNewList` clears the bookkeeping and
+                //   does NOT roll — the index it would roll from is only written
+                //   here. Its trace is the missing target, which also catches the
+                //   swap this commit never sees: `setFromX` while joined swaps the
+                //   LOCAL list, and when the group already plays that list, the
+                //   answer carries neither a new queue id nor a new index. Without
+                //   the roll `nextindex` falls back to the row below, and the
+                //   leader's auto-advance walks the queue in order.
                 const indexMoved = queue.currentindex !== state.currentindex
                 queue.currentindex = state.currentindex
-                if (indexMoved) queue.rollShuffleNext()
+                const unrolled = useSettings().shuffle && queue.shuffleNextIndex === null
+                if (indexMoved || unrolled) queue.rollShuffleNext()
 
                 // Direct state write, not toggleRepeatMode() — mirroring must not
                 // re-broadcast as a set_repeat command.
