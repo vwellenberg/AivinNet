@@ -627,9 +627,13 @@ ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht 
 dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
 schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
 
-## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis, Stream (#199), Desktop 98 (#241), Virtual Grid (#259)
+## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis und Stream (#199)
 
-**Look** (Formsprache: Memphis, Stream, Desktop 98, Virtual Grid) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
+**Stream heißt in der Oberfläche „Boring"** (2026-09-27, Wunsch des Nutzers). Nur der Anzeigename:
+gespeicherter Wert, Body-Klasse (`theme-stream`), Datei und Code heißen weiter `stream` — ein
+Umbenennen dort bräuchte eine Migration gespeicherter Einstellungen und brächte nichts.
+
+**Look** (Formsprache: Memphis, Stream) und **Modus** (hell, dunkel, Auto) sind zwei Einstellungen,
 keine Liste. Eine Liste „Memphis / Memphis Dark / Stream" mischt ein Design mit einer Helligkeit
 und bricht beim ersten Look, der ebenfalls beide Modi hat. Modell und Body-Klassen:
 `utils/theme.ts` (`themeBodyClasses(look, mode)`); gespeichert als `look` + das alte `theme`-Feld
@@ -678,87 +682,40 @@ Drei Stellen, an denen es beim Bauen gehakt hat:
 - **Ein Inline-Style löst `var()` ganz normal auf.** Die Seek-Leiste baut ihren Hintergrund in JS
   (`Progress.vue`); die Farben stehen dort als `var(--look-track-*, <hex>)` im String.
 
-### Desktop 98 (#241) — was beim dritten Look gelernt wurde
+### Geparkte Looks: Desktop 98 (#241) und Virtual Grid (#259)
 
-Graue Fenster mit 3D-Kante auf Desktop-Blau, Titelleisten als Überschriften, Navy als Auswahl.
-**Nur hell**, gebaut auf den hellen Klassen: `body.theme-desktop98:not(.theme-dark)`. Das `:not`
-ist keine Deko — `body.use-figtree-font` und `body.theme-dark` stehen in `Global/index.scss`
-**später** bei gleicher Spezifität und hätten sonst Schrift bzw. Farben zurückgeholt.
-`utils/theme.ts::fixedMode()` sagt pro Look, welcher Modus fest ist.
+Beide waren fertig, gemessen und live — und wurden am 2026-09-27 auf Wunsch wieder aus `master`
+genommen („schlank halten"). **Vollständig gesichert** im Tag **`retro-looks-2026-09-27`** (plus
+Branch `archive/retro-looks`, derselbe Commit). Dort stehen auch die ausführlichen Abschnitte
+dieser Datei zu beiden Looks.
 
-- **Die 3D-Kante malt der Browser.** `border-style: outset` in Weiß ergibt oben/links hell,
-  unten/rechts grau — gemessen an Chrome, fast die Windows-Kante. Dafür sind Farbe **und Stil** des
-  Plattenrahmens Tokens: `$mem-frame` = `var(--shape-frame, $mem-line)`, `$mem-frame-style` =
-  `var(--shape-frame-style, solid)`, `$candy-border` ist aus beiden gebaut. Die schwarze Außenkante
-  unten/rechts ist der Ruhe-Schatten (`--shape-shadow: 1px 1px 0 …`). Breite bleibt Sass-Konstante.
-- **⚠️ Rahmenfarbe ≠ `--mem-line`.** `--mem-line` färbt auch Glyphen, Ringe, Haarlinien und den
-  Fokus-Ring. Auf Weiß gesetzt, wären die unsichtbar geworden (Fokus weiß auf weißer Liste). Also:
-  **Plattenrahmen** nehmen `$mem-frame`/`$mem-frame-style`, **Tintenlinien** bleiben bei `$mem-line`.
-  Wer einen Rahmen von Hand schreibt (`$candy-border-w solid $mem-line`), prüft, welches von beiden
-  gemeint ist — die Seitenleisten-Platten und `btn-action` waren Rahmen und standen schwarz da.
-- **Eine Überschrift mit eigener Füllung nimmt `mem-sticker(…, $fill: …)`.** Die Titelleiste
-  (`--look-sticker-image`) würde sonst über eine feste Pastellfläche (Genre-Chip, Now-Playing-Marke)
-  gemalt. Überschriften, die ihre Textfarbe selbst setzen, schreiben
-  `var(--look-sticker-text, <alte Farbe>)` — sonst Weiß-auf-Blau verloren.
-- **Eine Custom Property kann nicht auf sich selbst zurückfallen.** `--row-fill:
-  var(--look-active-fill, var(--row-fill))` ist ein Zyklus und damit ungültig. Die Ruhe-Füllung
-  steht deshalb zusätzlich als `--row-fill-rest` (`mem-row-plate-tint`); `mem-row-marker` fällt
-  darauf zurück. Ohne das behielt das Label-Cover die graue Ruhe-Tönung in der Navy-Auswahl.
-- **Der Windows-Verlauf besteht keinen Kontrast.** Weiß auf `#1084d0` (Titelleisten-Ende von 98)
-  misst 4,0:1; das Ende ist `#0e6fb4` (5,3:1). Der Grund ist einfarbig `#4a86da` — ein
-  Verlauf in der Bildebene (feste 3840×1600, `mem-grid`) zeigte auf höheren Bildschirmen eine
-  Naht —, damit Text direkt auf dem Grund 4,5:1 hält.
-- **Ein Look mit DUNKLER Laufend-Füllung deckt jedes festgenagelte Tinte-Stück auf.** Memphis'
-  laufende Zeile ist gelb, also stand an mehreren Stellen einfach `$mem-ink` — der Titel
-  (`.title.is-current`) und das „…" der Zeile verschwanden auf Navy. Alles auf einer gefüllten
-  Zeile nimmt `--look-filled-text`. Und ein Glyph in `currentColor` erreicht man über `color`,
-  nicht über `stroke` — die alte `stroke`-Regel am „…" hatte nie gewirkt.
-- **Keine Schrift von Google-Servern.** Die Pixelschrift der Überschriften (Pixelify Sans, OFL)
-  liegt wie Figtree als `woff2` im Repo (`assets/fonts`, Lizenz daneben, `shippedFonts.test.ts`),
-  auf dieselben zwei Zeichenbereiche zugeschnitten; der Fließtext bleibt Tahoma/Verdana. Ein
-  Browser lädt eine `@font-face` erst, wenn ein Element sie benutzt — Memphis und Stream holen die
-  Datei also nie (gemessen: 0 Requests).
+**Zurückholen** — die Tokens sind in `master` geblieben (mit Memphis-Fallback), also nur:
+`Global/_theme-<look>.scss` + Import in `Global/index.scss`; die Schriften aus `assets/fonts`
+samt Lizenz, `@font-face` in `index.scss` und Eintrag in `shippedFonts.test.ts`; der Look in
+`utils/theme.ts` (`Look`, `LOOKS`, `fixedMode`, Body-Klasse) und `settings/general/theme.ts`;
+Selektor-Zeile in `shapeTokens.test.ts`. Alles aus dem Tag holen:
+`git checkout retro-looks-2026-09-27 -- <pfad>`. Danach dieselben Beweise wie damals
+(`~/uitest/regressvg.js`, `vgcheck.js`).
 
-Beweis beim Bau: Memphis hell/dunkel und Stream pixelgenau master gegen Branch
-(`~/uitest/regress98.js` + `imgdiff.py`; Rauschen master gegen master: 5–50 px auf denselben
-Seiten), Kontrast jedes sichtbaren Texts auf sechs Seiten (`~/uitest/contrast98.js`).
+Was aus beiden Looks **für jeden künftigen Look** gilt:
 
-### Virtual Grid (#259) — der vierte Look
-
-Dunkles Glas über einem Neon-Gitter, Himmel Indigo → Pflaume, Cyan für Play/Fortschritt, Magenta
-für „dieser hier". **Nur dunkel**, gebaut wie Stream auf den dunklen Klassen:
-`body.theme-dark.theme-virtualgrid`. Überschriften in VT323, Fließtext IBM Plex Sans (beide OFL,
-selbst gehostet, nur unter diesem Look geladen).
-
-- **Mehrere Bilder im Grund: Größe als Liste.** `--shape-doodles` darf eine *Liste* sein
-  (Scanlines, Gitter, Himmel); `--shape-doodles-size` nennt dann eine Größe pro Bild. Beide
-  Properties expandieren an Ort und Stelle, die Listen bleiben deckungsgleich. Das Gitter liegt
-  **in** dieser Liste, nicht in `--mem-grid-line`: Memphis' Gitterebenen liegen *unter* dem
-  Bild-Slot, ein deckender Himmel verdeckte sie. Der Himmel ist `100% 100%` groß (kein Naht-Problem
-  wie bei fester 3840×1600-Kachel).
-- **Der Horizont ist Pflaume, nicht Pink/Pfirsich wie im Prototyp.** Ein paar Labels stehen direkt
-  auf dem Grund; Weiß und das gedämpfte `#e2daff` müssen am hellsten Punkt 4,5:1 halten (das
-  Prototyp-`#cfc6ff` fiel dort darunter).
-- **Scanlines im Grund, nicht über der App.** Über dem Inhalt streifen sie jedes Wort; unter
-  78-%-Glas lesen sie sich als Textur. Statisch — für reduzierte Bewegung gibt es nichts
-  abzuschalten.
-- **Eine Anzeigeschrift mit kleiner x-Höhe liest eine Nummer kleiner.** VT323 hat x-Höhe 0,40,
-  Plex 0,52 — bei gleicher `font-size` wurden Captions zu Krümeln. `--look-display-adjust` setzt
-  `font-size-adjust` überall, wo `--look-display-font` gilt (Sticker, Detail-Titel). Wer die
-  Anzeigeschrift lokal abwählt (`font-family: inherit` bei Mini-Labels wie „See all", „Disc 1",
-  den Band-Captions), nimmt dafür `@include body-face` — der Mixin setzt beide Hälften. Das
-  „Disc 1"-Label wechselte dabei auch unter Desktop 98 auf die Fließtextschrift (gewollt, gleiche
-  Begründung wie „See all").
-- **Ein breites Auswahlfeld quetscht die Beschreibung.** Die Einstellungszeile war ein starres
-  `1fr max-content`-Raster; mit vier Looks blieb dem Text eine Ein-Wort-Spalte. Zeilen mit
-  Auswahlfeld (`.has-select`) brechen jetzt um: nebeneinander, solange es passt, sonst darunter.
-
-Beweis beim Bau: die vier übrigen Looks master gegen Branch, **inklusive jeder Seite des
-Einstellungsdialogs** (`~/uitest/regressvg.js`) — pixelgleich bis auf die gewollten Stellen
-(Appearance-Seite: umbrechende Theme-Zeile; Desktop 98: „Disc 1") und Live-Daten (Stats-Zähler,
-Pairing-URL mit anderem Port); Kontrast mit **zusammengesetzten**
-Glas-Hintergründen über jedem Himmels-Stopp (`~/uitest/vgcheck.js`) — `contrast98.js` ignoriert
-durchscheinende Flächen und ist für einen Glas-Look zu grob.
+- **Rahmenfarbe ≠ `--mem-line`.** `--mem-line` färbt auch Glyphen, Ringe und den Fokus-Ring.
+  Plattenrahmen nehmen `$mem-frame`/`$mem-frame-style` (Tokens `--shape-frame`/`-frame-style`),
+  Tintenlinien bleiben bei `$mem-line`. Wer einen Rahmen von Hand schreibt, prüft, welches gemeint ist.
+- **Eine Custom Property kann nicht auf sich selbst zurückfallen** — deshalb `--row-fill-rest`
+  neben `--row-fill` (`mem-row-plate-tint` / `mem-row-marker`).
+- **Eine gefüllte Zeile darf keine Tinte festnageln.** Titel und „…" auf einer gefüllten Zeile
+  nehmen `--look-filled-text` bzw. erben die Zeilenfarbe; ein Glyph in `currentColor` erreicht
+  man über `color`, nicht `stroke`.
+- **Überschriften mit eigener Füllung nehmen `mem-sticker(…, $fill: …)`**, sonst malt eine
+  Look-Füllung darüber. Mini-Labels verlassen eine Anzeigeschrift mit `@include body-face`
+  (Familie **und** `font-size-adjust`).
+- **Ein Verlauf im Grund braucht eine Größe pro Bild** (`--shape-doodles` als Liste,
+  `--shape-doodles-size`); in einer festen 3840×1600-Kachel zeigt er eine Naht.
+- **Schriften nur selbst gehostet**, zugeschnitten auf `$font-range-latin`/`-ext`; ein Browser
+  lädt eine `@font-face` erst, wenn ein Element sie benutzt.
+- **Kontrast auf Glas** misst man zusammengesetzt über jedem Stopp des Grunds, nicht gegen die
+  erste deckende Fläche.
 
 ## ⚠️ Hard-Shadow-System
 

@@ -230,6 +230,12 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --look-display-adjust           `font-size-adjust` for that face (a small-x-height
 //                                   face reads a size smaller than the body text)
 //   --shape-frame · -frame-style    the plate frame's colour and border style
+//
+// Everything from `--look-sticker-image` on was cut for Desktop 98 (#241) and
+// Virtual Grid (#259), a few of the earlier ones were widened for them. Both
+// looks are parked in the tag `retro-looks-2026-09-27`; their tokens stay here
+// with Memphis fallbacks, so bringing one back is its look file, its fonts and
+// a list entry (.claude/rules/styling.md, "Geparkte Looks").
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
   @return var(#{$token}, #{$x} #{$y} 0 var(--mem-shadow));
