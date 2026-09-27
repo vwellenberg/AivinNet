@@ -68,10 +68,21 @@ export default defineStore('tracklist', {
             usePlayer().clearNextAudio()
 
             // Shuffle history and the pre-rolled target are indices into the OLD
-            // list — meaningless now. Reset before the next roll.
+            // list — meaningless now.
+            //
+            // ⚠️ Clear, do NOT roll — the same trap as in `shuffleList`.
+            // `rollShuffleNext` starts by pushing `currentindex` into the
+            // history, and here that is still the index into the OLD list:
+            // every caller swaps the list first and writes the new index after
+            // (`setFromX` + `play(i)`, the group mirror's `commit`). Rolling here
+            // put that stale number straight back into the history just
+            // emptied, and Previous — which reads the history under shuffle —
+            // jumped to a row of the new list that never played. The roll
+            // belongs to whoever writes the new index: `play` does, and so does
+            // `commit` in devicesync.ts.
             const queue = useQueue()
             queue.shuffleRecent = []
-            queue.rollShuffleNext()
+            queue.shuffleNextIndex = null
         },
         setFromFolder(path: string, tracks: Track[]) {
             // remove trailing slash

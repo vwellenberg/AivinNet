@@ -105,8 +105,9 @@ unterscheiden sich für Auf- und Abwärts-Move wegen der `to > from ? to - 1 : t
 `queue.nextindex` speist auch den Next-Track-Audio-Preload und im Gruppenmodus den
 `track_change`-Broadcast — ein `Math.random()` im Getter liefert bei jedem Lesezugriff einen
 anderen Track. Muster: in einer **Action** würfeln (`rollShuffleNext`), Ergebnis in den State
-(`shuffleNextIndex`), der Getter liest nur. Neu würfeln bei Track-Wechsel, Queue-Ersetzung
-(`tracklist.setNewList`) und Toggle.
+(`shuffleNextIndex`), der Getter liest nur. Neu würfeln bei Track-Wechsel, Queue-Ersetzung und
+Toggle — bei der Ersetzung aber erst, **wenn der neue Index steht** (`setNewList` räumt nur ab,
+siehe unten).
 
 ## ⚠️ Shuffle merkt sich INDIZES — jede Queue-Mutation muss sie mitziehen (#450)
 
@@ -139,6 +140,16 @@ Drei Fallen, alle im Review gefunden, nachdem der erste Fix „fertig" aussah:
   `currentindex` in die Historie — und der ist dort noch der **Vor-Shuffle**-Index. Rollen würde
   die eben geleerte Liste sofort wieder verschmutzen. `shuffleQueue` setzt danach `currentindex = 0`
   und `play()` würfelt korrekt.
+
+**Dieselbe Falle steckte in `setNewList`** — dort nicht im Review gefunden, sondern erst per Probe
+(2026-09-27). Jeder Aufrufer tauscht erst die Liste und schreibt danach den Index (`setFromX` +
+`play(i)`, der Gruppen-Spiegel `commit`), gewürfelt wurde aber schon im Tausch: Nach einem neuen
+Album hieß die Historie `[alter Index, neuer Index]`, und Zurück sprang — solo wie in der ganzen
+Gruppe — auf eine Zeile der neuen Liste, die nie lief. Jetzt räumt `setNewList` nur ab; gewürfelt
+wird, wo der neue Index geschrieben wird: `play()` tut es ohnehin, für den Spiegel siehe
+`device-sync.md` („Zufallswiedergabe in der Gruppe"). **Testfälle mit verschiedenem altem und
+neuem Index bauen:** Wer von Index 0 tauscht und auf 0 startet, sieht den Fehler nicht —
+`pushRecent` dedupliziert den falschen Eintrag weg.
 
 Die **Reihenfolge** des einmaligen Mischens bestimmt `utils/shufflePicker.ts::shuffleAvoidingFront`
 (laufender Song nie auf Platz 1) — solo wie im Gruppen-Seam `intercept('shuffleQueue')`. Wer die

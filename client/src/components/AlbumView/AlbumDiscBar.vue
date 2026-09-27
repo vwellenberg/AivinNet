@@ -45,6 +45,9 @@ defineEmits<{
         font-size: $medium;
         font-weight: 700;
         color: var(--look-sticker-text, #{$candy-text-muted});
+        // A 12px label, not a heading: a look's display face (pixel or
+        // terminal type, #241 #259) turns it into specks at this size.
+        @include body-face;
         display: flex;
     }
 

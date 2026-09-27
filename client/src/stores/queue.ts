@@ -113,7 +113,10 @@ export default defineStore('Queue', {
         },
         /**
          * Roll the next shuffle target (no-op unless permanent shuffle is on).
-         * Call this whenever the current track or the tracklist changes.
+         * Call this whenever the current track changes — AFTER `currentindex`
+         * names it, because the roll records `currentindex` as played. That is
+         * why a swapped tracklist is cleared rather than rolled (`setNewList`)
+         * and rolled by whoever writes its index: `play`, the group mirror.
          */
         rollShuffleNext() {
             const settings = useSettings()

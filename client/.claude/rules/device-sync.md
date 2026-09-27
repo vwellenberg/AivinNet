@@ -103,6 +103,15 @@ sequentielle Zeile zurück — die Gruppe würde nach dem ersten Sprung wieder d
 Neu gewürfelt wird **nur bei echter Änderung**: der Poll läuft jede Sekunde, und ein Wurf pro Tick
 machte `nextindex` zum wandernden Ziel.
 
+⚠️ **Ein Listentausch ist auch eine echte Änderung — selbst wenn die Index-ZAHL bleibt.**
+`setNewList` räumt die Shuffle-Buchhaltung nur ab und würfelt **nicht**: Es kennt den neuen Index
+noch nicht, und mit dem alten gewürfelt landete dessen Zahl in der Historie — Zurück schickte die
+ganze Gruppe auf eine Zeile der neuen Queue, die nie lief. Also würfelt `commit`, sobald der Index
+sich bewegt **oder kein Ziel da ist**. Bewusst nicht „sobald `tracks` kam": Ein lokales `setFromX`
+mit genau der Liste, die die Gruppe schon spielt, räumt ebenfalls ab, kommt aber ohne neue
+Queue-ID und — beim Klick auf die laufende Zeile — ohne neuen Index zurück. Das fehlende Ziel ist
+die einzige Spur, die beide Tauschwege hinterlassen.
+
 ⚠️ **Eine Regel, ein Ort — der Seam delegiert, er kopiert nicht.** Das einmalige Mischen der
 Queue (`queue.shuffleQueue`) läuft solo **und** in der Gruppe durch
 `utils/shufflePicker.ts::shuffleAvoidingFront`: Danach startet Index 0, also darf der laufende
@@ -113,13 +122,8 @@ Geräten bei 0:00 neu. Nachgeschärft wurde nur der Solo-Pfad, und die Kopie im 
 auf. Wer eine Solo-Regel ändert, sucht ihr Gegenstück im `intercept`; gemeinsame Logik gehört in
 einen reinen Helfer, den beide aufrufen. Wächter: der Paritätstest in `devicesync.test.ts`
 (gleiche Würfel → gleiche Reihenfolge). Die nächste Kopie dieser Art steht noch im
-`removeTracks`-Seam (#264).
-
-Zwei Einschränkungen, Stand 2026-09-27: Die Aktion hat **keinen Knopf** — er ging mit dem alten
-Queue-Panel (AivinNet-Client#524), prüfen lässt sie sich also nur über die Tests (#265). Und
-gleich ist nur die **Reihenfolge**: Der Mirror übernimmt die neue Queue über `setNewList`, das den
-alten Index in die Shuffle-Historie legt — „Zurück" landet danach auf einer nie gespielten Zeile
-(#263, trifft genauso jedes „Play" auf eine neue Quelle).
+`removeTracks`-Seam (#264). Stand 2026-09-27 hat die Aktion **keinen Knopf** — er ging mit dem
+alten Queue-Panel (AivinNet-Client#524); prüfen lässt sie sich also nur über die Tests (#265).
 
 ⚠️ **`shuffle` ist — anders als `repeat` — KEIN geteilter Zustand.** Es gibt kein Feld dafür im
 Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader beim Ausspielen, der
