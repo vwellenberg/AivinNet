@@ -50,6 +50,8 @@ export interface CalibrationRow {
     status: RowStatus
     /** Arrival behind the reported sound time (ms) — plus a constant shared by all rows. */
     latencyMs: number | null
+    /** The same per click, null where nothing clear was heard (how well the clicks agree). */
+    offsetsMs: (number | null)[]
     /** The trim the device has now (ms). */
     currentTrim: number
     /** The trim the measurement suggests (ms); null when the device was not measured. */
@@ -108,6 +110,7 @@ function rowFor(device: DeviceSummary): CalibrationRow {
         self,
         status: 'waiting',
         latencyMs: null,
+        offsetsMs: [],
         currentTrim: self ? ds.audioOffsetMs : Math.round(device.trim_ms ?? 0),
         suggestedTrim: null,
         reference: false,
@@ -257,7 +260,9 @@ export default defineStore('syncCalibration', {
                 } else if (report.error) {
                     row.status = REPORT_ERRORS[report.error] ?? 'failed'
                 } else {
-                    row.latencyMs = measureClicks(recording, report.sounded_ms ?? []).latencyMs
+                    const measured = measureClicks(recording, report.sounded_ms ?? [])
+                    row.offsetsMs = measured.offsetsMs
+                    row.latencyMs = measured.latencyMs
                     row.status = row.latencyMs === null ? 'unclear' : 'heard'
                 }
             }
