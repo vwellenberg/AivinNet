@@ -439,11 +439,14 @@ export default defineStore('devicesync', {
             this.registered = true
         },
         /** Register again, same identity, once the server has forgotten this device. */
-        reannounce() {
+        async reannounce() {
             const now = Date.now()
             if (now < reannounceSuppressUntil) return
             reannounceSuppressUntil = now + REANNOUNCE_COOLDOWN_MS
-            void registerDevice(this.deviceId, this.deviceName, this.deviceType)
+            const res = await registerDevice(this.deviceId, this.deviceName, this.deviceType)
+            // Background repair, retried after the cooldown — but never silent:
+            // a device that stays invisible must leave a trace of why.
+            if (res?.status !== 200) console.error('[devicesync] Re-registering this device failed', res)
         },
 
         // --- poll loop ------------------------------------------------------
@@ -546,7 +549,7 @@ export default defineStore('devicesync', {
             this.scrobbleLeader = res.scrobble_leader ?? null
             // Not in the server's own list → it has forgotten us. Checked before
             // the returns below: a restart also drops a member to solo right here.
-            if (!this.devices.some(d => d.device_id === this.deviceId)) this.reannounce()
+            if (!this.devices.some(d => d.device_id === this.deviceId)) void this.reannounce()
 
             // Membership transitions — the server is authoritative BOTH ways:
             // it no longer considers us joined (e.g. it restarted and the RAM

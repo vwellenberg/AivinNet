@@ -732,12 +732,16 @@ describe('devicesync store', () => {
         expect(requestsMock.registerDevice).not.toHaveBeenCalled()
 
         // Forgotten (the list still has devB — it is about OUR id, not an empty
-        // list), and the announcement does not stick: no second one per poll.
+        // list), and the announcement fails: logged, and no second one per poll.
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+        requestsMock.registerDevice.mockResolvedValue({ status: 500, data: {} })
         requestsMock.pollSession.mockResolvedValue(mkPoll({ devices: [peer()] }))
         await ds.poll()
         await ds.poll()
         await ds.poll()
         expect(requestsMock.registerDevice).toHaveBeenCalledTimes(1)
+        expect(errors).toHaveBeenCalledWith('[devicesync] Re-registering this device failed', expect.anything())
+        errors.mockRestore()
 
         // ...but it is tried again once the cooldown has passed.
         vi.advanceTimersByTime(30000)
