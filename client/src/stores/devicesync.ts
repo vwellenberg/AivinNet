@@ -115,6 +115,8 @@ const RATE_EPSILON = 0.00005
  */
 const MAX_SEEKS = 2
 const SEEK_WINDOW_MS = 8000
+/** A seek decided on a single reading (refocus, trim slider) needs this much offset (ms). */
+const RESYNC_SEEK_MS = 100
 /** The leader books the next track this long before the current one ends (ms)... */
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */
@@ -557,7 +559,8 @@ export default defineStore('devicesync', {
          * actually was, and only the device knows that.
          */
         syncReport(): SyncDiag {
-            const error = this.playing && readings.length > 0 ? median(readings.map(r => r.error)) : null
+            // While an action settles, the readings are its stall, not the sync.
+            const error = this.playing && !settle && readings.length > 0 ? median(readings.map(r => r.error)) : null
             return {
                 build: pkg.version,
                 error_ms: error === null ? null : Math.round(error * 10) / 10,
@@ -832,9 +835,9 @@ export default defineStore('devicesync', {
             }
 
             // 5. Same track, playing: only a real offset needs a (compensated)
-            //    seek — judged on one reading here, so only beyond what the
-            //    steerer would seek for anyway (Firefox jitters by ±40 ms).
-            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > SEEK_MS) this.seekCompensated()
+            //    seek. Judged on ONE reading here (no median), so the bar sits
+            //    well above Firefox's ±40 ms jitter; the steerer takes the rest.
+            if (Math.abs(player.getCurrentTimeMs() - this.expectedMs()) > RESYNC_SEEK_MS) this.seekCompensated()
         },
 
         /** Seek the playing element to where the anchor will be once the seek has landed. */
@@ -1202,6 +1205,7 @@ export default defineStore('devicesync', {
             clearPending()
             settle = null
             bookedFor = ''
+            recentSeeks = []
             // Solo playback: rate 1.0 and pitch preservation back to the default.
             usePlayer().setFineSteering(false)
             appliedRate = 1

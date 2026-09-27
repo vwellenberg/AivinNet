@@ -22,7 +22,7 @@ import time
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from aivinnet.db.userdata import DeviceTable
 from aivinnet.lib.groupsession import manager
@@ -53,6 +53,9 @@ class RegisterBody(BaseModel):
 
 class SyncDiag(BaseModel):
     """A joined device's own view of its sync, sent with every poll (RAM only)."""
+
+    # inf/NaN would come back out of /devicesync/diag as non-JSON `Infinity`.
+    model_config = ConfigDict(allow_inf_nan=False)
 
     build: str = Field("", description="Web client build (stale bundles are a sync suspect)")
     error_ms: float | None = Field(None, description="Audio position minus expected position; None while unknown")

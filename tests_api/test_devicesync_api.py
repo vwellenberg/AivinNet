@@ -487,3 +487,15 @@ def test_poll_without_a_report_still_works(ds):
     res = ds.client.post("/devicesync/poll", json={"device_id": "dev-a", "known_version": 0})
     assert res.status_code == 200
     assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["samples"] == []
+
+
+def test_a_sync_report_with_infinity_is_refused(ds):
+    """/devicesync/diag must stay valid JSON — `Infinity` is not."""
+    _register(ds, "dev-a")
+    res = ds.client.post(
+        "/devicesync/poll",
+        data='{"device_id": "dev-a", "diag": {"rtt_ms": 1e999}}',
+        content_type="application/json",
+    )
+    assert res.status_code == 422
+    assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["samples"] == []
