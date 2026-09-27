@@ -335,6 +335,28 @@ def test_fresh_manager_reports_no_session():
     assert snap["commands"] == []
 
 
+def test_after_a_restart_only_register_brings_a_device_back_into_the_list():
+    """
+    Presence is RAM and only register() fills it; a poll from a device the
+    manager does not know changes nothing. After a restart no device is
+    listed — not even one that is in a group, so nobody's auto-rejoin sees
+    that group (2026-09-27: every device had to be reloaded). The client
+    re-registers when its own id is missing from the list, which only works
+    because a known device always finds ITSELF there.
+    """
+    mgr, _ = make_manager()  # the process after a restart
+    mgr.touch(USER, A)
+    mgr.join(USER, B)  # a peer starts the group again
+    assert mgr.snapshot(USER, A, known_version=0)["devices"] == []
+
+    mgr.register(USER, A, "Chrome on Windows", "desktop")
+    assert [d["device_id"] for d in mgr.snapshot(USER, A, known_version=0)["devices"]] == [A]
+
+    mgr.register(USER, B, "Chrome on Android", "mobile")
+    listed = {d["device_id"]: d["joined"] for d in mgr.snapshot(USER, A, known_version=0)["devices"]}
+    assert listed == {A: False, B: True}  # A can see the group again and walk back in
+
+
 # --- queue edits while listening (live queue-set) ----------------------------
 
 

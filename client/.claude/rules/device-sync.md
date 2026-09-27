@@ -327,6 +327,17 @@ das ist der unfreiwillige Pfad.
 anderes beigetretenes Gerät), sonst startet ein geöffnetes Handy ungefragt Gruppen-Wiedergabe.
 Backoff `AUTO_REJOIN_COOLDOWN_MS` 60 s gegen Flapping.
 
+⚠️ **Auto-Rejoin sieht nur Geräte, die der Server kennt — und nach einem Neustart kennt er
+keines.** Die Presence liegt im Server-RAM und wird nur von `/register` gefüllt, das `App.vue`
+einmal beim Start ruft. Nach jedem Backend-Deploy blieb die Geräteliste deshalb leer, bis jedes
+Gerät neu geladen war: kein Eintrag im Panel, kein Invite-Ziel, und `groupRunning` blieb falsch,
+auch wenn längst wieder eine Gruppe lief (2026-09-27). Seitdem prüft `poll()` jede Antwort:
+fehlt die eigene ID in `devices`, meldet `reannounce()` das Gerät unter derselben Identität neu
+an — **vor** den frühen Returns (der Neustart wirft ein Mitglied in genau dieser Antwort auf
+Solo) und höchstens alle `REANNOUNCE_COOLDOWN_MS` (30 s), denn `/register` schreibt die
+Gerätetabelle, der Poll bleibt RAM-only. Die Gruppe selbst ist nach einem Neustart trotzdem weg:
+ein Gerät startet sie neu, die übrigen Mitglieder laufen per Auto-Rejoin von selbst hinterher.
+
 ## ⚠️ Verifikationsfalle
 
 Der erste E2E jointe **per API** und startete Chromium mit
