@@ -288,35 +288,6 @@ describe('"Play next" means next in both play orders', () => {
     })
 })
 
-describe('tracklist.shuffleList: the bookkeeping cannot survive a reshuffle', () => {
-    beforeEach(() => {
-        setActivePinia(createPinia())
-        clearNextAudio.mockClear()
-        useTracklist().tracklist = Array.from({ length: 10 }, (_, i) => track(i))
-    })
-
-    // `currentindex` is deliberately NOT 0 here. Rolling inside shuffleList
-    // would push this pre-shuffle index straight back into the history it just
-    // emptied, and `previndex` would then point into the reshuffled list at a
-    // track that never played. A test that reshuffles from index 0 cannot see
-    // that — the polluted entry looks exactly like a clean reset.
-    it('clears the bookkeeping without putting the pre-shuffle index back', () => {
-        const queue = useQueue()
-        const settings = useSettings()
-
-        settings.shuffle = true
-        queue.currentindex = 4
-        queue.shuffleRecent = [2, 5, 8]
-        queue.shuffleNextIndex = 7
-
-        useTracklist().shuffleList(4)
-
-        expect(queue.shuffleRecent).toEqual([])
-        expect(queue.shuffleNextIndex).toBeNull()
-        expect(clearNextAudio).toHaveBeenCalled()
-    })
-})
-
 // ---------------------------------------------------------------------------
 // Replacing the queue: `setFromX` + `play(i)`.
 //

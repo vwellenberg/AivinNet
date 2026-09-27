@@ -130,8 +130,8 @@ const ds = useDeviceSync()
 if (ds.joined && !ds.applying) { ds.intercept('play', index); return }
 ```
 
-Die Seams sitzen in `queue.ts` (play, playPause, seek, playNext, playPrev, shuffleQueue,
-clearQueue; `autoPlayNext` wird zum No-op), in `queue/tracklist.ts` (`insertAt`, `removeByIndex`)
+Die Seams sitzen in `queue.ts` (play, playPause, seek, playNext, playPrev, clearQueue;
+`autoPlayNext` wird zum No-op), in `queue/tracklist.ts` (`insertAt`, `moveTrack`, `removeByIndex`)
 und in `player.ts` (`onAudioEnded` → der Leader plant den Trackwechsel). `applying` markiert
 „ich spiegele gerade den Server" und verhindert, dass das Spiegeln erneut sendet.
 

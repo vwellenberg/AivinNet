@@ -123,10 +123,10 @@ Leiste anzeigt.
 
 Die Arithmetik liegt in `utils/shuffleIndexes.ts` (`shiftAfterInsert` / `shiftAfterRemove` /
 `remapAfterMove`), die Store-Actions daneben in `queue.ts`. Wer eine **neue** Queue-Mutation baut,
-ruft die passende auf — dieselbe Pflicht wie der DeviceSync-Seam. Vier Stellen tun das heute:
-`insertAt`, `removeByIndex`, `moveTrack`, `shuffleList`.
+ruft die passende auf — dieselbe Pflicht wie der DeviceSync-Seam. Drei Stellen tun das heute:
+`insertAt`, `removeByIndex`, `moveTrack`.
 
-Drei Fallen, alle im Review gefunden, nachdem der erste Fix „fertig" aussah:
+Zwei Fallen, beide im Review gefunden, nachdem der erste Fix „fertig" aussah:
 
 - **Umzeigen, nicht neu würfeln.** Ein Re-Roll wirft ein Ziel weg, dessen Audio schon vorgeladen
   ist, und ändert bei jedem Einreihen, was als Nächstes läuft. Ausnahme: Die Zeile **war** das
@@ -136,16 +136,14 @@ Drei Fallen, alle im Review gefunden, nachdem der erste Fix „fertig" aussah:
   gibt es `insertAt(..., aimNext)` — als **Parameter**, nicht als Aufruf danach: Er muss vor der
   Preload-Prüfung liegen (sonst überlebt das alte Audio) und hinter dem Gruppen-Seam (sonst feuert
   er auf dem abgefangenen Pfad, wo lokal gar nichts gesplict wurde).
-- **`shuffleList` räumt auf, statt zu würfeln.** `rollShuffleNext` schiebt als Erstes den
-  `currentindex` in die Historie — und der ist dort noch der **Vor-Shuffle**-Index. Rollen würde
-  die eben geleerte Liste sofort wieder verschmutzen. `shuffleQueue` setzt danach `currentindex = 0`
-  und `play()` würfelt korrekt.
 
-**Dieselbe Falle steckte in `setNewList`** — dort nicht im Review gefunden, sondern erst per Probe
-(2026-09-27). Jeder Aufrufer tauscht erst die Liste und schreibt danach den Index (`setFromX` +
-`play(i)`, der Gruppen-Spiegel `commit`), gewürfelt wurde aber schon im Tausch: Nach einem neuen
-Album hieß die Historie `[alter Index, neuer Index]`, und Zurück sprang — solo wie in der ganzen
-Gruppe — auf eine Zeile der neuen Liste, die nie lief. Jetzt räumt `setNewList` nur ab; gewürfelt
+**Ein Queue-Tausch räumt auf, statt zu würfeln (`setNewList`).** `rollShuffleNext` schiebt als
+Erstes den `currentindex` in die Historie — und beim Tausch ist das noch der Index in die **alte**
+Liste. Diese Falle fand erst eine Probe (2026-09-27), kein Review. Jeder Aufrufer tauscht erst die
+Liste und schreibt danach den Index (`setFromX` + `play(i)`, der Gruppen-Spiegel `commit`),
+gewürfelt wurde aber schon im Tausch: Nach einem neuen Album hieß die Historie
+`[alter Index, neuer Index]`, und Zurück sprang — solo wie in der ganzen Gruppe — auf eine Zeile
+der neuen Liste, die nie lief. Jetzt räumt `setNewList` nur ab; gewürfelt
 wird, wo der neue Index geschrieben wird: `play()` tut es ohnehin, für den Spiegel siehe
 `device-sync.md` („Zufallswiedergabe in der Gruppe"). **Testfälle mit verschiedenem altem und
 neuem Index bauen:** Wer von Index 0 tauscht und auf 0 startet, sieht den Fehler nicht —
@@ -156,11 +154,6 @@ Track auszuschließen: Eine unbeteiligte Zeile der neuen Quelle konnte nie Einst
 enthielt die Quelle den laufenden Song, konnte genau der gezogen werden und begann bei 0:00 neu.
 **Was gerade spielt, sagt der Player** (`usePlayer().loadedTrackhash()`, per Trackhash, jede
 Kopie) — nicht `currentindex`: Zwischen `setFromX` und `play(i)` zeigt der in die alte Liste.
-
-Die **Reihenfolge** des einmaligen Mischens bestimmt `utils/shufflePicker.ts::shuffleAvoidingFront`
-(laufender Song nie auf Platz 1) — solo wie im Gruppen-Seam `intercept('shuffleQueue')`. Wer die
-Regel ändert, ändert sie dort, nicht in einem der Aufrufer; der Gruppenpfad hatte einmal eine
-eigene Kopie, und die beiden liefen auseinander (Details: `device-sync.md`).
 
 Und die Preload-Frage wird über den **Track** entschieden, nie über den Index: `index == nextindex`
 stimmt nur in sequenzieller Reihenfolge. Muster: Track an `nextindex` vor dem Splice merken,
