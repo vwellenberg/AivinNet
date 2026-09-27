@@ -280,6 +280,18 @@ function wasGroupMember(): boolean {
 }
 
 /**
+ * Re-announce: the server keeps its device list (presence) in RAM, and only
+ * /register fills it — which the app calls once, at start. A restart (every
+ * backend deploy) or a sleep past the server's presence TTL empties it, and a
+ * poll never refills it: the device vanished from every Devices panel, could
+ * not be invited, and no auto-rejoin saw a group started again (2026-09-27,
+ * until each device was reloaded). A poll answer that does not list this
+ * device is the sign. /register writes the device table, so once per cooldown.
+ */
+const REANNOUNCE_COOLDOWN_MS = 30000
+let reannounceSuppressUntil = 0
+
+/**
  * TEST-ONLY: reset every module-level singleton. `vi.resetModules()` is not
  * reliable here (it can hand the re-imported store a different pinia module
  * copy, silently reusing the previous test's store state), so the test suite
@@ -291,6 +303,7 @@ export function __resetDeviceSyncTestState() {
     estimator = new ClockOffsetEstimator()
     leaveSuppressUntil = 0
     autoRejoinSuppressUntil = 0
+    reannounceSuppressUntil = 0
     applyDepth = 0
     joinInFlight = null
     loadedTrackhash = ''
@@ -425,6 +438,13 @@ export default defineStore('devicesync', {
             await registerDevice(this.deviceId, this.deviceName, this.deviceType)
             this.registered = true
         },
+        /** Register again, same identity, once the server has forgotten this device. */
+        reannounce() {
+            const now = Date.now()
+            if (now < reannounceSuppressUntil) return
+            reannounceSuppressUntil = now + REANNOUNCE_COOLDOWN_MS
+            void registerDevice(this.deviceId, this.deviceName, this.deviceType)
+        },
 
         // --- poll loop ------------------------------------------------------
         startPolling() {
@@ -524,6 +544,9 @@ export default defineStore('devicesync', {
             }
             this.devices = res.devices ?? []
             this.scrobbleLeader = res.scrobble_leader ?? null
+            // Not in the server's own list → it has forgotten us. Checked before
+            // the returns below: a restart also drops a member to solo right here.
+            if (!this.devices.some(d => d.device_id === this.deviceId)) this.reannounce()
 
             // Membership transitions — the server is authoritative BOTH ways:
             // it no longer considers us joined (e.g. it restarted and the RAM

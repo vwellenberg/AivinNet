@@ -64,6 +64,17 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
   Sync-Bericht — ein `Infinity` machte sonst die Diag-Antwort zu ungültigem JSON.
 - Reaper-Cron alle 2 s räumt stale Member und leere Sessions.
 - Serverneustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück.
+- ⚠️ **Ein Neustart leert auch die Presence — und nur `register` füllt sie.** `touch()` lässt
+  unbekannte Geräte bewusst liegen (der Poll trägt weder Name noch Typ), und der Client
+  registrierte sich nur beim App-Start. Bis 2026-09-27 stand deshalb nach jedem Deploy **kein**
+  Gerät mehr in der Liste: Devices-Panel leer, `join_invite` ohne Ziel, und Auto-Rejoin
+  (`devices.some(d => d.joined)`) sah nie wieder eine Gruppe — jedes Gerät musste neu geladen
+  werden. Jetzt meldet sich der Client neu an, sobald seine eigene ID in `devices` fehlt
+  (höchstens alle 30 s, denn `register` schreibt die DB); das heilt auch ein Gerät, das länger
+  als `PRESENCE_TTL_MS` schlief. Voraussetzung, festgehalten in
+  `test_after_a_restart_only_register_brings_a_device_back_into_the_list`: ein bekanntes Gerät
+  findet sich **selbst** in der Liste. Wer `snapshot()` auf „nur die anderen" umbaut, schickt
+  jeden Client alle 30 s in `/register`.
 - Pair-Redeem (`GET /auth/pair`) hat eine `setcookie`-Option für den QR-Deep-Link-Login.
 
 ## ⚠️ Warum Polling und nicht Push

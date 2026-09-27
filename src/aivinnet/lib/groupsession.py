@@ -4,7 +4,9 @@ Pure-logic core for the multiroom "Group Session" feature.
 The server is the source of truth for a per-user playback session that lives
 entirely in RAM (module-level singleton + a single lock). A process restart
 simply drops every session, at which point clients fall back to solo playback
-and keep playing their locally mirrored queue.
+and keep playing their locally mirrored queue. It forgets every device's
+presence too; a client that finds its own id missing from the device list
+registers again.
 
 This module deliberately has **no Flask / SQLAlchemy imports** so it can be unit
 tested in the fast lane with an injected clock. The thin HTTP adapter
@@ -261,6 +263,10 @@ class GroupSessionManager:
         Refresh presence last_seen (+ optional volume/mute) and, if the device is
         a session member, its member last_seen. Called on every poll: RAM-only
         and cheap, never touches the DB.
+
+        An unknown device stays unknown — only ``register()`` creates presence.
+        The client notices itself missing from ``snapshot()["devices"]`` (after
+        a restart, or a sleep past ``PRESENCE_TTL_MS``) and registers again.
 
         ``diag`` is the device's own view of its sync (see ``DIAG_FIELDS``),
         kept as a short ring buffer for ``diagnostics()``.
