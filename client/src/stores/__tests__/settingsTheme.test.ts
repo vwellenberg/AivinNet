@@ -1,10 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { themeForNowMock } = vi.hoisted(() => ({ themeForNowMock: vi.fn(() => 'dark' as 'light' | 'dark') }))
+const { themeForNowMock } = vi.hoisted(() => ({ themeForNowMock: vi.fn((..._args: unknown[]) => 'dark' as 'light' | 'dark') }))
 
-vi.mock('@/utils/autoTheme', () => ({
-    themeForNow: () => themeForNowMock(),
+vi.mock('@/utils/autoTheme', async () => ({
+    ...(await vi.importActual<typeof import('@/utils/autoTheme')>('@/utils/autoTheme')),
+    themeForNow: (...args: unknown[]) => themeForNowMock(...args),
 }))
 
 // The settings store drags in requests, the router, the player and device sync.
@@ -143,5 +144,72 @@ describe('settings store: theme + auto dark mode', () => {
 
         expect(settings.theme).toBe('light')
         expect(settings.look).toBe('stream')
+    })
+
+    it('defaults the schedule to the device zone, 08:00 -> 20:00', () => {
+        const settings = useSettings()
+        expect(settings.auto_theme_zone).toBe('device')
+        expect(settings.auto_theme_light_from).toBe(8)
+        expect(settings.auto_theme_dark_from).toBe(20)
+    })
+
+    it('hands zone and hours to the time check', () => {
+        const settings = useSettings()
+        settings.auto_theme = true
+        settings.auto_theme_zone = 'Asia/Tokyo'
+        settings.auto_theme_light_from = 6
+        settings.auto_theme_dark_from = 22
+
+        settings.applyAutoTheme()
+
+        expect(themeForNowMock).toHaveBeenCalledWith(expect.any(Date), {
+            timeZone: 'Asia/Tokyo',
+            lightFrom: 6,
+            darkFrom: 22,
+        })
+    })
+
+    it('changing the schedule re-applies at once while auto is on', () => {
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+        themeForNowMock.mockReturnValue('light')
+
+        settings.setAutoThemeDarkFrom(23)
+        expect(settings.auto_theme_dark_from).toBe(23)
+        expect(settings.theme).toBe('light')
+
+        themeForNowMock.mockReturnValue('dark')
+        settings.setAutoThemeZone('Asia/Tokyo')
+        expect(settings.auto_theme_zone).toBe('Asia/Tokyo')
+        expect(settings.theme).toBe('dark')
+
+        themeForNowMock.mockReturnValue('light')
+        settings.setAutoThemeLightFrom(5)
+        expect(settings.auto_theme_light_from).toBe(5)
+        expect(settings.theme).toBe('light')
+    })
+
+    it('changing the schedule while auto is off stores it but leaves the theme', () => {
+        const settings = useSettings()
+        settings.setAutoThemeLightFrom(6)
+
+        expect(settings.auto_theme_light_from).toBe(6)
+        expect(settings.theme).toBe('light')
+        expect(themeForNowMock).not.toHaveBeenCalled()
+    })
+
+    it('clamps an out-of-range hour instead of storing it', () => {
+        const settings = useSettings()
+        settings.setAutoThemeDarkFrom(25)
+        expect(settings.auto_theme_dark_from).toBe(1)
+    })
+
+    it('an unknown zone is stored as device, not shown-but-ignored', () => {
+        const settings = useSettings()
+        settings.setAutoThemeZone('Mars/Olympus_Mons')
+        expect(settings.auto_theme_zone).toBe('device')
+
+        settings.setAutoThemeZone('Asia/Tokyo')
+        expect(settings.auto_theme_zone).toBe('Asia/Tokyo')
     })
 })

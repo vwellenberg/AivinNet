@@ -401,6 +401,15 @@ GitHub nichts.)
 
 - **⚠️ CODE-CURRENCY ZUERST PRÜFEN (vor jeder Analyse/Diagnose/Screenshot):** Immer verifizieren, dass auf dem **aktuellen** Code gearbeitet wird — an BEIDEN Stellen: (1) **Lokal**: `git fetch` + `git rev-list --left-right --count HEAD...origin/master`; bei Rückstand ff-syncen. (2) **Deployt/Live**: Server-Checkout-HEAD (`~/AivinNet-Client`) **und** deployter Build (`~/.config/aivinnet/client`) gegen `origin/master`. **Die Headless-Screenshot-Pipeline trifft die DEPLOYTE App** — die kann viele Commits hinterherhinken, auch wenn `master` aktuell ist (real passiert: Header an 6-Commits-alter App diagnostiziert, Pin noch rechts oben statt inline). Stale → erst syncen (lokal) bzw. aktuellen `master` deployen (mit User-OK), DANN diagnostizieren/screenshotten. Nie Mockups/Befunde von veraltetem Stand als „so ist es" präsentieren. **Und danach noch einmal prüfen** — hier deployen mehrere Sitzungen, der Stand kann sich mitten in einer Messreihe ändern (siehe *Mehrere Agents parallel*).
 - **⚠️ SERVICE WORKER / STALE CACHE (ZUERST LESEN):** Wenn der User sagt „Fix sieht man nicht / UI noch alt", obwohl der Deploy nachweislich korrekt auf dem Server liegt → **fast immer ein Service Worker**, der alte vorgecachte Assets ausliefert. **Strg+Shift+R und „Cache löschen" umgehen einen Service Worker NICHT.** Symptom: Headless-Screenshot (kein SW) zeigt den Fix korrekt, aber der User-Browser nicht. Diagnose: `ls ~/.config/aivinnet/client | grep -iE 'sw|workbox'` + im sw.js auf alte `index.*.js`-Hashes prüfen. **Status quo: PWA/SW ist via `selfDestroying: true` in [vite.config.ts](vite.config.ts) abgeschaltet** — nicht ohne triftigen Grund reaktivieren. Falls ein User noch einen alten SW stecken hat: Chrome DevTools (F12) → Application → Storage → „Clear site data" → Tab neu laden (das entfernt den SW; ein normaler Reload reicht nicht). Dieses Problem trat mehrfach auf — bitte SOFORT daran denken, bevor man stundenlang am CSS sucht.
+- **⚠️ Ein fehlgeschlagener Seiten-Chunk bleibt fehlgeschlagen — bis zum Reload.** Jede Seite
+  außer Home ist ein Lazy-Chunk; scheitert dessen Laden einmal (Netzaussetzer, oder ein Deploy
+  bzw. `prune-serve-assets.sh` hat den gehashten Dateinamen unter einem offenen Tab entfernt),
+  cacht der Browser den **Fehler** und jeder weitere `import()` derselben URL scheitert sofort.
+  Vue Router schluckt das und bleibt stehen: Symptom „die Menü-Buttons tun nichts mehr", auch
+  wenn das Netz längst zurück ist. Dagegen `utils/chunkReload.ts` (am Router via
+  `installChunkReload`): lädt auf die angefragte Seite neu, offline erst beim `online`-Event,
+  mit 10-s-Sperre gegen Reload-Schleifen. Neue `import()`-Stellen außerhalb des Routers brauchen
+  denselben Schutz.
 - **UI-Änderungen selbst ansehen, nicht behaupten.** Auf dem Server liegt unter `~/uitest` eine
   fertige Playwright-Kiste (Chromium **und** Firefox): Screenshots pro Route × Theme × Gerät,
   Computed-Style-Audits, Regler-Vermessung, E2E für Queue und Group-Sync. **Vor dem Bauen eines

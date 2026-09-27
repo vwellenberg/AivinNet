@@ -7,6 +7,7 @@ import usePlaylistPageStore from '@/stores/pages/playlist'
 import usePlaylistListPageStore from '@/stores/pages/playlists'
 import useArtistPageStore from '@/stores/pages/artist'
 import useSettingsStore from '@/stores/settings'
+import { installChunkReload } from '@/utils/chunkReload'
 
 import HomeView from '@/views/HomeView'
 const Lyrics = () => import('@/views/LyricsView')
@@ -276,5 +277,9 @@ router.afterEach(() => {
     void content.offsetWidth
     content.classList.add('ground-drift')
 })
+
+// A page chunk that failed to load (bad connection, or a deploy under an open
+// tab) stays failed until reload — the nav buttons went dead. utils/chunkReload.ts
+installChunkReload(router)
 
 export { router, Routes }
