@@ -1340,6 +1340,36 @@ describe('devicesync store', () => {
         expect(ds.devices.find(d => d.device_id === 'devB')?.joined).toBe(true)
     })
 
+    it('a poll landing mid-join does not wipe the queue the join is about to seed', async () => {
+        const { useDeviceSync, useTracklist } = await setup()
+        localStorage.setItem('aivinnet.device_id', 'devA')
+        const ds = useDeviceSync()
+        await ds.register()
+        useTracklist().tracklist = [mkTrack('h1'), mkTrack('h2')]
+
+        // The group exists but is empty — this device is its first member.
+        const empty = mkPoll({
+            server_now_ms: Date.now(),
+            joined: true,
+            state: mkState({ queue_id: 'q-empty', trackhashes: [], currentindex: 0 }),
+        })
+        requestsMock.joinGroup.mockResolvedValueOnce({ status: 200, data: empty })
+        requestsMock.pollSession.mockResolvedValue(empty)
+
+        const joining = ds.join()
+        // The regular poll loop fires while the join calibrates its clock.
+        await new Promise(r => setTimeout(r, 30))
+        await ds.poll()
+        await joining
+
+        // Mirroring that empty group queue first wiped the local one, and the
+        // seed then had nothing to send (seen in a probe run: joined, silent).
+        expect(useTracklist().tracklist.map((t: any) => t.trackhash)).toEqual(['h1', 'h2'])
+        expect(requestsMock.setQueue).toHaveBeenCalledWith(
+            expect.objectContaining({ trackhashes: ['h1', 'h2'], live: true })
+        )
+    })
+
     it('marks this device as a member as soon as the join request lands', async () => {
         const { useDeviceSync } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')

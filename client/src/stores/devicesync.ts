@@ -526,6 +526,13 @@ export default defineStore('devicesync', {
                 if (!res.state) forceStateRefresh = true
             }
 
+            // A join in flight owns the first mirror: it seeds an empty group
+            // with this device's queue once the clock is calibrated. A poll
+            // landing in that window mirrored the still-EMPTY group queue
+            // first — the local queue was wiped, the seed saw nothing to send,
+            // and the device sat in the group with nothing to play.
+            if (joinInFlight) return
+
             // The server sends `state` to EVERY device of the user (also
             // non-members). Only members may mirror it — a solo device must
             // never have the group queue clobber its local playback.

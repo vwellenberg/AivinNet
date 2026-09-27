@@ -100,6 +100,7 @@
       ]
     }
   },
+  "GET /devicesync/diag": {},
   "GET /download/album/{albumhash}": {},
   "GET /download/playlist/{playlist_id}": {},
   "GET /download/track/{trackhash}": {},
@@ -587,6 +588,7 @@
       "allowed": [
         "client_sent_ms",
         "device_id",
+        "diag",
         "known_version",
         "mute",
         "volume"
