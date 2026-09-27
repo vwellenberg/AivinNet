@@ -77,7 +77,8 @@ const LOCAL_BY_DESIGN: Record<string, string> = {
         'and removeByIndex (intercept "removeTracks") for the last-track case.',
     shuffleList:
         'Local primitive; its only caller queue.shuffleQueue carries the seam (intercept ' +
-        '"shuffleQueue"), which re-shuffles server-side so every device lands on the same order.',
+        '"shuffleQueue"), which shuffles with the same shuffleAvoidingFront and sends the order ' +
+        'as a queue-set, so every device lands on the same one.',
 }
 
 interface Action {

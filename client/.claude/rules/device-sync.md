@@ -112,6 +112,19 @@ mit genau der Liste, die die Gruppe schon spielt, räumt ebenfalls ab, kommt abe
 Queue-ID und — beim Klick auf die laufende Zeile — ohne neuen Index zurück. Das fehlende Ziel ist
 die einzige Spur, die beide Tauschwege hinterlassen.
 
+⚠️ **Eine Regel, ein Ort — der Seam delegiert, er kopiert nicht.** Das einmalige Mischen der
+Queue (`queue.shuffleQueue`) läuft solo **und** in der Gruppe durch
+`utils/shufflePicker.ts::shuffleAvoidingFront`: Danach startet Index 0, also darf der laufende
+**Song** dort nicht landen — auch nicht über eine zweite Kopie in der Queue.
+`intercept('shuffleQueue')` trug eine eigene Kopie aus der Zeit vor dieser Regel
+(AivinNet-Client#341) und legte den laufenden Track nach **vorn**: Shuffle startete ihn auf allen
+Geräten bei 0:00 neu. Nachgeschärft wurde nur der Solo-Pfad, und die Kopie im Seam fiel niemandem
+auf. Wer eine Solo-Regel ändert, sucht ihr Gegenstück im `intercept`; gemeinsame Logik gehört in
+einen reinen Helfer, den beide aufrufen. Wächter: der Paritätstest in `devicesync.test.ts`
+(gleiche Würfel → gleiche Reihenfolge). Die nächste Kopie dieser Art steht noch im
+`removeTracks`-Seam (#264). Stand 2026-09-27 hat die Aktion **keinen Knopf** — er ging mit dem
+alten Queue-Panel (AivinNet-Client#524); prüfen lässt sie sich also nur über die Tests (#265).
+
 ⚠️ **`shuffle` ist — anders als `repeat` — KEIN geteilter Zustand.** Es gibt kein Feld dafür im
 Server-State; es gilt die Einstellung des Geräts, das gerade handelt (Leader beim Ausspielen, der
 Drückende beim manuellen „Next"). Wer das ändern will, braucht ein Feld im Backend-State, nicht

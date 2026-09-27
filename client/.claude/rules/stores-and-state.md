@@ -151,6 +151,11 @@ wird, wo der neue Index geschrieben wird: `play()` tut es ohnehin, für den Spie
 neuem Index bauen:** Wer von Index 0 tauscht und auf 0 startet, sieht den Fehler nicht —
 `pushRecent` dedupliziert den falschen Eintrag weg.
 
+Die **Reihenfolge** des einmaligen Mischens bestimmt `utils/shufflePicker.ts::shuffleAvoidingFront`
+(laufender Song nie auf Platz 1) — solo wie im Gruppen-Seam `intercept('shuffleQueue')`. Wer die
+Regel ändert, ändert sie dort, nicht in einem der Aufrufer; der Gruppenpfad hatte einmal eine
+eigene Kopie, und die beiden liefen auseinander (Details: `device-sync.md`).
+
 Und die Preload-Frage wird über den **Track** entschieden, nie über den Index: `index == nextindex`
 stimmt nur in sequenzieller Reihenfolge. Muster: Track an `nextindex` vor dem Splice merken,
 danach vergleichen.

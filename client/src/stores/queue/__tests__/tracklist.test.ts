@@ -195,15 +195,6 @@ describe('tracklist.shuffleList', () => {
         expect([...tl.tracklist].map(t => t.trackhash).sort()).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
     })
 
-    it('is a plain shuffle without an index to protect', () => {
-        const tl = useTracklist()
-        tl.tracklist = list()
-
-        tl.shuffleList()
-
-        expect(tl.tracklist).toHaveLength(6)
-    })
-
     it('leaves a single-track queue alone', () => {
         const tl = useTracklist()
         tl.tracklist = [mk({ trackhash: 'only' })]

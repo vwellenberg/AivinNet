@@ -21,6 +21,7 @@ import {
 } from '@/interfaces'
 import { resolveQueueMove } from '@/utils/queueMove'
 import { shiftAfterRemove } from '@/utils/shuffleIndexes'
+import { shuffleAvoidingFront } from '@/utils/shufflePicker'
 
 export type From =
     | fromFolder
@@ -41,14 +42,6 @@ export interface FileChange {
     disc?: number
 }
 
-export function shuffleArray<T>(items: T[]): T[] {
-    const shuffled = items.slice()
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    return shuffled
-}
 export default defineStore('tracklist', {
     state: () => ({
         from: {} as From,
@@ -271,23 +264,14 @@ export default defineStore('tracklist', {
             this.from = {} as From
         },
         /**
-         * Reorder the queue once (the panel's "Shuffle" action).
+         * Reorder the queue once (`queue.shuffleQueue`).
          *
-         * `avoidFront` is the index of the track playing right now: it must not
-         * land first, because the caller restarts playback at index 0 — and a
-         * shuffle that restarts the same song at 0:00 is the one outcome nobody
-         * presses that button for.
+         * `avoidFront` is the index of the track playing right now: its song
+         * must not land first, because the caller restarts playback at index 0.
+         * The rule is `shuffleAvoidingFront`, shared with the group seam.
          */
-        shuffleList(avoidFront?: number) {
-            const playing = avoidFront === undefined ? undefined : this.tracklist[avoidFront]
-            const shuffled = shuffleArray(this.tracklist)
-
-            if (playing && shuffled.length > 1 && shuffled[0] === playing) {
-                const swap = 1 + Math.floor(Math.random() * (shuffled.length - 1))
-                ;[shuffled[0], shuffled[swap]] = [shuffled[swap], shuffled[0]]
-            }
-
-            this.tracklist = shuffled
+        shuffleList(avoidFront: number) {
+            this.tracklist = shuffleAvoidingFront(this.tracklist, avoidFront, track => track.trackhash)
 
             // Every row has a new number now, so both shuffle indexes name
             // arbitrary tracks — the same situation setNewList resets for, and
