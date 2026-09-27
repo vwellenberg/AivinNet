@@ -93,6 +93,14 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
 - **Echte Geräte:** Während die Gruppe spielt, liefert `GET /devicesync/diag` (mit Token wie
   oben) pro Gerät die Selbstberichte der letzten 30 min: Abweichung vom Takt, RTT, Rate, Trim,
   gelernte Latenzen, Build. Das ist der erste Blick bei „klingt versetzt", vor jeder Theorie.
+- **Akustisch messen** — wenn `diag` beide Geräte im Takt zeigt und es trotzdem versetzt klingt,
+  sitzt der Rest hinter dem Browser (Bluetooth, Soundbar). `~/syncprobe/acoustic_measure.py`
+  läuft auf dem **Windows-Rechner** mit Mikrofon (`uv run --no-project --with sounddevice --with
+  numpy --with soundfile -- python acoustic_measure.py UM02`): 12 s Aufnahme, während beide
+  Geräte spielen, dann 6 s mit per `set_mute` stummem Handy. Kreuzkorrelation (GCC-PHAT) mit dem
+  auf dem Server dekodierten Original gibt je Quelle eine Spitze; die Stumm-Aufnahme sagt, welche
+  der PC ist. Erster Befund: +155 ms für Bluetooth am Windows-PC (device-sync-Regel, Punkt 8).
+  Nur mit Zustimmung des Nutzers — es ist sein Mikrofon; die Aufnahme bleibt im Speicher.
 - `ratebench.js` (Runner `runbench.sh`) misst, was eine `playbackRate`-Änderung dem Media-Clock
   tatsächlich bringt — Herkunft der Schwellen in `driftSteer.ts`.
 - ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit

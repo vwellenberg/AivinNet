@@ -238,6 +238,15 @@ Einzelbefund: ein Gerät mit altem Bundle spielt die alte Logik.
    manche Bluetooth-Stacks). Die Latenz, die das OS meldet, rechnet Chromium schon in
    `currentTime` ein (`AudioRendererImpl::CurrentMediaTime` = hörbarer Zeitstempel, nicht der
    dekodierte); `AudioContext.outputLatency` zusätzlich abzuziehen hieße doppelt zählen.
+   ⚠️ **Gemessen (2026-09-27): Windows + Bluetooth-Boxen = ~155 ms, die niemand sieht.**
+   Chrome/Windows an Edifier M60 per A2DP gegen Chrome/Android am eingebauten Lautsprecher:
+   laut `/devicesync/diag` lagen beide ±1 ms im Takt, akustisch kam der PC 155 ms später
+   (Mikro am PC, siehe [docs/verification.md](../../docs/verification.md) „Akustisch messen").
+   Trim +150 ms am PC → deckungsgleich. Windows reicht die Bluetooth-Strecke nicht an den
+   Browser durch; Android und macOS tun es meist. Eine pauschale „Bluetooth = +150 ms"-Regel
+   wäre deshalb falsch (dort doppelt gezählt), und erkennen kann der Browser die Ausgabe ohne
+   Mikrofon-Freigabe ohnehin nicht. Und: **Der Trim gilt pro Browser, nicht pro Ausgabegerät**
+   — wechselt der PC auf Kabel oder USB, muss er zurück auf 0.
 
 Unter Stress (Chrome + Firefox, 4×-CPU-gedrosseltes „Handy" auf ausgelastetem Server) liegen
 die Geräte Sekunden nach einem Übergang bis ~55 ms auseinander — so gut wie der alte Stand
