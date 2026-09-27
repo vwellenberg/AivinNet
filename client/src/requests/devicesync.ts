@@ -47,6 +47,36 @@ export interface SetQueueBody {
     live?: boolean
 }
 
+/** A calibration detail: a number or a short string, never a structure. */
+export type CalibrationDetail = number | string | boolean | null
+
+/** One device of a calibration run: what it reported, and what the listener heard. */
+export interface CalibrationDeviceLog {
+    device_id: string
+    name: string
+    status: string
+    sounded_ms: (number | null)[]
+    offsets_ms: (number | null)[]
+    strengths: (number | null)[]
+    latency_ms: number | null
+    suggested_trim_ms: number | null
+    current_trim_ms: number | null
+    details: Record<string, CalibrationDetail>
+}
+
+/** The listening device's raw measurement of one run. */
+export interface CalibrationLog {
+    device_id: string
+    run: string
+    devices: CalibrationDeviceLog[]
+    details: Record<string, CalibrationDetail>
+}
+
+/** Keep one calibration run's raw numbers on the server (RAM, shown by `/devicesync/diag`). */
+export async function logCalibration(body: CalibrationLog) {
+    return await useAxios({ url: api.calibrationLog, method: 'POST', props: body })
+}
+
 /** Register (or refresh) this device in the persistent device registry. */
 export async function registerDevice(deviceId: string, name: string, type: string) {
     return await useAxios({

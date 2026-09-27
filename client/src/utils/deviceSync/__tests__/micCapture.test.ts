@@ -80,6 +80,28 @@ describe('micCapture', () => {
         expect(capture.level()).toBe(0)
     })
 
+    it('describes the audio setup it records on, for the calibration log', async () => {
+        getUserMedia.mockResolvedValue({
+            getTracks: () => [track],
+            getAudioTracks: () => [
+                {
+                    label: 'Mikrofon (UM02)',
+                    getSettings: () => ({ latency: 0.0125, sampleRate: 48000, channelCount: 1, echoCancellation: false }),
+                },
+            ],
+        })
+        const capture = await startMicCapture()
+        context.baseLatency = 0.01
+        expect(capture.details()).toMatchObject({
+            sample_rate: 48000,
+            base_latency_ms: 10,
+            input_latency_ms: 12.5,
+            input_channels: 1,
+            echo_cancellation: false,
+            input_label: 'Mikrofon (UM02)',
+        })
+    })
+
     it('lets go of the microphone and the context on stop', async () => {
         const capture = await startMicCapture()
         capture.stop()

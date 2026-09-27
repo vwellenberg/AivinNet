@@ -92,30 +92,38 @@ function templateFor(sampleRate: number): Float32Array {
     return template
 }
 
+export interface ClickMeasurement {
+    /** Arrival behind the reported sound time, per click (ms); null where nothing clear was heard. */
+    offsetsMs: (number | null)[]
+    /** How clearly each click stood out (see `findArrival`); null where its window was not recorded. */
+    strengths: (number | null)[]
+}
+
 /**
  * Where in `recording` one device's clicks arrived, relative to when it says
- * they sounded (ms per click). Null where nothing clear was heard, or where
- * the click's window is not in the recording.
+ * they sounded. A click's offset is null where nothing clear was heard, or
+ * where its window is not in the recording.
  */
-export function measureClicks(recording: Recording, soundedMs: (number | null)[]): (number | null)[] {
+export function measureClicks(recording: Recording, soundedMs: (number | null)[]): ClickMeasurement {
     const { samples, sampleRate } = recording
     const template = templateFor(sampleRate)
     const before = Math.round((WINDOW_BEFORE_MS * sampleRate) / 1000)
     const after = Math.round((WINDOW_AFTER_MS * sampleRate) / 1000)
 
-    return soundedMs.map(sounded => {
-        if (sounded === null || !Number.isFinite(sounded)) return null
+    const clicks = soundedMs.map(sounded => {
+        if (sounded === null || !Number.isFinite(sounded)) return { offset: null, strength: null }
         const center = Math.round(((sounded - recording.startServerMs) * sampleRate) / 1000)
         const from = center - before
         const to = center + after + template.length
-        if (from < 0 || to > samples.length) return null
+        if (from < 0 || to > samples.length) return { offset: null, strength: null }
 
         const envelope = correlationEnvelope(samples.subarray(from, to), template, sampleRate, CHIRP_BAND_HZ)
         const arrival = findArrival(envelope, sampleRate, before + after)
-        if (!arrival || arrival.strength < MIN_STRENGTH) return null
+        if (!arrival) return { offset: null, strength: null }
         const arrivedMs = recording.startServerMs + ((from + arrival.index) / sampleRate) * 1000
-        return arrivedMs - sounded
+        return { offset: arrival.strength < MIN_STRENGTH ? null : arrivedMs - sounded, strength: arrival.strength }
     })
+    return { offsetsMs: clicks.map(c => c.offset), strengths: clicks.map(c => c.strength) }
 }
 
 /**

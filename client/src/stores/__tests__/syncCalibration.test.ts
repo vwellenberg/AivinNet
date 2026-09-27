@@ -6,16 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // is in the group, what it sends), the microphone, and the measurement itself
 // — utils/deviceSync/__tests__/calibration.test.ts covers that on synthetic
 // recordings. Here: the sequence, and what reaches which device.
-const { ds, mic, micModule, measure, reports } = vi.hoisted(() => {
+const { ds, mic, micModule, measure, reports, requests } = vi.hoisted(() => {
     const reports: { handler: ((report: any) => void) | null } = { handler: null }
     const mic = {
         sampleRate: 48000,
         startLocalMs: vi.fn(() => 0 as number | null),
         samples: vi.fn(() => new Float32Array(10)),
         level: vi.fn(() => 0.1),
+        details: vi.fn(() => ({ sample_rate: 48000, input_latency_ms: 12.5, echo_cancellation: false })),
         stop: vi.fn(),
     }
     return {
+        requests: { logCalibration: vi.fn(() => Promise.resolve({ status: 200 })) },
         reports,
         mic,
         micModule: {
@@ -46,6 +48,7 @@ vi.mock('@/stores/devicesync', () => ({
     onCalibrationReport: (handler: any) => (reports.handler = handler),
 }))
 vi.mock('@/utils/deviceSync/micCapture', () => micModule)
+vi.mock('@/requests/devicesync', () => requests)
 vi.mock('@/utils/deviceSync/calibration', async () => ({
     ...(await vi.importActual<any>('@/utils/deviceSync/calibration')),
     measureClicks: measure,
@@ -100,9 +103,10 @@ describe('sync calibration — with the microphone', () => {
         // Per click: phone 47 ms (12 hidden + 35 shared), the PC on Bluetooth
         // 202 ms. The phone clicks first, at the plan's start.
         const planStart = ds.now + PREP_MS
-        measure.mockImplementation((_recording: any, sounded: number[]) =>
-            sounded.map(() => (sounded[0] === planStart ? 47 : 202))
-        )
+        measure.mockImplementation((_recording: any, sounded: number[]) => ({
+            offsetsMs: sounded.map(() => (sounded[0] === planStart ? 47 : 202)),
+            strengths: sounded.map(() => 40),
+        }))
     })
 
     afterEach(() => {
@@ -175,6 +179,32 @@ describe('sync calibration — with the microphone', () => {
         vi.advanceTimersByTime(11_000)
         await cal.startEar()
         expect(cal.earTrims.pc).toBe(0)
+    })
+
+    it('hands the run’s raw numbers to the server, the recording itself stays here', async () => {
+        const { plan, run } = await listening()
+        reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc, details: { clock_drift_ms: 1.5, rtt_ms: 9 } })
+        await flushPromises()
+        afterThePlan(plan)
+
+        expect(requests.logCalibration).toHaveBeenCalledTimes(1)
+        const log = (requests.logCalibration.mock.calls as any[])[0][0]
+        expect(log).toMatchObject({
+            device_id: 'phone',
+            run,
+            details: { sample_rate: 48000, input_latency_ms: 12.5, echo_cancellation: false },
+        })
+        const pc = log.devices.find((d: any) => d.device_id === 'pc')
+        expect(pc).toMatchObject({
+            status: 'heard',
+            sounded_ms: plan.pc,
+            offsets_ms: [202, 202, 202, 202],
+            strengths: [40, 40, 40, 40],
+            latency_ms: 155,
+            suggested_trim_ms: 155,
+            details: { clock_drift_ms: 1.5, rtt_ms: 9 },
+        })
+        expect(JSON.stringify(log)).not.toMatch(/samples/)
     })
 
     it('waits a while for a slow report, then calls the device silent', async () => {

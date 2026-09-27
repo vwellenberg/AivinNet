@@ -121,6 +121,12 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
   Senke nur Stille an, und die Aufnahme sieht aus wie ein Messfehler.
   ⚠️ **`pw-record` verliert unter Last selbst Blöcke** (512 Samples = 10,7 ms): als
   Wahrheit taugt es nur, solange seine Klickabstände stimmen.
+- **Eine echte Kalibrierung auseinandernehmen:** `python3 ~/syncprobe/calib/calibreport.py [läufe]`
+  druckt die letzten Läufe aus `GET /devicesync/diag` Klick für Klick (Offset, Stärke, Runde gegen
+  die Referenz, Uhr und Media-Clock-Drift jedes Geräts). Als Gegenprobe ohne Browser-Mikrofon:
+  `calib_external.py` im Scratch-Ordner der Sitzung (PC-Mikro per `sounddevice`, schickt dieselben
+  `sync_click`s, liest die Berichte per Poll mit der Geräte-ID des PC-Browsers) — nur mit
+  Zustimmung, es ist das Mikrofon des Nutzers.
 - ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit
   konsistentem DB-Snapshot, Last.fm-Keys entfernt, Scans/Watchdog aus. Das ist nötig, weil die
   Gruppe pro **Nutzer** existiert: eine Probe gegen `:1970` wäre der echten Gruppe beigetreten,

@@ -65,6 +65,8 @@ export interface MicCapture {
     samples(): Float32Array
     /** Loudness of the latest chunk, 0..1 (RMS), for the level meter. */
     level(): number
+    /** The audio setup the recording ran on, for the calibration log. */
+    details(): Record<string, number | string | boolean | null>
     stop(): void
 }
 
@@ -121,6 +123,9 @@ export async function startMicCapture(): Promise<MicCapture> {
         lastLevel = Math.sqrt(sum / data.length)
     }
 
+    const ms = (seconds: number | undefined) =>
+        typeof seconds === 'number' && Number.isFinite(seconds) ? Math.round(seconds * 10000) / 10 : null
+
     let stopped = false
     return {
         sampleRate,
@@ -135,6 +140,22 @@ export async function startMicCapture(): Promise<MicCapture> {
             return out
         },
         level: () => lastLevel,
+        details: () => {
+            const track = stream?.getAudioTracks()[0]
+            const settings: any = track?.getSettings?.() ?? {}
+            return {
+                sample_rate: sampleRate,
+                base_latency_ms: ms(context.baseLatency),
+                output_latency_ms: ms((context as any).outputLatency),
+                input_latency_ms: ms(settings.latency),
+                input_sample_rate: settings.sampleRate ?? null,
+                input_channels: settings.channelCount ?? null,
+                echo_cancellation: settings.echoCancellation ?? null,
+                auto_gain: settings.autoGainControl ?? null,
+                noise_suppression: settings.noiseSuppression ?? null,
+                input_label: (track?.label ?? '').slice(0, 120),
+            }
+        },
         stop: () => {
             if (stopped) return
             stopped = true

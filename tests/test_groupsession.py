@@ -8,6 +8,7 @@ they run in the fast `uvx` lane with a deterministic injected clock.
 from itertools import pairwise
 
 from aivinnet.lib.groupsession import (
+    CALIBRATION_LOGS,
     COMMAND_GRACE_MS,
     DIAG_SAMPLES,
     LEAD_MS,
@@ -622,3 +623,15 @@ def test_the_device_list_carries_the_trim_each_device_reported():
     devices = {d["device_id"]: d for d in mgr.snapshot(USER, A, known_version=0)["devices"]}
     assert devices[A]["trim_ms"] == 150.0
     assert devices[B]["trim_ms"] is None  # never reported
+
+
+def test_calibration_runs_are_kept_per_user_and_bounded():
+    mgr, clock = make_manager()
+    for i in range(CALIBRATION_LOGS + 3):
+        clock["t"] += 1000
+        mgr.log_calibration(USER, {"run": f"r{i}", "devices": []})
+
+    runs = mgr.calibrations(USER)
+    assert [r["run"] for r in runs] == [f"r{i}" for i in range(3, CALIBRATION_LOGS + 3)]
+    assert runs[-1]["server_ms"] == clock["t"]
+    assert mgr.calibrations(USER + 1) == []

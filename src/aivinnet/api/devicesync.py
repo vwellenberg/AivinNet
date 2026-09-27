@@ -22,7 +22,7 @@ import time
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from aivinnet.db.userdata import DeviceTable
 from aivinnet.lib.groupsession import MEMBER_TARGETED_TYPES, manager
@@ -66,6 +66,69 @@ class SyncDiag(BaseModel):
     trim_ms: float = Field(0.0, description="Manual output-latency trim on this device")
     start_ms: float | None = Field(None, description="Learned start latency")
     seek_ms: float | None = Field(None, description="Learned seek latency")
+
+
+# One calibration run is a handful of devices with a handful of clicks each.
+MAX_CALIBRATION_DEVICES = 16
+MAX_CALIBRATION_CLICKS = 16
+MAX_CALIBRATION_DETAILS = 32
+
+# A detail is a number or a short string (a user agent, a sample format) — never
+# a nested structure: the log is read by eye, and it must stay small.
+Detail = float | int | bool | str | None
+
+
+def _bounded_details(value: dict[str, Detail]) -> dict[str, Detail]:
+    if len(value) > MAX_CALIBRATION_DETAILS:
+        raise ValueError(f"at most {MAX_CALIBRATION_DETAILS} details")
+    for key, item in value.items():
+        if len(key) > 64 or (isinstance(item, str) and len(item) > 300):
+            raise ValueError("detail too long")
+    return value
+
+
+class CalibrationDeviceLog(BaseModel):
+    """One device of a calibration run: what it reported, and what was heard."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    device_id: str = Field(max_length=64)
+    name: str = Field("", max_length=120)
+    status: str = Field("", max_length=32, description="heard, unclear, no-answer, muted, late, ...")
+    sounded_ms: list[float | None] = Field(
+        default_factory=list, max_length=MAX_CALIBRATION_CLICKS, description="When each click sounded, as reported"
+    )
+    offsets_ms: list[float | None] = Field(
+        default_factory=list, max_length=MAX_CALIBRATION_CLICKS, description="Arrival minus reported time, per click"
+    )
+    strengths: list[float | None] = Field(
+        default_factory=list, max_length=MAX_CALIBRATION_CLICKS, description="How clearly each click stood out"
+    )
+    latency_ms: float | None = Field(None, description="Relative to the reference device")
+    suggested_trim_ms: float | None = None
+    current_trim_ms: float | None = None
+    details: dict[str, Detail] = Field(default_factory=dict, description="The device's own notes on its clicks")
+
+    @field_validator("details")
+    @classmethod
+    def _details(cls, value: dict[str, Detail]) -> dict[str, Detail]:
+        return _bounded_details(value)
+
+
+class CalibrationLogBody(BaseModel):
+    """The listening device's raw measurement of one calibration run (RAM only)."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    device_id: str = Field(max_length=64, description="The listening device")
+    run: str = Field(max_length=64)
+    devices: list[CalibrationDeviceLog] = Field(max_length=MAX_CALIBRATION_DEVICES)
+    details: dict[str, Detail] = Field(default_factory=dict, description="The listener's audio setup")
+
+    @field_validator("details")
+    @classmethod
+    def _details(cls, value: dict[str, Detail]) -> dict[str, Detail]:
+        return _bounded_details(value)
 
 
 class PollBody(BaseModel):
@@ -147,8 +210,21 @@ def diag():
     The caller's devices with their recent sync self-reports (RAM only): how
     far each one's audio was from the group anchor, poll by poll. The server
     alone cannot answer "it sounds off" — it knows the plan, not the speakers.
+    Next to them, the last few sync calibrations with every click's numbers.
     """
-    return {"devices": manager.diagnostics(get_current_userid())}
+    userid = get_current_userid()
+    return {"devices": manager.diagnostics(userid), "calibrations": manager.calibrations(userid)}
+
+
+@api.post("/calibration-log")
+def calibration_log(body: CalibrationLogBody):
+    """
+    Keep the raw measurement of one sync calibration (RAM only, the last few
+    runs per user), readable through ``GET /devicesync/diag``. Only numbers and
+    names — the recording itself never leaves the listening device.
+    """
+    manager.log_calibration(get_current_userid(), body.model_dump())
+    return {"msg": "ok"}
 
 
 @api.post("/command")

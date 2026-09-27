@@ -545,6 +545,22 @@
       "type": "json"
     }
   },
+  "POST /devicesync/calibration-log": {
+    "body": {
+      "allowed": [
+        "details",
+        "device_id",
+        "devices",
+        "run"
+      ],
+      "required": [
+        "device_id",
+        "devices",
+        "run"
+      ],
+      "type": "json"
+    }
+  },
   "POST /devicesync/command": {
     "body": {
       "allowed": [

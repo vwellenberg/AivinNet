@@ -27,6 +27,7 @@ import {
     suggestTrims,
     type Recording,
 } from '@/utils/deviceSync/calibration'
+import { logCalibration, type CalibrationDetail } from '@/requests/devicesync'
 import { micAvailable, startMicCapture, type MicCapture } from '@/utils/deviceSync/micCapture'
 import type { DeviceSummary } from '@/utils/deviceSync/types'
 import useDeviceSync, { onCalibrationReport, type CalibrationReport } from './devicesync'
@@ -289,6 +290,8 @@ export default defineStore('syncCalibration', {
         /** Stop recording, measure every reported device, and suggest trims. */
         finish() {
             const ds = useDeviceSync()
+            const thisRun = run
+            const setup = mic?.details() ?? {}
             const startLocal = mic?.startLocalMs() ?? null
             const recording: Recording | null =
                 mic && startLocal !== null
@@ -306,6 +309,7 @@ export default defineStore('syncCalibration', {
             }
 
             const offsets: Record<string, (number | null)[]> = {}
+            const strengths: Record<string, (number | null)[]> = {}
             for (const row of this.rows) {
                 const report = reports[row.id]
                 if (!report) {
@@ -313,8 +317,10 @@ export default defineStore('syncCalibration', {
                 } else if (report.error) {
                     row.status = REPORT_ERRORS[report.error] ?? 'failed'
                 } else {
-                    row.offsetsMs = measureClicks(recording, report.sounded_ms ?? [])
-                    offsets[row.id] = row.offsetsMs
+                    const measured = measureClicks(recording, report.sounded_ms ?? [])
+                    row.offsetsMs = measured.offsetsMs
+                    offsets[row.id] = measured.offsetsMs
+                    strengths[row.id] = measured.strengths
                 }
             }
             const latencies = relativeLatencies(offsets)
@@ -334,8 +340,45 @@ export default defineStore('syncCalibration', {
                 row.suggestedTrim = trims[row.id] ?? null
                 row.reference = heard.length > 1 && row === earliest
             }
+            this.logRun(thisRun, recording, setup, strengths)
             reports = {}
             this.phase = 'result'
+        },
+
+        /**
+         * Hand the run's raw numbers to the server (`GET /devicesync/diag`): a
+         * trim that comes out wrong in a real room can only be taken apart
+         * click by click. Numbers and names only — the recording stays here.
+         */
+        logRun(
+            thisRun: string,
+            recording: Recording,
+            setup: Record<string, CalibrationDetail>,
+            strengths: Record<string, (number | null)[]>
+        ) {
+            const round = (value: number | null, digits: number) =>
+                value === null ? null : Math.round(value * 10 ** digits) / 10 ** digits
+            void logCalibration({
+                device_id: useDeviceSync().deviceId,
+                run: thisRun,
+                details: {
+                    ...setup,
+                    user_agent: navigator.userAgent.slice(0, 300),
+                    recording_ms: Math.round((recording.samples.length / recording.sampleRate) * 1000),
+                },
+                devices: this.rows.map(row => ({
+                    device_id: row.id,
+                    name: row.name,
+                    status: row.status,
+                    sounded_ms: reports[row.id]?.sounded_ms ?? [],
+                    offsets_ms: row.offsetsMs.map(v => round(v, 2)),
+                    strengths: (strengths[row.id] ?? []).map(v => round(v, 1)),
+                    latency_ms: round(row.latencyMs, 2),
+                    suggested_trim_ms: row.suggestedTrim,
+                    current_trim_ms: row.currentTrim,
+                    details: reports[row.id]?.details ?? {},
+                })),
+            })
         },
 
         /** Give the measured devices their suggested trims. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { playMeasurement, soundedAt, tickRate, type Reading } from '@/utils/deviceSync/clickPlayer'
+import { clockStats, playMeasurement, soundedAt, tickRate, type Reading } from '@/utils/deviceSync/clickPlayer'
 
 /** A media clock read every 25 ms: position 0 sounded at `origin`, plus Firefox-like jitter. */
 function readings(origin: number, fromMedia: number, count: number, jitter = 0): Reading[] {
@@ -65,3 +65,22 @@ describe('playMeasurement', () => {
         expect(result).toEqual({ error: 'late' })
     })
 })
+
+describe('clockStats', () => {
+    it('reads a steady media clock as steady', () => {
+        expect(clockStats(readings(1_000_000, 0, 200))).toEqual({ spreadMs: 0, driftMs: 0 })
+    })
+
+    it('shows a clock whose reported delay settles while it plays as drift', () => {
+        // The first second 40 ms off, then 40 ms less: a latency estimate that
+        // changes under a fresh element.
+        const settling = readings(1_000_000, 0, 200).map(r => (r.media < 1000 ? { ...r, at: r.at - 40 } : r))
+        expect(clockStats(settling).driftMs).toBeCloseTo(40, 0)
+    })
+
+    it('says nothing with too few readings, and no drift over too short a run', () => {
+        expect(clockStats(readings(1_000_000, 0, 4))).toEqual({ spreadMs: null, driftMs: null })
+        expect(clockStats(readings(1_000_000, 0, 60)).driftMs).toBeNull() // 1.5 s
+    })
+})
+
