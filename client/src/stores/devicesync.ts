@@ -19,6 +19,7 @@
 import { defineStore } from 'pinia'
 
 import { clampOffset, loadAudioOffset, saveAudioOffset } from '@/utils/deviceSync/audioOffset'
+import { playMeasurement, TickPlayer, type MeasureResult, type TickPlan } from '@/utils/deviceSync/clickPlayer'
 import { computeCorrection, MAX_RATE_DELTA, SEEK_MS } from '@/utils/deviceSync/driftSteer'
 import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
@@ -185,6 +186,43 @@ let latency = loadLatency()
 /** The anchor the leader already booked the next track for — one booking per anchor. */
 let bookedFor = ''
 
+// --- sync calibration, the part every device plays ----------------------------
+//
+// A listening device (stores/syncCalibration.ts) asks every member to click
+// (`sync_click`) or to tick (`sync_ticks`); the member plays through its own
+// <audio> element and reports back when its clicks sounded. See
+// utils/deviceSync/clickPlayer.ts.
+
+/** Ticks for "align by ear" — one run at a time. */
+const tickPlayer = new TickPlayer()
+/** The click measurement running on this device, if any. */
+let measuring: AbortController | null = null
+
+/** What a measured device sends back to the listening one. */
+export interface CalibrationReport {
+    run: string
+    device: string
+    sounded_ms?: (number | null)[]
+    error?: string
+}
+
+/** Where reports for this device go while it is the listener. */
+let calibrationReports: ((report: CalibrationReport) => void) | null = null
+
+/** Receive the reports of a calibration this device runs (null to stop). */
+export function onCalibrationReport(handler: ((report: CalibrationReport) => void) | null) {
+    calibrationReports = handler
+}
+
+/** Most clicks one plan may ask of a device, and most ticks one by-ear run (~3 min at 1/s). */
+const MAX_PLAN_CLICKS = 16
+const MAX_TICKS = 180
+
+const calibrationClock = {
+    serverNow: () => estimator.serverNow(),
+    offset: () => estimator.offset,
+}
+
 /**
  * Nesting depth of `withApplying` sections. A plain boolean would let an inner
  * section (e.g. a pending state committing during a mirror) clear the outer
@@ -260,6 +298,10 @@ export function __resetDeviceSyncTestState() {
     recentSeeks = []
     latency = loadLatency()
     bookedFor = ''
+    tickPlayer.stop()
+    measuring?.abort()
+    measuring = null
+    calibrationReports = null
     pollSeq = 0
     appliedSeq = 0
     pollingActive = false
@@ -930,9 +972,111 @@ export default defineStore('devicesync', {
                     this.playHereLeave()
                     break
                 }
+                case 'set_audio_offset': {
+                    // A trim measured — or dialled in by ear — on the listening device.
+                    const ms = Number(p.offset_ms)
+                    if (Number.isFinite(ms)) this.setAudioOffset(ms)
+                    break
+                }
+                case 'sync_click': {
+                    const run = typeof p.run === 'string' ? p.run : ''
+                    const listener = typeof p.listener === 'string' ? p.listener : ''
+                    const clicks: number[] = Array.isArray(p.clicks_ms) ? p.clicks_ms.filter(Number.isFinite) : []
+                    if (!run || !listener || clicks.length === 0 || clicks.length > MAX_PLAN_CLICKS) break
+                    void this.measureClicks(clicks).then(result =>
+                        // Straight to the endpoint: a report to a listener that
+                        // has gone meanwhile is not worth an error toast here.
+                        sendCommand({
+                            device_id: this.deviceId,
+                            type: 'sync_click_report',
+                            payload: { run, device: this.deviceId, ...result },
+                            target_device: listener,
+                        })
+                    )
+                    break
+                }
+                case 'sync_ticks': {
+                    const run = typeof p.run === 'string' ? p.run : ''
+                    if (p.stop) {
+                        tickPlayer.stop(run)
+                        break
+                    }
+                    const plan: TickPlan = {
+                        run,
+                        startServerMs: Number(p.start_ms),
+                        periodMs: Number(p.period_ms),
+                        count: Math.min(MAX_TICKS, Math.floor(Number(p.count))),
+                    }
+                    const valid =
+                        run !== '' &&
+                        Number.isFinite(plan.startServerMs) &&
+                        plan.periodMs >= 250 &&
+                        plan.periodMs <= 5000 &&
+                        plan.count >= 1
+                    if (valid) void this.startTicks(plan)
+                    break
+                }
+                case 'sync_click_report': {
+                    calibrationReports?.(p as CalibrationReport)
+                    break
+                }
                 default:
                     break
             }
+        },
+
+        // --- sync calibration ------------------------------------------------
+
+        /** Server time now, by this device's clock estimate (ms). */
+        serverNow(): number {
+            return estimator.serverNow()
+        },
+
+        /**
+         * Play a calibration plan's clicks here and say when each one sounded
+         * (server ms, by this device's media clock — see clickPlayer.ts).
+         * Ascending, like the listener's plan the report is matched against.
+         */
+        async measureClicks(clicksMs: number[]): Promise<MeasureResult> {
+            tickPlayer.stop()
+            measuring?.abort()
+            const abort = new AbortController()
+            measuring = abort
+            const settings = useSettings()
+            try {
+                return await playMeasurement({
+                    clicksServerMs: [...clicksMs].sort((a, b) => a - b),
+                    clock: calibrationClock,
+                    volume: settings.mute ? 0 : settings.volume,
+                    startLatencyMs: latency.start,
+                    signal: abort.signal,
+                })
+            } finally {
+                if (measuring === abort) measuring = null
+            }
+        },
+
+        /** Tick along a by-ear plan — this device's trim included, read live. */
+        async startTicks(plan: TickPlan) {
+            measuring?.abort()
+            const settings = useSettings()
+            await tickPlayer.start(plan, {
+                clock: calibrationClock,
+                trimMs: () => this.audioOffsetMs,
+                volume: settings.mute ? 0 : settings.volume,
+                startLatencyMs: latency.start,
+                seekLatencyMs: latency.seek,
+            })
+        },
+
+        stopTicks(run?: string) {
+            tickPlayer.stop(run)
+        },
+
+        /** Silence whatever a calibration started on this device. */
+        stopCalibrationAudio() {
+            tickPlayer.stop()
+            measuring?.abort()
         },
 
         // --- drift steering --------------------------------------------------
@@ -1206,6 +1350,8 @@ export default defineStore('devicesync', {
             settle = null
             bookedFor = ''
             recentSeeks = []
+            // Out of the group: no more clicks or ticks for it either.
+            this.stopCalibrationAudio()
             // Solo playback: rate 1.0 and pitch preservation back to the default.
             usePlayer().setFineSteering(false)
             appliedRate = 1

@@ -38,7 +38,20 @@ api = APIBlueprint("devicesync", __name__, url_prefix="/devicesync", abp_tags=[b
 TRANSPORT_TYPES = frozenset({"play", "pause", "seek", "track_change", "set_repeat"})
 
 # Device-targeted commands: executed immediately by the target, no version bump.
-TARGETED_TYPES = frozenset({"set_volume", "set_mute", "join_invite", "play_here"})
+# The sync_* commands and set_audio_offset carry the calibration between members
+# (see ``lib.groupsession.MEMBER_TARGETED_TYPES``).
+TARGETED_TYPES = frozenset(
+    {
+        "set_volume",
+        "set_mute",
+        "join_invite",
+        "play_here",
+        "set_audio_offset",
+        "sync_click",
+        "sync_click_report",
+        "sync_ticks",
+    }
+)
 
 # Defensive caps on client-supplied lists (a runaway queue would bloat RAM/JSON).
 MAX_QUEUE_TRACKS = 5000

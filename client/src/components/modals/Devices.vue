@@ -1,5 +1,14 @@
 <template>
-    <div class="devices-modal">
+    <!-- Calibration takes the whole panel: it is a short sequence of its own,
+         and the device list below would only compete with it. -->
+    <SyncCalibration
+        v-if="view !== 'list'"
+        :key="view"
+        :mode="view"
+        @done="view = 'list'"
+        @switch="mode => (view = mode)"
+    />
+    <div v-else class="devices-modal">
         <p class="group-hint">{{ hint }}</p>
 
         <div v-if="ds.devices.length === 0" class="empty">
@@ -21,6 +30,9 @@
                     <span class="dot" :class="{ online: device.online }"></span>
                     {{ device.joined ? 'In group' : device.online ? 'Online' : 'Offline' }} ·
                     {{ device.type === 'mobile' ? 'Mobile' : 'Desktop' }}
+                    <template v-if="device.joined && trimFor(device)">
+                        · <span class="trim">{{ trimFor(device) > 0 ? '+' : '' }}{{ trimFor(device) }} ms</span>
+                    </template>
                 </div>
             </div>
 
@@ -110,6 +122,12 @@
             </div>
         </div>
 
+        <!-- Lining the speakers up takes two devices that play together. -->
+        <div v-if="canCalibrate" class="calibrate">
+            <button class="btn-primary" @click="view = 'mic'">Calibrate sync</button>
+            <button class="by-ear" @click="view = 'ear'">Align by ear</button>
+        </div>
+
         <!-- Offline devices carry no control at all (see partitionDevices), so
              they are folded away behind their count rather than pushing the one
              device you can invite off the screen. -->
@@ -130,8 +148,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
+import SyncCalibration from '@/components/DeviceSync/SyncCalibration.vue'
 import type { DeviceSummary } from '@/requests/devicesync'
 import useDeviceSync from '@/stores/devicesync'
 import useSettings from '@/stores/settings'
@@ -145,7 +164,11 @@ const emit = defineEmits<{
 const ds = useDeviceSync()
 const settings = useSettings()
 
-onMounted(() => emit('setTitle', 'Devices'))
+const view = ref<'list' | 'mic' | 'ear'>('list')
+const TITLES = { list: 'Devices', mic: 'Calibrate sync', ear: 'Align by ear' }
+
+onMounted(() => emit('setTitle', TITLES[view.value]))
+watch(view, value => emit('setTitle', TITLES[value]))
 
 const isSelf = (device: DeviceSummary) => device.device_id === ds.deviceId
 
@@ -161,6 +184,12 @@ const shownDevices = computed(() =>
 
 const joinedOthers = computed(() => ds.devices.filter(d => d.joined && !isSelf(d)))
 const groupExists = computed(() => ds.devices.some(d => d.joined))
+const canCalibrate = computed(() => ds.joined && joinedOthers.value.some(d => d.online))
+
+/** The trim a device plays with: our own from the store, the others' as they last reported it. */
+function trimFor(device: DeviceSummary): number {
+    return Math.round(isSelf(device) ? ds.audioOffsetMs : (device.trim_ms ?? 0))
+}
 
 const hint = computed(() => {
     if (ds.joined) return 'Group playback is on — every device below plays in sync and can control it.'
@@ -318,6 +347,11 @@ async function playHereOnly() {
             font-size: 0.8rem;
             opacity: 0.8;
 
+            .trim {
+                font-variant-numeric: tabular-nums;
+                font-weight: 700;
+            }
+
             .dot {
                 flex-shrink: 0;
                 width: 0.5rem;
@@ -414,6 +448,31 @@ async function playHereOnly() {
                 margin: 0.2rem 0 0;
                 font-size: 0.72rem;
                 opacity: 0.6;
+            }
+        }
+    }
+
+    .calibrate {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: $small;
+
+        .btn-primary {
+            flex: 1 1 12rem;
+        }
+
+        // The manual way, next to the measured one — quiet, like the offline toggle.
+        .by-ear {
+            min-height: 2.75rem;
+            padding: 0 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            opacity: 0.75;
+            text-decoration: underline;
+
+            &:hover {
+                opacity: 1;
             }
         }
     }

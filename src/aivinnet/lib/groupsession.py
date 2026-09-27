@@ -66,6 +66,24 @@ PRESENCE_TTL_MS = 30 * 60 * 1000
 DIAG_SAMPLES = 1800
 DIAG_FIELDS = ("error_ms", "rtt_ms", "rate", "trim_ms", "start_ms", "seek_ms")
 
+# Targeted commands whose target has to be a session member. `join_invite` is
+# the one exception — it is how a device becomes a member in the first place.
+# The sync_* commands carry a calibration between members: the listening
+# device asks the others to click (`sync_click`) or tick (`sync_ticks`), they
+# report back when their clicks left the speaker (`sync_click_report`), and the
+# result is a trim per device (`set_audio_offset`).
+MEMBER_TARGETED_TYPES = frozenset(
+    {
+        "set_volume",
+        "set_mute",
+        "play_here",
+        "set_audio_offset",
+        "sync_click",
+        "sync_click_report",
+        "sync_ticks",
+    }
+)
+
 
 @dataclass
 class Session:
@@ -253,6 +271,8 @@ class GroupSessionManager:
                         entry["mute"] = mute
                     if diag is not None:
                         entry["build"] = diag.get("build") or entry.get("build", "")
+                        if diag.get("trim_ms") is not None:
+                            entry["trim_ms"] = diag["trim_ms"]
                         samples = entry.setdefault("diag", deque(maxlen=DIAG_SAMPLES))
                         samples.append([now, *(diag.get(name) for name in DIAG_FIELDS)])
 
@@ -474,9 +494,9 @@ class GroupSessionManager:
         """
         Queue a device-targeted command (executes immediately, no version bump).
 
-        ``join_invite`` requires the target to exist in presence; the volume/mute/
-        transfer commands require the target to be a session member. Returns the
-        command, or ``None`` for an invalid target / no session.
+        ``join_invite`` requires the target to exist in presence; everything else
+        (``MEMBER_TARGETED_TYPES``) requires it to be a session member. Returns
+        the command, or ``None`` for an invalid target / no session.
         """
         with self._lock:
             session = self._sessions.get(userid)
@@ -488,7 +508,7 @@ class GroupSessionManager:
             if ctype == "join_invite":
                 if target_device not in self._presence.get(userid, {}):
                     return None
-            elif ctype in ("set_volume", "set_mute", "play_here"):
+            elif ctype in MEMBER_TARGETED_TYPES:
                 if target_device not in session.members:
                     return None
             else:
@@ -573,6 +593,9 @@ class GroupSessionManager:
                         "volume": entry.get("volume"),
                         "mute": entry.get("mute", False),
                         "is_leader": did == leader,
+                        # This device's output trim, as it last reported it
+                        # (joined devices only); None until then.
+                        "trim_ms": entry.get("trim_ms"),
                     }
                 )
             result["devices"] = devices

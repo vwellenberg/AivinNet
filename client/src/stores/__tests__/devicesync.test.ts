@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 
 // The device-sync store keeps its clock estimator, dedupe set and timers as
 // module-level singletons. Tests reset the module registry per case so those
@@ -48,6 +49,21 @@ vi.mock('@/stores/player', () => ({
     getUrl: () => '',
 }))
 vi.mock('@/requests/devicesync', () => requestsMock)
+// Calibration clicks and ticks play through their own <audio> elements.
+const { clickMock } = vi.hoisted(() => ({
+    clickMock: {
+        playMeasurement: vi.fn(),
+        tickStart: vi.fn(() => Promise.resolve(true)),
+        tickStop: vi.fn(),
+    },
+}))
+vi.mock('@/utils/deviceSync/clickPlayer', () => ({
+    playMeasurement: clickMock.playMeasurement,
+    TickPlayer: class {
+        start = clickMock.tickStart
+        stop = clickMock.tickStop
+    },
+}))
 // setNewList / setFromPlaylist touch these — keep them light in jsdom.
 vi.mock('@/stores/interface', () => ({ default: () => ({ focusCurrentInSidebar() {} }) }))
 vi.mock('@/stores/pages/playlists', () => ({ default: () => ({ movePlayedToTop: vi.fn() }) }))
@@ -90,7 +106,12 @@ const mkPoll = (over: Partial<any> = {}): any => ({
 // against the 10s hook budget. Under a starved CI worker that intermittently
 // blew up as "Hook timed out in 10000ms". Static imports move that cost to
 // collection, which has no timeout.
-import useDeviceSyncStore, { __latencyForTest, __resetDeviceSyncTestState } from '@/stores/devicesync'
+import useDeviceSyncStore, {
+    __latencyForTest,
+    __resetDeviceSyncTestState,
+    onCalibrationReport,
+    type CalibrationReport,
+} from '@/stores/devicesync'
 import useQueueStore from '@/stores/queue'
 import useTracklistStore from '@/stores/queue/tracklist'
 import useSettingsStore from '@/stores/settings'
@@ -1898,3 +1919,125 @@ describe('devicesync store', () => {
         expect((requestsMock.pollSession.mock.calls[1] as any[])[0].diag).toBeUndefined()
     })
 })
+
+// ---------------------------------------------------------------------------
+// Sync calibration: what every member does when the listening device asks.
+// ---------------------------------------------------------------------------
+describe('devicesync store — sync calibration commands', () => {
+    beforeEach(() => {
+        localStorage.clear()
+        __resetDeviceSyncTestState()
+        // After the reset, which stops ticks itself: every call below is the test's.
+        vi.clearAllMocks()
+        requestsMock.sendCommand.mockResolvedValue({ status: 200, data: {} })
+        setActivePinia(createPinia())
+    })
+
+    const targeted = (id: string, type: string, payload: unknown): any => ({
+        id,
+        type,
+        payload,
+        execute_at_ms: 0,
+        target_device: 'devA',
+    })
+
+    function member() {
+        const ds = useDeviceSyncStore()
+        ds.deviceId = 'devA'
+        return ds
+    }
+
+    it('takes the trim the listener measured, and keeps it', () => {
+        const ds = member()
+        ds.handleCommands([targeted('t1', 'set_audio_offset', { offset_ms: 150 })])
+        expect(ds.audioOffsetMs).toBe(150)
+        expect(localStorage.getItem('aivinnet.audio_offset_ms')).toBe('150')
+
+        // A malformed trim changes nothing — it does not reset the device to 0.
+        ds.handleCommands([targeted('t2', 'set_audio_offset', { offset_ms: 'soon' })])
+        expect(ds.audioOffsetMs).toBe(150)
+    })
+
+    it('clicks the plan in order and reports to the listener who it is', async () => {
+        clickMock.playMeasurement.mockResolvedValue({ sounded_ms: [5000.5, 8600.25] })
+        const ds = member()
+        useSettingsStore().setVolume(0.6)
+
+        ds.handleCommands([targeted('c1', 'sync_click', { run: 'r1', listener: 'phone', clicks_ms: [8600, 5000] })])
+        await flushPromises()
+
+        expect(clickMock.playMeasurement).toHaveBeenCalledWith(
+            expect.objectContaining({ clicksServerMs: [5000, 8600], volume: 0.6, startLatencyMs: 50 })
+        )
+        expect(requestsMock.sendCommand).toHaveBeenCalledWith({
+            device_id: 'devA',
+            type: 'sync_click_report',
+            payload: { run: 'r1', device: 'devA', sounded_ms: [5000.5, 8600.25] },
+            target_device: 'phone',
+        })
+    })
+
+    it('clicks at volume 0 when muted, so the listener hears why', async () => {
+        clickMock.playMeasurement.mockResolvedValue({ error: 'muted' })
+        const ds = member()
+        useSettingsStore().mute = true
+
+        ds.handleCommands([targeted('c1', 'sync_click', { run: 'r1', listener: 'phone', clicks_ms: [5000] })])
+        await flushPromises()
+
+        expect(clickMock.playMeasurement).toHaveBeenCalledWith(expect.objectContaining({ volume: 0 }))
+        expect(requestsMock.sendCommand).toHaveBeenCalledWith(
+            expect.objectContaining({ payload: { run: 'r1', device: 'devA', error: 'muted' } })
+        )
+    })
+
+    it('ignores a click plan without a listener to answer', async () => {
+        const ds = member()
+        ds.handleCommands([targeted('c1', 'sync_click', { run: 'r1', clicks_ms: [5000] })])
+        await flushPromises()
+        expect(clickMock.playMeasurement).not.toHaveBeenCalled()
+    })
+
+    it('ticks for its own run, bounded, and stops only that run', () => {
+        const ds = member()
+        ds.handleCommands([
+            targeted('k1', 'sync_ticks', { run: 'e1', listener: 'phone', start_ms: 9000, period_ms: 1000, count: 500 }),
+        ])
+        expect(clickMock.tickStart).toHaveBeenCalledWith(
+            { run: 'e1', startServerMs: 9000, periodMs: 1000, count: 180 },
+            expect.objectContaining({ volume: expect.any(Number), startLatencyMs: 50, seekLatencyMs: 90 })
+        )
+        // The trim is read live: a trim changed mid-run moves the ticks.
+        const opts = (clickMock.tickStart.mock.calls[0] as any[])[1]
+        ds.setAudioOffset(120)
+        expect(opts.trimMs()).toBe(120)
+
+        // A nonsense period starts nothing.
+        ds.handleCommands([targeted('k2', 'sync_ticks', { run: 'e2', start_ms: 9000, period_ms: 5, count: 10 })])
+        expect(clickMock.tickStart).toHaveBeenCalledTimes(1)
+
+        ds.handleCommands([targeted('k3', 'sync_ticks', { run: 'e1', stop: true })])
+        expect(clickMock.tickStop).toHaveBeenCalledWith('e1')
+    })
+
+    it('hands reports to the calibration running here, and to nobody once it ends', () => {
+        const ds = member()
+        const seen: CalibrationReport[] = []
+        onCalibrationReport(report => seen.push(report))
+
+        const report = { run: 'r1', device: 'devB', sounded_ms: [5000.5] }
+        ds.handleCommands([targeted('p1', 'sync_click_report', report)])
+        expect(seen).toEqual([report])
+
+        onCalibrationReport(null)
+        ds.handleCommands([targeted('p2', 'sync_click_report', { ...report, run: 'r2' })])
+        expect(seen).toHaveLength(1)
+    })
+
+    it('stops clicking and ticking when it drops out of the group', () => {
+        const ds = member()
+        ds.toSolo()
+        expect(clickMock.tickStop).toHaveBeenCalled()
+    })
+})
+
