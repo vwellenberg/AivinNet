@@ -399,12 +399,17 @@ export default defineStore('syncCalibration', {
             await ds.sendCmd('pause', {})
         },
 
-        /** Resume what we paused — unless someone has already started it again. */
+        /**
+         * Resume what we paused. Not gated on `playing`: the pause takes effect
+         * LEAD_MS after it is sent, so a run cancelled right away would still
+         * see the group playing — and leave it paused a moment later. A play
+         * for a group that is already playing moves nothing.
+         */
         async resumeGroup() {
             if (!pausedByUs) return
             pausedByUs = false
             const ds = useDeviceSync()
-            if (ds.joined && !ds.playing) await ds.sendCmd('play', {})
+            if (ds.joined) await ds.sendCmd('play', {})
         },
     },
 })
