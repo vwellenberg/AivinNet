@@ -158,6 +158,25 @@ function onLogout() {
         pointer-events: none;
     }
 
+    // Phones: Google's menu item anatomy (`$phone-list-*`, _buttons.scss).
+    // The entries were capped at 36px, under even the chrome's 44.
+    @include largePhones {
+        width: 12.5rem;
+        font-size: $phone-list-font;
+
+        .item:not(.info) {
+            min-height: $phone-list-row;
+            max-height: none;
+            padding: 0 $phone-list-inset;
+        }
+
+        .item svg,
+        .item.logout svg,
+        .scan svg {
+            height: $phone-list-glyph;
+        }
+    }
+
     // Destructive entry: black text, deeper pink hover fill (no red, no ring).
     .critical {
         color: $candy-text;

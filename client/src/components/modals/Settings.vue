@@ -206,6 +206,10 @@ $settings-close-inset: 0.625rem;
     > .close {
         width: $phone-list-row;
         height: $phone-list-row;
+        // Flush with the rows below it, which stand in the list's 1rem
+        // padding (Sidebar.vue, largePhones) — at the desktop's 0.625rem the
+        // button stuck out 6px past the column.
+        right: 1rem;
 
         svg {
             width: $phone-list-glyph;
@@ -213,43 +217,54 @@ $settings-close-inset: 0.625rem;
         }
     }
 
+    // The detail view's head holds the same button: at 4rem the 56px button
+    // ran 2px over the head's bottom rule. The head grows to the button plus
+    // its inset above and below, so the button sits centred in it.
+    .content {
+        grid-template-rows: calc(#{$phone-list-row} + 2 * #{$settings-close-inset}) 1fr;
+    }
+
     // Only the LIST view renders the sidebar on a phone (the detail view swaps
-    // it out), so this is the one layout where the close button sits over a
-    // row instead of in a pane head. With the list starting at the pane's 1rem
-    // padding and the button at its own 0.625rem, the two 44px plates stood
-    // 6px apart vertically and overlapped horizontally — reported as the rows
-    // looking smaller, "vertikale Höhe passt nicht", though both measured 44px.
-    // The list starts on the button's line, and the first row stops short of
-    // it: one lane, two plates side by side.
+    // it out), so this is the one layout where the close button would sit over
+    // a row instead of in a pane head. The list's title takes the button's line
+    // — the same shape as the detail view's head — and the rows start below it
+    // at full width. Before, the first row was cut short to leave the button a
+    // lane beside it, and "Appearance" was the one narrow plate in the column
+    // (reported as "komisch").
     .settingssidebar {
         border-right: none;
         padding-top: $settings-close-inset;
 
-        // `width: auto`, not the row's own `100%`: a full-width box keeps
-        // its width and pushes the margin out past the pane, so the row
-        // stayed under the button (measured: right edge 355 vs button 317).
-        // Auto lets the column's stretch hand it the width minus the lane.
-        .group:first-child .gitem:first-child {
-            width: auto;
+        .phone-title {
+            min-height: $phone-list-row;
+            // No bottom margin: the first row keeps its own 8px `margin-top`
+            // (the title took the `:first-child` that used to zero it), and
+            // that is exactly the gap between two rows.
             margin-right: calc(#{$phone-list-row} + #{$settings-close-inset});
+            display: flex;
+            align-items: center;
+            font-size: 1.15rem;
+            font-weight: 700;
         }
 
         // Here the list is the whole screen, so it takes the phone-list tier
-        // (_buttons.scss) instead of the chrome's 44px: reported as "a bit too
-        // small". 8px between rows, not 4: with 4 each plate's 3px offset
-        // shadow landed on the next row's frame.
+        // (_buttons.scss, Google's list anatomy) instead of the chrome's 44px.
+        // 8px between rows, not Google's 0: with less, each plate's 3px offset
+        // shadow lands on the next row's frame.
         .gtitle {
             font-size: 15px;
         }
 
         .gitem {
             min-height: $phone-list-row;
-            font-size: 17px;
+            font-size: $phone-list-font;
             margin-top: $small;
-            // 6px + the two covers' 4px each = 14px from glyph to label. The
-            // desktop's 12px gap came to 20px that way, which on a wider
-            // row read as the label drifting away from its glyph.
-            gap: 6px;
+            // The glyph and the label each carry a 4px cover (mem-hatch-clear),
+            // so the gap is what is left of Google's 16px after those two.
+            gap: calc(#{$phone-list-gap} - 8px);
+            // Google's 16px is measured from the row's outer edge to the glyph:
+            // the frame and the glyph's cover come off it.
+            padding-left: calc(#{$phone-list-inset} - #{$candy-border-w} - 4px);
 
             // The margin above outranks Sidebar.vue's `&.about` gap, and
             // About has no caption: without this it closed up to 8px and read
@@ -262,6 +277,13 @@ $settings-close-inset: 0.625rem;
             .icon {
                 width: $phone-list-glyph;
                 height: $phone-list-glyph;
+            }
+
+            // The Profile row's avatar is the one leading element without a
+            // cover span, so it lacks the cover's 4px on both sides: it stood
+            // 12px from the row's edge and from its label instead of 16.
+            > :not(span) {
+                margin: 0 4px;
             }
         }
     }

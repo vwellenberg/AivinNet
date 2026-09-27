@@ -57,14 +57,27 @@ $bar-glyph: 1.5rem;
 // the primary reads as primary without breaking the row's rhythm.
 $bar-glyph-play: 1.75rem;
 
-// A list that IS the phone's whole screen — the settings list, which on a
-// phone is the modal's first view and nothing else. There the row is not
-// chrome beside the content, it is the content, tapped with a thumb from the
-// bottom of the screen. At 44px it read as "a bit too small" next to 15px
-// labels, and the close button sits in the same lane as the first row, so
-// both take this size. Desktop keeps `$bar-control`.
-$phone-list-row: 3.25rem;
-$phone-list-glyph: 1.625rem;
+// Every LIST row a thumb taps on a phone — the settings list, the context
+// menu and its submenus, the profile menu. Google's own numbers, from the
+// Material 3 tokens its web components ship (`@material/web`: list item AND
+// menu item alike): 56px one-line row, 24px leading icon, 16px from the edge
+// and 16px from icon to label, 16px label (body-large). One anatomy for lists
+// and menus, so one set of tokens here.
+//
+// Reported twice as "a bit too small": the settings rows at 44px, then at
+// 52px next to Google Play's account menu (measured off the user's own
+// screenshot: 57dp rows, 24dp icons). The context menu sat at 32.8px, under
+// even the chrome's 44.
+//
+// Phones only (`largePhones`, the width `isSmallPhone` reads): on a desktop
+// the pointer is precise and the sidebar's row arithmetic is built on 44px.
+// Chrome, the player bar and icon buttons are NOT list rows and keep
+// `$bar-control` — Google sizes those smaller than 56 too.
+$phone-list-row: 3.5rem;
+$phone-list-glyph: 1.5rem;
+$phone-list-gap: 1rem;
+$phone-list-inset: 1rem;
+$phone-list-font: 1rem;
 
 // The third value the bar needs, and the one nobody owned: the space BETWEEN
 // its controls. Measured on the running app, the bar held three — 20px in the

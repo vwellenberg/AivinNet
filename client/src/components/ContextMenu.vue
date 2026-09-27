@@ -174,6 +174,22 @@ context.$subscribe((mutation, state) => {
     pointer-events: none;
   }
 
+  // Phones: Google's menu anatomy (see ContextItem.vue) at 16px type — the
+  // labels need Material's widest menu (280px) to stay whole, and eleven 56px
+  // rows (the track menu) are taller than a short phone, so the menu scrolls
+  // inside the screen instead of running off its bottom edge. Submenus are
+  // `fixed` for exactly this reason: a scroller clips what it positions.
+  @include largePhones {
+    width: min(17.5rem, calc(100vw - 2rem));
+    font-size: $phone-list-font;
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    // One axis on `auto` turns the other from `visible` to `auto` too, and the
+    // separators reach 4px past the padding box — the menu panned sideways.
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
   .critical {
     color: $candy-text;
     // No red in the candy palette — bold weight marks destructive entries
