@@ -28,6 +28,8 @@ vi.mock('@/stores/player', () => ({
         playCurrent,
         clearNextAudio,
         clearMovingNextTimeout: vi.fn(),
+        // Nothing here plays audio; `playSource` asks, and hears "nothing".
+        loadedTrackhash: () => '',
     }),
 }))
 vi.mock('@/stores/devicesync', () => ({ default: () => dsState }))
