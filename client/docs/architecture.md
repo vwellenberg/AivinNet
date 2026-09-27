@@ -101,7 +101,7 @@ Detailseite baut, folgt diesem Muster, statt im `onMounted` zu laden — das war
 `settings` (groß, persistiert, spiegelt teils Server-Config), `auth`, `modal`, `notification`
 (Toasts), `loader`, `interface`, `context` (Kontextmenü), `search`, `lyrics`, `colors`,
 `tracker` (Scrobbling), `content-width` (Layout-Messung, kein `defineStore` sondern geteilte
-Refs), `devicesync`, `playlistFolders`, `musicbrainz`, `nav`, `tabs`.
+Refs), `devicesync`, `syncCalibration`, `playlistFolders`, `musicbrainz`, `nav`, `tabs`.
 
 ## Datenholen
 
@@ -143,8 +143,11 @@ auf allen Geräten gleichzeitig übernommen — Transport-Kommandos selbst führ
 aus. Danach steuert ein 250-ms-Loop stufenlos per Resampling (`playbackRate` ±0,5 %,
 `preservesPitch` aus) und kompensierten Seeks nach;
 Start- und Seek-Latenz lernt jedes Gerät selbst (`utils/deviceSync/latency.ts`), der Leader
-bucht den nächsten Track auf das exakte Songende. Details, Messwerte und Feld-Bugs:
-`.claude/rules/device-sync.md`.
+bucht den nächsten Track auf das exakte Songende. Was kein Browser sieht (Bluetooth unter
+Windows), misst die **Sync-Kalibrierung**: `stores/syncCalibration.ts` auf dem zuhörenden Gerät,
+`DeviceSync/SyncCalibration.vue` im Devices-Panel, Klicks und Ticks über
+`utils/deviceSync/clickPlayer.ts`, die Rechnung in `calibration.ts`/`clickDetect.ts`. Details,
+Messwerte und Feld-Bugs: `.claude/rules/device-sync.md`.
 
 ## Styling
 

@@ -25,7 +25,7 @@ der Wahrheit**, komplett im RAM (`lib/groupsession.py` im Backend, HTTP unter `/
   Zukunft. Liegt der Anker vorn, wird der Zustand **gehalten** (`pending`), sein Audio auf dem
   Standby-Element vorbereitet und zur Anker-Zeit übernommen (`commit` → `alignTransport`);
   liegt er zurück, sofort (Join, Catch-up). Transport-**Kommandos** führt der Client nicht aus,
-  nur die gezielten (Volume, Mute, Invite, Play-here).
+  nur die gezielten (Volume, Mute, Invite, Play-here, Kalibrierung).
 - **Drift-Steering alle 250 ms** (`utils/deviceSync/driftSteer.ts`) — auf dem Median der letzten
   fünf Messungen, **stufenlos per Resampling**: ab 2 ms `playbackRate` proportional, höchstens
   ±0,5 %; über 40 ms ein kompensierter Seek (höchstens zwei pro 8 s). Im Gruppenmodus steht
@@ -246,13 +246,60 @@ Einzelbefund: ein Gerät mit altem Bundle spielt die alte Logik.
    Browser durch; Android und macOS tun es meist. Eine pauschale „Bluetooth = +150 ms"-Regel
    wäre deshalb falsch (dort doppelt gezählt), und erkennen kann der Browser die Ausgabe ohne
    Mikrofon-Freigabe ohnehin nicht. Und: **Der Trim gilt pro Browser, nicht pro Ausgabegerät**
-   — wechselt der PC auf Kabel oder USB, muss er zurück auf 0.
+   — wechselt der PC auf Kabel oder USB, muss er zurück auf 0 (oder neu kalibriert werden).
+   Gemessen und gesetzt wird er seit 2026-09-27 per **Sync-Kalibrierung** (unten).
 
 Unter Stress (Chrome + Firefox, 4×-CPU-gedrosseltes „Handy" auf ausgelastetem Server) liegen
 die Geräte Sekunden nach einem Übergang bis ~55 ms auseinander — so gut wie der alte Stand
 unter demselben Stress oder besser, aber ohne Doppelstart, Rücksprung und Stotter-Serie. Wer
 hier weiterdreht: vorher und nachher mit dem Probe messen (`STEPS=steady,…` für den
 Dauerbetrieb), nie nach Gefühl.
+
+## Sync-Kalibrierung — was der Browser nicht sieht, misst ein Mikrofon
+
+Devices-Panel → **Calibrate sync** (ab zwei Geräten in der Gruppe). Ein Gerät hört zu
+(`stores/syncCalibration.ts`), jedes Mitglied klickt reihum durch sein eigenes `<audio>`
+(`sync_click`) und meldet, **wann** jeder Klick laut seiner Media-Clock erklang
+(`sync_click_report`); die Aufnahme sagt, wann er wirklich ankam. Die Differenz zwischen den
+Geräten ist genau der Teil, den `currentTime` nicht kennt → Trim per `set_audio_offset`. Die
+Musik pausiert währenddessen und läuft danach weiter. **Align by ear** ist derselbe Weg ohne
+Mikrofon: alle ticken im Takt der Gruppe (`sync_ticks`, Trim live gelesen), man schiebt, bis
+ein Tick übrig ist.
+
+- ⚠️ **Klicks durch ein `<audio>`, nie Web Audio** (`utils/deviceSync/clickPlayer.ts`). Der
+  Trim korrigiert den Weg der Musik; ein anderer Weg misst etwas anderes.
+- ⚠️ **Das Mitglied muss nicht pünktlich klicken, nur ehrlich melden.** Gesucht wird um die
+  *gemeldete* Zeit, nicht um den Plan. Deshalb startet das Element sofort mit Stille bis zum
+  ersten Klick: Ein Hintergrund-Tab bekommt Timer nur noch einmal pro Sekunde, das spielende
+  Element hält seine Uhr trotzdem (Messpunkte zusätzlich aus `timeupdate`).
+- ⚠️ **Verglichen wird Runde für Runde, nicht über die ganze Aufnahme**
+  (`relativeLatencies`): Eine Aufnahme kann unter Last ein Stück Samples verlieren, danach liegt
+  alles früher. Pro Runde verdirbt so ein Aussetzer höchstens diese Runde.
+- **Matched Filter, nicht GCC-PHAT** (`clickDetect.ts`): PHAT drückt einen schwächeren Pfad
+  weg — ein halb verdeckter Direktschall verschwand hinter seiner eigenen Reflexion.
+- **Referenz ist das früheste Gerät** (`suggestTrims`), nicht der Zuhörer: Unsichtbare
+  Verzögerung kommt nur dazu, so bleibt die Gruppe auf der Server-Zeitachse, und ein später
+  dazukommendes Gerät mit korrekt gemeldetem Ausgang passt ohne Trim.
+- ⚠️ **Unter 8 ms ist keine Änderung** (`NO_CHANGE_MS`). Gemessen (unten): die Media-Clocks
+  selbst liegen ab und zu bis ~8 ms neben dem, was erklingt — darunter jagte „Nochmal messen"
+  nur Rauschen.
+- ⚠️ **Ein eben gesetzter Trim zählt 10 s lang als der des Geräts** (`sentTrims`). Die
+  Geräteliste kennt ihn erst aus dessen nächstem Bericht (`trim_ms`); „Align by ear" direkt nach
+  Apply begann sonst bei 0 — und der erste Griff an den Regler warf das Gerät dorthin zurück.
+- ⚠️ **Mikrofon nur auf sicheren Seiten** (https, localhost). Auf `http://<LAN-IP>` gibt es
+  `navigator.mediaDevices` gar nicht — kein Dialog, nichts, was die App freischalten könnte. Die
+  App zeigt dann das Chrome-/Edge-Flag `unsafely-treat-insecure-origin-as-secure` mit der eigenen
+  Adresse zum Kopieren; nur das **zuhörende** Gerät braucht es. Kopieren per
+  `execCommand`, weil auch die Clipboard-API nur auf sicheren Seiten existiert.
+- **Kein „pro Lautsprecher merken".** Welcher Ausgang dranhängt, verrät nur
+  `enumerateDevices()` — sicherer Kontext **und** Mikrofon-Freigabe auf *dem* Gerät. Auf dem
+  http-PC ist das nicht zu haben; der Trim bleibt pro Browser.
+- Aufnahme: `utils/deviceSync/micCapture.ts` (AudioWorklet, Echo-Unterdrückung/Rauschfilter/AGC
+  **aus** — die Echo-Unterdrückung zöge den eigenen Klick aus der Aufnahme). Bleibt im Speicher.
+- Gemessen (2 Chromium an einer PipeWire-Senke, eines hinter 150 ms Verzögerung, die sein
+  Browser nicht sieht): 149–158 ms, ohne Verzögerung −1,7…+1,8 ms über je sechs Läufe; nach
+  Apply fallen die Ticks auf der Senke zusammen, ohne Trim liegen sie 148–150 ms auseinander.
+  Rig und Befehle: [docs/verification.md](../../docs/verification.md) „Sync-Kalibrierung".
 
 ## Gruppen-Bildung und Auto-Rejoin
 
