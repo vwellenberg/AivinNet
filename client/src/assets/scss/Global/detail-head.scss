@@ -152,10 +152,13 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     .dh-title {
         // A look may set the title in its own display face (#241).
         font-family: var(--look-display-font, inherit);
+        font-size-adjust: var(--look-display-adjust, none);
         font-size: var(--shape-detail-title, #{$detail-title-size});
         font-weight: $detail-title-weight;
         line-height: 1.08;
         color: $candy-text;
+        // And may make it glow — Virtual Grid's neon title (#259).
+        text-shadow: var(--look-display-glow, none);
         margin: 0.25rem 0;
     }
 

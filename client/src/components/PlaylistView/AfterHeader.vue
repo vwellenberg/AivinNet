@@ -149,7 +149,9 @@ const showDateHeading = computed(
     // Reads on the bar in both themes: ink bar on light, paper bar on dark
     // (`$mem-line` flips), and the ground flips with it.
     color: var(--look-bar-text, #{$mem-ground});
-    border: $candy-border-w solid var(--look-bar-fill, #{$mem-line});
+    // Its edge follows the fill unless a look frames it separately — Virtual
+    // Grid's band is dark glass, its frames neon (#259).
+    border: $candy-border-w solid var(--look-bar-edge, var(--look-bar-fill, #{$mem-line}));
     border-bottom: none;
     border-top-left-radius: $candy-radius-sm;
     border-top-right-radius: $candy-radius-sm;
@@ -181,7 +183,7 @@ const showDateHeading = computed(
         color: inherit;
         // And the look's display face: at 0.72rem uppercase a pixel face turns
         // "C" into "O" (#241) — the bar's own small caps stay in the body face.
-        font-family: inherit;
+        @include body-face;
         font-size: inherit;
     }
 }

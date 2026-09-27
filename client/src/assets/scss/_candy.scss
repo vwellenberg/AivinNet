@@ -176,6 +176,8 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-radius(-sm)    corner radii (above)
 //   --shape-sprinkle       the terrazzo dash texture
 //   --shape-doodles        the doodle layer of the page ground
+//   --shape-doodles-size   its background-size (one entry per layer, when a
+//                          look puts several images in that slot)
 //
 // Already runtime before this, and still the way to reach them:
 //   borders     → colour `--mem-line` (the WIDTH stays a Sass number: ~100
@@ -218,11 +220,15 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-detail-title · -phone   the title in a detail head
 //   --look-sticker-image · -text    a caption painted as more than a fill (title bar)
 //   --look-bar-fill · -image · -text the ink band over a track list (AfterHeader)
+//   --look-bar-edge                 that band's frame, when it is not its fill
 //   --shape-radius-pill             pills and sliders
 //   --look-perforation · -row-edge  the dashes between song rows, their trailing ink edge
 //   --look-menu-hover · -text       the highlighted context menu item
 //   --shape-well-style              the border style of a sunken field (search)
 //   --look-display-font             the typeface of detail titles and section captions
+//   --look-display-glow             a text-shadow on the detail title (a neon glow)
+//   --look-display-adjust           `font-size-adjust` for that face (a small-x-height
+//                                   face reads a size smaller than the body text)
 //   --shape-frame · -frame-style    the plate frame's colour and border style
 @function mem-shadow($x, $y, $state: rest) {
   $token: if($state == rest, --shape-shadow, if($state == hover, --shape-shadow-hover, --shape-shadow-lift));
@@ -616,6 +622,15 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // Playing label). It keeps that fill in every look — a look's caption paint
 // (Desktop 98's title bar, #241) is for the plain panel captions, and drawn
 // over a static pastel it would bury the ink text the caller sets.
+// A small label that sits in a display-face context (a sticker, a caption
+// band) but is too small for it: back to the body face. Both halves — the face
+// AND its size adjustment (`--look-display-adjust`, #259); the family alone
+// would keep the body face scaled to the display face's x-height.
+@mixin body-face {
+  font-family: inherit;
+  font-size-adjust: inherit;
+}
+
 @mixin mem-sticker($radius: $candy-radius-sm, $pad: 0.3rem 0.7rem, $fill: null) {
   display: inline-block;
   width: fit-content;
@@ -643,6 +658,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // labels rather than headings and keep the body face.
   @if not $fill {
     font-family: var(--look-display-font, inherit);
+    font-size-adjust: var(--look-display-adjust, none);
   }
   text-shadow: none;
   // Der Sticker-Anschlag (#143): ein Sticker wird aufgeklebt, nicht
@@ -911,13 +927,18 @@ $mem-seg-reserve: 4px !default;
 // covers an ultrawide (3440x1440 leaves ~3150x1370 of ground) in one copy. Keep
 // these two numbers equal to the SVG's width/height; a smaller value here crops
 // the artwork, a larger one stretches it.
+//
+// A look may put a LIST of images in the artwork slot (Virtual Grid: scan
+// lines, wire grid, sky, #259). `--shape-doodles-size` then lists one size per
+// image — both custom properties expand in place, so the layer and size lists
+// stay aligned.
 @mixin mem-grid($size: 46px, $w: 2px, $doodles: true) {
   background-color: $mem-ground;
   @if $doodles {
     background-image: var(--shape-doodles, url("@/assets/images/memphis-doodles.svg")),
       linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
-    background-size: 3840px 1600px, $size $size, $size $size;
+    background-size: var(--shape-doodles-size, 3840px 1600px), $size $size, $size $size;
   } @else {
     background-image: linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
