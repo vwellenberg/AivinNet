@@ -12,7 +12,7 @@ vi.mock('@vueuse/core', () => ({
     useWindowSize: () => ({ width, height }),
 }))
 
-const { isShort, isLargerMobile, isMobile } = await import('../content-width')
+const { isShort, isLargerMobile, isMobile, isPhoneBar, RICH_BAR_MIN_WIDTH } = await import('../content-width')
 
 function viewport(w: number, h: number) {
     width.value = w
@@ -69,7 +69,10 @@ describe('isShort', () => {
 // The bar's own rule, which is what the CSS and the template both key off:
 // a short viewport is a PHONE bar, exactly like the upright phone.
 describe('the phone bar condition', () => {
-    const phoneBar = () => isMobile.value && (!isLargerMobile.value || isShort.value)
+    // The real rule the template reads (BottomBar/Left.vue), not a copy of it:
+    // this block used to restate the formula, so it stayed green while the
+    // component's own condition drifted away from it.
+    const phoneBar = () => isPhoneBar.value
 
     it('holds upright', () => {
         viewport(390, 844)
@@ -84,5 +87,30 @@ describe('the phone bar condition', () => {
     it('does not hold for an upright tablet, which keeps the richer group', () => {
         viewport(834, 1112)
         expect(phoneBar()).toBe(false)
+    })
+
+    // The rich group (nine controls) left the track title 20px at 660 wide and
+    // 40px at 700 — one letter, "L", reported from a phone in portrait. It only
+    // switches on where the title keeps a readable width.
+    it('holds for an upright phone too narrow for the rich group', () => {
+        viewport(660, 1200)
+        expect(isLargerMobile.value).toBe(true)
+        expect(phoneBar()).toBe(true)
+
+        viewport(RICH_BAR_MIN_WIDTH - 1, 1300)
+        expect(phoneBar()).toBe(true)
+    })
+
+    it('gives way to the rich group from RICH_BAR_MIN_WIDTH up', () => {
+        viewport(RICH_BAR_MIN_WIDTH, 1300)
+        expect(phoneBar()).toBe(false)
+    })
+
+    it('puts the threshold where the title has room', () => {
+        // Cover 48 + nine 44px controls + their gaps leave the title ~72px only
+        // past ~730px. Pinned so the number cannot slide back into the band
+        // where the title was a single letter.
+        expect(RICH_BAR_MIN_WIDTH).toBeGreaterThanOrEqual(740)
+        expect(RICH_BAR_MIN_WIDTH).toBeLessThanOrEqual(900)
     })
 })

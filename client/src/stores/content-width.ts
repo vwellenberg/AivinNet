@@ -90,10 +90,32 @@ export const isLargerMobile = computed(
     () => win_width.value >= LARGE_MOBILE_WIDTH && win_width.value <= ALL_MOBILE_WIDTH
 )
 
+/**
+ * Where the RICH phone bar (repeat, shuffle, favourite, lyrics, devices, volume
+ * next to the transport — `Actions` in BottomBar/Left.vue) starts to fit.
+ *
+ * It used to switch on at 660px (`isLargerMobile`), and at 660 the nine
+ * controls left the track title 20px: one letter, "L", measured on the Now
+ * Playing page (40px at 700). The row needs cover 48 + 9 × 44 + their gaps
+ * before the title gets anything, so the title only reaches a readable 72px
+ * past ~730px; 760 keeps a margin (measured: 100px there). Below it the phone
+ * bar — cover, title, transport, devices — which every narrower phone has.
+ */
+export const RICH_BAR_MIN_WIDTH = 760
+export const isRichBarWidth = computed(() => win_width.value >= RICH_BAR_MIN_WIDTH)
+
 export const isSmallestPhone = computed(() => win_width.value <= SMALL_MOBILE_WIDTH)
 
 /** Keep in step with the `shortViewport` mixin in `assets/scss/_mixins.scss`. */
 export const isShort = computed(() => win_height.value <= SHORT_HEIGHT && win_width.value > win_height.value)
+
+/**
+ * The player bar is the PHONE bar (cover, title, transport, devices/unmute)
+ * rather than the rich group — see BottomBar/Left.vue. Upright phones below
+ * `RICH_BAR_MIN_WIDTH`, and every landscape phone: one device, one bar.
+ * Stated here so the template and the tests read the same rule.
+ */
+export const isPhoneBar = computed(() => isMobile.value && (!isRichBarWidth.value || isShort.value))
 
 export {
     content_height,

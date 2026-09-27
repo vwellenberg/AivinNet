@@ -61,6 +61,37 @@
   }
 }
 
+/* The landscape phone bar, when its one row runs out of width. Measured on the
+   built client (Now Playing, 760x350), the row has a fixed cost of 512px —
+   padding 32, row gaps 24, cover 48, transport 164, navigation 228, the track
+   group's own gaps 16 — before the devices button (+56 with its gap), the
+   track title and the seek bar get anything. The seek bar needs 7rem (112px)
+   to be a control at all, and a title needs ~80px to be more than a letter.
+
+   `shortNarrowBar` (< 800px; title + devices + seek = 776 at the edge): the
+   title steps aside. Before, it showed ONE letter, "L", while the controls
+   overflowed their box and the devices button sat under the seek knob.
+
+   `shortNarrowestBar` (< 700px; devices + seek = 680): the devices button
+   steps aside too — it is also on the Now Playing page, and the phone bar
+   already drops it while the player is silent.
+
+   ⚠️ Below ~624px (512 + 112) nothing is left to give and the row still runs
+   over — a 568x320 landscape phone. Not solved here.
+
+   Nested in `shortViewport`, never used alone. See BottomBar.vue. */
+@mixin shortNarrowBar {
+  @media only screen and (max-width: 799px) {
+    @content;
+  }
+}
+
+@mixin shortNarrowestBar {
+  @media only screen and (max-width: 699px) {
+    @content;
+  }
+}
+
 @mixin for-desktop-down {
   @media only screen and (max-width: 1600px) {
     @content;

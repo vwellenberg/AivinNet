@@ -109,12 +109,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import { paths } from '@/config'
 import { Routes } from '@/router'
 
-import { isLargerMobile, isMobile, isShort } from '@/stores/content-width'
+import { isLargerMobile, isMobile, isPhoneBar } from '@/stores/content-width'
 import useQStore from '@/stores/queue'
 import useSettingsStore from '@/stores/settings'
 
@@ -146,8 +144,11 @@ const settings = useSettingsStore()
  * button have to agree with it — a landscape phone that lost the volume control
  * with `Actions` and did NOT gain the unmute button would be exactly the silent
  * dead end #326 closed.
+ *
+ * The rich group also needs the WIDTH to leave the title readable
+ * (`isRichBarWidth`, 760px): from 660 up it squeezed the title to one letter.
  */
-const phoneBar = computed(() => isMobile.value && (!isLargerMobile.value || isShort.value))
+const phoneBar = isPhoneBar
 
 defineEmits<{
     (e: 'handleFav'): void
