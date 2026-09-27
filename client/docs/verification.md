@@ -87,7 +87,12 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
   `<audio>` mit, dazu Media-Events und jede `/devicesync`-Antwort. Server, Seiten und Skript
   teilen **eine** Uhr, also sind Positionen und Server-Anker direkt vergleichbar.
 - `syncanalyze.py out/<tag>.json --timeline` druckt pro Schritt Events, Abstand der Geräte und
-  Abweichung vom Anker in 100-ms-Schritten. `runprobe.sh` ruft es selbst auf.
+  Abweichung vom Anker in 100-ms-Schritten. `runprobe.sh` ruft es selbst auf. Mit
+  `STEPS=steady,next,steady` misst es 20 s ruhigen Dauerbetrieb und druckt p50/p90/max des
+  Geräteabstands — die Zahl, die man hört.
+- **Echte Geräte:** Während die Gruppe spielt, liefert `GET /devicesync/diag` (mit Token wie
+  oben) pro Gerät die Selbstberichte der letzten 30 min: Abweichung vom Takt, RTT, Rate, Trim,
+  gelernte Latenzen, Build. Das ist der erste Blick bei „klingt versetzt", vor jeder Theorie.
 - `ratebench.js` (Runner `runbench.sh`) misst, was eine `playbackRate`-Änderung dem Media-Clock
   tatsächlich bringt — Herkunft der Schwellen in `driftSteer.ts`.
 - ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit
@@ -96,7 +101,7 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
   und jedes Gerät mit Rejoin-Marker hätte sie gehört. Die Bibliothek der Kopie zeigt aber auf
   die **echten** Dateien (siehe `tests.md` im Repo-Root) — die Probe streamt nur, sie schreibt
   nichts. Wer sie um Tag- oder Datei-Aktionen erweitert, isoliert zuerst die Bibliothek.
-- Token: wie oben geprägt, per `TOKEN=` oder in `~/uitest/.probe_token`. Danach löschen.
+- Token: `runprobe.sh` prägt sich eines selbst (`~/syncprobe/mint.sh`, nie auf Platte), oder per `TOKEN=`.
 - **Ein Lauf misst unter der Last, die gerade auf dem Server liegt** (vier Kerne, zwei Browser,
   der Server, oft eine zweite Sitzung): Vergleiche nur zwischen Läufen derselben Runde, und
   eine Stress-Variante immer auch gegen den alten Stand fahren, bevor man ihr Ergebnis dem

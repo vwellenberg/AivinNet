@@ -1725,6 +1725,12 @@ describe('devicesync store', () => {
         vi.advanceTimersByTime(1250)
         expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(2)
         expect(lastRate()).toBeCloseTo(1.005, 6)
+
+        // But only until the window has passed: at 0.5 % a 150 ms offset
+        // would take half a minute (seen in a probe run after a machine-wide
+        // stall), so a still-large error gets its seek again.
+        vi.advanceTimersByTime(6000)
+        expect(playerMock.hardSeekMs).toHaveBeenCalledTimes(3)
     })
 
     it('a late timer is not learned as device latency (it climbed past 300 ms under load)', async () => {

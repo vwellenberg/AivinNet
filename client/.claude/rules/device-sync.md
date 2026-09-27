@@ -27,9 +27,13 @@ der Wahrheit**, komplett im RAM (`lib/groupsession.py` im Backend, HTTP unter `/
   liegt er zurück, sofort (Join, Catch-up). Transport-**Kommandos** führt der Client nicht aus,
   nur die gezielten (Volume, Mute, Invite, Play-here).
 - **Drift-Steering alle 250 ms** (`utils/deviceSync/driftSteer.ts`) — auf dem Median der letzten
-  drei Messungen: ab 25 ms `playbackRate` 2–4 %, bis unter 8 ms; über 100 ms ein kompensierter
-  Seek. Nach jedem Eingriff 1 s Ruhe, dann Messung — und aus ihr lernt das Gerät seine Start-
-  und Seek-Latenz (`utils/deviceSync/latency.ts`, in localStorage).
+  fünf Messungen, **stufenlos per Resampling**: ab 2 ms `playbackRate` proportional, höchstens
+  ±0,5 %; über 40 ms ein kompensierter Seek (höchstens zwei pro 8 s). Im Gruppenmodus steht
+  `preservesPitch` auf beiden Elementen aus (`player.setFineSteering`). Nach jedem Eingriff 1 s
+  Ruhe, dann Messung — und aus ihr lernt das Gerät seine Start- und Seek-Latenz
+  (`utils/deviceSync/latency.ts`, in localStorage).
+- **Selbstbericht** — jeder beigetretene Poll schickt `diag` mit (Abweichung vom Takt, RTT, Rate,
+  Trim, gelernte Latenzen, Build). Der Server hält 30 min davon im RAM: `GET /devicesync/diag`.
 - **Leader bucht den nächsten Track** ~4 s vor Songende auf dessen exaktes Ende (`bookNextTrack`,
   `execute_at_ms` im Command) — die Gruppe spielt lückenlos durch.
 - **Mirror unter `applying`-Guard.**
@@ -181,8 +185,14 @@ Leave (ein Timeout-Race würde genau den Bug wieder einbauen).
 ## Timing — was gemessen wurde und was daraus folgt
 
 Gemessen mit zwei echten Browsern auf einer Uhr (`~/syncprobe`, siehe
-[docs/verification.md](../../docs/verification.md)). Der Dauerbetrieb lag schon vorher bei
-0–25 ms; kaputt waren die **Übergänge**. Jede dieser Regeln ist eine Ursache, kein Geschmack:
+[docs/verification.md](../../docs/verification.md)). Jede dieser Regeln ist eine Ursache, kein
+Geschmack.
+
+**Wenn „klingt versetzt" gemeldet wird: zuerst `GET /devicesync/diag` lesen**, während die
+Gruppe spielt — pro Gerät Abweichung vom Takt, RTT, Rate, Trim, gelernte Latenzen und Build.
+Liegen die Geräte dort im einstelligen ms-Bereich und es klingt trotzdem versetzt, sitzt der Rest
+im Ausgabeweg hinter dem Browser (siehe Punkt 8). Ein alter Build in der Liste ist der häufigste
+Einzelbefund: ein Gerät mit altem Bundle spielt die alte Logik.
 
 1. **⚠️ Der Zustand kommt VOR seiner Zeit.** Der Server plant `LEAD_MS` (1,5 s) voraus, der Poll
    liefert den Zustand samt Anker aber sofort. Wer ihn beim Empfang anwendet, handelt im Takt
@@ -199,13 +209,20 @@ Gemessen mit zwei echten Browsern auf einer Uhr (`~/syncprobe`, siehe
    neu gepuffert hat). Das alte Snap-Window seekte ab 80 ms Abweichung alle 250 ms — jeder Seek
    erzeugte die nächste Abweichung: ~13 Seeks pro Gerät nach jedem Übergang. Jetzt: ein Seek
    zielt um die gelernte Seek-Latenz voraus, und danach wird **1 s nicht geurteilt**.
-4. **⚠️ Eine Tempo-Korrektur hat Einschaltkosten** (`~/syncprobe/ratebench.js`): Chromium
-   verliert beim Verlassen von Rate 1.0 einmalig 20–30 ms, bei der Rückkehr ~10 ms. 4 % bringen
-   danach ~40 ms/s, **1 % brachte in vier Sekunden netto 14 ms**. Deshalb erst ab 25 ms steuern,
-   dann mit mindestens 2 %; über 100 ms ist ein kompensierter Seek schneller als Sekunden Echo.
+4. **⚠️ Feinsteuerung nur per Resampling (`preservesPitch = false`).** Mit Tonhöhen-Erhalt reicht
+   Chromium Raten innerhalb ~0,1 % um 1,0 unverändert durch (die Korrektur passiert gar nicht)
+   und schaltet darüber auf den Time-Stretcher um — jede Umschaltung setzt ihn zurück und kostete
+   gemessen 20–30 ms (`~/syncprobe/ratebench.js`); 1 % brachte in vier Sekunden netto 14 ms. Das
+   alte Band von 25 ms pro Gerät (bis ~50 ms zwischen zwei Geräten) war die Folge — und 20 ms
+   hört man (Nutzer-Rückmeldung). Ohne Tonhöhen-Erhalt resampelt Chromium **immer**, auch bei
+   1,0, laut eigenem Kommentar genau „to fix timestamp drift between multiple clips"
+   (`media/filters/audio_renderer_algorithm.cc`, `ChooseBufferMode`): keine Umschaltung, keine
+   Kosten. ±0,5 % sind höchstens 8,6 Cent. Gemessen (2× Chromium, ruhige Phase): Abstand der
+   Geräte im Median 3 ms, p90 9 ms — vorher 12–19 / 32–37 ms.
 5. **Firefox' `currentTime` rauscht um ±40 ms.** Entscheidungen fallen auf dem Median der
-   letzten drei Messungen, die Landung eines Eingriffs auf dem Median dreier Messungen nach
-   dem Stillstand.
+   letzten fünf Messungen, die Landung eines Eingriffs auf dem Median dreier Messungen nach
+   dem Stillstand. Seeks sind auf zwei pro 8 s begrenzt — sonst droht wieder eine Schleife;
+   danach steuert die volle Rate, bis das Fenster frei ist.
 6. **⚠️ Ein später Timer ist keine Gerätelatenz.** Gelernt wird die Verzögerung relativ zum
    **tatsächlichen** Vorlauf (`learnLatency(estimate, lead, residual)`). Aus dem Restfehler
    allein gelernt, zählte jede Timer-Verspätung unter CPU-Last als Latenz — die Schätzung
@@ -213,7 +230,12 @@ Gemessen mit zwei echten Browsern auf einer Uhr (`~/syncprobe`, siehe
    bekämpften sich. Ein vorbereitetes Element wird außerdem erst bei > 250 ms Verspätung neu
    positioniert: das kostet einen eigenen Re-Buffer, den der Lande-Seek billiger hat.
 7. **Clock-Kalibrierung beim Join** (`calibrateClock()`, 4 Polls à ~120 ms) — ein einzelnes,
-   langsames Sample ließ die Wiedergabe messbar versetzt starten.
+   langsames Sample ließ die Wiedergabe messbar versetzt starten. Der Schätzer behält das
+   schnellste Sample aus 30 (30 s), nicht aus 10: sein Fehler ist ≤ RTT/2, und auf WLAN kommen
+   schnelle Round Trips selten.
+   ⚠️ **Während eines Joins spiegelt kein Poll.** Landete der normale Poll in der Kalibrierung,
+   spiegelte er die noch *leere* Gruppen-Queue — die eigene Queue war weg, der Seed hatte nichts
+   mehr zu senden, das Gerät saß stumm in der Gruppe (ein Probe-Lauf von vieren traf das).
 8. **Per-Device-Trim** (`utils/deviceSync/audioOffset.ts`, UI im Devices-Panel) bleibt als
    Handregler — aber nur für Ausgabewege, die das Betriebssystem nicht kennt (Soundbar-DSP,
    manche Bluetooth-Stacks). Die Latenz, die das OS meldet, rechnet Chromium schon in
@@ -222,8 +244,9 @@ Gemessen mit zwei echten Browsern auf einer Uhr (`~/syncprobe`, siehe
 
 Unter Stress (Chrome + Firefox, 4×-CPU-gedrosseltes „Handy" auf ausgelastetem Server) liegen
 die Geräte Sekunden nach einem Übergang bis ~55 ms auseinander — so gut wie der alte Stand
-unter demselben Stress oder besser, aber ohne Doppelstart, Rücksprung und Stotter-Serie. Wer hier weiterdreht: vorher und nachher mit dem Probe messen,
-nie nach Gefühl.
+unter demselben Stress oder besser, aber ohne Doppelstart, Rücksprung und Stotter-Serie. Wer
+hier weiterdreht: vorher und nachher mit dem Probe messen (`STEPS=steady,…` für den
+Dauerbetrieb), nie nach Gefühl.
 
 ## Gruppen-Bildung und Auto-Rejoin
 

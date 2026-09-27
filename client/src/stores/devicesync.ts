@@ -114,7 +114,7 @@ const RATE_EPSILON = 0.00005
  * device steers at full rate instead.
  */
 const MAX_SEEKS = 2
-const SEEK_WINDOW_MS = 15000
+const SEEK_WINDOW_MS = 8000
 /** The leader books the next track this long before the current one ends (ms)... */
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */

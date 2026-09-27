@@ -41,6 +41,11 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
   zurück** (Zustand zurück, Command aus `pending` entfernt) — sonst folgte einem Seek oder einer
   Pause in den letzten Sekunden eines Tracks trotzdem der geplante Sprung. `set_repeat` lässt sie
   stehen.
+- **Sync-Diagnose:** Beigetretene Clients schicken mit jedem Poll `diag` (Abweichung vom Takt,
+  RTT, Rate, Trim, gelernte Latenzen, Build). `touch()` hängt das an einen Ringpuffer pro Gerät
+  (`DIAG_SAMPLES`, 30 min) — RAM-only wie der ganze Poll-Pfad. `GET /devicesync/diag` liefert
+  die Geräte des Aufrufers. Der Server kennt nur den Plan, nie die Lautsprecher: ohne diesen
+  Selbstbericht ist „klingt versetzt" von hier aus nicht zu beantworten.
 - Versionierter Snapshot, Delta nur bei einem Sprung von `known_version`.
 - Targeted Commands (`set_volume`, `set_mute`, `join_invite`, `play_here`) gehen nur ans
   Zielgerät, TTL 15 s wegen der 5-s-Kadenz im Solo-Modus.
