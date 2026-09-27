@@ -400,6 +400,55 @@ def test_targeted_set_volume_reaches_only_target(ds):
     assert all(c["id"] != cmd_id for c in a_cmds)
 
 
+def test_calibration_commands_reach_their_target_and_the_trim_shows_up(ds):
+    for did in ("dev-a", "dev-b", "dev-c"):
+        _register(ds, did)
+    for did in ("dev-a", "dev-b"):
+        ds.client.post("/devicesync/join", json={"device_id": did})
+
+    for ctype, payload in (
+        ("sync_click", {"run": "r1", "listener": "dev-a", "clicks_ms": [1_003_000.5]}),
+        ("sync_ticks", {"run": "r2", "listener": "dev-a", "stop": True}),
+        ("set_audio_offset", {"offset_ms": 150}),
+    ):
+        res = ds.client.post(
+            "/devicesync/command",
+            json={"device_id": "dev-a", "type": ctype, "payload": payload, "target_device": "dev-b"},
+        )
+        assert res.status_code == 200, ctype
+        cmd_id = res.get_json()["command"]["id"]
+        delivered = _poll(ds, "dev-b", known_version=999)["commands"]
+        assert any(c["id"] == cmd_id and c["payload"] == payload for c in delivered)
+
+        # dev-c is online but not in the group: refused, not queued.
+        outside = ds.client.post(
+            "/devicesync/command",
+            json={"device_id": "dev-a", "type": ctype, "payload": payload, "target_device": "dev-c"},
+        )
+        assert outside.status_code == 400
+
+    report = ds.client.post(
+        "/devicesync/command",
+        json={
+            "device_id": "dev-b",
+            "type": "sync_click_report",
+            "payload": {"run": "r1", "sounded_ms": [1_003_004.25]},
+            "target_device": "dev-a",
+        },
+    )
+    assert report.status_code == 200
+    assert any(c["type"] == "sync_click_report" for c in _poll(ds, "dev-a", known_version=999)["commands"])
+
+    # The trim a device reports with its poll is shown to every device.
+    ds.client.post(
+        "/devicesync/poll",
+        json={"device_id": "dev-b", "known_version": 0, "diag": {"build": "1.7.60", "trim_ms": 150}},
+    )
+    devices = {d["device_id"]: d for d in _poll(ds, "dev-a")["devices"]}
+    assert devices["dev-b"]["trim_ms"] == 150
+    assert devices["dev-c"]["trim_ms"] is None
+
+
 # --- 8. resolve ---------------------------------------------------------------
 
 

@@ -577,3 +577,48 @@ def test_the_sync_history_is_bounded():
     samples = mgr.diagnostics(USER)[0]["samples"]
     assert len(samples) == DIAG_SAMPLES
     assert samples[0][1] == 5.0  # the oldest fell out
+
+
+# --- sync calibration ----------------------------------------------------------
+
+
+def test_calibration_commands_travel_between_members_only():
+    mgr, _ = make_manager()
+    for did in (A, B, C):
+        mgr.register(USER, did, did, "desktop")
+    mgr.join(USER, A)
+    mgr.join(USER, B)  # C is online, but outside the group
+
+    v_before = current_version(mgr)
+    for ctype, payload in (
+        ("sync_click", {"run": "r1", "listener": A, "clicks_ms": [1_003_000, 1_006_600]}),
+        ("sync_ticks", {"run": "r2", "listener": A, "start_ms": 1_003_000, "period_ms": 1000, "count": 90}),
+        ("set_audio_offset", {"offset_ms": 150}),
+    ):
+        cmd = mgr.apply_targeted(USER, A, ctype, payload, target_device=B)
+        assert cmd is not None
+        assert cmd["payload"] == payload
+        assert any(c["id"] == cmd["id"] for c in mgr.snapshot(USER, B, known_version=-1)["commands"])
+        # A device outside the group is never asked to click or to re-trim.
+        assert mgr.apply_targeted(USER, A, ctype, payload, target_device=C) is None
+
+    # The measured device answers the listener the same way.
+    report = mgr.apply_targeted(
+        USER, B, "sync_click_report", {"run": "r1", "sounded_ms": [1_003_004.5, None]}, target_device=A
+    )
+    assert report is not None
+    assert any(c["id"] == report["id"] for c in mgr.snapshot(USER, A, known_version=-1)["commands"])
+    # Calibration never touches the session itself.
+    assert current_version(mgr) == v_before
+
+
+def test_the_device_list_carries_the_trim_each_device_reported():
+    mgr, _ = make_manager()
+    mgr.register(USER, A, "Chrome on Windows", "desktop")
+    mgr.register(USER, B, "Chrome on Android", "mobile")
+    mgr.touch(USER, A, diag={"trim_ms": 150.0, "error_ms": 1.0})
+    mgr.touch(USER, A, diag={"error_ms": 0.5})  # a report without a trim keeps the last one
+
+    devices = {d["device_id"]: d for d in mgr.snapshot(USER, A, known_version=0)["devices"]}
+    assert devices[A]["trim_ms"] == 150.0
+    assert devices[B]["trim_ms"] is None  # never reported

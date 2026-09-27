@@ -103,6 +103,24 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
   Nur mit Zustimmung des Nutzers — es ist sein Mikrofon; die Aufnahme bleibt im Speicher.
 - `ratebench.js` (Runner `runbench.sh`) misst, was eine `playbackRate`-Änderung dem Media-Clock
   tatsächlich bringt — Herkunft der Schwellen in `driftSteer.ts`.
+- **Sync-Kalibrierung end to end — ohne Lautsprecher** (`~/syncprobe/calib/`). Zwei
+  Chromium-Geräte spielen in eine PipeWire-Nullsenke `calib_null`; das zuhörende nimmt deren
+  Monitor als Mikrofon (`PULSE_SINK`/`PULSE_SOURCE` pro Browser). Das zweite spielt über
+  `calib_delay` — eine 150-ms-Verzögerung (`delay.conf`, `pipewire -c`), die sein Browser nicht
+  sieht, genau wie Windows das Bluetooth. Einmalig die Senke anlegen:
+  `pw-cli create-node adapter "{ factory.name=support.null-audio-sink node.name=calib_null
+  media.class=Audio/Sink audio.position=[MONO] object.linger=true }"`, dann
+  `SRC=<klon> SCRIPT=calibe2e.js bash ~/syncprobe/calib/runcalib.sh` (echte UI-Klicks: messen,
+  Apply, nochmal messen, nach Gehör — mit `pw-record` auf der Senke als Kontrolle, ob die Ticks
+  zusammenfallen). `calibvar.js` misst die Wiederholgenauigkeit (`RUNS=`, `M_SINK=calib_null`
+  für „ohne Verzögerung"), `calibdiag.js` vergleicht Klick für Klick mit einer
+  `pw-record`-Aufnahme direkt an der Senke (wessen Uhr lag daneben: Mitglied oder Zuhörer?),
+  `calibshots.js` fotografiert jeden Schirm in Handygröße (`THEME=dark`; die http-Ansicht über
+  `--host-resolver-rules`, weil `localhost` selbst als sicher gilt).
+  ⚠️ **Playwright startet Chromium mit `--mute-audio`** — ohne `ignoreDefaultArgs` kommt an der
+  Senke nur Stille an, und die Aufnahme sieht aus wie ein Messfehler.
+  ⚠️ **`pw-record` verliert unter Last selbst Blöcke** (512 Samples = 10,7 ms): als
+  Wahrheit taugt es nur, solange seine Klickabstände stimmen.
 - ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit
   konsistentem DB-Snapshot, Last.fm-Keys entfernt, Scans/Watchdog aus. Das ist nötig, weil die
   Gruppe pro **Nutzer** existiert: eine Probe gegen `:1970` wäre der echten Gruppe beigetreten,

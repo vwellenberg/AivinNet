@@ -46,11 +46,16 @@ export type SyncCommandType =
     | 'set_mute'
     | 'join_invite'
     | 'play_here'
+    | 'set_audio_offset'
+    | 'sync_click'
+    | 'sync_click_report'
+    | 'sync_ticks'
 
 /**
  * A scheduled or targeted command. Transport commands carry a server-side
  * `execute_at_ms` and no target; targeted commands (volume/mute/invite/
- * play_here) carry a `target_device` and execute immediately.
+ * play_here, and the sync calibration's set_audio_offset/sync_*) carry a
+ * `target_device` and execute immediately.
  */
 export interface SyncCommand {
     id: string
@@ -69,6 +74,8 @@ export interface DeviceSummary {
     volume: number
     mute: boolean
     is_leader: boolean
+    /** Output trim the device last reported (joined devices); null/absent until then. */
+    trim_ms?: number | null
 }
 
 /**
