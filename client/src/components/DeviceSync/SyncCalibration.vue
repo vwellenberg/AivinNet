@@ -47,7 +47,7 @@
                 </p>
                 <ol class="steps">
                     <li>Put this device where you listen.</li>
-                    <li>Keep the room quiet for about 15 seconds.</li>
+                    <li>Keep the room quiet for about {{ seconds }} seconds.</li>
                     <li>The music pauses and carries on afterwards.</li>
                 </ol>
                 <button class="btn-primary wide" @click="cal.start()">Allow microphone and start</button>
@@ -91,7 +91,7 @@
             </template>
 
             <template v-else-if="cal.phase === 'listening'">
-                <p class="lead">Listening — keep quiet. Each speaker clicks three times.</p>
+                <p class="lead">Listening — keep quiet. Each speaker clicks {{ ROUNDS }} times.</p>
                 <div class="meter" aria-hidden="true">
                     <span v-for="(level, i) in bars" :key="i" :style="{ height: `${Math.max(8, level * 100)}%` }" />
                 </div>
@@ -138,7 +138,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+import useDeviceSync from '@/stores/devicesync'
 import useSyncCalibration, { NO_CHANGE_MS, type CalibrationRow, type RowStatus } from '@/stores/syncCalibration'
+import { calibrationSeconds, ROUNDS } from '@/utils/deviceSync/calibration'
 
 const props = defineProps<{ mode: 'mic' | 'ear' }>()
 const emit = defineEmits<{
@@ -147,6 +149,10 @@ const emit = defineEmits<{
 }>()
 
 const cal = useSyncCalibration()
+const ds = useDeviceSync()
+
+/** How long the room has to stay quiet, for the devices in the group now. */
+const seconds = computed(() => calibrationSeconds(ds.devices.filter(d => d.joined && d.online).length))
 
 /** The flag that lets one http address use the microphone (Chrome and Edge, desktop and Android). */
 const FLAG_URL = 'chrome://flags/#unsafely-treat-insecure-origin-as-secure'

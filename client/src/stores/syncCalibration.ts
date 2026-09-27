@@ -23,6 +23,7 @@ import {
     planClicks,
     planEndMs,
     PREP_MS,
+    relativeLatencies,
     suggestTrims,
     type Recording,
 } from '@/utils/deviceSync/calibration'
@@ -48,9 +49,13 @@ export interface CalibrationRow {
     name: string
     self: boolean
     status: RowStatus
-    /** Arrival behind the reported sound time (ms) — plus a constant shared by all rows. */
+    /** How much later than the reference device this one sounds (ms); null when not measured. */
     latencyMs: number | null
-    /** The same per click, null where nothing clear was heard (how well the clicks agree). */
+    /**
+     * Per click: arrival behind the reported sound time (ms), plus a constant
+     * shared by every row; null where nothing clear was heard. How well a
+     * device's clicks agree, for diagnostics.
+     */
     offsetsMs: (number | null)[]
     /** The trim the device has now (ms). */
     currentTrim: number
@@ -71,8 +76,13 @@ const RECORD_TAIL_MS = 800
 const REPORT_WAIT_MS = 4000
 /** A trim dragged by ear is sent after this pause (ms), not on every step. */
 const EAR_SEND_MS = 150
-/** A suggestion this close to the current trim changes nothing (ms). */
-export const NO_CHANGE_MS = 3
+/**
+ * A suggestion this close to the current trim changes nothing (ms). The
+ * browsers' media clocks themselves sit up to ~8 ms off what sounds (measured,
+ * see utils/deviceSync/calibration.ts), and so many ms between two speakers
+ * are not heard — below it, a second measurement would only chase noise.
+ */
+export const NO_CHANGE_MS = 8
 /** Level-meter bars kept. */
 const LEVEL_BARS = 12
 
@@ -253,6 +263,7 @@ export default defineStore('syncCalibration', {
                 return
             }
 
+            const offsets: Record<string, (number | null)[]> = {}
             for (const row of this.rows) {
                 const report = reports[row.id]
                 if (!report) {
@@ -260,15 +271,19 @@ export default defineStore('syncCalibration', {
                 } else if (report.error) {
                     row.status = REPORT_ERRORS[report.error] ?? 'failed'
                 } else {
-                    const measured = measureClicks(recording, report.sounded_ms ?? [])
-                    row.offsetsMs = measured.offsetsMs
-                    row.latencyMs = measured.latencyMs
-                    row.status = row.latencyMs === null ? 'unclear' : 'heard'
+                    row.offsetsMs = measureClicks(recording, report.sounded_ms ?? [])
+                    offsets[row.id] = row.offsetsMs
                 }
+            }
+            const latencies = relativeLatencies(offsets)
+            for (const row of this.rows) {
+                if (!(row.id in offsets)) continue
+                row.latencyMs = latencies[row.id] ?? null
+                row.status = row.latencyMs === null ? 'unclear' : 'heard'
             }
 
             const heard = this.rows.filter(r => r.latencyMs !== null)
-            const trims = suggestTrims(Object.fromEntries(heard.map(r => [r.id, r.latencyMs as number])))
+            const trims = suggestTrims(latencies)
             const earliest = heard.reduce<CalibrationRow | null>(
                 (best, r) => (best === null || (r.latencyMs as number) < (best.latencyMs as number) ? r : best),
                 null

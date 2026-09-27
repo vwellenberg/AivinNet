@@ -97,13 +97,12 @@ describe('sync calibration — with the microphone', () => {
         mic.startLocalMs.mockReturnValue(Date.now() - 1000)
         // The listener's own clicks sound on plan.
         ds.measureClicks.mockImplementation((clicks: number[]) => Promise.resolve({ sounded_ms: clicks }))
-        // Phone 47 ms (12 hidden + 35 shared), the PC on Bluetooth 202 ms. The
-        // phone clicks first, at the plan's start.
+        // Per click: phone 47 ms (12 hidden + 35 shared), the PC on Bluetooth
+        // 202 ms. The phone clicks first, at the plan's start.
         const planStart = ds.now + PREP_MS
-        measure.mockImplementation((_recording: any, sounded: number[]) => ({
-            offsetsMs: [],
-            latencyMs: sounded[0] === planStart ? 47 : 202,
-        }))
+        measure.mockImplementation((_recording: any, sounded: number[]) =>
+            sounded.map(() => (sounded[0] === planStart ? 47 : 202))
+        )
     })
 
     afterEach(() => {

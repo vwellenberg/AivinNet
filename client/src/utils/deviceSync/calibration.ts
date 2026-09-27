@@ -7,6 +7,13 @@
 // see — Bluetooth on Windows, a soundbar's DSP — plus a constant shared by
 // every device (microphone latency, sound travel to the listener). Only the
 // differences between devices count, so that constant drops out.
+//
+// Measured end to end (two Chromium devices on one PipeWire null sink, one of
+// them behind a 150 ms delay its browser knows nothing about): 150 ms found
+// to ±3 ms in 7 of 8 runs. The rest is the browsers' own media clocks, which
+// now and then sit up to ~8 ms off what actually sounds — the music shares
+// that floor, so a smaller correction is not a correction (see NO_CHANGE_MS
+// in stores/syncCalibration.ts).
 
 import { chirp, CHIRP_BAND_HZ } from './clickSignal'
 import { clampOffset } from './audioOffset'
@@ -14,8 +21,8 @@ import { correlationEnvelope, findArrival } from './clickDetect'
 
 /** Time between two clicks in the plan (ms): one device at a time, the room quiet again in between. */
 export const SLOT_MS = 1200
-/** Clicks per device; a result needs two that agree. */
-export const ROUNDS = 3
+/** Clicks per device; a result needs two rounds that agree. */
+export const ROUNDS = 4
 /** From the start to the first click (ms): the pause has to land and every device has to hear of the plan. */
 export const PREP_MS = 3000
 /**
@@ -28,8 +35,8 @@ export const WINDOW_BEFORE_MS = 350
 export const WINDOW_AFTER_MS = SLOT_MS - WINDOW_BEFORE_MS
 /** A click counts as heard at this strength (see `findArrival`; noise alone stays near 3). */
 export const MIN_STRENGTH = 8
-/** Clicks of one device agree when they lie this close (ms). */
-export const AGREE_MS = 4
+/** Rounds agree when their differences lie this close (ms). */
+export const AGREE_MS = 5
 
 /** Each device's click times (server ms): device i clicks in slot i of every round. */
 export function planClicks(deviceIds: string[], startServerMs: number, rounds = ROUNDS): Record<string, number[]> {
@@ -46,18 +53,17 @@ export function planEndMs(plan: Record<string, number[]>): number {
     return Math.max(...Object.values(plan).flat()) + WINDOW_AFTER_MS
 }
 
+/** Roughly how long a calibration of `devices` takes, for telling the user (whole 5 s). */
+export function calibrationSeconds(devices: number): number {
+    const ms = PREP_MS + ROUNDS * devices * SLOT_MS
+    return Math.ceil(ms / 5000) * 5
+}
+
 export interface Recording {
     samples: Float32Array
     sampleRate: number
     /** Server time of `samples[0]` — up to a constant, which cancels out. */
     startServerMs: number
-}
-
-export interface Measurement {
-    /** Arrival minus reported sound time per click (ms); null where nothing clear was heard. */
-    offsetsMs: (number | null)[]
-    /** The median of the clicks that agree, or null unless at least two do. */
-    latencyMs: number | null
 }
 
 function median(values: number[]): number {
@@ -88,15 +94,16 @@ function templateFor(sampleRate: number): Float32Array {
 
 /**
  * Where in `recording` one device's clicks arrived, relative to when it says
- * they sounded. A click whose window is not (yet) fully recorded is null.
+ * they sounded (ms per click). Null where nothing clear was heard, or where
+ * the click's window is not in the recording.
  */
-export function measureClicks(recording: Recording, soundedMs: (number | null)[]): Measurement {
+export function measureClicks(recording: Recording, soundedMs: (number | null)[]): (number | null)[] {
     const { samples, sampleRate } = recording
     const template = templateFor(sampleRate)
     const before = Math.round((WINDOW_BEFORE_MS * sampleRate) / 1000)
     const after = Math.round((WINDOW_AFTER_MS * sampleRate) / 1000)
 
-    const offsetsMs = soundedMs.map(sounded => {
+    return soundedMs.map(sounded => {
         if (sounded === null || !Number.isFinite(sounded)) return null
         const center = Math.round(((sounded - recording.startServerMs) * sampleRate) / 1000)
         const from = center - before
@@ -109,11 +116,41 @@ export function measureClicks(recording: Recording, soundedMs: (number | null)[]
         const arrivedMs = recording.startServerMs + ((from + arrival.index) / sampleRate) * 1000
         return arrivedMs - sounded
     })
-    return { offsetsMs, latencyMs: agreeing(offsetsMs) }
 }
 
 /**
- * Trims from measured latencies: the device heard earliest is the reference
+ * How much later each device sounds than the reference (ms), from the
+ * per-click offsets of `measureClicks`, keyed like the input. Devices without
+ * two agreeing rounds are left out.
+ *
+ * Each click is compared with the reference's click OF THE SAME ROUND, a
+ * second or two apart — not the whole recording at once. A recording can
+ * lose a stretch of samples under load, which shifts everything after it;
+ * compared round by round, such a hiccup spoils at most the round it falls
+ * in. The reference is the device heard most often (usually the listener
+ * itself, right next to its microphone).
+ */
+export function relativeLatencies(offsets: Record<string, (number | null)[]>): Record<string, number> {
+    const ids = Object.keys(offsets)
+    const heard = (id: string) => offsets[id].filter(v => v !== null).length
+    const reference = ids.reduce<string | null>((best, id) => (best === null || heard(id) > heard(best) ? id : best), null)
+    if (reference === null || heard(reference) < 2) return {}
+
+    const result: Record<string, number> = { [reference]: 0 }
+    for (const id of ids) {
+        if (id === reference) continue
+        const pairs = offsets[id].map((ms, round) => {
+            const ref = offsets[reference][round]
+            return ms === null || ref === null || ref === undefined ? null : ms - ref
+        })
+        const latency = agreeing(pairs)
+        if (latency !== null) result[id] = latency
+    }
+    return result
+}
+
+/**
+ * Trims from relative latencies: the device heard earliest is the reference
  * and keeps 0, every later one starts that much earlier. Anchoring on the
  * earliest rather than on the listener keeps the group on the server's
  * timeline — the delay the browser misses only ever adds — so a device that
