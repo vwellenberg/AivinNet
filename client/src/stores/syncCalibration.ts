@@ -112,6 +112,14 @@ let earRun = ''
 let earMembers: string[] = []
 const earSends = new Map<string, any>()
 let earEnd: any = null
+/**
+ * Bumped by every start and every cancel. A start waits twice — for the
+ * microphone (the permission prompt can take as long as the user likes) and
+ * for the pause — and must not carry on after either if the flow was closed
+ * meanwhile: it would record, pause the group and make everyone click with
+ * nothing on screen.
+ */
+let attempt = 0
 const sentTrims = new Map<string, { trim: number; at: number }>()
 
 function newRunId(): string {
@@ -209,12 +217,20 @@ export default defineStore('syncCalibration', {
 
             this.phase = 'starting'
             this.error = ''
+            const mine = ++attempt
+            const current = () => mine === attempt && this.phase === 'starting'
+            let capture: MicCapture
             try {
-                mic = await startMicCapture()
+                capture = await startMicCapture()
             } catch (error) {
-                this.fail(micError(error))
+                if (current()) this.fail(micError(error))
                 return
             }
+            if (!current()) {
+                capture.stop()
+                return
+            }
+            mic = capture
 
             const ds = useDeviceSync()
             run = newRunId()
@@ -223,6 +239,8 @@ export default defineStore('syncCalibration', {
             this.levels = []
 
             await this.pauseGroup()
+            // Cancelled meanwhile: `cancel()` stopped the microphone and resumed the music.
+            if (!current()) return
             plan = planClicks(
                 members.map(d => d.device_id),
                 ds.serverNow() + PREP_MS
@@ -334,6 +352,7 @@ export default defineStore('syncCalibration', {
 
         /** Abort whatever runs (the flow is closed or left). */
         cancel() {
+            attempt++
             if (this.phase === 'ear') {
                 this.stopEar()
                 return
@@ -378,7 +397,10 @@ export default defineStore('syncCalibration', {
             this.error = ''
             this.phase = 'ear'
 
+            const thisRun = earRun
             await this.pauseGroup()
+            // Done (or the panel closed) while the pause was on its way.
+            if (this.phase !== 'ear' || earRun !== thisRun) return
             const startMs = ds.serverNow() + TICK_PREP_MS
             for (const id of earMembers) {
                 if (id === ds.deviceId) {
@@ -470,6 +492,7 @@ export function __resetSyncCalibrationTestState() {
     pausedByUs = false
     earRun = ''
     earMembers = []
+    attempt = 0
     earSends.forEach(handle => clearTimeout(handle))
     earSends.clear()
     clearTimeout(earEnd)

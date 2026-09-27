@@ -244,6 +244,20 @@ describe('sync calibration — with the microphone', () => {
         expect(cal.phase).toBe('idle')
     })
 
+    it('closing the panel during the microphone prompt ends it all — no recording, no clicks', async () => {
+        let grant: (capture: any) => void = () => {}
+        micModule.startMicCapture.mockImplementation(() => new Promise(resolve => (grant = resolve)))
+        const cal = useSyncCalibration()
+        const starting = cal.start()
+        cal.cancel() // the panel closes while the browser still asks
+        grant(mic)
+        await starting
+
+        expect(mic.stop).toHaveBeenCalled()
+        expect(ds.sendCmd).not.toHaveBeenCalled()
+        expect(cal.phase).toBe('idle')
+    })
+
     it('needs a second device in the group', async () => {
         ds.devices = [member('phone'), member('pc', { online: false })]
         const cal = useSyncCalibration()
@@ -322,6 +336,22 @@ describe('sync calibration — by ear', () => {
         ds.sendCmd.mockClear()
         vi.advanceTimersByTime(10 * 60 * 1000)
         expect(ds.sendCmd).not.toHaveBeenCalled()
+    })
+
+    it('Done while the pause is still on its way leaves nobody ticking', async () => {
+        let release: () => void = () => {}
+        ds.sendCmd.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)))
+        const cal = useSyncCalibration()
+        const starting = cal.startEar()
+        cal.stopEar()
+        release()
+        await starting
+
+        expect(ds.startTicks).not.toHaveBeenCalled()
+        const started = (ds.sendCmd.mock.calls as any[]).some(([type, p]) => type === 'sync_ticks' && !p.stop)
+        expect(started).toBe(false)
+        vi.advanceTimersByTime(10 * 60 * 1000)
+        expect(cal.phase).toBe('idle')
     })
 
     it('stops on its own after the last tick', async () => {

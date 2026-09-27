@@ -25,7 +25,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, ConfigDict, Field
 
 from aivinnet.db.userdata import DeviceTable
-from aivinnet.lib.groupsession import manager
+from aivinnet.lib.groupsession import MEMBER_TARGETED_TYPES, manager
 from aivinnet.serializers.track import serialize_track
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.auth import get_current_userid
@@ -38,20 +38,9 @@ api = APIBlueprint("devicesync", __name__, url_prefix="/devicesync", abp_tags=[b
 TRANSPORT_TYPES = frozenset({"play", "pause", "seek", "track_change", "set_repeat"})
 
 # Device-targeted commands: executed immediately by the target, no version bump.
-# The sync_* commands and set_audio_offset carry the calibration between members
-# (see ``lib.groupsession.MEMBER_TARGETED_TYPES``).
-TARGETED_TYPES = frozenset(
-    {
-        "set_volume",
-        "set_mute",
-        "join_invite",
-        "play_here",
-        "set_audio_offset",
-        "sync_click",
-        "sync_click_report",
-        "sync_ticks",
-    }
-)
+# One list, owned by the core — `join_invite` is the one that may reach a device
+# outside the group.
+TARGETED_TYPES = MEMBER_TARGETED_TYPES | {"join_invite"}
 
 # Defensive caps on client-supplied lists (a runaway queue would bloat RAM/JSON).
 MAX_QUEUE_TRACKS = 5000
