@@ -1423,17 +1423,16 @@ export default defineStore('devicesync', {
                     break
                 }
                 case 'shuffleQueue': {
-                    // The same shuffle as solo (`tracklist.shuffleList`): the
-                    // group restarts at index 0, so the track playing now stays
-                    // out of the front row. This used to be a copy that put it
-                    // FIRST — every device restarted the song that was on.
+                    // Solo's rule (`tracklist.shuffleList`), not a copy of it:
+                    // the group restarts at index 0, so the playing song stays
+                    // off the front row.
                     //
                     // `currentindex`, not `groupPosition()`: the queue-set
                     // replaces a held transition, so the song to keep off the
                     // front is the one still sounding here.
                     const hashes = tracklist.tracklist.map(t => t.trackhash)
                     void this.sendQueueSet({
-                        trackhashes: shuffleAvoidingFront(hashes, queue.currentindex),
+                        trackhashes: shuffleAvoidingFront(hashes, queue.currentindex, hash => hash),
                         from: tracklist.from as SyncFrom,
                         currentindex: 0,
                         playing: true,

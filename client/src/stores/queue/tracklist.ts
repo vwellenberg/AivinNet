@@ -255,13 +255,12 @@ export default defineStore('tracklist', {
         /**
          * Reorder the queue once (`queue.shuffleQueue`).
          *
-         * `avoidFront` is the index of the track playing right now: it must not
-         * land first, because the caller restarts playback at index 0. The rule
-         * lives in `shuffleAvoidingFront`, shared with the group seam — the
-         * group path once kept its own copy, and the two drifted apart.
+         * `avoidFront` is the index of the track playing right now: its song
+         * must not land first, because the caller restarts playback at index 0.
+         * The rule is `shuffleAvoidingFront`, shared with the group seam.
          */
-        shuffleList(avoidFront?: number) {
-            this.tracklist = shuffleAvoidingFront(this.tracklist, avoidFront)
+        shuffleList(avoidFront: number) {
+            this.tracklist = shuffleAvoidingFront(this.tracklist, avoidFront, track => track.trackhash)
 
             // Every row has a new number now, so both shuffle indexes name
             // arbitrary tracks — the same situation setNewList resets for, and

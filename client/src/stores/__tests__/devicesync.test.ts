@@ -1015,67 +1015,77 @@ describe('devicesync store', () => {
 
     // -----------------------------------------------------------------------
     // The one-shot "Shuffle" restarts at index 0, so the front row is what
-    // plays next. Solo keeps the playing track out of it — restarting the same
-    // song at 0:00 is not a shuffle (#341). The group path carried its own
-    // copy from before that rule, and it put the playing track FIRST: every
-    // device restarted the song that was already on.
+    // plays next. Solo keeps the playing song out of it — restarting it at
+    // 0:00 is not a shuffle (AivinNet-Client#341). The group path carried its
+    // own copy from before that rule, and it put the playing track FIRST:
+    // every device restarted the song that was already on.
+    //
+    // h2 plays on row 1 and is queued a second time on row 3. These dice
+    // shuffle row 3 to the front — the same song, so it has to move as well —
+    // and then draw the third of the four rows holding something else.
     // -----------------------------------------------------------------------
-    it('intercept(shuffleQueue) keeps the playing track out of the front row and restarts at 0', async () => {
+    const SHUFFLE_QUEUE = ['h1', 'h2', 'h3', 'h2', 'h4', 'h5']
+    const shuffleDice = () => {
+        const values = [0.99, 0.99, 0, 0.99, 0.99, 0.6]
+        let i = 0
+        return () => values[Math.min(i++, values.length - 1)]
+    }
+
+    it('intercept(shuffleQueue) keeps the playing song out of the front row and restarts at 0', async () => {
         const { useDeviceSync, useTracklist, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
         const ds = useDeviceSync()
         await ds.register()
         ds.joined = true
 
-        const HASHES = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
         const tl = useTracklist()
-        tl.tracklist = HASHES.map(mkTrack)
+        tl.tracklist = SHUFFLE_QUEUE.map(mkTrack)
         const queue = useQueue()
+        queue.currentindex = 1
         queue.playing = true
         playerMock.getCurrentTimeMs.mockReturnValue(41000)
 
-        for (let i = 0; i < 60; i++) {
-            requestsMock.setQueue.mockClear()
-            queue.currentindex = i % HASHES.length
-
+        const dice = vi.spyOn(Math, 'random').mockImplementation(shuffleDice())
+        try {
             queue.shuffleQueue()
-
-            expect(requestsMock.setQueue).toHaveBeenCalledTimes(1)
-            const body = (requestsMock.setQueue.mock.calls[0] as any[])[0]
-            expect(body.trackhashes[0]).not.toBe(HASHES[queue.currentindex])
-            expect([...body.trackhashes].sort()).toEqual(HASHES)
-            // A new start, like solo's play(0): from the top, not live.
-            expect(body).toMatchObject({ currentindex: 0, position_ms: 0, playing: true, live: false })
+        } finally {
+            dice.mockRestore()
         }
 
+        expect(requestsMock.setQueue).toHaveBeenCalledTimes(1)
+        const body = (requestsMock.setQueue.mock.calls[0] as any[])[0]
+        expect(body.trackhashes[0]).not.toBe('h2')
+        expect([...body.trackhashes].sort()).toEqual([...SHUFFLE_QUEUE].sort())
+        // A new start, like solo's play(0): from the top, not live.
+        expect(body).toMatchObject({ currentindex: 0, position_ms: 0, playing: true, live: false })
         // The server's echo is what reorders this device.
-        expect(tl.tracklist.map((t: any) => t.trackhash)).toEqual(HASHES)
+        expect(tl.tracklist.map((t: any) => t.trackhash)).toEqual(SHUFFLE_QUEUE)
     })
 
     // One rule, not two copies: given the same dice, the group sends exactly
-    // the order a solo shuffle lands on. Constant dice put the playing row h2
-    // first, so the swap that moves it out again runs on both sides too.
-    it('the group shuffles exactly like solo, given the same dice', async () => {
+    // the order a solo shuffle lands on — second h2 included.
+    it('the group sends the order a solo shuffle lands on, given the same dice', async () => {
         const { useDeviceSync, useTracklist, useQueue } = await setup()
         localStorage.setItem('aivinnet.device_id', 'devA')
         const ds = useDeviceSync()
         await ds.register()
 
-        const HASHES = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
         const tl = useTracklist()
         const queue = useQueue()
-        const dice = vi.spyOn(Math, 'random').mockReturnValue(0)
+        const dice = vi.spyOn(Math, 'random')
 
         let solo: string[] = []
         try {
-            tl.tracklist = HASHES.map(mkTrack)
+            tl.tracklist = SHUFFLE_QUEUE.map(mkTrack)
             queue.currentindex = 1
+            dice.mockImplementation(shuffleDice())
             queue.shuffleQueue()
             solo = tl.tracklist.map((t: any) => t.trackhash)
 
-            tl.tracklist = HASHES.map(mkTrack)
+            tl.tracklist = SHUFFLE_QUEUE.map(mkTrack)
             queue.currentindex = 1
             ds.joined = true
+            dice.mockImplementation(shuffleDice())
             queue.shuffleQueue()
         } finally {
             dice.mockRestore()
