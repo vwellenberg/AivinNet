@@ -57,6 +57,11 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
   per Command-ID, und ein Report gehört über seine `run`-ID zu genau einer Messung.
 - Den Trim, den ein Gerät mit `diag` meldet, führt `touch()` als `trim_ms` am Gerät; die
   Geräteliste im Poll trägt ihn (`None`, bis das Gerät einmal berichtet hat).
+- **Kalibrier-Protokoll:** `POST /devicesync/calibration-log` nimmt die Rohdaten eines Laufs
+  (pro Gerät jeder Klick, Stärke, Details), `log_calibration()` hält die letzten
+  `CALIBRATION_LOGS` pro Nutzer im RAM, `GET /devicesync/diag` liefert sie als `calibrations`.
+  Größen sind gedeckelt (Geräte, Klicks, Details, Stringlängen), `allow_inf_nan=False` wie beim
+  Sync-Bericht — ein `Infinity` machte sonst die Diag-Antwort zu ungültigem JSON.
 - Reaper-Cron alle 2 s räumt stale Member und leere Sessions.
 - Serverneustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück.
 - Pair-Redeem (`GET /auth/pair`) hat eine `setcookie`-Option für den QR-Deep-Link-Login.

@@ -296,6 +296,16 @@ ein Tick übrig ist.
   http-PC ist das nicht zu haben; der Trim bleibt pro Browser.
 - Aufnahme: `utils/deviceSync/micCapture.ts` (AudioWorklet, Echo-Unterdrückung/Rauschfilter/AGC
   **aus** — die Echo-Unterdrückung zöge den eigenen Klick aus der Aufnahme). Bleibt im Speicher.
+- **Jeder Lauf legt seine Rohdaten ab** (`POST /devicesync/calibration-log`, die letzten 10 pro
+  Nutzer im RAM, zu lesen in `GET /devicesync/diag` → `calibrations`): pro Gerät jeder Klick mit
+  gemeldeter Zeit, Ankunft, Stärke, dazu die Uhr des Geräts (RTT, Offset) und wie ruhig die
+  Media-Clock seines Klick-Elements lief (`clock_spread_ms`, `clock_drift_ms` — ein frisches
+  Element, dessen gemeldete Latenz sich erst einpendelt, zeigt sich dort). Nur Zahlen und Namen,
+  nie Audio. Auswerten: `python3 ~/syncprobe/calib/calibreport.py` auf dem Server.
+  ⚠️ **Warum es das gibt:** Im ersten echten Raum (PC als Zuhörer, Windows + Bluetooth-Box, Handy
+  als zweites Gerät) schlug die Kalibrierung +215 und +184 ms vor, richtig waren ~150 — auf dem
+  Prüfstand (Chromium/PipeWire) lag sie auf ±3 ms. Vom Ergebnis allein war nicht zu sagen, ob
+  der Zuhörer falsch hört oder ein Gerät falsch meldet.
 - Gemessen (2 Chromium an einer PipeWire-Senke, eines hinter 150 ms Verzögerung, die sein
   Browser nicht sieht): 149–158 ms, ohne Verzögerung −1,7…+1,8 ms über je sechs Läufe; nach
   Apply fallen die Ticks auf der Senke zusammen, ohne Trim liegen sie 148–150 ms auseinander.
