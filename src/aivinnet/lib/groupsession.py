@@ -19,6 +19,7 @@ the single-threaded evented WSGI server (bjoern) on the hot poll path.
 import hashlib
 import threading
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -57,6 +58,13 @@ TARGETED_COMMAND_TTL_MS = 15000
 
 # Presence entries older than this are forgotten entirely (device long gone).
 PRESENCE_TTL_MS = 30 * 60 * 1000
+
+# Sync diagnostics: what each joined device reports about itself with every
+# poll, kept per device for this many polls (30 min at the joined cadence).
+# "Sounds off" is otherwise unanswerable from here — the server only knows the
+# plan, never where a device's audio actually is.
+DIAG_SAMPLES = 1800
+DIAG_FIELDS = ("error_ms", "rtt_ms", "rate", "trim_ms", "start_ms", "seek_ms")
 
 
 @dataclass
@@ -222,11 +230,15 @@ class GroupSessionManager:
         device_id: str,
         volume: float | None = None,
         mute: bool | None = None,
+        diag: dict[str, Any] | None = None,
     ) -> None:
         """
         Refresh presence last_seen (+ optional volume/mute) and, if the device is
         a session member, its member last_seen. Called on every poll: RAM-only
         and cheap, never touches the DB.
+
+        ``diag`` is the device's own view of its sync (see ``DIAG_FIELDS``),
+        kept as a short ring buffer for ``diagnostics()``.
         """
         with self._lock:
             now = self._now()
@@ -239,6 +251,10 @@ class GroupSessionManager:
                         entry["volume"] = volume
                     if mute is not None:
                         entry["mute"] = mute
+                    if diag is not None:
+                        entry["build"] = diag.get("build") or entry.get("build", "")
+                        samples = entry.setdefault("diag", deque(maxlen=DIAG_SAMPLES))
+                        samples.append([now, *(diag.get(name) for name in DIAG_FIELDS)])
 
             session = self._sessions.get(userid)
             if session is not None and device_id in session.members:
@@ -562,6 +578,21 @@ class GroupSessionManager:
             result["devices"] = devices
 
             return result
+
+    def diagnostics(self, userid: int) -> list[dict[str, Any]]:
+        """Every known device of the user with its recent sync reports (oldest first)."""
+        with self._lock:
+            return [
+                {
+                    "device_id": did,
+                    "name": entry["name"],
+                    "type": entry["type"],
+                    "build": entry.get("build", ""),
+                    "fields": ["server_ms", *DIAG_FIELDS],
+                    "samples": [list(sample) for sample in entry.get("diag", ())],
+                }
+                for did, entry in self._presence.get(userid, {}).items()
+            ]
 
     def compute_leader(self, userid: int) -> str | None:
         """Public wrapper: the current scrobble/transport leader for a user."""

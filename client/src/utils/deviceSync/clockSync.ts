@@ -8,8 +8,13 @@
 /** Samples with a round-trip above this (ms) are too noisy to trust. */
 export const MAX_RTT_MS = 1000
 
-/** Rolling window size of accepted samples. */
-export const MAX_SAMPLES = 10
+/**
+ * Rolling window size of accepted samples — 30 s at the joined poll cadence.
+ * The offset is only as good as the fastest round trip in the window (error
+ * ≤ RTT/2), and a phone on Wi-Fi sees its fast ones rarely; with ten samples
+ * the estimate wandered by several ms, which the steerer then chased.
+ */
+export const MAX_SAMPLES = 30
 
 /** Offset deviation (ms) from the current best that counts as a clock jump. */
 export const JUMP_MS = 5000

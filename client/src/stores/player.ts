@@ -211,11 +211,32 @@ export const usePlayer = defineStore('player', () => {
     // These operate on the ACTIVE audio element (audioSource.playingSource),
     // which may differ from the captured `audio` after a source switch.
 
-    /** Set a pitch-preserving playbackRate on the active element (drift steering). */
+    /** Set the playbackRate of the active element (drift steering). */
     function setPlaybackRate(rate: number) {
-        const el = audioSource.playingSource
-        ;(el as any).preservesPitch = true
-        el.playbackRate = rate
+        audioSource.playingSource.playbackRate = rate
+    }
+
+    /**
+     * Group mode steers drift by nudging playbackRate a fraction of a percent,
+     * and that only works with `preservesPitch` OFF on both elements.
+     *
+     * With pitch preserved, Chromium passes audio straight through while the
+     * rate is within ~0.1 % of 1.0 (the correction simply does not happen) and
+     * switches to its time-stretcher beyond that — and every switch resets the
+     * stretcher, which cost 20-30 ms of media time per steering episode
+     * (measured). With pitch preservation off it resamples ALWAYS, "to fix
+     * timestamp drift between multiple clips" in Chromium's own words
+     * (audio_renderer_algorithm.cc): no switch, no cost. At ±0.5 % the pitch
+     * moves by at most 8 cents. Solo playback gets the default back.
+     */
+    function setFineSteering(on: boolean) {
+        for (const el of [audioSource.playingSource, audioSource.standbySource]) {
+            const media = el as any
+            media.preservesPitch = !on
+            media.webkitPreservesPitch = !on
+            media.mozPreservesPitch = !on
+            el.playbackRate = 1
+        }
     }
 
     /**
@@ -734,6 +755,7 @@ export const usePlayer = defineStore('player', () => {
         clearNextAudio: clearNextAudioData,
         clearMovingNextTimeout,
         setPlaybackRate,
+        setFineSteering,
         getCurrentTimeMs,
         hardSeekMs,
         isPaused,

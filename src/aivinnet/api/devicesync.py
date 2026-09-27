@@ -51,12 +51,25 @@ class RegisterBody(BaseModel):
     type: str = Field(description="Device type, e.g. 'desktop', 'phone', 'tablet'")
 
 
+class SyncDiag(BaseModel):
+    """A joined device's own view of its sync, sent with every poll (RAM only)."""
+
+    build: str = Field("", description="Web client build (stale bundles are a sync suspect)")
+    error_ms: float | None = Field(None, description="Audio position minus expected position; None while unknown")
+    rtt_ms: float | None = Field(None, description="Round trip of the clock sample the offset rests on")
+    rate: float = Field(1.0, description="playbackRate the steerer has set")
+    trim_ms: float = Field(0.0, description="Manual output-latency trim on this device")
+    start_ms: float | None = Field(None, description="Learned start latency")
+    seek_ms: float | None = Field(None, description="Learned seek latency")
+
+
 class PollBody(BaseModel):
     device_id: str = Field(description="This device's id")
     known_version: int = Field(0, description="Highest session version the client has already applied")
     client_sent_ms: int = Field(0, description="Client clock at send time (for Cristian offset estimation)")
     volume: float | None = Field(None, description="This device's local volume 0..1, if it changed")
     mute: bool | None = Field(None, description="This device's local mute state, if it changed")
+    diag: SyncDiag | None = Field(None, description="Sync self-report of a joined device (diagnostics only)")
 
 
 class CommandBody(BaseModel):
@@ -118,8 +131,19 @@ def poll(body: PollBody):
     session snapshot. Strictly RAM-only — no DB, no blocking I/O.
     """
     userid = get_current_userid()
-    manager.touch(userid, body.device_id, body.volume, body.mute)
+    diag = body.diag.model_dump() if body.diag is not None else None
+    manager.touch(userid, body.device_id, body.volume, body.mute, diag=diag)
     return manager.snapshot(userid, body.device_id, body.known_version)
+
+
+@api.get("/diag")
+def diag():
+    """
+    The caller's devices with their recent sync self-reports (RAM only): how
+    far each one's audio was from the group anchor, poll by poll. The server
+    alone cannot answer "it sounds off" — it knows the plan, not the speakers.
+    """
+    return {"devices": manager.diagnostics(get_current_userid())}
 
 
 @api.post("/command")
