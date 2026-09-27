@@ -117,16 +117,42 @@ function handleFav() {
         padding: 0 1rem;
 
         .left-group {
-            // Grows, but not without limit: past ~20rem the seek bar would be
-            // the first thing squeezed, and it is the control here.
-            flex: 1 1 20rem;
+            // Sized by what it holds, and never below it. It used to be
+            // `flex: 1 1 20rem; min-width: 0` — a box allowed to shrink under
+            // its own fixed controls. At 700px wide it did: the transport and
+            // devices button spilled out of it, the devices button sat under
+            // the seek knob, and the page ran 4px wider than the screen. The
+            // default `min-width: auto` is the fix — this group is a grid on
+            // phones (Left.vue), so its minimum is cover + title minimum +
+            // controls, and only the title column gives.
+            flex: 0 1 auto;
             max-width: 26rem;
-            min-width: 0;
+
+            .track-info {
+                // A readable title or none: below 4.5rem it was a single letter.
+                min-width: 4.5rem;
+            }
         }
 
         .center {
-            flex: 1 1 11rem;
+            // Takes what the row has left over — the seek bar is the control
+            // here, so it is the one that grows.
+            flex: 1 1 7rem;
             min-width: 7rem;
+        }
+
+        // Too narrow for title AND seek bar next to the fixed controls — the
+        // arithmetic is on the mixins (_mixins.scss).
+        @include shortNarrowBar {
+            .left-group .track-info {
+                display: none;
+            }
+        }
+
+        @include shortNarrowestBar {
+            .left-group .bar-controls .devices-btn {
+                display: none;
+            }
         }
 
         .side-nav-container {

@@ -1469,10 +1469,12 @@ Zwei Stellen hängen dran, beide leicht zu übersehen:
 
 - **Das Kind braucht `flex: 1`.** Sobald der Rahmen eine eigene Höhe hat, hört ein inhaltsgroßes
   Kind vorher auf — der Rahmen der Seitenliste hängt dann in der Luft.
-- **`100dvh` neben `100vh`** auf dem Modal-Wrapper (Reihenfolge wie bei `body`). Eine feste Höhe ist
-  nur richtig, wenn der Wrapper der **sichtbare** Viewport ist; `100vh` rechnet die Browser-Leiste
-  des Handys nicht ab, und die unteren Zeilen liegen dann darunter — erreichbar per Scroll, aber
-  nie sichtbar. Headless bei 390/360 fällt das **nicht** auf.
+- **Der Modal-Wrapper ist `position: fixed; inset: 0`**, keine Viewport-Einheit. Eine feste Höhe
+  ist nur richtig, wenn der Wrapper der **sichtbare** Viewport ist; `100vh` rechnet die
+  Browser-Leiste des Handys nicht ab, und die unteren Zeilen liegen dann darunter — erreichbar
+  per Scroll, aber nie sichtbar. Das früher hier empfohlene `100dvh` ist auch keine Lösung: es
+  kann nach dem Drehen stehen bleiben (siehe „App-Höhe" unten). Headless bei 390/360 fällt beides
+  **nicht** auf.
 
 Der Zensus `settingsModalHeight.test.ts` hält beide Stellen. ⚠️ Ein Zensus über eine Regel mit
 Breakpoint-Override braucht **beide** Vorkommen: die erste Fassung zählte einen Treffer, und eine
@@ -1516,3 +1518,32 @@ Wer eine neue `infinite`-Animation baut: entweder `transform`/`opacity`, oder an
 koppeln, der auch wieder endet. **Pausieren über `animation-play-state`, nicht über
 `motion-policy.scss`** — die erzwingt Dauer und Wiederholung mit `!important`, nie den
 Play-State, und das muss so bleiben.
+
+## ⚠️ App-Höhe: nie aus Viewport-Einheiten (`vh`/`dvh`/`svh`/`lvh`)
+
+**Symptom:** Nach dem Drehen (Landscape → Portrait) steht die ganze UI in der oberen Hälfte, die
+Player-Leiste mitten im Bildschirm, darunter nackter Grund — die *Breiten*-Media-Queries haben
+aber korrekt auf Portrait umgeschaltet. Mehrfach gemeldet (Vivaldi, Android).
+
+**Ursache:** Die Höhenkette der Shell lief über `body { height: 100vh; height: 100dvh }`. Diese
+Einheiten können auf Android ihren Wert von **vor** der Drehung behalten, während der Initial
+Containing Block (gegen den Media Queries und `%`-Höhen rechnen) mitdreht. Kein Skript setzt
+hier eine Höhe — die Einheiten waren das Einzige in der Kette, das alt sein konnte.
+
+**Regel:** Die Kette beginnt bei `html { height: 100% }` → `body` 100 % → `#app` → `#app-grid`.
+Wer einen Layer über den ganzen Schirm braucht, nimmt `position: fixed; inset: 0` (wie `.modal`).
+Da die Seite nie scrollt (`overflow: hidden`), klappt die Adressleiste nie ein — `100%` ist
+damit dieselbe sichtbare Höhe, für die `dvh` stand. **Headless reproduziert den Fehler nicht**
+(Chromium aktualisiert beim Resize beides), deshalb hält `viewportShell.test.ts` die Regel am
+Quelltext fest.
+
+## Player-Leiste quer: Titel lesbar oder weg
+
+Die Landscape-Leiste (`shortViewport`, BottomBar.vue) hat 512 px feste Kosten, bevor Titel (~80),
+Devices (56) und Seek-Regler (112) etwas bekommen. `.left-group` darf deshalb **nie unter ihre
+eigenen Controls schrumpfen** (`min-width: 0` ließ sie auf den Regler überlaufen) — und wo Titel
+plus Regler nicht passen, weicht der Titel (`shortNarrowBar`, < 800 px) statt als ein Buchstabe
+stehen zu bleiben, darunter auch Devices (`shortNarrowestBar`, < 700 px). Die volle Aktionsgruppe
+(9 Controls) im Hochformat gibt es erst ab `RICH_BAR_MIN_WIDTH` (760 px) — ab 660 ließ sie dem
+Titel 20 px. Unter ~624 px quer passt es weiterhin nicht (568×320). Tests:
+`barLandscape.test.ts`, `shortViewport.test.ts`.

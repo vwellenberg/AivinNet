@@ -70,10 +70,11 @@ describe("the settings modal keeps one height", () => {
   it("measures the viewport the way the phone sees it", () => {
     // A fixed share of `.modal` is only right if `.modal` itself is the VISIBLE
     // viewport: `100vh` ignores the browser's chrome, so the modal's bottom rows
-    // would sit under the address bar. `vh` first, `dvh` second (the fallback
-    // order `body` uses).
+    // would sit under the address bar. It used to be `100vh` + `100dvh`; both
+    // units can keep a pre-rotation value on Android, so the box is now pinned
+    // by its edges (viewportShell.test.ts holds the no-units half).
     const modal = rule(MODAL, ".modal");
-    expect(modal).toMatch(/height:\s*100vh;/);
-    expect(modal).toMatch(/height:\s*100dvh;/);
+    expect(modal).toMatch(/position:\s*fixed;/);
+    expect(modal).toMatch(/(?:^|[\s;{])inset:\s*0;/);
   });
 });

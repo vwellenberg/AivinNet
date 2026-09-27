@@ -177,16 +177,14 @@ function deletePlaylist() {
     // mobile and hid the last rows of the settings list. Only the bottom bar
     // sits in the 21..60 range, so this re-orders nothing else.
     z-index: 60;
-    // `dvh` after `vh`, the way `body` does it (Global/index.scss): on a phone
-    // `100vh` is the viewport WITHOUT the browser's own chrome subtracted, so it
-    // overshoots the visible area. That was survivable while the settings box
-    // sized itself to its content; now that it takes a fixed share of this
-    // element (see .m-content.settings), the overshoot would push its bottom
-    // rows under the address bar, where they can be scrolled to but not seen.
-    // The `vh` line stays as the fallback for engines without `dvh`.
-    height: 100vh;
-    height: 100dvh;
-    width: 100vw;
+    // Pinned to the viewport by its edges, not by viewport units. The settings
+    // box takes a fixed share of this element (see .m-content.settings), so it
+    // has to BE the visible area: `100vh` ignores the phone's address bar and
+    // pushed the bottom rows under it, and `100dvh` — the fix for that — can
+    // keep its pre-rotation value on Android, the same stale unit that left the
+    // whole app in the top half of the screen (see `body` in Global/index.scss).
+    // A fixed box with `inset: 0` is sized by the viewport itself.
+    inset: 0;
     display: grid;
     place-items: center;
 
