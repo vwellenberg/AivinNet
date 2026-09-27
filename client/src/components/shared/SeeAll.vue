@@ -23,7 +23,7 @@ defineProps<{
     font-size: 0.75rem;
     // A 0.75rem uppercase link, not a heading: a look's display face (a pixel
     // face in Desktop 98) blurs letters at this size (#241).
-    font-family: inherit;
+    @include body-face;
     letter-spacing: 0.04em;
     flex-shrink: 0;
     // Motion only — the paint is a cut (styling.md).
