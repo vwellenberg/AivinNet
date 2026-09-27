@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The queue store pulls in the player, device sync, the router and media
 // notifications. None of that matters for the next/prev index maths, so stub it.
-const { tracklistState } = vi.hoisted(() => ({ tracklistState: { tracklist: [] as any[] } }))
+const { tracklistState, player } = vi.hoisted(() => ({
+    tracklistState: { tracklist: [] as any[] },
+    // What the audio element holds. `playSource` asks the player what is
+    // playing, so the fake one loads whatever `play` made current — like the
+    // real `playCurrent` (wired in beforeEach, where the stores exist).
+    player: { loaded: '', playCurrent: vi.fn() },
+}))
 
 vi.mock('@/stores/player', () => ({
     audioSource: {
@@ -13,9 +19,10 @@ vi.mock('@/stores/player', () => ({
     },
     getUrl: () => '',
     usePlayer: () => ({
-        playCurrent: vi.fn(),
+        playCurrent: player.playCurrent,
         clearNextAudio: vi.fn(),
         clearMovingNextTimeout: vi.fn(),
+        loadedTrackhash: () => player.loaded,
     }),
 }))
 vi.mock('@/stores/devicesync', () => ({ default: () => ({ joined: false, applying: false, intercept: vi.fn() }) }))
@@ -44,6 +51,12 @@ describe('queue store: permanent shuffle', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         seedQueue(10)
+
+        player.loaded = ''
+        player.playCurrent.mockReset()
+        player.playCurrent.mockImplementation(() => {
+            player.loaded = tracklistState.tracklist[useQueue().currentindex]?.trackhash ?? ''
+        })
     })
 
     it('walks the queue in order while shuffle is off', () => {
@@ -224,12 +237,73 @@ describe('queue store: permanent shuffle', () => {
         it('never re-enters on the track that is already playing', () => {
             const queue = useQueue()
             queue.toggleShuffle()
+            // Something has to be playing for the premise to hold — the queue
+            // index alone is not "playing", only what the player has loaded.
+            queue.play(queue.currentindex)
 
             for (let i = 0; i < 60; i++) {
                 const before = queue.currentindex
                 queue.playSource()
                 expect(queue.currentindex).not.toBe(before)
             }
+        })
+
+        // Starting ANOTHER source: the caller has just swapped the list
+        // (`setFromX`), so `currentindex` still numbers the list it replaced
+        // and says nothing about this one. Which song is playing is the
+        // player's to say.
+        const swapTo = (hashes: string[]) => {
+            tracklistState.tracklist = hashes.map(h => ({ trackhash: h, filepath: `${h}.mp3` }))
+        }
+
+        it('does not restart the playing song when the new source holds it', () => {
+            const queue = useQueue()
+            queue.toggleShuffle()
+            // x is playing, from row 1 of the queue about to be replaced.
+            queue.currentindex = 1
+            player.loaded = 'x'
+
+            swapTo(['x', 'y'])
+            queue.playSource()
+
+            // The stale 1 left row 0 — x itself — as the only candidate, and
+            // the song playing right now started over at 0:00.
+            expect(tracklistState.tracklist[queue.currentindex].trackhash).toBe('y')
+        })
+
+        it('avoids every copy of the playing song', () => {
+            const queue = useQueue()
+            queue.toggleShuffle()
+
+            for (let i = 0; i < 40; i++) {
+                queue.currentindex = 3
+                player.loaded = 'x'
+
+                // A playlist may hold a track twice.
+                swapTo(['x', 'a', 'x', 'b'])
+                queue.playSource()
+
+                expect(tracklistState.tracklist[queue.currentindex].trackhash).not.toBe('x')
+            }
+        })
+
+        it('may enter on any row when the new source does not hold the playing song', () => {
+            const queue = useQueue()
+            queue.toggleShuffle()
+
+            const entries = new Set<number>()
+            for (let i = 0; i < 40; i++) {
+                queue.currentindex = 1
+                player.loaded = 'x'
+
+                swapTo(['y', 'z'])
+                queue.playSource()
+                entries.add(queue.currentindex)
+            }
+
+            // Row 1 is only where x sat in the OLD queue. The stale index kept
+            // it out, so every start here was row 0.
+            expect(entries).toEqual(new Set([0, 1]))
         })
 
         it('starts on the only track of a one-track queue', () => {

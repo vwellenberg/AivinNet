@@ -96,9 +96,9 @@ export default defineStore('Queue', {
          * Clicking a specific row is a different intent and keeps its
          * index — that path calls `play(index)` and is untouched.
          *
-         * The track playing right now is excluded, so hitting Play again on the
-         * source you are already listening to moves on instead of restarting the
-         * same song at 0:00.
+         * The track playing right now is excluded, so hitting Play on a source
+         * that holds it — the one you are already listening to, or another one
+         * with the same song — moves on instead of restarting it at 0:00.
          */
         playSource() {
             const settings = useSettings()
@@ -109,7 +109,18 @@ export default defineStore('Queue', {
                 return
             }
 
-            this.play(pickShuffleIndex(tracklist.length, this.currentindex))
+            // Which rows hold the playing track is the PLAYER's to say, not
+            // `currentindex`'s: callers swap the list first (`setFromX`), so
+            // the index usually still numbers the list it replaced.
+            // Excluding it kept an arbitrary row of the new source from ever
+            // being the entry, while the song actually playing could be drawn
+            // and start over. Every copy is avoided (a playlist can hold a
+            // track twice); a source without it avoids nothing — hence no
+            // "current" row (-1) for the picker.
+            const playing = usePlayer().loadedTrackhash()
+            const avoid = playing ? tracklist.flatMap((track, i) => (track.trackhash === playing ? [i] : [])) : []
+
+            this.play(pickShuffleIndex(tracklist.length, -1, avoid))
         },
         /**
          * Roll the next shuffle target (no-op unless permanent shuffle is on).

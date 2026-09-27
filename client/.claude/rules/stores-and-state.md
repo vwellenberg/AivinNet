@@ -151,6 +151,12 @@ wird, wo der neue Index geschrieben wird: `play()` tut es ohnehin, für den Spie
 neuem Index bauen:** Wer von Index 0 tauscht und auf 0 startet, sieht den Fehler nicht —
 `pushRecent` dedupliziert den falschen Eintrag weg.
 
+**Und `playSource()` las denselben veralteten Index**, um beim zufälligen Einstieg den laufenden
+Track auszuschließen: Eine unbeteiligte Zeile der neuen Quelle konnte nie Einstieg sein, und
+enthielt die Quelle den laufenden Song, konnte genau der gezogen werden und begann bei 0:00 neu.
+**Was gerade spielt, sagt der Player** (`usePlayer().loadedTrackhash()`, per Trackhash, jede
+Kopie) — nicht `currentindex`: Zwischen `setFromX` und `play(i)` zeigt der in die alte Liste.
+
 Die **Reihenfolge** des einmaligen Mischens bestimmt `utils/shufflePicker.ts::shuffleAvoidingFront`
 (laufender Song nie auf Platz 1) — solo wie im Gruppen-Seam `intercept('shuffleQueue')`. Wer die
 Regel ändert, ändert sie dort, nicht in einem der Aufrufer; der Gruppenpfad hatte einmal eine
