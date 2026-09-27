@@ -202,6 +202,17 @@ $settings-close-inset: 0.625rem;
 .settingsmodal.isSmallPhone {
     grid-template-columns: 1fr;
 
+    // Same lane as the first row, same size as the rows: `$phone-list-row`.
+    > .close {
+        width: $phone-list-row;
+        height: $phone-list-row;
+
+        svg {
+            width: $phone-list-glyph;
+            height: $phone-list-glyph;
+        }
+    }
+
     // Only the LIST view renders the sidebar on a phone (the detail view swaps
     // it out), so this is the one layout where the close button sits over a
     // row instead of in a pane head. With the list starting at the pane's 1rem
@@ -220,7 +231,38 @@ $settings-close-inset: 0.625rem;
         // Auto lets the column's stretch hand it the width minus the lane.
         .group:first-child .gitem:first-child {
             width: auto;
-            margin-right: calc(#{$bar-control} + #{$settings-close-inset});
+            margin-right: calc(#{$phone-list-row} + #{$settings-close-inset});
+        }
+
+        // Here the list is the whole screen, so it takes the phone-list tier
+        // (_buttons.scss) instead of the chrome's 44px: reported as "a bit too
+        // small". 8px between rows, not 4: with 4 each plate's 3px offset
+        // shadow landed on the next row's frame.
+        .gtitle {
+            font-size: 15px;
+        }
+
+        .gitem {
+            min-height: $phone-list-row;
+            font-size: 17px;
+            margin-top: $small;
+            // 6px + the two covers' 4px each = 14px from glyph to label. The
+            // desktop's 12px gap came to 20px that way, which on a wider
+            // row read as the label drifting away from its glyph.
+            gap: 6px;
+
+            // The margin above outranks Sidebar.vue's `&.about` gap, and
+            // About has no caption: without this it closed up to 8px and read
+            // as just another Plugins entry.
+            &.about {
+                margin-top: 1.25rem;
+            }
+
+            svg,
+            .icon {
+                width: $phone-list-glyph;
+                height: $phone-list-glyph;
+            }
         }
     }
 }

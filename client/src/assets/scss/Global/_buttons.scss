@@ -57,6 +57,15 @@ $bar-glyph: 1.5rem;
 // the primary reads as primary without breaking the row's rhythm.
 $bar-glyph-play: 1.75rem;
 
+// A list that IS the phone's whole screen — the settings list, which on a
+// phone is the modal's first view and nothing else. There the row is not
+// chrome beside the content, it is the content, tapped with a thumb from the
+// bottom of the screen. At 44px it read as "a bit too small" next to 15px
+// labels, and the close button sits in the same lane as the first row, so
+// both take this size. Desktop keeps `$bar-control`.
+$phone-list-row: 3.25rem;
+$phone-list-glyph: 1.625rem;
+
 // The third value the bar needs, and the one nobody owned: the space BETWEEN
 // its controls. Measured on the running app, the bar held three — 20px in the
 // transport row, 12px in the track block, and 2px on the right, where lyrics,
