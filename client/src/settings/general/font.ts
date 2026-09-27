@@ -7,7 +7,7 @@ const settings = useSettings
 
 const font: Setting = {
     title: 'Font',
-    desc: 'Choose between the default font (Space Grotesk) and Figtree. The other themes bring their own.',
+    desc: 'Choose between the default font (Space Grotesk) and Figtree. Boring brings its own.',
     type: SettingType.select,
     options: [
         { title: 'Default', value: 'default' },

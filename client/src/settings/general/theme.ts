@@ -12,13 +12,13 @@ const settings = useSettingsStore
  */
 const look: Setting = {
     title: 'Theme',
-    desc: 'Memphis: grid paper, ink frames and hard shadows. Stream: flat and dark. Desktop 98: grey windows on a blue desktop. Virtual Grid: dark glass over a neon grid.',
+    desc: 'Memphis: grid paper, ink frames and hard shadows. Boring: flat and dark.',
     type: SettingType.select,
     options: [
         { title: 'Memphis', value: 'memphis' },
-        { title: 'Stream', value: 'stream' },
-        { title: 'Desktop 98', value: 'desktop98' },
-        { title: 'Virtual Grid', value: 'virtualgrid' },
+        // Shown as "Boring"; the stored value stays `stream` (#199), so a
+        // saved choice survives the rename.
+        { title: 'Boring', value: 'stream' },
     ],
     state: () => settings().look,
     action: (value: Look) => settings().setLook(value),
@@ -31,7 +31,7 @@ const look: Setting = {
  */
 const theme: Setting = {
     title: 'Mode',
-    desc: 'Light grid paper or the near-black dark ground. Stream and Virtual Grid are always dark, Desktop 98 always light.',
+    desc: 'Light grid paper or the near-black dark ground. Boring is always dark.',
     type: SettingType.select,
     options: [
         { title: 'Light', value: 'light' },
