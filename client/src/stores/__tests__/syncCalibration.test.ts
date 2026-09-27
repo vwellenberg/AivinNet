@@ -158,6 +158,25 @@ describe('sync calibration — with the microphone', () => {
         expect(cal.phase).toBe('applied')
     })
 
+    it('counts a trim it just applied as the device’s own until the device reports it', async () => {
+        const { cal, plan, run } = await listening()
+        reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc })
+        await flushPromises()
+        afterThePlan(plan)
+        cal.apply() // the PC gets 155 — the device list still says 0 until its next report
+
+        // Straight on to "by ear": the PC's slider starts where it really is. From
+        // 0, the first touch would have thrown it back by 155 ms.
+        await cal.startEar()
+        expect(cal.earTrims.pc).toBe(155)
+        cal.stopEar()
+
+        // A device that never confirms: after a while its own report counts again.
+        vi.advanceTimersByTime(11_000)
+        await cal.startEar()
+        expect(cal.earTrims.pc).toBe(0)
+    })
+
     it('waits a while for a slow report, then calls the device silent', async () => {
         const { cal, plan } = await listening()
         await flushPromises()

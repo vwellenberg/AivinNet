@@ -85,6 +85,19 @@ const EAR_SEND_MS = 150
 export const NO_CHANGE_MS = 8
 /** Level-meter bars kept. */
 const LEVEL_BARS = 12
+/**
+ * A trim sent from here counts as the device's trim for this long (ms). The
+ * device list only learns it from that device's next report, a poll or two
+ * later — and "Measure again" or "Align by ear" right after Apply would
+ * otherwise start from the old value (by ear: the first touch of a slider
+ * would throw the device back there).
+ */
+const SENT_TRIM_FRESH_MS = 10000
+
+/** Whether Apply would change this row's trim. */
+export function trimChanges(row: CalibrationRow): boolean {
+    return row.suggestedTrim !== null && Math.abs(row.suggestedTrim - row.currentTrim) > NO_CHANGE_MS
+}
 
 // --- non-reactive run state ---------------------------------------------------
 
@@ -99,9 +112,23 @@ let earRun = ''
 let earMembers: string[] = []
 const earSends = new Map<string, any>()
 let earEnd: any = null
+const sentTrims = new Map<string, { trim: number; at: number }>()
 
 function newRunId(): string {
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+}
+
+/** A device's trim: what was just sent to it, else what it last reported. */
+function knownTrim(device: DeviceSummary): number {
+    const sent = sentTrims.get(device.device_id)
+    if (sent && Date.now() - sent.at < SENT_TRIM_FRESH_MS) return sent.trim
+    return Math.round(device.trim_ms ?? 0)
+}
+
+/** Give another device a trim, and remember it until its own report says so. */
+function sendTrim(id: string, trim: number) {
+    sentTrims.set(id, { trim, at: Date.now() })
+    void useDeviceSync().sendCmd('set_audio_offset', { offset_ms: trim }, id)
 }
 
 /** Joined and online, this device first. */
@@ -121,7 +148,7 @@ function rowFor(device: DeviceSummary): CalibrationRow {
         status: 'waiting',
         latencyMs: null,
         offsetsMs: [],
-        currentTrim: self ? ds.audioOffsetMs : Math.round(device.trim_ms ?? 0),
+        currentTrim: self ? ds.audioOffsetMs : knownTrim(device),
         suggestedTrim: null,
         reference: false,
     }
@@ -157,10 +184,7 @@ export default defineStore('syncCalibration', {
     getters: {
         busy: state => state.phase === 'starting' || state.phase === 'listening',
         /** Rows whose trim Apply would change. */
-        changes: state =>
-            state.rows.filter(
-                r => r.suggestedTrim !== null && Math.abs(r.suggestedTrim - r.currentTrim) >= NO_CHANGE_MS
-            ),
+        changes: state => state.rows.filter(trimChanges),
         heardCount: state => state.rows.filter(r => r.status === 'heard').length,
     },
 
@@ -302,7 +326,7 @@ export default defineStore('syncCalibration', {
             for (const row of this.changes) {
                 const trim = row.suggestedTrim as number
                 if (row.self) ds.setAudioOffset(trim)
-                else void ds.sendCmd('set_audio_offset', { offset_ms: trim }, row.id)
+                else sendTrim(row.id, trim)
                 row.currentTrim = trim
             }
             this.phase = 'applied'
@@ -384,7 +408,7 @@ export default defineStore('syncCalibration', {
                 id,
                 setTimeout(() => {
                     earSends.delete(id)
-                    void ds.sendCmd('set_audio_offset', { offset_ms: trim }, id)
+                    sendTrim(id, trim)
                 }, EAR_SEND_MS)
             )
         },
@@ -395,7 +419,7 @@ export default defineStore('syncCalibration', {
             // A trim still held back is sent now, not dropped.
             for (const [id, handle] of earSends) {
                 clearTimeout(handle)
-                void ds.sendCmd('set_audio_offset', { offset_ms: this.earTrims[id] }, id)
+                sendTrim(id, this.earTrims[id])
             }
             earSends.clear()
             clearTimeout(earEnd)
@@ -450,4 +474,5 @@ export function __resetSyncCalibrationTestState() {
     earSends.clear()
     clearTimeout(earEnd)
     earEnd = null
+    sentTrims.clear()
 }

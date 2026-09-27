@@ -109,7 +109,7 @@
                     <span v-if="row.reference" class="state">reference</span>
                     <span v-else-if="row.suggestedTrim !== null" class="trim">
                         <span class="badge">{{ signed(row.suggestedTrim) }} ms</span>
-                        <span v-if="cal.phase === 'result' && changed(row)" class="was"
+                        <span v-if="cal.phase === 'result' && trimChanges(row)" class="was"
                             >now {{ signed(row.currentTrim) }}</span
                         >
                     </span>
@@ -139,7 +139,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import useDeviceSync from '@/stores/devicesync'
-import useSyncCalibration, { NO_CHANGE_MS, type CalibrationRow, type RowStatus } from '@/stores/syncCalibration'
+import useSyncCalibration, { trimChanges, type RowStatus } from '@/stores/syncCalibration'
 import { calibrationSeconds, ROUNDS } from '@/utils/deviceSync/calibration'
 
 const props = defineProps<{ mode: 'mic' | 'ear' }>()
@@ -189,10 +189,6 @@ const resultLead = computed(() => {
 
 function signed(ms: number): string {
     return `${ms > 0 ? '+' : ''}${Math.round(ms)}`
-}
-
-function changed(row: CalibrationRow): boolean {
-    return row.suggestedTrim !== null && Math.abs(row.suggestedTrim - row.currentTrim) >= NO_CHANGE_MS
 }
 
 function onEarInput(id: string, event: Event) {
