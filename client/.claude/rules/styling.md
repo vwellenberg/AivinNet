@@ -272,14 +272,28 @@ Drei Bedingungen, alle tragend:
      Deckfläche in `--row-fill` hinter genau die Textbreite (`flex: 0 1 auto`); rundherum bleibt
      die Textur stehen. Der Puffer im Mixin ist kein Zierrat — ohne ihn endet die Schrift genau
      dort, wo die Striche anfangen, und wirkt gequetscht.
-   - **Kleines Element, das im Wesentlichen aus seinem Label besteht** (Tab, Chip, Text-Button)
-     → **gar keine Schraffur.** Ein Cover ließe hier nur einen 4-px-Rand übrig: Rauschen ohne
-     Aussage. Platte, Offset-Schatten und der Hover-Schnitt tragen „drückbar" allein — dieselbe
-     Antwort wie bei den Inhaltszeilen weiter oben.
+   - **Kleines Element, das im Wesentlichen aus seinem Label besteht** (Tab, Chip, Pill,
+     Text-Button) → **`mem-label-hatch`: die Textur als Ring um das Label.** Ein `::before` über
+     der Padding-Box maskiert seine eigene Content-Box heraus — die Striche stehen nur im Ring
+     (`$ring-x`/`$ring-y`, bewusst schmaler als das Padding, der Rest ist Puffer zum Text), und
+     durch das Loch scheint die Füllung des Buttons, egal in welchem Zustand. Die Strichfarbe
+     reist als `--label-hatch`; ein Zustand, der die Füllung wechselt, setzt sie mit (Hover →
+     `--mem-hatch-hover`, statischer Akzent → `--mem-hatch-accent`). In `btn-action` heißt das
+     `$hatch: label`, `btn-pill` und `mem-seg-tabs` haben es eingebaut.
 
-   Die Textur braucht also **Fläche neben dem Text**, sonst hat sie keinen Platz, an dem sie
-   etwas sagen könnte. Icon-Buttons sind davon unberührt: Ein Glyph ist eine Strichzeichnung mit
-   eigenem Kontrast, kein Fließtext.
+     ⚠️ **Hier stand bis 2026-09-28 „gar keine Schraffur" (#476)** — und genau so wurde es
+     gemeldet: „Buttons ohne Schraffur" auf dem Charts-Schirm. Wo jede andere drückbare Platte
+     die Textur trägt, liest sich die glatte als *nicht* drückbar. Der damalige Grund (ein Cover
+     in `--row-fill` für jeden Zustand nachziehen, sonst ein Rechteck in falscher Farbe) fällt
+     mit der Maske weg. Nicht schraffiert bleiben: Zeilen in Menüs und Inhaltslisten (Regel
+     oben), und Etiketten, die nur aussehen wie Chips („Sort By").
+
+     ⚠️ **`$mem-soft` ist KEIN Akzent** — die Fläche wird mit dem Theme dunkel. `btn-pill` wählt
+     die Strichfarbe über die Füllung, und mit dem Ink-Sprite verschwand der Ring der Such-Tabs im
+     Dark-Theme. Gilt für jede neue Füllung: erst nachsehen, ob sie eine Theme-Variable ist.
+
+   Icon-Buttons sind davon unberührt: Ein Glyph ist eine Strichzeichnung mit eigenem Kontrast,
+   kein Fließtext — sie tragen die Textur über die ganze Fläche. Zensus: `labelHatch.test.ts`.
 
 **Und wo sie bleibt, läuft sie nie durch ein Schriftband.** Trägt eine schraffierte Fläche Text,
 liegen die Striche zwischen den Buchstaben und berühren sie bei 2× sichtbar. Dafür gibt es das

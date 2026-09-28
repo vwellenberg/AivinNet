@@ -273,8 +273,9 @@ onMounted(async () => {
         // A page-size chip is a toggle, so it takes the action role — same
         // anatomy as the sort banner's chips.
         .pagesize {
-            // The chip IS its number -> no hatch (#476, styling.md).
-            @include btn-action($size: 2.75rem, $width: auto, $hatch: false);
+            // The chip IS its number -> the hatch as a ring around it
+            // (mem-label-hatch, styling.md).
+            @include btn-action($size: 2.75rem, $width: auto, $hatch: label);
         }
 
         // ON state. Yellow is this design system's "active" signal; blush
@@ -284,6 +285,7 @@ onMounted(async () => {
             background-color: $mem-yellow;
             border-color: $mem-line;
             color: $mem-ink;
+            --label-hatch: var(--mem-hatch-accent);
         }
 
         .pagebtn {

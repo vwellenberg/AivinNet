@@ -792,6 +792,9 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
     border-right: $candy-border;
     border-radius: 0;
     cursor: pointer;
+    // "Pressable", like every other plate in the chrome — as a ring around the
+    // label, never behind it (mem-label-hatch).
+    @include mem-label-hatch(26px, $on: surface);
 
     &:last-child {
       border-right: none;
@@ -810,11 +813,14 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
     &:not(.active):hover {
       background-color: var(--mem-hover);
       color: var(--mem-hover-text);
+      --label-hatch: var(--mem-hatch-hover);
     }
 
     &.active {
       background-color: var(--look-selected-fill, #{$mem-yellow});
       color: var(--look-selected-text, #{$mem-ink});
+      // Static accent fill -> the static ink sprite (styling.md, rule 2).
+      --label-hatch: var(--mem-hatch-accent);
     }
   }
 
@@ -1042,6 +1048,57 @@ $mem-seg-reserve: 4px !default;
   background-color: var(--row-fill);
   border-radius: 7px;
   padding: 2px $buffer 2px 4px;
+}
+
+// ---------------------------------------------------------------------------
+// HATCH ON A LABEL BUTTON — texture in the padding, the text band left clear.
+//
+// Tabs, chips, pills and text buttons used to carry NO hatch at all (#476): the
+// texture must never run behind text, and the cover the ring above needs reads
+// `--row-fill` — which every state of these buttons (active, hover, a call
+// site's own yellow or blush) would have had to restate, or its label sat in a
+// rectangle of the wrong colour. So they went smooth, and the user reported the
+// charts tabs as "buttons without hatch": the texture says "you can press
+// this", and the tabs were the one pressable plate on the screen without it.
+//
+// This paints the texture on a `::before` that covers the padding box and MASKS
+// OUT its own content box — so there is no cover and nothing to keep in step
+// with the fill: whatever colour the button has in whatever state shows through
+// the hole, and the strokes only ever stand in the ring around the label.
+// The ring is `$ring-x` wide at the sides and `$ring-y` above and below. Both
+// are deliberately NARROWER than the button's own padding (12px inline on
+// every label role): the rest of the padding is the buffer that keeps the
+// letters off the strokes — measured with the ring at the full padding, the
+// strokes ended exactly at the first and last letter and read as cramped (the
+// same observation `mem-hatch-clear` records for its buffer).
+//
+// The stroke colour still has to answer the fill under it (rule 2 in
+// styling.md), so it travels as `--label-hatch`: `$on` picks the resting token,
+// and a state that changes the fill sets the token with it — hover to
+// `--mem-hatch-hover`, a static accent fill to `--mem-hatch-accent`. Forgetting
+// one costs contrast, never a rectangle.
+//
+// Takes the `::before` of its host: `btn-primary` owns that pseudo-element for
+// its sprinkle, so the two never meet on one element.
+// ---------------------------------------------------------------------------
+@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.6rem) {
+  --label-hatch: #{if($on == accent, var(--mem-hatch-accent), var(--mem-hatch))};
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: $ring-y $ring-x;
+    background-image: var(--label-hatch);
+    background-size: $size $size;
+    // Everything but the content box: the whole box, minus the text band.
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
 }
 
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
