@@ -202,9 +202,15 @@
 //
 // ⚠️ Und deshalb steht das hier als Animation auf dem ELEMENT, nicht als
 // Übergang auf einem Zustand: `DynamicScroller` recycelt seine Zeilen-Knoten
-// beim Scrollen. Eine Animation läuft, wenn der Knoten ENTSTEHT — beim
-// Recycling wechselt nur der Inhalt, und genau deshalb feuert sie beim Scrollen
-// nicht erneut. Ein Zustands-Übergang täte das sehr wohl.
+// beim Scrollen, beim Recycling wechselt nur der Inhalt. Ein Zustands-Übergang
+// feuerte dabei dauernd.
+//
+// ⚠️ Aber „läuft nur, wenn der Knoten entsteht" stimmt allein NICHT: eine
+// CSS-Animation startet auch neu, wenn ihr Knoten im DOM UMGEHÄNGT wird — und
+// die Scroller sortieren ihre Zeilen ~300 ms nach jedem Scrollen um. Darum
+// zwei Sicherungen, beide nötig: kein `:key` auf dem Slot-Inhalt (sonst wird
+// jede recycelte Zeile neu gebaut, scrollerRecycling.test.ts) und die
+// Einmal-Sperre `data-arrived` (utils/arrivalLatch.ts, mem-arrival).
 @keyframes mem-step-in {
   0% {
     opacity: 0;

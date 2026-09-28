@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { dropSources, favType } from '@/enums'
@@ -150,6 +150,24 @@ const dragOverClass = computed(() => {
     if (dragOverBottom.value) return 'drag-over-bottom'
     return ''
 })
+
+// A virtual scroller recycles this row for another track instead of building a
+// new one (no `:key` on the slot — scrollerRecycling.test.ts). Whatever the row
+// says about ITS track must not travel with it: with the context menu open or a
+// drag auto-scrolling, the blush "menu owner" fill or the lifted drag look
+// would otherwise land on an unrelated track.
+// A string, not an array: an array getter returns a new object on every run,
+// so a list recompute handing over a fresh object for the SAME track would
+// reset a drag in progress.
+watch(
+    () => `${props.track.trackhash}:${props.index}`,
+    () => {
+        context_menu_showing.value = false
+        dragging.value = false
+        dragOverTop.value = false
+        dragOverBottom.value = false
+    }
+)
 
 function onDragStart(e: DragEvent) {
     // The same guard as the `draggable` binding, and it has to be here too:

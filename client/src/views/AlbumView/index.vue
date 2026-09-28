@@ -15,9 +15,11 @@
                     :size-dependencies="[item.props]"
                     :data-index="index"
                 >
+                    <!-- No `:key`: a key that changes with the item turns every
+                         recycle into a new row, replaying its entrance mid-scroll
+                         (census: components/__tests__/scrollerRecycling.test.ts). -->
                     <component
                         :is="item.component"
-                        :key="index"
                         v-bind="item.props"
                         @playThis="playFromAlbum(item.props.track.master_index)"
                         @playDisc="playDisc"

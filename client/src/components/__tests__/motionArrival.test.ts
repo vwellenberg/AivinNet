@@ -10,7 +10,13 @@ import { describe, expect, it } from 'vitest'
 //    einem Zustand. `DynamicScroller` recycelt seine Zeilen-Knoten: eine
 //    Animation läuft, wenn der Knoten entsteht — beim Recycling wechselt nur
 //    der Inhalt. Ein Zustands-Übergang würde beim Scrollen dauernd feuern.
-//    Live gemessen: 0 zusätzliche Starts über sechs Scroll-Schritte.
+//    ⚠️ Das allein reicht nicht: Eine Animation startet auch neu, wenn ihr
+//    Knoten UMGEHÄNGT wird (der Scroller sortiert ~300 ms nach dem Scrollen),
+//    und ein `:key` auf dem Slot baut jede recycelte Zeile neu. Die frühere
+//    Messung hier („0 zusätzliche Starts über sechs Scroll-Schritte") hat
+//    beides nicht erfasst — nachgemessen am 2026-09-28: 70 Neustarts NACH dem
+//    Scroll-Stopp auf einer 394er-Playlist. Sicherungen: arrivalLatch.test.ts,
+//    scrollerRecycling.test.ts.
 //
 // 2. Der Deckel bei acht Zeilen gehört zur Idee. Bei 45ms je Zeile wartet
 //    Zeile 200 sonst neun Sekunden, und aus einer Begrüßung wird eine Ladezeit.

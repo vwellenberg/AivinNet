@@ -28,9 +28,13 @@
                     :size-dependencies="[item.id, item.size]"
                     :data-index="index"
                 >
+                    <!-- No `:key` here: the scroller recycles this slot for the
+                         next item, and a key that changes with the item turns
+                         every recycle into a brand-new row — which then plays
+                         its entrance mid-scroll. The scroller's own `key-field`
+                         already owns identity (census: components/__tests__/scrollerRecycling.test.ts). -->
                     <component
                         :is="item.component"
-                        :key="item.id"
                         v-bind="item.props"
                         @playThis="playFromPlaylistPage(item.props.index - 1)"
                         @trackDropped="onTrackDropped"
