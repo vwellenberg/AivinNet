@@ -4,11 +4,14 @@ import {
     agreeing,
     AGREE_MS,
     calibrationSeconds,
+    driftMsPerS,
     measureClicks,
     planClicks,
     planEndMs,
     relativeLatencies,
     ROUNDS,
+    settlingDevices,
+    SETTLING_MS_PER_S,
     SLOT_MS,
     suggestTrims,
     WINDOW_AFTER_MS,
@@ -50,6 +53,9 @@ describe('planClicks', () => {
  *
  * `dropAtMs`: the recording loses `dropMs` of samples at that point, the way
  * a capture under load does — everything after it lands early.
+ *
+ * `ramp`: a device's hidden delay grows by that many ms per second while it
+ * clicks — a Bluetooth path on Windows right after a pause.
  */
 function scene(opts: {
     hidden: Record<string, number>
@@ -57,6 +63,7 @@ function scene(opts: {
     gains?: Record<string, number>
     dropAtMs?: number
     dropMs?: number
+    ramp?: Record<string, number>
 }) {
     const ids = Object.keys(opts.hidden)
     const start = 50_000
@@ -68,7 +75,8 @@ function scene(opts: {
     ids.forEach((id, d) => {
         sounded[id] = plan[id].map((t, k) => t + skew[(d + k) % skew.length] + 0.4 * k)
         sounded[id].forEach(s => {
-            let at = s + opts.hidden[id] + opts.shared
+            const climbed = ((opts.ramp?.[id] ?? 0) * (s - start)) / 1000
+            let at = s + opts.hidden[id] + climbed + opts.shared
             if (opts.dropAtMs !== undefined && at > opts.dropAtMs) at -= opts.dropMs ?? 0
             arrivals.push({ atMs: at, gain: opts.gains?.[id] ?? 0.3 })
         })
@@ -145,6 +153,85 @@ describe('measureClicks + relativeLatencies', () => {
         // Strength says how clearly a click stood out; nothing to say outside the recording.
         expect(pc.strengths[0]).toBeNull()
         expect(pc.strengths[1]).toBeGreaterThan(20)
+    })
+})
+
+describe('driftMsPerS + settlingDevices', () => {
+    // Two devices, slots 1.2 s apart: the phone clicks in slot 0, the PC in slot 1.
+    const sounded = (firstMs: number, rounds = 4) => Array.from({ length: rounds }, (_, k) => firstMs + k * 2 * SLOT_MS)
+    const twoDevices = { phone: sounded(0), pc: sounded(SLOT_MS) }
+
+    // The run of 2026-09-27, 23:17, as GET /devicesync/diag kept it: the PC
+    // listening, Windows → Edifier M60 over Bluetooth, the phone on its own
+    // speaker, the music paused for minutes. The PC's path climbed ~3 ms a
+    // second while it clicked, and the run suggested +97 ms for it — the music
+    // needed ~184 (measured acoustically the same night).
+    const coldRun = {
+        pc: [175.43, 181.88, 189.25, 197.0],
+        phone: [87.89, 88.23, 88.19, 87.98],
+    }
+
+    it('reads a path still climbing after a pause as settling — not as a latency', () => {
+        expect(driftMsPerS(coldRun.pc, twoDevices.pc)).toBeCloseTo(3.1, 1)
+        expect(Math.abs(driftMsPerS(coldRun.phone, twoDevices.phone) as number)).toBeLessThan(0.2)
+        expect(settlingDevices(coldRun, twoDevices)).toEqual(['pc'])
+    })
+
+    it('lets a steady path through — the same PC right after 35 s of music', () => {
+        // Measured the same night with the external listener: flat within 2.5 ms over 12 s.
+        const warmPc = [315.96, 316.17, 317.35, 317.96, 317.78, 318.45]
+        const warmPhone = [119.8, 119.01, 119.65, 120.21, 120.09, 118.65]
+        const drift = driftMsPerS(warmPc, sounded(SLOT_MS, 6)) as number
+        expect(Math.abs(drift)).toBeLessThan(SETTLING_MS_PER_S)
+        expect(
+            settlingDevices({ pc: warmPc, phone: warmPhone }, { pc: sounded(SLOT_MS, 6), phone: sounded(0, 6) })
+        ).toEqual([])
+    })
+
+    it('one stray click neither makes a device settle nor hides one that does', () => {
+        // The 77-ms run of that night: the PC's last window caught something else.
+        expect(driftMsPerS([161.18, 168.71, 176.31, -83.3], twoDevices.pc)).toBeCloseTo(3.1, 1)
+        expect(Math.abs(driftMsPerS([88, 88.2, -150, 88.1], twoDevices.phone) as number)).toBeLessThan(0.2)
+    })
+
+    it('does not blame the devices for a recording that lost a stretch of samples', () => {
+        const plan = planClicks(['phone', 'pc'], 50_000)
+        const { offsets, sounded: reported } = scene({
+            hidden: { phone: 0, pc: 150 },
+            shared: 20,
+            dropAtMs: plan.phone[1] + 20 + 300,
+            dropMs: 11,
+        })
+        expect(settlingDevices(offsets, reported)).toEqual([])
+    })
+
+    it('takes movement every device shares as the listener’s own clock, not theirs', () => {
+        const shared = (ms: number[], at: number[]) => ms.map((v, k) => v + (2.5 * (at[k] - at[0])) / 1000)
+        const steady = {
+            phone: shared([50, 50, 50, 50], twoDevices.phone),
+            pc: shared([200, 200, 200, 200], twoDevices.pc),
+        }
+        expect(settlingDevices(steady, twoDevices)).toEqual([])
+
+        const climbing = { ...steady, pc: shared(coldRun.pc, twoDevices.pc) }
+        expect(settlingDevices(climbing, twoDevices)).toEqual(['pc'])
+    })
+
+    it('judges a device only on three clicks it was heard with', () => {
+        expect(driftMsPerS([100, null, 130, null], twoDevices.pc)).toBeNull()
+        // A click the device could not place does not count either.
+        expect(driftMsPerS([100, 110, 120, 130], [0, null, null, 7200])).toBeNull()
+        expect(settlingDevices({ pc: [100, null, 130, null], phone: [50, 50, 50, 50] }, twoDevices)).toEqual([])
+    })
+
+    it('finds the climb in a real recording, click by click', () => {
+        const { offsets, sounded: reported } = scene({
+            hidden: { phone: 12, pc: 150 },
+            shared: 35,
+            ramp: { pc: 3 },
+        })
+        expect(driftMsPerS(offsets.pc, reported.pc)).toBeCloseTo(3, 0)
+        expect(settlingDevices(offsets, reported)).toEqual(['pc'])
     })
 })
 

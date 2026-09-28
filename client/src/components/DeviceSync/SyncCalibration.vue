@@ -4,6 +4,7 @@
         <template v-if="mode === 'ear'">
             <template v-if="cal.phase === 'ear'">
                 <p class="lead">Every device ticks once a second. Move a slider until you hear a single tick.</p>
+                <p v-if="!ds.playing" class="tip">{{ START_MUSIC }}</p>
                 <div v-for="row in cal.rows" :key="row.id" class="ear-row">
                     <div class="row-head">
                         <span class="name">{{ row.name }}</span>
@@ -48,8 +49,9 @@
                 <ol class="steps">
                     <li>Put this device where you listen.</li>
                     <li>Keep the room quiet for about {{ seconds }} seconds.</li>
-                    <li>The music pauses and carries on afterwards.</li>
+                    <li v-if="ds.playing">The music keeps playing, turned down.</li>
                 </ol>
+                <p v-if="!ds.playing" class="tip">{{ START_MUSIC }}</p>
                 <button class="btn-primary wide" @click="cal.start()">Allow microphone and start</button>
                 <p class="note">The recording stays on this device and is gone right after.</p>
                 <button class="link" @click="emit('switch', 'ear')">Align by ear instead</button>
@@ -163,11 +165,18 @@ const EAR_MIN_MS = -250
 const EAR_MAX_MS = 750
 const EAR_STEP_MS = 5
 
+/**
+ * A Bluetooth path measured right after a pause comes out ~150 ms short of the
+ * delay it has under music (Windows, 2026-09-27) — see stores/syncCalibration.ts.
+ */
+const START_MUSIC = 'Start the music first: a Bluetooth speaker only settles on its real delay while music plays.'
+
 const STATUS_TEXT: Record<RowStatus, string> = {
     waiting: 'waiting',
     clicking: 'clicking…',
     heard: 'heard',
     unclear: 'not heard clearly — louder, or closer',
+    settling: 'still settling',
     'no-answer': 'no answer — reload the app there',
     muted: 'muted there',
     late: 'too late to start — try again',
@@ -182,6 +191,8 @@ const bars = computed(() => {
 
 const resultLead = computed(() => {
     if (cal.phase === 'applied') return 'Applied. Every speaker now starts in step.'
+    if (cal.rows.some(r => r.status === 'settling'))
+        return 'A speaker’s delay was still changing, as Bluetooth does after a pause. Let the music play for a minute, then measure again.'
     if (cal.heardCount < 2) return 'Fewer than two speakers came through clearly — there is nothing to compare.'
     if (!cal.changes.length) return 'Everything is in step already.'
     return 'Slower speakers start that much earlier.'
@@ -228,11 +239,11 @@ function copy(text: string) {
 }
 
 onMounted(() => {
-    if (props.mode === 'ear') void cal.startEar()
+    if (props.mode === 'ear') cal.startEar()
     else cal.prepare()
 })
 
-// Closing the panel mid-run stops the clicks or ticks and brings the music back.
+// Closing the panel mid-run stops the clicks or ticks, and the music comes back up.
 onBeforeUnmount(() => cal.cancel())
 </script>
 

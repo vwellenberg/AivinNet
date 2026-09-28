@@ -52,7 +52,9 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
 - **Sync-Kalibrierung** reitet auf denselben Targeted Commands, der Server reicht nur durch
   (`MEMBER_TARGETED_TYPES`, Ziel muss Member sein): `sync_click` (Klick-Plan an ein Mitglied),
   `sync_click_report` (seine Antwort an den Zuhörer), `sync_ticks` (Takt für „nach Gehör") und
-  `set_audio_offset` (der Trim). Die Messung selbst passiert im Client. ⚠️ Ein Report bleibt
+  `set_audio_offset` (der Trim). Die Messung selbst passiert im Client; `sync_click` trägt
+  `until_ms` — so lange hält das Mitglied seine Musik leise (sie läuft weiter: ein pausierter
+  Bluetooth-Weg misst kalt ~150 ms zu kurz, `client/.claude/rules/device-sync.md`). ⚠️ Ein Report bleibt
   15 s zustellbar und kommt deshalb bei jedem Poll des Zuhörers wieder — Clients deduplizieren
   per Command-ID, und ein Report gehört über seine `run`-ID zu genau einer Messung.
 - Den Trim, den ein Gerät mit `diag` meldet, führt `touch()` als `trim_ms` am Gerät; die

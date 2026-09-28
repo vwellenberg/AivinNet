@@ -14,6 +14,7 @@ const { playerMock, audioSourceMock, requestsMock } = vi.hoisted(() => ({
         playCurrent: vi.fn(),
         setMute: vi.fn(),
         setVolume: vi.fn(),
+        setDuck: vi.fn(),
         clearNextAudio: vi.fn(),
         clearMovingNextTimeout: vi.fn(),
         isPaused: vi.fn(() => true),
@@ -109,6 +110,7 @@ const mkPoll = (over: Partial<any> = {}): any => ({
 import useDeviceSyncStore, {
     __latencyForTest,
     __resetDeviceSyncTestState,
+    CALIBRATION_DUCK,
     onCalibrationReport,
     type CalibrationReport,
 } from '@/stores/devicesync'
@@ -2120,6 +2122,78 @@ describe('devicesync store — sync calibration commands', () => {
         const ds = member()
         ds.toSolo()
         expect(clickMock.tickStop).toHaveBeenCalled()
+    })
+
+    // Clicks and ticks play OVER the music, turned down — never paused: a paused
+    // Bluetooth path on Windows goes cold and measures ~150 ms short of the delay
+    // the music has (2026-09-27, see stores/syncCalibration.ts).
+    describe('the music under the clicks', () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        const duck = () => (playerMock.setDuck.mock.calls as any[]).map(([gain]) => gain)
+
+        it('turns its music down while it clicks, and up again once the listener stops recording', async () => {
+            clickMock.playMeasurement.mockResolvedValue({ sounded_ms: [5000] })
+            const ds = member()
+            const until = Date.now() + 12_000
+            ds.handleCommands([
+                targeted('c1', 'sync_click', {
+                    run: 'r1',
+                    listener: 'phone',
+                    clicks_ms: [Date.now() + 4000],
+                    until_ms: until,
+                }),
+            ])
+            await flushPromises()
+            expect(duck()).toEqual([CALIBRATION_DUCK])
+
+            // Its own click is long over — the others are still clicking.
+            vi.advanceTimersByTime(11_000)
+            expect(duck()).toEqual([CALIBRATION_DUCK])
+            vi.advanceTimersByTime(1_500)
+            expect(duck()).toEqual([CALIBRATION_DUCK, 1])
+        })
+
+        it('does not let a plan hold the music down for long', async () => {
+            clickMock.playMeasurement.mockResolvedValue({ sounded_ms: [5000] })
+            const ds = member()
+            ds.handleCommands([
+                targeted('c1', 'sync_click', {
+                    run: 'r1',
+                    listener: 'phone',
+                    clicks_ms: [Date.now() + 4000],
+                    until_ms: Date.now() + 10 * 3600_000,
+                }),
+            ])
+            await flushPromises()
+            vi.advanceTimersByTime(65_000)
+            expect(duck()).toEqual([CALIBRATION_DUCK, 1])
+        })
+
+        it('turns its music down while it ticks, and up again when the ticking stops', () => {
+            const ds = member()
+            ds.handleCommands([
+                targeted('k1', 'sync_ticks', { run: 'e1', start_ms: Date.now() + 2500, period_ms: 1000, count: 120 }),
+            ])
+            expect(duck()).toEqual([CALIBRATION_DUCK])
+
+            ds.handleCommands([targeted('k2', 'sync_ticks', { run: 'e1', stop: true })])
+            expect(duck()).toEqual([CALIBRATION_DUCK, 1])
+        })
+
+        it('brings the music back when it leaves the calibration behind', () => {
+            const ds = member()
+            ds.handleCommands([
+                targeted('k1', 'sync_ticks', { run: 'e1', start_ms: Date.now() + 2500, period_ms: 1000, count: 120 }),
+            ])
+            ds.toSolo()
+            expect(duck().slice(-1)).toEqual([1])
+        })
     })
 })
 

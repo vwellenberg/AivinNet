@@ -117,16 +117,34 @@ ENGINE_M=firefox …   # zweites Gerät in Firefox;  LAT_M=80 CPU_M=4 …  # "la
   `pw-record`-Aufnahme direkt an der Senke (wessen Uhr lag daneben: Mitglied oder Zuhörer?),
   `calibshots.js` fotografiert jeden Schirm in Handygröße (`THEME=dark`; die http-Ansicht über
   `--host-resolver-rules`, weil `localhost` selbst als sicher gilt).
+  **Mit laufender Musik:** `SRC=<klon> SCRIPT=calibmusic.js bash ~/syncprobe/calib/runmusic.sh`
+  spielt ein Album in der Gruppe, kalibriert darüber (`RUNS=` Läufe, `MUSIC=0` zum Vergleich ohne)
+  und protokolliert pro Lauf, ob die Gruppe spielte und wie laut beide Musik-Elemente gerade
+  waren; `calibshots2.js` fotografiert die Schirme mit Musik-Hinweis und „still settling".
+  ⚠️ **`runmusic.sh` bricht ab, wenn eine der beiden Senken fehlt, und beendet den Lauf, sobald
+  ein Chromium-Stream am echten Ausgang hängt** — der Server hat einen Analog-Ausgang, und ohne
+  `calib_null` fiele `PULSE_SINK` still auf ihn zurück. Die Senke lebt nicht ewig (am 2026-09-28
+  war sie weg): vorher mit `pw-cli ls Node` nachsehen.
+  ⚠️ **Unter Last wird der Prüfstand selbst unzuverlässig.** Am 2026-09-28 lief `gnome-shell` auf
+  dem Server dauerhaft mit einem vollen Kern und 5 GB, Last 4,5 auf 4 Kernen: mit wie ohne Musik
+  waren 3 von 6 Läufen Datensalat (Media-Clocks sprangen um 50–260 ms), einer davon mit
+  konsistent falschen +107 ms. Vorher `uptime` ansehen und nur Läufe derselben Sitzung
+  vergleichen.
   ⚠️ **Playwright startet Chromium mit `--mute-audio`** — ohne `ignoreDefaultArgs` kommt an der
   Senke nur Stille an, und die Aufnahme sieht aus wie ein Messfehler.
   ⚠️ **`pw-record` verliert unter Last selbst Blöcke** (512 Samples = 10,7 ms): als
   Wahrheit taugt es nur, solange seine Klickabstände stimmen.
 - **Eine echte Kalibrierung auseinandernehmen:** `python3 ~/syncprobe/calib/calibreport.py [läufe]`
   druckt die letzten Läufe aus `GET /devicesync/diag` Klick für Klick (Offset, Stärke, Runde gegen
-  die Referenz, Uhr und Media-Clock-Drift jedes Geräts). Als Gegenprobe ohne Browser-Mikrofon:
-  `calib_external.py` im Scratch-Ordner der Sitzung (PC-Mikro per `sounddevice`, schickt dieselben
-  `sync_click`s, liest die Berichte per Poll mit der Geräte-ID des PC-Browsers) — nur mit
-  Zustimmung, es ist das Mikrofon des Nutzers.
+  die Referenz, Uhr und Media-Clock-Drift jedes Geräts). Als Gegenprobe ohne Browser-Mikrofon
+  liegen die Windows-Werkzeuge in `~/syncprobe/acoustic-win/` (auf den PC kopieren, laufen mit
+  `uv run --no-project --with numpy --with sounddevice …`): `calib_external.py` (PC-Mikro per
+  `sounddevice`, schickt dieselben `sync_click`s, liest die Berichte per Poll mit der Geräte-ID
+  des PC-Browsers; `--only-pc --rounds=16 --slot=2000` zeigt, wie ein Ausgabeweg über 30 s
+  wandert), `measure.py` (die Musik selbst, GCC-PHAT gegen den Anker), `compare.py` (erst Musik,
+  dann Klicks — derselbe Zustand, dieselbe Zeitbasis) und `micrate.py` (läuft der Takt des
+  Mikrofons genau? UM02: −17 ppm). Hörbar, also nur mit Zustimmung und nicht spätabends — es sind
+  Mikrofon und Lautsprecher des Nutzers.
 - ⚠️ **Die Instanz ist isoliert, sonst nichts:** eigener Port (1971), eigene Config-Kopie mit
   konsistentem DB-Snapshot, Last.fm-Keys entfernt, Scans/Watchdog aus. Das ist nötig, weil die
   Gruppe pro **Nutzer** existiert: eine Probe gegen `:1970` wäre der echten Gruppe beigetreten,

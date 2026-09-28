@@ -14,6 +14,12 @@
 // now and then sit up to ~8 ms off what actually sounds — the music shares
 // that floor, so a smaller correction is not a correction (see NO_CHANGE_MS
 // in stores/syncCalibration.ts).
+//
+// A real room adds what no null sink has: a delay that is still MOVING. A
+// Bluetooth path on Windows is ~150 ms shorter right after a pause than under
+// music and climbs back while it plays — so the clicks go over the music,
+// turned down, and a device whose clicks still drift gets no trim
+// (`settlingDevices`).
 
 import { chirp, CHIRP_BAND_HZ } from './clickSignal'
 import { clampOffset } from './audioOffset'
@@ -23,7 +29,7 @@ import { correlationEnvelope, findArrival } from './clickDetect'
 export const SLOT_MS = 1200
 /** Clicks per device; a result needs two rounds that agree. */
 export const ROUNDS = 4
-/** From the start to the first click (ms): the pause has to land and every device has to hear of the plan. */
+/** From the start to the first click (ms): every device has to hear of the plan — a poll away — and start playing. */
 export const PREP_MS = 3000
 /**
  * The window a click is looked for in, around its reported time (ms). Early
@@ -37,6 +43,13 @@ export const WINDOW_AFTER_MS = SLOT_MS - WINDOW_BEFORE_MS
 export const MIN_STRENGTH = 8
 /** Rounds agree when their differences lie this close (ms). */
 export const AGREE_MS = 5
+/**
+ * A device whose delay moves faster than this (ms per second) while it clicks
+ * is still settling. Measured 2026-09-27: a Windows → Bluetooth path climbing
+ * after a pause moved ~3 ms/s; the same path under music, and a phone on its
+ * own speaker, stayed within ~0.3 ms/s.
+ */
+export const SETTLING_MS_PER_S = 1
 
 /** Each device's click times (server ms): device i clicks in slot i of every round. */
 export function planClicks(deviceIds: string[], startServerMs: number, rounds = ROUNDS): Record<string, number[]> {
@@ -155,6 +168,46 @@ export function relativeLatencies(offsets: Record<string, (number | null)[]>): R
         if (latency !== null) result[id] = latency
     }
     return result
+}
+
+/**
+ * How fast a device's delay moved while it clicked (ms per second): the median
+ * of the slopes between consecutive clicks it was heard with. A median, because
+ * one stray click spoils two neighbouring slopes in opposite directions, and a
+ * stretch of samples lost in the recording shifts every later click by the
+ * same amount — one slope jumps, the others stay flat. Null with fewer than
+ * three such clicks.
+ */
+export function driftMsPerS(offsetsMs: (number | null)[], soundedMs: (number | null)[]): number | null {
+    const heard: { at: number; ms: number }[] = []
+    offsetsMs.forEach((ms, k) => {
+        const at = soundedMs[k]
+        if (ms !== null && at !== null && at !== undefined && Number.isFinite(at)) heard.push({ at, ms })
+    })
+    if (heard.length < 3) return null
+    const slopes = heard.slice(1).map((click, i) => ((click.ms - heard[i].ms) / (click.at - heard[i].at)) * 1000)
+    return median(slopes)
+}
+
+/**
+ * The devices whose delay was still moving while they clicked — no trim can be
+ * read off those. After a pause, a Windows → Bluetooth path starts ~150 ms
+ * short of the delay it has under music and climbs ~3 ms a second (measured
+ * 2026-09-27); a trim taken then is wrong by whatever it still has to climb.
+ *
+ * Movement that every device shares is the listener's own clock, not theirs:
+ * each device is judged against the steadiest one.
+ */
+export function settlingDevices(
+    offsets: Record<string, (number | null)[]>,
+    soundedMs: Record<string, (number | null)[]>
+): string[] {
+    const drifts = Object.keys(offsets)
+        .map(id => ({ id, drift: driftMsPerS(offsets[id], soundedMs[id] ?? []) }))
+        .filter((d): d is { id: string; drift: number } => d.drift !== null)
+    if (drifts.length === 0) return []
+    const steadiest = drifts.reduce((best, d) => (Math.abs(d.drift) < Math.abs(best.drift) ? d : best)).drift
+    return drifts.filter(d => Math.abs(d.drift - steadiest) > SETTLING_MS_PER_S).map(d => d.id)
 }
 
 /**

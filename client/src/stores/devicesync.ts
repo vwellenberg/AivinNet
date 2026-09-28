@@ -198,6 +198,21 @@ const tickPlayer = new TickPlayer()
 /** The click measurement running on this device, if any. */
 let measuring: AbortController | null = null
 
+/**
+ * The music's share of its volume while clicks or ticks play over it (−20 dB).
+ * Down, never paused: a paused output can go cold, and a Windows → Bluetooth
+ * path measured ~150 ms shorter right after a pause than under music, climbing
+ * back ~3 ms a second (2026-09-27). Clicks on a cold path measure a delay the
+ * music does not have.
+ */
+export const CALIBRATION_DUCK = 0.1
+/** A click plan cannot hold the music down for longer than this past its last click (ms). */
+const MAX_DUCK_TAIL_MS = 60_000
+/** Clicks and ticks keep the music down this long past their plan (ms) — a trim shifts ticks. */
+const DUCK_TAIL_MS = 2000
+let ducked = false
+let unduckTimer: ReturnType<typeof setTimeout> | null = null
+
 /** What a measured device sends back to the listening one. */
 export interface CalibrationReport {
     run: string
@@ -316,6 +331,9 @@ export function __resetDeviceSyncTestState() {
     tickPlayer.stop()
     measuring?.abort()
     measuring = null
+    if (unduckTimer) clearTimeout(unduckTimer)
+    unduckTimer = null
+    ducked = false
     calibrationReports = null
     pollSeq = 0
     appliedSeq = 0
@@ -1011,7 +1029,9 @@ export default defineStore('devicesync', {
                     const listener = typeof p.listener === 'string' ? p.listener : ''
                     const clicks: number[] = Array.isArray(p.clicks_ms) ? p.clicks_ms.filter(Number.isFinite) : []
                     if (!run || !listener || clicks.length === 0 || clicks.length > MAX_PLAN_CLICKS) break
-                    void this.measureClicks(clicks).then(result =>
+                    // Until the listener stops recording — the others click after this one.
+                    const until = Number.isFinite(p.until_ms) ? Number(p.until_ms) : undefined
+                    void this.measureClicks(clicks, until).then(result =>
                         // Straight to the endpoint: a report to a listener that
                         // has gone meanwhile is not worth an error toast here.
                         sendCommand({
@@ -1026,7 +1046,7 @@ export default defineStore('devicesync', {
                 case 'sync_ticks': {
                     const run = typeof p.run === 'string' ? p.run : ''
                     if (p.stop) {
-                        tickPlayer.stop(run)
+                        this.stopTicks(run)
                         break
                     }
                     const plan: TickPlan = {
@@ -1065,15 +1085,18 @@ export default defineStore('devicesync', {
          * (server ms, by this device's media clock — see clickPlayer.ts).
          * Ascending, like the listener's plan the report is matched against.
          */
-        async measureClicks(clicksMs: number[]): Promise<MeasureResult> {
+        async measureClicks(clicksMs: number[], untilMs?: number): Promise<MeasureResult> {
             tickPlayer.stop()
             measuring?.abort()
             const abort = new AbortController()
             measuring = abort
             const settings = useSettings()
+            const clicks = [...clicksMs].sort((a, b) => a - b)
+            const last = clicks[clicks.length - 1]
+            this.duckMusic(Math.min(untilMs ?? last + DUCK_TAIL_MS, last + MAX_DUCK_TAIL_MS))
             try {
                 const result = await playMeasurement({
-                    clicksServerMs: [...clicksMs].sort((a, b) => a - b),
+                    clicksServerMs: clicks,
                     clock: calibrationClock,
                     volume: settings.mute ? 0 : settings.volume,
                     startLatencyMs: latency.start,
@@ -1097,23 +1120,49 @@ export default defineStore('devicesync', {
         async startTicks(plan: TickPlan) {
             measuring?.abort()
             const settings = useSettings()
-            await tickPlayer.start(plan, {
+            this.duckMusic(plan.startServerMs + plan.count * plan.periodMs + DUCK_TAIL_MS)
+            const started = await tickPlayer.start(plan, {
                 clock: calibrationClock,
                 trimMs: () => this.audioOffsetMs,
                 volume: settings.mute ? 0 : settings.volume,
                 startLatencyMs: latency.start,
                 seekLatencyMs: latency.seek,
             })
+            if (!started) this.unduckIfSilent()
         },
 
         stopTicks(run?: string) {
             tickPlayer.stop(run)
+            this.unduckIfSilent()
         },
 
         /** Silence whatever a calibration started on this device. */
         stopCalibrationAudio() {
             tickPlayer.stop()
             measuring?.abort()
+            this.unduckMusic()
+        },
+
+        /** Turn the music down until server time `untilMs` (see CALIBRATION_DUCK). */
+        duckMusic(untilMs: number) {
+            if (unduckTimer) clearTimeout(unduckTimer)
+            ducked = true
+            usePlayer().setDuck(CALIBRATION_DUCK)
+            unduckTimer = setTimeout(() => this.unduckMusic(), Math.max(0, untilMs - estimator.serverNow()))
+        },
+
+        /** The music back up — if a calibration turned it down. */
+        unduckMusic() {
+            if (unduckTimer) clearTimeout(unduckTimer)
+            unduckTimer = null
+            if (!ducked) return
+            ducked = false
+            usePlayer().setDuck(1)
+        },
+
+        /** Music back up once nothing of a calibration plays here any more. */
+        unduckIfSilent() {
+            if (!tickPlayer.run && !measuring) this.unduckMusic()
         },
 
         // --- drift steering --------------------------------------------------
