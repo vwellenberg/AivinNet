@@ -1148,6 +1148,21 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Falz. Beide Hälften stecken seit #168 in **einem** Mixin: `mem-arrival($beyond: hold)` für alles
   nebeneinander, `mem-arrival($beyond: drop)` für alles untereinander. Neue Reihen binden das ein
   statt die Staffel ein viertes Mal auszuschreiben. Festgehalten in `motionArrival.test.ts`.
+- ⚠️ **Eine CSS-Animation startet neu, sobald ihr Knoten UMGEHÄNGT wird — nicht nur, wenn er
+  entsteht.** Die Ankunft (`mem-step-in`) hing an der Annahme „läuft einmal, beim Erzeugen", und
+  die virtuellen Scroller verletzen sie auf zwei Wegen: (1) ein `:key` auf dem Slot-Inhalt, der
+  mit dem Item wechselt, baut jede recycelte Zeile **neu** (`:key="index"` war das Upstream-Idiom
+  in allen zehn Listen) → Zeilen „bauen sich beim Scrollen auf"; (2) `vue-virtual-scroller`
+  sortiert seinen View-Pool **~300 ms nach jedem Scrollen** nach Index (`sortViews`, für
+  Textauswahl), Vue hängt dafür die Knoten per `insertBefore` um → jede Zeile blendet **ein
+  zweites Mal** ein. Gemessen (12 Mausrad-Schritte, 394er-Playlist): 76 neue Knoten, 70
+  Neustarts nach Scroll-Stopp; `/albums`: 53 Kachel-Neustarts. Gegenmittel, beide nötig: **kein
+  `:key` im Scroller-Slot** (Identität macht `key-field` auf den Items;
+  `scrollerRecycling.test.ts`) und die **Einmal-Sperre** `data-arrived`
+  (`utils/arrivalLatch.ts` setzt sie global bei `animationend`, `mem-arrival` schaltet die
+  Animation dann ab). Ein Attribut, keine Klasse: Vue schreibt `class` bei jeder gebundenen
+  Änderung neu. Messen mit `animationstart`-Listener **und einer Pause nach dem Scrollen** —
+  wer direkt nach dem letzten Rad-Schritt aufhört, sieht das Nachsortieren nie.
 - ⚠️ **Unter „weniger Bewegung" transitioniert JEDES Element JEDE Eigenschaft.** Die Policy
   (`motion-policy.scss`) setzt `transition-duration: 0.01ms !important` auf `*` — und ein Element
   ohne eigene Transition hat als Standard `transition-property: all`. Ein vererbtes `visibility`

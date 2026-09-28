@@ -721,6 +721,15 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
       animation-delay: $motion-stagger * $steps;
     }
   }
+
+  // Einmal angekommen, bleibt es angekommen. Eine CSS-Animation startet neu,
+  // sobald ihr Knoten im DOM umgehängt wird — und die virtuellen Scroller
+  // hängen ihre Zeilen nach jedem Scrollen um (utils/arrivalLatch.ts setzt das
+  // Attribut). Ohne diese Zeile flackerte jede Liste ~300 ms nach dem
+  // Scrollen ein zweites Mal auf.
+  &[data-arrived] {
+    animation: none;
+  }
 }
 
 // ---------------------------------------------------------------------------

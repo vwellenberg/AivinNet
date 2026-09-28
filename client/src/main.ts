@@ -18,6 +18,7 @@ import App from "./App.vue";
 import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
 import vContextMenu from "./directives/vContextMenu";
+import { installArrivalLatch } from "./utils/arrivalLatch";
 
 import "./assets/scss/index.scss";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
@@ -51,6 +52,10 @@ app.directive("tooltip", vTooltip);
 // Right-click, the context-menu key AND a touch long-press — iOS fires no
 // `contextmenu` for a touch. See directives/vContextMenu.ts.
 app.directive("context-menu", vContextMenu);
+
+// Song rows and tiles make their entrance once, not on every move the virtual
+// scroller makes with them. See utils/arrivalLatch.ts.
+installArrivalLatch();
 
 app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);
