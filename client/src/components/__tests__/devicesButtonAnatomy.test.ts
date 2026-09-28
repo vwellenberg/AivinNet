@@ -86,6 +86,11 @@ describe("devices button anatomy", () => {
       "$glyph-color:"
     );
     expect(joined).not.toMatch(/\$glyph\s*:/);
+    // Ink on the accent fill, like every other coloured control. It was the
+    // white `$mem-panel-static` — the one light glyph on a coloured fill.
+    expect(joined, "the glyph on the green fill is ink, like on every accent fill").toMatch(
+      /\$glyph-color:\s*\$mem-ink\s*\)/
+    );
   });
 
   it("is hosted by the three screens this census knows about", () => {
