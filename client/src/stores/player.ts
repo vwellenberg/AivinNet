@@ -28,6 +28,12 @@ class AudioSource {
     private handlers: { [key: string]: (err: Event | string) => void } = {}
     private requiredAPBlockBypass: boolean = false
     settings: ReturnType<typeof useSettings> | null = null
+    /**
+     * The music's share of the volume while a sync calibration plays over it
+     * (1 = full). Kept apart from the setting: that one is the user's, it is
+     * persisted and shown in the device list.
+     */
+    duck = 1
 
     constructor() {
         this.sources = [new Audio(), new Audio()]
@@ -53,9 +59,20 @@ class AudioSource {
         if (!this.settings) return audio
         audio.src = uri
         audio.muted = this.settings.mute
-        audio.volume = this.settings.volume
+        audio.volume = this.musicVolume()
         audio.load()
         return audio
+    }
+
+    /** The volume the music plays at: the setting, turned down while ducked. */
+    musicVolume() {
+        return (this.settings?.volume ?? 1) * this.duck
+    }
+
+    /** Turn the music down to `gain` of its volume (1 = back up) — both elements. */
+    setDuck(gain: number) {
+        this.duck = gain
+        this.sources.forEach(audio => (audio.volume = this.musicVolume()))
     }
 
     switchSources() {
@@ -84,7 +101,7 @@ class AudioSource {
         this.settings = settings
         this.sources.forEach(audio => {
             audio.muted = settings.mute
-            audio.volume = settings.volume
+            audio.volume = this.musicVolume()
         })
     }
 
@@ -200,7 +217,13 @@ export const usePlayer = defineStore('player', () => {
     // let lastTime = 0
 
     function setVolume(new_value: number) {
-        audio.volume = new_value
+        // Called before the setting changes (settings.setVolume), so not musicVolume().
+        audio.volume = new_value * audioSource.duck
+    }
+
+    /** Turn the music down while a sync calibration plays over it (1 = back up). */
+    function setDuck(gain: number) {
+        audioSource.setDuck(gain)
     }
 
     function setMute(new_value: boolean) {
@@ -310,7 +333,7 @@ export const usePlayer = defineStore('player', () => {
         el.pause()
         el.playbackRate = 1
         el.muted = settings.mute
-        el.volume = settings.volume
+        el.volume = audioSource.musicVolume()
 
         // Idempotent: a state re-delivered for the same transition (another
         // member joined meanwhile) must not restart a load or a seek that is
@@ -751,6 +774,7 @@ export const usePlayer = defineStore('player', () => {
         audio,
         setMute,
         setVolume,
+        setDuck,
         playCurrent: playCurrentTrack,
         clearNextAudio: clearNextAudioData,
         clearMovingNextTimeout,

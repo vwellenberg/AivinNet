@@ -248,6 +248,9 @@ Einzelbefund: ein Gerät mit altem Bundle spielt die alte Logik.
    Mikrofon-Freigabe ohnehin nicht. Und: **Der Trim gilt pro Browser, nicht pro Ausgabegerät**
    — wechselt der PC auf Kabel oder USB, muss er zurück auf 0 (oder neu kalibriert werden).
    Gemessen und gesetzt wird er seit 2026-09-27 per **Sync-Kalibrierung** (unten).
+   ⚠️ **Und er ist nicht fest:** nach einer Pause ist derselbe Bluetooth-Weg gut 130 ms kürzer
+   und klettert erst wieder hoch, und selbst unter Musik wanderte der passende Trim zwischen
+   zwei Sessions von +158 auf +184 ms (siehe „Nie pausieren" unten).
 
 Unter Stress (Chrome + Firefox, 4×-CPU-gedrosseltes „Handy" auf ausgelastetem Server) liegen
 die Geräte Sekunden nach einem Übergang bis ~55 ms auseinander — so gut wie der alte Stand
@@ -262,10 +265,40 @@ Devices-Panel → **Calibrate sync** (ab zwei Geräten in der Gruppe). Ein Gerä
 (`sync_click`) und meldet, **wann** jeder Klick laut seiner Media-Clock erklang
 (`sync_click_report`); die Aufnahme sagt, wann er wirklich ankam. Die Differenz zwischen den
 Geräten ist genau der Teil, den `currentTime` nicht kennt → Trim per `set_audio_offset`. Die
-Musik pausiert währenddessen und läuft danach weiter. **Align by ear** ist derselbe Weg ohne
-Mikrofon: alle ticken im Takt der Gruppe (`sync_ticks`, Trim live gelesen), man schiebt, bis
-ein Tick übrig ist.
+Musik läuft währenddessen weiter, auf jedem Mitglied 20 dB leiser (`CALIBRATION_DUCK` in
+`stores/devicesync.ts`, `setDuck` im Player — getrennt von der Lautstärke-Einstellung, die dem
+Nutzer gehört). **Align by ear** ist derselbe Weg ohne Mikrofon: alle ticken im Takt der Gruppe
+(`sync_ticks`, Trim live gelesen), man schiebt, bis ein Tick übrig ist.
 
+- ⚠️ **Nie pausieren — ein Bluetooth-Weg geht in der Pause kalt.** Gemessen 2026-09-27
+  (Chrome/Windows → Edifier M60 per Bluetooth, USB-Mikro mit ADC-Zeitstempeln, alle Werte in
+  derselben Basis): Nach minutenlanger Pause beginnt die verborgene Verzögerung bei ~147–152 ms
+  und klettert um **~3 ms/s** (Spitze ~183 nach 15 s, dann ~175). Direkt nach 35 s Musik lag sie
+  bei 316–318 ms, flach; die Musik selbst lief 308 (nachmittags) bzw. 335 ms (nachts) hinter dem
+  Anker. Das Handy blieb in allen Läufen auf ±1 ms. Die erste Fassung pausierte die Gruppe und
+  maß damit den kalten Weg: **+97 und +77 ms**, wo die Musik ~+184 brauchte (vorher, je nach
+  Vorgeschichte, +215 und +184). Seitdem klicken alle über der gedrosselten Musik; `sync_click`
+  trägt `until_ms`, bis dahin bleibt sie auf jedem Mitglied leise (der Zuhörer nimmt so lange
+  auf, und spätere Slots klicken nach dem eigenen).
+- ⚠️ **Ein Gerät, dessen Verzögerung noch wandert, bekommt keinen Trim** (`settlingDevices`,
+  Status `settling`, „still settling"). Gemessen wird der Median der Steigungen zwischen
+  aufeinanderfolgenden Klicks (`driftMsPerS`) — ein verirrter Klick verdirbt zwei Nachbarn in
+  entgegengesetzte Richtungen, ein Aussetzer der Aufnahme verschiebt alle folgenden gleich, beides
+  lässt den Median stehen. Grenze `SETTLING_MS_PER_S` = 1: der kalte Weg lief 3,1 ms/s, der warme
+  und das Handy ≤ 0,3. Bewegung, die alle Geräte teilen, ist die Uhr des Zuhörers — gemessen
+  wird gegen das ruhigste Gerät. Der Dialog sagt dann, erst Musik laufen zu lassen; ohne
+  laufende Musik zeigt er das schon vorher, auch „nach Gehör": Klicks ohne Musik pendelten sich
+  im Versuch beim **kalten** Wert ein (~175 ms nach 30 s), nicht beim warmen — Ticks sind
+  dieselbe Art Signal.
+- **Ein fester Trim bleibt bei Bluetooth am PC eine Annäherung** — der warme Wert wanderte
+  zwischen zwei Sessions um 26 ms. Per USB-C oder Kabel an dieselben Boxen wäre er stabil.
+- **Grenzen des Duckens, bewusst in Kauf genommen:** Ein Mitglied mit altem Bundle kennt
+  `until_ms` nicht und spielt seine Musik unter den Klicks voll weiter, bis es neu geladen ist
+  (erst die Pause des Zuhörers hatte jedes Mitglied erreicht, egal welcher Version). iOS Safari
+  ignoriert `HTMLMediaElement.volume` ganz — dort bleibt die Musik laut, wie schon der
+  Lautstärkeregler dort nichts tut. Und die 1-ms/s-Grenze ist eher streng: Auf dem Prüfstand
+  unter Volllast lag ein ruhiges Gerät einmal bei 1,5 ms/s relativ — lieber einmal zu oft
+  „measure again" als ein Trim vom kalten Weg.
 - ⚠️ **Klicks durch ein `<audio>`, nie Web Audio** (`utils/deviceSync/clickPlayer.ts`). Der
   Trim korrigiert den Weg der Musik; ein anderer Weg misst etwas anderes.
 - ⚠️ **Das Mitglied muss nicht pünktlich klicken, nur ehrlich melden.** Gesucht wird um die

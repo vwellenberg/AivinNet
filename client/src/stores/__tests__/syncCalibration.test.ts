@@ -57,6 +57,7 @@ vi.mock('@/utils/deviceSync/calibration', async () => ({
 import { PREP_MS, planClicks, planEndMs } from '@/utils/deviceSync/calibration'
 import useSyncCalibration, {
     __resetSyncCalibrationTestState,
+    RECORD_TAIL_MS,
     TICK_COUNT,
     TICK_PERIOD_MS,
 } from '@/stores/syncCalibration'
@@ -77,6 +78,9 @@ const member = (id: string, over: Partial<any> = {}) => ({
 /** The command sent to `target` of `type`, or undefined. */
 const sent = (type: string, target?: string) =>
     (ds.sendCmd.mock.calls as any[]).find(([t, , to]) => t === type && to === target)
+
+/** Whether anything touched the group's transport. */
+const touchedTheMusic = () => (ds.sendCmd.mock.calls as any[]).some(([t]) => t === 'pause' || t === 'play')
 
 describe('sync calibration — with the microphone', () => {
     beforeEach(() => {
@@ -125,24 +129,39 @@ describe('sync calibration — with the microphone', () => {
         vi.advanceTimersByTime(100)
     }
 
-    it('pauses the music, asks every member in the group to click, and clicks here too', async () => {
+    it('asks every member in the group to click over the music, and clicks here too', async () => {
         const { cal, plan } = await listening()
 
         expect(cal.phase).toBe('listening')
-        expect(ds.sendCmd).toHaveBeenNthCalledWith(1, 'pause', {})
         // This device first, then the others — offline or outside members are left alone.
         expect(cal.rows.map(r => r.id)).toEqual(['phone', 'pc'])
+        // Every member turns its music down until the recording is over.
+        const until = planEndMs(plan) + RECORD_TAIL_MS
         expect(sent('sync_click', 'pc')).toEqual([
             'sync_click',
-            { run: expect.any(String), listener: 'phone', clicks_ms: plan.pc },
+            { run: expect.any(String), listener: 'phone', clicks_ms: plan.pc, until_ms: until },
             'pc',
         ])
-        expect(ds.measureClicks).toHaveBeenCalledWith(plan.phone)
+        expect(ds.measureClicks).toHaveBeenCalledWith(plan.phone, until)
         expect(sent('sync_click', 'old-tablet')).toBeUndefined()
         expect(sent('sync_click', 'kitchen')).toBeUndefined()
     })
 
-    it('turns the reports into trims: the late speaker starts earlier, the music comes back', async () => {
+    it('never pauses the music: a paused Bluetooth path goes cold and measures ~150 ms short', async () => {
+        // The bug of 2026-09-27: the run paused the group, every member clicked
+        // on a path that had just gone quiet, and the PC's Bluetooth delay was
+        // still climbing from ~150 ms towards the ~310 it has under music. The
+        // trims came out at 97 and 77 where the music needed ~184.
+        const { plan, run } = await listening()
+        reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc })
+        await flushPromises()
+        afterThePlan(plan)
+        useSyncCalibration().cancel()
+
+        expect(touchedTheMusic()).toBe(false)
+    })
+
+    it('turns the reports into trims: the late speaker starts earlier', async () => {
         const { cal, plan, run } = await listening()
         reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc })
         await flushPromises()
@@ -150,7 +169,6 @@ describe('sync calibration — with the microphone', () => {
 
         expect(cal.phase).toBe('result')
         expect(mic.stop).toHaveBeenCalled()
-        expect(ds.sendCmd).toHaveBeenLastCalledWith('play', {})
         const [phone, pc] = cal.rows
         expect(phone).toMatchObject({ status: 'heard', reference: true, suggestedTrim: 0 })
         expect(pc).toMatchObject({ status: 'heard', reference: false, suggestedTrim: 155, currentTrim: 0 })
@@ -171,13 +189,13 @@ describe('sync calibration — with the microphone', () => {
 
         // Straight on to "by ear": the PC's slider starts where it really is. From
         // 0, the first touch would have thrown it back by 155 ms.
-        await cal.startEar()
+        cal.startEar()
         expect(cal.earTrims.pc).toBe(155)
         cal.stopEar()
 
         // A device that never confirms: after a while its own report counts again.
         vi.advanceTimersByTime(11_000)
-        await cal.startEar()
+        cal.startEar()
         expect(cal.earTrims.pc).toBe(0)
     })
 
@@ -231,15 +249,29 @@ describe('sync calibration — with the microphone', () => {
         expect(measure).toHaveBeenCalledTimes(1) // only this device's own clicks
     })
 
-    it('leaves the music alone if it was not playing', async () => {
-        ds.playing = false
-        const { plan, run } = await listening()
+    it('gives no trim to a device whose delay was still climbing — it says so instead', async () => {
+        // The PC of the cold run above, click for click: +3 ms a second.
+        const climbing = [175.43, 181.88, 189.25, 197.0]
+        const steady = [87.89, 88.23, 88.19, 87.98]
+        const { cal, plan, run } = await listening()
+        measure.mockImplementation((_recording: any, sounded: number[]) => ({
+            offsetsMs: sounded === plan.pc ? climbing : steady,
+            strengths: sounded.map(() => 80),
+        }))
         reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc })
         await flushPromises()
         afterThePlan(plan)
 
-        expect(sent('pause')).toBeUndefined()
-        expect(sent('play')).toBeUndefined()
+        const [phone, pc] = cal.rows
+        expect(pc).toMatchObject({ status: 'settling', latencyMs: null, suggestedTrim: null })
+        expect(phone.status).toBe('heard')
+        expect(cal.changes).toEqual([])
+
+        // The log keeps how fast it moved.
+        const log = (requests.logCalibration.mock.calls as any[])[0][0]
+        const logged = log.devices.find((d: any) => d.device_id === 'pc')
+        expect(logged.status).toBe('settling')
+        expect(logged.details.drift_ms_per_s).toBeCloseTo(3.1, 1)
     })
 
     it('on an http page, explains instead of asking for the microphone', async () => {
@@ -254,7 +286,7 @@ describe('sync calibration — with the microphone', () => {
         expect(ds.sendCmd).not.toHaveBeenCalled()
     })
 
-    it('says so when the microphone is refused — and never paused the music', async () => {
+    it('says so when the microphone is refused — and sends nothing', async () => {
         micModule.startMicCapture.mockRejectedValue(Object.assign(new Error('no'), { name: 'NotAllowedError' }))
         const cal = useSyncCalibration()
         await cal.start()
@@ -264,13 +296,13 @@ describe('sync calibration — with the microphone', () => {
         expect(ds.sendCmd).not.toHaveBeenCalled()
     })
 
-    it('cancelling stops the microphone and its own clicks, and brings the music back', async () => {
+    it('cancelling stops the microphone and its own clicks', async () => {
         const { cal } = await listening()
         cal.cancel()
 
         expect(mic.stop).toHaveBeenCalled()
         expect(ds.stopCalibrationAudio).toHaveBeenCalled()
-        expect(ds.sendCmd).toHaveBeenLastCalledWith('play', {})
+        expect(touchedTheMusic()).toBe(false)
         expect(cal.phase).toBe('idle')
     })
 
@@ -317,12 +349,13 @@ describe('sync calibration — by ear', () => {
 
     it('ticks every device from the same start, each with the trim it has', async () => {
         const cal = useSyncCalibration()
-        await cal.startEar()
+        cal.startEar()
 
         const start = ds.now + 2500
         expect(cal.phase).toBe('ear')
         expect(cal.earTrims).toEqual({ phone: 10, pc: 150 })
-        expect(ds.sendCmd).toHaveBeenNthCalledWith(1, 'pause', {})
+        // Over the music, like the microphone run: each member turns it down while it ticks.
+        expect(touchedTheMusic()).toBe(false)
         expect(ds.startTicks).toHaveBeenCalledWith(
             expect.objectContaining({ startServerMs: start, periodMs: TICK_PERIOD_MS, count: TICK_COUNT })
         )
@@ -335,7 +368,7 @@ describe('sync calibration — by ear', () => {
 
     it('sends a dragged trim once the drag rests, and this device’s at once', async () => {
         const cal = useSyncCalibration()
-        await cal.startEar()
+        cal.startEar()
         ds.sendCmd.mockClear()
 
         cal.setEarTrim('pc', 152)
@@ -349,9 +382,9 @@ describe('sync calibration — by ear', () => {
         expect(ds.setAudioOffset).toHaveBeenCalledWith(20)
     })
 
-    it('Done sends what is still held back, stops every tick and resumes the music', async () => {
+    it('Done sends what is still held back and stops every tick', async () => {
         const cal = useSyncCalibration()
-        await cal.startEar()
+        cal.startEar()
         const run = (sent('sync_ticks', 'pc') as any)[1].run
         cal.setEarTrim('pc', 160)
         cal.stopEar()
@@ -359,7 +392,7 @@ describe('sync calibration — by ear', () => {
         expect(sent('set_audio_offset', 'pc')).toEqual(['set_audio_offset', { offset_ms: 160 }, 'pc'])
         expect(ds.sendCmd).toHaveBeenCalledWith('sync_ticks', { run, stop: true }, 'pc')
         expect(ds.stopTicks).toHaveBeenCalledWith(run)
-        expect(ds.sendCmd).toHaveBeenLastCalledWith('play', {})
+        expect(touchedTheMusic()).toBe(false)
         expect(cal.phase).toBe('idle')
 
         // Nothing left over to fire later.
@@ -368,25 +401,9 @@ describe('sync calibration — by ear', () => {
         expect(ds.sendCmd).not.toHaveBeenCalled()
     })
 
-    it('Done while the pause is still on its way leaves nobody ticking', async () => {
-        let release: () => void = () => {}
-        ds.sendCmd.mockImplementationOnce(() => new Promise<void>(resolve => (release = resolve)))
-        const cal = useSyncCalibration()
-        const starting = cal.startEar()
-        cal.stopEar()
-        release()
-        await starting
-
-        expect(ds.startTicks).not.toHaveBeenCalled()
-        const started = (ds.sendCmd.mock.calls as any[]).some(([type, p]) => type === 'sync_ticks' && !p.stop)
-        expect(started).toBe(false)
-        vi.advanceTimersByTime(10 * 60 * 1000)
-        expect(cal.phase).toBe('idle')
-    })
-
     it('stops on its own after the last tick', async () => {
         const cal = useSyncCalibration()
-        await cal.startEar()
+        cal.startEar()
         vi.advanceTimersByTime(2500 + TICK_COUNT * TICK_PERIOD_MS + 1000)
         expect(cal.phase).toBe('idle')
         expect(ds.stopTicks).toHaveBeenCalled()

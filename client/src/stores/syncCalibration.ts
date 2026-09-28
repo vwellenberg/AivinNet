@@ -12,18 +12,25 @@
 // step with the group, trim included, and the user moves the trims until the
 // ticks fall on top of each other. It needs no secure page.
 //
-// The music pauses while either runs: it would drown the clicks, and nobody
-// wants a second song under the ticks. It resumes afterwards if it played.
+// The music keeps playing while either runs, turned down on every member
+// (stores/devicesync.ts, CALIBRATION_DUCK) — never paused. A paused output
+// can go cold, and a cold path measures a delay the music does not have: on
+// 2026-09-27 a Windows → Bluetooth path came out ~150 ms short right after a
+// pause and climbed back ~3 ms a second while it clicked (trims of 97 and
+// 77 ms where the music needed ~184). A device whose clicks still drift gets
+// no trim at all (`settlingDevices`).
 
 import { defineStore } from 'pinia'
 
 import { clampOffset } from '@/utils/deviceSync/audioOffset'
 import {
+    driftMsPerS,
     measureClicks,
     planClicks,
     planEndMs,
     PREP_MS,
     relativeLatencies,
+    settlingDevices,
     suggestTrims,
     type Recording,
 } from '@/utils/deviceSync/calibration'
@@ -39,6 +46,8 @@ export type RowStatus =
     | 'clicking'
     | 'heard'
     | 'unclear'
+    /** Its delay was still moving while it clicked (Bluetooth after a pause) — no trim can be read off it. */
+    | 'settling'
     | 'no-answer'
     | 'muted'
     | 'late'
@@ -69,10 +78,13 @@ export interface CalibrationRow {
 /** By ear: a tick a second, for two minutes at most. */
 export const TICK_PERIOD_MS = 1000
 export const TICK_COUNT = 120
-/** Ticks start this far ahead (ms): the pause lands and the plan reaches every device. */
+/** Ticks start this far ahead (ms): the plan has to reach every device, a poll away. */
 const TICK_PREP_MS = 2500
-/** Keep recording this long past the last window (ms) — a device that started late clicks late. */
-const RECORD_TAIL_MS = 800
+/**
+ * Keep recording this long past the last window (ms) — a device that started
+ * late clicks late. Every member keeps its music down until then.
+ */
+export const RECORD_TAIL_MS = 800
 /** Reports are awaited this long past the plan (ms); a device silent until then gave no answer. */
 const REPORT_WAIT_MS = 4000
 /** A trim dragged by ear is sent after this pause (ms), not on every step. */
@@ -108,17 +120,15 @@ let plan: Record<string, number[]> = {}
 let planEnd = 0
 let reports: Record<string, CalibrationReport> = {}
 let ticker: any = null
-let pausedByUs = false
 let earRun = ''
 let earMembers: string[] = []
 const earSends = new Map<string, any>()
 let earEnd: any = null
 /**
- * Bumped by every start and every cancel. A start waits twice — for the
- * microphone (the permission prompt can take as long as the user likes) and
- * for the pause — and must not carry on after either if the flow was closed
- * meanwhile: it would record, pause the group and make everyone click with
- * nothing on screen.
+ * Bumped by every start and every cancel. A start waits for the microphone
+ * (the permission prompt can take as long as the user likes) and must not
+ * carry on if the flow was closed meanwhile: it would record and make
+ * everyone click with nothing on screen.
  */
 let attempt = 0
 const sentTrims = new Map<string, { trim: number; at: number }>()
@@ -239,9 +249,6 @@ export default defineStore('syncCalibration', {
             this.rows = members.map(rowFor)
             this.levels = []
 
-            await this.pauseGroup()
-            // Cancelled meanwhile: `cancel()` stopped the microphone and resumed the music.
-            if (!current()) return
             plan = planClicks(
                 members.map(d => d.device_id),
                 ds.serverNow() + PREP_MS
@@ -249,15 +256,21 @@ export default defineStore('syncCalibration', {
             planEnd = planEndMs(plan)
             onCalibrationReport(report => this.receive(report))
 
+            // Over the music, turned down on every member until the recording ends.
+            const until = planEnd + RECORD_TAIL_MS
             const thisRun = run
             for (const device of members) {
                 const clicks = plan[device.device_id]
                 if (device.device_id === ds.deviceId) {
                     void ds
-                        .measureClicks(clicks)
+                        .measureClicks(clicks, until)
                         .then(result => this.receive({ run: thisRun, device: ds.deviceId, ...result }))
                 } else {
-                    void ds.sendCmd('sync_click', { run, listener: ds.deviceId, clicks_ms: clicks }, device.device_id)
+                    void ds.sendCmd(
+                        'sync_click',
+                        { run, listener: ds.deviceId, clicks_ms: clicks, until_ms: until },
+                        device.device_id
+                    )
                 }
             }
             this.phase = 'listening'
@@ -302,13 +315,13 @@ export default defineStore('syncCalibration', {
                       }
                     : null
             this.stopRun()
-            void this.resumeGroup()
             if (!recording) {
                 this.fail('The microphone delivered no sound.')
                 return
             }
 
             const offsets: Record<string, (number | null)[]> = {}
+            const sounded: Record<string, (number | null)[]> = {}
             const strengths: Record<string, (number | null)[]> = {}
             for (const row of this.rows) {
                 const report = reports[row.id]
@@ -317,17 +330,21 @@ export default defineStore('syncCalibration', {
                 } else if (report.error) {
                     row.status = REPORT_ERRORS[report.error] ?? 'failed'
                 } else {
-                    const measured = measureClicks(recording, report.sounded_ms ?? [])
+                    sounded[row.id] = report.sounded_ms ?? []
+                    const measured = measureClicks(recording, sounded[row.id])
                     row.offsetsMs = measured.offsetsMs
                     offsets[row.id] = measured.offsetsMs
                     strengths[row.id] = measured.strengths
                 }
             }
-            const latencies = relativeLatencies(offsets)
+            // A delay still moving has no value to read off; the others are compared without it.
+            const settling = new Set(settlingDevices(offsets, sounded))
+            const steady = Object.fromEntries(Object.entries(offsets).filter(([id]) => !settling.has(id)))
+            const latencies = relativeLatencies(steady)
             for (const row of this.rows) {
                 if (!(row.id in offsets)) continue
                 row.latencyMs = latencies[row.id] ?? null
-                row.status = row.latencyMs === null ? 'unclear' : 'heard'
+                row.status = settling.has(row.id) ? 'settling' : row.latencyMs === null ? 'unclear' : 'heard'
             }
 
             const heard = this.rows.filter(r => r.latencyMs !== null)
@@ -340,7 +357,7 @@ export default defineStore('syncCalibration', {
                 row.suggestedTrim = trims[row.id] ?? null
                 row.reference = heard.length > 1 && row === earliest
             }
-            this.logRun(thisRun, recording, setup, strengths)
+            this.logRun(thisRun, recording, setup, strengths, sounded)
             reports = {}
             this.phase = 'result'
         },
@@ -354,10 +371,14 @@ export default defineStore('syncCalibration', {
             thisRun: string,
             recording: Recording,
             setup: Record<string, CalibrationDetail>,
-            strengths: Record<string, (number | null)[]>
+            strengths: Record<string, (number | null)[]>,
+            sounded: Record<string, (number | null)[]>
         ) {
             const round = (value: number | null, digits: number) =>
                 value === null ? null : Math.round(value * 10 ** digits) / 10 ** digits
+            // How fast each measured device's delay moved while it clicked (see settlingDevices).
+            const drift = (row: CalibrationRow): Record<string, CalibrationDetail> =>
+                row.id in sounded ? { drift_ms_per_s: round(driftMsPerS(row.offsetsMs, sounded[row.id]), 2) } : {}
             void logCalibration({
                 device_id: useDeviceSync().deviceId,
                 run: thisRun,
@@ -376,7 +397,7 @@ export default defineStore('syncCalibration', {
                     latency_ms: round(row.latencyMs, 2),
                     suggested_trim_ms: row.suggestedTrim,
                     current_trim_ms: row.currentTrim,
-                    details: reports[row.id]?.details ?? {},
+                    details: { ...reports[row.id]?.details, ...drift(row) },
                 })),
             })
         },
@@ -403,7 +424,6 @@ export default defineStore('syncCalibration', {
             if (this.busy) {
                 this.stopRun()
                 useDeviceSync().stopCalibrationAudio()
-                void this.resumeGroup()
             }
             this.phase = 'idle'
         },
@@ -419,14 +439,13 @@ export default defineStore('syncCalibration', {
 
         fail(message: string) {
             this.stopRun()
-            void this.resumeGroup()
             this.error = message
             this.phase = 'error'
         },
 
         // --- by ear ----------------------------------------------------------
 
-        async startEar() {
+        startEar() {
             const members = groupMembers()
             if (members.length < 2) {
                 this.fail('Aligning needs this device and at least one more playing in the group.')
@@ -440,10 +459,7 @@ export default defineStore('syncCalibration', {
             this.error = ''
             this.phase = 'ear'
 
-            const thisRun = earRun
-            await this.pauseGroup()
-            // Done (or the panel closed) while the pause was on its way.
-            if (this.phase !== 'ear' || earRun !== thisRun) return
+            // Over the music, like the microphone run: each member turns it down while it ticks.
             const startMs = ds.serverNow() + TICK_PREP_MS
             for (const id of earMembers) {
                 if (id === ds.deviceId) {
@@ -495,30 +511,7 @@ export default defineStore('syncCalibration', {
             }
             earRun = ''
             earMembers = []
-            void this.resumeGroup()
             this.phase = 'idle'
-        },
-
-        // --- the music around it ---------------------------------------------
-
-        async pauseGroup() {
-            const ds = useDeviceSync()
-            if (!ds.playing) return
-            pausedByUs = true
-            await ds.sendCmd('pause', {})
-        },
-
-        /**
-         * Resume what we paused. Not gated on `playing`: the pause takes effect
-         * LEAD_MS after it is sent, so a run cancelled right away would still
-         * see the group playing — and leave it paused a moment later. A play
-         * for a group that is already playing moves nothing.
-         */
-        async resumeGroup() {
-            if (!pausedByUs) return
-            pausedByUs = false
-            const ds = useDeviceSync()
-            if (ds.joined) await ds.sendCmd('play', {})
         },
     },
 })
@@ -532,7 +525,6 @@ export function __resetSyncCalibrationTestState() {
     plan = {}
     planEnd = 0
     reports = {}
-    pausedByUs = false
     earRun = ''
     earMembers = []
     attempt = 0
