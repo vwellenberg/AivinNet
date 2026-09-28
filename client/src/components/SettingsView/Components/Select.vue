@@ -64,25 +64,27 @@ const optionsWithActive = computed(() => {
         text-align: center;
         color: $mem-content-text;
 
+        // Every segment is pressable, so every segment carries the ring — it
+        // used to be the ACTIVE one only, which made the texture read as
+        // "selected" rather than "pressable" (the same kind of tabs on the
+        // charts page had none at all). `$ring-y` stays inside the 0.5rem
+        // padding, so the strokes keep clear of the label.
+        @include mem-label-hatch(26px, $on: surface, $ring-y: 0.25rem);
+
         // The pointer token, not an accent (#422).
         &:hover:not(.active) {
             background-color: var(--mem-hover);
             color: var(--mem-hover-text);
+            --label-hatch: var(--mem-hatch-hover);
         }
     }
 
     .option.active {
-        // Yellow means ON -> pin static ink for the label. The fill itself is
-        // handed to the mixin through `--row-fill`, which paints it twice: once
-        // as the surface, once as the cover that keeps the texture out of the
-        // text band. Setting `background-color` here as well would only be a
-        // second source for the same colour.
-        --row-fill: var(--look-selected-fill, #{$mem-yellow});
+        // Yellow means ON -> pin static ink for the label, and the static ink
+        // sprite with it (styling.md, hatch rule 2).
+        background-color: var(--look-selected-fill, #{$mem-yellow});
         color: var(--look-selected-text, #{$mem-ink});
-        // The hatch as a RING: texture in the padding, smooth under the word.
-        // Running it across the whole segment puts strokes through the label —
-        // see the hatch section in .claude/rules/styling.md.
-        @include mem-hatch-ring(26px, $on: accent);
+        --label-hatch: var(--mem-hatch-accent);
     }
 }
 </style>

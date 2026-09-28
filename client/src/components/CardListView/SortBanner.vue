@@ -102,9 +102,9 @@ const artistitems = [
     // labels sat directly on the doodle ground and were barely readable.
     // ($gray4/$gray5 are aliases onto blush; they predate the token system.)
     .select {
-        // A sort chip is essentially its own label -> no hatch (#476,
-        // styling.md: the texture never runs behind text).
-        @include btn-action($size: 2.75rem, $width: auto, $hatch: false);
+        // A sort chip is essentially its own label -> the hatch stands as a ring
+        // around it, never behind the text (mem-label-hatch, styling.md).
+        @include btn-action($size: 2.75rem, $width: auto, $hatch: label);
         font-size: inherit;
         font-weight: inherit;
     }
@@ -112,6 +112,12 @@ const artistitems = [
     .select.circular {
         user-select: none;
         pointer-events: none;
+
+        // The two label chips share the toggles' anatomy but not their press:
+        // no texture on something that cannot be pressed.
+        &::before {
+            content: none;
+        }
     }
 
     .reverse svg.direction {

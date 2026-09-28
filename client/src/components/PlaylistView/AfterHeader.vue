@@ -207,7 +207,7 @@ const showDateHeading = computed(
 }
 
 .p-after-header .ah-edit {
-    @include btn-action($size: $bar-control, $width: auto, $hatch: false);
+    @include btn-action($size: $bar-control, $width: auto, $hatch: label);
     margin-left: auto;
     // The caption's letter case and tracking are for the label, not the control.
     text-transform: none;
@@ -215,6 +215,14 @@ const showDateHeading = computed(
 
     &.is-done {
         @include btn-primary($h: $bar-control, $pad: 0 1rem, $glyph: 1rem);
+
+        // btn-primary owns `::before` for its sprinkle across the whole plate;
+        // the label ring's mask and inset must not carve a hole into it.
+        &::before {
+            padding: 0;
+            -webkit-mask: none;
+            mask: none;
+        }
     }
 }
 
