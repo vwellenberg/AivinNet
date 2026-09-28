@@ -217,6 +217,14 @@ describe('driftMsPerS + settlingDevices', () => {
         expect(settlingDevices(climbing, twoDevices)).toEqual(['pc'])
     })
 
+    it('judges a device that is the only one to judge against standing still', () => {
+        // The phone came through twice only: nothing shares the PC's climb, and it still counts.
+        expect(settlingDevices({ pc: coldRun.pc, phone: [88, 88.2, null, null] }, twoDevices)).toEqual(['pc'])
+        expect(settlingDevices({ pc: [200, 200.5, 200.2, 200.4], phone: [88, null, null, null] }, twoDevices)).toEqual(
+            []
+        )
+    })
+
     it('judges a device only on three clicks it was heard with', () => {
         expect(driftMsPerS([100, null, 130, null], twoDevices.pc)).toBeNull()
         // A click the device could not place does not count either.

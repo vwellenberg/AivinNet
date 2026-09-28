@@ -292,6 +292,13 @@ Nutzer gehört). **Align by ear** ist derselbe Weg ohne Mikrofon: alle ticken im
   dieselbe Art Signal.
 - **Ein fester Trim bleibt bei Bluetooth am PC eine Annäherung** — der warme Wert wanderte
   zwischen zwei Sessions um 26 ms. Per USB-C oder Kabel an dieselben Boxen wäre er stabil.
+- **Grenzen des Duckens, bewusst in Kauf genommen:** Ein Mitglied mit altem Bundle kennt
+  `until_ms` nicht und spielt seine Musik unter den Klicks voll weiter, bis es neu geladen ist
+  (erst die Pause des Zuhörers hatte jedes Mitglied erreicht, egal welcher Version). iOS Safari
+  ignoriert `HTMLMediaElement.volume` ganz — dort bleibt die Musik laut, wie schon der
+  Lautstärkeregler dort nichts tut. Und die 1-ms/s-Grenze ist eher streng: Auf dem Prüfstand
+  unter Volllast lag ein ruhiges Gerät einmal bei 1,5 ms/s relativ — lieber einmal zu oft
+  „measure again" als ein Trim vom kalten Weg.
 - ⚠️ **Klicks durch ein `<audio>`, nie Web Audio** (`utils/deviceSync/clickPlayer.ts`). Der
   Trim korrigiert den Weg der Musik; ein anderer Weg misst etwas anderes.
 - ⚠️ **Das Mitglied muss nicht pünktlich klicken, nur ehrlich melden.** Gesucht wird um die

@@ -2175,6 +2175,38 @@ describe('devicesync store — sync calibration commands', () => {
             expect(duck()).toEqual([CALIBRATION_DUCK, 1])
         })
 
+        it('keeps the music down past its own clicks, whatever the plan says', async () => {
+            clickMock.playMeasurement.mockResolvedValue({ sounded_ms: [5000] })
+            const ds = member()
+            ds.handleCommands([
+                targeted('c1', 'sync_click', {
+                    run: 'r1',
+                    listener: 'phone',
+                    clicks_ms: [Date.now() + 4000],
+                    until_ms: Date.now() + 1000,
+                }),
+            ])
+            await flushPromises()
+            vi.advanceTimersByTime(5_500)
+            expect(duck()).toEqual([CALIBRATION_DUCK])
+            vi.advanceTimersByTime(1_000)
+            expect(duck()).toEqual([CALIBRATION_DUCK, 1])
+        })
+
+        it('brings the music back when ticks cannot start after it gave up a measurement', async () => {
+            clickMock.playMeasurement.mockReturnValueOnce(new Promise(() => {})) // still clicking
+            clickMock.tickStart.mockResolvedValueOnce(false) // e.g. sound blocked
+            const ds = member()
+            ds.handleCommands([
+                targeted('c1', 'sync_click', { run: 'r1', listener: 'phone', clicks_ms: [Date.now() + 4000] }),
+            ])
+            ds.handleCommands([
+                targeted('k1', 'sync_ticks', { run: 'e1', start_ms: Date.now() + 2500, period_ms: 1000, count: 120 }),
+            ])
+            await flushPromises()
+            expect(duck().slice(-1)).toEqual([1])
+        })
+
         it('turns its music down while it ticks, and up again when the ticking stops', () => {
             const ds = member()
             ds.handleCommands([

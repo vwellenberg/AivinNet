@@ -1093,7 +1093,9 @@ export default defineStore('devicesync', {
             const settings = useSettings()
             const clicks = [...clicksMs].sort((a, b) => a - b)
             const last = clicks[clicks.length - 1]
-            this.duckMusic(Math.min(untilMs ?? last + DUCK_TAIL_MS, last + MAX_DUCK_TAIL_MS))
+            // Until the listener stops recording — at least past this device's own clicks, never for long.
+            const until = Math.max(untilMs ?? 0, last + DUCK_TAIL_MS)
+            this.duckMusic(Math.min(until, last + MAX_DUCK_TAIL_MS))
             try {
                 const result = await playMeasurement({
                     clicksServerMs: clicks,
@@ -1118,7 +1120,9 @@ export default defineStore('devicesync', {
 
         /** Tick along a by-ear plan — this device's trim included, read live. */
         async startTicks(plan: TickPlan) {
+            // An aborted measurement is over — its own `finally` lets go of it only once it unwinds.
             measuring?.abort()
+            measuring = null
             const settings = useSettings()
             this.duckMusic(plan.startServerMs + plan.count * plan.periodMs + DUCK_TAIL_MS)
             const started = await tickPlayer.start(plan, {

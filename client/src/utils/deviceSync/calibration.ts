@@ -196,7 +196,9 @@ export function driftMsPerS(offsetsMs: (number | null)[], soundedMs: (number | n
  * 2026-09-27); a trim taken then is wrong by whatever it still has to climb.
  *
  * Movement that every device shares is the listener's own clock, not theirs:
- * each device is judged against the steadiest one.
+ * each device is judged against the steadiest one. A device that is the only
+ * one to judge has nothing to share a movement with — it is judged against
+ * standing still, or it would be its own reference and never settle.
  */
 export function settlingDevices(
     offsets: Record<string, (number | null)[]>,
@@ -206,7 +208,10 @@ export function settlingDevices(
         .map(id => ({ id, drift: driftMsPerS(offsets[id], soundedMs[id] ?? []) }))
         .filter((d): d is { id: string; drift: number } => d.drift !== null)
     if (drifts.length === 0) return []
-    const steadiest = drifts.reduce((best, d) => (Math.abs(d.drift) < Math.abs(best.drift) ? d : best)).drift
+    const steadiest =
+        drifts.length === 1
+            ? 0
+            : drifts.reduce((best, d) => (Math.abs(d.drift) < Math.abs(best.drift) ? d : best)).drift
     return drifts.filter(d => Math.abs(d.drift - steadiest) > SETTLING_MS_PER_S).map(d => d.id)
 }
 
