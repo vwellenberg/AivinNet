@@ -65,8 +65,13 @@ const title = computed(() => (ds.joined ? 'Devices — group playback active' : 
     // Its own hover block comes with the role too. Without it `.ds-joined`
     // (0,2,0, declared later) would beat the rest state's `:hover` and the
     // pointer would say nothing on the one control that is switched ON.
+    //
+    // The glyph is INK, like on every other accent fill (play, sun, the bar's
+    // pastel buttons). It was white — the only light glyph on a coloured fill
+    // in the app, reported as "icons teils weiß, teils schwarz" — and white on
+    // #1D9E75 is also the weaker pair: ~3.4:1 against ~6:1 for ink.
     &.ds-joined {
-        @include btn-toggle-on($fill: $brand-green, $glyph-color: $mem-panel-static);
+        @include btn-toggle-on($fill: $brand-green, $glyph-color: $mem-ink);
     }
 }
 </style>
