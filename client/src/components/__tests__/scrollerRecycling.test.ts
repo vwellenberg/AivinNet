@@ -55,4 +55,18 @@ describe("virtual scroller rows are recycled, not rebuilt", () => {
 
     expect(offenders, "a key on recycled slot content remounts the row on every recycle").toEqual([]);
   });
+
+  it("keys the tiles of a recycled card row by position", () => {
+    // One level down, the same mistake: CardRow IS the recycled row on /albums
+    // and the search card pages, and it keyed its tiles by albumhash. A
+    // recycled row gets other albums, so every tile was a new node playing the
+    // staggered wave — 83 tile arrivals after the scrolling had stopped, over
+    // twelve wheel steps, with the row keys already gone.
+    const raw = VUE_SOURCES["/src/components/shared/CardRow.vue"];
+    expect(raw, "CardRow.vue moved — the census lost the card rows").toBeTruthy();
+
+    const loop = stripComments(raw).match(/v-for="\(\s*\w+\s*,\s*(\w+)\s*\)\s+in\s+\w+"\s+:key="(\w+)"/);
+    expect(loop, "CardRow's tiles are no longer keyed by their position").toBeTruthy();
+    expect(loop![2]).toBe(loop![1]);
+  });
 });

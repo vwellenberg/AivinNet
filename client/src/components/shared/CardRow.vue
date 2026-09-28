@@ -1,6 +1,10 @@
 <template>
+    <!-- Keyed by POSITION, not by album/artist: this row is recycled by a
+         virtual scroller, and a key that follows the item turns every recycle
+         into a fresh set of tiles that replay their staggered arrival
+         mid-scroll (census: components/__tests__/scrollerRecycling.test.ts). -->
     <div class="cardlistrow">
-        <component v-for="item in items" :key="item.key" :is="item.component" v-bind="item.props" />
+        <component v-for="(item, i) in items" :key="i" :is="item.component" v-bind="item.props" />
     </div>
 </template>
 
@@ -20,27 +24,23 @@ const items = computed(() => {
         const i = {
             component: <any>null,
             props: {},
-            key: '',
         }
 
         switch (item['type']) {
             case 'album':
                 i.component = AlbumCard
-                i.key = item.albumhash
                 i.props = {
                     album: item,
                 }
                 break
             case 'artist':
                 i.component = ArtistCard
-                i.key = item.artisthash
                 i.props = {
                     artist: item,
                 }
                 break
             case 'playlist':
                 i.component = PlaylistCard
-                i.key = item.id
                 i.props = {
                     playlist: item,
                 }
