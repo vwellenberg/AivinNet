@@ -101,6 +101,13 @@ interface Job<T> {
 const LOOKUP_TIMEOUT_MS = 30_000
 const WRITE_TIMEOUT_MS = 15 * 60_000
 const POLL_INTERVAL_MS = 400
+/**
+ * Polls in a row that may fail before the job counts as lost. One failed poll
+ * is not a lost job: the server answers one request at a time and may be busy,
+ * or the connection dropped for a moment — while the apply keeps rewriting
+ * files. Giving up on the first one unlocked the dialog mid-write.
+ */
+const MAX_POLL_MISSES = 5
 
 async function start(url: string, props: object): Promise<{ job: string | null; error: string | null }> {
     const { data } = await useAxios({ url, props })
@@ -120,13 +127,25 @@ export async function pollJob<T>(
     { timeout = LOOKUP_TIMEOUT_MS, what = 'lookup' }: { timeout?: number; what?: string } = {}
 ): Promise<{ result: T | null; error: string | null }> {
     const deadline = Date.now() + timeout
+    let misses = 0
 
     while (Date.now() < deadline) {
         const { data, status } = await useAxios({ url: `/metadata/job/${jobId}`, method: 'GET' })
 
-        if (status !== 200) {
+        // Only the server saying so means the job is gone.
+        if (status === 404) {
             return { result: null, error: (data?.error as string) || `The ${what} was lost` }
         }
+
+        if (status !== 200) {
+            misses += 1
+            if (misses >= MAX_POLL_MISSES) {
+                return { result: null, error: (data?.error as string) || `Lost contact with the ${what}` }
+            }
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+            continue
+        }
+        misses = 0
 
         const job = data as Job<T>
         if (job.state === 'done') return { result: job.result, error: null }

@@ -194,6 +194,20 @@ describe("entering the edit mode", () => {
     expect(playlist.query).toBe("");
   });
 
+  it("does not open when the page switched playlists while the list loaded", async () => {
+    // Otherwise one playlist's tracks sat under another's header, and Remove
+    // posted the old hashes to the new playlist.
+    const playlist = setup();
+    playlist.allLoaded = false;
+    vi.spyOn(playlist, "fetchAll").mockImplementation(async () => {
+      playlist.info = { ...playlist.info, id: 9 } as never;
+    });
+
+    await playlist.startEditing();
+
+    expect(playlist.editing).toBe(false);
+  });
+
   it("leaves it when the page switches to another playlist", async () => {
     const playlist = setup();
     await playlist.startEditing();
