@@ -55,6 +55,11 @@ export default defineStore('playlist-tracks', {
             const start = isFreshLoad || fetchAll ? 0 : this.loadedHashCount
             const playlist = await getPlaylist(id, no_tracks, start, limit)
 
+            // The answer can outlive the page: navigated to another playlist
+            // meanwhile, this list belongs to the old one and must not replace
+            // or extend the new one's tracks.
+            if (!isFreshLoad && this.info.id !== id) return
+
             if (isFreshLoad) {
                 this.info = playlist?.info || ({} as Playlist)
                 this.createImageLink()
@@ -178,7 +183,12 @@ export default defineStore('playlist-tracks', {
          * list shows every track in stored order, never a filtered view.
          */
         async startEditing(focusTrackhash = '') {
-            if (!this.allLoaded) await this.fetchAll(this.info.id, false, true)
+            const id = this.info.id
+            if (!this.allLoaded) await this.fetchAll(id, false, true)
+            // Switched playlists while the full list loaded: opening the edit
+            // mode now would show one playlist's tracks under another's header,
+            // and "Remove" would post the old hashes to the new playlist's id.
+            if (this.info.id !== id) return
             this.query = ''
             this.editFocus = focusTrackhash
             this.editing = true

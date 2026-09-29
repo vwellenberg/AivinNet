@@ -44,7 +44,10 @@ export default defineStore('authStore', {
             this.showError('Failed! Something went wrong!')
         },
         showResMsgOrGenericError(res: any) {
-            if (res.data.msg) {
+            // `useAxios` resolves with no `data` when the request never got an
+            // answer (server restarting, network gone): read it defensively, or
+            // the error path itself throws and the form just looks dead.
+            if (res?.data?.msg) {
                 this.showError(res.data.msg)
             } else {
                 this.showGenericError()
