@@ -12,7 +12,9 @@ import useAuth from '@/stores/auth'
 // (server restarting). The error path read `res.data.msg` and threw, so the
 // login form just looked dead.
 describe('showResMsgOrGenericError', () => {
-    beforeEach(() => setActivePinia(createPinia()))
+    beforeEach(() => {
+        setActivePinia(createPinia())
+    })
 
     it('falls back to the generic error when there is no answer at all', () => {
         const auth = useAuth()

@@ -11,7 +11,9 @@ import { pollJob } from '@/requests/metadata'
 const answer = (status: number, data: unknown = undefined) => ({ status, data })
 
 describe('pollJob', () => {
-    beforeEach(() => useAxiosMock.mockReset())
+    beforeEach(() => {
+        useAxiosMock.mockReset()
+    })
 
     it('rides out a few failed polls while the job keeps running', async () => {
         useAxiosMock
