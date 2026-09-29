@@ -209,7 +209,7 @@ fi
 # --------------------------------------------------------------- installing ---
 
 if [ -n "$MUSIC" ]; then
-	# A quote or backslash would break the hand-written config.json below, so
+	# A quote or backslash would break the hand-written settings.json below, so
 	# reject those paths instead of mis-escaping them.
 	# shellcheck disable=SC1003  # '\' is a literal backslash to match, not an escape.
 	case "$MUSIC" in
@@ -435,13 +435,22 @@ else
 	[ -n "$PORT" ] || PORT="1970"
 fi
 
+# The file is the app's OWN settings file (Paths.config_file_path). This wrote
+# `config.json` until 2026-09-30 — a name the app never reads — so --music had no
+# effect at all: the library came up empty and the folder had to be picked in the
+# UI anyway. tests/test_install_music_preselect.py ties the two names together.
+# A file holding only rootDirs is enough: the first start adds serverId and
+# writes the rest.
 if [ -n "$MUSIC" ]; then
-	if [ -f "${DATA_DIR}/config.json" ]; then
+	if [ -f "${DATA_DIR}/settings.json" ]; then
 		warn "existing config found — leaving the library folders alone.
     Add '${MUSIC}' in Settings if it is not there yet."
 	else
 		mkdir -p "$DATA_DIR"
-		printf '{\n    "rootDirs": [\n        "%s"\n    ]\n}\n' "$MUSIC" >"${DATA_DIR}/config.json"
+		(
+			umask 077 # holds serverId (the JWT key) once the app has started
+			printf '{\n    "rootDirs": [\n        "%s"\n    ]\n}\n' "$MUSIC" >"${DATA_DIR}/settings.json"
+		)
 		log "Pre-selected music folder: ${MUSIC}"
 	fi
 fi

@@ -6,6 +6,7 @@ import setproctitle
 from aivinnet import app_builder
 from aivinnet.crons import start_cron_jobs, stop_cron_jobs
 from aivinnet.db.engine import DbEngine
+from aivinnet.lib.index import index_if_never_scanned
 from aivinnet.plugins.register import register_plugins
 from aivinnet.setup import load_into_mem, run_setup
 from aivinnet.start_info_logger import log_startup_info
@@ -102,6 +103,7 @@ def start_aivinnet(host: str, port: int):
 
     log_startup_info(host, port)
     load_into_mem()
+    index_if_never_scanned()
     run_aivinnet()
     # TrackStore.export()
     # ArtistStore.export()

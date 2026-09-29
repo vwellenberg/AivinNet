@@ -632,10 +632,6 @@ class Paths(metaclass=Singleton):
     def userdata_db_path(self):
         return Paths().config_dir / self.USER_DATA_DB_NAME
 
-    @property
-    def json_config_path(self):
-        return Paths().config_dir / "config.json"
-
 
 # # # # # # # # # # # # #
 # Default and Konstants #
