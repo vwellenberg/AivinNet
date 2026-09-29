@@ -106,7 +106,10 @@ class AlbumStore:
         if not artist:
             return []
 
-        return [cls.albummap[albumhash].album for albumhash in artist.albumhashes]
+        # Tolerant of hashes the album map no longer has: a tag edit can pop an
+        # album while an artist entry (e.g. "Various Artists") still lists it,
+        # and every album page of that artist answered 500 until a restart.
+        return [cls.albummap[h].album for h in artist.albumhashes if h in cls.albummap]
 
     @classmethod
     def get_albums_by_artisthashes(cls, hashes: Iterable[str]):

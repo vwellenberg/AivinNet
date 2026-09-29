@@ -79,21 +79,32 @@ def _taken(path: str, source: str) -> bool:
         return True
 
 
+# Every lyrics file lib/lyrics.py reads next to a track: the plain `.lrc` and
+# the extended `.rlrc`. Only `.lrc` moved, so a renamed track lost its `.rlrc`
+# lyrics and the old file stayed behind under the old name.
+LYRICS_SUFFIXES = (".lrc", ".rlrc")
+
+
 def _move_lyrics(old: str, new: str) -> str | None:
-    """Move ``<old>.lrc`` along. Returns a warning when it had to stay."""
-    old_lrc = Path(old).with_suffix(".lrc")
-    if not old_lrc.exists():
-        return None
+    """Move the lyrics files along. Returns a warning when one had to stay."""
+    warnings = []
 
-    new_lrc = Path(new).with_suffix(".lrc")
-    if new_lrc.exists():
-        return f"Lyrics file {new_lrc.name} already exists, {old_lrc.name} was left as it is"
+    for suffix in LYRICS_SUFFIXES:
+        old_lrc = Path(old).with_suffix(suffix)
+        if not old_lrc.exists():
+            continue
 
-    try:
-        os.rename(old_lrc, new_lrc)
-    except OSError as exc:
-        return f"Could not move the lyrics file: {exc}"
-    return None
+        new_lrc = Path(new).with_suffix(suffix)
+        if new_lrc.exists():
+            warnings.append(f"Lyrics file {new_lrc.name} already exists, {old_lrc.name} was left as it is")
+            continue
+
+        try:
+            os.rename(old_lrc, new_lrc)
+        except OSError as exc:
+            warnings.append(f"Could not move the lyrics file {old_lrc.name}: {exc}")
+
+    return "; ".join(warnings) or None
 
 
 def _move_one(old: str, new: str, tracks: list) -> str | None:
