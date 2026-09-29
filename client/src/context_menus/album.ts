@@ -211,13 +211,18 @@ export default async (album?: Album) => {
         icon: SearchIcon,
     }
 
-    // ⚠️ Titles and numbers, NOT the cover — and deliberately a separate entry
-    // rather than a second job for "Find cover online". They fail differently:
-    // a wrong cover is one picture to replace, a wrong track list is rewritten
-    // tags in every file of the album plus the playlist references that moved
-    // with them.
+    // ⚠️ Titles, numbers and file names, NOT the cover — and deliberately a
+    // separate entry rather than a second job for "Find cover online". They
+    // fail differently: a wrong cover is one picture to replace, a wrong track
+    // list is rewritten tags in every file of the album plus the playlist
+    // references that moved with them.
+    //
+    // ONE entry for the one dialog. There used to be a second, "Rename files",
+    // that opened the same dialog one step further in — two menu rows for one
+    // window read as two features doing the same thing (reported exactly so).
+    // The dialog offers renaming as its third source.
     const fetch_metadata = <Option>{
-        label: 'Fetch titles & numbers',
+        label: 'Titles & file names',
         action: () => {
             // The store fallback can briefly hold an empty album object.
             if (!album.albumhash) return
@@ -225,23 +230,6 @@ export default async (album?: Album) => {
             useModal().showFetchMetadataModal({
                 albumhash: album.albumhash,
                 albumTitle: album.title || 'this album',
-            })
-        },
-        icon: SearchIcon,
-    }
-
-    // Names the FILES after their tags (#144): "03 - Title.mp3". The same dialog
-    // as the entry above, opened straight at its rename-only source — the
-    // tags are not touched, so nothing moves in playlists or history.
-    const rename_files = <Option>{
-        label: 'Rename files',
-        action: () => {
-            if (!album.albumhash) return
-
-            useModal().showFetchMetadataModal({
-                albumhash: album.albumhash,
-                albumTitle: album.title || 'this album',
-                startWith: 'tags',
             })
         },
         icon: PencilIcon,
@@ -261,7 +249,7 @@ export default async (album?: Album) => {
     // rejects all three with 403 for a non-admin since AivinNet#105, so offering
     // them here would only produce an error toast.
     if (loggedInUserIsAdmin()) {
-        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata, rename_files)
+        options.push(find_cover_online, fetch_cover_auto, upload_cover, remove_cover, fetch_metadata)
     }
 
     options.push(download_album, download_tracks, get_find_on_social('album', '', album))

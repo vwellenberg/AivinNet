@@ -76,11 +76,12 @@ within a few milliseconds of each other.
 
 ### Tidy up an album
 
-- **Fetch titles and numbers** from MusicBrainz, or read them from the file
-  names, in the album's metadata dialog. You see every change before it is
-  applied.
-- **Name files after their tags**, from the same dialog or from the album menu.
-  The track editor renames the file too. Queues and playlists follow the rename.
+- **Titles & file names** in the album menu opens one dialog for three repairs.
+  Fetch titles and track numbers from MusicBrainz, read them from the file
+  names, or go the other way and name the files after their tags. You see every
+  change before it is applied.
+- **The track editor renames the file too.** Queues and playlists follow the
+  rename.
 - **Pick an artist's picture yourself**: upload one, or remove it.
 
 ### Playlists
