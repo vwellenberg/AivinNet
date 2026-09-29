@@ -59,7 +59,11 @@ def seed(monkeypatch):
     def _seed():
         from aivinnet.api import auth as auth_module
 
-        monkeypatch.setattr(auth_module, "pair_token", {CODE: dict(SEED_TOKEN)})
+        monkeypatch.setattr(
+            auth_module,
+            "pair_codes",
+            {CODE: {"token": dict(SEED_TOKEN), "userid": 1, "expires": float("inf")}},
+        )
 
     return _seed
 

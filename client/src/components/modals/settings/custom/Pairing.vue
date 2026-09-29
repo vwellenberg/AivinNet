@@ -22,7 +22,8 @@
             <p>{{ errorMsg }}</p>
         </div>
         <p class="desc">
-            Scan the QR code with your phone's camera to open AivinNet and pair the device.
+            Scan the QR code with your phone's camera to open AivinNet and pair the device. The code works once
+            and for 5 minutes — open this page again for a new one.
         </p>
 
         <div class="serverurl rounded">{{ url }}</div>
