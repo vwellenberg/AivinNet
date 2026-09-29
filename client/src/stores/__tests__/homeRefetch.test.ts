@@ -1,15 +1,22 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { Ref } from 'vue'
 
-const limit = ref(6)
-const fetchFor = ref(6)
 const fetchHome = vi.fn()
 
-vi.mock('../content-width', () => ({ maxAbumCards: limit, fetchCardCount: fetchFor }))
+// vi.mock is hoisted above top-level variables, so the refs are made inside.
+vi.mock('../content-width', async () => {
+    const { ref } = await import('vue')
+
+    return { maxAbumCards: ref(6), fetchCardCount: ref(6) }
+})
 vi.mock('@/requests/home', () => ({ getHomePageData: (n: number) => fetchHome(n) }))
 
+import * as widths from '../content-width'
 import useHome from '../home'
+
+const limit = widths.maxAbumCards as Ref<number>
+const fetchFor = widths.fetchCardCount as Ref<number>
 
 describe('home store refetch on widen', () => {
     beforeEach(() => {
