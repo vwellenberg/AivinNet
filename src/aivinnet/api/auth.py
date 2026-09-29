@@ -1,7 +1,9 @@
 import datetime as dt
 import random
+import secrets
 import sqlite3
 import string
+import time
 from functools import wraps
 from typing import Any
 
@@ -175,7 +177,24 @@ def login(body: LoginBody):
         loginguard.finish_attempt(body.username, success)
 
 
-pair_token = dict()
+# Pair codes: each one is a single-use, short-lived login for another device.
+# There used to be ONE global slot with no expiry — a code shown and never
+# scanned stayed redeemable for ever, to unlimited unauthenticated guesses, and
+# any other account asking for a code silently replaced it.
+PAIR_CODE_TTL_S = 300
+PAIR_CODE_LENGTH = 6
+PAIR_CODE_ALPHABET = string.ascii_letters + string.digits
+# Failed redeems allowed per minute, across all callers. 62^6 codes make
+# guessing hopeless anyway; this keeps the endpoint from being a free oracle.
+PAIR_MAX_FAILS_PER_MINUTE = 20
+
+pair_codes: dict[str, dict[str, Any]] = {}  # code -> {"token", "userid", "expires"}
+_pair_failures: list[float] = []
+
+
+def _drop_expired_pair_codes(now: float) -> None:
+    for code in [c for c, entry in pair_codes.items() if entry["expires"] <= now]:
+        del pair_codes[code]
 
 
 @api.get("/getpaircode")
@@ -183,16 +202,23 @@ def get_pair():
     """
     Get a new pair code to log another device in to this server
     """
-    # INFO: if user is already logged in, create a new pair code
-    token = create_new_token(get_jwt_identity())
-    key = token["accesstoken"][-6:]
+    identity = get_jwt_identity()
+    now = time.monotonic()
+    _drop_expired_pair_codes(now)
 
-    global pair_token
-    pair_token = {
-        key: token,
+    # One pending code per account: a new one replaces this account's old one,
+    # never anybody else's.
+    for code in [c for c, entry in pair_codes.items() if entry["userid"] == identity["id"]]:
+        del pair_codes[code]
+
+    code = "".join(secrets.choice(PAIR_CODE_ALPHABET) for _ in range(PAIR_CODE_LENGTH))
+    pair_codes[code] = {
+        "token": create_new_token(identity),
+        "userid": identity["id"],
+        "expires": now + PAIR_CODE_TTL_S,
     }
 
-    return {"code": key}
+    return {"code": code}
 
 
 class PairDeviceQuery(BaseModel):
@@ -206,11 +232,17 @@ def pair_with_code(query: PairDeviceQuery):
     """
     Get an access token by sending a pair code. NOTE: A code can only be used once!
     """
-    global pair_token
-    token = pair_token.get(query.code)
+    now = time.monotonic()
+    _drop_expired_pair_codes(now)
+    _pair_failures[:] = [t for t in _pair_failures if now - t < 60]
 
-    if token:
-        pair_token = {}
+    if len(_pair_failures) >= PAIR_MAX_FAILS_PER_MINUTE:
+        return {"msg": "Too many attempts. Try again in a minute."}, 429
+
+    entry = pair_codes.pop(query.code, None)
+
+    if entry:
+        token = entry["token"]
 
         if query.setcookie:
             # QR deep-link / browser pairing: mirror the login handler so the
@@ -222,6 +254,7 @@ def pair_with_code(query: PairDeviceQuery):
 
         return token
 
+    _pair_failures.append(now)
     return {"msg": "Invalid code"}, 400
 
 
