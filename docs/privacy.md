@@ -16,9 +16,9 @@ and they run only on that click:
 
 - **Cover-art search** sends the album title and artist to **MusicBrainz**,
   **Cover Art Archive**, **iTunes** and **Deezer**.
-- **Fetch titles and numbers** (the album's metadata dialog) sends the album
-  title and artist to **MusicBrainz**. The "from the file names"
-  source reads your own files and sends nothing.
+- **Titles & file names** (album menu) sends the album title and artist to
+  **MusicBrainz** when you pick the online lookup. The two file-name sources
+  work on your own files and send nothing.
 - **MusicBrainz lookups** of a single track or album.
 
 **Sync calibration by microphone** (device sync) uses the microphone of the

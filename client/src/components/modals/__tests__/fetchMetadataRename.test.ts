@@ -60,7 +60,7 @@ async function openWithFilenames() {
     requests.fetchPreview.mockResolvedValue({ result: structuredClone(guildPreview), error: null })
     const w = mount(FetchMetadata, { props: { albumhash: 'a', albumTitle: 'The Guild 2' } })
     const plates = w.findAll('button.source')
-    await plates[1].trigger('click') // "Read the file names"
+    await plates[1].trigger('click') // "Tags from the file names"
     await flushPromises()
     return w
 }
@@ -93,9 +93,9 @@ describe('the metadata dialog renames files (#144)', () => {
         await flushPromises()
         expect(w.emitted('setTitle')?.at(-1)).toEqual(['Rename files'])
 
-        // Back to the sources, then a source that rewrites tags.
+        // Back to the sources (the menu's name), then a source that rewrites tags.
         await w.find('.buttons button:not(.apply)').trigger('click')
-        expect(w.emitted('setTitle')?.at(-1)).toEqual(['Fetch titles & numbers'])
+        expect(w.emitted('setTitle')?.at(-1)).toEqual(['Titles & file names'])
         await w.findAll('button.source')[1].trigger('click')
         await flushPromises()
         expect(w.emitted('setTitle')?.at(-1)).toEqual(['Fetch titles & numbers'])

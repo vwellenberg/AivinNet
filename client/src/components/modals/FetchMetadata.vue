@@ -3,26 +3,27 @@
         <!-- STEP 1 — where should the proposal come from? -->
         <template v-if="step === 'source'">
             <p class="lead">
-                Repair the track titles and numbers of <strong>{{ albumTitle }}</strong
+                Repair the titles, numbers or file names of <strong>{{ albumTitle }}</strong
                 >.
             </p>
 
             <div class="sources">
                 <button type="button" class="source rounded-sm" :disabled="busy" @click="loadCandidates">
                     <span class="name">Look it up online</span>
-                    <span class="hint">Matches this album against a MusicBrainz release.</span>
+                    <span class="hint">Titles and track numbers from a matching MusicBrainz release.</span>
                 </button>
                 <button type="button" class="source rounded-sm" :disabled="busy" @click="previewFilenames">
-                    <span class="name">Read the file names</span>
+                    <span class="name">Tags from the file names</span>
                     <span class="hint">
-                        For rips the internet has never heard of — game soundtracks, bootlegs, your own recordings.
+                        “03 - Title.mp3” becomes track 3, “Title”. For rips the internet has never heard of — game
+                        soundtracks, bootlegs, your own recordings.
                     </span>
                 </button>
                 <button type="button" class="source rounded-sm" :disabled="busy" @click="previewRename">
-                    <span class="name">Rename the files</span>
+                    <span class="name">File names from the tags</span>
                     <span class="hint">
-                        The tags are right, the file names are not. Keeps the tags and names each file after them:
-                        “03 - Title.mp3”.
+                        The other way round: the tags are right, the names are not. Track 3, “Title” becomes
+                        “03 - Title.mp3”; the tags stay as they are.
                     </span>
                 </button>
             </div>
@@ -171,7 +172,7 @@ import Spinner from '@/components/shared/Spinner.vue'
 const props = defineProps<{
     albumhash: string
     albumTitle: string
-    /** Open straight into one source — the album menu's "Rename files" does. */
+    /** Open straight into one source (the rename-only one); the album menu opens at the choice. */
     startWith?: MetadataSource
 }>()
 
@@ -180,9 +181,11 @@ const emit = defineEmits<{
     (e: 'hideModal'): void
 }>()
 
-// The title names what the dialog is doing NOW: it can be opened as "Rename
-// files" and then switched to a source that rewrites tags, or the other way.
-const titleFor = (source?: MetadataSource) => (source === 'tags' ? 'Rename files' : 'Fetch titles & numbers')
+// The title names what the dialog is doing NOW: the choice of sources carries
+// the menu's name, a chosen source names its own direction — it can be opened
+// as "Rename files" and then switched to a source that rewrites tags.
+const titleFor = (source?: MetadataSource) =>
+    !source ? 'Titles & file names' : source === 'tags' ? 'Rename files' : 'Fetch titles & numbers'
 emit('setTitle', titleFor(props.startWith))
 
 // ---------------------------------------------------------------------------
