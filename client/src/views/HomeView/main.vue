@@ -18,10 +18,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
 import useHome from '@/stores/home'
+import { maxAbumCards } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
@@ -35,6 +37,10 @@ onMounted(async () => {
     updatePageTitle('Home')
     await home.fetchAll()
 })
+
+// Dragging the window wider adds columns; the rows only fill them if we fetch
+// more. Debounced so a drag is one request, not one per pixel.
+watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
 </script>
 
 <style lang="scss">
