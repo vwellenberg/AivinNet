@@ -135,6 +135,33 @@ within a few milliseconds of each other.
   there, and the "Recently played" row is no longer one tile short.
 - About shows the release version, not the client's build number.
 
+### Safer
+
+A full review before this release found these, and they are fixed:
+
+- **Pairing codes** now work once, for 5 minutes, one per account, and guessing
+  them is throttled. Before, a code that was never scanned stayed valid for ever.
+- **No account can take another account's name** (it locked the other person
+  out of their login).
+- **The login screen no longer shows strangers who the admin is.**
+- **Lyrics are read only from the song's own files**, never from a path the
+  request names.
+- **Last.fm** is spoken to over HTTPS; the session key no longer travels in the
+  clear.
+- **Covers and pictures** can no longer exhaust the server's memory (an animated
+  GIF or a huge image), and charts and lists have sane page limits, so no
+  account can freeze the server with one request.
+- **The settings file is written safely**: a power cut while saving no longer
+  leaves it broken. A failed tag edit's backup is never overwritten.
+
+### Installer
+
+- **A download cut short runs nothing** instead of half an update.
+- **Updating keeps what you set up**: a system-wide service stays system-wide,
+  and the "wait for the music drive" guard survives the update.
+- A slow first start (big library, small machine) is no longer reported as a
+  failed install; the address and password are always shown.
+
 ### Under the hood
 
 - Dependencies are updated, and two unused ones (a load-testing tool and a
@@ -145,6 +172,8 @@ within a few milliseconds of each other.
 ### Upgrading
 
 Nothing to do. If you used "shuffle once", press the shuffle button instead.
+A pairing code that was open before the update is no longer valid; open the
+pairing page again for a new one.
 
 <details>
 <summary>What v2026.9.0 brought</summary>
