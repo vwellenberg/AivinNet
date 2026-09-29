@@ -122,7 +122,9 @@ def send_all_playlists(query: SendAllPlaylistsQuery):
     )
 
     for playlist in playlists:
-        if not playlist.has_image:
+        # `no_images` was declared and never read — the add-to-playlist menu
+        # asks for it and paid for every cover-less playlist's collage anyway.
+        if not playlist.has_image and not query.no_images:
             playlist.images = playlistlib.get_first_4_images(trackhashes=playlist.trackhashes)
 
         playlist.clear_lists()
