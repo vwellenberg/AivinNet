@@ -295,6 +295,16 @@ def update_profile(body: UpdateProfileBody):
         if "guest" in _user.roles:
             return {"msg": "Cannot update guest user"}, 400
 
+    # The username column has no UNIQUE constraint, so the IntegrityError branch
+    # below never fires. Without this check any account could take another's
+    # name: login resolves a name to the FIRST row that carries it, so the
+    # victim's password was checked against the impostor's hash and they were
+    # locked out, and deleting "the impostor" by name removed both accounts.
+    if user["username"]:
+        holder = UserTable.get_by_username(user["username"])
+        if holder and holder.id != user["id"]:
+            return {"msg": "Username already exists"}, 400
+
     if user["password"]:
         user["password"] = hash_password(user["password"])
 

@@ -326,11 +326,12 @@ def update_playlist_info(path: PlaylistIDPath, form: UpdatePlaylistForm):
     if image:
         try:
             pil_image = Image.open(image)
-            content_type = image.content_type
+            # The decoded format decides, not the Content-Type the client declared.
+            content_type = "image/gif" if pil_image.format == "GIF" else image.content_type
 
             playlist["image"] = playlistlib.save_p_image(pil_image, playlistid, content_type)
 
-            if image.content_type == "image/gif":
+            if content_type == "image/gif":
                 playlist["settings"]["has_gif"] = True
 
             # New covers default to the square layout (same as the online
@@ -338,7 +339,7 @@ def update_playlist_info(path: PlaylistIDPath, form: UpdatePlaylistForm):
             if not db_playlist.has_image:
                 playlist["settings"]["square_img"] = True
 
-        except UnidentifiedImageError:
+        except (UnidentifiedImageError, Image.DecompressionBombError, ValueError, OSError):
             return {"error": "Failed: Invalid image"}, 400
 
     p_tuple = (*playlist.values(),)

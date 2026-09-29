@@ -103,3 +103,35 @@ def test_the_lockout_does_not_spill_onto_other_accounts(api_client):
         assert other.status_code != 429
     finally:
         loginguard.reset_all()
+
+
+@pytest.fixture()
+def as_regular_user(monkeypatch):
+    monkeypatch.setattr(
+        "aivinnet.api.auth.current_user",
+        {"id": 2, "username": "spec-user-2", "roles": []},
+    )
+
+
+def test_a_user_cannot_take_another_accounts_name(api_client, as_regular_user):
+    """The column has no UNIQUE constraint and login resolves a name to its FIRST
+    row — taking a name locked its owner out (their password was checked against
+    the impostor's hash)."""
+    from aivinnet.db.userdata import UserTable
+
+    api = api_client(*BLUEPRINTS)
+
+    res = api.put("/auth/profile/update", json={"username": "spec-user-1"})
+
+    assert res.status_code == 400
+    assert UserTable.get_by_username("spec-user-1").id == 1
+    assert UserTable.get_by_id(2).username == "spec-user-2"
+
+
+def test_saving_the_profile_under_ones_own_name_still_works(api_client, as_regular_user):
+    """The profile screen sends the current name along — that is not a clash."""
+    api = api_client(*BLUEPRINTS)
+
+    res = api.put("/auth/profile/update", json={"username": "spec-user-2"})
+
+    assert res.status_code == 200

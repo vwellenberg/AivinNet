@@ -78,9 +78,10 @@ def config_app(web):
     # A decompression bomb is a small file that decodes to an enormous bitmap.
     # Pillow warns at its own default and only raises at twice that; both are
     # sized for image tooling, not for avatars, and the decode happens before
-    # any of our own size checks could run. 64 MP still covers an 8000x8000
-    # cover with room to spare.
-    Image.MAX_IMAGE_PIXELS = 64_000_000
+    # any of our own size checks could run. Pillow only RAISES above TWICE this
+    # value (above it merely warns), so 32 MP here is a hard ceiling of 64 MP —
+    # which still covers an 8000x8000 cover. Set to 64 MP, it let 128 MP through.
+    Image.MAX_IMAGE_PIXELS = 32_000_000
 
 
 def config_jwt(web):

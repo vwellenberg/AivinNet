@@ -221,3 +221,15 @@ def test_missing_file_key_is_none(monkeypatch, tmp_path):
     _setup(monkeypatch, tmp_path, [], {})
 
     assert playlistlib.get_cover_content_key("nope.webp") is None
+
+
+def test_an_animation_is_budgeted_over_all_its_frames():
+    """MAX_IMAGE_PIXELS guards one frame; a GIF of thousands of frames on a big
+    canvas used to be copied frame by frame into RAM (OOM on a small server)."""
+    bomb = SimpleNamespace(width=4000, height=4000, n_frames=2000)
+    banner = SimpleNamespace(width=800, height=400, n_frames=120)
+    still = SimpleNamespace(width=3000, height=3000)  # no n_frames: a single image
+
+    assert playlistlib.animation_too_large(bomb)
+    assert not playlistlib.animation_too_large(banner)
+    assert not playlistlib.animation_too_large(still)

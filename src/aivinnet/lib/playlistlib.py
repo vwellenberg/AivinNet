@@ -70,6 +70,17 @@ def create_gif_thumbnail(image: Image, img_name: str):
     return thumb_name
 
 
+# Pillow's MAX_IMAGE_PIXELS guards ONE frame. An animated cover is decoded frame
+# by frame and every frame is a full canvas, so a 30 MB GIF of thousands of
+# near-empty frames on a large canvas expanded to many GB in RAM (any account
+# can set its playlist cover). The budget covers all frames together.
+MAX_ANIMATION_PIXELS = 64_000_000
+
+
+def animation_too_large(img) -> bool:
+    return getattr(img, "n_frames", 1) * img.width * img.height > MAX_ANIMATION_PIXELS
+
+
 def save_p_image(img: Image, pid: int, content_type: str = None, filename: str = None) -> str:
     """
     Saves a playlist banner image and returns the filepath.
@@ -84,6 +95,9 @@ def save_p_image(img: Image, pid: int, content_type: str = None, filename: str =
     full_img_path = settings.Paths().playlist_img_path / filename
 
     if content_type == "image/gif":
+        if animation_too_large(img):
+            raise ValueError("Animated image is too large")
+
         frames = []
 
         for frame in ImageSequence.Iterator(img):
