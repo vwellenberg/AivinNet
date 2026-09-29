@@ -29,7 +29,7 @@ async function searchTopResults(query: string, limit: number) {
 
 async function searchItems(type: 'tracks' | 'albums' | 'artists' | 'folders', index: number, query: string) {
     const { data } = await useAxios({
-        url: base + `/?itemtype=${type}&start=${index}&q=${query}&limit=30`,
+        url: base + `/?itemtype=${type}&start=${index}&q=${encodeURIComponent(query)}&limit=30`,
         method: 'GET',
     })
 

@@ -55,7 +55,7 @@ export async function getFiles(
 
 export async function openInFiles(path: string) {
     const { error } = await useAxios({
-        url: paths.api.folder.showInFiles + `?path=${path}`,
+        url: paths.api.folder.showInFiles + `?path=${encodeURIComponent(path)}`,
         method: 'GET',
     })
 
@@ -66,7 +66,7 @@ export async function openInFiles(path: string) {
 
 export async function getTracksInPath(path: string) {
     const { data, error } = await useAxios({
-        url: paths.api.folder.base + '/tracks/all' + `?path=${path}`,
+        url: paths.api.folder.base + '/tracks/all' + `?path=${encodeURIComponent(path)}`,
         method: 'GET',
     })
 

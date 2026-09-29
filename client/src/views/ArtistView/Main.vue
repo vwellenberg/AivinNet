@@ -131,7 +131,7 @@ function createAbumComponent(title: AlbumType, albums: Album[], show_date = true
                 artist_page: true,
                 hide_artists: !(AlbumType.APPEARANCES === title),
             },
-            route: `/artists/${store.info.artisthash}/discography/${albumType}?artist=${store.info.name}`,
+            route: `/artists/${store.info.artisthash}/discography/${albumType}?artist=${encodeURIComponent(store.info.name)}`,
         },
     }
 }
@@ -143,7 +143,7 @@ function getTopTracksComponent(): ScrollerItem {
         props: {
             tracks: store.tracks,
             title: 'Tracks',
-            route: `/artists/${store.info.artisthash}/tracks?artist=${store.info.name}`,
+            route: `/artists/${store.info.artisthash}/tracks?artist=${encodeURIComponent(store.info.name)}`,
             playHandler: handlePlay,
             source: dropSources.artist,
             show_plays: true,
