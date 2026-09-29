@@ -135,3 +135,16 @@ def test_saving_the_profile_under_ones_own_name_still_works(api_client, as_regul
     res = api.put("/auth/profile/update", json={"username": "spec-user-2"})
 
     assert res.status_code == 200
+
+
+def test_an_anonymous_caller_gets_names_not_roles(api_client, monkeypatch):
+    """The full record told a stranger which account is the admin."""
+    monkeypatch.setattr("aivinnet.api.auth.current_user", None)
+    api = api_client(*BLUEPRINTS)
+
+    res = api.get("/auth/users?simplified=false")
+
+    assert res.status_code == 200
+    users = res.get_json()["users"]
+    assert users, "the fixture has accounts; the list must not be empty"
+    assert all("roles" not in user for user in users)

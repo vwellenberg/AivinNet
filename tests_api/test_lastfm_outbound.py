@@ -65,3 +65,16 @@ def test_the_session_exchange_carries_it_too(plugin):
     ((url, kwargs),) = sent
     assert "timeout" in kwargs
     assert "sk=" not in url, "the session key cannot be sent before it exists"
+
+
+def test_the_session_key_never_travels_in_clear_or_in_the_url(plugin):
+    """Over plain HTTP in the query string, anyone on the path could read `sk`
+    and scrobble as this user."""
+    lastfm, instance, sent = plugin
+
+    lastfm.LastFmPlugin.post(instance, {"method": "track.scrobble"})
+
+    ((url, kwargs),) = sent
+    assert url.startswith("https://")
+    assert "session" not in url and "api_sig" not in url
+    assert kwargs["data"]["sk"] == "session"

@@ -7,6 +7,7 @@ from aivinnet.lib.lyrics import (
     get_lyrics_from_duplicates,
     get_lyrics_from_tags,
 )
+from aivinnet.lib.trackslib import resolve_track_filepath
 from aivinnet.store.tracks import TrackStore
 
 bp_tag = Tag(name="Lyrics", description="Get lyrics")
@@ -27,8 +28,13 @@ def send_lyrics(body: SendLyricsBody):
     # 3. try to get by duplicates
     # 4. iter plugins
 
-    filepath = body.filepath
     trackhash = body.trackhash
+    # The request names a TRACK, not a file. Read from the raw path, this
+    # endpoint returned any `<path>.lrc` on the host to any account and told
+    # whether one existed (the plugin's write path was closed the same way).
+    filepath = resolve_track_filepath(trackhash, body.filepath)
+    if filepath is None:
+        return {"error": "No lyrics found"}
 
     # get copyright first
     copyright = ""
