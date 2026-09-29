@@ -453,19 +453,18 @@ def test_calibration_commands_reach_their_target_and_the_trim_shows_up(ds):
 
 
 def test_resolve_preserves_order_drops_missing_and_caps(ds, monkeypatch):
+    from types import SimpleNamespace
+
     from aivinnet.api import devicesync
 
-    class FakeTrack:
-        def __init__(self, trackhash):
-            self.trackhash = trackhash
+    def group(trackhash):
+        track = SimpleNamespace(trackhash=trackhash)
+        return SimpleNamespace(get_best=lambda: track)
 
-    available = {"h1", "h2", "h3"}
-
-    def fake_get(trackhashes):
-        # Mirror the store's contract: request order preserved, missing dropped.
-        return [FakeTrack(h) for h in trackhashes if h in available]
-
-    monkeypatch.setattr(devicesync.TrackStore, "get_tracks_by_trackhashes", staticmethod(fake_get))
+    # The REAL lookup path (trackhashmap), not a stub of a store method: the old
+    # stub mirrored a contract ("request order preserved") the store's
+    # deduplicating lookup did not keep.
+    monkeypatch.setattr(devicesync.TrackStore, "trackhashmap", {h: group(h) for h in ("h1", "h2", "h3")})
     monkeypatch.setattr(devicesync, "serialize_track", lambda track, *a, **k: {"trackhash": track.trackhash})
 
     res = ds.client.post("/devicesync/resolve", json={"trackhashes": ["h3", "missing", "h1"]})
@@ -473,8 +472,36 @@ def test_resolve_preserves_order_drops_missing_and_caps(ds, monkeypatch):
     hashes = [t["trackhash"] for t in res.get_json()["tracks"]]
     assert hashes == ["h3", "h1"]
 
-    over_cap = ds.client.post("/devicesync/resolve", json={"trackhashes": ["h"] * 1001})
+    over_cap = ds.client.post("/devicesync/resolve", json={"trackhashes": ["h1"] * (devicesync.MAX_RESOLVE_TRACKS + 1)})
     assert over_cap.status_code == 400
+
+
+def test_resolve_keeps_a_repeated_song_at_every_position(ds, monkeypatch):
+    """A follower maps the answer positionally onto the group's currentindex.
+    Deduplicated, [a, b, a, c] came back as [a, b, c] and it played c at index 2."""
+    from types import SimpleNamespace
+
+    from aivinnet.api import devicesync
+
+    tracks = {h: SimpleNamespace(trackhash=h) for h in "abc"}
+    monkeypatch.setattr(
+        devicesync.TrackStore,
+        "trackhashmap",
+        {h: SimpleNamespace(get_best=lambda t=t: t) for h, t in tracks.items()},
+    )
+    monkeypatch.setattr(devicesync, "serialize_track", lambda track, *a, **k: {"trackhash": track.trackhash})
+
+    res = ds.client.post("/devicesync/resolve", json={"trackhashes": ["a", "b", "a", "c"]})
+
+    assert [t["trackhash"] for t in res.get_json()["tracks"]] == ["a", "b", "a", "c"]
+
+
+def test_every_queue_the_group_accepts_can_be_resolved():
+    """queue-set took 5000 tracks while resolve refused more than 1000: the other
+    devices never mirrored a large queue and retried on every poll."""
+    from aivinnet.api import devicesync
+
+    assert devicesync.MAX_RESOLVE_TRACKS >= devicesync.MAX_QUEUE_TRACKS
 
 
 # --- 9. leave -----------------------------------------------------------------
