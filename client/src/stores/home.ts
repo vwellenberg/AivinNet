@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 import { getHomePageData } from '@/requests/home'
 import { HomePageItem } from '@/interfaces'
-import { maxAbumCards } from './content-width'
+import { fetchCardCount, maxAbumCards } from './content-width'
 
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
@@ -25,8 +25,16 @@ export default defineStore('homepage', () => {
         recently_played: 'VIEW HISTORY',
     }
 
+    // How many cards per row the LAST request asked for. Rows render as many
+    // cards as fit the grid, so a window dragged wider than it was at load has
+    // more columns than items — the rows stay short until we ask for more.
+    let fetchedLimit = 0
+    let inflight = false
+
     async function fetchAll() {
-        const data: { [key: string]: HomePageItem }[] = await getHomePageData(maxAbumCards.value)
+        const limit = fetchCardCount.value
+        fetchedLimit = limit
+        const data: { [key: string]: HomePageItem }[] = await getHomePageData(limit)
         let keys = []
 
         for (const [index, item] of data.entries()) {
@@ -55,9 +63,22 @@ export default defineStore('homepage', () => {
         }
     }
 
+    /** Refill the rows after the window grew past what was fetched. Never shrinks. */
+    async function refetchIfWider() {
+        if (inflight || !fetchedLimit || maxAbumCards.value <= fetchedLimit) return
+
+        inflight = true
+        try {
+            await fetchAll()
+        } finally {
+            inflight = false
+        }
+    }
+
     return {
         homepageData,
         homepageItems,
         fetchAll,
+        refetchIfWider,
     }
 })

@@ -5,7 +5,7 @@ import { getArtistAlbums, getArtistData, getSimilarArtists } from '@/requests/ar
 import { paths } from '@/config'
 import { Album, Artist, Genre, StatItem, Track } from '@/interfaces'
 import { Routes, router } from '@/router'
-import { maxAbumCards } from '@/stores/content-width'
+import { fetchCardCount } from '@/stores/content-width'
 import useSettingsStore from '@/stores/settings'
 import setColorsToStore from '@/utils/colortools/setColorsToStore'
 import { darkenHex } from '@/utils/colortools'
@@ -38,7 +38,7 @@ export default defineStore('artistPage', {
             const { artist, tracks, stats, albums } = await getArtistData(
                 hash,
                 settings.artist_top_tracks_count,
-                maxAbumCards.value
+                fetchCardCount.value
             )
 
             this.info = artist
@@ -63,7 +63,7 @@ export default defineStore('artistPage', {
         async fetchSimilarArtists() {
             if (this.fetched_similar_hash === this.info.artisthash) return
             this.fetched_similar_hash = this.info.artisthash
-            this.similar_artists = await getSimilarArtists(this.info.artisthash, maxAbumCards.value)
+            this.similar_artists = await getSimilarArtists(this.info.artisthash, fetchCardCount.value)
         },
         imageUrl() {
             return paths.images.artist.large + this.info.image + (this.imageVersion ? '?v=' + this.imageVersion : '')

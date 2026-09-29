@@ -7,7 +7,7 @@ import { paths } from '@/config'
 import { FuseTrackOptions } from '@/enums'
 import { Album, AlbumDisc, FuseResult, StatItem, Track } from '@/interfaces'
 import { router, Routes } from '@/router'
-import { maxAbumCards } from '@/stores/content-width'
+import { fetchCardCount } from '@/stores/content-width'
 import { useFuse } from '@/utils'
 import setColorsToStore from '@/utils/colortools/setColorsToStore'
 import { useToast } from '../notification'
@@ -81,7 +81,7 @@ export default defineStore('album', {
          * @param albumhash title of the album
          */
         async fetchTracksAndArtists(albumhash: string) {
-            const album = await getAlbum(albumhash, maxAbumCards.value)
+            const album = await getAlbum(albumhash, fetchCardCount.value)
 
             this.srcTracks = album.tracks
             this.info = album.info
@@ -113,7 +113,7 @@ export default defineStore('album', {
         //     this.fetched_other_hash = this.info.albumhash
         //     this.artistAlbums = await getAlbumsFromArtist(
         //         this.info.albumartists.map(a => a.artisthash),
-        //         maxAbumCards.value,
+        //         fetchCardCount.value,
         //         this.info.base_title
         //     )
         // },
@@ -130,7 +130,7 @@ export default defineStore('album', {
             if (this.fetched_similar_hash === this.info.albumhash) return
 
             this.fetched_similar_hash = this.info.albumhash
-            this.similarAlbums = await getSimilarAlbums(this.info.albumartists[0].artisthash, maxAbumCards.value)
+            this.similarAlbums = await getSimilarAlbums(this.info.albumartists[0].artisthash, fetchCardCount.value)
         },
         extractColors() {
             // Use the medium (256²) thumbnail, not xsmall (64²): the gradient

@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { onMounted, Ref, ref } from 'vue'
 
-import { maxAbumCards } from '@/stores/content-width'
+import { fetchCardCount } from '@/stores/content-width'
 
 import { dropSources, playSources } from '@/enums'
 import { playFromFavorites } from '@/helpers/usePlayFrom'
@@ -75,7 +75,7 @@ const noFavs = ref(false)
 
 onMounted(() => {
     updatePageTitle('Favorites')
-    const max = maxAbumCards.value
+    const max = fetchCardCount.value
 
     getAllFavs(6, max, max)
         .then(favs => {

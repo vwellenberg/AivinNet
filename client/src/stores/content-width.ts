@@ -65,6 +65,27 @@ const maxAbumCards = computed(() => {
     return Math.max(2, Math.floor(resizer_width.value / min))
 })
 
+/**
+ * How many cards to FETCH for a one-row scroller, sized for the widest window
+ * this screen can hold rather than the window as it is right now.
+ *
+ * `maxAbumCards` follows the current window, and a row is fetched once: a
+ * window opened small and dragged wider then has more grid columns than items,
+ * and the rows stay short. The screen is the ceiling on how wide the window can
+ * get, so asking for that many up front costs a few surplus cards (the
+ * scroller trims to what fits) and needs no refetch on resize. Still only a
+ * request size — never a layout measurement, and not the SEE ALL threshold.
+ */
+const MAX_FETCH_CARDS = 24
+
+const fetchCardCount = computed(() => {
+    const screenWidth = typeof window !== 'undefined' ? window.screen?.width || 0 : 0
+    const min = win_width.value <= MEDIUM_PHONE_MAX ? CARD_MIN_PHONE : CARD_MIN
+    const forScreen = Math.ceil(screenWidth / min)
+
+    return Math.min(MAX_FETCH_CARDS, Math.max(maxAbumCards.value, forScreen))
+})
+
 // WINDOW SIZES
 const ALL_MOBILE_WIDTH = 900
 const LARGE_MOBILE_WIDTH = 660
@@ -124,6 +145,7 @@ export {
     isHeaderSmall,
     isMedium,
     isSmall,
+    fetchCardCount,
     maxAbumCards,
     resizer_width,
     win_width,
