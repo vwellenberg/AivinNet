@@ -29,6 +29,14 @@ export async function movePlaylistTrackTo(from: number, gap: number): Promise<bo
     // Resolve the move to trackhash anchors BEFORE mutating the list. Sending
     // the whole tracklist (the old behaviour) truncated the playlist to whatever
     // had been paginated in and dropped every orphan hash with it.
+    // Dropped after the last LOADED row of a partly loaded playlist: nothing
+    // follows it on the page, so the anchor came out null — and null means "the
+    // end of the WHOLE stored list", so the track jumped past every row not
+    // loaded yet. Load the rest first; the same gap then names the real neighbour.
+    if (!playlist.allLoaded && gap >= playlist.allTracks.length) {
+        await playlist.fetchAll(playlist.info.id, false, true)
+    }
+
     const move = resolveMove(playlist.allTracks, from, gap)
     if (!move) return false
 

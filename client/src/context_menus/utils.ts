@@ -74,6 +74,8 @@ export const get_find_on_social = (page = 'album', query = '', album?: Album) =>
         return `${album?.title} - ${album?.albumartists.map(a => a.name).join(', ')}`
     }
     const search_term = query ? query : is_album ? getAlbumSearchTerm() : useArtist().info.name
+    // Encoded once: "&", "#", "+" or "/" in a name cut or bent every search URL.
+    const term = encodeURIComponent(search_term)
 
     return <Option>{
         label: 'Search on',
@@ -81,28 +83,28 @@ export const get_find_on_social = (page = 'album', query = '', album?: Album) =>
         children: async () => [
             {
                 label: 'Google',
-                action: () => window.open(`https://www.google.com/search?q=${search_term}`, '_blank'),
+                action: () => window.open(`https://www.google.com/search?q=${term}`, '_blank'),
             },
             {
                 label: 'YouTube',
-                action: () => window.open(`https://www.youtube.com/results?search_query=${search_term}`, '_blank'),
+                action: () => window.open(`https://www.youtube.com/results?search_query=${term}`, '_blank'),
             },
             {
                 label: 'Tidal',
-                action: () => window.open(`https://listen.tidal.com/search/${page}s?q=${search_term}`, '_blank'),
+                action: () => window.open(`https://listen.tidal.com/search/${page}s?q=${term}`, '_blank'),
             },
             {
                 label: 'Apple Music',
-                action: () => window.open(`https://music.apple.com/search?term=${search_term}`, '_blank'),
+                action: () => window.open(`https://music.apple.com/search?term=${term}`, '_blank'),
             },
             {
                 label: 'Deezer',
-                action: () => window.open(`https://www.deezer.com/search/${search_term}/${page}`, '_blank'),
+                action: () => window.open(`https://www.deezer.com/search/${term}/${page}`, '_blank'),
             },
             {
                 label: 'Wikipedia',
                 action: () =>
-                    window.open(`https://en.wikipedia.org/wiki/Special:Search?search=${search_term}`, '_blank'),
+                    window.open(`https://en.wikipedia.org/wiki/Special:Search?search=${term}`, '_blank'),
             },
         ],
     }

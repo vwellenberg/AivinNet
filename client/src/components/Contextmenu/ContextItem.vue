@@ -85,9 +85,12 @@ async function handleMouseEnter() {
     stillWaitingForChildren.value = true
     await new Promise(resolve => setTimeout(resolve, showChildrenDelay))
 
-    if (stillWaitingForChildren.value) {
+    // Open-only: showChildren() TOGGLES, so a click (or tap) inside the delay
+    // opened the submenu and this timer then shut it again 250 ms later.
+    if (stillWaitingForChildren.value && !childrenShown.value) {
         showChildren()
     }
+    stillWaitingForChildren.value = false
 }
 
 function handleMouseLeave() {
@@ -182,6 +185,9 @@ function hideContextMenu() {
 }
 
 function runAction() {
+    // The click decides now; a hover timer still pending must not act after it.
+    stillWaitingForChildren.value = false
+
     if (!props.option.singleChild && props.option.children) {
         if (childrenShown.value) {
             hideChildren()

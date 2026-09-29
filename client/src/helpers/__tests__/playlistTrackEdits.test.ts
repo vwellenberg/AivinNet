@@ -67,6 +67,24 @@ describe("moving a track", () => {
     expect(move).toHaveBeenCalledWith(7, "a", "d");
   });
 
+  it("loads the rest before a drop below the last loaded row of a partly loaded list", async () => {
+    // null as the anchor means "end of the WHOLE stored list": dropped after
+    // row 3 of 5, the track landed after row 5 on the server.
+    const playlist = setup(["a", "b", "c"]);
+    playlist.allLoaded = false;
+    const fetchAll = vi.spyOn(playlist, "fetchAll").mockImplementation(async () => {
+      playlist.allTracks = ["a", "b", "c", "d", "e"].map(h => track(h));
+      playlist.allLoaded = true;
+    });
+    move.mockResolvedValue(true);
+
+    expect(await movePlaylistTrackTo(0, 3)).toBe(true);
+
+    expect(fetchAll).toHaveBeenCalledWith(7, false, true);
+    expect(move).toHaveBeenCalledWith(7, "a", "d");
+    expect(order()).toEqual(["b", "c", "a", "d", "e"]);
+  });
+
   it("puts the row back when the server refuses", async () => {
     setup();
     move.mockResolvedValue(false);

@@ -167,7 +167,7 @@ function getArtistAlbumComponents(): ScrollerItem[] {
                     item: album,
                 })),
                 title: `More from ${artistname}`,
-                route: `/artists/${artisthash}/discography/all?artist=${artistname}`,
+                route: `/artists/${artisthash}/discography/all?artist=${encodeURIComponent(artistname)}`,
             },
         }
     })
@@ -193,7 +193,7 @@ function getAlbumVersionsComponent(): ScrollerItem | null {
             child_props: {
                 hide_artists: true,
             },
-            route: `/artists/${album.info.albumartists[0].artisthash}/discography/albums?artist=${album.info.albumartists[0].name}`,
+            route: `/artists/${album.info.albumartists[0].artisthash}/discography/albums?artist=${encodeURIComponent(album.info.albumartists[0].name)}`,
         },
     }
 }
