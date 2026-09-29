@@ -19,6 +19,13 @@
 
 set -euo pipefail
 
+# The whole script is ONE function, called on the very last line. Piped from
+# curl, a download cut short then ends inside the function body: a syntax error,
+# and nothing runs. Unwrapped, bash executed whatever prefix had arrived — which
+# can stop the running service and delete the old install without ever putting
+# the new one in place. tests/test_install_script.py cuts the file and checks.
+main() {
+
 REPO="vwellenberg/AivinNet"
 APP="aivinnet"
 
@@ -40,6 +47,7 @@ USER_UNIT_DIR="${HOME}/.config/systemd/user"
 SYSTEM_UNIT_PATH="/etc/systemd/system/${APP}.service"
 
 MODE="user"
+MODE_SET=0
 AUTOSTART=1
 ACTION="install"
 HOST="0.0.0.0"
@@ -89,7 +97,10 @@ EOF
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--system) MODE="system" ;;
+	--system)
+		MODE="system"
+		MODE_SET=1
+		;;
 	--no-autostart) AUTOSTART=0 ;;
 	--update) ACTION="install" ;;
 	--uninstall) ACTION="uninstall" ;;
@@ -119,6 +130,13 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
+
+# An update without --system updates the service that is THERE. The plain
+# one-liner after a --system install used to add a second, user-level service
+# on the same port — after the next reboot both started against one database.
+if [ "$MODE_SET" -eq 0 ] && [ -f "$SYSTEM_UNIT_PATH" ] && [ ! -f "${USER_UNIT_DIR}/${APP}.service" ]; then
+	MODE="system"
+fi
 
 # ---------------------------------------------------------------- preflight ---
 
@@ -457,14 +475,22 @@ fi
 
 # ----------------------------------------------------------------- service ----
 
+# The unit is rewritten on every run, and an update run carries no --music:
+# without reading it back, the plain one-liner silently dropped the mount guard
+# below, and the next boot could scan an empty mount point.
+mount_path="$MUSIC"
+if [ -z "$mount_path" ]; then
+	mount_path="$(sed -n 's/^RequiresMountsFor=//p' "$SYSTEM_UNIT_PATH" "${USER_UNIT_DIR}/${APP}.service" 2>/dev/null | head -n 1 || true)"
+fi
+
 mount_block=""
-if [ -n "$MUSIC" ]; then
+if [ -n "$mount_path" ]; then
 	# INFO: Without this the service can start before an external music mount is
 	# ready. The library scan then finds no files and REMOVES the missing tracks
 	# from the database, leaving playlists full of orphaned entries.
 	mount_block="# Wait for the music mount before starting (protects the library
 # from being wiped by a scan against an empty mount point).
-RequiresMountsFor=${MUSIC}"
+RequiresMountsFor=${mount_path}"
 fi
 
 write_unit() {
@@ -497,6 +523,11 @@ elif [ "$HAVE_SYSTEMD" -eq 0 ]; then
 	warn "no systemd found — skipping autostart. Start it manually: ${BIN_PATH}"
 elif [ "$MODE" = "system" ]; then
 	log "Installing system service (sudo)"
+	# Converting from a user service: two enabled units would both start at boot.
+	if [ -f "${USER_UNIT_DIR}/${APP}.service" ]; then
+		systemctl_user disable --now "${APP}.service" >/dev/null 2>&1 || true
+		rm -f "${USER_UNIT_DIR}/${APP}.service"
+	fi
 	write_unit "User=${USER_NAME}" "multi-user.target" | sudo tee "$SYSTEM_UNIT_PATH" >/dev/null
 	sudo systemctl daemon-reload
 	sudo systemctl enable --now "${APP}.service"
@@ -522,16 +553,29 @@ fi
 
 # ------------------------------------------------------------------ verify ----
 
-lan_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-[ -n "$lan_ip" ] || lan_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}')"
+# `|| true` inside: under pipefail a missing `hostname -I` (Arch and other
+# minimal hosts) failed the pipeline and ended the script right here, after the
+# service was running but before the URL and the admin password were printed.
+lan_ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+[ -n "$lan_ip" ] || lan_ip="$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}' || true)"
 [ -n "$lan_ip" ] || lan_ip="localhost"
 url="http://${lan_ip}:${PORT}"
+
+# Probe the address the server actually binds. 127.0.0.1 answers only for the
+# wildcard binds; `--host 100.x.y.z` (a Tailscale address) never did, and the
+# install was reported as failed.
+probe_host="$HOST"
+case "$HOST" in
+"" | 0.0.0.0 | :: | "[::]") probe_host="127.0.0.1" ;;
+*:*) probe_host="[${HOST}]" ;;
+esac
+[ "$probe_host" = "127.0.0.1" ] || url="http://${probe_host}:${PORT}"
 
 if [ "$service_ready" -eq 1 ]; then
 	log "Waiting for the server to answer"
 	ok=0
-	for _ in $(seq 1 60); do
-		code="$(http_code "http://127.0.0.1:${PORT}/")"
+	for _ in $(seq 1 90); do
+		code="$(http_code "http://${probe_host}:${PORT}/")"
 		case "$code" in
 		200 | 30? | 40?)
 			ok=1
@@ -547,8 +591,10 @@ if [ "$service_ready" -eq 1 ]; then
 		else
 			logs="journalctl --user -u ${APP} -n 50"
 		fi
-		die "the service did not answer on port ${PORT} within 60s.
-    Check the log:  ${logs}"
+		# Not fatal: a big library on slow hardware takes longer to load, and
+		# dying here hid the URL and the admin password printed below.
+		warn "the service has not answered on port ${PORT} within 90s — it may still
+    be loading. If it does not come up, check the log:  ${logs}"
 	fi
 fi
 
@@ -594,3 +640,6 @@ fi
 printf '  Update:  re-run this installer   Remove: ./install.sh --uninstall\n'
 printf '  Backup:  %s  is the only copy of your library data.\n' "$DATA_DIR"
 printf '\n'
+}
+
+main "$@"
