@@ -69,6 +69,82 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+**Your files, by hand — and devices that really play together.** An album's
+titles and track numbers can be fetched and applied, files can be named after
+their tags, playlists get an edit mode, and multiroom playback holds devices
+within a few milliseconds of each other.
+
+### Tidy up an album
+
+- **Fetch titles and numbers** from MusicBrainz, or read them from the file
+  names, in the album's metadata dialog. You see every change before it is
+  applied.
+- **Name files after their tags**, from the same dialog or from the album menu.
+  The track editor renames the file too. Queues and playlists follow the rename.
+- **Pick an artist's picture yourself**: upload one, or remove it.
+
+### Playlists
+
+- **Edit mode**: reorder and remove songs by finger, with an undo for every
+  removal.
+
+### Device sync
+
+- **Calibrate by microphone or by ear.** Some delays are invisible to the
+  browser (Bluetooth on Windows hides ~155 ms). One device listens to the
+  others' clicks and trims each one. See [privacy](https://github.com/vwellenberg/AivinNet/blob/master/docs/privacy.md) for what the
+  microphone is used for: the recording never leaves the device.
+- **Devices stay within a few ms** of each other. Drift is steered by gently
+  resampling instead of jumping, and each device reports how far off it is.
+- Track changes happen once, together, and on time. A group shuffle keeps the
+  playing song out of the front row. A device that the server forgot after a
+  restart registers itself again.
+
+### Also new
+
+- **Auto dark mode follows a time zone**, and its schedule is adjustable.
+- **Long-press opens every tile's menu**, which also works on iPhones and iPads.
+- **The keyboard reaches everything**: the context menu, the settings, the
+  profile menu and a dozen more controls.
+- The quiet dark theme is now called **Boring**.
+- **Removed:** the one-shot "shuffle the queue once". The shuffle button covers
+  it.
+
+### Fixed
+
+- **Two or more music folders**: no track would play. Every file was refused as
+  "not inside the root directories".
+- Search in an empty library answers "no results" instead of an error. The top
+  result is a tile like every other one.
+- The "Unknown" artist no longer shows a stranger's picture.
+- Settings: dead options are gone, hidden ones are reachable, and turning on
+  silence skip no longer stops the app.
+- Play under shuffle avoids the song that is playing. A replaced queue starts a
+  clean shuffle history. A queue full of missing files stops instead of racing
+  through it.
+- Navigation buttons that stopped working after a dropped connection reload the
+  page instead.
+- Phone: the UI is no longer stuck in the top half, the landscape bar fits, and
+  list and menu rows are the right size.
+- Long lists no longer flicker while scrolling, the next page loads when you get
+  there, and the "Recently played" row is no longer one tile short.
+- About shows the release version, not the client's build number.
+
+### Under the hood
+
+- Dependencies are updated, and two unused ones (a load-testing tool and a
+  memory profiler) are gone, which makes installs smaller.
+- Every request the client makes is checked against the server's contract in
+  CI. Last.fm scrobbles have a deadline.
+
+### Upgrading
+
+Nothing to do. If you used "shuffle once", press the shuffle button instead.
+
+<details>
+<summary>What v2026.9.0 brought</summary>
+
+
 **A second look for the app, and a stack of fixes underneath it.** The design so
 far — grid paper, ink frames, hard shadows — is called **Memphis** and stays the
 default. Next to it there is now **Stream**: flat, dark, quiet. Same app, same
@@ -132,6 +208,8 @@ Nothing to do. Docker users get the clean stop on the next `docker compose up -d
 **From v2026.8.2 or older:** stop the server once, delete the `client` folder in
 your data directory, start it again — older versions left no marker behind, so
 that one generation has to be cleared by hand.
+
+</details>
 
 <details>
 <summary>What v2026.8.5 brought</summary>
