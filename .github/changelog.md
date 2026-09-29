@@ -113,6 +113,10 @@ within a few milliseconds of each other.
 
 ### Fixed
 
+- **`install.sh --music` did nothing**: the folder went into a file the app
+  never reads, and the app never scanned it on its own. A new install now comes
+  up with its music, and any library that has folders but no tracks yet is
+  scanned once at startup.
 - **Two or more music folders**: no track would play. Every file was refused as
   "not inside the root directories".
 - Search in an empty library answers "no results" instead of an error. The top

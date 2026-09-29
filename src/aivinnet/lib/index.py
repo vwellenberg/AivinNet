@@ -2,6 +2,7 @@ import gc
 import logging
 from time import time
 
+from aivinnet.config import UserConfig
 from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
@@ -43,3 +44,22 @@ def index_everything():
     CordinateMedia(instance_key=str(time()))
     gc.collect()
     log.info("Indexing completed")
+
+
+def index_if_never_scanned() -> bool:
+    """
+    Scan once at startup when there are music folders but not a single track.
+
+    Nothing else scans on its own: there is no startup or periodic scan, only
+    the settings (adding a folder, "rescan"). So a folder written before the
+    first start, which is exactly what `install.sh --music` does, was never read:
+    the app came up with an empty library, and the folder had to be added again
+    in the settings. A library that has tracks is left alone; its next scan is
+    the user's call, as before.
+    """
+    if not UserConfig().rootDirs or TrackStore.get_flat_list():
+        return False
+
+    log.info("Music folders set but the library is empty: scanning once.")
+    index_everything()
+    return True
