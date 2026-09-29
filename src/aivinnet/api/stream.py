@@ -43,18 +43,16 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
 
     requested_filepath = Path(filepath).resolve()
 
-    # check if filepath is a child of any of the root dirs
-    for root_dir in UserConfig().rootDirs:
-        if root_dir == "$home":
-            root_dir = Path.home()
-        else:
-            root_dir = Path(root_dir).resolve()
+    # The file must sit under ANY one root dir. This loop used to answer 400 at
+    # the first root that did NOT contain it, i.e. it demanded ALL roots — so
+    # with two music folders every single track was refused.
+    roots = (Path.home() if r == "$home" else Path(r).resolve() for r in UserConfig().rootDirs)
 
-        if root_dir not in requested_filepath.parents:
-            return {
-                "msg": "Invalid filepath",
-                "error": "File not inside root directories",
-            }, 400
+    if not any(root in requested_filepath.parents for root in roots):
+        return {
+            "msg": "Invalid filepath",
+            "error": "File not inside root directories",
+        }, 400
 
     track = None
     tracks = TrackStore.get_tracks_by_filepaths([filepath])

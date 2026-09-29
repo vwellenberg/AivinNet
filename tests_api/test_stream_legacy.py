@@ -129,3 +129,36 @@ def test_a_path_now_held_by_another_track_falls_back_to_the_trackhash(api_client
 
     assert res.status_code == 200
     assert res.data == PAYLOAD
+
+
+@pytest.mark.parametrize("track_root", ["first", "second"])
+def test_a_library_with_two_root_dirs_plays_from_either(api_client, monkeypatch, tmp_path, track_root):
+    """Any ONE root must contain the file — the check used to demand all of them (400 for every track)."""
+    import aivinnet.api.stream as stream_api
+
+    roots = {name: tmp_path / name for name in ("first", "second")}
+    for root in roots.values():
+        root.mkdir()
+    track_file = roots[track_root] / "01 track.mp3"
+    track_file.write_bytes(PAYLOAD)
+    track = SimpleNamespace(filepath=str(track_file), trackhash=HASH, bitrate=320)
+
+    monkeypatch.setattr(stream_api, "UserConfig", lambda: SimpleNamespace(rootDirs=[str(r) for r in roots.values()]))
+    monkeypatch.setattr(stream_api.TrackStore, "get_tracks_by_filepaths", lambda paths: [track])
+    monkeypatch.setattr(stream_api.TrackStore, "trackhashmap", {HASH: SimpleNamespace(tracks=[track])})
+    api = api_client("aivinnet.api.stream")
+
+    res = api.get(_url(track_file))
+
+    assert res.status_code == 200
+    assert res.data == PAYLOAD
+
+
+def test_a_file_outside_every_root_dir_is_refused(stream, tmp_path):
+    api, _ = stream
+    outside = tmp_path / "elsewhere.mp3"
+    outside.write_bytes(PAYLOAD)
+
+    res = api.get(_url(outside))
+
+    assert res.status_code == 400
