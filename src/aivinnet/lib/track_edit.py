@@ -230,6 +230,15 @@ def _edit(old_track: Track, fields: dict) -> Track:
     new_albumhash: str | None = None
     new_artist_hashes: set[str] = set()
 
+    # A backup that is still there is the leftover of an edit whose restore
+    # failed (or of a crash mid-write) — and then it may be the ONLY intact copy
+    # of the audio. Copying the current file over it would destroy exactly that.
+    if os.path.exists(backup_path):
+        raise TrackEditError(
+            f"A backup from an earlier failed edit is still there: {backup_path}. "
+            "Check it and restore or remove it before editing this file again."
+        )
+
     try:
         shutil.copy2(filepath, backup_path)
     except OSError as exc:

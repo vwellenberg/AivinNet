@@ -578,7 +578,11 @@ def get_all_users(query: GetAllUsersQuery):
             reverse=True,
         )
 
-    if query.simplified:
+    # Anonymous callers get names only, whatever they ask for: the full record
+    # told a stranger (or a page in their browser) which account is the admin,
+    # the one worth guessing passwords for. The login screen asks for the
+    # simplified list anyway; only the logged-in account settings want more.
+    if query.simplified or not current_user:
         res["users"] = [user.todict_simplified() for user in users]
     else:
         res["users"] = [user.todict() for user in users]

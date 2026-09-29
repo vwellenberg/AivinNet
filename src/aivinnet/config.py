@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import InitVar, asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -184,7 +185,16 @@ class UserConfig(metaclass=Singleton):
         Reads the settings from the config file.
         Returns a dictget_root_dirs
         """
-        return json.loads(path.read_text())
+        try:
+            return json.loads(path.read_text())
+        except json.JSONDecodeError as exc:
+            # Say what to do — the obvious repair, deleting the file, generates a
+            # new serverId, which is the password salt and the JWT key: every
+            # account would be locked out.
+            raise RuntimeError(
+                f"{path} is damaged ({exc}). Restore it from a backup rather than "
+                "deleting it: it holds serverId, and a new one invalidates every password."
+            ) from exc
 
     def write_to_file(self, settings: dict[str, Any]):
         """
@@ -193,8 +203,22 @@ class UserConfig(metaclass=Singleton):
         # remove internal attributes
         settings = {k: v for k, v in settings.items() if not k.startswith("_")}
 
-        with self._config_path.open(mode="w") as f:
-            json.dump(settings, f, indent=4, default=list)
+        # Written beside the real file and swapped in. Rewritten in place, a
+        # write cut short (power loss, SIGKILL, full disk) left an empty or torn
+        # settings.json and the next start crashed on it. os.replace is atomic
+        # on the same filesystem; the temp file is owner-only from the start.
+        path = Path(self._config_path)
+        tmp = path.with_name(path.name + ".tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(settings, f, indent=4, default=list)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
 
         # ⚠️ Every write, not just the first. `open(mode="w")` truncates an
         # existing file and leaves its mode alone, but a file created here takes

@@ -167,3 +167,26 @@ class TestSilencePaddings:
 
         assert len(started) == 2, "both indexed files should be measured"
         assert get_silence_paddings(mp3, flac) == {"starting_file": 42, "ending_file": 42, "pending": False}
+
+
+class TestLyricsReadPath:
+    """POST /lyrics read `<filepath>.lrc` straight from the request — any file
+    with that suffix on the host, for any account."""
+
+    def test_a_foreign_path_is_never_read(self, api_client, monkeypatch, tmp_path):
+        from aivinnet.store.tracks import TrackStore
+
+        trackhash = "0853280a12c4f9e1"
+        (tmp_path / "secret.lrc").write_text("[00:01.00]top secret", encoding="utf-8")
+        song = tmp_path / "song.mp3"
+        song.write_bytes(b"x")
+        (tmp_path / "song.lrc").write_text("[00:01.00]la la", encoding="utf-8")
+        track = SimpleNamespace(filepath=str(song), bitrate=320, trackhash=trackhash, copyright="")
+        monkeypatch.setattr(TrackStore, "trackhashmap", {trackhash: _Group([track])}, raising=False)
+        api = api_client("aivinnet.api.lyrics")
+
+        res = api.post("/lyrics", json={"trackhash": trackhash, "filepath": str(tmp_path / "secret")})
+
+        body = res.get_data(as_text=True)
+        assert "top secret" not in body
+        assert "la la" in body  # the track's own file answers instead

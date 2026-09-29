@@ -2,7 +2,6 @@ import json
 import time
 from hashlib import md5
 from typing import Any
-from urllib.parse import quote_plus
 
 import requests
 
@@ -45,20 +44,21 @@ class LastFmPlugin(Plugin):
         return md5(signature.encode("utf-8")).hexdigest()
 
     def post(self, data: dict[str, Any], useSessionKey: bool = True):
-        url = "http://ws.audioscrobbler.com/2.0/?format=json"
+        # HTTPS, and the parameters in the POST body: over plain HTTP in the
+        # query string, the session key (`sk`) could be read by anyone on the
+        # path and used to scrobble as this user.
+        url = "https://ws.audioscrobbler.com/2.0/?format=json"
         data["api_key"] = self.config.lastfmApiKey
         if useSessionKey:
             data["sk"] = self.config.lastfmSessionKeys.get(str(self.current_userid))
 
         data["api_sig"] = self.get_api_signature(data)
 
-        final_url = url + "&" + "&".join(f"{k}={quote_plus(str(v))}" for k, v in data.items())
-
         # Every caller needs the deadline, for two different reasons: the session
         # exchange runs INSIDE a request (one stuck call freezes the whole app —
         # bjoern is single-threaded), and `scrobble()` runs in a @background
         # thread, which is not a daemon and would hold the process open at exit.
-        return requests.post(final_url, timeout=LASTFM_TIMEOUT)
+        return requests.post(url, data=data, timeout=LASTFM_TIMEOUT)
 
     def get_session_key(self, token: str):
         data = {
