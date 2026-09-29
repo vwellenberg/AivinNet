@@ -276,11 +276,14 @@ class TrackStore:
         return remove_duplicates(tracks)
 
     @classmethod
-    def get_tracks_by_albumhash(cls, album_hash: str) -> list[Track]:
+    def get_tracks_by_albumhash(cls, album_hash: str, including_duplicates: bool = False) -> list[Track]:
         """
         Returns all tracks matching the given album hash.
+
+        By default files that share a trackhash collapse to one; with
+        `including_duplicates` every FILE is returned.
         """
-        return cls.find_tracks_by(key="albumhash", value=album_hash)
+        return cls.find_tracks_by(key="albumhash", value=album_hash, including_duplicates=including_duplicates)
 
     @classmethod
     def get_tracks_by_artisthash(cls, artisthash: str):

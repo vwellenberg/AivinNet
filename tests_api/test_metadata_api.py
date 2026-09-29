@@ -77,7 +77,7 @@ def await_job(api, job_id: str, timeout: float = 5.0) -> dict:
 
 def stub_album(monkeypatch, module, tracks: list[FakeTrack]):
     monkeypatch.setattr(module.AlbumStore, "albummap", {ALBUM_HASH: FakeEntry(FakeAlbum())})
-    monkeypatch.setattr(module.TrackStore, "get_tracks_by_albumhash", staticmethod(lambda _hash: list(tracks)))
+    monkeypatch.setattr(module.TrackStore, "get_tracks_by_albumhash", staticmethod(lambda _hash, **_kw: list(tracks)))
 
 
 class TestCandidates:
@@ -678,3 +678,29 @@ class TestFileNames:
         res = api.post("/metadata/album/preview", json={"albumhash": ALBUM_HASH, "source": "filenames"})
         rows = await_job(api, res.json["job"])["result"]["rows"]
         assert [r["filename"]["proposed"] for r in rows] == ["1-01 - Intro.mp3", "2-02 - Outro.mp3"]
+
+
+def test_the_local_list_has_a_row_per_file_even_when_they_share_a_hash(metadata_api, monkeypatch):
+    """Through the REAL TrackStore lookup: the stub above hides its dedupe, and
+    that dedupe showed one row for an album of twenty "Track 1" rips."""
+    from types import SimpleNamespace
+
+    _, module = metadata_api
+    files = [
+        SimpleNamespace(
+            albumhash=ALBUM_HASH,
+            trackhash="samehash00000000",
+            filepath=f"/music/album/{n:02d}.flac",
+            title="Track 1",
+            track=n,
+            disc=1,
+            duration=180,
+            bitrate=900,
+        )
+        for n in range(1, 4)
+    ]
+    monkeypatch.setattr(module.TrackStore, "trackhashmap", {"samehash00000000": SimpleNamespace(tracks=files)})
+
+    rows = module._local_tracks(ALBUM_HASH)
+
+    assert sorted(r.filepath for r in rows) == [f.filepath for f in files]

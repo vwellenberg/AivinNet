@@ -79,7 +79,10 @@ def _local_tracks(albumhash: str) -> list[LocalTrack]:
             disc=t.disc or 1,
             duration=t.duration or 0,
         )
-        for t in TrackStore.get_tracks_by_albumhash(albumhash)
+        # Every FILE, not every trackhash: an album whose files all say "Track 1"
+        # shares ONE hash, and the deduplicated list showed one row for twenty
+        # files — the apply (keyed by filepath) never saw the other nineteen.
+        for t in TrackStore.get_tracks_by_albumhash(albumhash, including_duplicates=True)
     ]
     return order_local(tracks)
 
