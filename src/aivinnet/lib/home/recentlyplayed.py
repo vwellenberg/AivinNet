@@ -23,6 +23,11 @@ def get_recently_played_playlist(limit: int = 100):
     scrobbles = ScrobbleTable.get_all(None, 100)
     tracks = TrackStore.get_tracks_by_trackhashes([scrobble.trackhash for scrobble in scrobbles])
 
+    # A new account (or a history of deleted files) has nothing to show — an
+    # empty list, not a 500 from `tracks[0]`.
+    if not tracks:
+        return playlist, []
+
     date = datetime.fromtimestamp(tracks[0].lastplayed)
     playlist._last_updated = date_string_to_time_passed(create_new_date(date))
 
