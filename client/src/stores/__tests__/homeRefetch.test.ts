@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 const limit = ref(6)
+const fetchFor = ref(6)
 const fetchHome = vi.fn()
 
-vi.mock('../content-width', () => ({ maxAbumCards: limit }))
+vi.mock('../content-width', () => ({ maxAbumCards: limit, fetchCardCount: fetchFor }))
 vi.mock('@/requests/home', () => ({ getHomePageData: (n: number) => fetchHome(n) }))
 
 import useHome from '../home'
@@ -14,6 +15,7 @@ describe('home store refetch on widen', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         limit.value = 6
+        fetchFor.value = 6
         fetchHome.mockReset()
         fetchHome.mockResolvedValue([])
     })
@@ -22,6 +24,7 @@ describe('home store refetch on widen', () => {
         const home = useHome()
         await home.fetchAll()
         limit.value = 11
+        fetchFor.value = 11
         await home.refetchIfWider()
 
         expect(fetchHome.mock.calls.map(c => c[0])).toEqual([6, 11])

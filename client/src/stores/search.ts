@@ -11,7 +11,7 @@ import useTabs from './tabs'
 import useLoader from './loader'
 import useSettings from './settings'
 import usePlaylists from './pages/playlists'
-import { maxAbumCards } from './content-width'
+import { fetchCardCount } from './content-width'
 import { recordRecentSearch } from '@/utils/recentSearches'
 
 import { Album, Artist, Folder, Playlist, Track } from '../interfaces'
@@ -116,7 +116,7 @@ export default defineStore('search', () => {
         let limit = 3
 
         if (route.value.name == Routes.search) {
-            limit = maxAbumCards.value
+            limit = fetchCardCount.value
         }
 
         // Matching playlists come from the local library, not the search API.

@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 import { getHomePageData } from '@/requests/home'
 import { HomePageItem } from '@/interfaces'
-import { maxAbumCards } from './content-width'
+import { fetchCardCount, maxAbumCards } from './content-width'
 
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
@@ -32,7 +32,7 @@ export default defineStore('homepage', () => {
     let inflight = false
 
     async function fetchAll() {
-        const limit = maxAbumCards.value
+        const limit = fetchCardCount.value
         fetchedLimit = limit
         const data: { [key: string]: HomePageItem }[] = await getHomePageData(limit)
         let keys = []
