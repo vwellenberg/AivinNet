@@ -124,7 +124,10 @@ class ChartItemsQuery(BaseModel):
         "year",
         description="Duration to fetch data for",
     )
-    limit: int = Field(10, ge=1, description="Number of top tracks to return")
+    # Capped: the client pages by 10 or 50 (chartPager.ts), and every chart
+    # handler serialises and trend-scans each returned item on the single
+    # request thread — limit=1000000 froze the app for over a minute.
+    limit: int = Field(10, ge=1, le=100, description="Number of top tracks to return")
     offset: int = Field(0, ge=0, description="Number of items to skip (pagination)")
     order_by: Literal["playcount", "playduration"] = Field("playduration", description="Property to order by")
 

@@ -45,10 +45,33 @@ class TestBodyLimits:
 
         assert res.status_code != 413
 
-    def test_pillow_will_not_decode_a_bomb(self, hardened_app):
+    @staticmethod
+    def _png(size):
+        import io
+
         from PIL import Image
 
-        assert Image.MAX_IMAGE_PIXELS == 64_000_000
+        buf = io.BytesIO()
+        Image.new("1", size).save(buf, "PNG")  # 1 bit per pixel: tiny, still `size` pixels
+        buf.seek(0)
+        return buf
+
+    def test_pillow_will_not_decode_a_bomb(self, hardened_app):
+        """Pillow raises only above TWICE MAX_IMAGE_PIXELS; the ceiling is 64 MP.
+        Asserting the constant hid that it used to let 128 MP through."""
+        from PIL import Image
+
+        with pytest.raises(Image.DecompressionBombError):
+            Image.open(self._png((10_000, 7_000)))  # 70 MP
+
+    def test_a_large_real_cover_still_opens(self, hardened_app):
+        import warnings
+
+        from PIL import Image
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+            assert Image.open(self._png((8_000, 7_500))).size == (8_000, 7_500)  # 60 MP
 
 
 class TestSecurityHeaders:

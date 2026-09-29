@@ -35,10 +35,20 @@ def _valid_sort_keys(is_albums: bool) -> frozenset:
 
 
 class GetAllItemsQuery(GenericLimitSchema):
+    # Bounded: an unbounded limit serialised the whole library on the single
+    # request thread. The largest real caller is the search browser's artist
+    # list (searchBrowse.ts, 2000 per page).
+    limit: int = Field(
+        description="The number of items to return",
+        default=GenericLimitSchema.model_fields["limit"].default,
+        ge=1,
+        le=2000,
+    )
     start: int = Field(
         description="The start index of the items to return",
         example=0,
         default=0,
+        ge=0,
     )
     sortby: str = Field(
         description="The key to sort items by",

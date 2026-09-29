@@ -65,6 +65,13 @@ def test_zero_limit_is_rejected(chart_query_app):
     assert res.status_code == 422
 
 
+def test_a_huge_limit_is_rejected(chart_query_app):
+    """limit=1000000 made every chart handler serialise and trend-scan the whole
+    history on the single request thread (a guest could freeze the app)."""
+    assert chart_query_app.get("/charts?limit=1000000").status_code == 422
+    assert chart_query_app.get("/charts?limit=50").status_code == 200
+
+
 def test_paginate_window_slices_and_reports_total():
     from aivinnet.api.scrobble import paginate_window
 
