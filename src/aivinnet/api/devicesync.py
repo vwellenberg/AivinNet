@@ -44,7 +44,10 @@ TARGETED_TYPES = MEMBER_TARGETED_TYPES | {"join_invite"}
 
 # Defensive caps on client-supplied lists (a runaway queue would bloat RAM/JSON).
 MAX_QUEUE_TRACKS = 5000
-MAX_RESOLVE_TRACKS = 1000
+# Must not be below MAX_QUEUE_TRACKS: a follower resolves the WHOLE mirrored
+# queue in one request, so a 2000-track queue that queue-set accepted was
+# refused here on every poll, and the other devices never got it.
+MAX_RESOLVE_TRACKS = MAX_QUEUE_TRACKS
 
 
 class RegisterBody(BaseModel):
@@ -319,8 +322,19 @@ def resolve(body: ResolveBody):
     if len(trackhashes) > MAX_RESOLVE_TRACKS:
         return {"msg": f"Too many trackhashes (max {MAX_RESOLVE_TRACKS})."}, 400
 
-    # Passing a list makes the store preserve request order (missing hashes drop).
-    tracks = TrackStore.get_tracks_by_trackhashes(list(trackhashes))
+    # One entry per requested POSITION, duplicates included: the follower uses
+    # the list positionally against the group's currentindex. The store lookup
+    # deduplicates, so a queue [a, b, a, c] came back as [a, b, c] and every
+    # device behind the first repeat played the wrong song. Missing hashes drop.
+    best: dict[str, object] = {}
+    tracks = []
+    for trackhash in trackhashes:
+        if trackhash not in best:
+            group = TrackStore.trackhashmap.get(trackhash)
+            best[trackhash] = group.get_best() if group else None
+        if best[trackhash] is not None:
+            tracks.append(best[trackhash])
+
     return {"tracks": [serialize_track(track) for track in tracks]}
 
 

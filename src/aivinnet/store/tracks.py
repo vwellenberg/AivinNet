@@ -212,9 +212,13 @@ class TrackStore:
                 track = group.get_best()
                 tracks.append(track)
 
-        # sort the tracks in the order of the given trackhashes
+        # sort the tracks in the order of the given trackhashes (first occurrence;
+        # a position map instead of list.index, which made this quadratic)
         if type(trackhashes) is list:
-            tracks.sort(key=lambda t: trackhashes.index(t.trackhash))
+            position: dict[str, int] = {}
+            for index, trackhash in enumerate(trackhashes):
+                position.setdefault(trackhash, index)
+            tracks.sort(key=lambda t: position[t.trackhash])
 
         return tracks
 
