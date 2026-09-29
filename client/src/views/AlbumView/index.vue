@@ -167,7 +167,7 @@ function getArtistAlbumComponents(): ScrollerItem[] {
                     item: album,
                 })),
                 title: `More from ${artistname}`,
-                route: `/artists/${artisthash}/discography/all?artist=${encodeURIComponent(artistname)}`,
+                route: `/artists/${artisthash}/discography/all?artist=${encodeURIComponent(artistname ?? '')}`,
             },
         }
     })
