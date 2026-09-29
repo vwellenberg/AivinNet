@@ -60,6 +60,24 @@ def _identity_artist_hashes(track: Track) -> set[str]:
     return hashes
 
 
+# State the stores derive at startup from OTHER tables (favorites, scrobbles,
+# colors). A rebuilt track/album/artist starts empty, so without carrying it
+# over every tag edit showed the track, its album and its artists as
+# un-favourited and unplayed, and dropped the artist colour — until a restart
+# re-derived it. The tables themselves were never touched.
+_DERIVED_STATE = ("fav_userids", "playcount", "playduration", "lastplayed", "color")
+
+
+def _carry_over(old, new) -> None:
+    for name in _DERIVED_STATE:
+        if not (hasattr(old, name) and hasattr(new, name)):
+            continue
+        value = getattr(old, name)
+        if name == "color" and not value:
+            continue
+        setattr(new, name, list(value) if isinstance(value, list) else value)
+
+
 def _reconcile_album(albumhash: str) -> None:
     """Rebuild an album map entry from current store truth, or drop it if empty."""
     tracks = TrackStore.get_tracks_by_albumhash(albumhash)
@@ -72,8 +90,8 @@ def _reconcile_album(albumhash: str) -> None:
         if album.albumhash != albumhash:
             continue
 
-        if existing is not None and existing.album.color:
-            album.color = existing.album.color
+        if existing is not None:
+            _carry_over(existing.album, album)
 
         AlbumStore.index_new_album(album, trackhashes)
         return
@@ -95,6 +113,9 @@ def _reconcile_artist(artisthash: str) -> None:
 
     if rebuilt is not None:
         artist, trackhashes, albumhashes = rebuilt
+        existing = ArtistStore.artistmap.get(artisthash)
+        if existing is not None:
+            _carry_over(existing.artist, artist)
         ArtistStore.artistmap[artisthash] = ArtistMapEntry(
             artist=artist, albumhashes=albumhashes, trackhashes=trackhashes
         )
@@ -113,6 +134,7 @@ def _index_file(filepath: str) -> None:
     code that nothing else imports. The album/artist maps are reconciled
     separately by the caller from store truth.
     """
+    previous = next(iter(TrackStore.get_tracks_by_filepaths([filepath])), None)
     TrackStore.remove_track_by_filepath(filepath)
 
     config = UserConfig()
@@ -134,6 +156,8 @@ def _index_file(filepath: str) -> None:
         "playduration": 0,
     }
     track = track_to_dataclass(track_dict, config)
+    if previous is not None:
+        _carry_over(previous, track)
     TrackStore.add_track(track)
     # The folder view looks files up by their hash, and the hash may just have
     # changed with the tags.

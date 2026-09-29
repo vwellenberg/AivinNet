@@ -72,10 +72,11 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
 uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py --config-file pyproject.toml
 ```
 
-⚠️ **Die API-Tests (`tests_api/`) laufen auf Windows nicht** — bjoern braucht libev. Sie gehören
-auf den Server. Der Befehl dafür und die Test-Konventionen (was in welchen PR gehört, die
-`sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt automatisch, sobald eine
-Testdatei gelesen wird.
+**Die API-Tests (`tests_api/`) laufen auch auf Windows:** `uv run --frozen pytest tests_api/`
+(waitress statt bjoern, kein libev nötig). Nur 5 Plattform-Fälle (POSIX-Dateirechte, Löschen
+offener Dateien) sind dort rot. Welche das sind, die Server-Variante und die Test-Konventionen
+(was in welchen PR gehört, die `sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt
+automatisch, sobald eine Testdatei gelesen wird.
 
 ## Branch-Workflow
 

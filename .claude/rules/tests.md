@@ -14,8 +14,16 @@ Zwei Lanes, bewusst getrennt:
 | **API (voller Stack)** | `tests_api/` | eigener CI-Job, `uv sync` + libev, echter `flask_openapi3`-Request-Zyklus |
 
 `bjoern` braucht `libev-dev` + `python3-dev` zum Bauen und fehlt in vielen Umgebungen — deshalb
-läuft die schnelle Lane über `uvx` statt über eine volle Installation. Die API-Lane ist auf
-Windows **nicht** lauffähig; stattdessen auf dem Server gegen dessen venv:
+läuft die schnelle Lane über `uvx` statt über eine volle Installation.
+
+**Die API-Lane läuft auch auf Windows** — `pyproject.toml` nimmt dort waitress statt bjoern, also
+braucht es kein libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (am 2026-09-29
+gemessen: 453 grün). Plattformbedingt rot, **kein** Befund: die POSIX-Rechte-Tests in
+`test_hardening_basics.py` (`TestFilePermissions`, `TestExistingInstallsAreFixedToo`; Windows hat
+kein `chmod 600`) und `test_download_bounds.py::test_no_temp_file_is_left_behind` (Windows löscht
+eine noch offene Datei nicht). Die Behauptung „läuft auf Windows nicht" stand hier monatelang,
+ohne dass es jemand probiert hatte. Wer die Plattform-Fälle oder bjoern selbst prüfen will, nimmt
+den Server und dessen venv:
 
 ```bash
 # Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo).
