@@ -159,6 +159,26 @@ def get_cover_content_key(image: str) -> str | None:
         return None
 
 
+def _albumhashes_in_order(tracks: list[Track], trackhashes: list[str]):
+    """
+    Distinct albumhashes in track-list order, resolved LAZILY.
+
+    The caller stops at four covers, and GET /playlists runs it for every
+    playlist without its own image. Resolving the whole list up front — every
+    track of a 30k-track "whole library" playlist — held the single-threaded
+    server for seconds on each sidebar load.
+    """
+    seen: set[str] = set()
+
+    if trackhashes:
+        tracks = (group.get_best() for h in trackhashes if (group := TrackStore.trackhashmap.get(h)))
+
+    for track in tracks:
+        if track.albumhash not in seen:
+            seen.add(track.albumhash)
+            yield track.albumhash
+
+
 # TODO: mutable var in param.
 def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) -> list[dict["str", str]]:
     """
@@ -179,22 +199,11 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
     When tracks are not passed, trackhashes need to be passed.
     Tracks are then resolved from the store.
     """
-    if len(trackhashes) > 0:
-        tracks = TrackStore.get_tracks_by_trackhashes(trackhashes)
-
-    albumhashes = []
-    seen_hashes = set()
-
-    for track in tracks:
-        if track.albumhash not in seen_hashes:
-            seen_hashes.add(track.albumhash)
-            albumhashes.append(track.albumhash)
-
     images = []
     seen_covers = set()
     coverless_fallback = None
 
-    for album in AlbumStore.get_albums_by_hashes(albumhashes):
+    for album in (a for h in _albumhashes_in_order(tracks, trackhashes) for a in AlbumStore.get_albums_by_hashes([h])):
         key = get_cover_content_key(album.image)
 
         if key is None:

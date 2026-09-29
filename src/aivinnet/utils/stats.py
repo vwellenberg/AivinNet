@@ -51,13 +51,15 @@ def get_albums_in_period(start_time: int, end_time: int, userid: int | None = No
         album_entry = AlbumStore.albummap.get(track.albumhash)
         if not album_entry:
             continue
-        album_entry = copy.deepcopy(album_entry)
-
         albumhash = album_entry.album.albumhash
         if albumhash not in albums:
-            albums[albumhash] = album_entry.album
-            albums[albumhash].playcount = 0
-            albums[albumhash].playduration = 0
+            # Copied once per ALBUM. It was once per scrobble, before this
+            # check: a heavy listener's year meant tens of thousands of deep
+            # copies (album plus its trackhash set) on the single request thread.
+            album = copy.deepcopy(album_entry.album)
+            album.playcount = 0
+            album.playduration = 0
+            albums[albumhash] = album
 
         albums[albumhash].playcount += 1
         albums[albumhash].playduration += scrobble.duration
