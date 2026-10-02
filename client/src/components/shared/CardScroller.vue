@@ -1,5 +1,8 @@
 <template>
-    <div class="cardscroller" :class="uniformType ? `row-is-${uniformType}` : ``">
+    <div
+        class="cardscroller"
+        :class="[uniformType ? `row-is-${uniformType}` : ``, { 'has-route': !!route }]"
+    >
         <div class="rinfo">
             <div class="rtitle">
                 <b>
@@ -221,15 +224,6 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
             justify-content: space-between;
             gap: $small;
 
-            // A row of exactly one type names that type in colour; a mixed row
-            // stays neutral (see `uniformType`). Written on the row root so the
-            // caption and its description answer together.
-            @each $name, $colour in $mem-entities {
-                .cardscroller.row-is-#{$name} & > b {
-                    @include mem-entity-tint($name);
-                }
-            }
-
             > b {
                 @include mem-sticker;
                 min-width: 0;
@@ -261,6 +255,40 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+        }
+    }
+
+    // The caption and the description are one link to the row's page, and a
+    // link is pressable: it carries the hatch like every other plate that can
+    // be pressed (styling.md) — as a ring around the words, never behind them.
+    // Only with a route: without one the link points at the page it is on.
+    // The sticker's own 0.3rem above and below is too thin to hold a readable
+    // ring (measured: strokes only at the corners), so a linked caption pads
+    // 0.5rem and the ring takes 0.3rem of it — the rest stays the buffer that
+    // keeps the strokes off the letters.
+    &.has-route .rinfo {
+        .rtitle > b,
+        .rdesc > a {
+            padding-block: 0.5rem;
+            @include mem-label-hatch(26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.3rem);
+        }
+    }
+
+    // A row of exactly one type names that type in colour; a mixed row stays
+    // neutral (see `uniformType`). Written on the row root so the caption and
+    // its description answer together.
+    //
+    // ⚠️ Lives HERE, not inside `.rtitle`: `.cardscroller.row-is-x &` from in
+    // there compiled to `.cardscroller.row-is-x .cardscroller .rinfo .rtitle`
+    // — a second `.cardscroller` that never exists — so no row ever took its
+    // colour and "Top artists" stayed a white caption above coral tiles.
+    @each $name, $colour in $mem-entities {
+        &.row-is-#{$name} .rinfo .rtitle > b {
+            @include mem-entity-tint($name);
+            // A static pastel, not a theme panel: the strokes must be the ink
+            // ones in the dark theme too (styling.md, rule 2) — and this rule
+            // has to come after the hatch above, equal specificity.
+            --label-hatch: var(--mem-hatch-accent);
         }
     }
 
