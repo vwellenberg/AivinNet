@@ -1,20 +1,35 @@
 <template>
   <!-- The folder PAGE: the whole row is a link, which the keyboard already has. -->
-  <router-link v-if="folder_page" :to="{ name: Routes.folder, params: { path: folder.path } }">
+  <!-- The row is a cassette-inlay line like the song list below it: guide band
+       on the leading edge, a glyph tile in the folder colour, a numeric prefix
+       ("025-") lifted out of the name into a small ordinal, a size gauge and
+       the count in a ring pill. Styles: FolderList.vue. -->
+  <router-link
+    v-if="folder_page"
+    :to="{ name: Routes.folder, params: { path: folder.path } }"
+    :title="folder.name"
+  >
     <div
       v-auto-animate
       v-context-menu="showContextMenu"
       class="f-item"
-      :class="{ context_menu_showing: context_menu_showing }"
+      :class="[band_class, { context_menu_showing: context_menu_showing }]"
+      :style="band_fade === undefined ? undefined : { '--band-fade': band_fade }"
     >
-      <SymLinkSvg v-if="folder.is_sym" />
-      <FolderSvg v-else />
-      <div class="info">
-        <div class="f-item-text ellip">{{ folder.name }}</div>
-        <div class="f-count" v-if="folder.trackcount">
-          {{ folder.trackcount.toLocaleString() + ` File${folder.trackcount == 1 ? "" : "s"}` }}
-        </div>
+      <span class="f-glyph">
+        <SymLinkSvg v-if="folder.is_sym" />
+        <FolderSvg v-else />
+      </span>
+      <div class="f-name">
+        <span v-if="label.ordinal" class="f-ordinal">{{ label.ordinal }}</span>
+        <span class="f-item-text ellip">{{ label.title }}</span>
       </div>
+      <span v-if="gauge" class="f-gauge" aria-hidden="true">
+        <span class="f-gauge-fill" :style="{ width: `${gauge}%` }"></span>
+      </span>
+      <span class="f-count" v-if="folder.trackcount">
+        {{ folder.trackcount.toLocaleString() + ` File${folder.trackcount == 1 ? "" : "s"}` }}
+      </span>
     </div>
   </router-link>
 
@@ -60,9 +75,10 @@
 
 <script setup lang="ts">
 import { Routes } from "@/router";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import { Folder } from "@/interfaces";
+import { folderGauge, folderLabel } from "@/utils/folderRow";
 
 import FolderSvg from "@/assets/icons/folder.svg";
 import SymLinkSvg from "@/assets/icons/symlink.svg";
@@ -76,7 +92,16 @@ const props = defineProps<{
   folder: Folder;
   is_checked?: boolean;
   folder_page?: boolean;
+  /** `band-N` class of the guide band (trackBandClass), folder page only. */
+  band_class?: string;
+  /** Band strength 0.25–1 (trackBandFade), folder page only. */
+  band_fade?: number;
+  /** File count of the biggest folder in the list — the gauge's 100%. */
+  max_count?: number;
 }>();
+
+const label = computed(() => folderLabel(props.folder.name));
+const gauge = computed(() => folderGauge(props.folder.trackcount, props.max_count ?? props.folder.trackcount));
 
 const emit = defineEmits<{
   (e: "navigate"): void;
