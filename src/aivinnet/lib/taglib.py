@@ -201,7 +201,8 @@ def clean_filename(filename: str):
 
 
 _AUDIO_SUFFIX = re.compile(r"\.(mp3|flac|ogg|m4a|wav|wma|opus|aac|aiff?)$", re.IGNORECASE)
-_ZERO_PADDED_TRACK = re.compile(r"0\d+[\s._)]+(\S.*)$")
+# An optional disc in front: "1-04. Home - a place to enjoy" (Kenshi).
+_ZERO_PADDED_TRACK = re.compile(r"(?:\d+-)?0\d+[\s._)]+(\S.*)$")
 
 
 @dataclass

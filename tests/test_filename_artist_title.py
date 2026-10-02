@@ -49,6 +49,8 @@ class TestAZeroPaddedNumberInFrontOfText:
             # Vermintide 2: artist "04 Bonus".
             ("04 Bonus - Jump Puzzle", "Bonus - Jump Puzzle"),
             ("01. Intro - Reprise", "Intro - Reprise"),
+            # Disc and track (Kenshi): artist "1-04. Home" before.
+            ("1-04. Home - a place to enjoy", "Home - a place to enjoy"),
         ],
     )
     def test_it_is_a_track_number_and_the_dash_is_part_of_the_title(self, stem, title):
