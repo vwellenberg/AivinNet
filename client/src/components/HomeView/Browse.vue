@@ -8,8 +8,14 @@
         class="browseitem rounded-sm"
         :to="{ name: i.route || '', params: i.params }"
         @click="i.action && i.action()"
-        :class="i.class"
+        :class="[`ent-${i.entity}`, { favorite: i.favorite }]"
       >
+        <span
+          v-if="i.favorite"
+          class="fav-badge"
+          aria-hidden="true"
+          v-html="HeartFillIcon"
+        ></span>
         <div class="icon" v-html="i.icon"></div>
         <div class="label">
           {{ i.title }}
@@ -26,16 +32,23 @@ import {
   AlbumIcon,
   ArtistIcon,
   BookmarkIcon,
+  HeartFillIcon,
   PlaylistIcon,
 } from "@/icons";
 import { Routes } from "@/router";
 
+// The keys of `$mem-entities` (_candy.scss) a tile can be coloured by.
+type BrowseEntity = "album" | "artist" | "playlist" | "track";
+
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
+// `entity` colours the tile's shadow (what you will find behind it);
+// `favorite` adds the gold ring and badge (that it is your favourites only).
 interface BrowseItem {
   title: string;
   route: string;
   icon: string;
-  class?: string;
+  entity: BrowseEntity;
+  favorite?: boolean;
   params?: RouteParamsRaw;
   action?: () => void;
 }
@@ -44,36 +57,42 @@ interface BrowseItem {
 const browselist: BrowseItem[] = [
   {
     title: "Albums",
+    entity: "album",
     route: Routes.AlbumList,
     icon: AlbumIcon,
   },
   {
     title: "Artists",
+    entity: "artist",
     route: Routes.ArtistList,
     icon: ArtistIcon,
   },
   {
     title: "Playlists",
+    entity: "playlist",
     route: Routes.playlists,
     icon: PlaylistIcon,
   },
   {
     title: "Fav. tracks",
+    entity: "track",
     route: Routes.favoriteTracks,
     icon: BookmarkIcon,
-    class: "favorite",
+    favorite: true,
   },
   {
     title: "Fav. artists",
+    entity: "artist",
     route: Routes.favoriteArtists,
     icon: ArtistIcon,
-    class: "favorite",
+    favorite: true,
   },
   {
     title: "Fav. albums",
+    entity: "album",
     route: Routes.favoriteAlbums,
     icon: AlbumIcon,
-    class: "favorite",
+    favorite: true,
   },
 ];
 </script>
@@ -164,6 +183,56 @@ const browselist: BrowseItem[] = [
       // No colour of its own: it inherits the tile's, so the hover flip below
       // reaches the glyph too. A pinned `$candy-text` here sat ink-on-ink the
       // moment the hover fill became the contrast surface (#422).
+    }
+  }
+
+  // Colour coding (A from the mockup round): the hard shadow takes the tile's
+  // entity colour from the shared palette, so "Albums" and "Fav. albums" are
+  // the same lavender as every album tint in the sidebar and the card rows.
+  // Through `--mem-shadow` rather than a box-shadow of its own: candy-raised
+  // reads that token for rest AND hover, so the deeper hover offset keeps the
+  // colour, and a look that drops shadows (`--shape-shadow: none`) still
+  // drops them here.
+  @each $name in album, artist, playlist, track {
+    .browseitem.ent-#{$name} {
+      --mem-shadow: #{map-get($mem-entities, $name)};
+    }
+  }
+
+  // Favourites: a gold ring INSIDE the ink frame plus a heart badge on the
+  // corner. Inset 2px inside the 3px frame, hence radius - 5px. Inside, not instead of the frame: gold on the paper ground is too
+  // pale to be the tile's edge, the ink frame stays the contrast line. A
+  // pseudo-element rather than `outline`, because outline is the keyboard
+  // focus ring (focus-ring) and must stay free for it.
+  .browseitem.favorite {
+    position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 2px solid $mem-gold;
+      border-radius: max(0px, calc(#{$candy-radius-sm} - 5px));
+      pointer-events: none;
+    }
+  }
+
+  .fav-badge {
+    position: absolute;
+    top: -0.6rem;
+    right: -0.6rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background-color: $mem-gold;
+    border: 2px solid $mem-frame;
+    color: $mem-ink;
+
+    svg {
+      width: 0.9rem;
+      height: 0.9rem;
     }
   }
 
