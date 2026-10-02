@@ -200,7 +200,7 @@ const CALLS: Record<string, unknown[]> = {
     'metadata/fetchPreview': ['alb1', 'musicbrainz', 'mb1'],
     'metadata/applyChanges': [[{ filepath: '/music/a.flac', changes: { title: 'B' } }]],
     'metadata/getAuditAlbums': [],
-    'metadata/ignoreAuditAlbum': ['/music/Album/u0000Album'],
+    'metadata/ignoreAuditAlbum': ['/music/Album/|Album'],
     'metadata/mergeAuditAlbum': ['/music/Album/', 'Album', 'Various Artists'],
     'musicbrainz/fetchCoverFromMusicBrainz': ['alb1'],
     'musicbrainz/fetchMissingCovers': [0, false],
