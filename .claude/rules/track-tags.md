@@ -114,6 +114,12 @@ ebenfalls Tracknummer, der Bindestrich gehört zum Titel. Ohne führende Null bl
 (`50 Cent`, `3 Doors Down`). Zweite Falle in derselben Funktion: Sie bekommt schon den **Stem**
 und schnitt trotzdem noch eine „Endung" ab — `01. Intro` wurde zu `01`.
 
+⚠️ **Eine Parser-Änderung erreicht den Bestand nicht.** Der Scan liest eine Datei nur neu, wenn
+sich ihr `last_mod` ändert — die 455 Titel, die der Doppel-Schnitt verstümmelt hatte („090",
+„H.A.M"), standen nach dem Fix weiter so da. Bestand gezielt nachziehen, und zwar per
+`/metadata/album/apply` (Dateipfad): der neue Titel ändert den trackhash, der Weg zieht
+Playlists/Favoriten mit. Ein erzwungener Voll-Rescan täte das **nicht**.
+
 ⚠️ `CD - Album - 01 Titel` ist **kein** Lesefehler: Bei Dream.Corp heißt der Künstler wirklich
 „CD" (Bandcamp-Tag). Vor einer Massenkorrektur die Rohtags der Datei ansehen (`ffprobe`), nicht
 nur, was die Bibliothek anzeigt.
