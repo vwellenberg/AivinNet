@@ -101,3 +101,7 @@ class TestADotInTheNameIsNotAnExtension:
 
         assert parsed.artist == ["Dream.Corp"]
         assert parsed.title == "Online"
+
+    def test_a_doubled_audio_extension_still_goes(self):
+        # Gothic 1 ships "09 new camp.mp3.mp3": the stem still ends in ".mp3".
+        assert extract_artist_title("09 new camp.mp3", CONFIG).title == "09 new camp"

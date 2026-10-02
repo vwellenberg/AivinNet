@@ -200,6 +200,7 @@ def clean_filename(filename: str):
     return filename
 
 
+_AUDIO_SUFFIX = re.compile(r"\.(mp3|flac|ogg|m4a|wav|wma|opus|aac|aiff?)$", re.IGNORECASE)
 _ZERO_PADDED_TRACK = re.compile(r"0\d+[\s._)]+(\S.*)$")
 
 
@@ -221,10 +222,11 @@ def extract_artist_title(filename: str, config: UserConfig):
     :params config: UserConfig for user separators
     """
 
-    # `filename` is already a stem (get_tags passes `filepath.stem`). Stripping a
-    # suffix again cut "01. Intro" down to "01": everything after the first
-    # dot looked like an extension.
-    path = clean_filename(filename)
+    # `filename` is already a stem (get_tags passes `filepath.stem`). Stripping
+    # any suffix again cut "01. Intro" down to "01" — everything after the first
+    # dot looked like an extension. Only a second AUDIO extension goes: rips
+    # named "09 new camp.mp3.mp3" exist (Gothic, 25 files).
+    path = clean_filename(_AUDIO_SUFFIX.sub("", filename))
     split_result = path.split(" - ")
     split_result = [x.strip() for x in split_result]
 
