@@ -231,6 +231,11 @@ $maxpadleft: 5rem;
 
 $alt_layout_pad: max(2rem, calc((100% - 1600px) / 2));
 
+// The wider column the Home card grids are centred in (views/HomeView/main.vue).
+// 2400px = twelve 192px cards with their gaps and a little air; past that the
+// page centres again instead of stretching to an ultrawide's edges.
+$home-max-width: 2400px;
+
 $maxpadright: calc(100% - $maxwidth);
 
 $padleft: clamp(2rem, $maxpadright, $maxpadleft);
