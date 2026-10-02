@@ -90,7 +90,10 @@ const maxCount = computed(() =>
     // Google's one-line list row, which this also is on a phone ($phone-list-row).
     height: $phone-list-row;
     background-color: transparent;
-    grid-template-columns: max-content minmax(0, 1fr) 7.5rem max-content;
+    // The count column is FIXED: as `max-content` it followed each row's pill
+    // ("3 Files" vs "7,667 Files"), and the gauges beside it stood ragged
+    // instead of in one column. 5.5rem holds "12,671 Files".
+    grid-template-columns: max-content minmax(0, 1fr) 7.5rem 5.5rem;
     gap: $medium;
     padding: 0 $medium 0 calc(#{$songlist-band-w} + #{$small});
     // Flat row inside the plate — no tile, so no offset shadow either.
