@@ -29,6 +29,12 @@ $mem-pink: #f2799f !default; // decorative accent
 // a TRUE blue. The palette's only other cool tones are teal (blue-green) and
 // lavender (blue-violet), and six entities need six separable hues.
 $mem-blue: #3b82d9 !default;
+// The favourite MARK on the home page's browse tiles (ring + badge). Not an
+// entity colour and not a state: the tile's entity already owns its shadow, so
+// "this is a favourites shortcut" needs a second, separate channel. Deeper
+// than $mem-yellow on purpose — the fav-tracks tile carries both, the yellow
+// as its shadow and the gold as its ring.
+$mem-gold: #d4a017 !default;
 $mem-blush: #f5c6ce !default; // soft fills (nav active, buttons)
 $mem-blush-soft: #fbe3e7 !default; // input fills, hover on white
 $mem-text-muted: #6d6a62 !default; // subtitles, captions
@@ -1324,6 +1330,11 @@ $mem-band-tint: 6%;
 // block because it is full strength, a 4px stripe, and lives inside a track
 // list — while an entity tint is pale, flat, and lives on a tile. Anyone adding
 // a fourth use of the palette owes the same three-way separation.
+//
+// Not a fourth use, the SAME one at full strength: the home page's browse
+// tiles (HomeView/Browse.vue) take their entity's colour as the hard shadow.
+// Same meaning as the tint (album is lavender everywhere), but a 3px edge
+// under a white plate rather than a fill, so it never competes with a tint.
 // ---------------------------------------------------------------------------
 $mem-entities: (
   "album": $mem-lavender,
