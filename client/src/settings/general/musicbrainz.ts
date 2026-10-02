@@ -1,4 +1,5 @@
 import { Setting } from '@/interfaces/settings'
+import useModal from '@/stores/modal'
 import useMusicBrainzStore from '@/stores/musicbrainz'
 import { SettingType } from '../enums'
 
@@ -37,4 +38,15 @@ const fetchMissingCovers: Setting = {
     },
 }
 
-export default [fetchMissingCovers]
+// The list is worked out on the server from the library as it stands, so it is
+// current after every scan; the button only opens it.
+const checkLibrary: Setting = {
+    title: 'Check library for broken tags',
+    desc: 'Lists albums that fell apart into several, have a track number as their artist, or placeholder titles. Nothing is changed until you choose to.',
+    type: SettingType.button,
+    state: null,
+    button_text: () => 'Check',
+    action: () => useModal().showLibraryAuditModal(),
+}
+
+export default [fetchMissingCovers, checkLibrary]

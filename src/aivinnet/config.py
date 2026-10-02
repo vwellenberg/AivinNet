@@ -112,6 +112,12 @@ class UserConfig(metaclass=Singleton):
     # MusicBrainz lookups) are unaffected: the user is asking, right then.
     enableOnlineMetadata: bool = False
 
+    # Findings of the library check (`lib/library_audit.py`) the owner looked at
+    # and wants to keep as they are — a collaboration album filed under two
+    # artists on purpose, say. Keys are folder + album title, so a finding comes
+    # back if the album's tags change. Managed from the check's own dialog.
+    libraryAuditIgnored: list[str] = field(default_factory=list)
+
     # plugins
     lastfmApiKey: str = "0553005e93f9a4b4819d835182181806"
     lastfmApiSecret: str = "5e5306fbf3e8e3bc92f039b6c6c4bd4e"
