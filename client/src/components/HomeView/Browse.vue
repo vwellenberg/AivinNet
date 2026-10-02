@@ -211,7 +211,7 @@ const browselist: BrowseItem[] = [
       content: "";
       position: absolute;
       inset: 2px;
-      border: 2px solid $mem-gold;
+      border: $mem-ring-w solid $mem-gold;
       border-radius: max(0px, calc(#{$candy-radius-sm} - 5px));
       pointer-events: none;
     }
@@ -227,7 +227,7 @@ const browselist: BrowseItem[] = [
     place-items: center;
     border-radius: 50%;
     background-color: $mem-gold;
-    border: 2px solid $mem-frame;
+    border: $mem-ring-w solid $mem-frame;
     color: $mem-ink;
 
     svg {
