@@ -200,10 +200,11 @@ const browselist: BrowseItem[] = [
   }
 
   // Favourites: a gold ring INSIDE the ink frame plus a heart badge on the
-  // corner. Inset 2px inside the 3px frame, hence radius - 5px. Inside, not instead of the frame: gold on the paper ground is too
-  // pale to be the tile's edge, the ink frame stays the contrast line. A
-  // pseudo-element rather than `outline`, because outline is the keyboard
-  // focus ring (focus-ring) and must stay free for it.
+  // top edge. Inside, not instead of the frame: gold on the paper ground is
+  // too pale to be the tile's edge, the ink frame stays the contrast line.
+  // Inset 2px within the 3px frame, hence radius - 5px. A pseudo-element
+  // rather than `outline`, because outline is the keyboard focus ring
+  // (focus-ring) and must stay free for it.
   .browseitem.favorite {
     position: relative;
 
@@ -217,10 +218,13 @@ const browselist: BrowseItem[] = [
     }
   }
 
+  // On the top edge, NOT over the corner: the phone grid runs the right
+  // column flush to the page edge, and `.content-page` clips horizontally —
+  // a corner badge lost its right half there (measured at 390px).
   .fav-badge {
     position: absolute;
-    top: -0.6rem;
-    right: -0.6rem;
+    top: -0.75rem;
+    right: 0.75rem;
     width: 1.5rem;
     height: 1.5rem;
     display: grid;
