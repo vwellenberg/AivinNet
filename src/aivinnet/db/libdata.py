@@ -1,7 +1,8 @@
+from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import JSON, Integer, String, delete, select, update
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, Integer, String, delete, insert, select, update
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from aivinnet.config import UserConfig
 from aivinnet.db import Base
@@ -81,6 +82,25 @@ class TrackTable(Base):
         with DbEngine.manager(commit=True) as conn:
             result = conn.execute(update(TrackTable).where(TrackTable.filepath == old).values(filepath=new))
             return result.rowcount
+
+    @classmethod
+    def replace_by_filepath(cls, tags: dict[str, Any], also: Callable[[Session], None] | None = None) -> int:
+        """
+        Swap the row of ``tags["filepath"]`` for one built from ``tags``, in ONE
+        transaction, and return the new row id.
+
+        ``also`` runs inside the same transaction, so whatever has to change
+        together with the row (a tag edit repointing playlists) commits or rolls
+        back with it. Done as a DELETE and an INSERT in separate commits, a
+        failure in between (a locked database, live on 2026-09-30) left the
+        file on disk and no row for it: the track was gone from the library.
+        """
+        with DbEngine.manager(commit=True) as session:
+            session.execute(delete(cls).where(cls.filepath == tags["filepath"]))
+            result = session.execute(insert(cls).values(tags))
+            if also is not None:
+                also(session)
+            return result.inserted_primary_key[0]
 
     @classmethod
     def remove_tracks_by_filepaths(cls, filepaths: set[str]):

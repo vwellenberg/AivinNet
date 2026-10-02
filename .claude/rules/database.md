@@ -35,6 +35,20 @@ Tracks (`lib/tagger.py::create_albums` / `create_artists`). Eine Migration, die 
 muss deshalb **danach einen Scan auslösen** (`GET /notsettings/trigger-scan`); sonst verlieren
 Alben ihr Bild, die eines hätten.
 
+## ⚠️ Was zusammen stimmen muss, gehört in EINE Transaktion — und ein Rollback braucht keine DB
+
+Jede Tabellen-Hilfsmethode (`insert_one`, `remove_tracks_by_filepaths`, …) committet für sich.
+Hintereinander aufgerufen sind sie **keine** Einheit: Am 2026-09-30 tauschte eine Tag-Änderung
+ihre Track-Zeile als DELETE + INSERT in zwei Commits, ein `database is locked` kam dazwischen,
+und der Rollback — der dafür wieder in die DB schrieb — scheiterte an derselben Sperre. Fünf
+Tracks waren aus der Bibliothek verschwunden, die Dateien lagen unberührt daneben.
+
+Erkennbar an zwei Helfer-Aufrufen, die nur gemeinsam einen gültigen Zustand ergeben. Stattdessen:
+eine Session, alles darin (Vorbild `TrackTable.replace_by_filepath(tags, also=…)`, das die
+Referenz-Migration in dieselbe Transaktion zieht), Store erst **nach** dem Commit. Dann muss ein
+Rollback nur noch die Datei zurücklegen. Regressionstest: `tests_api/test_track_edit_db_lock.py`
+(hält die Sperre über den Rollback hinweg — eine Sperre, die ihn durchlässt, versteckt den Bug).
+
 ## Migrationen
 
 Der versionierte Mechanismus in `migrations/` ist **derzeit inert** (leere Modulliste, Apply-
