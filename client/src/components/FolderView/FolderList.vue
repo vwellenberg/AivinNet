@@ -31,7 +31,11 @@ const props = defineProps<{
 }>();
 
 // The gauge is relative to THIS list, so the biggest folder on screen is full.
-const maxCount = computed(() => Math.max(0, ...props.folders.map(folder => folder.trackcount || 0)));
+// A lone folder has nothing to be compared with — a full bar there says
+// nothing, so it gets none (undefined = no gauge, see FolderItem).
+const maxCount = computed(() =>
+  props.folders.length > 1 ? Math.max(0, ...props.folders.map(folder => folder.trackcount || 0)) : undefined
+);
 </script>
 
 <style lang="scss">

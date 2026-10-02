@@ -27,7 +27,7 @@
       <span v-if="gauge" class="f-gauge" aria-hidden="true">
         <span class="f-gauge-fill" :style="{ width: `${gauge}%` }"></span>
       </span>
-      <span class="f-count" v-if="folder.trackcount">
+      <span v-if="folder.trackcount" class="f-count">
         {{ folder.trackcount.toLocaleString() + ` File${folder.trackcount == 1 ? "" : "s"}` }}
       </span>
     </div>
@@ -96,12 +96,14 @@ const props = defineProps<{
   band_class?: string;
   /** Band strength 0.25–1 (trackBandFade), folder page only. */
   band_fade?: number;
-  /** File count of the biggest folder in the list — the gauge's 100%. */
+  /** File count of the biggest folder in the list — the gauge's 100%. No gauge without it. */
   max_count?: number;
 }>();
 
 const label = computed(() => folderLabel(props.folder.name));
-const gauge = computed(() => folderGauge(props.folder.trackcount, props.max_count ?? props.folder.trackcount));
+const gauge = computed(() =>
+  props.max_count === undefined ? 0 : folderGauge(props.folder.trackcount, props.max_count)
+);
 
 const emit = defineEmits<{
   (e: "navigate"): void;
