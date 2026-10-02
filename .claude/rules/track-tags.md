@@ -109,6 +109,27 @@ pro Track** (Saving Private Ryan, Manor Lords, Evil Genius, Mavi; 38 Dateien). E
 numerische erste Hälfte gilt seitdem als Tracknummer. Fehlt nur **einer** der beiden Tags, ist
 nichts zu tun: der andere springt ein.
 
+Seit 2026-10-02 zusätzlich: Eine **null-gepolsterte** Nummer vor Text (`05 Dark - Light`) ist
+ebenfalls Tracknummer, der Bindestrich gehört zum Titel. Ohne führende Null bleibt es Interpret
+(`50 Cent`, `3 Doors Down`). Zweite Falle in derselben Funktion: Sie bekommt schon den **Stem**
+und schnitt trotzdem noch eine „Endung" ab — `01. Intro` wurde zu `01`.
+
+⚠️ **Eine Parser-Änderung erreicht den Bestand nicht.** Der Scan liest eine Datei nur neu, wenn
+sich ihr `last_mod` ändert — die 455 Titel, die der Doppel-Schnitt verstümmelt hatte („090",
+„H.A.M"), standen nach dem Fix weiter so da. Bestand gezielt nachziehen, und zwar per
+`/metadata/album/apply` (Dateipfad): der neue Titel ändert den trackhash, der Weg zieht
+Playlists/Favoriten mit. Ein erzwungener Voll-Rescan täte das **nicht**.
+
+⚠️ `CD - Album - 01 Titel` ist **kein** Lesefehler: Bei Dream.Corp heißt der Künstler wirklich
+„CD" (Bandcamp-Tag). Vor einer Massenkorrektur die Rohtags der Datei ansehen (`ffprobe`), nicht
+nur, was die Bibliothek anzeigt.
+
+**Prüfliste** (`lib/library_audit.py`, Einstellungen → MusicBrainz → *Check library*): findet
+zerfallene Alben, Nummern als Interpret, Platzhalter. Live aus dem RAM-Store, also nach jedem Scan
+aktuell. Schreibt nur auf Klick, und „Merge" ändert nur den Album-Interpreten (nicht im
+trackhash), per Dateipfad. Ein Album-Titel, der nur der Ordnername ist, zählt **nicht** als
+zerfallen — sonst steht jeder Sammelordner loser Singles auf der Liste.
+
 Beim Nachziehen per Skript auf den **Schaden** filtern (beide Tags leer), nicht auf die
 Namensform `NN - Titel` — sonst überschreibt man Nachbardateien, die schon richtig getaggt waren.
 

@@ -30,7 +30,8 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
-from aivinnet.lib import filename_meta, filename_pattern, mbjobs
+from aivinnet.config import UserConfig
+from aivinnet.lib import filename_meta, filename_pattern, library_audit, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
 from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
@@ -528,3 +529,90 @@ def job_status(path: JobPath):
         return {"error": "Unknown job"}, 404
 
     return snap
+
+
+# INFO: The library check. A scan cannot repair what it misread, but it can say
+# so: the list is computed from the RAM store on every request (a few ms for
+# twelve thousand tracks), so it is current after every scan without any hook
+# into the indexer — and costs nothing until someone opens it.
+
+
+@api.get("/audit")
+@admin_required()
+def audit_albums():
+    """
+    Albums whose tags look broken: split into fragments, a track number for an
+    artist, placeholder titles. Reads only.
+    """
+    ignored = UserConfig().libraryAuditIgnored
+    findings = library_audit.find_suspicious_albums(TrackStore.get_flat_list(), ignored)
+    return {"albums": [f.todict() for f in findings], "ignored": len(ignored)}
+
+
+class AuditIgnoreBody(BaseModel):
+    key: str = Field(..., min_length=1, description="The finding's key, as /metadata/audit returned it")
+
+
+@api.post("/audit/ignore")
+@admin_required()
+def audit_ignore(body: AuditIgnoreBody):
+    """Keep one finding off the list for good (until the album's tags change)."""
+    config = UserConfig()
+    if body.key not in config.libraryAuditIgnored:
+        # A new list, not an in-place append: UserConfig writes to disk on
+        # attribute assignment only.
+        config.libraryAuditIgnored = [*config.libraryAuditIgnored, body.key]
+    return {"ignored": len(config.libraryAuditIgnored)}
+
+
+class AuditMergeBody(BaseModel):
+    folder: str = Field(..., description="The finding's folder")
+    title: str = Field(..., description="The finding's album title")
+    albumartist: str = Field(..., min_length=1, description="The album artist every track gets")
+
+
+@api.post("/audit/merge")
+@admin_required()
+def audit_merge(body: AuditMergeBody):
+    """
+    Join a split album: give every track of it the same album artist.
+
+    Only the album artist changes, and that is not part of the trackhash — so
+    playlists, favourites and history keep pointing at the same tracks. Written
+    by file path, because two files of one album can share a trackhash (an MP3
+    next to its WAV), and a lookup by hash would edit one of them twice.
+
+    Returns a job id; poll `/metadata/job/<job_id>`.
+    """
+    global _applying
+
+    filepaths = [t.filepath for t in TrackStore.get_flat_list() if t.folder == body.folder and t.album == body.title]
+    if not filepaths:
+        return {"error": "No such album"}, 404
+
+    with _apply_lock:
+        if _applying:
+            return {"error": "An apply is already running"}, 409
+        _applying = True
+
+    changes = [{"filepath": fp, "albumartists": [body.albumartist]} for fp in filepaths]
+    job_id = mbjobs.create()
+    _spawn(job_id, lambda: _run_merge(changes), writes=True)
+    return {"job": job_id}
+
+
+def _run_merge(changes: list[dict]) -> dict:
+    global _applying
+
+    try:
+        applied, failed = [], []
+        for change in changes:
+            try:
+                edit_track_tags_by_filepath(change["filepath"], {"albumartists": change["albumartists"]})
+                applied.append(change["filepath"])
+            except TrackEditError as e:
+                failed.append({"filepath": change["filepath"], "error": str(e)})
+        return {"applied": applied, "failed": failed}
+    finally:
+        with _apply_lock:
+            _applying = False

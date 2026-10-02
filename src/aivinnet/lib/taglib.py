@@ -3,7 +3,6 @@ import pathlib
 import re
 from dataclasses import dataclass
 from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 import pendulum
@@ -201,6 +200,11 @@ def clean_filename(filename: str):
     return filename
 
 
+_AUDIO_SUFFIX = re.compile(r"\.(mp3|flac|ogg|m4a|wav|wma|opus|aac|aiff?)$", re.IGNORECASE)
+# An optional disc in front: "1-04. Home - a place to enjoy" (Kenshi).
+_ZERO_PADDED_TRACK = re.compile(r"(?:\d+-)?0\d+[\s._)]+(\S.*)$")
+
+
 @dataclass
 class ParseData:
     artist: str
@@ -219,9 +223,11 @@ def extract_artist_title(filename: str, config: UserConfig):
     :params config: UserConfig for user separators
     """
 
-    path = Path(filename).with_suffix("")
-
-    path = clean_filename(str(path))
+    # `filename` is already a stem (get_tags passes `filepath.stem`). Stripping
+    # any suffix again cut "01. Intro" down to "01" — everything after the first
+    # dot looked like an extension. Only a second AUDIO extension goes: rips
+    # named "09 new camp.mp3.mp3" exist (Gothic 1 among others).
+    path = clean_filename(_AUDIO_SUFFIX.sub("", filename))
     split_result = path.split(" - ")
     split_result = [x.strip() for x in split_result]
 
@@ -250,6 +256,13 @@ def extract_artist_title(filename: str, config: UserConfig):
     # became an album of its own.
     if split_result[0].isdecimal():
         return ParseData("", split_result[1], config)
+
+    # "05 Dark - Light": a zero-padded number in front of the first part is a
+    # track number as well, and the dash belongs to the title. Only zero-padded:
+    # "50 Cent - ..." and "3 Doors Down - ..." are artists.
+    numbered = _ZERO_PADDED_TRACK.match(split_result[0])
+    if numbered:
+        return ParseData("", " - ".join([numbered.group(1), *split_result[1:]]), config)
 
     artist = split_result[0]
     title = split_result[1]

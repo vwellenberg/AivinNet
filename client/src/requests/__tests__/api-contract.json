@@ -280,6 +280,7 @@
       "required": []
     }
   },
+  "GET /metadata/audit": {},
   "GET /metadata/job/{job_id}": {},
   "GET /musicbrainz/missing-count": {},
   "GET /musicbrainz/status": {},
@@ -801,6 +802,32 @@
       ],
       "required": [
         "albumhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /metadata/audit/ignore": {
+    "body": {
+      "allowed": [
+        "key"
+      ],
+      "required": [
+        "key"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /metadata/audit/merge": {
+    "body": {
+      "allowed": [
+        "albumartist",
+        "folder",
+        "title"
+      ],
+      "required": [
+        "albumartist",
+        "folder",
+        "title"
       ],
       "type": "json"
     }

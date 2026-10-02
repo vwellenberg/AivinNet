@@ -186,3 +186,36 @@ export function applyChanges(changes: TrackChange[]) {
         { timeout: WRITE_TIMEOUT_MS, what: 'write' }
     )
 }
+
+// The library check (`GET /metadata/audit`): albums whose tags look broken.
+export type AuditReason = 'split' | 'number_artist' | 'placeholder_title' | 'placeholder_artist' | 'unknown_artist'
+
+export interface AuditAlbum {
+    key: string
+    albumhash: string
+    title: string
+    albumartists: string[]
+    folder: string
+    trackcount: number
+    reasons: AuditReason[]
+    fragments: number
+    merge_candidates: string[]
+}
+
+export async function getAuditAlbums(): Promise<{ albums: AuditAlbum[]; ignored: number } | null> {
+    const { data, status } = await useAxios({ url: '/metadata/audit', method: 'GET' })
+    return status === 200 ? (data as { albums: AuditAlbum[]; ignored: number }) : null
+}
+
+export async function ignoreAuditAlbum(key: string): Promise<boolean> {
+    const { status } = await useAxios({ url: '/metadata/audit/ignore', props: { key } })
+    return status === 200
+}
+
+export function mergeAuditAlbum(folder: string, title: string, albumartist: string) {
+    return run<{ applied: string[]; failed: { filepath: string; error: string }[] }>(
+        '/metadata/audit/merge',
+        { folder, title, albumartist },
+        { timeout: WRITE_TIMEOUT_MS, what: 'merge' }
+    )
+}

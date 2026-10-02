@@ -52,6 +52,11 @@
                 @hideModal="hideModal"
                 @setTitle="setTitle"
             />
+            <LibraryAudit
+                v-if="modal.component == modal.options.libraryAudit"
+                @hideModal="hideModal"
+                @setTitle="setTitle"
+            />
             <div v-if="modal.component == modal.options.deletePlaylist">
                 <ConfirmModal
                     :text="'Are you sure you want to permanently delete this playlist?'"
@@ -87,6 +92,7 @@ import RootDirsPrompt from './modals/RootDirsPrompt.vue'
 import EditTrack from './modals/EditTrack.vue'
 import FindCoverOnline from './modals/FindCoverOnline.vue'
 import FetchMetadata from './modals/FetchMetadata.vue'
+import LibraryAudit from './modals/LibraryAudit.vue'
 import SetRootDirs from './modals/SetRootDirs.vue'
 import Settings from './modals/Settings.vue'
 import UpdatePlaylist from './modals/updatePlaylist.vue'
@@ -108,6 +114,7 @@ const router = useRouter()
 const modalWidth = computed(() => {
     if (modal.component == ModalOptions.setRootDirs) return '56rem'
     if (modal.component == ModalOptions.fetchMetadata) return '44rem'
+    if (modal.component == ModalOptions.libraryAudit) return '44rem'
     return '30rem'
 })
 
