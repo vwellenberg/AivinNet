@@ -262,12 +262,15 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
     // link is pressable: it carries the hatch like every other plate that can
     // be pressed (styling.md) — as a ring around the words, never behind them.
     // Only with a route: without one the link points at the page it is on.
-    // The ring is narrower than the sticker's 0.3rem padding, which is the
-    // buffer that keeps the strokes off the letters.
+    // The sticker's own 0.3rem above and below is too thin to hold a readable
+    // ring (measured: strokes only at the corners), so a linked caption pads
+    // 0.5rem and the ring takes 0.3rem of it — the rest stays the buffer that
+    // keeps the strokes off the letters.
     &.has-route .rinfo {
         .rtitle > b,
         .rdesc > a {
-            @include mem-label-hatch(26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.15rem);
+            padding-block: 0.5rem;
+            @include mem-label-hatch(26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.3rem);
         }
     }
 

@@ -58,11 +58,13 @@ describe("the caption link carries the hatch", () => {
     expect(rule).toMatch(/@include mem-label-hatch\(/);
   });
 
-  it("keeps the ring narrower than the sticker's vertical padding", () => {
-    // mem-sticker pads 0.3rem above and below; a ring as tall as the default
-    // 0.6rem would run the strokes through the letters.
-    const ringY = /\$ring-y:\s*([\d.]+)rem/.exec(block(STYLE, "&.has-route .rinfo").body);
+  it("keeps the ring narrower than the vertical padding it sits in", () => {
+    // A ring as tall as the padding would run the strokes through the letters.
+    const rule = block(STYLE, "&.has-route .rinfo").body;
+    const ringY = /\$ring-y:\s*([\d.]+)rem/.exec(rule);
+    const padY = /padding-block:\s*([\d.]+)rem/.exec(rule);
     expect(ringY, "no $ring-y given").not.toBeNull();
-    expect(Number(ringY![1])).toBeLessThan(0.3);
+    expect(padY, "no padding-block given").not.toBeNull();
+    expect(Number(ringY![1])).toBeLessThan(Number(padY![1]));
   });
 });
