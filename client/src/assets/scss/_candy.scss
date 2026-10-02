@@ -1330,6 +1330,11 @@ $mem-band-tint: 6%;
 // block because it is full strength, a 4px stripe, and lives inside a track
 // list — while an entity tint is pale, flat, and lives on a tile. Anyone adding
 // a fourth use of the palette owes the same three-way separation.
+//
+// Not a fourth use, the SAME one at full strength: the home page's browse
+// tiles (HomeView/Browse.vue) take their entity's colour as the hard shadow.
+// Same meaning as the tint (album is lavender everywhere), but a 3px edge
+// under a white plate rather than a fill, so it never competes with a tint.
 // ---------------------------------------------------------------------------
 $mem-entities: (
   "album": $mem-lavender,
