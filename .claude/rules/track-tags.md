@@ -100,6 +100,18 @@ einem Durchgang abfragen.**
 - **Album aus dem Ordner — nur wenn es einen Albumordner gibt.** Liegen die Dateien direkt im
   Interpretenordner, wird sonst der Interpretenname zum Albumtitel (24 Weezer-Dateien).
 
+## ⚠️ Ohne Interpret-Tag liest der Indexer den Dateinamen — die Tracknummer darf kein Interpret sein
+
+Fehlen `artist` **und** `albumartist`, zerlegt `taglib.extract_artist_title` den Dateinamen an
+` - `. Bis 2026-10-02 wurde `01 - Titel` dabei als „Interpret – Titel" gelesen: Interpret `01`,
+`02` … — und weil der Album-Artist in den albumhash eingeht, zerfiel jedes Album in **ein Album
+pro Track** (Saving Private Ryan, Manor Lords, Evil Genius, Mavi; 38 Dateien). Eine rein
+numerische erste Hälfte gilt seitdem als Tracknummer. Fehlt nur **einer** der beiden Tags, ist
+nichts zu tun: der andere springt ein.
+
+Beim Nachziehen per Skript auf den **Schaden** filtern (beide Tags leer), nicht auf die
+Namensform `NN - Titel` — sonst überschreibt man Nachbardateien, die schon richtig getaggt waren.
+
 ## ⚠️ `album_artist` geht in den albumhash ein
 
 `albumhash = create_hash(album, *albumartists)`. Ein falscher Album-Artist spaltet das Album,
