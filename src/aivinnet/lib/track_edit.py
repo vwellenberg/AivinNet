@@ -3,11 +3,11 @@ Edit a track's metadata tags while keeping the library and references consistent
 
 P1 scope: text tags only (cover art is P1b). Because the trackhash is derived
 from title/album/artist, editing those fields changes the track's identity. The
-flow therefore is: back up the file, write the new tags, reindex the single file
-(capturing the old and new trackhash from the in-memory store), reconcile the
-affected album/artist maps, then repoint all playlist/favorite/history
-references from the old hash to the new one. Any failure restores the backup and
-re-indexes the original file so the store/DB and references stay in sync.
+flow therefore is: back up the file, write the new tags, then swap the track's
+row AND repoint all playlist/favorite/history references from the old hash to
+the new one in ONE database transaction. Any failure up to that commit restores
+the backup and nothing else, because the database never changed. Only after it
+do the in-memory stores and the album/artist maps follow.
 
 Note: ``watchdogg.remove_track`` is dead/broken in this fork (references an
 undefined ``db`` symbol and removed store helpers), so removal of the old DB row
@@ -124,9 +124,31 @@ def _reconcile_artist(artisthash: str) -> None:
     # else: still referenced only as an album artist elsewhere -> keep existing entry
 
 
-def _index_file(filepath: str) -> None:
+def _read_tags(filepath: str) -> dict:
+    """The file's tags as the indexer reads them, or an error if it has no audio."""
+    tags = get_tags(filepath, UserConfig())
+    if tags is None or tags["bitrate"] == 0 or tags["duration"] == 0:
+        raise TrackEditError("Reindexed file has no readable audio stream")
+    return tags
+
+
+def _as_track(tags: dict, row_id: int) -> Track:
     """
-    Index a single file into the DB and in-memory track store.
+    The Track the store will hold for these tags.
+
+    Built via the canonical DB-load path. get_tags() does NOT include
+    id/lastplayed/playcount/playduration, so Track(**tags) (as the dead
+    watchdogg.add_track does) raises a TypeError — fill those in here. The
+    trackhash is derived HERE, not taken from the tags: it is the one playlists
+    and favourites must point at.
+    """
+    track_dict = {**tags, "id": row_id, "lastplayed": 0, "playcount": 0, "playduration": 0}
+    return track_to_dataclass(track_dict, UserConfig())
+
+
+def _store_track(filepath: str, track: Track) -> None:
+    """
+    Put a freshly committed track into the in-memory stores, replacing the old one.
 
     This is a self-contained equivalent of ``watchdogg.add_track``'s core. We do
     NOT import watchdogg: it has a broken top-level import in this fork
@@ -136,38 +158,12 @@ def _index_file(filepath: str) -> None:
     """
     previous = next(iter(TrackStore.get_tracks_by_filepaths([filepath])), None)
     TrackStore.remove_track_by_filepath(filepath)
-
-    config = UserConfig()
-    tags = get_tags(filepath, config)
-    if tags is None or tags["bitrate"] == 0 or tags["duration"] == 0:
-        raise TrackEditError("Reindexed file has no readable audio stream")
-
-    result = TrackTable.insert_one(tags)
-    extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=True)
-
-    # Build the Track via the canonical DB-load path. get_tags() does NOT include
-    # id/lastplayed/playcount/playduration/config, so Track(**tags) (as the dead
-    # watchdogg.add_track does) raises a TypeError — fill those in here.
-    track_dict = {
-        **tags,
-        "id": getattr(result, "lastrowid", 0) or 0,
-        "lastplayed": 0,
-        "playcount": 0,
-        "playduration": 0,
-    }
-    track = track_to_dataclass(track_dict, config)
     if previous is not None:
         _carry_over(previous, track)
     TrackStore.add_track(track)
     # The folder view looks files up by their hash, and the hash may just have
     # changed with the tags.
     FolderStore.index_file(filepath, track.trackhash)
-
-
-def _reindex_file(filepath: str) -> None:
-    """Delete the old DB row (filepath is UNIQUE) then re-index the file from disk."""
-    TrackTable.remove_tracks_by_filepaths({filepath})
-    _index_file(filepath)
 
 
 def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
@@ -227,8 +223,6 @@ def _edit(old_track: Track, fields: dict) -> Track:
         raise TrackNotFoundError("Track file not found on disk")
 
     backup_path = filepath + ".bak"
-    new_albumhash: str | None = None
-    new_artist_hashes: set[str] = set()
 
     # A backup that is still there is the leftover of an edit whose restore
     # failed (or of a crash mid-write) — and then it may be the ONLY intact copy
@@ -244,54 +238,73 @@ def _edit(old_track: Track, fields: dict) -> Track:
     except OSError as exc:
         raise TrackEditError(f"Could not create backup: {exc}") from exc
 
+    # Phase 1: file, row and references. Everything that can fail on disk or in
+    # the database happens here, and the DB part is ONE transaction — so a
+    # failure (a locked database, live on 2026-09-30) leaves the old row and
+    # its references untouched, and putting the original file back is all the
+    # rollback has to do. It used to re-index the restored file instead, with
+    # its own DB writes, and those hit the same lock: the row was deleted and
+    # never re-inserted, and five tracks vanished from the library.
     try:
         tag_writer.write_tags(filepath, fields)
-        _reindex_file(filepath)
-
-        new_tracks = TrackStore.get_tracks_by_filepaths([filepath])
-        if not new_tracks:
-            raise TrackEditError("Track disappeared after reindex")
-
-        new_track = new_tracks[0]
+        tags = _read_tags(filepath)
+        new_track = _as_track(tags, 0)
         new_trackhash = new_track.trackhash
-        new_albumhash = new_track.albumhash
-        new_artist_hashes = _identity_artist_hashes(new_track)
-
-        # Reconcile the in-memory album/artist maps for both old and new identities.
-        for albumhash in {old_albumhash, new_albumhash}:
-            _reconcile_album(albumhash)
-        for artisthash in old_artist_hashes | new_artist_hashes:
-            _reconcile_artist(artisthash)
 
         # Repoint references only when the old identity is fully gone. If other
         # files still share the old trackhash (duplicate tracks), the old hash
         # stays valid and its references must not be moved to the edited file.
-        if new_trackhash != old_trackhash and old_trackhash not in TrackStore.trackhashmap:
-            migrate_track_references(old_trackhash, new_trackhash)
+        group = TrackStore.trackhashmap.get(old_trackhash)
+        others_keep_old_hash = group is not None and any(t.filepath != filepath for t in group.tracks)
+        repoint = new_trackhash != old_trackhash and not others_keep_old_hash
+
+        new_track.id = TrackTable.replace_by_filepath(
+            tags,
+            also=(lambda session: migrate_track_references(old_trackhash, new_trackhash, session)) if repoint else None,
+        )
     except Exception as exc:
         log.error("Track edit failed for %s: %s", filepath, exc)
         # Rollback must never mask the original failure with a fresh exception.
         try:
-            _rollback(filepath, backup_path, old_albumhash, old_artist_hashes, new_albumhash, new_artist_hashes)
+            _restore_backup(filepath, backup_path)
         except Exception as rollback_exc:
             log.error("Rollback failed for %s: %s", filepath, rollback_exc)
         if isinstance(exc, TrackEditError):
             raise
         raise TrackEditError(str(exc)) from exc
 
+    # Phase 2: the edit is committed — file, row and references agree. Only
+    # the in-memory views follow now, and putting the old file back from here
+    # would make it disagree with its own row.
     _remove_backup(backup_path)
+
+    try:
+        extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=True)
+    except Exception as exc:
+        log.warning("Track edit of %s: could not refresh the thumbnail: %s", filepath, exc)
+
+    # The edit succeeded and is reported as such even if a view fails to
+    # follow: the stores are a cache of the database, and the next scan
+    # rebuilds them. Reporting a failure here would make the user redo an
+    # edit that is already on disk.
+    try:
+        _store_track(filepath, new_track)
+        # Reconcile the in-memory album/artist maps for both old and new identities.
+        for albumhash in {old_albumhash, new_track.albumhash}:
+            _reconcile_album(albumhash)
+        for artisthash in old_artist_hashes | _identity_artist_hashes(new_track):
+            _reconcile_artist(artisthash)
+    except Exception:
+        log.exception("Track edit of %s is saved, but the library view is stale until the next scan", filepath)
+
     return new_track
 
 
-def _rollback(
-    filepath: str,
-    backup_path: str,
-    old_albumhash: str,
-    old_artist_hashes: set[str],
-    new_albumhash: str | None,
-    new_artist_hashes: set[str],
-) -> None:
-    """Restore the original file and re-index it so store/DB match un-migrated references."""
+def _restore_backup(filepath: str, backup_path: str) -> None:
+    """
+    Put the original file back. The database was never changed, so nothing else
+    has to be undone — and nothing that needs the database can fail here.
+    """
     if not os.path.exists(backup_path):
         return
 
@@ -309,15 +322,6 @@ def _rollback(
             backup_path,
         )
         return
-
-    try:
-        _reindex_file(filepath)
-        for albumhash in {old_albumhash, new_albumhash} - {None}:
-            _reconcile_album(albumhash)
-        for artisthash in old_artist_hashes | new_artist_hashes:
-            _reconcile_artist(artisthash)
-    except Exception as exc:
-        log.error("Failed to re-index after rollback for %s: %s", filepath, exc)
 
     _remove_backup(backup_path)
 

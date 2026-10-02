@@ -89,7 +89,7 @@ def test_rollback_keeps_backup_when_restore_fails(tmp_path, monkeypatch):
     remove_spy = MagicMock()
     monkeypatch.setattr(track_edit, "_remove_backup", remove_spy)
 
-    track_edit._rollback(target, backup, "oldalbum", set(), None, set())
+    track_edit._restore_backup(target, backup)
 
     assert os.path.exists(backup), "backup must survive a failed restore"
     remove_spy.assert_not_called()
@@ -103,6 +103,6 @@ def test_rollback_noop_when_backup_missing(tmp_path, monkeypatch):
     copy_spy = MagicMock()
     monkeypatch.setattr(track_edit.shutil, "copy2", copy_spy)
 
-    track_edit._rollback(target, missing_backup, "oldalbum", set(), None, set())
+    track_edit._restore_backup(target, missing_backup)
 
     copy_spy.assert_not_called()

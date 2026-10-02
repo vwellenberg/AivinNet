@@ -65,7 +65,7 @@ class TestFolderStore:
 
 
 def test_a_tag_edit_tells_the_folder_view_the_new_hash(monkeypatch):
-    """`track_edit._index_file` is where a tag edit re-enters the stores."""
+    """`track_edit._store_track` is where a tag edit re-enters the stores."""
     mocks = {
         name: MagicMock()
         for name in [
@@ -86,15 +86,10 @@ def test_a_tag_edit_tells_the_folder_view_the_new_hash(monkeypatch):
     with patch.dict(sys.modules, mocks):
         from aivinnet.lib import track_edit
 
-    monkeypatch.setattr(track_edit, "UserConfig", MagicMock())
-    monkeypatch.setattr(track_edit, "get_tags", lambda *_: {"bitrate": 320, "duration": 200, "albumhash": "a"})
-    monkeypatch.setattr(track_edit, "extract_thumb", MagicMock())
-    monkeypatch.setattr(track_edit, "TrackTable", MagicMock())
     monkeypatch.setattr(track_edit, "TrackStore", MagicMock())
-    monkeypatch.setattr(track_edit, "track_to_dataclass", lambda *_: _Track("fresh-hash", "/m/a.mp3"))
     folder = MagicMock()
     monkeypatch.setattr(track_edit, "FolderStore", folder)
 
-    track_edit._index_file("/m/a.mp3")
+    track_edit._store_track("/m/a.mp3", _Track("fresh-hash", "/m/a.mp3"))
 
     folder.index_file.assert_called_once_with("/m/a.mp3", "fresh-hash")

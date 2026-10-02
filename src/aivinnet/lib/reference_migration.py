@@ -135,81 +135,85 @@ def favorite_migration_action(old_userid: int | None, new_userid: int | None) ->
     return "keep"
 
 
-def migrate_track_references(old_trackhash: str, new_trackhash: str) -> None:
+def migrate_track_references(old_trackhash: str, new_trackhash: str, session: Any = None) -> None:
     """
     Repoint every reference from ``old_trackhash`` to ``new_trackhash``.
 
     Covers playlists, favorites and the scrobble/play-history table for ALL users,
-    in a single transaction so the update is atomic.
+    in a single transaction so the update is atomic. Pass ``session`` to run in
+    a transaction the caller already holds: a tag edit swaps the track row in
+    the same one, so a failure can never leave the row and its references
+    disagreeing.
     """
     if not old_trackhash or not new_trackhash or old_trackhash == new_trackhash:
         return
 
-    from sqlalchemy import delete, select, update
+    if session is not None:
+        _migrate(session, old_trackhash, new_trackhash)
+        return
 
     from aivinnet.db.engine import DbEngine
+
+    with DbEngine.manager(commit=True) as own_session:
+        _migrate(own_session, old_trackhash, new_trackhash)
+
+
+def _migrate(session: Any, old_trackhash: str, new_trackhash: str) -> None:
+    from sqlalchemy import delete, select, update
+
     from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 
     old_fav = f"track_{old_trackhash}"
     new_fav = f"track_{new_trackhash}"
 
-    with DbEngine.manager(commit=True) as session:
-        # Playlists (all users): in-place, order-preserving replacement. The
-        # `added_at` map in `extra` is keyed by trackhash, so it has to be
-        # rewritten in the same statement or the track loses its "date added".
-        rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
-        for playlist_id, trackhashes, extra in rows:
-            values = playlist_migration_values(trackhashes, extra, old_trackhash, new_trackhash)
+    # Playlists (all users): in-place, order-preserving replacement. The
+    # `added_at` map in `extra` is keyed by trackhash, so it has to be
+    # rewritten in the same statement or the track loses its "date added".
+    rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
+    for playlist_id, trackhashes, extra in rows:
+        values = playlist_migration_values(trackhashes, extra, old_trackhash, new_trackhash)
 
-            if values is None:
-                continue
+        if values is None:
+            continue
 
-            session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
+        session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
 
-        # Favorites: one row per user per hash, so the same track can be
-        # favorited by several people and each row has to be decided on its own.
-        # A single blanket UPDATE would hit the (hash, userid) constraint for
-        # every user who had already favorited the new identity.
-        old_owners = {
-            row.userid
-            for row in session.execute(
-                select(FavoritesTable.userid).where(FavoritesTable.hash == old_fav)
-            ).all()
-        }
-        new_owners = {
-            row.userid
-            for row in session.execute(
-                select(FavoritesTable.userid).where(FavoritesTable.hash == new_fav)
-            ).all()
-        }
+    # Favorites: one row per user per hash, so the same track can be
+    # favorited by several people and each row has to be decided on its own.
+    # A single blanket UPDATE would hit the (hash, userid) constraint for
+    # every user who had already favorited the new identity.
+    old_owners = {
+        row.userid for row in session.execute(select(FavoritesTable.userid).where(FavoritesTable.hash == old_fav)).all()
+    }
+    new_owners = {
+        row.userid for row in session.execute(select(FavoritesTable.userid).where(FavoritesTable.hash == new_fav)).all()
+    }
 
-        for userid in old_owners:
-            action = favorite_migration_action(userid, userid if userid in new_owners else None)
+    for userid in old_owners:
+        action = favorite_migration_action(userid, userid if userid in new_owners else None)
 
-            if action == "rename":
-                session.execute(
-                    update(FavoritesTable)
-                    .where(FavoritesTable.hash == old_fav, FavoritesTable.userid == userid)
-                    .values(hash=new_fav)
-                )
-            elif action == "drop":
-                # This user already favorited the new identity, so their old row
-                # is redundant — and renaming it would collide with their own.
-                session.execute(
-                    delete(FavoritesTable).where(
-                        FavoritesTable.hash == old_fav, FavoritesTable.userid == userid
-                    )
-                )
-
-        if old_owners:
-            log.info(
-                "Track edit %s -> %s: carried the favorite across for %s user(s)",
-                old_trackhash,
-                new_trackhash,
-                len(old_owners),
+        if action == "rename":
+            session.execute(
+                update(FavoritesTable)
+                .where(FavoritesTable.hash == old_fav, FavoritesTable.userid == userid)
+                .values(hash=new_fav)
+            )
+        elif action == "drop":
+            # This user already favorited the new identity, so their old row
+            # is redundant — and renaming it would collide with their own.
+            session.execute(
+                delete(FavoritesTable).where(FavoritesTable.hash == old_fav, FavoritesTable.userid == userid)
             )
 
-        # Play history / scrobbles (all users): plain indexed trackhash column.
-        session.execute(
-            update(ScrobbleTable).where(ScrobbleTable.trackhash == old_trackhash).values(trackhash=new_trackhash)
+    if old_owners:
+        log.info(
+            "Track edit %s -> %s: carried the favorite across for %s user(s)",
+            old_trackhash,
+            new_trackhash,
+            len(old_owners),
         )
+
+    # Play history / scrobbles (all users): plain indexed trackhash column.
+    session.execute(
+        update(ScrobbleTable).where(ScrobbleTable.trackhash == old_trackhash).values(trackhash=new_trackhash)
+    )
