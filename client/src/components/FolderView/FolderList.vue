@@ -98,6 +98,10 @@ const maxCount = computed(() =>
     padding: 0 $medium 0 calc(#{$songlist-band-w} + #{$small});
     // Flat row inside the plate — no tile, so no offset shadow either.
     box-shadow: none;
+    // The pointer flip is a CUT (styling.md): the base card's background fade
+    // would cross the dark hover fill against the flipped text and leave a
+    // grey mid-frame in which the name is unreadable.
+    transition: none;
     // Reserved transparent border + the shared radius/transition, so the ink
     // frame below can appear without nudging the row's contents.
     @include candy-row-base;
