@@ -244,6 +244,13 @@ def extract_artist_title(filename: str, config: UserConfig):
         except ValueError:
             pass
 
+    # "01 - Title": the number is the track, not an artist. Read as
+    # "Artist - Title" it named each track of an untagged album after its own
+    # number, and since the album artist goes into the albumhash, every track
+    # became an album of its own.
+    if split_result[0].isdecimal():
+        return ParseData("", split_result[1], config)
+
     artist = split_result[0]
     title = split_result[1]
     return ParseData(artist, title, config)
