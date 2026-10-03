@@ -1129,6 +1129,7 @@
         "album",
         "albumartists",
         "artists",
+        "filepath",
         "rename_file",
         "title",
         "track"

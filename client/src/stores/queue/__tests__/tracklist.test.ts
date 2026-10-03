@@ -40,15 +40,15 @@ describe('tracklist.retagTrack', () => {
         setActivePinia(createPinia())
     })
 
-    it('patches every queue copy matching the old hash and leaves others untouched', () => {
+    it('patches every queue copy of the edited file and leaves others untouched', () => {
         const tl = useTracklist()
         tl.tracklist = [
-            mk({ trackhash: 'OLD', title: 'Old' }),
-            mk({ trackhash: 'KEEP', title: 'Keep' }),
-            mk({ trackhash: 'OLD', title: 'Old too' }),
+            mk({ trackhash: 'OLD', title: 'Old', filepath: '/m/x.mp3' }),
+            mk({ trackhash: 'KEEP', title: 'Keep', filepath: '/m/keep.mp3' }),
+            mk({ trackhash: 'OLD', title: 'Old', filepath: '/m/x.mp3' }),
         ]
 
-        tl.retagTrack('OLD', mk({ trackhash: 'NEW', title: 'New Title', artists: [{ name: 'A' }] }) as any)
+        tl.retagTrack('/m/x.mp3', mk({ trackhash: 'NEW', title: 'New Title', artists: [{ name: 'A' }] }) as any)
 
         expect(tl.tracklist[0].trackhash).toBe('NEW')
         expect(tl.tracklist[0].title).toBe('New Title')
@@ -59,11 +59,26 @@ describe('tracklist.retagTrack', () => {
         expect(tl.tracklist[1].title).toBe('Keep')
     })
 
+    // Live 2026-10-02: `X.mp3` and `X.wav` share a hash. Matching by hash
+    // handed the WAV's queue entry the MP3's path and tags.
+    it('leaves a twin with the same hash but another file alone', () => {
+        const tl = useTracklist()
+        tl.tracklist = [
+            mk({ trackhash: 'OLD', title: 'Old', filepath: '/m/x.mp3' }),
+            mk({ trackhash: 'OLD', title: 'Old', filepath: '/m/x.wav' }),
+        ]
+
+        tl.retagTrack('/m/x.mp3', mk({ trackhash: 'NEW', title: 'New', filepath: '/m/x.mp3' }) as any)
+
+        expect(tl.tracklist[0].title).toBe('New')
+        expect(tl.tracklist[1]).toMatchObject({ trackhash: 'OLD', title: 'Old', filepath: '/m/x.wav' })
+    })
+
     it('no-ops when no queue track matches', () => {
         const tl = useTracklist()
-        tl.tracklist = [mk({ trackhash: 'A', title: 'A' })]
+        tl.tracklist = [mk({ trackhash: 'A', title: 'A', filepath: '/m/a.mp3' })]
 
-        tl.retagTrack('ZZZ', mk({ trackhash: 'NEW', title: 'X' }) as any)
+        tl.retagTrack('/m/zzz.mp3', mk({ trackhash: 'NEW', title: 'X' }) as any)
 
         expect(tl.tracklist[0].trackhash).toBe('A')
         expect(tl.tracklist[0].title).toBe('A')

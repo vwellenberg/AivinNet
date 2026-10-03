@@ -27,12 +27,29 @@ const track = () =>
         filepath: '/m/The Guild 2/03. Game Lost.mp3',
     } as any)
 
-const sent = () => (editTrackTags.mock.calls.at(-1) as any)[1]
+const call = () => editTrackTags.mock.calls.at(-1) as any
+// The tags only; which file is checked on its own below.
+const sent = () => {
+    const { filepath, ...tags } = call()[1]
+    return tags
+}
 
 describe('the track editor renames the file (#144)', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         vi.clearAllMocks()
+    })
+
+    // Live 2026-10-02: `X.mp3` and `X.wav` share a hash, and the server
+    // edited the WAV for both. The dialog is about one file and says which.
+    it('names the file it edits, not just the shared hash', async () => {
+        const w = mount(EditTrack, { props: { track: track() } })
+        await w.find('#et-album').setValue('Die Gilde 2')
+        await w.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(call()[0]).toBe('H')
+        expect(call()[1].filepath).toBe('/m/The Guild 2/03. Game Lost.mp3')
     })
 
     it('offers nothing while title and number are unchanged', async () => {

@@ -68,6 +68,9 @@ def _slim_track(t: dict, index: int) -> dict:
         "album": t.get("album"),
         "duration": t.get("duration"),
         "trackhash": t.get("trackhash"),
+        # The hash is shared by every file with the same title/album/artists;
+        # set_track_tags needs the path to edit one of them.
+        "filepath": t.get("filepath"),
     }
 
 
@@ -231,6 +234,7 @@ def set_track_tags(
     title: str | None = None,
     album: str | None = None,
     track: int | None = None,
+    filepath: str | None = None,
 ) -> dict:
     """
     Write metadata tags to a track's file and reindex it.
@@ -243,6 +247,13 @@ def set_track_tags(
     resolving. The returned `trackhash` is the new one. When tagging several
     tracks of one playlist, read all hashes up front with `get_playlist` (an
     edit only invalidates that track's own hash, not its neighbours').
+
+    The trackhash is NOT unique per file: `X.mp3` next to `X.wav` with the same
+    tags share one. Pass `filepath` (from `get_playlist`) to say which file;
+    without it an ambiguous hash is refused (`ok: False`, status 409, the
+    candidates in `filepaths`) and nothing is written. When tagging every file
+    of a folder, always pass `filepath`. The returned `filepath` is the file
+    that was actually written.
 
     The server writes the file on disk, reindexes it and repoints playlist,
     favorite and history references to the new hash. Needs an admin token.
@@ -259,17 +270,24 @@ def set_track_tags(
     if not payload:
         return {"ok": False, "error": "Nothing to change: pass at least one tag field."}
 
+    if filepath is not None:
+        payload["filepath"] = filepath
+
     r = _api("PUT", f"/track/{trackhash}/tags", json=payload)
 
     if not r.ok:
         body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-        return {"ok": False, "status": r.status_code, "error": body}
+        result = {"ok": False, "status": r.status_code, "error": body}
+        if isinstance(body, dict) and "filepaths" in body:
+            result["filepaths"] = body["filepaths"]
+        return result
 
     edited = r.json().get("track") or {}
     return {
         "ok": True,
         "old_trackhash": trackhash,
         "trackhash": edited.get("trackhash"),
+        "filepath": edited.get("filepath"),
         "title": edited.get("title"),
         "artists": [a.get("name") for a in (edited.get("artists") or [])],
         "albumartists": [a.get("name") for a in (edited.get("albumartists") or [])],

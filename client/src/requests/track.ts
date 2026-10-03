@@ -11,6 +11,12 @@ export interface EditTrackTagsPayload {
     track?: number
     /** Also name the file after the new tags ("03 - Title.mp3", #144). */
     rename_file?: boolean
+    /**
+     * Which file. Not a tag: a trackhash is shared by every file with the same
+     * title/album/artists (`X.mp3` next to `X.wav`), and the server answers 409
+     * instead of guessing when it names several.
+     */
+    filepath?: string
 }
 
 /** How the rename went, when one was asked for. The tags are written either way. */

@@ -7,6 +7,9 @@ paths:
   - "src/aivinnet/lib/index.py"
   - "src/aivinnet/lib/folder_index.py"
   - "src/aivinnet/utils/filesystem.py"
+  - "src/aivinnet/lib/track_edit.py"
+  - "src/aivinnet/api/track.py"
+  - "mcp_server/server.py"
 ---
 
 # Track-Tags, Titel und Hashes
@@ -38,6 +41,29 @@ umzug = {vorher[fp]: nachher[fp] for fp in vorher
 # dann playlist.trackhashes, favorite.hash und scrobble.trackhash durchziehen
 ```
 
+## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren
+
+Gleiche Tags ⇒ gleicher Hash, egal welches Format: `X.mp3` neben `X.wav` (100-Musicians/
+500-Dream.Corp) teilen sich einen, ebenso alle Dateien eines Albums, deren Tags „Track 1" sagen.
+Der `TrackStore` hält dafür eine `TrackGroup`, und `get_best()` wählt die **höchste Bitrate**.
+
+Live 2026-10-02: ein Batch schickte 149 × `PUT /track/<hash>/tags` (eine pro Datei), bekam
+149 × 200 — und keine einzige MP3 wurde angefasst. Beide PUTs eines Paars landeten über
+`get_best()` auf der WAV. Seitdem gilt:
+
+- **`PUT /track/<hash>/tags` rät nicht mehr.** Teilen sich mehrere Dateien den Hash, muss
+  `filepath` im Body sagen, welche; ohne kommt **409** mit den Kandidaten in `filepaths`, und
+  nichts wird geschrieben. Ein `filepath`, der den Hash nicht trägt, ist 404. Die Antwort nennt
+  in `track.filepath` immer die Datei, die tatsächlich geschrieben wurde.
+- Der Client-Editor und das MCP-Tool `set_track_tags` schicken den Pfad mit; `get_playlist`
+  liefert ihn dafür. Batches über einen Ordner: **immer** mit `filepath`.
+- Dieselbe Falle im Browser: die Queue zog einen Einzeledit per Hash nach und gab so dem
+  unberührten Zwilling Pfad und Tags der editierten Datei. `retagTrack` gleicht deshalb per
+  **altem Pfad** ab, wie schon `followFileChanges`.
+
+Wer einen neuen Schreibpfad baut: Ziel ist eine **Datei**, also Pfad (`edit_track_tags_by_filepath`).
+Ein Hash ist nur als Gruppe sinnvoll — Referenzen (Playlists, Favoriten) zeigen auf die Gruppe.
+
 ## Dateien umbenennen: der Hash bleibt, drei Stellen ziehen mit
 
 Ein Rename (`lib/track_rename.py`, #144) ändert **keinen** Hash — dafür alles, was den Pfad
@@ -61,7 +87,7 @@ Tracks, und gestreamt wird über Pfad **und** Hash (`/file/<hash>/legacy?filepat
 Rename im Metadaten-Dialog änderte beides; die Queue kannte danach nur noch Werte, die der
 Server nicht mehr auflösen kann — jeder Titel 404, der Player sprang durch die ganze Queue
 (live 2026-09-24, Battle Realms). Deshalb: wer Tags oder Namen per Client ändert, zieht die
-Queue nach — Einzeledit `tracklist.retagTrack` (per Hash), Batch `tracklist.followFileChanges`
+Queue nach — Einzeledit `tracklist.retagTrack`, Batch `tracklist.followFileChanges`
 (per **altem Pfad**, der Hash ist nicht eindeutig). Andere Geräte behalten ihre alte Queue; der
 Player hört dort nach `utils/skipGuard.ts` drei Fehlschlägen in Folge auf, statt durchzurasen.
 

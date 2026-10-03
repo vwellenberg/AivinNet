@@ -27,7 +27,7 @@ delete the orphans. Run `prune_orphan_tracks` first if that is what you want.
 
 | Tool | What it does |
 | --- | --- |
-| `set_track_tags(trackhash, artists, albumartists, title, album, track)` | Write tags to the file and reindex |
+| `set_track_tags(trackhash, artists, albumartists, title, album, track, filepath)` | Write tags to the file and reindex |
 
 Only the fields you pass are changed. Backed by `PUT /track/<trackhash>/tags`,
 which is **admin only** — it rewrites files on disk.
@@ -36,6 +36,12 @@ The trackhash is derived from title/album/artist, so editing any of those gives
 the track a **new** trackhash and the old one stops resolving. The backend
 repoints playlist, favorite and history references; the tool returns both
 `old_trackhash` and the new `trackhash`.
+
+The trackhash is **not unique per file**: `X.mp3` next to `X.wav` with the same
+tags share one. Pass `filepath` (`get_playlist` returns it) to name the file;
+without it an ambiguous hash is refused with status 409 and the candidates in
+`filepaths`, and nothing is written. The returned `filepath` is the file that
+was actually written.
 
 Planned next: custom ordering of the playlist *list* (needs a `position` field
 in the backend).
