@@ -124,6 +124,14 @@ describe("label call sites", () => {
     expect(select).toMatch(/--label-hatch:\s*var\(--mem-hatch-accent\)/);
   });
 
+  it("the section link (SEE ALL / VIEW HISTORY) carries the ring, and swaps it on hover", () => {
+    // Reported on Home: it sat next to the smooth caption sticker and looked
+    // like a second caption — the one place the texture has to tell them apart.
+    const seeAll = block(styleBlock(SOURCES["/src/components/shared/SeeAll.vue"] ?? ""), ".see-all").body;
+    expect(seeAll).toMatch(/@include mem-label-hatch\([^)]*\$on:\s*surface/);
+    expect(block(seeAll, "&:hover").body).toMatch(/--label-hatch:\s*var\(--mem-hatch-hover\)/);
+  });
+
   it("keeps the non-pressable sort labels smooth", () => {
     // "Sort By" and the chart glyph share the chips' anatomy but cannot be
     // pressed; a texture there would promise a press.

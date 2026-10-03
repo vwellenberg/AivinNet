@@ -288,6 +288,12 @@ Drei Bedingungen, alle tragend:
      mit der Maske weg. Nicht schraffiert bleiben: Zeilen in Menüs und Inhaltslisten (Regel
      oben), und Etiketten, die nur aussehen wie Chips („Sort By").
 
+     ⚠️ **Ein drückbarer Sticker ist kein Sticker mehr.** „See all"/„View history" (`SeeAll.vue`)
+     sitzt als Sticker-Kapsel direkt neben der glatten Abschnitts-Überschrift und blieb als „nur
+     ein Text-Link" ebenfalls glatt. So las er sich als zweite Überschrift, obwohl genau hier die
+     Textur Bedienpunkt und Beschriftung trennen muss (2026-10-03 gemeldet). Er trägt jetzt den
+     Label-Ring. Wer einen Sticker klickbar macht, gibt ihm die Schraffur mit.
+
      ⚠️ **`$mem-soft` ist KEIN Akzent** — die Fläche wird mit dem Theme dunkel. `btn-pill` wählt
      die Strichfarbe über die Füllung, und mit dem Ink-Sprite verschwand der Ring der Such-Tabs im
      Dark-Theme. Gilt für jede neue Füllung: erst nachsehen, ob sie eine Theme-Variable ist.

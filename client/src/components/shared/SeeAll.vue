@@ -15,11 +15,16 @@ defineProps<{
 
 <style lang="scss">
 // "SEE ALL" / "VIEW HISTORY" sits at the right end of a section caption, on the
-// memphis ground — so it is a sticker like the caption itself. It IS pressable,
-// but it is a text link rather than a control surface, so it takes the sticker
-// (no hatch) and answers with the row-plate's hover tint instead.
+// memphis ground — a sticker plate like the caption itself. But it IS pressable,
+// and right next to a smooth caption is exactly where the texture has to say so
+// (styling.md: the hatch marks a control BETWEEN non-controls). It used to stay
+// smooth as "a text link, not a control surface" and read as a second caption.
+// Its face is a word, so the texture is a ring around the label, never behind it
+// (mem-label-hatch, the #476 pattern); the ring sits inside the 0.25rem/0.7rem
+// padding like btn-pill's auto-height variant.
 .see-all {
     @include mem-sticker($candy-radius-pill, 0.25rem 0.7rem);
+    @include mem-label-hatch(26px, $on: surface, $ring-y: 0.2rem);
     font-size: 0.75rem;
     // A 0.75rem uppercase link, not a heading: a look's display face (a pixel
     // face in Desktop 98) blurs letters at this size (#241).
@@ -37,6 +42,9 @@ defineProps<{
     &:hover {
         background-color: $mem-hover;
         color: var(--mem-hover-text);
+        // The fill flips (ink plate in light, paper plate in dark), so the
+        // stroke colour flips with it — rule 2 of the hatch section.
+        --label-hatch: var(--mem-hatch-hover);
         @include candy-shadow(4px, 4px);
     }
 }
