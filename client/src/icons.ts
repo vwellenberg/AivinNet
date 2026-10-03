@@ -11,7 +11,6 @@ export { default as PlusIcon } from "@/assets/icons/plus.svg?raw";
 // export { default as PrevIcon } from "@/assets/icons/prev.svg?raw";
 export { default as PlayNextIcon } from "@/assets/icons/add_to_queue.svg?raw";
 export { default as BookmarkIcon } from "@/assets/icons/bookmark.svg?raw";
-export { default as HeartFillIcon } from "@/assets/icons/heart.fill.svg?raw";
 export { default as PauseIcon } from "@/assets/icons/pause.svg?raw";
 export { default as CloseIcon } from "@/assets/icons/plus.svg?raw";
 export { default as RepeatOneIcon } from "@/assets/icons/repeat-one.svg?raw";
