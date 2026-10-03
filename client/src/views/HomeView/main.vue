@@ -52,20 +52,4 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         margin-bottom: 0;
     }
 }
-
-// Home is a wall of card grids, and every grid already fills its width
-// (`auto-fill`, see CardScroller). The 1600/1680px column every other page is
-// centred in (`$alt_layout_pad`, app-grid.scss) therefore only costs columns
-// here: on a 2286px window it left ~250px of bare grid paper on each side and
-// the rows stopped at 7 cards. Lists keep the narrow column — a track row
-// stretched across 2000px reads worse, not better.
-//
-// Same shape as `$alt_layout_pad`, wider cap. The selector out-ranks the
-// layout's own `.content-page` rule and its >=1980px twin (both 1,2,0).
-$home-pad: max(2rem, calc((100% - #{$home-max-width}) / 2));
-
-#app-grid.is_alt_layout .homepageview.content-page {
-    padding-left: $home-pad;
-    padding-right: $home-pad;
-}
 </style>
