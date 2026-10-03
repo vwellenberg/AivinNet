@@ -8,7 +8,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
-from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags
+from aivinnet.lib.track_edit import AmbiguousTrackError, TrackEditError, TrackNotFoundError, edit_track_tags
 from aivinnet.lib.track_rename import name_after_tags, rename_files
 from aivinnet.serializers.track import serialize_track
 
@@ -27,6 +27,11 @@ class EditTagsBody(BaseModel):
     artists: list[str] | None = Field(None, description="New list of track artists")
     albumartists: list[str] | None = Field(None, description="New list of album artists")
     track: int | None = Field(None, description="New track number", ge=0)
+    # Not a tag: WHICH file. A trackhash is shared by every file with the same
+    # title/album/artists (X.mp3 next to X.wav), so it cannot name one alone.
+    filepath: str | None = Field(
+        None, description="The file to edit; required when several files share the trackhash (else 409)"
+    )
     # Not a tag: what to do with the FILE once the tags are written (#144).
     rename_file: bool = Field(False, description="Also name the file after the new tags ('03 - Title.mp3')")
 
@@ -65,18 +70,26 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     playlist/favorite/history references to the track's new identity (editing
     title/album/artist changes the trackhash). Returns the updated track.
 
+    The trackhash is not unique (same title/album/artists = same hash, e.g.
+    `X.mp3` next to `X.wav`). When several files share it, `filepath` must name
+    the one to edit; without it the request is refused with 409 and the
+    candidates in `filepaths`, and nothing is written. The returned track's
+    `filepath` is always the file that was written.
+
     With `rename_file`, the file is then named after the new tags; how that went
     is in `rename` (a rename that could not happen does not undo the tags).
 
     Admin only — this rewrites files on disk and migrates references for all users.
     """
-    fields = body.model_dump(exclude_none=True, exclude={"rename_file"})
+    fields = body.model_dump(exclude_none=True, exclude={"rename_file", "filepath"})
 
     if not fields:
         return {"error": "No fields to update"}, 400
 
     try:
-        track = edit_track_tags(path.trackhash, fields)
+        track = edit_track_tags(path.trackhash, fields, body.filepath)
+    except AmbiguousTrackError as e:
+        return {"error": str(e), "filepaths": e.filepaths}, 409
     except TrackNotFoundError:
         return {"error": "Track not found"}, 404
     except TrackEditError as e:

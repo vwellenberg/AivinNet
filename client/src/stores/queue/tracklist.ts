@@ -367,12 +367,14 @@ export default defineStore('tracklist', {
             })
         },
         // Apply an edited track's new tags to any copies already in the queue
-        // (matched by the pre-edit trackhash). currentindex is left untouched, so
+        // (matched by the pre-edit PATH: the hash is shared by `X.mp3` and
+        // `X.wav` with the same tags, and matching it gave the untouched twin
+        // the edited file's path). currentindex is left untouched, so
         // `currenttrack`/`currenttrackhash` simply re-derive — the now-playing bar
         // and current-row highlight follow the new tags without reloading audio.
-        retagTrack(oldHash: string, updated: Track) {
+        retagTrack(oldFilepath: string, updated: Track) {
             this.tracklist.forEach(track => {
-                if (track.trackhash === oldHash) {
+                if (track.filepath === oldFilepath) {
                     Object.assign(track, updated)
                 }
             })

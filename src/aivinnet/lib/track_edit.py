@@ -52,6 +52,14 @@ class TrackNotFoundError(TrackEditError):
     """Raised when the track to edit cannot be found in the store."""
 
 
+class AmbiguousTrackError(TrackEditError):
+    """Raised when a trackhash names several files and none was picked."""
+
+    def __init__(self, filepaths: list[str]):
+        super().__init__(f"{len(filepaths)} files share this trackhash; pass the filepath of the one to edit")
+        self.filepaths = filepaths
+
+
 def _identity_artist_hashes(track: Track) -> set[str]:
     """All artisthashes that identify a track: performing artists + album artists."""
     hashes = set(track.artisthashes or [])
@@ -166,22 +174,27 @@ def _store_track(filepath: str, track: Track) -> None:
     FolderStore.index_file(filepath, track.trackhash)
 
 
-def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
+def edit_track_tags(old_trackhash: str, fields: dict, filepath: str | None = None) -> Track:
     """
     Edit the tags of the track identified by ``old_trackhash``.
 
     ⚠️ A trackhash is **not unique**: it is derived from title/album/artists, so
-    every file of an album whose tags all say "Track 1" shares one. This entry
-    point edits whichever of them ``get_best()`` returns, which is fine for the
-    single-track editor (the client is holding one track and there is nothing
-    else it could mean) and wrong for anything that edits several tracks of one
-    album in a batch. That wants :func:`edit_track_tags_by_filepath`.
+    ``X.mp3`` next to ``X.wav`` with the same tags share one, and so does every
+    file of an album whose tags all say "Track 1". This used to edit whichever
+    of them ``get_best()`` (highest bitrate) returned — live on 2026-10-02 a
+    batch of one PUT per file rewrote every WAV twice and never touched an MP3,
+    and each of those requests reported success. So it no longer guesses: when
+    the hash names several files, ``filepath`` must say which one.
 
     :param old_trackhash: The current trackhash (as known by clients/references).
     :param fields: Mapping of field name -> new value (see ``tag_writer.write_tags``).
+    :param filepath: The file to edit. Required when several files share the hash;
+        must be one of them.
     :returns: The reindexed :class:`Track` with its new identity.
-    :raises TrackNotFoundError: If no track matches ``old_trackhash`` or the file
-        is missing on disk.
+    :raises TrackNotFoundError: If no track matches ``old_trackhash`` (and
+        ``filepath``) or the file is missing on disk.
+    :raises AmbiguousTrackError: If several files share the hash and no
+        ``filepath`` was given.
     :raises TrackEditError: If writing/reindexing fails (the original file is
         restored before re-raising).
     """
@@ -189,7 +202,16 @@ def edit_track_tags(old_trackhash: str, fields: dict) -> Track:
     if not group or len(group) == 0:
         raise TrackNotFoundError("Track not found")
 
-    return _edit(group.get_best(), fields)
+    if filepath is not None:
+        track = next((t for t in group.tracks if t.filepath == filepath), None)
+        if track is None:
+            raise TrackNotFoundError("No file with this trackhash at that path")
+        return _edit(track, fields)
+
+    if len(group) > 1:
+        raise AmbiguousTrackError([t.filepath for t in group.tracks])
+
+    return _edit(group.tracks[0], fields)
 
 
 def edit_track_tags_by_filepath(filepath: str, fields: dict) -> Track:

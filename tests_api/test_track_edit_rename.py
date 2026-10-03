@@ -28,7 +28,7 @@ def track_api(api_client, monkeypatch):
     edited = FakeTrack()
     calls = {"edit": [], "rename": []}
 
-    def fake_edit(trackhash, fields):
+    def fake_edit(trackhash, fields, filepath=None):
         calls["edit"].append((trackhash, dict(fields)))
         return edited
 
@@ -120,7 +120,7 @@ def test_a_failed_edit_renames_nothing(track_api, monkeypatch):
     api, module, calls = track_api
     from aivinnet.lib.track_edit import TrackEditError
 
-    def boom(trackhash, fields):
+    def boom(trackhash, fields, filepath=None):
         raise TrackEditError("file is read-only")
 
     monkeypatch.setattr(module, "edit_track_tags", boom)

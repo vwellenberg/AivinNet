@@ -118,9 +118,13 @@ function save() {
         return
     }
 
+    // The hash alone may name several files (same tags in .mp3 and .wav); the
+    // path says which one this dialog is about.
+    payload.filepath = props.track.filepath
+
     saving.value = true
-    const oldHash = props.track.trackhash
-    editTrackTags(oldHash, payload)
+    const oldPath = props.track.filepath
+    editTrackTags(props.track.trackhash, payload)
         .then(updated => {
             if (!updated) return
             // Patch the visible row in place: the context menu handed us the
@@ -135,7 +139,7 @@ function save() {
             // track object, and currentindex is untouched, so playback is not
             // reloaded. A copy shown in a different, not-currently-mounted view
             // still refreshes on next navigation.
-            useTracklist().retagTrack(oldHash, updated)
+            useTracklist().retagTrack(oldPath, updated)
             emit('hideModal')
         })
         .finally(() => {
