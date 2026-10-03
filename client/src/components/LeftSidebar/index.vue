@@ -1015,7 +1015,10 @@ onBeforeUnmount(teardown);
       flex-shrink: 0;
       width: 0.95rem;
       height: 0.95rem;
-      color: $candy-text;
+      // The row's own colour: static ink on the entity tint, the hover text on
+      // a hovered row. The theme text ($candy-text) is paper in dark mode and
+      // vanished on the light pink tint.
+      color: inherit;
       // Tilt the thumbtack like a real pin (📌): head top-right, point lower-left.
       transform: rotate(35deg);
     }
