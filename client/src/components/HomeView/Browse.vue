@@ -179,26 +179,33 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Favourites: a gold ring INSIDE the ink frame, itself edged in ink on the
-  // inside. Inside, not instead of the frame: gold on a pastel fill is too
-  // pale to be the tile's edge, the ink frame stays the contrast line. The
-  // inner ink hairline is what makes the gold readable at all on the yellow
-  // track tint (a bare 2px gold ring nearly vanished there in light mode) —
-  // gold sandwiched between two ink lines reads on every tint. Static ink,
-  // not `$mem-line`: the tint is static, so is everything on it. Inset 2px
-  // within the 3px frame, hence radius - 5px. A pseudo-element rather than
-  // `outline`, because outline is the keyboard focus ring (focus-ring) and
-  // must stay free for it.
+  // Favourites: a DOUBLE FRAME — ink, gold, ink, no gaps. The gold band sits
+  // flush inside the tile's own frame and is closed on its inside by a second
+  // ink line of the SAME weight as the frame. Every line in this design is one
+  // of three weights; an earlier inner line on the 1px hairline read as a
+  // stray scratch next to the 3px frame, and a 2px gold ring with no ink at
+  // all nearly vanished on the yellow track tint. Gold is a band, never the
+  // edge: gold on a pastel fill is too pale to be the contrast line.
+  //
+  // Static ink, not `$mem-line`: the tint is static, so is everything on it.
+  // Flush (inset 0) means the band follows the frame's inner curve, hence
+  // radius - frame width. A pseudo-element rather than `outline`, because
+  // outline is the keyboard focus ring (focus-ring) and must stay free for it.
   .browseitem.favorite {
+    // The gold band is a step wider than the ink lines around it (4px vs 3px),
+    // so it reads as the colour and the ink as its edges, not three equal
+    // stripes. Named, not `+ 1px`: shapeTokens forbids a literal 1px border.
+    $fav-band-w: $candy-border-w + $mem-hairline-w;
+
     position: relative;
 
     &::after {
       content: "";
       position: absolute;
-      inset: 2px;
-      border: $candy-border-w solid $mem-gold;
-      border-radius: max(0px, calc(#{$candy-radius-sm} - 5px));
-      box-shadow: inset 0 0 0 $mem-hairline-w $mem-ink;
+      inset: 0;
+      border: $fav-band-w solid $mem-gold;
+      border-radius: max(0px, calc(#{$candy-radius-sm} - #{$candy-border-w}));
+      box-shadow: inset 0 0 0 $candy-border-w $mem-ink;
       pointer-events: none;
     }
   }
