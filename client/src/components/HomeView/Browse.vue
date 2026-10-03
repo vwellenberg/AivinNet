@@ -179,11 +179,16 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Favourites: a gold ring INSIDE the ink frame. Inside, not instead of
-  // the frame: gold on a pastel fill is too pale to be the tile's edge, the
-  // ink frame stays the contrast line. Inset 2px within the 3px frame, hence
-  // radius - 5px. A pseudo-element rather than `outline`, because outline is
-  // the keyboard focus ring (focus-ring) and must stay free for it.
+  // Favourites: a gold ring INSIDE the ink frame, itself edged in ink on the
+  // inside. Inside, not instead of the frame: gold on a pastel fill is too
+  // pale to be the tile's edge, the ink frame stays the contrast line. The
+  // inner ink hairline is what makes the gold readable at all on the yellow
+  // track tint (a bare 2px gold ring nearly vanished there in light mode) —
+  // gold sandwiched between two ink lines reads on every tint. Static ink,
+  // not `$mem-line`: the tint is static, so is everything on it. Inset 2px
+  // within the 3px frame, hence radius - 5px. A pseudo-element rather than
+  // `outline`, because outline is the keyboard focus ring (focus-ring) and
+  // must stay free for it.
   .browseitem.favorite {
     position: relative;
 
@@ -191,8 +196,9 @@ const browselist: BrowseItem[] = [
       content: "";
       position: absolute;
       inset: 2px;
-      border: $mem-ring-w solid $mem-gold;
+      border: $candy-border-w solid $mem-gold;
       border-radius: max(0px, calc(#{$candy-radius-sm} - 5px));
+      box-shadow: inset 0 0 0 $mem-hairline-w $mem-ink;
       pointer-events: none;
     }
   }
