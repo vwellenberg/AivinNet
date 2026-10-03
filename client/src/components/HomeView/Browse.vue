@@ -192,13 +192,18 @@ const browselist: BrowseItem[] = [
   // radius - frame width. A pseudo-element rather than `outline`, because
   // outline is the keyboard focus ring (focus-ring) and must stay free for it.
   .browseitem.favorite {
+    // The gold band is a step wider than the ink lines around it (4px vs 3px),
+    // so it reads as the colour and the ink as its edges, not three equal
+    // stripes. Named, not `+ 1px`: shapeTokens forbids a literal 1px border.
+    $fav-band-w: $candy-border-w + $mem-hairline-w;
+
     position: relative;
 
     &::after {
       content: "";
       position: absolute;
       inset: 0;
-      border: ($candy-border-w + 1px) solid $mem-gold;
+      border: $fav-band-w solid $mem-gold;
       border-radius: max(0px, calc(#{$candy-radius-sm} - #{$candy-border-w}));
       box-shadow: inset 0 0 0 $candy-border-w $mem-ink;
       pointer-events: none;
