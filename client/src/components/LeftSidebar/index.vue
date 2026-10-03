@@ -66,7 +66,7 @@
             <RouterLink
               v-else-if="entry.kind === 'album'"
               :to="{ name: Routes.album, params: { albumhash: entry.al.albumhash } }"
-              class="sidebar-playlist-item"
+              class="sidebar-playlist-item ent-album"
               :class="[{ active: $route.params.albumhash == entry.al.albumhash }, markerClass('album', entry.id)]"
               draggable="true"
               @dragstart="onAlbumDragStart(entry.al.albumhash, $event)"
@@ -927,22 +927,29 @@ onBeforeUnmount(teardown);
       // Flat BECAUSE they sit on a plate: no frame, no offset, no hatch. This
       // is the one place a library row is allowed to drop the plate, and it is
       // allowed precisely because the folder around it already is one.
+      //
+      // The entity tint stays, though: a playlist is pink wherever it sits.
+      // The fill is `--row-fill` (not transparent), because the label's cover
+      // reads that same property — a transparent row under a tinted cover
+      // drew a pink pill around the name.
       .sidebar-playlist-item {
-        background-color: transparent;
+        background-color: var(--row-fill);
         background-image: none;
         border-color: transparent;
         box-shadow: none;
 
+        // The shared hover (mem-row-plate-hover, from the row rule) flips
+        // `--row-fill`, so fill and cover move together; only the plate's
+        // frame and offset stay off.
         &:hover {
-          background-color: $mem-soft;
           border-color: transparent;
           box-shadow: none;
         }
 
-        // The selection still needs to be visible in here, so the fill and its
+        // The selection still needs to be visible in here: the zigzag and its
         // accent hatch stay — only frame and offset are dropped.
         &.active {
-          @include mem-row-plate-active;
+          @include mem-row-marker;
           border-color: transparent;
           box-shadow: none;
         }
@@ -975,11 +982,19 @@ onBeforeUnmount(teardown);
     font-size: $sidebar-row-font;
     font-weight: 700;
 
+    // Every library row wears its entity's light tint (mem-tint), the same
+    // colour as the name plate of its cover tile: pink for a playlist,
+    // lavender for a pinned album. The light dose, not the navigation's 55% —
+    // twenty playlists at full pastel would outshout the six navigation rows.
+    &.ent-playlist { @include mem-row-plate-tint(mem-tint($mem-pink)); }
+    &.ent-album { @include mem-row-plate-tint(mem-tint($mem-lavender)); }
+
     &:hover { @include mem-row-plate-hover; }
+    // With every row coloured, "selected" cannot be a fill any more (the pink
+    // tint and the blush active fill are nearly the same colour) — it is the
+    // ink zigzag on the leading edge, exactly as in the navigation above.
     &.active {
-      // Static blush + the accent hatch; frame and offset are already on the
-      // plate, so selecting a playlist changes colour only.
-      @include mem-row-plate-active;
+      @include mem-row-marker;
     }
 
     // The label carries the smooth fill and is only as wide as its own text —
