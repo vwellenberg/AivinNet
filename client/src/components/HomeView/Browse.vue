@@ -10,12 +10,6 @@
         @click="i.action && i.action()"
         :class="[`ent-${i.entity}`, { favorite: i.favorite }]"
       >
-        <span
-          v-if="i.favorite"
-          class="fav-badge"
-          aria-hidden="true"
-          v-html="HeartFillIcon"
-        ></span>
         <div class="icon" v-html="i.icon"></div>
         <div class="label">
           {{ i.title }}
@@ -32,7 +26,6 @@ import {
   AlbumIcon,
   ArtistIcon,
   BookmarkIcon,
-  HeartFillIcon,
   PlaylistIcon,
 } from "@/icons";
 import { Routes } from "@/router";
@@ -41,8 +34,8 @@ import { Routes } from "@/router";
 type BrowseEntity = "album" | "artist" | "playlist" | "track";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
-// `entity` colours the tile's shadow (what you will find behind it);
-// `favorite` adds the gold ring and badge (that it is your favourites only).
+// `entity` colours the tile's fill (what you will find behind it);
+// `favorite` adds the gold ring (that it is your favourites only).
 interface BrowseItem {
   title: string;
   route: string;
@@ -186,25 +179,11 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Colour coding (A from the mockup round): the hard shadow takes the tile's
-  // entity colour from the shared palette, so "Albums" and "Fav. albums" are
-  // the same lavender as every album tint in the sidebar and the card rows.
-  // Through `--mem-shadow` rather than a box-shadow of its own: candy-raised
-  // reads that token for rest AND hover, so the deeper hover offset keeps the
-  // colour, and a look that drops shadows (`--shape-shadow: none`) still
-  // drops them here.
-  @each $name in album, artist, playlist, track {
-    .browseitem.ent-#{$name} {
-      --mem-shadow: #{map-get($mem-entities, $name)};
-    }
-  }
-
-  // Favourites: a gold ring INSIDE the ink frame plus a heart badge on the
-  // top edge. Inside, not instead of the frame: gold on the paper ground is
-  // too pale to be the tile's edge, the ink frame stays the contrast line.
-  // Inset 2px within the 3px frame, hence radius - 5px. A pseudo-element
-  // rather than `outline`, because outline is the keyboard focus ring
-  // (focus-ring) and must stay free for it.
+  // Favourites: a gold ring INSIDE the ink frame. Inside, not instead of
+  // the frame: gold on a pastel fill is too pale to be the tile's edge, the
+  // ink frame stays the contrast line. Inset 2px within the 3px frame, hence
+  // radius - 5px. A pseudo-element rather than `outline`, because outline is
+  // the keyboard focus ring (focus-ring) and must stay free for it.
   .browseitem.favorite {
     position: relative;
 
@@ -218,28 +197,6 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // On the top edge, NOT over the corner: the phone grid runs the right
-  // column flush to the page edge, and `.content-page` clips horizontally —
-  // a corner badge lost its right half there (measured at 390px).
-  .fav-badge {
-    position: absolute;
-    top: -0.75rem;
-    right: 0.75rem;
-    width: 1.5rem;
-    height: 1.5rem;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background-color: $mem-gold;
-    border: $mem-ring-w solid $mem-frame;
-    color: $mem-ink;
-
-    svg {
-      width: 0.9rem;
-      height: 0.9rem;
-    }
-  }
-
   .settings svg {
     color: $candy-text;
   }
@@ -247,6 +204,23 @@ const browselist: BrowseItem[] = [
   .reload svg {
     // INFO: The icons is a bit larger than the others
     width: 1.25rem;
+  }
+
+  // Colour coding: the tile's FILL is its entity's pastel tint from the
+  // shared palette — the same lavender/coral/pink/yellow an album, artist,
+  // playlist or track wears in the sidebar and the card rows. The shadow stays
+  // ink like every other plate; colour lives on the surface, not the edge.
+  // Through `--row-fill`, so the hatch covers under icon and label take the
+  // same tint (one source, see mem-hatch-clear). The tint is static, so the
+  // hatch switches to the accent sprite (ink strokes in both themes) and the
+  // text to static ink. Placed BEFORE the hover rule: same specificity, so the
+  // hover flip below still wins by order.
+  @each $name in album, artist, playlist, track {
+    .browseitem.ent-#{$name} {
+      --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
+      @include mem-hatch(38px, $on: accent);
+      color: $mem-ink;
+    }
   }
 
   .browseitem:hover {
