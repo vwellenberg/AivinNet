@@ -1,7 +1,7 @@
 <template>
     <RouterLink
         :to="{ name: Routes.playlist, params: { pid: pl.id } }"
-        class="sidebar-playlist-item"
+        class="sidebar-playlist-item ent-playlist"
         :class="{ active: $route.params.pid == String(pl.id) }"
         draggable="true"
         @dragstart="onDragStart"
