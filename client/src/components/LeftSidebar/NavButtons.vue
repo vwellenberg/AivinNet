@@ -130,7 +130,12 @@ import { menus } from "./navitems";
       // +1.6rem plus the point's ~22px: past the nav padding, the panel
       // padding and the 3px frame, so the point lands on the gap to the page.
       width: calc(100% + 1.6rem);
-      border-right-color: transparent;
+      // No right border at all rather than a transparent one: a transparent
+      // side still takes its share of the corner miter, which left a small
+      // notch of fill where the top and bottom frame meet the point. The 3px
+      // go to the padding so nothing moves.
+      border-right-width: 0;
+      padding-right: calc(#{$small} + #{$candy-border-w});
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
       animation: nav-reach $motion-move $motion-curve-settle;
@@ -146,7 +151,11 @@ import { menus } from "./navitems";
         content: "";
         position: absolute;
         top: 50%;
-        right: -$candy-border-w;
+        // The plate has no right border (see above), so its padding edge IS its
+        // outer edge: the point is centred there. At -3px, as with the old
+        // transparent border, a 3px strip of the plate's own shadow showed as
+        // a vertical ink line between plate and point.
+        right: 0;
         box-sizing: border-box;
         // The padding box is the plate's height minus its two borders.
         height: calc((100% + #{2 * $candy-border-w}) / 1.4142);
@@ -158,6 +167,15 @@ import { menus } from "./navitems";
         border-bottom-color: transparent;
         border-left-color: transparent;
         box-shadow: 4.24px 0 0 var(--mem-shadow);
+        // The tip is rounded like every other corner in this design.
+        border-top-right-radius: 7px;
+        // Only the OUTER half of the square shows: the triangle beyond the
+        // plate's right edge (the diagonal from the square's top-left to its
+        // bottom-right corner is vertical after the turn). The inner half used
+        // to lie on top of the plate with its hatch at 45°, which read as a
+        // second, crossed pattern and a seam (reported 2026-10-05). The
+        // polygon reaches 12px past the box so the offset shadow survives.
+        clip-path: polygon(0 0, calc(100% + 12px) 0, calc(100% + 12px) calc(100% + 12px));
         transform: translate(50%, -50%) rotate(45deg);
         animation: nav-reach-point $motion-move $motion-curve-settle;
       }
