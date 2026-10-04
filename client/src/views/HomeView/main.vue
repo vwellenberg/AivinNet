@@ -75,6 +75,27 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         margin-bottom: 0;
     }
 
+    // "Surprise me" sits in the Rediscover caption row, which is a flex row at
+    // the caption's font size (1.15rem/700). Reset both, or the button inherits
+    // a bold oversized label and the row squeezes it into two lines (measured
+    // in the first branch build: "Surpri/se me").
+    // `btn-action` is the square icon button (width = height); this one has a
+    // label, so it takes its width from the content.
+    .surprise {
+        width: auto;
+        padding: 0 0.9rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        font-weight: 700;
+        gap: 0.4rem;
+
+        svg {
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+    }
+
     // Albums and Artists have their own entries in the left navigation, so the
     // block that links to them is only for phones, whose nav bar does not.
     // `display: none` takes its caption and padding with it: no gap, no stray
