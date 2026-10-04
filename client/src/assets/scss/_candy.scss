@@ -29,11 +29,11 @@ $mem-pink: #f2799f !default; // decorative accent
 // a TRUE blue. The palette's only other cool tones are teal (blue-green) and
 // lavender (blue-violet), and six entities need six separable hues.
 $mem-blue: #3b82d9 !default;
-// The favourite MARK on the home page's browse tiles (the ring). Not an
-// entity colour and not a state: the tile's entity already owns its fill, so
-// "this is a favourites shortcut" needs a second, separate channel. Deeper
-// than $mem-yellow on purpose — the fav-tracks tile carries both, the yellow
-// as its fill and the gold as its ring.
+// The favourite MARK on the home page's browse tiles: the gold end of the
+// gradient that runs into the tile's entity tint. Not an entity colour and
+// not a state: the tile's entity already owns its fill, so "this is a
+// favourites shortcut" needs a second, separate channel. Deeper than
+// $mem-yellow on purpose — the fav-tracks gradient runs from one to the other.
 $mem-gold: #d4a017 !default;
 $mem-blush: #f5c6ce !default; // soft fills (nav active, buttons)
 $mem-blush-soft: #fbe3e7 !default; // input fills, hover on white

@@ -35,7 +35,7 @@ type BrowseEntity = "album" | "artist" | "playlist" | "track";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
 // `entity` colours the tile's fill (what you will find behind it);
-// `favorite` adds the gold ring (that it is your favourites only).
+// `favorite` adds the gold gradient (that it is your favourites only).
 interface BrowseItem {
   title: string;
   route: string;
@@ -179,37 +179,6 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Favourites: a DOUBLE FRAME — ink, gold, ink, no gaps. The gold band sits
-  // flush inside the tile's own frame and is closed on its inside by a second
-  // ink line of the SAME weight as the frame. Every line in this design is one
-  // of three weights; an earlier inner line on the 1px hairline read as a
-  // stray scratch next to the 3px frame, and a 2px gold ring with no ink at
-  // all nearly vanished on the yellow track tint. Gold is a band, never the
-  // edge: gold on a pastel fill is too pale to be the contrast line.
-  //
-  // Static ink, not `$mem-line`: the tint is static, so is everything on it.
-  // Flush (inset 0) means the band follows the frame's inner curve, hence
-  // radius - frame width. A pseudo-element rather than `outline`, because
-  // outline is the keyboard focus ring (focus-ring) and must stay free for it.
-  .browseitem.favorite {
-    // The gold band is a step wider than the ink lines around it (4px vs 3px),
-    // so it reads as the colour and the ink as its edges, not three equal
-    // stripes. Named, not `+ 1px`: shapeTokens forbids a literal 1px border.
-    $fav-band-w: $candy-border-w + $mem-hairline-w;
-
-    position: relative;
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border: $fav-band-w solid $mem-gold;
-      border-radius: max(0px, calc(#{$candy-radius-sm} - #{$candy-border-w}));
-      box-shadow: inset 0 0 0 $candy-border-w $mem-ink;
-      pointer-events: none;
-    }
-  }
-
   .settings svg {
     color: $candy-text;
   }
@@ -236,6 +205,35 @@ const browselist: BrowseItem[] = [
     }
   }
 
+  // Favourites: a gold sheen running into the tile's own entity tint, so
+  // "Fav. albums" is an album tile that has been gilded, not a different kind
+  // of tile. The gradient ends in `var(--row-fill)`, the entity tint set just
+  // above — one source, no second copy of the palette.
+  //
+  // The gradient REPLACES the hatch on these tiles, and that is deliberate:
+  // the hatch's text covers (mem-hatch-clear) are solid `--row-fill` patches,
+  // and on a gradient they would show as flat rectangles around icon and
+  // label. So the covers go transparent at rest; on hover the tile flips to
+  // the hover plate + hover hatch like every other tile, and the covers come
+  // back with it (the `:not(:hover)` below).
+  //
+  // All of it scoped to `:not(:hover)`, size and repeat included: the tile
+  // inherits the hatch's 38px tile size, and a gradient on that size repeats
+  // as vertical stripes (seen in the first screenshot). Setting the size on
+  // the tile itself would in turn stretch the HOVER hatch to one tile. Earlier
+  // rounds tried a ring and a double frame; both read as decoration ON the
+  // tile rather than as the tile's own surface.
+  .browseitem.favorite:not(:hover) {
+    background-image: linear-gradient(100deg, #{$mem-gold} 0%, var(--row-fill) 75%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+
+    .icon,
+    .label {
+      background-color: transparent;
+    }
+  }
+
   .browseitem:hover {
     --row-fill: var(--mem-hover);
     background-color: var(--mem-hover);
@@ -257,40 +255,10 @@ const browselist: BrowseItem[] = [
       gap: 0.75rem;
     }
 
-    // Compact on phones: six tiles are a shortcut block, not the page. With
-    // the entity fills and the favourites' double frame they read heavier
-    // than the plain white tiles did, so the plate shrinks (67px -> ~50px)
-    // and the glyph with it. The tighter horizontal padding also gives the
-    // label the room "Fav. artists" / "Fav. albums" lacked at 390px — they
-    // wrapped to two lines and made their row 10px taller than the others.
     .browseitem {
       width: auto;
-      padding: 0.55rem 0.6rem;
-      font-size: 0.9rem;
-      gap: 0.4rem;
-
-      .icon {
-        height: calc(1.35rem + 4px);
-      }
-
-      svg {
-        height: 1.35rem;
-      }
-    }
-  }
-
-  // Narrow phones (320–380px): a 123–151px tile cannot hold glyph + "Fav.
-  // artists" on one line — measured: the fav labels wrapped up to 375px and
-  // "Playlists" was clipped at 320px. The label is the shortcut, the glyph
-  // only repeats it, so the glyph gives way. No mixin covers this width
-  // (smallPhones is 420px).
-  @media only screen and (max-width: 380px) {
-    .browseitem {
-      grid-template-columns: 1fr;
-
-      .icon {
-        display: none;
-      }
+      padding: 0.9rem 0.75rem;
+      font-size: 0.95rem;
     }
   }
 }
