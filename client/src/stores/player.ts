@@ -18,7 +18,7 @@ import type { Track } from '@/interfaces'
 import { getUrl } from '@/utils/streamUrl'
 export { getUrl }
 import updateMediaNotif from '@/helpers/mediaNotification'
-import { crossFade } from '@/utils/audio/crossFade'
+import { cancelFade, crossFade } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
 import { createSkipGuard, MAX_FAILED_IN_A_ROW } from '@/utils/skipGuard'
 
@@ -57,6 +57,7 @@ class AudioSource {
     preloadWithUri(uri: string) {
         const audio = this.standbySource
         if (!this.settings) return audio
+        this.reclaimStandby()
         audio.src = uri
         audio.muted = this.settings.mute
         audio.volume = this.musicVolume()
@@ -77,6 +78,7 @@ class AudioSource {
 
     switchSources() {
         if (!this.settings) return
+        this.reclaimStandby()
         crossFade({
             audio: this.playingSource,
             duration: this.settings.crossfade_duration,
@@ -93,8 +95,21 @@ class AudioSource {
      * length depends on a local setting would smear that instant.
      */
     swapSources() {
+        this.reclaimStandby()
         this.playingSource.pause()
         this.playingSourceIndex = 1 - this.playingSourceIndex
+    }
+
+    /**
+     * The standby is about to get a new track, or to become the playing
+     * element. If it is still fading out from the previous switch, that fade
+     * must stop now — at its end it would turn the new track down to silence
+     * and unload it.
+     */
+    reclaimStandby() {
+        if (cancelFade(this.standbySource)) {
+            this.standbySource.volume = this.musicVolume()
+        }
     }
 
     assignSettings(settings: ReturnType<typeof useSettings>) {
@@ -143,7 +158,10 @@ class AudioSource {
      * this workaround plays the `standbySource` along with the `playingSource` to meet the first condition.
      */
     private applyAPBlockBypass() {
-        this.standbySource.src = ''
+        // Unloaded, not `src = ''` (see `releaseSource`); the play() call
+        // within the user's gesture is what unlocks the element.
+        this.standbySource.removeAttribute('src')
+        this.standbySource.load()
         this.standbySource
             .play()
             .then(() => {
@@ -330,6 +348,7 @@ export const usePlayer = defineStore('player', () => {
         // A solo preload may still hang `handleNextAudioCanPlay` on it, which
         // would advance the queue on its own once the data arrives.
         clearEventHandlers(el)
+        audioSource.reclaimStandby()
         el.pause()
         el.playbackRate = 1
         el.muted = settings.mute
