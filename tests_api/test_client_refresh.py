@@ -41,6 +41,11 @@ def config(monkeypatch, tmp_path):
     paths = Paths()
     monkeypatch.setattr(type(paths), "config_dir", property(lambda self: tmp_path), raising=False)
     monkeypatch.setattr(paths, "client_path", client, raising=False)
+    # Nothing bundled unless a test says so (`bundled` fixture). Otherwise the
+    # version-based tests would depend on whether a gitignored
+    # src/aivinnet/client.zip happens to lie in the checkout.
+    no_bundle = tmp_path / "no-bundle" / "client.zip"
+    monkeypatch.setattr(AssetHandler, "bundled_zip_path", staticmethod(lambda: no_bundle))
 
     def set_version(v):
         monkeypatch.setattr("aivinnet.settings.Metadata.version", v, raising=False)
@@ -169,19 +174,22 @@ def test_the_stamp_sits_beside_the_client_not_inside_it(config):
 
 
 @pytest.fixture()
-def bundled(monkeypatch, tmp_path_factory):
+def bundled(config, monkeypatch, tmp_path_factory):
     """
     Pretend the installed package carries a `client.zip`, laid out the way the
     Dockerfile and the release workflow build it: ONE top-level `client/` dir.
-    Returns a function that (re)writes the bundle with a given index.html body.
+    Returns a function that (re)writes the bundle; `files` are extra members
+    below `client/`, `date_time` the mtime recorded for every member.
     """
     package = tmp_path_factory.mktemp("package")
-    monkeypatch.setattr("aivinnet.settings.imres.files", lambda name: package)
+    monkeypatch.setattr(AssetHandler, "bundled_zip_path", staticmethod(lambda: package / "client.zip"))
 
-    def bundle(index_html: str):
+    def bundle(index_html: str, files: dict | None = None, date_time=(2026, 10, 4, 12, 0, 0)):
+        members = {"index.html": index_html, "assets/index.0123abcd.js": "console.log(1)", **(files or {})}
         with zipfile.ZipFile(package / "client.zip", "w") as zf:
-            zf.writestr("client/index.html", index_html)
-            zf.writestr("client/assets/index.0123abcd.js", "console.log(1)")
+            for name, body in members.items():
+                zf.writestr(zipfile.ZipInfo(f"client/{name}", date_time=date_time), body)
+        return package / "client.zip"
 
     return bundle
 
@@ -257,3 +265,97 @@ class TestBundledClient:
         bundled("<!doctype html>")
 
         assert AssetHandler.client_is_stale() is False
+
+    def test_an_upgrade_leaves_exactly_the_bundle_behind(self, config, bundled):
+        """
+        ⚠️ Overlaying the zip kept every file the new build no longer has — and
+        `serve_client_files` prefers `<file>.gz`, so a leftover `foo.js.gz`
+        beside a new `foo.js` served the OLD code to every gzip browser.
+        """
+        tmp, client, _set = config
+        (client / "assets").mkdir()
+        (client / "assets" / "old.11111111.js").write_text("old")
+        (client / "assets" / "index.0123abcd.js.gz").write_bytes(b"old gzip")
+        (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(json.dumps({"requested": "2026.8.2"}))
+        bundled("<!doctype html><title>new</title>")
+
+        AssetHandler.setup_default_client()
+
+        files = sorted(p.relative_to(client).as_posix() for p in client.rglob("*") if p.is_file())
+        assert files == ["assets/index.0123abcd.js", "index.html"]
+        # No staging or retired directories left in the config dir either.
+        assert sorted(p.name for p in tmp.iterdir() if p.name.startswith(".client-")) == []
+
+    def test_a_failed_refresh_keeps_serving_the_client_on_disk(self, config, bundled, monkeypatch):
+        """
+        ⚠️ For the Docker image the bundle IS the refresh path. An exception out
+        of it was a startup crash — a crash loop under `restart: unless-stopped`
+        — while a working client sat right there.
+        """
+        tmp, client, _set = config
+        (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(json.dumps({"requested": "2026.8.2"}))
+        bundled("<!doctype html><title>new</title>")
+
+        def denied(*_a, **_k):
+            raise PermissionError("read-only volume")
+
+        monkeypatch.setattr("zipfile.ZipFile.extractall", denied)
+        monkeypatch.setattr(
+            AssetHandler, "download_client_from_github", staticmethod(lambda: pytest.fail("no download"))
+        )
+
+        AssetHandler.setup_default_client()  # must not raise
+
+        assert (client / "index.html").read_text() == "<!doctype html>"
+        # Not stamped: the next start tries again.
+        assert "bundle" not in json.loads((tmp / AssetHandler.CLIENT_STAMP_NAME).read_text())
+
+    def test_a_corrupt_bundle_does_not_crash_the_start(self, config, bundled):
+        tmp, client, _set = config
+        (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(json.dumps({"requested": "2026.8.1"}))
+        bundled("<!doctype html>").write_bytes(b"not a zip")
+
+        AssetHandler.setup_default_client()  # must not raise
+
+        assert (client / "index.html").read_text() == "<!doctype html>"
+
+    def test_a_failed_unpack_with_no_client_at_all_still_exits(self, config, bundled, monkeypatch):
+        _tmp, client, _set = config
+        (client / "index.html").unlink()
+        bundled("<!doctype html>").write_bytes(b"not a zip")
+        monkeypatch.setattr(AssetHandler, "download_client_from_github", staticmethod(lambda: None))
+
+        with pytest.raises(SystemExit):
+            AssetHandler.setup_default_client()
+
+    def test_a_rebuild_of_the_same_content_is_the_same_client(self, bundled):
+        """
+        ⚠️ A zip records mtimes; hashing its bytes made a no-cache rebuild of the
+        same commit look like a new client and re-unpack it.
+        """
+        bundled("<!doctype html>", date_time=(2026, 1, 1, 0, 0, 0))
+        first = AssetHandler.bundled_client_fingerprint()
+        bundled("<!doctype html>", date_time=(2026, 10, 4, 23, 59, 58))
+
+        assert first is not None
+        assert AssetHandler.bundled_client_fingerprint() == first
+
+        bundled("<!doctype html><title>changed</title>")
+        assert AssetHandler.bundled_client_fingerprint() != first
+
+    def test_the_bundle_is_hashed_once_per_start(self, config, bundled, monkeypatch):
+        tmp, _client, _set = config
+        (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(json.dumps({"requested": "2026.8.2"}))
+        bundled("<!doctype html>")
+        real = AssetHandler.bundled_client_fingerprint
+        calls = []
+
+        def counting():
+            calls.append(1)
+            return real()
+
+        monkeypatch.setattr(AssetHandler, "bundled_client_fingerprint", staticmethod(counting))
+
+        AssetHandler.setup_default_client()
+
+        assert len(calls) == 1

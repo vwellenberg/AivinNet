@@ -6,6 +6,7 @@ paths:
   - "pyproject.toml"
   - "src/aivinnet/settings.py"
   - "Dockerfile"
+  - ".dockerignore"
   - "aivinnet.spec"
 ---
 
@@ -210,6 +211,16 @@ Seitdem baut das `Dockerfile` den Client in einer **Node-Stage** aus `client/` u
   ebenso ein Volume aus der Download-Zeit (Stempel `requested: 0.0.0`, ohne `bundle`), das sonst
   den heruntergeladenen Release-Client für immer behielte. „Kein Stempel" heißt weiterhin
   „in Ruhe lassen", ein fremder Client-Ordner (`--client`, AppImage) bleibt unberührt.
+  Gehasht wird der **Inhalt** (Namen + entpackte Bytes), nicht das Zip — das trägt mtimes, ein
+  No-Cache-Rebuild desselben Commits sähe sonst wie ein neuer Client aus.
+- **Ersetzen, nicht überlagern.** `extract_default_client` entpackt in einen Geschwister-Ordner
+  und tauscht per Rename. Drüber-Entpacken ließ alte Dateien liegen — und `serve_client_files`
+  bevorzugt `<datei>.gz`: ein übrig gebliebenes `foo.js.gz` neben neuem `foo.js` (kleine Dateien
+  bekommen kein `.gz`) lieferte jedem gzip-Browser den **alten** Code.
+- **Ein gescheitertes Entpacken ist kein Absturz.** Für Docker ist das der Refresh-Pfad; eine
+  Exception dort wäre unter `restart: unless-stopped` eine Absturzschleife. Liegt ein Client da,
+  wird er weiter serviert (ohne Stempel, der nächste Start versucht es erneut); nur ganz ohne
+  Client endet der Start wie bisher.
 
 Die Node-Stage läuft mit `--platform=$BUILDPLATFORM` (statische Dateien, einmal nativ statt unter
 QEMU pro Architektur) auf dem **vollen** `node:20`-Image: `sharp` (Dev-Dep über

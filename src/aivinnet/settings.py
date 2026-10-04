@@ -28,6 +28,10 @@ from aivinnet.utils import classproperty
 
 log = logging.getLogger(__name__)
 
+# "Not passed": lets a caller hand over a fingerprint it already computed,
+# where None is a meaningful value (nothing bundled).
+_COMPUTE = object()
+
 
 def _comparable_version(value: str) -> str:
     """
@@ -125,43 +129,106 @@ class AssetHandler:
             log.error(f"Assets dir could not be found: {assets_source.as_posix()}")
 
     @staticmethod
-    def extract_default_client(path: Path) -> bool:
+    def bundled_zip_path():
         """
-        Extracts the default client which is bundled with the wheel
-        into the aivinnet client folder.
+        Where a bundled `client.zip` would sit in the installed package.
+
+        One place to ask, so tests can point it elsewhere without patching
+        `importlib.resources` for the whole process.
         """
-        # INFO: Locate the client.zip file using imres, extract it to the aivinnet client folder
-        client_zip_path = imres.files("aivinnet") / "client.zip"
-        if not client_zip_path.exists():
+        return imres.files("aivinnet") / "client.zip"
+
+    @classmethod
+    def extract_default_client(cls, path: Path) -> bool:
+        """
+        Installs the client bundled with the package as `<path>/client`.
+
+        ⚠️ Replaced, not overlaid. Unpacking on top of the previous client kept
+        every file the new build no longer has: a full set of stale hashed
+        assets per image, and — worse — a leftover `foo.js.gz` beside a new
+        `foo.js` (small files get no `.gz` from the build), which
+        `serve_client_files` prefers for every gzip-capable browser, serving the
+        OLD code. So the bundle is unpacked into a temporary sibling and swapped
+        in with two renames; afterwards the directory is exactly the bundle.
+
+        `<config>/client` is the app's own location — a client the user brings
+        (`--client`, `AIVINNET_CLIENT_DIR`, the AppImage's squashfs) lives
+        elsewhere and is never reached from here.
+
+        Raises OSError / zipfile.BadZipFile on failure, leaving the previous
+        client in place; the caller decides what that means.
+        """
+        client_zip_path = cls.bundled_zip_path()
+        if not client_zip_path.is_file():
             # Nothing bundled (source installs). Say so
             # plainly and let the caller fall through to the download; this used
             # to report success when an `index.html` happened to sit in the
             # CONFIG directory, which is not where the client is served from.
             return False
 
-        with zipfile.ZipFile(client_zip_path, "r") as zip_ref:
-            zip_ref.extractall(path)
+        path.mkdir(parents=True, exist_ok=True)
+        target = path / "client"
+
+        with tempfile.TemporaryDirectory(dir=path, prefix=".client-new-") as staging:
+            with zipfile.ZipFile(client_zip_path, "r") as zip_ref:
+                zip_ref.extractall(staging)
+
+            fresh = Path(staging) / "client"
+            if not (fresh / "index.html").is_file():
+                raise zipfile.BadZipFile("client.zip has no client/index.html")
+
+            if not target.exists():
+                fresh.rename(target)
+                return True
+
+            retired = Path(tempfile.mkdtemp(dir=path, prefix=".client-old-"))
+            target.rename(retired / "client")
+            try:
+                fresh.rename(target)
+            except OSError:
+                (retired / "client").rename(target)
+                shutil.rmtree(retired, ignore_errors=True)
+                raise
+
+            shutil.rmtree(retired, ignore_errors=True)
 
         return True
 
-    @staticmethod
-    def bundled_client_fingerprint() -> str | None:
+    @classmethod
+    def bundled_client_fingerprint(cls) -> str | None:
         """
-        A digest of the bundled `client.zip`, or None when nothing is bundled.
+        A digest of the bundled client's CONTENT, or None when nothing is bundled.
 
         ⚠️ Why not the version: an image built from master without
         `--build-arg app_version` is `0.0.0`, build after build. Judged by
         version alone, the second master image would keep the client the first
         one unpacked into the persistent volume — and an image upgraded from the
         download era keeps the release client it fetched, stamped `0.0.0` too.
-        The bundle itself is what changes with every build, so that is what the
-        stamp compares.
+
+        ⚠️ Why not the zip's bytes: a zip records each member's mtime, so a
+        rebuild of the same commit would count as a new client. Hashed are the
+        member names and their decompressed bytes, streamed, in sorted order.
         """
-        client_zip = imres.files("aivinnet") / "client.zip"
+        client_zip = cls.bundled_zip_path()
         if not client_zip.is_file():
             return None
 
-        return hashlib.sha256(client_zip.read_bytes()).hexdigest()
+        digest = hashlib.sha256()
+        try:
+            with zipfile.ZipFile(client_zip, "r") as zf:
+                for info in sorted(zf.infolist(), key=lambda i: i.filename):
+                    if info.is_dir():
+                        continue
+                    digest.update(info.filename.encode("utf-8") + b"\0")
+                    with zf.open(info) as member:
+                        for chunk in iter(lambda: member.read(1 << 16), b""):
+                            digest.update(chunk)
+                    digest.update(b"\0")
+        except (OSError, zipfile.BadZipFile) as e:
+            log.error("Bundled client.zip could not be read: %s", e)
+            return None
+
+        return digest.hexdigest()
 
     @staticmethod
     def process_release(release: dict, path: Path):
@@ -299,7 +366,7 @@ class AssetHandler:
         return paths.config_dir / cls.CLIENT_STAMP_NAME
 
     @classmethod
-    def client_is_stale(cls) -> bool:
+    def client_is_stale(cls, bundle: str | object | None = _COMPUTE) -> bool:
         """
         Whether the client on disk was installed by an OLDER backend.
 
@@ -308,6 +375,9 @@ class AssetHandler:
         turns every AppImage launch and every hand-deployed build into a refresh
         attempt, and a failed stamp write into an endless one. Unknown provenance
         is a reason for restraint, not for action.
+
+        `bundle` is the bundled client's fingerprint, when the caller has it
+        already — hashing it means reading the whole zip.
         """
         stamp = cls.client_stamp_path()
 
@@ -324,14 +394,15 @@ class AssetHandler:
         # the one on disk. A stamp without `bundle` predates bundling — its
         # client was downloaded, possibly from an older release — so it is
         # replaced once; the stamp written afterwards carries the digest.
-        bundle = cls.bundled_client_fingerprint()
+        if bundle is _COMPUTE:
+            bundle = cls.bundled_client_fingerprint()
         if bundle is not None:
             return data.get("bundle") != bundle
 
         return bool(recorded) and recorded != Metadata.version
 
     @classmethod
-    def stamp_client(cls, installed: str | None) -> None:
+    def stamp_client(cls, installed: str | None, bundle: str | object | None = _COMPUTE) -> None:
         """
         Record that THIS version tried to install the client, and what it got.
 
@@ -352,7 +423,8 @@ class AssetHandler:
 
         try:
             record = {"requested": Metadata.version, "installed": installed}
-            bundle = cls.bundled_client_fingerprint()
+            if bundle is _COMPUTE:
+                bundle = cls.bundled_client_fingerprint()
             if bundle is not None:
                 record["bundle"] = bundle
             stamp.write_text(json.dumps(record, indent=2), encoding="utf-8")
@@ -372,7 +444,8 @@ class AssetHandler:
         """
         client_path = Paths().client_path
         present = (client_path / "index.html").exists()
-        stale = cls.client_is_stale()
+        bundle = cls.bundled_client_fingerprint()
+        stale = cls.client_is_stale(bundle)
 
         if present and not stale:
             return
@@ -381,7 +454,21 @@ class AssetHandler:
             log.info("Web client was installed by an older version. Refreshing ...")
 
         # The bundled zip is this build's own client, so it needs no lookup.
-        installed = Metadata.version if cls.extract_default_client(Paths().config_dir) else None
+        # ⚠️ A failed unpack must not take the server down: for the Docker image
+        # this is THE refresh path, and an exception here under
+        # `restart: unless-stopped` is a crash loop — while a working client may
+        # be sitting right there. Not stamped, so the next start tries again
+        # (it is local, there is no rate limit to protect).
+        try:
+            extracted = cls.extract_default_client(Paths().config_dir)
+        except (OSError, zipfile.BadZipFile) as e:
+            log.error("Bundled web client could not be unpacked: %s", e, exc_info=e)
+            if present:
+                log.error("Keeping the web client already on disk.")
+                return
+            extracted = False
+
+        installed = Metadata.version if extracted else None
 
         if installed is None:
             installed = cls.download_client_from_github()
@@ -390,7 +477,7 @@ class AssetHandler:
             log.error("Web client not found. Exiting ...")
             sys.exit(1)
 
-        cls.stamp_client(installed)
+        cls.stamp_client(installed, bundle)
 
 
 class Paths(metaclass=Singleton):

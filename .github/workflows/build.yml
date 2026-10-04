@@ -81,7 +81,7 @@ jobs:
       - name: Install dependencies & Build client
         run: |
           cd client
-          yarn install
+          yarn install --frozen-lockfile
           yarn build --outDir ../dist-client
 
       - name: Upload client

@@ -5,8 +5,10 @@ import pathlib
 
 hiddenimports =[]
 # hiddenimports += collect_submodules('aivinnet')
-datas = [('client.zip', '.')]
-datas += collect_data_files('aivinnet', True, excludes=['**/*.py'], includes=['**/*.*'])
+# client.zip comes in with the package data (`aivinnet/client.zip`, declared in
+# pyproject), which is where `AssetHandler.bundled_zip_path` looks. A separate
+# ('client.zip', '.') entry put a second, never-read copy at the bundle root.
+datas = collect_data_files('aivinnet', True, excludes=['**/*.py'], includes=['**/*.*'])
 datas += collect_data_files('flask_openapi3', True, excludes=['**/*.py'], includes=['**/*.*'])
 
 def getFlaskOpenApiPath():
