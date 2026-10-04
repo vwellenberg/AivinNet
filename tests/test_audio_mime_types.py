@@ -1,7 +1,8 @@
 """The Content-Type the stream endpoint sends for each audio format.
 
-Firefox decides by this header whether it can play a file at all — a wrong
-type is "Can't load", even though Chrome plays the same response.
+Browsers measured on 2026-10-04 played or refused files by codec alone, so a
+wrong header does not break playback today — but it is still a wrong answer,
+and it must not depend on whether the image ships /etc/mime.types.
 """
 
 import mimetypes
