@@ -207,7 +207,6 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 // (Global/_theme-stream.scss); `shapeTokens.test.ts` holds that line.
 //
 //   --look-tint · -tint-text        static row fills (sidebar nav, Home) + text
-//   --look-plate-tint · -text · -muted  entity tint of a cover tile's name plate
 //   --look-active-fill · -text      the selected row
 //   --look-marker                   the ink zigzag marking "this one"
 //   --look-sticker-fill · -inset    heading stickers: fill and side padding
@@ -483,20 +482,6 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 @function mem-pastel($color, $amount: 55%) {
   @return mix($color, $mem-paper, $amount);
 }
-
-// The quieter dose of the same hues, for DATA surfaces: the name plates under
-// the cover tiles and the library rows in the sidebar. They come in numbers —
-// a row of eight tiles, a sidebar of twenty playlists — so the 55% the
-// navigation and the browse tiles wear would turn the page into a colour
-// chart. 30% still names the entity at a glance and stays calm in bulk.
-@function mem-tint($color) {
-  @return mem-pastel($color, 30%);
-}
-
-// Muted text on a mem-tint surface. The theme's muted grey ($mem-text-muted,
-// #6d6a62) passes on white but drops to 3.4:1 on the coral and blue tints;
-// this one keeps every tint above 4.9:1. Static like the tints themselves.
-$mem-tint-muted: #55524b !default;
 
 // ---------------------------------------------------------------------------
 // SIDEBAR PLATE — the library list's row anatomy since #378.

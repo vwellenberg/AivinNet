@@ -230,16 +230,9 @@ $card-cover-pad: 6px;
     //
     // `--row-fill` is the single source both halves read — the surface here and
     // the covers below — so a hover can never flip one without the other.
-    //
-    // The resting fill and hatch come in through `--plate-tint` /
-    // `--plate-hatch` (set per entity below) rather than being written there:
-    // the hover rule above paints `--row-fill` and `background-image` directly,
-    // and the entity rule has the same specificity and sits later in the file,
-    // so painting there would beat the hover.
-    --row-fill: var(--plate-tint, #{$mem-panel});
+    --row-fill: #{$mem-panel};
     background-color: var(--row-fill);
-    background-image: var(--plate-hatch, var(--mem-hatch));
-    background-size: 38px 38px;
+    @include mem-hatch(38px, $on: surface);
     border: $candy-border;
     border-radius: $candy-radius;
     box-shadow: mem-shadow(3px, 3px);
@@ -310,26 +303,6 @@ $card-cover-pad: 6px;
         margin-left: -$card-cover-pad;
         background-color: var(--row-fill);
         border-radius: 6px;
-    }
-}
-
-// The plate wears its entity's colour — the light tint (mem-tint), so a row of
-// eight tiles stays calm. Keyed off the type label's `is-<type>` sibling, not
-// the card's own class: the search page's top result changes type at runtime
-// and only the label knows which one it is (it stays in the DOM in looks that
-// hide it).
-//
-// Only custom properties here, nothing painted — see the note on the plate.
-// The tint is STATIC, so the text tokens are re-pointed to static ink for the
-// whole plate (the card components read `$candy-text` / `$candy-text-muted`,
-// i.e. these two variables) and the hatch takes the accent sprite. A look that
-// does not tint plates sets the three `--look-plate-*` tokens.
-@each $name, $colour in $mem-entities {
-    .card-type-label.is-#{$name} ~ .card-plate {
-        --plate-tint: var(--look-plate-tint, #{mem-tint($colour)});
-        --plate-hatch: var(--mem-hatch-accent);
-        --mem-text: var(--look-plate-text, #{$mem-ink});
-        --mem-text-muted: var(--look-plate-muted, #{$mem-tint-muted});
     }
 }
 
