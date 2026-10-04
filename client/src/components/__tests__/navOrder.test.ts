@@ -35,7 +35,9 @@ const namen = eintraege.map(m => m.name)
 const trennerIndex = menus.findIndex(m => m.separator)
 
 /** Was am Telefon wirklich zu sehen ist: alles vor `stats`, ohne Trenner. */
-const AM_TELEFON_AUSGEBLENDET = ['stats']
+// Albums und Artists (seit 2026-10-04) tragen `phoneHidden`, Stats fällt als
+// letzter Eintrag per CSS weg.
+const AM_TELEFON_AUSGEBLENDET = ['stats', ...menus.filter(m => m.phoneHidden).map(m => m.name)]
 
 describe('Navigation: Reihenfolge', () => {
     it('hat genau einen Trenner, und er trennt zwei Gruppen', () => {
@@ -48,7 +50,9 @@ describe('Navigation: Reihenfolge', () => {
         // Orte, an die man will — mehrmals pro Sitzung angesteuert.
         const ziele = menus.slice(0, trennerIndex).map(m => m.name)
 
-        expect(ziele).toEqual(['home', 'playlists', 'favorites'])
+        // Albums und Artists seit 2026-10-04 (Entscheidung des Nutzers, auf
+        // dem Desktop statt der Browse-Library-Kacheln auf Home).
+        expect(ziele).toEqual(['home', 'playlists', 'favorites', 'albums', 'artists'])
     })
 
     it('stellt die WERKZEUGE darunter', () => {

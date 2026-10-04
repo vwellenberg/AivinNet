@@ -13,6 +13,7 @@
         menu.tint,
         {
           separator: menu.separator,
+          'phone-hidden': menu.phoneHidden,
           active: $route.name === menu.route_name,
         },
       ]"
@@ -39,7 +40,8 @@ import { menus } from "./navitems";
   // the 0.25rem they had as flat rows — otherwise each shadow lands on the
   // next row's frame. This is where the +6% sidebar height comes from.
   gap: $small;
-  overflow: hidden;
+  // Not clipped any more (2026-10-04): the active entry reaches out of the
+  // panel to the right. The nav left the sidebar's scroller for this.
   // `overflow: hidden` clips at the padding edge, so the plates' offset shadow
   // (3px at rest, 4px hovered) needs room reserved on BOTH sides it falls
   // towards. Only the right one was reserved, so the last row in the list —
@@ -101,41 +103,35 @@ import { menus } from "./navitems";
     }
   }
 
-  // "Where am I", stated loud enough to stand in for a page title (user pick
-  // B+C, 2026-10-04): the active entry carries a solid ink bar instead of the
-  // small zigzag and an ink arrow at its right edge pointing at the page, and
-  // the other entries step back. The zigzag was right for a row in a list; as
-  // the only orientation on the page it was too quiet.
+  // "Where am I", stated loud enough to stand in for a page title (user
+  // decision 2026-10-04): the active entry keeps the ink zigzag on its left,
+  // grows to the right past the panel's frame and ends in an ink arrow that
+  // points at the page. The other entries step back a little.
   //
-  // The arrow sits INSIDE the row, not past it as in the mockup: both
-  // `.side-nav-container` and the sidebar's `.scrollable` clip horizontally
-  // (no sideways scroll in the sidebar), and a row pushed out by -0.9rem was
-  // measured clipped at the container's padding edge with the arrow gone.
+  // This needs the nav to be unclipped, which is why it sits ABOVE the
+  // sidebar's scroller now (index.vue): a scroller with overflow-y: auto
+  // cannot leave x visible. The first attempt with the arrow inside the row
+  // was rejected — the point is the reach.
   //
-  // The bar replaces the zigzag sprite of mem-row-marker in the same layer,
-  // so the row keeps its own tint, hatch and the shared `--row-fill` cover
-  // logic. Through `var(--look-marker, …)` like the mixin: a look that turns
-  // the marker off (stream: `none`) still turns this one off. Desktop only —
-  // in the phone bar a 9px bar fills a third of a 56px square, so the phone
-  // keeps the zigzag.
+  // Desktop only: the phone bar is horizontal and has no "right" to point to.
   .nav-item.active:not(.separator) {
-    background-image: var(--look-marker, linear-gradient(#{$mem-ink}, #{$mem-ink})),
-      var(--mem-hatch-accent);
     position: relative;
+    z-index: 1;
+    width: calc(100% + 1.75rem);
 
     &::after {
       content: "";
       position: absolute;
       top: 50%;
-      right: 0.45rem;
+      right: -0.95rem;
       transform: translateY(-50%);
-      border-top: 0.55rem solid transparent;
-      border-bottom: 0.55rem solid transparent;
-      border-left: 0.7rem solid $mem-ink;
+      border-top: 0.7rem solid transparent;
+      border-bottom: 0.7rem solid transparent;
+      border-left: 0.8rem solid $mem-line;
     }
 
     @include allPhones {
-      @include mem-row-marker;
+      width: auto;
 
       &::after {
         content: none;
@@ -145,9 +141,10 @@ import { menus } from "./navitems";
 
   // The others step back. Opacity on the whole plate (fill, hatch, frame and
   // text together), so they read as "not here", not as disabled controls:
-  // hovering one brings it back at full strength.
+  // hovering one brings it back at full strength. 0.8, not 0.6: at 0.6 they
+  // read as switched off (user, 2026-10-04).
   &:has(.nav-item.active) .nav-item:not(.active):not(.separator):not(:hover) {
-    opacity: 0.6;
+    opacity: 0.8;
   }
 
   .nav-item {
@@ -211,7 +208,8 @@ import { menus } from "./navitems";
   }
 
   @include allPhones {
-    .nav-item:last-child {
+    .nav-item:last-child,
+    .nav-item.phone-hidden {
       display: none;
     }
   }
