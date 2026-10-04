@@ -101,7 +101,15 @@ describe('Navigation: Farbfolge', () => {
         const KUEHL = ['tint-green', 'tint-teal', 'tint-lavender']
         const istKuehl = eintraege.map(e => KUEHL.includes(e.tint as string))
 
+        // Die EINE bewusste Ausnahme (Entscheidung des Nutzers, 2026-10-04):
+        // Folders trägt Kraftpapier, die Farbe der Ordner-Entität, und steht
+        // damit warm zwischen Search (Koralle) und Stats (Gelb). Benannt als
+        // Paare, nicht als Abschalten der Regel — jedes weitere warm/warm-
+        // oder kühl/kühl-Paar fällt weiter auf.
+        const AUSNAHMEN = ['search|folders', 'folders|stats']
+
         for (let i = 0; i < istKuehl.length - 1; i++) {
+            if (AUSNAHMEN.includes(`${namen[i]}|${namen[i + 1]}`)) continue
             expect(
                 istKuehl[i] === istKuehl[i + 1],
                 `${namen[i]} und ${namen[i + 1]} sind beide ${istKuehl[i] ? 'kühl' : 'warm'}`

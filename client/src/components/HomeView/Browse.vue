@@ -198,7 +198,7 @@ const browselist: BrowseItem[] = [
   }
 
   // Colour coding: the tile's FILL is its entity's pastel tint from the
-  // shared palette — the same lavender/lime/pink/yellow an album, artist,
+  // shared palette — the same lavender/coral/pink/yellow an album, artist,
   // playlist or track wears in the sidebar and the card rows. The shadow stays
   // ink like every other plate; colour lives on the surface, not the edge.
   // Through `--row-fill`, so the hatch covers under icon and label take the
