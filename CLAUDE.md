@@ -237,6 +237,11 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
      Prozess neben der App laufen.
    - Langlaufendes gehört in einen Thread (`utils/threading.py::background`) oder Prozess-Pool,
      nie in den Handler.
+   - **Keine gestreamte Antwort, die den Request-Kontext hält** (`stream_with_context`, auch
+     indirekt): bjoern wechselt zwischen offenen Streams auf *einem* Thread, zwei davon poppen
+     sich gegenseitig den Kontext („Popped wrong request context") und brechen mitten im Body
+     ab. So lud Safari die App nicht — flask-compress streamte die Client-Dateien, weil seine
+     Config *nach* `Compress()` gesetzt war (Flask-Extensions lesen die Config in `init_app`).
 
 ## Architektur-Hinweise
 

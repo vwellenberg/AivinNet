@@ -62,11 +62,23 @@ def config_app(web):
     CORS(web, origins="*", supports_credentials=False)
 
     # RESPONSE COMPRESSION
-    # Only compress JSON responses
-    Compress(web)
+    # Only compress JSON responses.
+    #
+    # ⚠️ Configure BEFORE `Compress(web)`: flask-compress copies its settings in
+    # `init_app`. Set afterwards (as it was), its defaults stayed live — text/css,
+    # text/javascript, text/html — and static files went out compressed on the
+    # fly as a STREAM wrapped in `stream_with_context`. bjoern interleaves
+    # connections on one thread, so two such streams pop each other's request
+    # context ("Popped wrong request context") and die mid-body. Safari got hit
+    # on every page load: it is the one browser served the plain files instead
+    # of the precompressed `.gz` (see `serve_client_files`).
     web.config["COMPRESS_MIMETYPES"] = [
         "application/json",
     ]
+    # JSON bodies are built in full, so nothing worth compressing streams — and a
+    # compressed stream is exactly the shape that breaks under bjoern.
+    web.config["COMPRESS_STREAMS"] = False
+    Compress(web)
 
     # ⚠️ There was no limit at all. `POST /auth/login` is reachable without a
     # token and Flask buffers the whole body in memory before any handler sees
