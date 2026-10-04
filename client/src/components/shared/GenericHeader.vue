@@ -2,7 +2,7 @@
     <div class="generichead">
         <div class="before">
             <div class="left">
-                <h1 class="title" :class="tint && `tint-${tint}`"><slot name="name"></slot></h1>
+                <h1 class="title" :class="[tint && `tint-${tint}`, entity && `ent-${entity}`]"><slot name="name"></slot></h1>
                 <div class="desc">
                     <slot name="description"></slot>
                 </div>
@@ -23,6 +23,11 @@ defineProps<{
     // the fill of the navigation entry that leads here, or the entity colour
     // of what the page lists. Omitted, the title stays a plain panel sticker.
     tint?: string
+    // For a page that LISTS one kind of thing (Albums, Artists, Favorite
+    // Tracks …): its `$mem-entities` name. Read from the entity palette, not
+    // restated as a nav colour, so the title follows when an entity's colour
+    // changes — the same hue as that entity's tiles and type chips.
+    entity?: string
 }>()
 </script>
 
@@ -95,6 +100,13 @@ defineProps<{
     // stickers sets `--look-title-tint` / `-text`.
     @each $name, $colour in $mem-nav-tints {
         .title.tint-#{$name} {
+            background-color: var(--look-title-tint, #{mem-pastel($colour)});
+            color: var(--look-title-tint-text, #{$mem-ink});
+        }
+    }
+
+    @each $name, $colour in $mem-entities {
+        .title.ent-#{$name} {
             background-color: var(--look-title-tint, #{mem-pastel($colour)});
             color: var(--look-title-tint-text, #{$mem-ink});
         }
