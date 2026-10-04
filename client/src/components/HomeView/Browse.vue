@@ -278,5 +278,19 @@ const browselist: BrowseItem[] = [
       }
     }
   }
+
+  // Narrow phones (320–370px): a 123–143px tile cannot hold glyph + "Fav.
+  // artists" on one line — measured: every label wrapped and "Playlists" was
+  // clipped at 320px. The label is the shortcut, the glyph only repeats it,
+  // so the glyph gives way. No mixin covers this width (smallPhones is 420px).
+  @media only screen and (max-width: 370px) {
+    .browseitem {
+      grid-template-columns: 1fr;
+
+      .icon {
+        display: none;
+      }
+    }
+  }
 }
 </style>
