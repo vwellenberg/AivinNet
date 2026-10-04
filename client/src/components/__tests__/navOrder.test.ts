@@ -103,14 +103,14 @@ describe('Navigation: Farbfolge', () => {
         // die Navigation malt (mem-pastel, 55 % zum Papier gemischt).
         const candy = readFileSync('src/assets/scss/_candy.scss', 'utf-8')
         const hex = (name: string) => {
-            const m = candy.match(new RegExp('\$' + name + ':\s*(#[0-9a-fA-F]{6})'))
+            const m = candy.match(new RegExp('[$]' + name + ':[ ]*(#[0-9a-fA-F]{6})'))
             expect(m, `$${name} nicht gefunden`).not.toBeNull()
             return m![1]
         }
         const map = candy.slice(candy.indexOf('$mem-nav-tints: ('))
         const tint = (cls: string) => {
             const key = cls.replace(/^tint-/, '')
-            const m = map.match(new RegExp('"' + key + '":\s*\$([a-z-]+)'))
+            const m = map.match(new RegExp('"' + key + '":[ ]*[$]([a-z-]+)'))
             expect(m, `${cls} steht nicht in $mem-nav-tints`).not.toBeNull()
             return pastel(hex(m![1]), hex('mem-paper'))
         }
