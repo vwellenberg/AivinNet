@@ -125,6 +125,11 @@ einem Durchgang abfragen.**
   53 solcher Fälle durch — auch **am Ende** prüfen (`\b(track|spur|titel)\s*\d+\s*$`).
 - **Interpret aus der Pfadebene** unterhalb des Musikordners, Sortierpräfix weg
   (`800-Red Hot Chili Peppers` → `Red Hot Chili Peppers`).
+  ⚠️ **Nur, wenn die Pfadebene ein Interpret ist.** `500-Dream.Corp` ist ein *Label*-Ordner (die
+  Bandcamp-Seite von Dream.Corp veröffentlicht auch CD, Webinar™, 汎用CAD …). Ein WAV-Nachzug
+  schrieb dort allen WAVs `Dream.Corp` als Interpret und Album-Artist — die sechs CD-Alben
+  zerfielen in je eine MP3-Hälfte (CD) und eine WAV-Hälfte (Dream.Corp). Vorher die MP3-Zwillinge
+  im selben Ordner fragen; sie tragen die Bandcamp-Tags.
 - **Album aus dem Ordner — nur wenn es einen Albumordner gibt.** Liegen die Dateien direkt im
   Interpretenordner, wird sonst der Interpretenname zum Albumtitel (24 Weezer-Dateien).
 
@@ -252,6 +257,14 @@ Mit der falschen Variante meldet die anschließende Prüfung unveränderte Zahle
 wie „Änderung hat nicht gegriffen".
 
 ## WAV-Dateien taggen
+
+⚠️ **Eine WAV kann ZWEI Tag-Blöcke tragen, und tinytag mischt sie.** Von ffmpeg konvertierte
+Dateien haben einen RIFF-`LIST/INFO`-Block mit den Quell-Tags; ein später per mutagen
+angelegter ID3-Chunk kommt *dazu*, statt ihn zu ersetzen. tinytag liefert dann beide Werte
+(`artist: ["CD", "Dream.Corp"]`): der erste wird Interpret, der zweite liegt unsichtbar in
+`Track.extra`. Einen Album-Artist kennt INFO gar nicht — der kommt allein aus ID3-`TPE2`. `WAVE(fp).tags`
+zeigt **nur** den ID3-Teil; prüfen also mit `TinyTag.get(fp).as_dict()`, nicht mit mutagen.
+Reparatur über `PUT /track/<hash>/tags` (mit `filepath`) schreibt den ID3-Teil sauber neu.
 
 `MutagenFile(pfad, easy=True)` liefert bei WAV ohne vorhandenen Tag-Block kein beschreibbares
 Objekt, und ein separates `ID3(pfad)` wirft `ID3NoHeaderError` — bei WAV sitzt der ID3-Block in
