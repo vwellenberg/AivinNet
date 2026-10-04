@@ -130,7 +130,12 @@ import { menus } from "./navitems";
       // +1.6rem plus the point's ~22px: past the nav padding, the panel
       // padding and the 3px frame, so the point lands on the gap to the page.
       width: calc(100% + 1.6rem);
-      border-right-color: transparent;
+      // No right border at all rather than a transparent one: a transparent
+      // side still takes its share of the corner miter, which left a small
+      // notch of fill where the top and bottom frame meet the point. The 3px
+      // go to the padding so nothing moves.
+      border-right-width: 0;
+      padding-right: calc(#{$small} + #{$candy-border-w});
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
       animation: nav-reach $motion-move $motion-curve-settle;
