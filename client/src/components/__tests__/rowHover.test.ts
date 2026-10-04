@@ -408,6 +408,34 @@ function stripPointerGates(clean: string): string {
   return out;
 }
 
+// A playlist inside a folder is the same object as a playlist one line above
+// it, so under the pointer it has to look the same. It did not: the folder's
+// flat-at-rest rule outranks the row's own `:hover`, and its hover restated
+// only half of the treatment — fill and text flipped, while the hatch
+// (`background-image: none` from the rest rule), the frame and the offset
+// stayed off. Reported as "the hover is different in a folder".
+describe("folder rows hover like playlist rows", () => {
+  const sidebar = SOURCES["/src/components/LeftSidebar/index.vue"];
+
+  function folderRowHover(): string {
+    // `rules()` already walks every nesting level, so each step is one find.
+    const items = rules(styleSource(sidebar)).find(rule => rule.selectors.includes(".sidebar-folder-items"));
+    const row = items && rules(items.body).find(rule => rule.selectors.includes(".sidebar-playlist-item"));
+    const hover = row && rules(row.body).find(rule => rule.selectors.includes("&:hover"));
+    return hover ? ownDeclarations(hover.body) : "";
+  }
+
+  it("finds the folder row's hover rule", () => {
+    expect(folderRowHover()).not.toBe("");
+  });
+
+  it("takes the full plate hover and switches none of it back off", () => {
+    const hover = folderRowHover();
+    expect(hover).toMatch(/@include\s+mem-row-plate-hover\b/);
+    expect(hover).not.toMatch(/\b(border-color|box-shadow|background-image)\s*:/);
+  });
+});
+
 describe("track row hover is pointer-gated", () => {
   // Guards over the scan's own inputs first (.claude/rules/testing.md): a
   // parser that breaks must not go silently green.
