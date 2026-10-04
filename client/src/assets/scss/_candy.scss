@@ -1360,6 +1360,10 @@ $mem-nav-tints: (
   "lavender": $mem-lavender,
   "pink": $mem-pink,
   "coral": $mem-coral,
+  // Folders: the folder entity's colour, so the nav entry and every folder
+  // tile/head agree (user decision 2026-10-04, even though it puts three warm
+  // fills in a row — see navOrder.test.ts).
+  "kraft": $mem-kraft,
 );
 
 $mem-entities: (

@@ -36,7 +36,13 @@ interface NavItem {
   // sequence alternates warm and cool and keeps the two red-ish fills (pink,
   // coral) apart:
   //
-  //   green · pink · teal  —  separator —  coral · lavender · yellow
+  //   green · pink · teal  —  separator —  coral · kraft · yellow
+  //
+  // One deliberate break: Folders wears kraft, the folder ENTITY colour, so
+  // the nav entry matches every folder tile. That makes the lower group three
+  // warm fills in a row — accepted by the user (2026-10-04) over a lavender
+  // Folders entry that now reads as "album". navOrder.test.ts names exactly
+  // these two pairs as the exception.
   //
   // Moving an entry means checking its new neighbours, not just its own fill.
   tint?: string;
@@ -47,7 +53,7 @@ const folder = {
   route_name: Routes.folder,
   params: { path: "$home" },
   icon: FolderSvg,
-  tint: "tint-lavender",
+  tint: "tint-kraft",
 };
 
 const favorites = {
