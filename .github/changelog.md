@@ -49,7 +49,7 @@ docker compose logs -f aivinnet   # waits for the admin password (printed once),
 
 `ghcr.io/vwellenberg/aivinnet:latest` — amd64 and arm64. Pick `/music` as your
 music folder once the UI is up, and back up `config/aivinnet`. The first start
-downloads the web client, so it needs internet.
+unpacks the web client bundled in the image — no download needed.
 
 ## Assets
 

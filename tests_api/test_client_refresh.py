@@ -15,6 +15,7 @@ re-run on every restart.
 """
 
 import json
+import zipfile
 
 import pytest
 
@@ -165,3 +166,94 @@ def test_the_stamp_sits_beside_the_client_not_inside_it(config):
     assert (tmp / AssetHandler.CLIENT_STAMP_NAME).exists()
     assert not (client / AssetHandler.CLIENT_STAMP_NAME).exists()
     assert json.loads((tmp / AssetHandler.CLIENT_STAMP_NAME).read_text())["requested"] == "2026.8.2"
+
+
+@pytest.fixture()
+def bundled(monkeypatch, tmp_path_factory):
+    """
+    Pretend the installed package carries a `client.zip`, laid out the way the
+    Dockerfile and the release workflow build it: ONE top-level `client/` dir.
+    Returns a function that (re)writes the bundle with a given index.html body.
+    """
+    package = tmp_path_factory.mktemp("package")
+    monkeypatch.setattr("aivinnet.settings.imres.files", lambda name: package)
+
+    def bundle(index_html: str):
+        with zipfile.ZipFile(package / "client.zip", "w") as zf:
+            zf.writestr("client/index.html", index_html)
+            zf.writestr("client/assets/index.0123abcd.js", "console.log(1)")
+
+    return bundle
+
+
+class TestBundledClient:
+    """
+    The Docker image bundles the client built from its own commit. Its version
+    says nothing about that client — an image built from master without
+    `--build-arg app_version` is `0.0.0` build after build — so a bundle is
+    judged by its digest, not by the version.
+    """
+
+    def test_extract_lays_the_client_out_where_it_is_served(self, config, bundled):
+        tmp, client, _set = config
+        bundled("<!doctype html><title>bundled</title>")
+
+        assert AssetHandler.extract_default_client(tmp) is True
+
+        assert "bundled" in (client / "index.html").read_text()
+        assert (client / "assets" / "index.0123abcd.js").is_file()
+
+    def test_a_download_era_stamp_is_replaced_by_the_bundle(self, config, bundled):
+        """
+        ⚠️ The observed case: a master image (0.0.0) had downloaded the latest
+        stable release's client and stamped `requested: 0.0.0`. The next master
+        image is 0.0.0 as well — by version it looks current, so the old UI
+        would stay in the volume for ever.
+        """
+        tmp, client, set_version = config
+        set_version("0.0.0")
+        (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(
+            json.dumps({"requested": "0.0.0", "installed": "v2026.9.0"}), encoding="utf-8"
+        )
+        bundled("<!doctype html><title>from this commit</title>")
+
+        assert AssetHandler.client_is_stale() is True
+        AssetHandler.setup_default_client()
+
+        assert "from this commit" in (client / "index.html").read_text()
+        assert json.loads((tmp / AssetHandler.CLIENT_STAMP_NAME).read_text())["bundle"]
+        assert AssetHandler.client_is_stale() is False
+
+    def test_a_new_bundle_with_the_same_version_replaces_the_old_one(self, config, bundled):
+        _tmp, client, set_version = config
+        set_version("0.0.0")
+        bundled("<!doctype html><title>first build</title>")
+        (client / "index.html").unlink()
+        AssetHandler.setup_default_client()
+        assert "first build" in (client / "index.html").read_text()
+
+        bundled("<!doctype html><title>second build</title>")
+
+        assert AssetHandler.client_is_stale() is True
+        AssetHandler.setup_default_client()
+        assert "second build" in (client / "index.html").read_text()
+
+    def test_the_same_bundle_is_not_unpacked_again(self, config, bundled):
+        bundled("<!doctype html>")
+        AssetHandler.stamp_client("2026.8.2")
+
+        assert AssetHandler.client_is_stale() is False
+
+    def test_an_unstamped_client_is_still_left_alone(self, config, bundled):
+        """Bundling must not weaken THE rule: unknown provenance means restraint."""
+        bundled("<!doctype html>")
+
+        assert AssetHandler.client_is_stale() is False
+
+    def test_a_foreign_client_directory_is_never_judged(self, monkeypatch, tmp_path, bundled):
+        paths = Paths()
+        monkeypatch.setattr(type(paths), "config_dir", property(lambda self: tmp_path), raising=False)
+        monkeypatch.setattr(paths, "client_path", tmp_path / "appimage-client", raising=False)
+        bundled("<!doctype html>")
+
+        assert AssetHandler.client_is_stale() is False

@@ -5,6 +5,7 @@ All Variables should be read only after an initial set.
 Contains default configs
 """
 
+import hashlib
 import io
 import json
 import logging
@@ -77,9 +78,9 @@ class AssetHandler:
     """
 
     # INFO: Fallback source for the web client when no client.zip is bundled
-    # (source/wheel installs, Docker image). This MUST stay on this fork —
-    # with the upstream URL an AivinNet install silently serves the upstream
-    # UI. Guarded by tests/test_packaging_manifests.py, because an upstream
+    # (source installs; the Docker image builds and bundles its own client).
+    # This MUST stay on this fork — with the upstream URL an AivinNet install
+    # silently serves the upstream UI. Guarded by tests/test_packaging_manifests.py, because an upstream
     # merge would otherwise quietly restore the old value.
     RELEASES_URL = "https://api.github.com/repos/vwellenberg/AivinNet/releases"
 
@@ -132,7 +133,7 @@ class AssetHandler:
         # INFO: Locate the client.zip file using imres, extract it to the aivinnet client folder
         client_zip_path = imres.files("aivinnet") / "client.zip"
         if not client_zip_path.exists():
-            # Nothing bundled (Docker image, some source installs). Say so
+            # Nothing bundled (source installs). Say so
             # plainly and let the caller fall through to the download; this used
             # to report success when an `index.html` happened to sit in the
             # CONFIG directory, which is not where the client is served from.
@@ -142,6 +143,25 @@ class AssetHandler:
             zip_ref.extractall(path)
 
         return True
+
+    @staticmethod
+    def bundled_client_fingerprint() -> str | None:
+        """
+        A digest of the bundled `client.zip`, or None when nothing is bundled.
+
+        ⚠️ Why not the version: an image built from master without
+        `--build-arg app_version` is `0.0.0`, build after build. Judged by
+        version alone, the second master image would keep the client the first
+        one unpacked into the persistent volume — and an image upgraded from the
+        download era keeps the release client it fetched, stamped `0.0.0` too.
+        The bundle itself is what changes with every build, so that is what the
+        stamp compares.
+        """
+        client_zip = imres.files("aivinnet") / "client.zip"
+        if not client_zip.is_file():
+            return None
+
+        return hashlib.sha256(client_zip.read_bytes()).hexdigest()
 
     @staticmethod
     def process_release(release: dict, path: Path):
@@ -295,9 +315,18 @@ class AssetHandler:
             return False
 
         try:
-            recorded = json.loads(stamp.read_text(encoding="utf-8")).get("requested")
+            data = json.loads(stamp.read_text(encoding="utf-8"))
+            recorded = data.get("requested")
         except (OSError, ValueError, AttributeError):
             return False
+
+        # A bundled client (Docker image, wheel) is current exactly when it is
+        # the one on disk. A stamp without `bundle` predates bundling — its
+        # client was downloaded, possibly from an older release — so it is
+        # replaced once; the stamp written afterwards carries the digest.
+        bundle = cls.bundled_client_fingerprint()
+        if bundle is not None:
+            return data.get("bundle") != bundle
 
         return bool(recorded) and recorded != Metadata.version
 
@@ -322,10 +351,11 @@ class AssetHandler:
             return
 
         try:
-            stamp.write_text(
-                json.dumps({"requested": Metadata.version, "installed": installed}, indent=2),
-                encoding="utf-8",
-            )
+            record = {"requested": Metadata.version, "installed": installed}
+            bundle = cls.bundled_client_fingerprint()
+            if bundle is not None:
+                record["bundle"] = bundle
+            stamp.write_text(json.dumps(record, indent=2), encoding="utf-8")
         except OSError as e:
             log.warning("Could not record the client version stamp: %s", e)
 

@@ -68,7 +68,10 @@ Issues = "https://github.com/vwellenberg/AivinNet-Client/issues"
 # (every album without a cover rendered as a broken image) while the wheel,
 # built from a checkout, was fine. tests/test_packaging_manifests.py guards it.
 [tool.setuptools.package-data]
-aivinnet = ["assets/*"]
+# `client.zip` is untracked (built by the release workflow and the Dockerfile),
+# so setuptools-scm never lists it: without this line neither the wheel nor the
+# Docker image carries it, and the server downloads a client instead.
+aivinnet = ["assets/*", "client.zip"]
 
 [tool.setuptools_scm]
 version_scheme = "only-version"

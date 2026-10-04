@@ -137,10 +137,10 @@ jobs:
       - name: Start, log in, fetch fallback images, reset the password
         run: |
           set -euo pipefail
-          mkdir -p music config/aivinnet/client
-          # A stub client: the real one is downloaded from GitHub on first start,
-          # and an API rate limit must not be able to fail this job.
-          echo '<!doctype html><title>stub</title>' > config/aivinnet/client/index.html
+          # No stub client any more: the image bundles the client built from
+          # this very commit, so a fresh volume must be served that — without
+          # asking GitHub (checked below via the log and the served page).
+          mkdir -p music config
 
           docker run -d --name smoke -p 1970:1970 \
             -v "$PWD/music:/music" -v "$PWD/config:/config" aivinnet-smoke
@@ -169,6 +169,24 @@ jobs:
             curl -s -o /dev/null http://127.0.0.1:1970/ && break
             sleep 2
           done
+
+          # The client must be the BUNDLED one: built by the Dockerfile's node
+          # stage from this checkout, not a release download (master used to
+          # ship with the latest stable release's UI). `Downloading from GitHub`
+          # is what `download_client_from_github` logs before it asks.
+          if grep -q "Downloading from GitHub" <<< "$logs"; then
+            echo "::error::image has no bundled client.zip, it downloaded a release client"; exit 1
+          fi
+          index=$(curl -sf http://127.0.0.1:1970/)
+          bundle=$(grep -oE 'assets/index\.[0-9a-f]+\.js' <<< "$index" | head -n1 || true)
+          if [ -z "$bundle" ]; then
+            echo "::error::'/' is not a built client (no hashed assets/index.*.js)"; echo "$index" | head -c 500; exit 1
+          fi
+          curl -sf -o /dev/null "http://127.0.0.1:1970/$bundle"
+          # The stamp records the bundle's digest; a release download has none.
+          if ! grep -q '"bundle"' config/aivinnet/client.version; then
+            echo "::error::client stamp has no bundle digest"; cat config/aivinnet/client.version; exit 1
+          fi
 
           curl -sf -c cookies -o /dev/null -X POST http://127.0.0.1:1970/auth/login \
             -H 'Content-Type: application/json' \

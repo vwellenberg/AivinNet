@@ -279,6 +279,34 @@ class TestDockerfile:
         assert entrypoint and xdg, "Dockerfile must pass --config and set XDG_CONFIG_HOME"
         assert xdg.group(1) == entrypoint.group(1)
 
+    def test_the_client_is_built_from_this_checkout_and_bundled(self):
+        """
+        Without a bundled `client.zip` the server downloads the latest STABLE
+        release's client — an image built from master then paired the master
+        server with an older UI, and API changes broke it silently.
+        """
+        dockerfile = self._dockerfile()
+        build = re.search(r"^RUN yarn build\b", dockerfile, re.MULTILINE)
+        bundle = re.search(r"^COPY --from=\S+ \S*client\.zip \./src/aivinnet/client\.zip$", dockerfile, re.MULTILINE)
+        install = re.search(r"pip install --no-cache-dir \.", dockerfile)
+
+        assert build, "Dockerfile no longer builds the web client"
+        assert bundle, "Dockerfile no longer copies client.zip into src/aivinnet/"
+        assert install and bundle.start() < install.start(), "client.zip must be in place before `pip install .`"
+        # Only a declared data file reaches the installed package: the build
+        # context has no .git, so setuptools-scm cannot add it.
+        assert "client.zip" in _package_data_globs()
+
+    def test_the_build_context_has_the_client_source_but_not_its_dependencies(self):
+        ignored = {
+            line.strip()
+            for line in (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        }
+
+        assert not ignored & {"client", "client/", "client/src", "/client"}
+        assert "**/node_modules" in ignored
+
     def test_marks_itself_as_a_container(self):
         from aivinnet.start_info_logger import CONTAINER_ENV
 

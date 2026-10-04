@@ -1,0 +1,25 @@
+# Keeps the build context small and the build reproducible from the checkout.
+# `client/` itself MUST stay in: the image builds the web client from it.
+.git
+.github
+.claude
+.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+client/dist
+client/dev-dist
+dist-client
+dist
+build
+wheelhouse
+# Overwritten by the build from the client stage anyway; a stale local copy
+# must not even look like it could end up in the image.
+src/aivinnet/client.zip
+# Data directories of a local/CI run (the Docker smoke test creates these).
+config
+music
+tests
+tests_api
+docs
+*.png
