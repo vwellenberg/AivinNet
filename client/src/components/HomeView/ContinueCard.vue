@@ -9,7 +9,7 @@
       <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
       <div class="meta">
         {{ entry.type === 'album' ? 'Album' : 'Playlist' }} · Track {{ position }} of {{ total }}
-        <template v-if="entry.timestamp"> · {{ formatDateAdded(entry.timestamp) }}</template>
+        <template v-if="entry.item.time"> · {{ entry.item.time }}</template>
       </div>
       <div class="progress" role="progressbar" :aria-valuenow="position" :aria-valuemax="total">
         <span :style="{ width: progress + '%' }"></span>
@@ -29,26 +29,27 @@ import { paths } from "@/config";
 import { playAlbumAt, playPlaylistAt } from "@/helpers/usePlayFrom";
 import { AlbumIcon, PlaylistIcon } from "@/icons";
 import { Routes } from "@/router";
-import { formatDateAdded } from "@/utils/dates";
 
 import PlaySvg from "@/assets/icons/play.svg";
 
 // One item of the homepage's `continue_listening` row: the album or playlist
-// the user was last in and did not finish, with the index of the track they
-// were on.
+// the user was last in and did not finish. The server sends it like every
+// other row item — `{type, item}` with the recovered album/playlist card — and
+// adds `track_index` (0-based, the track they were on), `track_total` and
+// `time` ("2 hours ago") to `item`.
 const props = defineProps<{
   entry: {
     type: string;
-    hash: string;
-    item?: any;
-    track_index: number;
-    track_total: number;
-    timestamp?: number;
+    item: any;
   };
 }>();
 
-const position = computed(() => props.entry.track_index + 1);
-const total = computed(() => props.entry.track_total || 1);
+const position = computed(() => (props.entry.item.track_index ?? 0) + 1);
+const total = computed(() => props.entry.item.track_total || 1);
+// Album: its hash. Playlist: its id (the server sends it as text).
+const hash = computed(() =>
+  String(props.entry.type === "album" ? props.entry.item.albumhash : props.entry.item.id)
+);
 const progress = computed(() => Math.round((position.value / total.value) * 100));
 
 const name = computed(() => props.entry.item?.title ?? props.entry.item?.name ?? "");
@@ -62,14 +63,15 @@ const image = computed(() => {
 
 const link = computed(() =>
   props.entry.type === "album"
-    ? { name: Routes.album, params: { albumhash: props.entry.hash } }
-    : { name: Routes.playlist, params: { pid: props.entry.hash } }
+    ? { name: Routes.album, params: { albumhash: hash.value } }
+    : { name: Routes.playlist, params: { pid: hash.value } }
 );
 
 function resume() {
   // Resume ON the track they were on: it may have been cut off mid-way.
-  if (props.entry.type === "album") playAlbumAt(props.entry.hash, props.entry.track_index);
-  else playPlaylistAt(props.entry.hash, props.entry.track_index);
+  const index = props.entry.item.track_index ?? 0;
+  if (props.entry.type === "album") playAlbumAt(hash.value, index);
+  else playPlaylistAt(hash.value, index);
 }
 </script>
 

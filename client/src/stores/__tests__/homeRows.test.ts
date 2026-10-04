@@ -20,7 +20,8 @@ const response = [
         continue_listening: {
             title: 'Continue listening',
             description: '',
-            items: [{ type: 'album', hash: 'a1', item: album, track_index: 22, track_total: 37, timestamp: 1759600000 }],
+            // As the server sends it: progress fields live on `item`.
+            items: [{ type: 'album', item: { ...album, track_index: 22, track_total: 37, time: '2 hours ago' } }],
         },
     },
     { recently_played: { title: 'Recently played', description: '', items: [{ type: 'album', item: album }] } },
@@ -40,7 +41,10 @@ describe('home rows', () => {
         const home = useHome()
         await home.fetchAll()
 
-        expect(home.continueListening).toMatchObject({ type: 'album', hash: 'a1', track_index: 22, track_total: 37 })
+        expect(home.continueListening).toMatchObject({
+            type: 'album',
+            item: { albumhash: 'a1', track_index: 22, track_total: 37 },
+        })
         expect(home.homepageItems.map(i => i.key)).not.toContain('continue_listening')
     })
 

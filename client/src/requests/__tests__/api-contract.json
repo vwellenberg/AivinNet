@@ -308,6 +308,7 @@
       "required": []
     }
   },
+  "GET /nothome/surprise": {},
   "GET /notsettings": {},
   "GET /notsettings/get-root-dirs": {},
   "GET /notsettings/trigger-scan": {},
