@@ -103,36 +103,39 @@ import { menus } from "./navitems";
 
   // "Where am I", stated loud enough to stand in for a page title (user pick
   // B+C, 2026-10-04): the active entry carries a solid ink bar instead of the
-  // small zigzag, sticks out of the column to the right with an ink arrow
-  // pointing at the page, and the other entries step back. The zigzag was
-  // right for a row in a list; as the only orientation on the page it was too
-  // quiet.
+  // small zigzag and an ink arrow at its right edge pointing at the page, and
+  // the other entries step back. The zigzag was right for a row in a list; as
+  // the only orientation on the page it was too quiet.
+  //
+  // The arrow sits INSIDE the row, not past it as in the mockup: both
+  // `.side-nav-container` and the sidebar's `.scrollable` clip horizontally
+  // (no sideways scroll in the sidebar), and a row pushed out by -0.9rem was
+  // measured clipped at the container's padding edge with the arrow gone.
   //
   // The bar replaces the zigzag sprite of mem-row-marker in the same layer,
   // so the row keeps its own tint, hatch and the shared `--row-fill` cover
   // logic. Through `var(--look-marker, …)` like the mixin: a look that turns
-  // the marker off (stream: `none`) still turns this one off. Desktop only for the protrusion and the arrow —
-  // the phone bar is horizontal and has no "right" to point to.
+  // the marker off (stream: `none`) still turns this one off. Desktop only —
+  // in the phone bar a 9px bar fills a third of a 56px square, so the phone
+  // keeps the zigzag.
   .nav-item.active:not(.separator) {
     background-image: var(--look-marker, linear-gradient(#{$mem-ink}, #{$mem-ink})),
       var(--mem-hatch-accent);
     position: relative;
-    margin-right: -0.9rem;
-    z-index: 1;
 
     &::after {
       content: "";
       position: absolute;
       top: 50%;
-      right: -0.85rem;
+      right: 0.45rem;
       transform: translateY(-50%);
-      border-top: 0.6rem solid transparent;
-      border-bottom: 0.6rem solid transparent;
-      border-left: 0.75rem solid $mem-line;
+      border-top: 0.55rem solid transparent;
+      border-bottom: 0.55rem solid transparent;
+      border-left: 0.7rem solid $mem-ink;
     }
 
     @include allPhones {
-      margin-right: 0;
+      @include mem-row-marker;
 
       &::after {
         content: none;
