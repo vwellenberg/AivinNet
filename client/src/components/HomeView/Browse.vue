@@ -217,15 +217,17 @@ const browselist: BrowseItem[] = [
   // the hover plate + hover hatch like every other tile, and the covers come
   // back with it (the `:not(:hover)` below).
   //
-  // Placed after the entity rule (same specificity, so it wins over the
-  // hatch) and before the hover rule (so hover still wins over it). Earlier
+  // All of it scoped to `:not(:hover)`, size and repeat included: the tile
+  // inherits the hatch's 38px tile size, and a gradient on that size repeats
+  // as vertical stripes (seen in the first screenshot). Setting the size on
+  // the tile itself would in turn stretch the HOVER hatch to one tile. Earlier
   // rounds tried a ring and a double frame; both read as decoration ON the
   // tile rather than as the tile's own surface.
-  .browseitem.favorite {
-    background-image: linear-gradient(100deg, #{$mem-gold} 0%, var(--row-fill) 75%);
-  }
-
   .browseitem.favorite:not(:hover) {
+    background-image: linear-gradient(100deg, #{$mem-gold} 0%, var(--row-fill) 75%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+
     .icon,
     .label {
       background-color: transparent;
