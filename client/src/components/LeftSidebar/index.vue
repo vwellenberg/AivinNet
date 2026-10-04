@@ -840,9 +840,10 @@ onBeforeUnmount(teardown);
       // But it IS the pressable part of that box, so it carries the hatch —
       // as a ring in its own padding, like every other row.
       padding: 5px $small;
-      --row-fill: #{$mem-panel};
-      background-color: var(--row-fill);
-      @include mem-hatch(38px, $on: surface);
+      // The folder's entity tint (light blue, mem-tint), like the playlist
+      // and album rows beside it — the head names WHAT the box is. Static
+      // fill, so static ink text and the accent hatch come with it.
+      @include mem-row-plate-tint(mem-tint($mem-blue));
       cursor: pointer;
       font-size: $sidebar-row-font;
       // Same weight as every other row in this sidebar.
