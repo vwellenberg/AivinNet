@@ -72,6 +72,12 @@ defineProps<{
         margin-top: 2rem;
     }
 
+    // A head without an #after (every page the navigation names) would
+    // otherwise keep the 2rem as a dead gap above the first row.
+    .after:empty {
+        margin-top: 0;
+    }
+
     .left {
         max-width: 100%;
         overflow: hidden;
