@@ -1,6 +1,6 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
-        <GenericHeader tint="green">
+        <GenericHeader tint="sea">
             <template #name>Home</template>
         </GenericHeader>
         <Browse />

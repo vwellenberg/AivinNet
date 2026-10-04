@@ -32,6 +32,18 @@ $mem-blue: #3b82d9 !default;
 // Added for the entity palette (2026-10): the folder's colour — the brown of
 // a paper file folder, the one object in the set with a real-world colour.
 $mem-kraft: #b08850 !default;
+// Round three (2026-10-04), all user picks:
+//   lime   artist (tried, reverted to coral, then wanted after all)
+//   gold   favourites — the "treasured" colour; teal moved on to Home
+//   sea    the teal of the background doodle (memphis-doodles.svg #3EBFAF):
+//          Home in the navigation, and the TRACK entity, because gold sat at
+//          ΔE 7 against the old track yellow — two names for one colour
+//   orchid the purple of the background doodle (#C36BBE): Stats in the
+//          navigation, so the doodle's two loudest hues reappear in the chrome
+$mem-lime: #8cc63f !default;
+$mem-gold: #d4a017 !default;
+$mem-sea: #3ebfaf !default;
+$mem-orchid: #c36bbe !default;
 $mem-blush: #f5c6ce !default; // soft fills (nav active, buttons)
 $mem-blush-soft: #fbe3e7 !default; // input fills, hover on white
 $mem-text-muted: #6d6a62 !default; // subtitles, captions
@@ -1320,17 +1332,17 @@ $mem-band-tint: 6%;
 //      colours in two places.
 //   2. Album · artist · track have to be maximally distinct FROM EACH OTHER,
 //      because they stand side by side in the same row. So: lavender (cool),
-//      coral (warm), yellow (neutral-light).
+//      lime (green), teal (cool-light).
 //   3. The most frequent and smallest entry gets the calmest tone (track).
 //
 // Measured, not guessed (CIE76 on the 55% pastels the tiles wear): the
-// closest pair is artist/playlist at ΔE 17 (coral vs pink), then track/folder
-// at 21. Folder was blue until 2026-10 and sat at ΔE 13 against the album
-// lavender (reported on screen); an even earlier draft had folder on green,
-// ΔE 8 against the teal favourites. Artist was briefly lime (2026-10-04) and
-// went back to coral at the user's request — it is the colour they know.
-// At the 30% mem-tint dose track/folder drops to 11 — acceptable because that
-// dose is only the sidebar folder head; no track surface wears it.
+// closest pair is folder/favourite (kraft vs gold) at ΔE 23, then
+// artist/favourite 25. History of the pairs that failed: album/folder ΔE 13
+// (lavender vs the old folder blue, reported on screen), artist/playlist 17
+// (coral vs pink), favourite gold vs the old track yellow ΔE 7 — which is why
+// track left yellow for the doodle teal. An early draft had folder on green,
+// ΔE 8 against teal. Below ~15 two colours stop being tellable apart side by
+// side.
 //
 // The tint is STATIC (mem-pastel mixes toward paper), so anything on top of it
 // is static ink in both themes — same rule as the sidebar's row plates.
@@ -1350,25 +1362,23 @@ $mem-band-tint: 6%;
 // (GenericHeader `tint` prop), so a page wears the colour of its entry.
 // Toned with mem-pastel, the navigation's dose, not mem-tint.
 $mem-nav-tints: (
-  "green": $brand-green,
-  "teal": $mem-teal,
-  "yellow": $mem-yellow,
-  "lavender": $mem-lavender,
+  "sea": $mem-sea,
   "pink": $mem-pink,
+  "gold": $mem-gold,
   "coral": $mem-coral,
   // Folders: the folder entity's colour, so the nav entry and every folder
-  // tile/head agree (user decision 2026-10-04, even though it puts three warm
-  // fills in a row — see navOrder.test.ts).
+  // tile/head agree.
   "kraft": $mem-kraft,
+  "orchid": $mem-orchid,
 );
 
 $mem-entities: (
   "album": $mem-lavender,
-  "artist": $mem-coral,
-  "track": $mem-yellow,
+  "artist": $mem-lime,
+  "track": $mem-sea,
   "playlist": $mem-pink,
   "folder": $mem-kraft,
-  "favorite": $mem-teal,
+  "favorite": $mem-gold,
 );
 
 @mixin mem-entity-tint($entity) {

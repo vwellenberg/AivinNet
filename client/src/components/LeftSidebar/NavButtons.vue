@@ -99,6 +99,55 @@ import { menus } from "./navitems";
     &.active {
       @include mem-row-marker;
     }
+  }
+
+  // "Where am I", stated loud enough to stand in for a page title (user pick
+  // B+C, 2026-10-04): the active entry carries a solid ink bar instead of the
+  // small zigzag, sticks out of the column to the right with an ink arrow
+  // pointing at the page, and the other entries step back. The zigzag was
+  // right for a row in a list; as the only orientation on the page it was too
+  // quiet.
+  //
+  // The bar replaces the zigzag sprite of mem-row-marker in the same layer,
+  // so the row keeps its own tint, hatch and the shared `--row-fill` cover
+  // logic. Through `var(--look-marker, …)` like the mixin: a look that turns
+  // the marker off (stream: `none`) still turns this one off. Desktop only for the protrusion and the arrow —
+  // the phone bar is horizontal and has no "right" to point to.
+  .nav-item.active:not(.separator) {
+    background-image: var(--look-marker, linear-gradient(#{$mem-ink}, #{$mem-ink})),
+      var(--mem-hatch-accent);
+    position: relative;
+    margin-right: -0.9rem;
+    z-index: 1;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -0.85rem;
+      transform: translateY(-50%);
+      border-top: 0.6rem solid transparent;
+      border-bottom: 0.6rem solid transparent;
+      border-left: 0.75rem solid $mem-line;
+    }
+
+    @include allPhones {
+      margin-right: 0;
+
+      &::after {
+        content: none;
+      }
+    }
+  }
+
+  // The others step back. Opacity on the whole plate (fill, hatch, frame and
+  // text together), so they read as "not here", not as disabled controls:
+  // hovering one brings it back at full strength.
+  &:has(.nav-item.active) .nav-item:not(.active):not(.separator):not(:hover) {
+    opacity: 0.6;
+  }
+
+  .nav-item {
 
     // Hover swaps the row's colour for blush and deepens the offset. Deepening
     // the shadow alone was the first attempt and came back as "you can hardly

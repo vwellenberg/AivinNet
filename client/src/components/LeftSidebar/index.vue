@@ -870,6 +870,12 @@ onBeforeUnmount(teardown);
         // The sidebar's own tier, same slot as a playlist thumbnail, so the
         // folder icon lines up with the other library items — and so the head
         // fits in its 38px without the slot pushing it back open.
+        //
+        // It sits on the hatch like the name and the count, so it carries the
+        // same cover: without one the strokes ran straight through the folder
+        // glyph, which read as a broken hatch (reported 2026-10-04).
+        background-color: var(--row-fill);
+        border-radius: 7px;
         flex-shrink: 0;
         width: $control-dense;
         height: $control-dense;
@@ -880,7 +886,6 @@ onBeforeUnmount(teardown);
       .folder-icon {
         width: 1.35rem;
         height: 1.35rem;
-        opacity: 0.85;
       }
 
       .folder-chevron {
@@ -889,7 +894,6 @@ onBeforeUnmount(teardown);
         flex-shrink: 0;
         width: 0.7rem;
         height: 0.7rem;
-        opacity: 0.6;
         transition: transform $motion-tint ease;
 
         &.open {
@@ -904,14 +908,14 @@ onBeforeUnmount(teardown);
 
       .folder-count {
         // The count sits on the plate just like the name does, so it needs the
-        // same cover (#476) — it was the one label on this row without one, and
-        // at 0.7rem with 0.5 opacity the strokes behind it cost the most.
+        // same cover (#476). Full ink, no opacity: at 0.5 on the kraft tint it
+        // all but vanished (reported 2026-10-04); a count is information, not
+        // decoration. Same goes for the chevron and the folder glyph above.
         @include mem-hatch-clear(4px);
         margin-left: auto;
         flex-shrink: 0;
-        font-size: 0.7rem;
-        font-weight: 500;
-        opacity: 0.5;
+        font-size: 0.75rem;
+        font-weight: 700;
       }
     }
 
@@ -921,21 +925,26 @@ onBeforeUnmount(teardown);
     // same thing twice.
     .sidebar-folder-items {
       border-top: $candy-border-w solid $mem-line;
+      // The box's own hatch (mem-row-plate on .sidebar-folder) showed through
+      // the gaps between the rows as stray strokes. The rows carry their own
+      // hatch now, so the body between them is plain panel.
+      background-color: $mem-panel;
       padding: $smaller;
       display: flex;
       flex-direction: column;
       gap: $smallest;
 
-      // Flat BECAUSE they sit on a plate: no frame, no offset, no hatch. This
-      // is the one place a library row is allowed to drop the plate, and it is
-      // allowed precisely because the folder around it already is one.
+      // Flat BECAUSE they sit on a plate: no frame, no offset. This is the one
+      // place a library row is allowed to drop the plate, and it is allowed
+      // precisely because the folder around it already is one. The HATCH
+      // stays (since 2026-10-04): plain white rows read as unfinished next to
+      // every other hatched row in the sidebar.
       .sidebar-playlist-item {
         // `--row-fill`, not transparent: the hover below flips `--row-fill`,
         // and the label's cover reads it too — a transparent row would leave
         // the hover fill as a pill around the name only. At rest it is the
         // panel, the same white as the folder box, so nothing shows.
         background-color: var(--row-fill);
-        background-image: none;
         border-color: transparent;
         box-shadow: none;
 

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -94,26 +95,53 @@ describe('Navigation: Farbfolge', () => {
         }
     })
 
-    it('wechselt warm und kühl ab', () => {
-        // Grün und Teal liegen als Pastell so nah beieinander, dass zwei kühle
-        // Nachbarn als eine Farbe gelesen werden — genau der Befund, aus dem
-        // die Regel entstand.
-        const KUEHL = ['tint-green', 'tint-teal', 'tint-lavender']
-        const istKuehl = eintraege.map(e => KUEHL.includes(e.tint as string))
+    it('hält Nachbarn messbar auseinander', () => {
+        // Zwei Nachbarn, die als Pastell zu ähnlich sind, liest man als EINE
+        // Farbe (Grün über Teal tat genau das). Früher als Warm/Kühl-Wechsel
+        // formuliert; seit Runde 3 der Palette (2026-10-04) direkt gemessen:
+        // CIE76-Abstand der echten Pastelltöne aus _candy.scss, so wie sie
+        // die Navigation malt (mem-pastel, 55 % zum Papier gemischt).
+        const candy = readFileSync('src/assets/scss/_candy.scss', 'utf-8')
+        const hex = (name: string) => {
+            const m = candy.match(new RegExp(`\$${name}:\s*(#[0-9a-fA-F]{6})`))
+            expect(m, `$${name} nicht gefunden`).not.toBeNull()
+            return m![1]
+        }
+        const map = candy.slice(candy.indexOf('$mem-nav-tints: ('))
+        const tint = (cls: string) => {
+            const key = cls.replace(/^tint-/, '')
+            const m = map.match(new RegExp(`"${key}":\s*\$([a-z-]+)`))
+            expect(m, `${cls} steht nicht in $mem-nav-tints`).not.toBeNull()
+            return pastel(hex(m![1]), hex('mem-paper'))
+        }
 
-        // Die EINE bewusste Ausnahme (Entscheidung des Nutzers, 2026-10-04):
-        // Folders trägt Kraftpapier, die Farbe der Ordner-Entität, und steht
-        // damit warm zwischen Search (Koralle) und Stats (Gelb). Benannt als
-        // Paare, nicht als Abschalten der Regel — jedes weitere warm/warm-
-        // oder kühl/kühl-Paar fällt weiter auf.
-        const AUSNAHMEN = ['search|folders', 'folders|stats']
-
-        for (let i = 0; i < istKuehl.length - 1; i++) {
-            if (AUSNAHMEN.includes(`${namen[i]}|${namen[i + 1]}`)) continue
-            expect(
-                istKuehl[i] === istKuehl[i + 1],
-                `${namen[i]} und ${namen[i + 1]} sind beide ${istKuehl[i] ? 'kühl' : 'warm'}`
-            ).toBe(false)
+        const farben = eintraege.map(e => tint(e.tint as string))
+        for (let i = 0; i < farben.length - 1; i++) {
+            const d = deltaE(farben[i], farben[i + 1])
+            expect(d, `${namen[i]} und ${namen[i + 1]} liegen nur ΔE ${d.toFixed(0)} auseinander`).toBeGreaterThanOrEqual(20)
         }
     })
 })
+
+// --- Farbmessung (sRGB -> CIELAB, D65) ------------------------------------
+function rgb(h: string): number[] {
+    return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+}
+/** mem-pastel: `mix($color, $mem-paper, 55%)` — Sass mischt linear in sRGB. */
+function pastel(farbe: string, papier: string): number[] {
+    const a = rgb(farbe), b = rgb(papier)
+    return a.map((v, i) => v * 0.55 + b[i] * 0.45)
+}
+function lab(c: number[]): number[] {
+    const lin = c.map(u => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4))
+    const [r, g, b] = lin
+    const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+    const Y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    const Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+    const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116)
+    return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))]
+}
+function deltaE(a: number[], b: number[]): number {
+    const [l1, a1, b1] = lab(a), [l2, a2, b2] = lab(b)
+    return Math.hypot(l1 - l2, a1 - a2, b1 - b2)
+}
