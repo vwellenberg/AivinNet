@@ -1,6 +1,6 @@
 <template>
     <div class="stats-charts">
-        <GenericHeader tint="yellow">
+        <GenericHeader tint="orchid">
             <template #name>Charts</template>
             <template #description>Your top artists, albums, tracks, and playlists</template>
         </GenericHeader>

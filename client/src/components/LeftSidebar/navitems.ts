@@ -31,18 +31,18 @@ interface NavItem {
   // would silently re-colour every entry below it the moment one is added or
   // moved. The value is a class suffix (`tint-teal` -> `.nav-item.tint-teal`).
   //
-  // ⚠️ THE ORDER IS PART OF THE VALUE. Toned to pastel, green and teal sit
-  // close enough that Home above Folders read as one colour twice — so the
-  // sequence alternates warm and cool and keeps the two red-ish fills (pink,
-  // coral) apart:
+  // ⚠️ THE ORDER IS PART OF THE VALUE. Toned to pastel, two neighbouring
+  // fills that are too alike read as one colour twice (green above teal did
+  // exactly that). So neighbours must be measurably apart — navOrder.test.ts
+  // computes the CIE76 distance of the real pastels from _candy.scss and
+  // wants ≥ 20 — and the two red-ish fills (pink, coral) never touch:
   //
-  //   green · pink · teal  —  separator —  coral · kraft · yellow
+  //   sea · pink · gold  —  separator —  coral · kraft · orchid
   //
-  // One deliberate break: Folders wears kraft, the folder ENTITY colour, so
-  // the nav entry matches every folder tile. That makes the lower group three
-  // warm fills in a row — accepted by the user (2026-10-04) over a lavender
-  // Folders entry that now reads as "album". navOrder.test.ts names exactly
-  // these two pairs as the exception.
+  // (2026-10-04, user picks: Home takes the doodle teal, Favorites gold,
+  // Folders the folder kraft, Stats the doodle orchid.) This replaced a
+  // warm/cool alternation rule, which stood for the same intent but could
+  // no longer be met by these colours.
   //
   // Moving an entry means checking its new neighbours, not just its own fill.
   tint?: string;
@@ -60,7 +60,7 @@ const favorites = {
   name: "favorites",
   route_name: Routes.favorites,
   icon: BookmarkSvg,
-  tint: "tint-teal",
+  tint: "tint-gold",
 };
 
 const playlists = {
@@ -74,10 +74,10 @@ const home = {
   name: "home",
   route_name: Routes.Home,
   icon: HomeSvg,
-  // Brand green, and it is the only entry that gets it: home is where the app
+  // The doodle teal (the background art's own colour): home is where the app
   // starts. Blush moved out of this list entirely — it is the hover colour now,
   // and a row that wears its own hover state permanently reads as broken.
-  tint: "tint-green",
+  tint: "tint-sea",
 };
 
 const search = {
@@ -93,7 +93,7 @@ const stats = {
   name: "stats",
   route_name: Routes.Stats,
   icon: ChartSvg,
-  tint: "tint-yellow",
+  tint: "tint-orchid",
 };
 
 // ZIELE oben, WERKZEUGE unten — das ist die Bedeutung des Trenners.
