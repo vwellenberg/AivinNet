@@ -1,8 +1,11 @@
 <template>
+    <!-- No `name` slot, no title: the pages the left navigation already names
+         (Home, Playlists, Favorites, Stats, Albums, Artists) leave it out, so
+         the head carries only what else it was given (#right, #after). -->
     <div class="generichead">
         <div class="before">
             <div class="left">
-                <h1 class="title" :class="[tint && `tint-${tint}`, entity && `ent-${entity}`]"><slot name="name"></slot></h1>
+                <h1 v-if="$slots.name" class="title" :class="entity && `ent-${entity}`"><slot name="name"></slot></h1>
                 <div class="desc">
                     <slot name="description"></slot>
                 </div>
@@ -19,10 +22,6 @@
 
 <script setup lang="ts">
 defineProps<{
-    // The page's colour, as a `$mem-nav-tints` name ("green", "pink", …):
-    // the fill of the navigation entry that leads here, or the entity colour
-    // of what the page lists. Omitted, the title stays a plain panel sticker.
-    tint?: string
     // For a page that LISTS one kind of thing (Albums, Artists, Favorite
     // Tracks …): its `$mem-entities` name. Read from the entity palette, not
     // restated as a nav colour, so the title follows when an entity's colour
@@ -73,6 +72,12 @@ defineProps<{
         margin-top: 2rem;
     }
 
+    // A head without an #after (every page the navigation names) would
+    // otherwise keep the 2rem as a dead gap above the first row.
+    .after:empty {
+        margin-top: 0;
+    }
+
     .left {
         max-width: 100%;
         overflow: hidden;
@@ -93,16 +98,6 @@ defineProps<{
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-    }
-
-    // A coloured title: the navigation's pastel, so "Home" wears the green of
-    // the Home row. Static fill, so static ink. A look without coloured
-    // stickers sets `--look-title-tint` / `-text`.
-    @each $name, $colour in $mem-nav-tints {
-        .title.tint-#{$name} {
-            background-color: var(--look-title-tint, #{mem-pastel($colour)});
-            color: var(--look-title-tint-text, #{$mem-ink});
-        }
     }
 
     @each $name, $colour in $mem-entities {

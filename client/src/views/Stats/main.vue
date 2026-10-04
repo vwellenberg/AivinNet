@@ -2,7 +2,10 @@
     <div class="content-page" style="height: 100%; overflow: auto" :style="{ background: brandGradient(BRAND_RED) }">
         <Charts />
         <br><br>
-        <GenericHeader tint="orchid">
+        <!-- A SECTION heading, not the page title: it separates the weekly
+             stats from the charts above, so it stays when the nav names the
+             page. -->
+        <GenericHeader>
             <template #name>Stats</template>
             <template #description>Your listening stats for the past week</template>
         </GenericHeader>

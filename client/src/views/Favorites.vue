@@ -1,7 +1,6 @@
 <template>
     <div class="content-page favorites-page" :style="{ background: brandGradient() }">
-        <GenericHeader tint="gold">
-            <template #name>Favorites</template>
+        <GenericHeader>
             <template #description
                 >{{ count.tracks }} Tracks • {{ count.albums }} Albums • {{ count.artists }} Artists</template
             >
