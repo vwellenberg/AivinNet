@@ -198,3 +198,33 @@ def clean_title(title: str) -> str:
     rem_2 = remove_hyphen_remasters(title)
 
     return rem_1 if len(rem_2) > len(rem_1) else rem_2
+
+
+def tag_int(value: object, default: int) -> int:
+    """
+    Read a number out of a raw tag value from `Track.extra`, or `default`.
+
+    `extra` holds whatever the tag reader handed over, and its shape changed:
+    tinytag 1 gave plain numbers, tinytag 2's `as_dict()` gives every field as
+    a LIST of strings (`track_total: ["12"]`). Rows from both eras sit side by
+    side in one library, so a bare `int(...)` raises on the newer ones — that
+    500'd the album page for every album whose files carry "track 1/12".
+    """
+    if isinstance(value, list):
+        value = value[0] if value else None
+
+    if isinstance(value, bool):
+        return default
+
+    if isinstance(value, int):
+        return value
+
+    if isinstance(value, str):
+        # Some writers keep the "n/total" form even in a total field.
+        value = value.split("/", 1)[0].strip()
+
+        # isdecimal, not isdigit: "²" is a digit that int() rejects.
+        if value.isdecimal():
+            return int(value)
+
+    return default

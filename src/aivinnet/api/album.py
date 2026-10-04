@@ -20,6 +20,7 @@ from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.hashing import create_hash
+from aivinnet.utils.parsers import tag_int
 from aivinnet.utils.stats import get_track_group_stats
 
 bp_tag = Tag(name="Album", description="Single album")
@@ -75,7 +76,7 @@ def get_album_tracks_and_info(body: GetAlbumInfoBody):
     album.duration = sum(t.duration for t in tracks)
     album.check_type(tracks=tracks, singleTrackAsSingle=UserConfig().showAlbumsAsSingles)
 
-    track_total = sum({int(t.extra.get("track_total", 1) or 1) for t in tracks})
+    track_total = sum({tag_int(t.extra.get("track_total"), 1) or 1 for t in tracks})
     avg_bitrate = sum(t.bitrate for t in tracks) // (len(tracks) or 1)
 
     more_from_data = GetMoreFromArtistsBody(

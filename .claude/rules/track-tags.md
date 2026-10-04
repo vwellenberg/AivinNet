@@ -10,6 +10,8 @@ paths:
   - "src/aivinnet/lib/track_edit.py"
   - "src/aivinnet/api/track.py"
   - "mcp_server/server.py"
+  - "src/aivinnet/utils/stats.py"
+  - "src/aivinnet/api/album.py"
 ---
 
 # Track-Tags, Titel und Hashes
@@ -169,6 +171,17 @@ Albumname überall identisch war.
 Der Hash **ignoriert Satzzeichen und Groß-/Kleinschreibung** (`create_hash` wirft alles
 Nicht-Alphanumerische weg). Ein fehlender Apostroph ist also harmlos, ein Buchstabendreher
 (`Josjua` vs `Joshua`) nicht.
+
+## ⚠️ `Track.extra` hält rohe Tag-Werte — und ihre Form hängt vom Leser ab
+
+`extra` ist alles, was `taglib.py` aus `tags.as_dict()` nicht selbst einsortiert. tinytag 2
+liefert dort **jedes Feld als Liste von Strings** (`"track_total": ["12"]`), Zeilen aus der
+tinytag-1-Zeit tragen nackte Zahlen — beide stehen in derselben Bibliothek nebeneinander. Ein
+`int(extra.get(...))` crasht also an jeder neu indexierten Datei mit „Track 1/12"-Tag (Picard
+schreibt das standardmäßig): `POST /album` antwortete für ganze Bibliotheken mit 500, im Client
+sichtbar als `Cannot read properties of undefined (reading 'image')`.
+Zahlen aus `extra` immer über
+`utils/parsers.py::tag_int()` lesen; Vorbilder für Strings: `Track.explicit`, `Lyrics.__init__`.
 
 ## Was der Indexer stillschweigend überspringt
 

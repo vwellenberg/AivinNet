@@ -6,6 +6,7 @@ from aivinnet.utils.parsers import (
     parse_feat_from_title,
     remove_prod,
     split_artists,
+    tag_int,
 )
 
 
@@ -164,3 +165,28 @@ class TestCleanTitle:
 
     def test_preserves_non_remaster_info(self):
         assert clean_title("Song Title (Live)") == "Song Title (Live)"
+
+
+class TestTagInt:
+    """`Track.extra` holds raw tag values, and their shape depends on the reader."""
+
+    def test_tinytag_2_list_of_strings(self):
+        # What tinytag 2's as_dict() stores for "track 1/12" — the value that
+        # 500'd the album page.
+        assert tag_int(["12"], 0) == 12
+
+    def test_tinytag_1_plain_number(self):
+        assert tag_int(12, 0) == 12
+
+    def test_plain_string(self):
+        assert tag_int(" 12 ", 0) == 12
+
+    def test_n_of_total_form(self):
+        assert tag_int("3/12", 0) == 3
+
+    def test_missing_or_empty_falls_back(self):
+        for value in (None, [], "", [""], "abc", ["x"], "²", 1.5, {"a": 1}):
+            assert tag_int(value, 7) == 7
+
+    def test_bool_is_not_a_number(self):
+        assert tag_int(True, 7) == 7
