@@ -10,6 +10,7 @@ from aivinnet.models.track import Track
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.dates import seconds_to_time_string
+from aivinnet.utils.parsers import tag_int
 
 
 def get_artists_in_period(start_time: int | float, end_time: int | float, userid: int | None = None):
@@ -296,7 +297,7 @@ def get_track_group_stats(tracks: list[Track], is_album: bool = False):
         stats.append(top_album_stat)
 
     if is_album:
-        tracktotal: int = max(int(track.extra.get("track_total", 0) or 0) for track in tracks)
+        tracktotal: int = max(tag_int(track.extra.get("track_total"), 0) for track in tracks)
         percentage = (len(tracks) / tracktotal) * 100 if tracktotal > 0 else 101
         completedness = int(percentage) if percentage <= 100 else "?"
 
