@@ -100,7 +100,8 @@ describe("page titles", () => {
     for (const file of [
       "views/PlaylistList.vue",
       "views/Favorites.vue",
-      "views/Stats/main.vue",
+      // Charts carries the Stats PAGE head; views/Stats/main.vue keeps its
+      // "Stats" SECTION heading over the weekly numbers, so it is not listed.
       "components/Stats/Charts.vue",
       "views/AlbumListView/main.vue",
     ]) {
