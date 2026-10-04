@@ -151,7 +151,11 @@ import { menus } from "./navitems";
         content: "";
         position: absolute;
         top: 50%;
-        right: -$candy-border-w;
+        // The plate has no right border (see above), so its padding edge IS its
+        // outer edge: the point is centred there. At -3px, as with the old
+        // transparent border, a 3px strip of the plate's own shadow showed as
+        // a vertical ink line between plate and point.
+        right: 0;
         box-sizing: border-box;
         // The padding box is the plate's height minus its two borders.
         height: calc((100% + #{2 * $candy-border-w}) / 1.4142);
