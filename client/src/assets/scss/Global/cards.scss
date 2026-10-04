@@ -171,6 +171,18 @@ $card-cover-pad: 6px;
     justify-content: center;
 }
 
+// The placeholder wears its entity's pastel, the same 55% dose as the server's
+// own placeholder images (assets/default.webp is the album lavender,
+// artist.webp the artist lime, track.webp the track yellow) — so a folder tile
+// next to a picture-less album reads kraft beside lavender, not blush beside
+// lavender. Keyed off the type label's `is-<type>` sibling, like the label
+// itself; a tile without a label keeps the blush above.
+@each $name, $colour in $mem-entities {
+    .card-type-label.is-#{$name} ~ .card-art.is-glyph {
+        background-color: mem-pastel($colour);
+    }
+}
+
 // A round motif (artist portrait). The frame moves to the IMAGE and the box
 // opens up, because the play disc sits in the square corner OUTSIDE the circle
 // — under `overflow: hidden` it would be clipped away.

@@ -226,6 +226,12 @@ const browselist: BrowseItem[] = [
     position: relative;
   }
 
+  // The mark hangs 0.45rem past the icon's box; that much room goes to the
+  // icon's right so the heart never touches the first letter of the label.
+  .browseitem.favorite .icon {
+    margin-right: 0.45rem;
+  }
+
   .fav-mark {
     position: absolute;
     right: -0.45rem;
