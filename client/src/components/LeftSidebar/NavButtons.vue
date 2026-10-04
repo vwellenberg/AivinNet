@@ -104,50 +104,70 @@ import { menus } from "./navitems";
   }
 
   // "Where am I", stated loud enough to stand in for a page title (user
-  // decision 2026-10-04): the active entry keeps the ink zigzag on its left,
-  // grows to the right past the panel's frame and ends in an ink arrow that
-  // points at the page. The other entries step back a little.
+  // decisions 2026-10-04): the active entry keeps the ink zigzag on its left,
+  // grows to the right past the panel's frame, and the PLATE ITSELF ends in a
+  // point aimed at the page — no separate black arrow (that was rejected:
+  // "kein schwarzes Ende"). Growing is animated, so the entry visibly
+  // reaches out when it becomes active.
+  //
+  // The point is a square turned 45° and centred on the plate's right edge:
+  // its diagonal equals the plate's height, so its top and bottom corners land
+  // exactly on the plate's top-right and bottom-right corners and its top and
+  // right borders continue the plate's frame. It wears the same `--row-fill`
+  // and hatch as the plate, and its own box-shadow carries the 3px offset —
+  // 4.24px along the local x axis IS (3px, 3px) after the 45° turn. The
+  // plate's own right border and corners step aside for it.
   //
   // This needs the nav to be unclipped, which is why it sits ABOVE the
-  // sidebar's scroller now (index.vue): a scroller with overflow-y: auto
-  // cannot leave x visible. The first attempt with the arrow inside the row
-  // was rejected — the point is the reach.
+  // sidebar's scroller (index.vue): a scroller with overflow-y: auto cannot
+  // leave x visible.
   //
-  // Desktop only: the phone bar is horizontal and has no "right" to point to.
-  .nav-item.active:not(.separator) {
-    position: relative;
-    z-index: 1;
-    // +2.4rem: past the nav padding, the panel padding and the 3px frame, so
-    // the plate visibly overhangs the panel by ~8px (measured: +1.75rem only
-    // reached the frame line).
-    width: calc(100% + 2.4rem);
+  // Desktop only: the phone bar is horizontal and has no "right" to reach to.
+  @media only screen and (min-width: 901px) {
+    .nav-item.active:not(.separator) {
+      position: relative;
+      z-index: 1;
+      // +1.6rem plus the point's ~22px: past the nav padding, the panel
+      // padding and the 3px frame, so the point lands on the gap to the page.
+      width: calc(100% + 1.6rem);
+      border-right-color: transparent;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+      animation: nav-reach $motion-move $motion-curve-settle;
 
-    &::after {
-      content: "";
-      position: absolute;
-      top: 50%;
-      right: -1.05rem;
-      transform: translateY(-50%);
-      border-top: 0.75rem solid transparent;
-      border-bottom: 0.75rem solid transparent;
-      border-left: 0.9rem solid $mem-line;
-    }
-
-    @include allPhones {
-      width: auto;
+      // Glyph and label above the point, which overlaps the plate's last
+      // ~22px (only hatch lives there).
+      & > div {
+        position: relative;
+        z-index: 1;
+      }
 
       &::after {
-        content: none;
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: -$candy-border-w;
+        box-sizing: border-box;
+        // The padding box is the plate's height minus its two borders.
+        height: calc((100% + #{2 * $candy-border-w}) / 1.4142);
+        aspect-ratio: 1;
+        background-color: var(--row-fill);
+        background-image: var(--mem-hatch-accent);
+        background-size: 38px 38px;
+        border: $candy-border;
+        border-bottom-color: transparent;
+        border-left-color: transparent;
+        box-shadow: 4.24px 0 0 var(--mem-shadow);
+        transform: translate(50%, -50%) rotate(45deg);
+        animation: nav-reach-point $motion-move $motion-curve-settle;
+      }
+
+      // Hover flips the fill and the hatch (mem-row-plate-hover); the point
+      // follows through `--row-fill`, and takes the hover hatch the same way.
+      &:hover::after {
+        background-image: var(--mem-hatch-hover);
       }
     }
-  }
-
-  // The others step back. Opacity on the whole plate (fill, hatch, frame and
-  // text together), so they read as "not here", not as disabled controls:
-  // hovering one brings it back at full strength. 0.8, not 0.6: at 0.6 they
-  // read as switched off (user, 2026-10-04).
-  &:has(.nav-item.active) .nav-item:not(.active):not(.separator):not(:hover) {
-    opacity: 0.8;
   }
 
   .nav-item {
@@ -270,6 +290,18 @@ import { menus } from "./navitems";
 
   svg.radiosvg {
     transform: scale(0.7);
+  }
+}
+
+@keyframes nav-reach {
+  from {
+    width: 100%;
+  }
+}
+
+@keyframes nav-reach-point {
+  from {
+    transform: translate(50%, -50%) rotate(45deg) scale(0);
   }
 }
 </style>
