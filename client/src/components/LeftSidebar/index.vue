@@ -1,7 +1,9 @@
 <template>
   <div class="l-sidebar" :style="{ width: displayWidth + 'px' }">
-    <div class="scrollable">
+    <div class="sidebar-nav">
       <Navigation />
+    </div>
+    <div class="scrollable">
       <div class="sidebar-library">
         <div class="sidebar-library-title">
           <span>Library</span>
@@ -632,11 +634,16 @@ onBeforeUnmount(teardown);
 .l-sidebar {
   grid-area: l-sidebar;
   display: grid;
-  // Logo lives in the top bar, the version moved to Settings → About: the
-  // scroll container is the only row left.
-  grid-template-rows: 1fr;
+  // Two rows: the navigation (fixed) and the library (scrolls). The nav sat
+  // inside the scroller until 2026-10-04, but a scroller with `overflow-y:
+  // auto` cannot leave x visible (CSS turns it into auto/hidden), and the
+  // active nav entry now reaches out of the panel to point at the page.
+  grid-template-rows: auto minmax(0, 1fr);
   @include candy-box($candy-white, $candy-radius);
   position: relative;
+  // Above the content panel: the active nav entry and its arrow reach across
+  // the gap onto the page's frame and would otherwise be painted under it.
+  z-index: 2;
   // ⚠️ No padding here — it belongs to the scroller below. A padded panel
   // moves the scrollport's clip edge INWARDS, and a scroll container clips at
   // its padding box: rows then vanished 14px short of the ink frame, inside a
@@ -648,6 +655,14 @@ onBeforeUnmount(teardown);
   // Small black gap on the far left so the panel floats.
   margin-left: 8px;
 
+  // Same inset as the scroller below; no bottom padding — the library's own
+  // top padding is the gap between the two.
+  .sidebar-nav {
+    padding: 1.875rem 0.875rem 0;
+    position: relative;
+    z-index: 2;
+  }
+
   .scrollable {
     height: 100%;
     overflow: auto;
@@ -658,7 +673,10 @@ onBeforeUnmount(teardown);
     // already had, so the resting distance from frame to first row is
     // unchanged at 30px; the scrollbar now rides the frame instead of floating
     // 14px inside it.
-    padding: 1.875rem 0.875rem;
+    // Top inset is smaller since the nav moved above the scroller: the nav's
+    // own 1.875rem keeps the panel's resting top inset, and 1rem here is the
+    // gap between nav and library.
+    padding: 1rem 0.875rem 1.875rem;
 
     // ⚠️ Follow the frame's curve. Now that the scrollport reaches the border,
     // both its contents AND its scrollbar are square against a rounded panel —
@@ -840,11 +858,12 @@ onBeforeUnmount(teardown);
       // But it IS the pressable part of that box, so it carries the hatch —
       // as a ring in its own padding, like every other row.
       padding: 5px $small;
-      // The folder's entity tint (light kraft, mem-tint), read from the
-      // entity map so a palette change reaches it. The rows inside stay
-      // white; the head is the group's HEADING and names what the box is. Static
-      // fill, so static ink text and the accent hatch come with it.
-      @include mem-row-plate-tint(mem-tint(map-get($mem-entities, "folder")));
+      // White like every other library row (the kraft tint of #335 went
+      // again on 2026-10-04 at the user's request: the library is data and
+      // stays white; colour belongs to the navigation and the tiles).
+      --row-fill: #{$mem-panel};
+      background-color: var(--row-fill);
+      @include mem-hatch(38px, $on: surface);
       cursor: pointer;
       font-size: $sidebar-row-font;
       // Same weight as every other row in this sidebar.

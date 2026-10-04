@@ -9,6 +9,8 @@ import PlaylistSvg from "@/assets/icons/playlist-1.svg";
 import SearchSvg from "@/assets/icons/search.svg";
 import HomeSvg from "@/assets/icons/home.svg";
 import ChartSvg from "@/assets/icons/chart.svg";
+import AlbumSvg from "@/assets/icons/album.svg";
+import ArtistSvg from "@/assets/icons/artist.svg";
 
 // A sidebar/bottom-bar navigation entry. Only `separator: true` entries omit
 // the route fields; `icon` is `any` because that's what the `*.svg` module
@@ -25,6 +27,10 @@ interface NavItem {
   query?: () => LocationQueryRaw;
   icon?: any;
   separator?: boolean;
+  // Sidebar only: the phone bar has room for five entries, so this one is
+  // left out there (it stays reachable through Home's Browse Library block,
+  // which phones keep for exactly this reason).
+  phoneHidden?: boolean;
   action?: () => void;
   // The entry's memphis fill. Declared HERE rather than as an `nth-child` rule
   // in the stylesheet: the list contains a separator, so a positional selector
@@ -37,7 +43,7 @@ interface NavItem {
   // computes the CIE76 distance of the real pastels from _candy.scss and
   // wants ≥ 20 — and the two red-ish fills (pink, coral) never touch:
   //
-  //   sea · pink · gold  —  separator —  coral · kraft · orchid
+  //   sea · pink · gold · lavender · lime  —  separator —  coral · kraft · orchid
   //
   // (2026-10-04, user picks: Home takes the doodle teal, Favorites gold,
   // Folders the folder kraft, Stats the doodle orchid.) This replaced a
@@ -96,6 +102,25 @@ const stats = {
   tint: "tint-orchid",
 };
 
+// Albums and Artists joined the navigation on 2026-10-04 (user decision, "to
+// test"): on desktop they replace Home's Browse Library block. Their fills
+// are their entity colours, so the entry matches every album/artist tile.
+const albums = {
+  name: "albums",
+  route_name: Routes.AlbumList,
+  icon: AlbumSvg,
+  tint: "tint-lavender",
+  phoneHidden: true,
+};
+
+const artists = {
+  name: "artists",
+  route_name: Routes.ArtistList,
+  icon: ArtistSvg,
+  tint: "tint-lime",
+  phoneHidden: true,
+};
+
 // ZIELE oben, WERKZEUGE unten — das ist die Bedeutung des Trenners.
 //
 // Oben stehen die Orte, an die man WILL (Start, die eigenen Listen, das
@@ -117,6 +142,8 @@ export const menus: NavItem[] = [
   home,
   playlists,
   favorites,
+  albums,
+  artists,
   {
     separator: true,
   },
