@@ -840,8 +840,8 @@ onBeforeUnmount(teardown);
       // But it IS the pressable part of that box, so it carries the hatch —
       // as a ring in its own padding, like every other row.
       padding: 5px $small;
-      // The folder's entity tint (light blue, mem-tint), like the playlist
-      // and album rows beside it — the head names WHAT the box is. Static
+      // The folder's entity tint (light blue, mem-tint). The rows inside stay
+      // white; the head is the group's HEADING and names what the box is. Static
       // fill, so static ink text and the accent hatch come with it.
       @include mem-row-plate-tint(mem-tint($mem-blue));
       cursor: pointer;

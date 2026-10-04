@@ -483,6 +483,15 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   @return mix($color, $mem-paper, $amount);
 }
 
+// The quieter dose of the same hues, for HEADINGS of data groups — today the
+// folder head in the sidebar library. The rows themselves and the name plates
+// under the cover tiles stay white (the tinted version, #326, was rolled back:
+// in bulk the colour turned the page into a colour chart). 30% still names
+// the entity at a glance without competing with the 55% navigation tints.
+@function mem-tint($color) {
+  @return mem-pastel($color, 30%);
+}
+
 // ---------------------------------------------------------------------------
 // SIDEBAR PLATE — the library list's row anatomy since #378.
 //
