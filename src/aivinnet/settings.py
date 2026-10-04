@@ -477,7 +477,10 @@ class AssetHandler:
             log.error("Web client not found. Exiting ...")
             sys.exit(1)
 
-        cls.stamp_client(installed, bundle)
+        # Only a client that IS the bundle may carry its digest. After a failed
+        # unpack the fallback download is an older release's client; stamped
+        # with the digest, the next start would call it current and keep it.
+        cls.stamp_client(installed, bundle if extracted else None)
 
 
 class Paths(metaclass=Singleton):

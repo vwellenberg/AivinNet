@@ -328,6 +328,37 @@ class TestBundledClient:
         with pytest.raises(SystemExit):
             AssetHandler.setup_default_client()
 
+    def test_a_fallback_download_after_a_failed_unpack_is_not_called_current(self, config, bundled, monkeypatch):
+        """
+        Fresh volume, the bundle cannot be unpacked, the release download steps
+        in. That client is NOT the bundle — stamped with the bundle's digest it
+        would count as current from the next start on and never be replaced.
+        """
+        tmp, client, _set = config
+        (client / "index.html").unlink()
+        bundled("<!doctype html><title>bundle</title>")
+        real_extract = AssetHandler.extract_default_client
+
+        def denied(*_a, **_k):
+            raise PermissionError("read-only volume")
+
+        def download():
+            (client / "index.html").write_text("<!doctype html><title>release</title>")
+            return "v2026.9.0"
+
+        monkeypatch.setattr(AssetHandler, "extract_default_client", classmethod(denied))
+        monkeypatch.setattr(AssetHandler, "download_client_from_github", staticmethod(download))
+
+        AssetHandler.setup_default_client()
+
+        assert "bundle" not in json.loads((tmp / AssetHandler.CLIENT_STAMP_NAME).read_text())
+        assert AssetHandler.client_is_stale() is True
+
+        # Next start, the unpack works: the bundle replaces the release client.
+        monkeypatch.setattr(AssetHandler, "extract_default_client", real_extract)
+        AssetHandler.setup_default_client()
+        assert "bundle" in (client / "index.html").read_text()
+
     def test_a_rebuild_of_the_same_content_is_the_same_client(self, bundled):
         """
         ⚠️ A zip records mtimes; hashing its bytes made a no-cache rebuild of the
