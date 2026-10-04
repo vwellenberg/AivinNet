@@ -1,22 +1,30 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
         <GenericHeader />
+        <ContinueCard v-if="home.continueListening" :entry="home.continueListening" />
         <Browse class="browse-phones-only" />
         <PageItem
             v-for="item in home.homepageItems"
-            :key="item.path"
+            :key="item.key"
             :title="item.title || ''"
             :description="item.description"
             :items="item.items"
             :play-source="playSources.track"
             :route="item.path"
             :see-all-text="item.seeAllText"
-        />
+        >
+            <template v-if="item.key === 'rediscover'" #actions>
+                <button class="btn-action surprise" :disabled="surprising" @click="surprise">
+                    <ShuffleSvg />
+                    Surprise me
+                </button>
+            </template>
+        </PageItem>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
@@ -25,11 +33,28 @@ import { maxAbumCards } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
+import ContinueCard from '@/components/HomeView/ContinueCard.vue'
+import ShuffleSvg from '@/assets/icons/shuffle.svg'
+import { playFromAlbumCard } from '@/helpers/usePlayFrom'
+import { getSurpriseAlbum } from '@/requests/home'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
 
 const home = useHome()
+
+// "Surprise me" on the Rediscover row: one random album from the whole
+// library, played from the top. The server picks (RAM only).
+const surprising = ref(false)
+async function surprise() {
+    surprising.value = true
+    try {
+        const albumhash = await getSurpriseAlbum()
+        if (albumhash) await playFromAlbumCard(albumhash, '')
+    } finally {
+        surprising.value = false
+    }
+}
 
 onMounted(async () => {
     updatePageTitle('Home')

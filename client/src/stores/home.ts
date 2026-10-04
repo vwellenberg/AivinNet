@@ -8,8 +8,17 @@ import { fetchCardCount, maxAbumCards } from './content-width'
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
 
+    // "Continue listening" is not a row: Home shows it as the card on top.
+    const continueListening = computed(() => {
+        // @ts-ignore
+        const entry: HomePageItem | undefined = homepageData.continue_listening
+        return entry && entry.items.length ? entry.items[0] : null
+    })
+
     const homepageItems = computed(() => {
-        const items = Object.values(homepageData).filter(item => item.items.length > 0)
+        const items = Object.entries(homepageData)
+            .filter(([key, item]) => key !== 'continue_listening' && item.items.length > 0)
+            .map(([key, item]) => Object.assign(item, { key }))
         items.sort((a, b) => a.position - b.position)
 
         return items
@@ -43,7 +52,10 @@ export default defineStore('homepage', () => {
             // @ts-ignore
             homepageData[key] = item[key]
             // @ts-ignore
-            homepageData[key].position = key === 'recently_played' ? -1 : index
+            // The server sends the rows in display order (continue listening,
+            // recently played, rediscover, on this day, collections, recently
+            // added) — the index IS the position.
+            homepageData[key].position = index
             // @ts-ignore
             homepageData[key].path = routes[key]
             // @ts-ignore
@@ -78,6 +90,7 @@ export default defineStore('homepage', () => {
     return {
         homepageData,
         homepageItems,
+        continueListening,
         fetchAll,
         refetchIfWider,
     }

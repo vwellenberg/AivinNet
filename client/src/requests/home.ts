@@ -26,3 +26,13 @@ export async function getHomePageData(limit: number) {
 
     return data
 }
+
+/** A random album from the whole library, for Home's "Surprise me". */
+export async function getSurpriseAlbum(): Promise<string | null> {
+    const { data } = await useAxios({
+        url: paths.api.home.surprise,
+        method: 'GET',
+    })
+
+    return data?.albumhash ?? null
+}

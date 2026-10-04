@@ -131,6 +131,9 @@ export const paths = {
             get recentlyPlayed() {
                 return this.base + '/recents/played'
             },
+            get surprise() {
+                return this.base + '/surprise'
+            },
         },
         auth: {
             base: '/auth',

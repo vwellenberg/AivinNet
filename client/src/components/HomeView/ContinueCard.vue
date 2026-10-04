@@ -1,0 +1,200 @@
+<template>
+  <div class="continue-card" :class="`ent-${entry.type}`">
+    <RouterLink class="cover" :to="link">
+      <img v-if="image" :src="image" alt="" />
+      <div v-else class="glyph" v-html="entry.type === 'album' ? AlbumIcon : PlaylistIcon"></div>
+    </RouterLink>
+    <div class="info">
+      <span class="kicker">Continue listening</span>
+      <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
+      <div class="meta">
+        {{ entry.type === 'album' ? 'Album' : 'Playlist' }} · Track {{ position }} of {{ total }}
+        <template v-if="entry.timestamp"> · {{ formatDateAdded(entry.timestamp) }}</template>
+      </div>
+      <div class="progress" role="progressbar" :aria-valuenow="position" :aria-valuemax="total">
+        <span :style="{ width: progress + '%' }"></span>
+      </div>
+      <button class="btn-primary resume" @click="resume">
+        <PlaySvg />
+        Continue
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+
+import { paths } from "@/config";
+import { playAlbumAt, playPlaylistAt } from "@/helpers/usePlayFrom";
+import { AlbumIcon, PlaylistIcon } from "@/icons";
+import { Routes } from "@/router";
+import { formatDateAdded } from "@/utils/dates";
+
+import PlaySvg from "@/assets/icons/play.svg";
+
+// One item of the homepage's `continue_listening` row: the album or playlist
+// the user was last in and did not finish, with the index of the track they
+// were on.
+const props = defineProps<{
+  entry: {
+    type: string;
+    hash: string;
+    item?: any;
+    track_index: number;
+    track_total: number;
+    timestamp?: number;
+  };
+}>();
+
+const position = computed(() => props.entry.track_index + 1);
+const total = computed(() => props.entry.track_total || 1);
+const progress = computed(() => Math.round((position.value / total.value) * 100));
+
+const name = computed(() => props.entry.item?.title ?? props.entry.item?.name ?? "");
+
+const image = computed(() => {
+  const item = props.entry.item;
+  if (!item) return "";
+  if (props.entry.type === "album") return item.image ? paths.images.thumb.large + item.image : "";
+  return item.thumb ? paths.images.playlist + item.thumb : "";
+});
+
+const link = computed(() =>
+  props.entry.type === "album"
+    ? { name: Routes.album, params: { albumhash: props.entry.hash } }
+    : { name: Routes.playlist, params: { pid: props.entry.hash } }
+);
+
+function resume() {
+  // Resume ON the track they were on: it may have been cut off mid-way.
+  if (props.entry.type === "album") playAlbumAt(props.entry.hash, props.entry.track_index);
+  else playPlaylistAt(props.entry.hash, props.entry.track_index);
+}
+</script>
+
+<style lang="scss">
+// The one big card on Home. Same anatomy as every plate (ink frame, hatch,
+// hard offset), filled with the entity's pastel like a browse tile, so an
+// album reads lavender and a playlist pink before the name is read.
+.continue-card {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  --row-fill: #{$mem-panel};
+  @include candy-box(var(--row-fill), $candy-radius);
+  @include mem-hatch(38px, $on: accent);
+  @include candy-shadow(4px, 4px);
+  color: $mem-ink;
+
+  @each $name in album, playlist {
+    &.ent-#{$name} {
+      --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
+    }
+  }
+
+  .cover {
+    width: 8.5rem;
+    aspect-ratio: 1;
+    border: $candy-border;
+    border-radius: $candy-radius-sm;
+    overflow: hidden;
+    background-color: $mem-panel;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .glyph {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+
+      svg {
+        width: 3rem;
+        height: 3rem;
+      }
+    }
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  // Covers on the hatch, like every label on a hatched plate.
+  .kicker,
+  .name,
+  .meta {
+    @include mem-hatch-clear(6px);
+    max-width: 100%;
+  }
+
+  .kicker {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .name {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: inherit;
+  }
+
+  .meta {
+    font-size: 0.85rem;
+  }
+
+  .progress {
+    width: min(100%, 22rem);
+    height: 0.6rem;
+    border: $mem-ring-w solid $mem-ink;
+    border-radius: $candy-radius-pill;
+    background-color: $mem-panel-static;
+    overflow: hidden;
+    margin: 0.25rem 0 0.4rem;
+
+    span {
+      display: block;
+      height: 100%;
+      background-color: $mem-ink;
+    }
+  }
+
+  .resume {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    svg {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+  }
+
+  @include allPhones {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.85rem;
+
+    .cover {
+      width: 5.5rem;
+    }
+
+    .name {
+      font-size: 1.05rem;
+    }
+  }
+}
+</style>
