@@ -6,6 +6,7 @@ paths:
   - "pyproject.toml"
   - "src/aivinnet/settings.py"
   - "Dockerfile"
+  - ".dockerignore"
   - "aivinnet.spec"
 ---
 
@@ -24,8 +25,8 @@ Client aus `client/`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-Binaries
 (`/releases/latest` überspringt Prereleases; **Drafts** sind über die API gar nicht sichtbar).
 
 Ein echter Release braucht `is_draft=false` **und** `is_latest=true`: `:latest` beim Docker-Image
-folgt `is_latest`, und ein Draft ist für den Client-Download unsichtbar (siehe unten). Beide
-stehen per Default auf der vorsichtigen Seite.
+folgt `is_latest`, und der Docker-Job verweigert einen Draft (das Image wäre öffentlich, bevor
+das Release sichtbar ist). Beide stehen per Default auf der vorsichtigen Seite.
 
 **Seit dem Monorepo ist ein Release aus seinem Tag reproduzierbar.** Vorher klonte der Workflow
 das Client-Repo **ungepinnt** — ein erneuter Lauf desselben Tags hätte die inzwischen weiterge-
@@ -63,8 +64,8 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
   installiert `aivinnet` mit `--no-deps`). Ein fehlender Eintrag ergibt einen ImportError erst
   beim Start, bei grüner CI. Abgesichert durch `tests/test_packaging_manifests.py` — bei jeder
   neuen Dependency mitpflegen.
-- **`settings.py::AssetHandler.RELEASES_URL` muss auf den Fork zeigen**, sonst lädt ein Wheel-
-  oder Docker-Install den Upstream-Client. Ein Upstream-Merge stellt den alten Wert
+- **`settings.py::AssetHandler.RELEASES_URL` muss auf den Fork zeigen**, sonst lädt ein Install
+  ohne gebündeltes `client.zip` (Quell-Checkout) den Upstream-Client. Ein Upstream-Merge stellt den alten Wert
   stillschweigend wieder her → derselbe Test wacht darüber.
 - **`libev.so.4` wird in den AppDir kopiert** (bjoern linkt dynamisch, python-appimage bündelt
   keine System-Libs); `appimage/entrypoint.sh` setzt dafür `LD_LIBRARY_PATH`.
@@ -114,8 +115,8 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
   `FileNotFoundError`). Veröffentlichte Images stimmten nur, weil der Release-Job die Datei
   direkt vor dem Build überschrieb; jeder andere Build (lokal, CI) meldete die eingecheckte
   Kopie, seit v2026.8.2 nicht mehr gebumpt. Die Datei ist weg; ein nacktes `docker build .`
-  meldet ehrlich **`0.0.0`** und holt sich damit den neuesten stabilen Client. Wächter: `TestImageVersion` (Arg ↔ `ARG`) und
-  der Versions-Check im `Docker Smoke Test`.
+  meldet ehrlich **`0.0.0`** — für den Client egal, der ist gebündelt (siehe unten).
+  Wächter: `TestImageVersion` (Arg ↔ `ARG`) und der Versions-Check im `Docker Smoke Test`.
   Zwei Folgen: (a) setuptools-scm **normalisiert** — Tag `v2026.8.1-rc1` wird zu `2026.8.1rc1`;
   deshalb vergleicht der Client-Download über `release_matches_version`, nie als String.
   (b) `metadata.version("aivinnet")` **mit Literal** stehen lassen — PyInstaller sammelt die
@@ -186,10 +187,53 @@ als dokumentiert:
 Das ist doppelt wichtig, sobald eine Anweisung den Ordner nennt (siehe den Hand-Schritt oben):
 ein Pfad, den die eigene Installation nicht benutzt, liest sich als „betrifft mich nicht".
 
-## ⚠️ Der Client-Download aus dem Release
+## ⚠️ Das Docker-Image bündelt seinen Client — Server und Oberfläche aus EINEM Commit
 
-Das Docker-Image bringt keinen Client mit und lädt ihn beim ersten Start aus dem Release seiner
-eigenen Version — dieser Pfad ist also ein Startpfad, kein Nebenschauplatz.
+**Bis 2026-10 brachte das Image keinen Client mit** (`COPY src/` + `pip install`, kein
+`client.zip`), `extract_default_client` lieferte `False`, und der Server lud beim ersten Start
+den Client des Releases seiner Version — für jedes Image, das kein veröffentlichtes Release ist
+(master, PR, nacktes `docker build .` = `0.0.0`), also den **neuesten stabilen**. Beobachtet:
+master-Server mit v2026.9.0-Client. Jede API-Änderung auf master brach solche Images lautlos.
+
+Seitdem baut das `Dockerfile` den Client in einer **Node-Stage** aus `client/` und legt
+`src/aivinnet/client.zip` **vor** `pip install .` ab. Drei Kopplungen, die man nicht sieht:
+
+- **Zip-Layout: GENAU ein Top-Level-Ordner `client/`** (wie `zip -r client.zip client` im
+  Release-Workflow). `extract_default_client` entpackt ins Config-Verzeichnis, serviert wird
+  `<config>/client` — ein Zip des Ordner-*Inhalts* streut `index.html` in den Config-Ordner.
+  Die Stage nimmt `python -m zipfile -c … client` (benennt Top-Level-Einträge nach dem Basename).
+- **`client.zip` steht in `[tool.setuptools.package-data]`.** Die Datei ist untracked
+  (`.gitignore`), setuptools-scm sieht sie also **nie** — ohne den Eintrag fehlt sie im Image
+  *und* im Wheel, und der Server fällt still auf den Download zurück.
+- **Veraltet wird ein gebündelter Client über den Digest des Zips, nicht über die Version**
+  (`bundled_client_fingerprint`, Feld `bundle` im Stempel). Zwei master-Images sind beide
+  `0.0.0` — nach Version wäre das zweite „aktuell" und behielte den Client des ersten im Volume;
+  ebenso ein Volume aus der Download-Zeit (Stempel `requested: 0.0.0`, ohne `bundle`), das sonst
+  den heruntergeladenen Release-Client für immer behielte. „Kein Stempel" heißt weiterhin
+  „in Ruhe lassen", ein fremder Client-Ordner (`--client`, AppImage) bleibt unberührt.
+  Gehasht wird der **Inhalt** (Namen + entpackte Bytes), nicht das Zip — das trägt mtimes, ein
+  No-Cache-Rebuild desselben Commits sähe sonst wie ein neuer Client aus.
+- **Ersetzen, nicht überlagern.** `extract_default_client` entpackt in einen Geschwister-Ordner
+  und tauscht per Rename. Drüber-Entpacken ließ alte Dateien liegen — und `serve_client_files`
+  bevorzugt `<datei>.gz`: ein übrig gebliebenes `foo.js.gz` neben neuem `foo.js` (kleine Dateien
+  bekommen kein `.gz`) lieferte jedem gzip-Browser den **alten** Code.
+- **Ein gescheitertes Entpacken ist kein Absturz.** Für Docker ist das der Refresh-Pfad; eine
+  Exception dort wäre unter `restart: unless-stopped` eine Absturzschleife. Liegt ein Client da,
+  wird er weiter serviert (ohne Stempel, der nächste Start versucht es erneut); nur ganz ohne
+  Client endet der Start wie bisher.
+
+Die Node-Stage läuft mit `--platform=$BUILDPLATFORM` (statische Dateien, einmal nativ statt unter
+QEMU pro Architektur) auf dem **vollen** `node:20`-Image: `sharp` (Dev-Dep über
+`@vite-pwa/assets-generator`) fällt ohne Prebuilt auf node-gyp zurück und braucht dann
+python/make/g++. `.dockerignore` hält `node_modules`, `.git` und `.claude` (Worktrees!) aus dem
+Kontext, `client/` muss drin bleiben (`TestDockerfile` prüft beides). Der `Docker Smoke Test`
+schreibt deshalb **keinen Stub-Client** mehr, sondern prüft, dass `/` ein gebauter Client mit
+gehashtem `assets/index.*.js` ist, kein `Downloading from GitHub` im Log steht und der Stempel
+einen `bundle`-Digest trägt.
+
+## Der Client-Download aus dem Release (nur noch ohne gebündeltes Zip)
+
+Greift nur noch, wenn kein `client.zip` im Paket liegt (Quell-Checkout, `pip install` aus Git).
 
 ⚠️ **Die Release-Liste von GitHub ist nicht immer eine Liste.** Jenseits des Limits kommt **403
 mit einem JSON-Objekt**; darüber zu iterieren liefert Strings, und `release["tag_name"]` warf

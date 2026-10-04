@@ -1,0 +1,31 @@
+# Keeps the build context small and the build reproducible from the checkout.
+# `client/` itself MUST stay in: the image builds the web client from it.
+# ⚠️ Patterns match from the context ROOT; `**/` for anything nested
+# (worktrees under .claude/ are full checkouts, node_modules included).
+.git
+.github
+**/.claude
+**/.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+client/dist
+client/dev-dist
+# Docs-only changes must not invalidate the client build layer (only the
+# client's vitest suite reads these, never `yarn build`).
+client/docs
+client/*.md
+dist-client
+dist
+build
+wheelhouse
+# Overwritten by the build from the client stage anyway; a stale local copy
+# must not even look like it could end up in the image.
+src/aivinnet/client.zip
+# Data directories of a local/CI run (the Docker smoke test creates these).
+config
+music
+tests
+tests_api
+docs
+*.png

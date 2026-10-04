@@ -72,7 +72,7 @@ services:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:1970/', timeout=5)\""]
       interval: 1m
       timeout: 10s
-      # The first start downloads the web client and scans the library, which
+      # The first start unpacks the web client and scans the library, which
       # takes a while on a big collection — don't let that count as unhealthy.
       start_period: 10m
       retries: 3

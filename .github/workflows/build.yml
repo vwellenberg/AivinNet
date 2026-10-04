@@ -81,7 +81,7 @@ jobs:
       - name: Install dependencies & Build client
         run: |
           cd client
-          yarn install
+          yarn install --frozen-lockfile
           yarn build --outDir ../dist-client
 
       - name: Upload client
@@ -270,14 +270,11 @@ jobs:
   docker:
     name: Build and push Docker image
     runs-on: ubuntu-latest
-    # ⚠️ Waits for `upload-builds`, not just for the artifacts it needs. The image
-    # carries no bundled client and fetches one from the release matching its own
-    # version on first start, so the release has to exist before the image does.
-    #
-    # Ordering alone is not enough: a DRAFT release is invisible to the anonymous
-    # API, and `is_draft` defaults to true. A run that publishes an image must
-    # therefore also set **is_draft=false and is_latest=true** — otherwise the
-    # first container to start falls back to the previous release's UI, and
+    # The image builds and bundles its own client from this checkout (Dockerfile,
+    # stage `client`) — it no longer downloads one from the release, so its UI
+    # does not depend on the release being visible. It still waits for
+    # `upload-builds` and refuses drafts (below) so a published image never
+    # precedes its release. Set **is_latest=true** for a real release, or
     # `:latest` (which every doc points at) keeps pointing at the old image.
     needs: [build-client, build-wheels, upload-builds]
     # Only what this job actually does: read the checkout, push the image to
@@ -289,14 +286,14 @@ jobs:
     if: ${{ github.event.inputs.build_docker == 'true' }}
 
     steps:
-      # ⚠️ A comment cannot enforce this, and getting it wrong is silent: the
-      # image would be published against a DRAFT release, which the anonymous
-      # GitHub API hides — so every container fetches the previous release's UI
-      # into its persistent volume and keeps it. Fail loudly instead.
+      # A public image for a release nobody can see yet (drafts are hidden from
+      # the anonymous API) is a version without notes or downloads. Until the
+      # client was bundled this also made every container fetch the PREVIOUS
+      # release's UI into its volume; that part is gone, the guard stays.
       - name: Refuse to publish an image for a hidden release
         if: ${{ github.event.inputs.is_draft == 'true' }}
         run: |
-          echo "::error::build_docker=true needs is_draft=false — a draft release is invisible to the API the image fetches its client from."
+          echo "::error::build_docker=true needs is_draft=false — the image would be public before its release is."
           exit 1
 
       - name: Checkout into repo
