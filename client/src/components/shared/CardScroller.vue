@@ -12,7 +12,7 @@
                 </b>
                 <!-- INFO: This SEE ALL is shown when there's no description. Eg. in favorites page -->
                 <SeeAll
-                    v-if="!description && route && itemlist.length >= maxAbumCards"
+                    v-if="!description && route && (alwaysSeeAll || itemlist.length >= maxAbumCards)"
                     :route="route"
                     :text="seeAllText"
                 />
@@ -22,7 +22,11 @@
                     {{ description }}
                 </RouterLink>
                 <!-- INFO: This SEE ALL is shown when there's a description. Eg. in the home page -->
-                <SeeAll v-if="route && itemlist.length >= maxAbumCards" :route="route" :text="seeAllText" />
+                <SeeAll
+                    v-if="route && (alwaysSeeAll || itemlist.length >= maxAbumCards)"
+                    :route="route"
+                    :text="seeAllText"
+                />
             </div>
         </div>
         <div ref="grid" class="recentitems">
@@ -65,6 +69,12 @@ const props = defineProps<{
     child_props?: any
     route?: string
     seeAllText?: string
+    // Show "See all" even when the row is not full. By default it only
+    // appears once the row overflows (a full row hides the rest); a row that
+    // is a PREVIEW of its own page (the favourites) says so regardless —
+    // otherwise four favourite albums looked like the whole list with no hint
+    // that the caption leads anywhere (reported 2026-10-04).
+    alwaysSeeAll?: boolean
 }>()
 
 defineEmits<{
