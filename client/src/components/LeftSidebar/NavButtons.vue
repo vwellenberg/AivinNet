@@ -117,17 +117,20 @@ import { menus } from "./navitems";
   .nav-item.active:not(.separator) {
     position: relative;
     z-index: 1;
-    width: calc(100% + 1.75rem);
+    // +2.4rem: past the nav padding, the panel padding and the 3px frame, so
+    // the plate visibly overhangs the panel by ~8px (measured: +1.75rem only
+    // reached the frame line).
+    width: calc(100% + 2.4rem);
 
     &::after {
       content: "";
       position: absolute;
       top: 50%;
-      right: -0.95rem;
+      right: -1.05rem;
       transform: translateY(-50%);
-      border-top: 0.7rem solid transparent;
-      border-bottom: 0.7rem solid transparent;
-      border-left: 0.8rem solid $mem-line;
+      border-top: 0.75rem solid transparent;
+      border-bottom: 0.75rem solid transparent;
+      border-left: 0.9rem solid $mem-line;
     }
 
     @include allPhones {

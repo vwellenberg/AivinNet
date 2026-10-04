@@ -641,6 +641,9 @@ onBeforeUnmount(teardown);
   grid-template-rows: auto minmax(0, 1fr);
   @include candy-box($candy-white, $candy-radius);
   position: relative;
+  // Above the content panel: the active nav entry and its arrow reach across
+  // the gap onto the page's frame and would otherwise be painted under it.
+  z-index: 2;
   // ⚠️ No padding here — it belongs to the scroller below. A padded panel
   // moves the scrollport's clip edge INWARDS, and a scroll container clips at
   // its padding box: rows then vanished 14px short of the ink frame, inside a
