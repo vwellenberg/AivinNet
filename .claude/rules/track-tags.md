@@ -266,7 +266,6 @@ angelegter ID3-Chunk kommt *dazu*, statt ihn zu ersetzen. tinytag liefert dann b
 zeigt **nur** den ID3-Teil; prüfen also mit `TinyTag.get(fp).as_dict()`, nicht mit mutagen.
 Reparatur über `PUT /track/<hash>/tags` (mit `filepath`) schreibt den ID3-Teil sauber neu.
 
-
 `MutagenFile(pfad, easy=True)` liefert bei WAV ohne vorhandenen Tag-Block kein beschreibbares
 Objekt, und ein separates `ID3(pfad)` wirft `ID3NoHeaderError` — bei WAV sitzt der ID3-Block in
 einem eigenen Chunk, nicht am Dateianfang. Der Weg führt über die `WAVE`-Klasse:
