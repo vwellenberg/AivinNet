@@ -25,7 +25,7 @@ def get_recently_played(limit: int, userid: int | None = None, _entries: list[Tr
     iterations = 0
 
     while len(items) < limit and iterations < max_iterations:
-        items.extend(create_items(entries, limit))
+        items.extend(create_items(entries, limit, userid))
         current_index += BATCH_SIZE
 
         if len(items) < limit:

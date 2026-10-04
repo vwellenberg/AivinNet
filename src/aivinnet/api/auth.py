@@ -463,7 +463,7 @@ def create_user(body: UpdateProfileBody):
     user = UserTable.get_by_username(user["username"])
 
     if user:
-        HomepageStore.entries["recently_played"].add_new_user(user.id)
+        HomepageStore.add_new_user(user.id)
         return user.todict()
 
     return {
@@ -489,7 +489,7 @@ def create_guest_user():
     user = UserTable.get_by_username("guest")
 
     if user:
-        HomepageStore.entries["recently_played"].add_new_user(user.id)
+        HomepageStore.add_new_user(user.id)
 
         return {
             "msg": "Guest user created",
