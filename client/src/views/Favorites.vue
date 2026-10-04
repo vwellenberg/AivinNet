@@ -9,14 +9,14 @@
             v-if="recentFavs.length"
             class="recent-favs"
             :items="recentFavs"
-            :title="'Recent'"
+            :title="'Recently favorited'"
             :play-source="playSources.favorite"
         />
         <div v-if="favTracks.length" class="fav-tracks">
             <TopTracks
                 :tracks="favTracks"
                 :route="'/favorites/tracks'"
-                :title="'Tracks'"
+                :title="'Favorite tracks'"
                 :play-handler="handlePlay"
                 :source="dropSources.favorite"
                 :total="count.tracks"
@@ -26,15 +26,17 @@
         <CardScroller
             v-if="favAlbums.length"
             :items="favAlbums.map(i => ({ type: 'album', item: i }))"
-            :title="'Albums'"
+            :title="'Favorite albums'"
             :route="'/favorites/albums'"
+            always-see-all
         />
 
         <CardScroller
             v-if="favArtists.length"
             :items="favArtists.map(i => ({ type: 'artist', item: i }))"
-            :title="'Artists'"
+            :title="'Favorite artists'"
             :route="'/favorites/artists'"
+            always-see-all
         />
 
         <NoItems :flag="noFavs" :icon="BookmarkSvg" :title="'No favorites found'" :description="description" />
