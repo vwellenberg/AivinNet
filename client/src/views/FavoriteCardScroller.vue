@@ -1,7 +1,7 @@
 <template>
     <CardGridPage :page="itemtype" :items="items" :fetch_callback="() => loadMore()">
         <template #header>
-            <GenericHeader :tint="itemtype == 'album' ? 'lavender' : 'coral'">
+            <GenericHeader :entity="itemtype">
                 <template #name
                     >Favorite <span style="text-transform: capitalize">{{ itemtype }}s</span></template
                 >
