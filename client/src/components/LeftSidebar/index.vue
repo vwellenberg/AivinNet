@@ -938,12 +938,16 @@ onBeforeUnmount(teardown);
         border-color: transparent;
         box-shadow: none;
 
-        // The shared hover (mem-row-plate-hover, from the row rule) flips
-        // `--row-fill`, so fill and cover move together; only the plate's
-        // frame and offset stay off.
+        // Hover is the FULL playlist hover, plate included: hatch, ink frame
+        // and offset rise out of the folder's box under the pointer. Flat at
+        // rest, but a row you point at reads exactly like the playlist row one
+        // line above it — the earlier version kept frame, offset and (through
+        // the `background-image: none` above, which outranked the row rule)
+        // the hatch off, so the same object hovered two different ways.
+        // Restated here, not inherited: this selector outranks the row's own
+        // `:hover`, so anything left out silently falls back to the flat rest.
         &:hover {
-          border-color: transparent;
-          box-shadow: none;
+          @include mem-row-plate-hover;
         }
 
         // The selection still needs to be visible in here: the zigzag and its
