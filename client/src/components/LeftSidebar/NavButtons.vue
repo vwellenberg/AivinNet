@@ -89,12 +89,9 @@ import { menus } from "./navitems";
     //
     // Blush is deliberately NOT in this list: it is the hover fill, and a row
     // that wears the pointer state at rest looks permanently hovered.
-    &.tint-green { @include mem-row-plate-tint(mem-pastel($brand-green)); }
-    &.tint-teal { @include mem-row-plate-tint(mem-pastel($mem-teal)); }
-    &.tint-yellow { @include mem-row-plate-tint(mem-pastel($mem-yellow)); }
-    &.tint-lavender { @include mem-row-plate-tint(mem-pastel($mem-lavender)); }
-    &.tint-pink { @include mem-row-plate-tint(mem-pastel($mem-pink)); }
-    &.tint-coral { @include mem-row-plate-tint(mem-pastel($mem-coral)); }
+    @each $name, $colour in $mem-nav-tints {
+      &.tint-#{$name} { @include mem-row-plate-tint(mem-pastel($colour)); }
+    }
 
     // Selected keeps its colour and gains the ink zigzag on the leading edge.
     // With every row coloured, "active" cannot be a fill any more — see

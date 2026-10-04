@@ -211,6 +211,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --look-active-fill · -text      the selected row
 //   --look-marker                   the ink zigzag marking "this one"
 //   --look-sticker-fill · -inset    heading stickers: fill and side padding
+//   --look-title-tint · -text       nav colour of a page title sticker
 //   --look-playing-fill             the now-playing track row
 //   --look-filled-text · -muted     text on the filled rows (playing, context)
 //   --look-context-fill             the row owning an open context menu
@@ -1349,6 +1350,19 @@ $mem-band-tint: 6%;
 // Not a fourth use, the same one: the home page's browse tiles
 // (HomeView/Browse.vue) are filled with their entity's tint.
 // ---------------------------------------------------------------------------
+// The navigation's six fills, by name — `tint-<name>` on a nav row
+// (navitems.ts) and on the page title of the place that row leads to
+// (GenericHeader `tint` prop), so a page wears the colour of its entry.
+// Toned with mem-pastel, the navigation's dose, not mem-tint.
+$mem-nav-tints: (
+  "green": $brand-green,
+  "teal": $mem-teal,
+  "yellow": $mem-yellow,
+  "lavender": $mem-lavender,
+  "pink": $mem-pink,
+  "coral": $mem-coral,
+);
+
 $mem-entities: (
   "album": $mem-lavender,
   "artist": $mem-coral,
