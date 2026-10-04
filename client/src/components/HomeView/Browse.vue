@@ -257,10 +257,25 @@ const browselist: BrowseItem[] = [
       gap: 0.75rem;
     }
 
+    // Compact on phones: six tiles are a shortcut block, not the page. With
+    // the entity fills and the favourites' double frame they read heavier
+    // than the plain white tiles did, so the plate shrinks (67px -> ~50px)
+    // and the glyph with it. The tighter horizontal padding also gives the
+    // label the room "Fav. artists" / "Fav. albums" lacked at 390px — they
+    // wrapped to two lines and made their row 10px taller than the others.
     .browseitem {
       width: auto;
-      padding: 0.9rem 0.75rem;
-      font-size: 0.95rem;
+      padding: 0.55rem 0.6rem;
+      font-size: 0.9rem;
+      gap: 0.4rem;
+
+      .icon {
+        height: calc(1.35rem + 4px);
+      }
+
+      svg {
+        height: 1.35rem;
+      }
     }
   }
 }
