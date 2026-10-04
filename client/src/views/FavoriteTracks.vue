@@ -8,7 +8,7 @@
         @playThis="handlePlay"
     >
         <template #header>
-            <GenericHeader>
+            <GenericHeader tint="yellow">
                 <template #name>Favorite Tracks</template>
                 <template #description
                     >You have {{ trackCount }} favorited track{{ trackCount == 1 ? '' : 's' }}</template

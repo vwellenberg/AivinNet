@@ -1,6 +1,6 @@
 <template>
     <div id="p-view" class="content-page" :style="{ background: brandGradient() }">
-        <Header>
+        <Header tint="pink">
             <template #name>Playlists</template>
             <template #description>
                 You have {{ pStore.playlists.length }} playlists in your library

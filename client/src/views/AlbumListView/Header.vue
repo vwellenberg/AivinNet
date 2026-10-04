@@ -1,6 +1,6 @@
 <template>
   <div class="albumlistviewhead">
-    <GenericHeader>
+    <GenericHeader :tint="is_albumlist ? 'lavender' : 'coral'">
       <template #name>{{
         (is_albumlist ? "Album" : "Artist") + (is_not_one ? "s" : "")
       }}</template>

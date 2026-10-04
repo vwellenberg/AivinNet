@@ -2,7 +2,7 @@
     <div class="generichead">
         <div class="before">
             <div class="left">
-                <h1 class="title"><slot name="name"></slot></h1>
+                <h1 class="title" :class="tint && `tint-${tint}`"><slot name="name"></slot></h1>
                 <div class="desc">
                     <slot name="description"></slot>
                 </div>
@@ -16,6 +16,15 @@
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+    // The page's colour, as a `$mem-nav-tints` name ("green", "pink", …):
+    // the fill of the navigation entry that leads here, or the entity colour
+    // of what the page lists. Omitted, the title stays a plain panel sticker.
+    tint?: string
+}>()
+</script>
 
 <style lang="scss">
 .generichead {
@@ -79,6 +88,16 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    // A coloured title: the navigation's pastel, so "Home" wears the green of
+    // the Home row. Static fill, so static ink. A look without coloured
+    // stickers sets `--look-title-tint` / `-text`.
+    @each $name, $colour in $mem-nav-tints {
+        .title.tint-#{$name} {
+            background-color: var(--look-title-tint, #{mem-pastel($colour)});
+            color: var(--look-title-tint-text, #{$mem-ink});
+        }
     }
 
     .desc {
