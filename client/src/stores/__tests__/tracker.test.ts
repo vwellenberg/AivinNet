@@ -104,6 +104,15 @@ describe('sendLogData — the wire format the backend parses', () => {
         ])
     })
 
+    it('drops plays the server would reject as skips (under 5 s after rounding)', () => {
+        sendLogData('t1', 4400, ALBUM as any, 1) // rounds to 4
+        sendLogData('t1', 1500, ALBUM as any, 1)
+        expect(posted).toEqual([])
+
+        sendLogData('t1', 4500, ALBUM as any, 1) // rounds to 5: accepted
+        expect(posted).toHaveLength(1)
+    })
+
     it('does nothing (and does not throw) without Worker support', () => {
         vi.stubGlobal('Worker', undefined)
         expect(() => sendLogData('t1', 60_000, ALBUM as any, 1)).not.toThrow()

@@ -45,16 +45,22 @@ function getSource(source: From) {
   }
 }
 
+// The server drops shorter plays as skips (`duration < 5` in
+// api/scrobble/__init__.py) and answers 400 — don't send them at all.
+export const MIN_LOGGED_SECONDS = 5;
+
 export function sendLogData(
   trackhash: string,
   duration: number,
   from: From,
   timestamp: number
 ) {
+  const seconds = Math.round(duration / 1000);
+  if (seconds < MIN_LOGGED_SECONDS) return;
+
   if (window.Worker) {
     const worker = new Worker("/workers/logtrack.js");
 
-    const seconds = Math.round(duration / 1000);
     const source = getSource(from);
     worker.postMessage({ trackhash, duration: seconds, source, timestamp });
   }
