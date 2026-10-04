@@ -840,10 +840,11 @@ onBeforeUnmount(teardown);
       // But it IS the pressable part of that box, so it carries the hatch —
       // as a ring in its own padding, like every other row.
       padding: 5px $small;
-      // The folder's entity tint (light blue, mem-tint). The rows inside stay
+      // The folder's entity tint (light kraft, mem-tint), read from the
+      // entity map so a palette change reaches it. The rows inside stay
       // white; the head is the group's HEADING and names what the box is. Static
       // fill, so static ink text and the accent hatch come with it.
-      @include mem-row-plate-tint(mem-tint($mem-blue));
+      @include mem-row-plate-tint(mem-tint(map-get($mem-entities, "folder")));
       cursor: pointer;
       font-size: $sidebar-row-font;
       // Same weight as every other row in this sidebar.

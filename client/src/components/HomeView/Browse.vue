@@ -10,7 +10,15 @@
         @click="i.action && i.action()"
         :class="[`ent-${i.entity}`, { favorite: i.favorite }]"
       >
-        <div class="icon" v-html="i.icon"></div>
+        <div class="icon">
+          <span class="glyph" v-html="i.icon"></span>
+          <span
+            v-if="i.favorite"
+            class="fav-mark"
+            aria-hidden="true"
+            v-html="HeartFillIcon"
+          ></span>
+        </div>
         <div class="label">
           {{ i.title }}
         </div>
@@ -26,6 +34,7 @@ import {
   AlbumIcon,
   ArtistIcon,
   BookmarkIcon,
+  HeartFillIcon,
   PlaylistIcon,
 } from "@/icons";
 import { Routes } from "@/router";
@@ -35,7 +44,7 @@ type BrowseEntity = "album" | "artist" | "playlist" | "track";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
 // `entity` colours the tile's fill (what you will find behind it);
-// `favorite` adds the gold gradient (that it is your favourites only).
+// `favorite` hangs a heart on the icon (that it is your favourites only).
 interface BrowseItem {
   title: string;
   route: string;
@@ -189,7 +198,7 @@ const browselist: BrowseItem[] = [
   }
 
   // Colour coding: the tile's FILL is its entity's pastel tint from the
-  // shared palette — the same lavender/coral/pink/yellow an album, artist,
+  // shared palette — the same lavender/lime/pink/yellow an album, artist,
   // playlist or track wears in the sidebar and the card rows. The shadow stays
   // ink like every other plate; colour lives on the surface, not the edge.
   // Through `--row-fill`, so the hatch covers under icon and label take the
@@ -205,33 +214,48 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Favourites: a gold sheen running into the tile's own entity tint, so
-  // "Fav. albums" is an album tile that has been gilded, not a different kind
-  // of tile. The gradient ends in `var(--row-fill)`, the entity tint set just
-  // above — one source, no second copy of the palette.
-  //
-  // The gradient REPLACES the hatch on these tiles, and that is deliberate:
-  // the hatch's text covers (mem-hatch-clear) are solid `--row-fill` patches,
-  // and on a gradient they would show as flat rectangles around icon and
-  // label. So the covers go transparent at rest; on hover the tile flips to
-  // the hover plate + hover hatch like every other tile, and the covers come
-  // back with it (the `:not(:hover)` below).
-  //
-  // All of it scoped to `:not(:hover)`, size and repeat included: the tile
-  // inherits the hatch's 38px tile size, and a gradient on that size repeats
-  // as vertical stripes (seen in the first screenshot). Setting the size on
-  // the tile itself would in turn stretch the HOVER hatch to one tile. Earlier
-  // rounds tried a ring and a double frame; both read as decoration ON the
-  // tile rather than as the tile's own surface.
-  .browseitem.favorite:not(:hover) {
-    background-image: linear-gradient(100deg, #{$mem-gold} 0%, var(--row-fill) 75%);
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
+  // Favourites: the tile's own entity icon with a small heart hanging off
+  // its corner — the same tile as its non-favourite twin, marked where the
+  // eye already looks. Earlier rounds put the mark on the SURFACE (a gold
+  // ring, a double frame, a gold gradient); each read as decoration on the
+  // tile rather than as information, and the gradient also cost the hatch.
+  // The mark is an ink disc with a paper heart: static, because the tint
+  // under it is static, and inside the tile so no edge or phone column can
+  // clip it (a corner badge on the tile's edge was clipped at 390px, #313).
+  .browseitem .icon {
+    position: relative;
+  }
 
-    .icon,
-    .label {
-      background-color: transparent;
+  // The mark hangs 0.45rem past the icon's box; that much room goes to the
+  // icon's right so the heart never touches the first letter of the label.
+  .browseitem.favorite .icon {
+    margin-right: 0.45rem;
+  }
+
+  .fav-mark {
+    position: absolute;
+    right: -0.45rem;
+    bottom: -0.2rem;
+    width: 1rem;
+    height: 1rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background-color: $mem-ink;
+    color: $mem-paper;
+
+    svg {
+      width: 0.65rem;
+      height: 0.65rem;
     }
+  }
+
+  // On hover the plate flips to the hover fill (ink in light mode, paper in
+  // dark), so a static ink disc would vanish into it. The mark follows the
+  // hover pair instead: disc in the hover TEXT colour, heart in the fill.
+  .browseitem:hover .fav-mark {
+    background-color: var(--mem-hover-text);
+    color: var(--mem-hover);
   }
 
   .browseitem:hover {
