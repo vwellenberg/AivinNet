@@ -12,17 +12,6 @@
             :title="'Recently favorited'"
             :play-source="playSources.favorite"
         />
-        <div v-if="favTracks.length" class="fav-tracks">
-            <TopTracks
-                :tracks="favTracks"
-                :route="'/favorites/tracks'"
-                :title="'Favorite tracks'"
-                :play-handler="handlePlay"
-                :source="dropSources.favorite"
-                :total="count.tracks"
-            />
-        </div>
-        <br />
         <CardScroller
             v-if="favAlbums.length"
             :items="favAlbums.map(i => ({ type: 'album', item: i }))"
@@ -39,6 +28,18 @@
             always-see-all
         />
 
+        <!-- Tracks LAST: the list is long and would push the album and artist
+             rows below the fold (user, 2026-10-04). -->
+        <div v-if="favTracks.length" class="fav-tracks">
+            <TopTracks
+                :tracks="favTracks"
+                :route="'/favorites/tracks'"
+                :title="'Favorite tracks'"
+                :play-handler="handlePlay"
+                :source="dropSources.favorite"
+                :total="count.tracks"
+            />
+        </div>
         <NoItems :flag="noFavs" :icon="BookmarkSvg" :title="'No favorites found'" :description="description" />
     </div>
 </template>

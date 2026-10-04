@@ -31,6 +31,15 @@ describe("favourites page rows", () => {
     }
   });
 
+  it("put the long track list last", () => {
+    // Tracks first pushed albums and artists below the fold (user, 2026-10-04).
+    const albums = favorites.indexOf("'Favorite albums'");
+    const artists = favorites.indexOf("'Favorite artists'");
+    const tracks = favorites.indexOf("'Favorite tracks'");
+    expect(albums).toBeLessThan(artists);
+    expect(artists).toBeLessThan(tracks);
+  });
+
   it("lets the flag override the full-row rule in both See all spots", () => {
     const conditions = scroller.match(/<SeeAll\s+v-if="[^"]*"/g) ?? [];
     expect(conditions).toHaveLength(2);
