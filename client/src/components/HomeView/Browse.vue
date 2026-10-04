@@ -179,37 +179,6 @@ const browselist: BrowseItem[] = [
     }
   }
 
-  // Favourites: a DOUBLE FRAME — ink, gold, ink, no gaps. The gold band sits
-  // flush inside the tile's own frame and is closed on its inside by a second
-  // ink line of the SAME weight as the frame. Every line in this design is one
-  // of three weights; an earlier inner line on the 1px hairline read as a
-  // stray scratch next to the 3px frame, and a 2px gold ring with no ink at
-  // all nearly vanished on the yellow track tint. Gold is a band, never the
-  // edge: gold on a pastel fill is too pale to be the contrast line.
-  //
-  // Static ink, not `$mem-line`: the tint is static, so is everything on it.
-  // Flush (inset 0) means the band follows the frame's inner curve, hence
-  // radius - frame width. A pseudo-element rather than `outline`, because
-  // outline is the keyboard focus ring (focus-ring) and must stay free for it.
-  .browseitem.favorite {
-    // The gold band is a step wider than the ink lines around it (4px vs 3px),
-    // so it reads as the colour and the ink as its edges, not three equal
-    // stripes. Named, not `+ 1px`: shapeTokens forbids a literal 1px border.
-    $fav-band-w: $candy-border-w + $mem-hairline-w;
-
-    position: relative;
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border: $fav-band-w solid $mem-gold;
-      border-radius: max(0px, calc(#{$candy-radius-sm} - #{$candy-border-w}));
-      box-shadow: inset 0 0 0 $candy-border-w $mem-ink;
-      pointer-events: none;
-    }
-  }
-
   .settings svg {
     color: $candy-text;
   }
@@ -233,6 +202,33 @@ const browselist: BrowseItem[] = [
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
       @include mem-hatch(38px, $on: accent);
       color: $mem-ink;
+    }
+  }
+
+  // Favourites: a gold sheen running into the tile's own entity tint, so
+  // "Fav. albums" is an album tile that has been gilded, not a different kind
+  // of tile. The gradient ends in `var(--row-fill)`, the entity tint set just
+  // above — one source, no second copy of the palette.
+  //
+  // The gradient REPLACES the hatch on these tiles, and that is deliberate:
+  // the hatch's text covers (mem-hatch-clear) are solid `--row-fill` patches,
+  // and on a gradient they would show as flat rectangles around icon and
+  // label. So the covers go transparent at rest; on hover the tile flips to
+  // the hover plate + hover hatch like every other tile, and the covers come
+  // back with it (the `:not(:hover)` below).
+  //
+  // Placed after the entity rule (same specificity, so it wins over the
+  // hatch) and before the hover rule (so hover still wins over it). Earlier
+  // rounds tried a ring and a double frame; both read as decoration ON the
+  // tile rather than as the tile's own surface.
+  .browseitem.favorite {
+    background-image: linear-gradient(100deg, #{$mem-gold} 0%, var(--row-fill) 75%);
+  }
+
+  .browseitem.favorite:not(:hover) {
+    .icon,
+    .label {
+      background-color: transparent;
     }
   }
 
