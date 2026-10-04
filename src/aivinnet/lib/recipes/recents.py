@@ -32,6 +32,10 @@ class RecentlyPlayed(HomepageRoutine):
 
             if last_entry:
                 items = get_recently_played(limit=self.ITEM_LIMIT, userid=self.userids[0], _entries=[last_entry])
+                # A user without a slot yet (created after startup by a path
+                # that skipped `add_new_user`) got a KeyError -> 500 on the
+                # scrobble, which is already written by then.
+                HomepageStore.entries[self.store_key].items.setdefault(self.userids[0], [])
 
                 try:
                     item = items[0]

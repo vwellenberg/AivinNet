@@ -10,6 +10,7 @@ from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.extras import get_extra_info
+from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
@@ -91,6 +92,7 @@ def log_track(body: LogTrackBody):
 
     # NOTE: Update the recently played homepage for this userid
     RecentlyPlayed(userid=scrobble_data["userid"])
+    ContinueListening(userid=scrobble_data["userid"])
 
     # Update play data on the in-memory stores
     track = trackentry.tracks[0]

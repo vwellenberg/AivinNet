@@ -23,7 +23,7 @@ def crons(monkeypatch):
     monkeypatch.setattr(crons, "_stop", threading.Event())
     monkeypatch.setattr(crons, "_thread", None)
     monkeypatch.setattr(crons, "schedule", schedule.Scheduler())
-    for job in ("RecentlyPlayed", "RecentlyAdded", "TopArtists"):
+    for job in ("RecentlyPlayed", "RecentlyAdded", "ContinueListening", "Rediscover", "OnThisDay"):
         monkeypatch.setattr(crons, job, lambda *a, **kw: None)
     yield crons
     crons._stop.set()

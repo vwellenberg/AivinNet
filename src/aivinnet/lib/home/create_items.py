@@ -10,7 +10,22 @@ from aivinnet.store.artists import ArtistStore
 from aivinnet.store.tracks import TrackStore
 
 
-def create_items(entries: list[TrackLog], limit: int):
+def _playlist_exists(playlistid: str, userid: int | None) -> bool:
+    """
+    With an explicit `userid` (cron routines, scrobble hook) the owner is that
+    user. Without one, `get_by_id` uses the request's user — which OFF a
+    request silently falls back to user 1, so the routines must pass it.
+    """
+    if userid is None:
+        return PlaylistTable.get_by_id(playlistid) is not None
+
+    try:
+        return PlaylistTable.get_trackhashes_of_user(int(playlistid), userid) is not None
+    except ValueError:
+        return False
+
+
+def create_items(entries: list[TrackLog], limit: int, userid: int | None = None):
     """
     TODO: rework so that returns a dict with
     {
@@ -106,8 +121,7 @@ def create_items(entries: list[TrackLog], limit: int):
                 )
                 continue
 
-            playlist = PlaylistTable.get_by_id(entry.type_src)
-            if playlist is None:
+            if not _playlist_exists(entry.type_src, userid):
                 continue
 
             item = {

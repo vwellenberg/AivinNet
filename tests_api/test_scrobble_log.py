@@ -71,6 +71,7 @@ def logger(api_client, monkeypatch):
     monkeypatch.setattr(scrobble_api.ArtistStore, "artistmap", {ARTIST: state.artist}, raising=False)
     monkeypatch.setattr(scrobble_api, "get_extra_info", lambda *_: {})
     monkeypatch.setattr(scrobble_api, "RecentlyPlayed", lambda userid: state.recents.append(userid))
+    monkeypatch.setattr(scrobble_api, "ContinueListening", lambda userid: None)
 
     class FakeLastFm:
         def __init__(self, current_userid: int):

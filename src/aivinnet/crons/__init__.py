@@ -4,8 +4,9 @@ import threading
 import schedule
 
 from aivinnet.lib.groupsession import manager as group_session_manager
+from aivinnet.lib.recipes.continuelistening import ContinueListening
+from aivinnet.lib.recipes.homerows import OnThisDay, Rediscover
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
-from aivinnet.lib.recipes.topstreamed import TopArtists
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
 # setup_logger() runs and the imported name never picks up the reassignment.
@@ -73,10 +74,13 @@ def _run_cron_jobs():
     # populate the values for the very first time.
     RecentlyPlayed()
     RecentlyAdded()
+    # Like RecentlyPlayed: filled once here, then kept current by every scrobble.
+    ContinueListening()
 
-    # Initialized CRON jobs
-    TopArtists()
-    TopArtists(duration="week")
+    # Initialized CRON jobs. Registered by class: every run constructs the
+    # routine, which runs it. The first run is the run_all() below.
+    for routine in (Rediscover, OnThisDay):
+        schedule.every(routine.hours).hours.do(routine)
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)

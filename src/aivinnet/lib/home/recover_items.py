@@ -132,6 +132,11 @@ def recover_items(items: list[dict]):
             if secondary_text:
                 recovered_item["item"]["time"] = secondary_text
 
+            # "Continue listening": where in the album/playlist the user is.
+            for key in ("track_index", "track_total"):
+                if key in item:
+                    recovered_item["item"][key] = item[key]
+
             recovered.append(recovered_item)
 
     return recovered
