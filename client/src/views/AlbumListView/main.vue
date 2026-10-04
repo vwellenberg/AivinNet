@@ -42,7 +42,7 @@ import { useAlbumList, useArtistList } from "@/stores/pages/itemlist";
 
 import Fetcher from "@/components/ArtistView/AlbumsFetcher.vue";
 import CardRow from "@/components/shared/CardRow.vue";
-import Header from "./Header.vue";
+import GenericHeader from "@/components/shared/GenericHeader.vue";
 import SortBanner from "@/components/CardListView/SortBanner.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
 
@@ -67,10 +67,9 @@ const scrollerItems = computed(() => {
     ...[
       {
         id: "header",
-        component: Header,
-        props: {
-          total: total.value,
-        },
+        // Empty head: the left navigation names this page; it stays for the
+        // spacing above the first row.
+        component: GenericHeader,
       },
       {
         id: "sortbanner",

@@ -1,9 +1,7 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
-        <GenericHeader tint="sea">
-            <template #name>Home</template>
-        </GenericHeader>
-        <Browse />
+        <GenericHeader />
+        <Browse class="browse-phones-only" />
         <PageItem
             v-for="item in home.homepageItems"
             :key="item.path"
@@ -50,6 +48,16 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
 
     .generichead {
         margin-bottom: 0;
+    }
+
+    // Albums and Artists have their own entries in the left navigation, so the
+    // block that links to them is only for phones, whose nav bar does not.
+    // `display: none` takes its caption and padding with it: no gap, no stray
+    // "Browse Library". Complement of the `allPhones` mixin (max-width: 900px).
+    @media only screen and (min-width: 901px) {
+        .browse-phones-only {
+            display: none;
+        }
     }
 }
 </style>

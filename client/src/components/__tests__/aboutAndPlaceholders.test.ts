@@ -80,8 +80,31 @@ describe("input placeholders", () => {
 });
 
 describe("Home", () => {
-  it("names itself in the page head, like every other page", () => {
+  it("keeps the page head for the phone page start, but names nothing in it", () => {
+    // The left navigation names Home; the head stays so a phone's first row
+    // starts at $phone-page-start (see phonePageStart.test.ts).
     const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
-    expect(home).toMatch(/<GenericHeader[^>]*>\s*<template #name>Home<\/template>\s*<\/GenericHeader>/);
+    expect(home).toMatch(/<GenericHeader\s*\/>/);
+    expect(home).not.toMatch(/#name/);
+  });
+
+  it("shows Browse Library on phones only", () => {
+    const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
+    expect(home).toMatch(/<Browse class="browse-phones-only"/);
+    expect(home).toMatch(/min-width:\s*901px\)\s*\{\s*\.browse-phones-only\s*\{\s*display:\s*none;/);
+  });
+});
+
+describe("page titles", () => {
+  it("are left out where the left navigation already names the page", () => {
+    for (const file of [
+      "views/PlaylistList.vue",
+      "views/Favorites.vue",
+      "views/Stats/main.vue",
+      "components/Stats/Charts.vue",
+      "views/AlbumListView/main.vue",
+    ]) {
+      expect(readFileSync(join("src", file), "utf-8"), file).not.toMatch(/<template #name>/);
+    }
   });
 });
