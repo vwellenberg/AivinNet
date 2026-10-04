@@ -24,6 +24,25 @@ bjoern ist evented und single-threaded. Im Handler deshalb **nichts Blockierende
 - Keine langlebigen Verbindungen (WebSocket, SSE).
 - Langlaufendes in `utils/threading.py::background` oder einen Prozess-Pool.
 
+## ⚠️ Welche Formate wo abspielen — der Server transkodiert nicht
+
+`/file/<hash>/legacy` schickt die Datei, wie sie auf der Platte liegt (Transkodierung entfernt in
+#180/#181). Ob sie spielt, entscheidet allein der Browser, und zwar nach **Codec**, nicht nach
+dem Content-Type-Header. Gemessen am 2026-10-04 (Playwright-Image 1.56.1, Linux):
+
+| | mp3 | m4a (AAC) | m4a (ALAC) | flac | ogg | opus | wav | aiff | wma |
+|---|---|---|---|---|---|---|---|---|---|
+| Firefox 142 | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| WebKit 26 (≈ Safari) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ |
+| Chromium 141 | ✓ | (✗) | ✗ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+
+`(✗)`: Playwrights Chromium ist ohne AAC gebaut; Google Chrome spielt AAC. Jede Zelle war mit dem
+alten (`audio/m4a`, `audio/wma`) und dem neuen Header identisch. **WMA spielt nirgends**, AIFF
+und ALAC nur in Safari — der Indexer nimmt sie trotzdem auf (`utils/filesystem.FILES`), im
+Client heißt das „Can't load". Nachmessen: Dateien per `ffmpeg -c:a <codec>` erzeugen, mit
+`send_from_directory` ausliefern und im Container `mcr.microsoft.com/playwright:v1.56.1-noble`
+per `new Audio()` auf `canplaythrough`/`error` prüfen.
+
 ## ⚠️ Positionsfelder tolerant typisieren
 
 Der Client liefert `audio.currentTime * 1000` — einen **Float**. Ein `position_ms: int` ließ
@@ -36,7 +55,8 @@ Join bei Position exakt 0 (gültiger int) funktionierte. Also `float` + `round()
 
 `journalctl -u aivinnet` zeigt bei einem Handler-Crash nur die eine Zeile
 `[ERROR] Exception on /pfad [POST]`, den Traceback schluckt die Log-Konfiguration. Nicht im
-Journal weitersuchen, sondern den Handler **direkt** reproduzieren — auf dem Server in
+Journal weitersuchen. Er steht in der Logdatei (`<config>/…/logs/log.jsonl`, Feld `exc_info`);
+ohne Zugriff darauf den Handler **direkt** reproduzieren — auf dem Server in
 `~/AivinNet` per `~/.local/bin/uv run python`, Request-Body als Pydantic-Modell bauen,
 Handler-Funktion aufrufen, `traceback.print_exc()`. Store-Lookups dabei stubben (der
 Nebenprozess hat leere RAM-Stores) und angelegte DB-Zeilen im `finally` wieder entfernen.

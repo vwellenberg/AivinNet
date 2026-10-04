@@ -45,13 +45,13 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
 ## ⚠️ Fallen, die hier schon zugeschlagen haben
 
 - **Das Docker-Image (`python:3.11-slim`) hat kein `/etc/mime.types`.** Pythons `mimetypes`
-  fällt dann auf seine eingebaute Tabelle zurück, und die kennt weder `.m4a` noch `.flac`. Der
-  Stream-Endpoint schickte deshalb `audio/m4a` — Chrome schnüffelt die Bytes und spielt trotzdem,
-  **Firefox** glaubt dem Header und verweigert („Can't load"); die abgebrochenen Verbindungen
-  loggt bjoern als `Client N hit errno 32/104`. Lokal (volle Distro) nicht nachstellbar. Audio-
-  Typen stehen deshalb fest in `utils/files.py::AUDIO_MIME_TYPES`, Web-Typen registriert
-  `start_aivinnet.config_mimetypes()` von Hand — ein neues Format in `utils/filesystem.FILES`
-  braucht dort einen Eintrag (`tests/test_audio_mime_types.py` wacht darüber).
+  fällt dann auf seine eingebaute Tabelle zurück, und die kennt weder `.m4a` noch `.flac` — lokal
+  (volle Distro) nicht nachstellbar. Audio-Typen stehen deshalb fest in
+  `utils/files.py::AUDIO_MIME_TYPES`, Web-Typen registriert `start_aivinnet.config_mimetypes()`
+  von Hand; ein neues Format in `utils/filesystem.FILES` braucht dort einen Eintrag
+  (`tests/test_audio_mime_types.py`). ⚠️ Der falsche Typ (`audio/m4a`) wurde in #327 für ein
+  Firefox-Abspielproblem verantwortlich gemacht — **gemessen stimmt das nicht**, Firefox spielt
+  die Datei trotzdem (siehe `api-endpoints.md`, „Welche Formate wo abspielen").
 - **Die PyPI-Namenskollision ist seit der Umbenennung weg — `--no-index` bleibt trotzdem.**
   Solange die Distribution `swingmusic` hieß, konnte `pip install --find-links=wheels/ swingmusic`
   das **Upstream**-Paket von PyPI ziehen (gleicher Name, höhere Version) und still deren Backend
