@@ -35,7 +35,7 @@ type BrowseEntity = "album" | "artist" | "playlist" | "track";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
 // `entity` colours the tile's fill (what you will find behind it);
-// `favorite` adds the gold ring (that it is your favourites only).
+// `favorite` adds the gold gradient (that it is your favourites only).
 interface BrowseItem {
   title: string;
   route: string;
