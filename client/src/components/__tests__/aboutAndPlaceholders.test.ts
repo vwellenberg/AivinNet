@@ -82,6 +82,6 @@ describe("input placeholders", () => {
 describe("Home", () => {
   it("names itself in the page head, like every other page", () => {
     const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
-    expect(home).toMatch(/<GenericHeader>\s*<template #name>Home<\/template>\s*<\/GenericHeader>/);
+    expect(home).toMatch(/<GenericHeader[^>]*>\s*<template #name>Home<\/template>\s*<\/GenericHeader>/);
   });
 });
