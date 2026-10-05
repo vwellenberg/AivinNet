@@ -124,7 +124,7 @@
 
         <!-- Lining the speakers up takes two devices that play together. -->
         <div v-if="canCalibrate" class="calibrate">
-            <button class="btn-primary" @click="view = 'mic'">Calibrate sync</button>
+            <button class="btn-primary" @click="view = 'mic'"><span class="text">Calibrate sync</span></button>
             <button class="by-ear" @click="view = 'ear'">Align by ear</button>
         </div>
 

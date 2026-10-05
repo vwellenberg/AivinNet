@@ -26,15 +26,15 @@
                     <div class="ends"><span>later</span><span>earlier</span></div>
                 </div>
                 <p class="tip">A device ticks after the others? Move it towards “earlier”.</p>
-                <button class="btn-primary wide" @click="finish">Done</button>
+                <button class="btn-primary wide" @click="finish"><span class="text">Done</span></button>
             </template>
             <template v-else-if="cal.phase === 'error'">
                 <p class="lead">{{ cal.error }}</p>
-                <button class="btn-primary wide" @click="emit('done')">Back</button>
+                <button class="btn-primary wide" @click="emit('done')"><span class="text">Back</span></button>
             </template>
             <template v-else>
                 <p class="lead">The ticking has stopped.</p>
-                <button class="btn-primary wide" @click="cal.startEar()">Tick again</button>
+                <button class="btn-primary wide" @click="cal.startEar()"><span class="text">Tick again</span></button>
                 <button class="link" @click="emit('done')">Done</button>
             </template>
         </template>
@@ -52,7 +52,7 @@
                     <li v-if="ds.playing">The music keeps playing, turned down.</li>
                 </ol>
                 <p v-if="!ds.playing" class="tip">{{ START_MUSIC }}</p>
-                <button class="btn-primary wide" @click="cal.start()">Allow microphone and start</button>
+                <button class="btn-primary wide" @click="cal.start()"><span class="text">Allow microphone and start</span></button>
                 <p class="note">The recording stays on this device and is gone right after.</p>
                 <button class="link" @click="emit('switch', 'ear')">Align by ear instead</button>
             </template>
@@ -85,7 +85,7 @@
                     <li>Relaunch the browser and come back here.</li>
                 </ol>
                 <p class="note">Only the listening device needs this — the others just click.</p>
-                <button class="btn-primary wide" @click="emit('switch', 'ear')">Align by ear instead</button>
+                <button class="btn-primary wide" @click="emit('switch', 'ear')"><span class="text">Align by ear instead</span></button>
             </template>
 
             <template v-else-if="cal.phase === 'starting'">
@@ -118,11 +118,11 @@
                     <span v-else class="state problem">{{ STATUS_TEXT[row.status] }}</span>
                 </div>
                 <template v-if="cal.phase === 'result'">
-                    <button v-if="cal.changes.length" class="btn-primary wide" @click="cal.apply()">Apply</button>
+                    <button v-if="cal.changes.length" class="btn-primary wide" @click="cal.apply()"><span class="text">Apply</span></button>
                     <button class="btn-pill wide" @click="cal.start()">Measure again</button>
                 </template>
                 <template v-else>
-                    <button class="btn-primary wide" @click="emit('done')">Done</button>
+                    <button class="btn-primary wide" @click="emit('done')"><span class="text">Done</span></button>
                     <button class="btn-pill wide" @click="cal.start()">Measure again to check</button>
                 </template>
                 <button v-if="cal.phase === 'result'" class="link" @click="emit('done')">Done</button>
@@ -130,7 +130,7 @@
 
             <template v-else-if="cal.phase === 'error'">
                 <p class="lead">{{ cal.error }}</p>
-                <button class="btn-primary wide" @click="cal.start()">Try again</button>
+                <button class="btn-primary wide" @click="cal.start()"><span class="text">Try again</span></button>
                 <button class="link" @click="emit('switch', 'ear')">Align by ear instead</button>
             </template>
         </template>

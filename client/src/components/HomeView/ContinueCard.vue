@@ -1,7 +1,13 @@
 <template>
+  <!-- The wrapper is the size container: the "Up next" column appears only
+       when the CARD is wide enough, whatever the window or sidebars do. -->
+  <div class="continue-wrap">
   <div class="continue-card" :class="`ent-${entry.type}`">
     <RouterLink class="cover" :to="link">
-      <img v-if="image" :src="image" alt="" />
+      <!-- A playlist without its own picture shows the album collage, exactly
+           like its card in the rows below (PlaylistCard.vue). -->
+      <PlaylistImages v-if="collage.length" :images="collage" size="large" />
+      <img v-else-if="image" :src="image" alt="" />
       <div v-else class="glyph" v-html="entry.type === 'album' ? AlbumIcon : PlaylistIcon"></div>
     </RouterLink>
     <div class="info">
@@ -16,18 +22,38 @@
       </div>
       <button class="btn-primary resume" @click="resume">
         <PlaySvg />
-        Continue
+        <!-- `.text` lifts the label above the button's sprinkle (btn-primary). -->
+        <span class="text">Continue</span>
       </button>
     </div>
+    <ol v-if="upNext.length" class="up-next">
+      <li class="kicker">Up next</li>
+      <li v-for="row in upNext" :key="row.track.trackhash">
+        <button class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
+          <span class="glyph" v-html="row.current ? PlayIcon : NoteIcon"></span>
+          <span class="ellip">
+            <b>{{ row.track.title }}</b>
+            <template v-if="row.track.artists?.length"> — {{ row.track.artists.map(a => a.name).join(", ") }}</template>
+          </span>
+        </button>
+      </li>
+    </ol>
+  </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 import { paths } from "@/config";
-import { playAlbumAt, playPlaylistAt } from "@/helpers/usePlayFrom";
-import { AlbumIcon, PlaylistIcon } from "@/icons";
+import { playAlbumAt, playPlaylistAt, resumeIndex } from "@/helpers/usePlayFrom";
+import { AlbumIcon, PlayIcon, PlaylistIcon } from "@/icons";
+import { Track } from "@/interfaces";
+import { getAlbumTracks } from "@/requests/album";
+import { getPlaylist } from "@/requests/playlists";
+
+import PlaylistImages from "@/components/shared/PlaylistImages.vue";
+import NoteIcon from "@/assets/icons/note.svg?raw";
 import { Routes } from "@/router";
 
 import PlaySvg from "@/assets/icons/play.svg";
@@ -56,6 +82,11 @@ const progress = computed(() => Math.round((position.value / total.value) * 100)
 
 const name = computed(() => props.entry.item?.title ?? props.entry.item?.name ?? "");
 
+const collage = computed(() => {
+  const item = props.entry.item;
+  return props.entry.type === "playlist" && item && !item.has_image && item.images?.length ? item.images : [];
+});
+
 const image = computed(() => {
   const item = props.entry.item;
   if (!item) return "";
@@ -68,6 +99,45 @@ const link = computed(() =>
     ? { name: Routes.album, params: { albumhash: hash.value } }
     : { name: Routes.playlist, params: { pid: hash.value } }
 );
+
+// "Up next": the track they were on and the two after it. Loaded once per
+// card: an album is small and comes whole; a playlist can be huge, so only a
+// window around the position is asked for, and the track is found by its hash
+// inside it (the server's index can be off by orphans, see resumeIndex).
+const UP_NEXT = 3;
+const upNext = ref<{ track: Track; current: boolean }[]>([]);
+
+async function loadUpNext() {
+  const item = props.entry.item;
+  if (!item) return;
+
+  const index = item.track_index ?? 0;
+  let tracks: Track[] = [];
+  let offset = 0;
+
+  if (props.entry.type === "album") {
+    tracks = await getAlbumTracks(hash.value);
+  } else {
+    offset = Math.max(0, index - 3);
+    const data = await getPlaylist(hash.value, false, offset, 10);
+    tracks = data?.tracks ?? [];
+  }
+
+  if (!tracks.length) return;
+
+  const at = resumeIndex(tracks, item.resume_trackhash, index - offset);
+  // No position number in front of the title: many titles carry their own
+  // track number ("19. Rittersleut"), and "3 · 19. …" read as noise.
+  upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({ track, current: i === 0 }));
+}
+
+watch(() => [props.entry.type, hash.value, props.entry.item?.resume_trackhash], loadUpNext, { immediate: true });
+
+function playTrack(track: Track) {
+  const index = props.entry.item?.track_index ?? 0;
+  if (props.entry.type === "album") playAlbumAt(hash.value, index, track.trackhash);
+  else playPlaylistAt(hash.value, index, track.trackhash);
+}
 
 function resume() {
   // Resume ON the track they were on: it may have been cut off mid-way.
@@ -82,13 +152,17 @@ function resume() {
 // The one big card on Home. Same anatomy as every plate (ink frame, hatch,
 // hard offset), filled with the entity's pastel like a browse tile, so an
 // album reads lavender and a playlist pink before the name is read.
+.continue-wrap {
+  container-type: inline-size;
+  margin-bottom: 2rem;
+}
+
 .continue-card {
   display: grid;
   grid-template-columns: 8.5rem minmax(0, 1fr);
   gap: 1.25rem;
   align-items: center;
   padding: 1rem;
-  margin-bottom: 2rem;
   --row-fill: #{$mem-panel};
   @include candy-box(var(--row-fill), $candy-radius);
   @include mem-hatch(38px, $on: accent);
@@ -186,6 +260,69 @@ function resume() {
     svg {
       width: 1.1rem;
       height: 1.1rem;
+    }
+  }
+
+  // "Up next" only where the card has room for a third column; below that the
+  // list simply is not there (a narrow card stays the two-column card).
+  .up-next {
+    display: none;
+  }
+
+  @container (min-width: 760px) {
+    grid-template-columns: 8.5rem minmax(0, 1fr) minmax(0, 1.15fr);
+
+    .up-next {
+      display: flex;
+    }
+  }
+
+  .up-next {
+    flex-direction: column;
+    gap: 0.35rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+
+    .kicker {
+      align-self: flex-start;
+    }
+
+    .next-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      // Buttons centre their content app-wide; a list row reads from the left.
+      justify-content: flex-start;
+      gap: 0.5rem;
+      padding: 0.35rem 0.6rem;
+      background-color: $mem-panel-static;
+      border: $mem-ring-w solid $mem-ink;
+      border-radius: $candy-radius-sm;
+      color: $mem-ink;
+      font-size: 0.8rem;
+      text-align: left;
+      cursor: pointer;
+
+      .glyph {
+        flex-shrink: 0;
+        display: grid;
+
+        svg {
+          width: 1rem;
+          height: 1rem;
+        }
+      }
+
+      &.current {
+        border-width: $candy-border-w;
+      }
+
+      &:hover {
+        background-color: var(--mem-hover);
+        color: var(--mem-hover-text);
+      }
     }
   }
 
