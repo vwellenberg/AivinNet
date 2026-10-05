@@ -1,11 +1,11 @@
 <template>
-  <div class="l-sidebar" :style="{ width: displayWidth + 'px' }">
-    <div class="sidebar-nav">
+  <div ref="sidebarEl" class="l-sidebar" :class="{ 'whole-scroll': scrollsWhole }" :style="{ width: displayWidth + 'px' }">
+    <div ref="navEl" class="sidebar-nav">
       <Navigation />
     </div>
     <!-- Outside the scroller: the heading and its [+] stay put while only the
          playlists below them scroll. -->
-    <div class="sidebar-library-title">
+    <div ref="titleEl" class="sidebar-library-title">
       <span>Library</span>
       <button class="sidebar-newfolder" title="New folder" @click="onNewFolder">
         <PlusSvg />
@@ -158,9 +158,25 @@ import { playFromAlbumCard } from "@/helpers/usePlayFrom";
 import { showAlbumContextMenu } from "@/helpers/contextMenuHandler";
 import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon } from "@/icons";
 import { getPlaylist } from "@/requests/playlists";
+import { useResizeObserver } from "@vueuse/core";
+import { sidebarScrollsWhole } from "@/utils/sidebarFit";
 import { NotifType, useToast } from "@/stores/notification";
 
 const ctxFlag = ref(false);
+
+// Short windows: see utils/sidebarFit.ts.
+const sidebarEl = ref<HTMLElement | null>(null);
+const navEl = ref<HTMLElement | null>(null);
+const titleEl = ref<HTMLElement | null>(null);
+const scrollsWhole = ref(false);
+useResizeObserver(sidebarEl, () => {
+  if (!sidebarEl.value || !navEl.value || !titleEl.value) return;
+  scrollsWhole.value = sidebarScrollsWhole(
+    sidebarEl.value.clientHeight,
+    navEl.value.offsetHeight,
+    titleEl.value.offsetHeight
+  );
+});
 
 const settings = useSettingsStore();
 const playlists = usePStore();
@@ -709,6 +725,21 @@ $sidebar-inset: 0.875rem;
     // Legacy WebKit path (older Chrome): transparent thumb by default.
     &::-webkit-scrollbar-thumb {
       background-color: transparent;
+    }
+  }
+
+  // Short windows (utils/sidebarFit.ts): the nav and the LIBRARY heading
+  // alone filled the panel and left the playlists ~30 px. Then the panel
+  // scrolls as ONE. The active entry's reach-out is clipped meanwhile — a
+  // scroller cannot keep x visible — which is the price for a reachable list.
+  &.whole-scroll {
+    grid-template-rows: auto auto auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    .scrollable {
+      height: auto;
+      overflow: visible;
     }
   }
 

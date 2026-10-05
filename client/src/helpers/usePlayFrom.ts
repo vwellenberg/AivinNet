@@ -49,7 +49,10 @@ export async function playFromAlbumCard(albumhash: string, albumname: string) {
         return
     }
 
-    tracklist.setFromAlbum(albumname, albumhash, tracks)
+    // A caller that only knows the hash ("Surprise me") passes no name; the
+    // tracks know it. Empty, it showed as a blank "Album" plate and pre-filled
+    // an empty playlist name in "Add queue to playlist".
+    tracklist.setFromAlbum(albumname || tracks[0].album || '', albumhash, tracks)
     queue.playSource()
 }
 
