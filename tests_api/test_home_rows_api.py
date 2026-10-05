@@ -153,7 +153,9 @@ def test_new_rows_their_shape_and_order(home):
     assert order == ROW_ORDER
     assert not any(k.startswith("top_streamed") for k in order)
 
-    (cont,) = data["continue_listening"]["items"]
+    # Newest first: B is being listened to now; A (older, also unfinished) may
+    # follow as a second card.
+    cont = data["continue_listening"]["items"][0]
     assert data["continue_listening"]["title"] == "Continue listening"
     assert cont["type"] == "album"
     assert cont["item"]["albumhash"] == ALBUM_B

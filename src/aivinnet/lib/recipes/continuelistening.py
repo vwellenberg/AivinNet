@@ -1,5 +1,5 @@
 """
-"Continue listening": the newest album or playlist the user has not finished.
+"Continue listening": the newest albums/playlists the user has not finished.
 The rule lives in `lib/home/homerows.py::find_continue_listening`.
 """
 
@@ -61,9 +61,9 @@ class ContinueListening(HomepageRoutine):
             # triggered it — that one is already written.
             try:
                 scrobbles = ScrobbleTable.get_all(0, CONTINUE_SEARCH_LIMIT, userid=userid)
-                item = find_continue_listening(scrobbles, _resolve_tracklist(userid))
+                items = find_continue_listening(scrobbles, _resolve_tracklist(userid))
             except Exception:
                 log.error("continue-listening refresh failed for user %s", userid, exc_info=True)
                 continue
 
-            HomepageStore.entries[self.store_key].items[userid] = [item] if item else []
+            HomepageStore.entries[self.store_key].items[userid] = items

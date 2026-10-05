@@ -152,9 +152,10 @@ function resume() {
 // The one big card on Home. Same anatomy as every plate (ink frame, hatch,
 // hard offset), filled with the entity's pastel like a browse tile, so an
 // album reads lavender and a playlist pink before the name is read.
+// Each card is its own size container for the Up next column; the spacing
+// to the rows below belongs to the row of cards (HomeView/main.vue).
 .continue-wrap {
   container-type: inline-size;
-  margin-bottom: 2rem;
 }
 
 .continue-card {

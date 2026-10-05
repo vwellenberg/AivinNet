@@ -60,14 +60,16 @@ class TestContinueListening:
     def test_newest_unfinished_album(self):
         scrobbles = [Scrobble(self.lists[("album", ALBUM)][3], NOW, f"al:{ALBUM}")]
 
-        assert find_continue_listening(scrobbles, self.resolve) == {
-            "type": "album",
-            "hash": ALBUM,
-            "trackhash": self.lists[("album", ALBUM)][3],
-            "track_index": 3,
-            "track_total": 10,
-            "timestamp": NOW,
-        }
+        assert find_continue_listening(scrobbles, self.resolve) == [
+            {
+                "type": "album",
+                "hash": ALBUM,
+                "trackhash": self.lists[("album", ALBUM)][3],
+                "track_index": 3,
+                "track_total": 10,
+                "timestamp": NOW,
+            }
+        ]
 
     def test_finished_album_is_skipped_for_the_next_older_source(self):
         scrobbles = [
@@ -76,7 +78,7 @@ class TestContinueListening:
             Scrobble(self.lists[("album", OTHER_ALBUM)][5], NOW - 3600, f"al:{OTHER_ALBUM}"),
         ]
 
-        item = find_continue_listening(scrobbles, self.resolve)
+        (item,) = find_continue_listening(scrobbles, self.resolve)
 
         # Not ALBUM at track 2: its NEWEST play says it is finished.
         assert item["hash"] == OTHER_ALBUM
@@ -88,14 +90,32 @@ class TestContinueListening:
             Scrobble("0853280a12c4f9e1", NOW - 60, "pl:7"),
         ]
 
-        assert find_continue_listening(scrobbles, self.resolve) == {
-            "type": "playlist",
-            "hash": "7",
-            "trackhash": "0853280a12c4f9e1",
-            "track_index": 1,
-            "track_total": 3,
-            "timestamp": NOW - 60,
-        }
+        assert find_continue_listening(scrobbles, self.resolve) == [
+            {
+                "type": "playlist",
+                "hash": "7",
+                "trackhash": "0853280a12c4f9e1",
+                "track_index": 1,
+                "track_total": 3,
+                "timestamp": NOW - 60,
+            }
+        ]
+
+    def test_several_sources_newest_first_each_once_capped(self):
+        # Wide screens show up to three cards side by side (2026-10-05).
+        album, other = self.lists[("album", ALBUM)], self.lists[("album", OTHER_ALBUM)]
+        scrobbles = [
+            Scrobble(album[3], NOW, f"al:{ALBUM}"),
+            Scrobble(album[2], NOW - 10, f"al:{ALBUM}"),  # same album again: not a second card
+            Scrobble("0853280a12c4f9e1", NOW - 60, "pl:7"),
+            Scrobble(other[5], NOW - 3600, f"al:{OTHER_ALBUM}"),
+        ]
+
+        items = find_continue_listening(scrobbles, self.resolve)
+        assert [(i["type"], i["hash"]) for i in items] == [("album", ALBUM), ("playlist", "7"), ("album", OTHER_ALBUM)]
+        assert items[0]["track_index"] == 3  # the NEWEST play of the album decides
+
+        assert len(find_continue_listening(scrobbles, self.resolve, limit=2)) == 2
 
     def test_nothing_found(self):
         scrobbles = [
@@ -106,13 +126,13 @@ class TestContinueListening:
             Scrobble("eeeeeeeeeeeeeeee", NOW - 4, f"al:{ALBUM}"),  # track no longer in it
         ]
 
-        assert find_continue_listening(scrobbles, self.resolve) is None
-        assert find_continue_listening([], self.resolve) is None
+        assert find_continue_listening(scrobbles, self.resolve) == []
+        assert find_continue_listening([], self.resolve) == []
 
     def test_single_track_album_counts_as_finished(self):
         self.lists[("album", ALBUM)] = ["0853280a12c4f9e1"]
 
-        assert find_continue_listening([Scrobble("0853280a12c4f9e1", NOW, f"al:{ALBUM}")], self.resolve) is None
+        assert find_continue_listening([Scrobble("0853280a12c4f9e1", NOW, f"al:{ALBUM}")], self.resolve) == []
 
 
 class TestRediscover:

@@ -8,11 +8,12 @@ import { fetchCardCount, maxAbumCards } from './content-width'
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
 
-    // "Continue listening" is not a row: Home shows it as the card on top.
+    // "Continue listening" is not a row: Home shows its items as cards on top,
+    // newest first — as many side by side as the width allows (main.vue).
     const continueListening = computed(() => {
         // @ts-ignore
         const entry: HomePageItem | undefined = homepageData.continue_listening
-        return entry && entry.items.length ? entry.items[0] : null
+        return entry ? entry.items : []
     })
 
     const homepageItems = computed(() => {

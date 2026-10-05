@@ -1,7 +1,18 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
         <GenericHeader />
-        <ContinueCard v-if="home.continueListening" :entry="home.continueListening" />
+        <!-- Up to three unfinished albums/playlists, newest first. How many
+             show depends on the width of THIS area (container query below):
+             one on a laptop, two on a wide monitor, three on an ultrawide. -->
+        <div v-if="home.continueListening.length" class="continue-row">
+            <div class="continue-cards">
+                <ContinueCard
+                    v-for="entry in home.continueListening"
+                    :key="entry.type + (entry.item?.albumhash ?? entry.item?.id)"
+                    :entry="entry"
+                />
+            </div>
+        </div>
         <Browse class="browse-phones-only" />
         <PageItem
             v-for="item in home.homepageItems"
@@ -73,6 +84,41 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
 
     .generichead {
         margin-bottom: 0;
+    }
+
+    // The cards share the row equally; extra ones only appear where there is
+    // room for each to stay a proper card (~700px+). With fewer items than
+    // room, the shown ones simply grow — no empty slot. Thresholds are the
+    // content area's width, not the window's, so open sidebars count.
+    .continue-row {
+        container-type: inline-size;
+        margin-bottom: 2rem;
+    }
+
+    .continue-cards {
+        display: flex;
+        gap: 1.5rem;
+
+        > * {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        > :nth-child(n + 2) {
+            display: none;
+        }
+    }
+
+    @container (min-width: 1500px) {
+        .continue-cards > :nth-child(2) {
+            display: block;
+        }
+    }
+
+    @container (min-width: 2250px) {
+        .continue-cards > :nth-child(3) {
+            display: block;
+        }
     }
 
     // "Surprise me" sits in the Rediscover caption row, which is a flex row at
