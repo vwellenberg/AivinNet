@@ -171,10 +171,17 @@ const Home = {
     component: HomeView,
 }
 
+// Albums and Artists are ONE component on two routes. It picks its store
+// (and SortBanner its sort options) once, in setup, from the route name — and
+// Vue Router REUSES the instance when only the route changes, so going from
+// Albums to Artists kept the album list until something else re-rendered
+// (reported 2026-10-05, with both now in the navigation). `remount` makes
+// App.vue key the view by route name: each route gets its own instance.
 const AlbumListView = {
     path: '/albums',
     name: 'AlbumListView',
     component: AlbumList,
+    meta: { remount: true },
 }
 
 const Stats = {
