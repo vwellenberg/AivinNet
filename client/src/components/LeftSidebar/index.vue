@@ -3,14 +3,16 @@
     <div class="sidebar-nav">
       <Navigation />
     </div>
+    <!-- Outside the scroller: the heading and its [+] stay put while only the
+         playlists below them scroll. -->
+    <div class="sidebar-library-title">
+      <span>Library</span>
+      <button class="sidebar-newfolder" title="New folder" @click="onNewFolder">
+        <PlusSvg />
+      </button>
+    </div>
     <div class="scrollable">
       <div class="sidebar-library">
-        <div class="sidebar-library-title">
-          <span>Library</span>
-          <button class="sidebar-newfolder" title="New folder" @click="onNewFolder">
-            <PlusSvg />
-          </button>
-        </div>
         <!-- Manually-ordered zone: folders, pinned albums and pinned
              playlists, freely interleaved (shared position space). -->
         <div class="sidebar-toplevel" @dragover.prevent @drop="onDropToTopZone($event)">
@@ -631,14 +633,22 @@ onBeforeUnmount(teardown);
   bottom: -1px;
 }
 
+// The panel's horizontal inset, shared by the nav, the LIBRARY heading and the
+// playlists — the three must line up edge for edge.
+$sidebar-inset: 0.875rem;
+
 .l-sidebar {
   grid-area: l-sidebar;
   display: grid;
-  // Two rows: the navigation (fixed) and the library (scrolls). The nav sat
-  // inside the scroller until 2026-10-04, but a scroller with `overflow-y:
-  // auto` cannot leave x visible (CSS turns it into auto/hidden), and the
-  // active nav entry now reaches out of the panel to point at the page.
-  grid-template-rows: auto minmax(0, 1fr);
+  // Three rows: the navigation and the LIBRARY heading (both fixed), then the
+  // playlists (scroll). The nav sat inside the scroller until 2026-10-04, but a
+  // scroller with `overflow-y: auto` cannot leave x visible (CSS turns it into
+  // auto/hidden), and the active nav entry now reaches out of the panel to
+  // point at the page. The heading followed so its [+] never scrolls away.
+  grid-template-rows: auto auto minmax(0, 1fr);
+  // The playlists size themselves against the PANEL (`100cqw`), not against
+  // the scroller — see `.sidebar-library`.
+  container-type: inline-size;
   @include candy-box($candy-white, $candy-radius);
   position: relative;
   // Above the content panel: the active nav entry and its arrow reach across
@@ -655,10 +665,10 @@ onBeforeUnmount(teardown);
   // Small black gap on the far left so the panel floats.
   margin-left: 8px;
 
-  // Same inset as the scroller below; no bottom padding — the library's own
-  // top padding is the gap between the two.
+  // Same inset as the scroller below; no bottom padding — the LIBRARY
+  // heading's top padding is the gap between the two.
   .sidebar-nav {
-    padding: 1.875rem 0.875rem 0;
+    padding: 1.875rem $sidebar-inset 0;
     position: relative;
     z-index: 2;
   }
@@ -673,10 +683,13 @@ onBeforeUnmount(teardown);
     // already had, so the resting distance from frame to first row is
     // unchanged at 30px; the scrollbar now rides the frame instead of floating
     // 14px inside it.
-    // Top inset is smaller since the nav moved above the scroller: the nav's
-    // own 1.875rem keeps the panel's resting top inset, and 1rem here is the
-    // gap between nav and library.
-    padding: 1rem 0.875rem 1.875rem;
+    // No top inset: the nav and the LIBRARY heading sit above the scroller and
+    // the heading's own bottom padding is the gap to the first row.
+    // No RIGHT inset either: the scrollbar takes that strip. Windows reserves a
+    // real 10px track for it, and with the inset kept on top of it the rows
+    // came out 10px narrower than the nav plates above them (measured: nav to
+    // x=223, rows to x=213). `.sidebar-library` sets its width instead.
+    padding: 0 0 1.875rem $sidebar-inset;
 
     // ⚠️ Follow the frame's curve. Now that the scrollport reaches the border,
     // both its contents AND its scrollbar are square against a rounded panel —
@@ -737,11 +750,62 @@ onBeforeUnmount(teardown);
 // bottom edge on a duplicate. Removing it also hands the scroller the panel's
 // full height — see the clip-edge note on .l-sidebar.)
 
+.sidebar-library-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  // Top: the gap from the nav that the scroller's 1rem plus the library's
+  // 1.4rem made while the heading still scrolled. Bottom: the gap to the first
+  // row, which is also where the scrolled rows are cut off.
+  // Right: the panel inset plus the shadow reserve every sidebar row has
+  // (#397), so the [+] ends where the plates above and below it end.
+  padding: 2.4rem calc(#{$sidebar-inset} + #{$small}) 0.6rem $sidebar-inset;
+  letter-spacing: 0.05em;
+
+  // The heading IS the divider now. The 1px grey hairline that used to sit
+  // above it was the only element of that weight in a sidebar built from 3px
+  // ink frames — it read as a different kit (#355 collects the same mismatch
+  // elsewhere). A label with its own surface separates the two lists without
+  // drawing a line at all.
+  //
+  // Blush, and that only works since #418 moved hover to the contrast
+  // surface: while blush WAS the pointer colour, a heading wearing it looked
+  // permanently hovered.
+  //
+  // No hatch: the texture means "you can press this", and this is a caption.
+  > span {
+    background-color: var(--look-sticker-fill, #{$mem-blush});
+    background-image: var(--look-sticker-image, none);
+    color: var(--look-sticker-text, var(--look-tint-text, #{$mem-ink}));
+    border: $candy-border;
+    border-radius: 8px;
+    box-shadow: mem-shadow(3px, 3px);
+    padding: 3px 10px;
+  }
+
+  // "New folder". Its blush circle came from the global button base — the
+  // comment here used to say so — which meant a control with no owner: no
+  // border, no shadow, and 22px across in a design where every other button
+  // has a frame it sits in. It takes the action role now, at the smallest
+  // size that still reads as a button next to the section caption.
+  // `$control-dense`, the same footprint as the thumbnails in the rows below
+  // — the size was already right, it just had no name, and the glyph came
+  // from a hand-written override because `btn-action` had no `$glyph` knob.
+  // It does now, so both numbers come from the tier.
+  .sidebar-newfolder {
+    @include btn-action($size: $control-dense, $glyph: $control-dense-glyph, $radius: 50%);
+  }
+}
+
 .sidebar-library {
-  // No border-top any more: the LIBRARY label carries its own surface and is
-  // the divider (see .sidebar-library-title). The 1px hairline that stood here
-  // was the only element of its weight among 3px ink frames.
-  margin-top: 1.4rem;
+  // As wide as the nav above, scrollbar or not: the scroller has no right
+  // inset (its scrollbar sits there), so the width comes from the panel —
+  // `100cqw` is `.l-sidebar`'s content box — minus the inset on both sides.
+  // A scrollbar wider than the inset would cut the shadow reserve, not a row.
+  width: calc(100cqw - 2 * #{$sidebar-inset});
 
   // The rows are plates now (#378), so the list needs the same air and the same
   // reserved room for the offset shadow as the navigation above it — the two
@@ -771,58 +835,6 @@ onBeforeUnmount(teardown);
   // inside .sidebar-bottom-zone did before the fix above.
   .sidebar-bottom-zone {
     margin-top: $small;
-  }
-
-  .sidebar-library-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 0 0 0.6rem;
-    // The same right-hand reserve every other sidebar row has (#397): the
-    // scroll container clips at overflow-x, and this was the one row whose
-    // control sat flush against that edge — measured: the [+]'s right edge at
-    // exactly the clip line, its frame and 3px offset shadow cut off. With the
-    // reserve it also lines up with the plates below instead of overhanging
-    // them by the same 8px.
-    padding-right: $small;
-    letter-spacing: 0.05em;
-
-    // The heading IS the divider now. The 1px grey hairline that used to sit
-    // above it was the only element of that weight in a sidebar built from 3px
-    // ink frames — it read as a different kit (#355 collects the same mismatch
-    // elsewhere). A label with its own surface separates the two lists without
-    // drawing a line at all.
-    //
-    // Blush, and that only works since #418 moved hover to the contrast
-    // surface: while blush WAS the pointer colour, a heading wearing it looked
-    // permanently hovered.
-    //
-    // No hatch: the texture means "you can press this", and this is a caption.
-    > span {
-      background-color: var(--look-sticker-fill, #{$mem-blush});
-      background-image: var(--look-sticker-image, none);
-      color: var(--look-sticker-text, var(--look-tint-text, #{$mem-ink}));
-      border: $candy-border;
-      border-radius: 8px;
-      box-shadow: mem-shadow(3px, 3px);
-      padding: 3px 10px;
-    }
-
-    // "New folder". Its blush circle came from the global button base — the
-    // comment here used to say so — which meant a control with no owner: no
-    // border, no shadow, and 22px across in a design where every other button
-    // has a frame it sits in. It takes the action role now, at the smallest
-    // size that still reads as a button next to the section caption.
-    // `$control-dense`, the same footprint as the thumbnails in the rows below
-    // — the size was already right, it just had no name, and the glyph came
-    // from a hand-written override because `btn-action` had no `$glyph` knob.
-    // It does now, so both numbers come from the tier.
-    .sidebar-newfolder {
-      @include btn-action($size: $control-dense, $glyph: $control-dense-glyph, $radius: 50%);
-    }
   }
 
   // A FOLDER IS ONE PLATE, not a plate with plates inside it (#378).
