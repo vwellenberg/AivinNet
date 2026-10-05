@@ -42,9 +42,9 @@ Worth knowing:
 - **The music folder has to exist.** compose refuses to start on a path that
   isn't there (`bind source path does not exist`) instead of creating an empty
   one — that is what a typo in `.env` would otherwise give you.
-- **The first start needs internet.** The image does not bundle the web client;
-  it downloads it from the release matching the image version (falling back to
-  the newest release).
+- **The web client is inside the image**, built from the same commit as the
+  server (#331), so the first start needs no internet. Only an image built
+  without it falls back to downloading the client of the matching release.
 - **The container runs as root**, so files under `config/` end up owned by root.
   To run as yourself, create and `chown` `config/` first, *then* set `user:` —
   Docker creates a missing bind path as root, and a non-root container cannot

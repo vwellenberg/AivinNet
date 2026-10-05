@@ -28,9 +28,10 @@ server is the timing numbers of each click, and only a few recent runs are kept,
 in memory, for diagnosis. The browser asks for microphone permission first.
 Calibration by ear needs no microphone at all.
 
-One more, and it is not optional: the **Docker** image does not bundle the web
-interface and downloads it from GitHub on first start. The other install paths
-ship it inside the artifact and need no network at all.
+No install path needs the network to run: the AppImage, the binaries and the
+**Docker** image all ship the web interface inside the artifact. (Docker
+images before 2026.10 downloaded it from GitHub on first start; that fallback
+remains only for an image built without it.)
 
 > **If you are upgrading:** this changed in favour of privacy, and only for new
 > installs. Your existing settings are left exactly as they are — including a

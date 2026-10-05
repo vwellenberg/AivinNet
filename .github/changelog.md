@@ -69,10 +69,35 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
-**Your files, by hand — and devices that really play together.** An album's
-titles and track numbers can be fetched and applied, files can be named after
-their tags, playlists get an edit mode, and multiroom playback holds devices
-within a few milliseconds of each other.
+**A new Home, colours that tell you where you are, your files by hand — and
+devices that really play together.** Home picks up where you left off, every
+kind of thing in the library has its own colour, an album's titles and track
+numbers can be fetched and applied, files can be named after their tags,
+playlists get an edit mode, and multiroom playback holds devices within a few
+milliseconds of each other.
+
+### A new Home
+
+- **Continue listening** brings back the album or playlist you did not finish,
+  with what is up next and the playlist's own collage.
+- **Rediscover** digs out albums you played often and not in the last two
+  months, and **On this day** shows what you listened to on this date a year
+  ago.
+- **Surprise me** (next to Rediscover) opens a random album from your library.
+- Everything comes from your own listening history and your own files; nothing
+  new leaves the server.
+
+### Colours that tell you where you are
+
+- **Every kind of thing has its colour**: albums lavender, artists lime,
+  folders kraft, tracks sea, favourites gold, stats orchid. Browse tiles, page
+  titles and the navigation wear it.
+- **Albums and Artists are in the navigation** (on the desktop). The active
+  entry comes to a point and reaches out towards the page it opened.
+- **Favourites** says what each row previews, always offers "See all", and
+  lists tracks last.
+- **Folder rows** read like the song list: colour band, folder tile, number and
+  a gauge for how much is in them.
 
 ### Tidy up an album
 
@@ -83,6 +108,15 @@ within a few milliseconds of each other.
 - **The track editor renames the file too.** Queues and playlists follow the
   rename.
 - **Pick an artist's picture yourself**: upload one, or remove it.
+
+### Library
+
+- **Check library** (Settings → MusicBrainz) lists albums that a scan misread,
+  for example a soundtrack that came out as ten albums by artists named "01" to
+  "10". Each finding says why, and offers Merge (pick one artist), Open or
+  Ignore.
+- **File names no longer invent artists**: a leading track number is not an
+  artist, and titles are no longer cut off.
 
 ### Playlists
 
@@ -113,6 +147,17 @@ within a few milliseconds of each other.
 
 ### Fixed
 
+- **Safari could not load the app**: JavaScript and styles broke off halfway.
+- **Album pages failed** on files tagged "track 1/12", and **m4a** files would
+  not play in Firefox from the Docker image.
+- **The Docker image ships its own web client**, built from the same version,
+  instead of downloading one on first start.
+- **A quick skip could silence the next song**: the fade of the previous one
+  unloaded the player it was handed back.
+- Editing a track that shares its tags with another file edits the right file,
+  and a busy database can no longer drop a track from the library.
+- Switching between Albums and Artists builds the page anew instead of showing
+  the other one's list.
 - **`install.sh --music` did nothing**: the folder went into a file the app
   never reads, and the app never scanned it on its own. A new install now comes
   up with its music, and any library that has folders but no tracks yet is
@@ -164,7 +209,8 @@ A full review before this release found these, and they are fixed:
 
 ### Under the hood
 
-- Dependencies are updated, and two unused ones (a load-testing tool and a
+- Dependencies are updated on both sides (server, and axios plus the build
+  tools in the web client), and two unused ones (a load-testing tool and a
   memory profiler) are gone, which makes installs smaller.
 - Every request the client makes is checked against the server's contract in
   CI. Last.fm scrobbles have a deadline.
