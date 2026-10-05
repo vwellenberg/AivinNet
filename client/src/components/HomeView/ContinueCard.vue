@@ -70,8 +70,9 @@ const link = computed(() =>
 function resume() {
   // Resume ON the track they were on: it may have been cut off mid-way.
   const index = props.entry.item.track_index ?? 0;
-  if (props.entry.type === "album") playAlbumAt(hash.value, index);
-  else playPlaylistAt(hash.value, index);
+  const trackhash = props.entry.item.resume_trackhash;
+  if (props.entry.type === "album") playAlbumAt(hash.value, index, trackhash);
+  else playPlaylistAt(hash.value, index, trackhash);
 }
 </script>
 

@@ -136,6 +136,10 @@ def recover_items(items: list[dict]):
             for key in ("track_index", "track_total"):
                 if key in item:
                     recovered_item["item"][key] = item[key]
+            # Under its own name: the recovered item is the album/playlist
+            # card, and a bare `trackhash` on it would read as its identity.
+            if "trackhash" in item and "track_index" in item:
+                recovered_item["item"]["resume_trackhash"] = item["trackhash"]
 
             recovered.append(recovered_item)
 

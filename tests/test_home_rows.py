@@ -63,6 +63,7 @@ class TestContinueListening:
         assert find_continue_listening(scrobbles, self.resolve) == {
             "type": "album",
             "hash": ALBUM,
+            "trackhash": self.lists[("album", ALBUM)][3],
             "track_index": 3,
             "track_total": 10,
             "timestamp": NOW,
@@ -90,6 +91,7 @@ class TestContinueListening:
         assert find_continue_listening(scrobbles, self.resolve) == {
             "type": "playlist",
             "hash": "7",
+            "trackhash": "0853280a12c4f9e1",
             "track_index": 1,
             "track_total": 3,
             "timestamp": NOW - 60,

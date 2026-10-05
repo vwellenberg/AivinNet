@@ -89,6 +89,12 @@ def find_continue_listening(
         return {
             "type": scrobble.type,
             "hash": scrobble.type_src,
+            # The track itself, not only its position: a playlist's stored
+            # list can hold orphans (hashes no longer in the library) that the
+            # client never receives, so `track_index` counted here can point
+            # one or more tracks too far there. The client resumes by this
+            # hash and falls back to the index.
+            "trackhash": scrobble.trackhash,
             "track_index": index,
             "track_total": len(tracklist),
             "timestamp": scrobble.timestamp,

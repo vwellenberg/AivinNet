@@ -158,6 +158,8 @@ def test_new_rows_their_shape_and_order(home):
     assert cont["type"] == "album"
     assert cont["item"]["albumhash"] == ALBUM_B
     assert (cont["item"]["track_index"], cont["item"]["track_total"]) == (3, 10)  # sorted by track number
+    # Resume by the track itself (a playlist's index can be off by orphans).
+    assert cont["item"]["resume_trackhash"] == _trackhash(ALBUM_B, 4)
     assert cont["item"]["image"] == f"{ALBUM_B}.webp?pathhash=ph-Now Playing"
 
     (redisc,) = data["rediscover"]["items"]
@@ -234,7 +236,16 @@ def test_playlist_is_continued_only_for_its_owner(home):
     ContinueListening()
     items = HomepageStore.entries["continue_listening"].items
 
-    assert items[1] == [{"type": "playlist", "hash": "7", "track_index": 1, "track_total": 3, "timestamp": now - 60}]
+    assert items[1] == [
+        {
+            "type": "playlist",
+            "hash": "7",
+            "trackhash": _trackhash(ALBUM_A, 1),
+            "track_index": 1,
+            "track_total": 3,
+            "timestamp": now - 60,
+        }
+    ]
     assert items[2] == []
 
 

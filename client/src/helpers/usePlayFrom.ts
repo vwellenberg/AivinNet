@@ -54,10 +54,21 @@ export async function playFromAlbumCard(albumhash: string, albumname: string) {
 }
 
 /**
+ * Where to start in a freshly loaded tracklist: the track itself if it is
+ * there, else the server's index. The server counts a playlist's stored list,
+ * which can hold orphans this client never receives — by index alone the
+ * resume could land one or more tracks too far.
+ */
+export function resumeIndex(tracks: Track[], trackhash: string | undefined, index: number) {
+    const found = trackhash ? tracks.findIndex(t => t.trackhash === trackhash) : -1
+    return found >= 0 ? found : Math.min(Math.max(index, 0), tracks.length - 1)
+}
+
+/**
  * Start an album at a given track — Home's "Continue listening" resumes the
  * track the user was on, not the album's first one.
  */
-export async function playAlbumAt(albumhash: string, index: number) {
+export async function playAlbumAt(albumhash: string, index: number, trackhash?: string) {
     const queue = useQueue()
     const tracklist = useTracklist()
 
@@ -69,11 +80,11 @@ export async function playAlbumAt(albumhash: string, index: number) {
     }
 
     tracklist.setFromAlbum(tracks[0].album, albumhash, tracks)
-    queue.play(Math.min(Math.max(index, 0), tracks.length - 1))
+    queue.play(resumeIndex(tracks, trackhash, index))
 }
 
 /** Same as playAlbumAt, for a playlist. */
-export async function playPlaylistAt(id: string, index: number) {
+export async function playPlaylistAt(id: string, index: number, trackhash?: string) {
     const queue = useQueue()
     const tracklist = useTracklist()
     const data = await getPlaylist(id, false, 0, -1)
@@ -81,7 +92,7 @@ export async function playPlaylistAt(id: string, index: number) {
     if (!data || data.tracks.length === 0) return
 
     tracklist.setFromPlaylist(data.info.name, data.info.id, data.tracks)
-    queue.play(Math.min(Math.max(index, 0), data.tracks.length - 1))
+    queue.play(resumeIndex(data.tracks, trackhash, index))
 }
 
 export async function playFromArtistCard(artisthash: string, artistname: string) {
