@@ -59,6 +59,10 @@ const PLATES = [
   // row, nothing for the texture to distinguish.
   { file: "/src/components/modals/settings/Sidebar.vue", selector: ".gitem", hatch: true },
   { file: "/src/components/SettingsView/Group.vue", selector: ".setting-item", hatch: false },
+  // Home's Continue card: its "Up next" rows are small song rows, a content
+  // list where every row plays — the chart-row case, so no texture. The fill
+  // is the static panel because the card under it is a static pastel.
+  { file: "/src/components/HomeView/ContinueCard.vue", selector: ".next-row", hatch: false },
 ];
 
 /** The static light fills a hovered/marked row is allowed to wear. */
