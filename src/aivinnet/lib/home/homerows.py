@@ -150,8 +150,9 @@ def rank_rediscover(
             continue
 
         counts[albumhash] = counts.get(albumhash, 0) + 1
-        if scrobble.timestamp > last.get(albumhash, 0):
-            last[albumhash] = scrobble.timestamp
+        # No 0 default: an album whose plays all carry a timestamp <= 0 got a
+        # count but no `last`, and the filter below raised KeyError.
+        last[albumhash] = max(last.get(albumhash, scrobble.timestamp), scrobble.timestamp)
 
     ranked = [
         (albumhash, count, last[albumhash])

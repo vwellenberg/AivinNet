@@ -19,10 +19,17 @@ def _playlist_exists(playlistid: str, userid: int | None) -> bool:
     if userid is None:
         return PlaylistTable.get_by_id(playlistid) is not None
 
+    # The id comes from a scrobble's `source`, which any account can post. A
+    # number past SQLite's 64-bit INTEGER made the driver raise OverflowError —
+    # in the startup cron job too, which then died for every user.
     try:
-        return PlaylistTable.get_trackhashes_of_user(int(playlistid), userid) is not None
+        pid = int(playlistid)
     except ValueError:
         return False
+    if not 0 < pid < 2**63:
+        return False
+
+    return PlaylistTable.get_trackhashes_of_user(pid, userid) is not None
 
 
 def create_items(entries: list[TrackLog], limit: int, userid: int | None = None):

@@ -76,8 +76,8 @@ def _identity_artist_hashes(track: Track) -> set[str]:
 _DERIVED_STATE = ("fav_userids", "playcount", "playduration", "lastplayed", "color")
 
 
-def _carry_over(old, new) -> None:
-    for name in _DERIVED_STATE:
+def _carry_over(old, new, names: tuple[str, ...] = _DERIVED_STATE) -> None:
+    for name in names:
         if not (hasattr(old, name) and hasattr(new, name)):
             continue
         value = getattr(old, name)
@@ -154,7 +154,7 @@ def _as_track(tags: dict, row_id: int) -> Track:
     return track_to_dataclass(track_dict, UserConfig())
 
 
-def _store_track(filepath: str, track: Track) -> None:
+def _store_track(filepath: str, track: Track, carry_references: bool = True) -> None:
     """
     Put a freshly committed track into the in-memory stores, replacing the old one.
 
@@ -167,7 +167,11 @@ def _store_track(filepath: str, track: Track) -> None:
     previous = next(iter(TrackStore.get_tracks_by_filepaths([filepath])), None)
     TrackStore.remove_track_by_filepath(filepath)
     if previous is not None:
-        _carry_over(previous, track)
+        # Favourites and play counts belong to the HASH they are stored under.
+        # When another file keeps the old hash, the database references stay
+        # there — carrying them in RAM showed the edited track as favourited
+        # until the next restart, and a toggle hit a row that did not exist.
+        _carry_over(previous, track, ("color",) if not carry_references else _DERIVED_STATE)
     TrackStore.add_track(track)
     # The folder view looks files up by their hash, and the hash may just have
     # changed with the tags.
@@ -310,7 +314,7 @@ def _edit(old_track: Track, fields: dict) -> Track:
     # rebuilds them. Reporting a failure here would make the user redo an
     # edit that is already on disk.
     try:
-        _store_track(filepath, new_track)
+        _store_track(filepath, new_track, carry_references=new_trackhash == old_trackhash or repoint)
         # Reconcile the in-memory album/artist maps for both old and new identities.
         for albumhash in {old_albumhash, new_track.albumhash}:
             _reconcile_album(albumhash)
