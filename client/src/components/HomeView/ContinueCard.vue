@@ -9,7 +9,7 @@
       <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
       <div class="meta">
         {{ entry.type === 'album' ? 'Album' : 'Playlist' }} · Track {{ position }} of {{ total }}
-        <template v-if="entry.item.time"> · {{ entry.item.time }}</template>
+        <template v-if="entry.item?.time"> · {{ entry.item.time }}</template>
       </div>
       <div class="progress" role="progressbar" :aria-valuenow="position" :aria-valuemax="total">
         <span :style="{ width: progress + '%' }"></span>
@@ -37,18 +37,20 @@ import PlaySvg from "@/assets/icons/play.svg";
 // other row item — `{type, item}` with the recovered album/playlist card — and
 // adds `track_index` (0-based, the track they were on), `track_total` and
 // `time` ("2 hours ago") to `item`.
+// `item` is optional in HomePageItem's type; the server always sends it for
+// this row, and the computeds below guard it anyway.
 const props = defineProps<{
   entry: {
     type: string;
-    item: any;
+    item?: any;
   };
 }>();
 
-const position = computed(() => (props.entry.item.track_index ?? 0) + 1);
-const total = computed(() => props.entry.item.track_total || 1);
+const position = computed(() => (props.entry.item?.track_index ?? 0) + 1);
+const total = computed(() => props.entry.item?.track_total || 1);
 // Album: its hash. Playlist: its id (the server sends it as text).
 const hash = computed(() =>
-  String(props.entry.type === "album" ? props.entry.item.albumhash : props.entry.item.id)
+  String(props.entry.type === "album" ? props.entry.item?.albumhash : props.entry.item?.id)
 );
 const progress = computed(() => Math.round((position.value / total.value) * 100));
 
@@ -69,8 +71,8 @@ const link = computed(() =>
 
 function resume() {
   // Resume ON the track they were on: it may have been cut off mid-way.
-  const index = props.entry.item.track_index ?? 0;
-  const trackhash = props.entry.item.resume_trackhash;
+  const index = props.entry.item?.track_index ?? 0;
+  const trackhash = props.entry.item?.resume_trackhash;
   if (props.entry.type === "album") playAlbumAt(hash.value, index, trackhash);
   else playPlaylistAt(hash.value, index, trackhash);
 }
