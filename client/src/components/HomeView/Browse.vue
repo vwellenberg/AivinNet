@@ -8,16 +8,10 @@
         class="browseitem rounded-sm"
         :to="{ name: i.route || '', params: i.params }"
         @click="i.action && i.action()"
-        :class="[`ent-${i.entity}`, { favorite: i.favorite }]"
+        :class="`ent-${i.entity}`"
       >
         <div class="icon">
           <span class="glyph" v-html="i.icon"></span>
-          <span
-            v-if="i.favorite"
-            class="fav-mark"
-            aria-hidden="true"
-            v-html="HeartFillIcon"
-          ></span>
         </div>
         <div class="label">
           {{ i.title }}
@@ -30,32 +24,27 @@
 <script setup lang="ts">
 import type { RouteParamsRaw } from "vue-router";
 
-import {
-  AlbumIcon,
-  ArtistIcon,
-  BookmarkIcon,
-  HeartFillIcon,
-  PlaylistIcon,
-} from "@/icons";
+import { AlbumIcon, ArtistIcon, BookmarkIcon, PlaylistIcon } from "@/icons";
 import { Routes } from "@/router";
 
 // The keys of `$mem-entities` (_candy.scss) a tile can be coloured by.
-type BrowseEntity = "album" | "artist" | "playlist" | "track";
+type BrowseEntity = "album" | "artist" | "playlist" | "favorite";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
-// `entity` colours the tile's fill (what you will find behind it);
-// `favorite` hangs a heart on the icon (that it is your favourites only).
+// `entity` colours the tile's fill (what you will find behind it).
 interface BrowseItem {
   title: string;
   route: string;
   icon: string;
   entity: BrowseEntity;
-  favorite?: boolean;
   params?: RouteParamsRaw;
   action?: () => void;
 }
 
-// INFO: Library shortcuts on the home page.
+// INFO: Library shortcuts on the home page (phones only, #345). Four tiles of
+// one size: the favourites are ONE tile to the Favorites page, which lists
+// tracks, albums and artists itself — three "Fav. …" tiles were three ways
+// into the same page (2026-10-05, the user's call).
 const browselist: BrowseItem[] = [
   {
     title: "Albums",
@@ -76,25 +65,10 @@ const browselist: BrowseItem[] = [
     icon: PlaylistIcon,
   },
   {
-    title: "Fav. tracks",
-    entity: "track",
-    route: Routes.favoriteTracks,
+    title: "Favorites",
+    entity: "favorite",
+    route: Routes.favorites,
     icon: BookmarkIcon,
-    favorite: true,
-  },
-  {
-    title: "Fav. artists",
-    entity: "artist",
-    route: Routes.favoriteArtists,
-    icon: ArtistIcon,
-    favorite: true,
-  },
-  {
-    title: "Fav. albums",
-    entity: "album",
-    route: Routes.favoriteAlbums,
-    icon: AlbumIcon,
-    favorite: true,
   },
 ];
 </script>
@@ -123,22 +97,18 @@ const browselist: BrowseItem[] = [
     margin-bottom: 1rem;
   }
 
+  // Two equal columns, so the four tiles form a 2x2 block of ONE size. A
+  // free-wrapping flex row sized each tile by itself.
   .browselist {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem;
     margin-top: $small;
   }
 
   .browseitem {
-    // Fixed width: these tiles are a free-wrapping flex row with no alignment
-    // contract to the card grid. They used to borrow the MEASURED card width
-    // from content-width.ts, which made them jump between ~137px (unmeasured
-    // default) and ~200px depending on which page had measured last.
-    // -8px, not -24px: the two hatch cover patches take 16px out of the label
-    // line, and "Fav. albums" needed exactly the old width — measured 74px one
-    // line at 168px, 92px wrapped when the covers arrived.
-    width: calc(#{$cardwidth} - 8px);
+    // The column sets the width (see .browselist).
+    min-width: 0;
     font-weight: 500;
     padding: 1.25rem 1rem;
     // A pressable card carries the hatch (#378). Content sits on smooth cover
@@ -152,7 +122,7 @@ const browselist: BrowseItem[] = [
     color: $candy-text;
     transition: background-color $motion-move ease-out, color $motion-move ease-out, box-shadow $motion-shadow ease-out;
 
-    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): sechs
+    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): vier
     // Platten nebeneinander, die vorher als einziger Block der Startseite
     // sofort dastanden, während die Reihen darunter eintrafen.
     //
@@ -206,56 +176,12 @@ const browselist: BrowseItem[] = [
   // hatch switches to the accent sprite (ink strokes in both themes) and the
   // text to static ink. Placed BEFORE the hover rule: same specificity, so the
   // hover flip below still wins by order.
-  @each $name in album, artist, playlist, track {
+  @each $name in album, artist, playlist, favorite {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
       @include mem-hatch(38px, $on: accent);
       color: $mem-ink;
     }
-  }
-
-  // Favourites: the tile's own entity icon with a small heart hanging off
-  // its corner — the same tile as its non-favourite twin, marked where the
-  // eye already looks. Earlier rounds put the mark on the SURFACE (a gold
-  // ring, a double frame, a gold gradient); each read as decoration on the
-  // tile rather than as information, and the gradient also cost the hatch.
-  // The mark is an ink disc with a paper heart: static, because the tint
-  // under it is static, and inside the tile so no edge or phone column can
-  // clip it (a corner badge on the tile's edge was clipped at 390px, #313).
-  .browseitem .icon {
-    position: relative;
-  }
-
-  // The mark hangs 0.45rem past the icon's box; that much room goes to the
-  // icon's right so the heart never touches the first letter of the label.
-  .browseitem.favorite .icon {
-    margin-right: 0.45rem;
-  }
-
-  .fav-mark {
-    position: absolute;
-    right: -0.45rem;
-    bottom: -0.2rem;
-    width: 1rem;
-    height: 1rem;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background-color: $mem-ink;
-    color: $mem-paper;
-
-    svg {
-      width: 0.65rem;
-      height: 0.65rem;
-    }
-  }
-
-  // On hover the plate flips to the hover fill (ink in light mode, paper in
-  // dark), so a static ink disc would vanish into it. The mark follows the
-  // hover pair instead: disc in the hover TEXT colour, heart in the fill.
-  .browseitem:hover .fav-mark {
-    background-color: var(--mem-hover-text);
-    color: var(--mem-hover);
   }
 
   .browseitem:hover {
@@ -274,8 +200,6 @@ const browselist: BrowseItem[] = [
   // column), so the grid owns the width and the tiles give theirs up.
   @include mediumPhones {
     .browselist {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
       gap: 0.75rem;
     }
 
