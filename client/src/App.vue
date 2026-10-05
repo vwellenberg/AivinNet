@@ -17,7 +17,13 @@
         <div id="acontent" v-element-size="updateContentElemSize">
             <div id="contentresizer" ref="appcontent"></div>
             <BalancerProvider>
-                <RouterView />
+                <!-- `meta.remount`: routes that SHARE a component but must not share
+                     an instance (Albums / Artists) get their own key, so switching
+                     between them builds the page anew. Everything else keeps
+                     Vue Router's default reuse (no key). -->
+                <RouterView v-slot="{ Component, route }">
+                    <component :is="Component" :key="route.meta.remount ? route.name : undefined" />
+                </RouterView>
             </BalancerProvider>
         </div>
         <RightSideBar v-if="settings.use_sidebar && xl" />

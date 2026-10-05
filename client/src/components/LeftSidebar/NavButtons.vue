@@ -160,9 +160,10 @@ import { menus } from "./navitems";
         // The padding box is the plate's height minus its two borders.
         height: calc((100% + #{2 * $candy-border-w}) / 1.4142);
         aspect-ratio: 1;
+        // Plain fill, no hatch: the turned square would show the strokes at
+        // 45° to the plate's and never line up with them ("Streusel", user
+        // 2026-10-05). A small solid tip reads cleaner than a mismatched one.
         background-color: var(--row-fill);
-        background-image: var(--mem-hatch-accent);
-        background-size: 38px 38px;
         border: $candy-border;
         border-bottom-color: transparent;
         border-left-color: transparent;
@@ -180,11 +181,8 @@ import { menus } from "./navitems";
         animation: nav-reach-point $motion-move $motion-curve-settle;
       }
 
-      // Hover flips the fill and the hatch (mem-row-plate-hover); the point
-      // follows through `--row-fill`, and takes the hover hatch the same way.
-      &:hover::after {
-        background-image: var(--mem-hatch-hover);
-      }
+      // Hover flips the fill (mem-row-plate-hover); the point follows through
+      // `--row-fill`.
     }
   }
 
