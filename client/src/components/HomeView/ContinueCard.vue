@@ -31,10 +31,13 @@
       <li v-for="row in upNext" :key="row.track.trackhash">
         <button class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
           <span class="glyph" v-html="row.current ? PlayIcon : NoteIcon"></span>
-          <span class="ellip">
-            <b>{{ row.track.title }}</b>
-            <template v-if="row.track.artists?.length"> — {{ row.track.artists.map(a => a.name).join(", ") }}</template>
+          <span class="words">
+            <b class="title ellip">{{ row.track.title }}</b>
+            <span v-if="row.track.artists?.length" class="artist ellip">{{
+              row.track.artists.map(a => a.name).join(", ")
+            }}</span>
           </span>
+          <span v-if="row.track.duration" class="dur">{{ formatSeconds(row.track.duration) }}</span>
         </button>
       </li>
     </ol>
@@ -55,6 +58,7 @@ import { getPlaylist } from "@/requests/playlists";
 import PlaylistImages from "@/components/shared/PlaylistImages.vue";
 import NoteIcon from "@/assets/icons/note.svg?raw";
 import { Routes } from "@/router";
+import formatSeconds from "@/utils/useFormatSeconds";
 
 import PlaySvg from "@/assets/icons/play.svg";
 
@@ -287,7 +291,8 @@ function resume() {
 
   .up-next {
     flex-direction: column;
-    gap: 0.35rem;
+    // Room for each row's 3px offset shadow.
+    gap: 0.5rem;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -297,19 +302,24 @@ function resume() {
       align-self: flex-start;
     }
 
+    // A small song row, in the anatomy every other track list uses: title
+    // bold, artist muted beside it, duration in its pill — on a pressable row
+    // plate (ink frame, offset shadow). It was a thin-ringed strip with
+    // "Title — Artist" in one run, which read as an input field, not as rows
+    // (user, 2026-10-06). No hatch: a content list does not wear it.
+    // The fill stays the static panel: the card under it is a static pastel.
     .next-row {
+      @include mem-row-plate($hatch: false);
+      --row-fill: #{$mem-panel-static};
+      color: $mem-ink;
       width: 100%;
       display: flex;
       align-items: center;
       // Buttons centre their content app-wide; a list row reads from the left.
       justify-content: flex-start;
-      gap: 0.5rem;
-      padding: 0.35rem 0.6rem;
-      background-color: $mem-panel-static;
-      border: $mem-ring-w solid $mem-ink;
-      border-radius: $candy-radius-sm;
-      color: $mem-ink;
-      font-size: 0.8rem;
+      gap: 0.6rem;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
       text-align: left;
       cursor: pointer;
 
@@ -323,13 +333,40 @@ function resume() {
         }
       }
 
-      &.current {
-        border-width: $candy-border-w;
+      .words {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        min-width: 0;
+        flex: 1;
       }
 
-      &:hover {
-        background-color: var(--mem-hover);
-        color: var(--mem-hover-text);
+      .title {
+        flex-shrink: 1;
+        min-width: 0;
+      }
+
+      .artist {
+        flex-shrink: 2;
+        min-width: 0;
+        font-size: 0.8rem;
+        opacity: 0.7;
+      }
+
+      .dur {
+        flex-shrink: 0;
+        margin-left: auto;
+        padding: 0 0.45rem;
+        border: $mem-ring-w solid currentColor;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      @media (hover: hover) {
+        &:hover {
+          @include mem-row-plate-hover($hatch: false);
+        }
       }
     }
   }
