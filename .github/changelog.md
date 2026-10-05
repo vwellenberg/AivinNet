@@ -79,7 +79,8 @@ milliseconds of each other.
 ### A new Home
 
 - **Continue listening** brings back the album or playlist you did not finish,
-  with what is up next and the playlist's own collage.
+  with what is up next and the playlist's own collage. Wide screens show up to
+  three of them side by side.
 - **Rediscover** digs out albums you played often and not in the last two
   months, and **On this day** shows what you listened to on this date a year
   ago.
@@ -148,6 +149,9 @@ milliseconds of each other.
 ### Fixed
 
 - **Safari could not load the app**: JavaScript and styles broke off halfway.
+- **Firefox could not play FLAC files** that a tagger had given an ID3 tag in
+  front. The server now skips that tag while streaming; the file on disk stays
+  as it is.
 - **Album pages failed** on files tagged "track 1/12", and **m4a** files would
   not play in Firefox from the Docker image.
 - **The Docker image ships its own web client**, built from the same version,
