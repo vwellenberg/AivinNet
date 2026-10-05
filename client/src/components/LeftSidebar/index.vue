@@ -956,10 +956,20 @@ $sidebar-inset: 0.875rem;
     // same thing twice.
     .sidebar-folder-items {
       border-top: $candy-border-w solid $mem-line;
-      // The box's own hatch (mem-row-plate on .sidebar-folder) showed through
-      // the gaps between the rows as stray strokes. The rows carry their own
-      // hatch now, so the body between them is plain panel.
+      // ONE sheet of hatch for the whole body, painted HERE — not one per row.
+      //
+      // A background tile starts at its own element's corner, so every resting
+      // row used to print the same 38px tile from the same origin. The rows are
+      // all 44px and stand 2px apart, so the folder showed the identical
+      // arrangement of strokes stacked five times (reported 2026-10-05: "the
+      // same sprinkles on every playlist in a folder"). The body is one
+      // surface — the folder is one plate — so it carries one texture, and the
+      // resting rows below are transparent windows onto it. That also closes
+      // the gaps between the rows, which is why this body was plain panel
+      // before: the folder box's hatch had shown through them as stray strokes
+      // out of step with the rows' own.
       background-color: $mem-panel;
+      @include mem-hatch(38px, $on: surface);
       padding: $smaller;
       display: flex;
       flex-direction: column;
@@ -969,13 +979,14 @@ $sidebar-inset: 0.875rem;
       // place a library row is allowed to drop the plate, and it is allowed
       // precisely because the folder around it already is one. The HATCH
       // stays (since 2026-10-04): plain white rows read as unfinished next to
-      // every other hatched row in the sidebar.
+      // every other hatched row in the sidebar — it just comes from the body
+      // above instead of from each row.
       .sidebar-playlist-item {
-        // `--row-fill`, not transparent: the hover below flips `--row-fill`,
-        // and the label's cover reads it too — a transparent row would leave
-        // the hover fill as a pill around the name only. At rest it is the
-        // panel, the same white as the folder box, so nothing shows.
-        background-color: var(--row-fill);
+        // Transparent at rest, so the body's sheet shows through. `--row-fill`
+        // stays the panel: the label's cover reads it and keeps the name on a
+        // clean band, exactly as on a top-level row.
+        background-color: transparent;
+        background-image: none;
         border-color: transparent;
         box-shadow: none;
 
@@ -986,9 +997,12 @@ $sidebar-inset: 0.875rem;
         // the `background-image: none` above, which outranked the row rule)
         // the hatch off, so the same object hovered two different ways.
         // Restated here, not inherited: this selector outranks the row's own
-        // `:hover`, so anything left out silently falls back to the flat rest.
+        // `:hover`, so anything left out silently falls back to the flat rest
+        // — which is why the fill is restated: the plate mixin paints it at a
+        // lower specificity than the transparent rest above.
         &:hover {
           @include mem-row-plate-hover;
+          background-color: var(--row-fill);
         }
 
         // The selection still needs to be visible in here, so the fill and its
