@@ -64,6 +64,26 @@ def stop_cron_jobs(timeout: float) -> None:
             log.warning("cron job still running %s s into the shutdown", timeout)
 
 
+def _guarded(job):
+    """
+    Run `job` so that a failure is logged instead of raised.
+
+    Everything here shares ONE thread. An exception from a single job (one bad
+    scrobble row was enough) ended it: the group-session reaper, every home row
+    and every later run stopped for all users, at every start, until the row
+    was deleted by hand.
+    """
+
+    def run(*args, **kwargs):
+        try:
+            return job(*args, **kwargs)
+        except Exception:
+            log.exception("cron job %s failed", getattr(job, "__name__", job))
+            return None
+
+    return run
+
+
 def _run_cron_jobs():
     # The stop can come while startup still runs: the thread is started from
     # another background thread, after the plugins are registered.
@@ -72,15 +92,15 @@ def _run_cron_jobs():
 
     # NOTE: RecentlyPlayed is not a CRON job, it's triggered here to
     # populate the values for the very first time.
-    RecentlyPlayed()
-    RecentlyAdded()
+    _guarded(RecentlyPlayed)()
+    _guarded(RecentlyAdded)()
     # Like RecentlyPlayed: filled once here, then kept current by every scrobble.
-    ContinueListening()
+    _guarded(ContinueListening)()
 
     # Initialized CRON jobs. Registered by class: every run constructs the
     # routine, which runs it. The first run is the run_all() below.
     for routine in (Rediscover, OnThisDay):
-        schedule.every(routine.hours).hours.do(routine)
+        schedule.every(routine.hours).hours.do(_guarded(routine))
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)

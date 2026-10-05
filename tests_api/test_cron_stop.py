@@ -23,8 +23,13 @@ def crons(monkeypatch):
     monkeypatch.setattr(crons, "_stop", threading.Event())
     monkeypatch.setattr(crons, "_thread", None)
     monkeypatch.setattr(crons, "schedule", schedule.Scheduler())
-    for job in ("RecentlyPlayed", "RecentlyAdded", "ContinueListening", "Rediscover", "OnThisDay"):
+    for job in ("RecentlyPlayed", "RecentlyAdded", "ContinueListening"):
         monkeypatch.setattr(crons, job, lambda *a, **kw: None)
+    # The scheduled routines are classes with an interval: a bare lambda has no
+    # `hours`, and the thread died on that before it ever reached the loop —
+    # which made the idle-stop test below pass without testing anything.
+    for job in ("Rediscover", "OnThisDay"):
+        monkeypatch.setattr(crons, job, type(job, (), {"hours": 1, "__init__": lambda self, *a, **kw: None}))
     yield crons
     crons._stop.set()
     if crons._thread is not None:
@@ -52,6 +57,7 @@ def test_stop_waits_for_the_job_in_progress(crons, monkeypatch):
 def test_an_idle_loop_stops_at_once(crons):
     crons.start_cron_jobs()
     time.sleep(0.3)  # startup jobs done, the loop is waiting for the next tick
+    assert crons._thread.is_alive(), "the loop must be running, or this measures nothing"
 
     started = time.monotonic()
     crons.stop_cron_jobs(timeout=5)

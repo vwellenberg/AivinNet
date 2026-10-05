@@ -129,6 +129,7 @@ def test_a_played_track_is_recorded_and_counted(logger):
     [
         ({"duration": 4}, "under the 5 s floor"),
         ({"timestamp": 0}, "no timestamp"),
+        ({"timestamp": -1}, "before 1970: the home rows assume a real point in time"),
     ],
 )
 def test_an_invalid_entry_is_rejected_and_writes_nothing(logger, overrides, why):

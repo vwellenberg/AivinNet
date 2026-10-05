@@ -77,7 +77,9 @@ def log_track(body: LogTrackBody):
     timestamp = body.timestamp
     duration = body.duration
 
-    if not timestamp or duration < 5:
+    # `not timestamp` let negative values through; they reached the home-row
+    # routines, which assume a real point in time.
+    if not timestamp or timestamp < 0 or duration < 5:
         return {"msg": "Invalid entry."}, 400
 
     trackentry = TrackStore.trackhashmap.get(body.trackhash)
