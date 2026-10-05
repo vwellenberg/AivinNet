@@ -24,11 +24,11 @@
 <script setup lang="ts">
 import type { RouteParamsRaw } from "vue-router";
 
-import { AlbumIcon, ArtistIcon, PlaylistIcon } from "@/icons";
+import { AlbumIcon, ArtistIcon, BookmarkIcon, PlaylistIcon } from "@/icons";
 import { Routes } from "@/router";
 
 // The keys of `$mem-entities` (_candy.scss) a tile can be coloured by.
-type BrowseEntity = "album" | "artist" | "playlist";
+type BrowseEntity = "album" | "artist" | "playlist" | "favorite";
 
 // A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
 // `entity` colours the tile's fill (what you will find behind it).
@@ -41,9 +41,10 @@ interface BrowseItem {
   action?: () => void;
 }
 
-// INFO: Library shortcuts on the home page (phones only, #345). No favourites
-// here: the phone bar has its own Favourites entry, and three "Fav. …" tiles
-// beside it were a second way to the same page (removed 2026-10-05, user's call).
+// INFO: Library shortcuts on the home page (phones only, #345). Four tiles of
+// one size: the favourites are ONE tile to the Favorites page, which lists
+// tracks, albums and artists itself — three "Fav. …" tiles were three ways
+// into the same page (2026-10-05, the user's call).
 const browselist: BrowseItem[] = [
   {
     title: "Albums",
@@ -62,6 +63,12 @@ const browselist: BrowseItem[] = [
     entity: "playlist",
     route: Routes.playlists,
     icon: PlaylistIcon,
+  },
+  {
+    title: "Favorites",
+    entity: "favorite",
+    route: Routes.favorites,
+    icon: BookmarkIcon,
   },
 ];
 </script>
@@ -90,22 +97,18 @@ const browselist: BrowseItem[] = [
     margin-bottom: 1rem;
   }
 
+  // Two equal columns, so the four tiles form a 2x2 block of ONE size. A
+  // free-wrapping flex row sized each tile by itself.
   .browselist {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem;
     margin-top: $small;
   }
 
   .browseitem {
-    // Fixed width: these tiles are a free-wrapping flex row with no alignment
-    // contract to the card grid. They used to borrow the MEASURED card width
-    // from content-width.ts, which made them jump between ~137px (unmeasured
-    // default) and ~200px depending on which page had measured last.
-    // -8px, not -24px: the two hatch cover patches take 16px out of the label
-    // line (measured with "Fav. albums", the longest label until the favourite
-    // tiles left: 74px one line at 168px, 92px wrapped when the covers arrived).
-    width: calc(#{$cardwidth} - 8px);
+    // The column sets the width (see .browselist).
+    min-width: 0;
     font-weight: 500;
     padding: 1.25rem 1rem;
     // A pressable card carries the hatch (#378). Content sits on smooth cover
@@ -119,7 +122,7 @@ const browselist: BrowseItem[] = [
     color: $candy-text;
     transition: background-color $motion-move ease-out, color $motion-move ease-out, box-shadow $motion-shadow ease-out;
 
-    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): sechs
+    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): vier
     // Platten nebeneinander, die vorher als einziger Block der Startseite
     // sofort dastanden, während die Reihen darunter eintrafen.
     //
@@ -173,7 +176,7 @@ const browselist: BrowseItem[] = [
   // hatch switches to the accent sprite (ink strokes in both themes) and the
   // text to static ink. Placed BEFORE the hover rule: same specificity, so the
   // hover flip below still wins by order.
-  @each $name in album, artist, playlist {
+  @each $name in album, artist, playlist, favorite {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
       @include mem-hatch(38px, $on: accent);
@@ -197,8 +200,6 @@ const browselist: BrowseItem[] = [
   // column), so the grid owns the width and the tiles give theirs up.
   @include mediumPhones {
     .browselist {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
       gap: 0.75rem;
     }
 
