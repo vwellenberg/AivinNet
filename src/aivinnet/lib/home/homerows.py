@@ -29,6 +29,11 @@ class ScrobbleLike(Protocol):
 # Bounded on purpose: the routine also runs from the scrobble request.
 CONTINUE_SEARCH_LIMIT = 200
 
+# How many unfinished sources "Continue listening" offers. The client shows as
+# many cards as fit side by side (one on a laptop, two on a wide monitor, three
+# on an ultrawide); three is the most any screen shows.
+CONTINUE_MAX_ITEMS = 3
+
 # "Rediscover": an album qualifies with at least this many plays over all time
 # and none in the last QUIET_DAYS. 5 plays = more than one full listen of most
 # EPs and a deliberate return to most albums; lower and every album that was
@@ -45,9 +50,11 @@ CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed"}
 def find_continue_listening(
     scrobbles: Iterable[ScrobbleLike],
     resolve_tracklist: Callable[[str, str], list[str] | None],
-) -> dict[str, Any] | None:
+    limit: int = CONTINUE_MAX_ITEMS,
+) -> list[dict[str, Any]]:
     """
-    The album or playlist the user was in the middle of, newest first.
+    The albums and playlists the user was in the middle of, newest first, at
+    most `limit` of them (each source once).
 
     `scrobbles` must be ordered newest first. Only plays started from an album
     (`al:<albumhash>`) or a playlist (`pl:<id>`) count. The NEWEST play of a
@@ -60,6 +67,7 @@ def find_continue_listening(
     album/playlist, or None when it no longer exists.
     """
     decided: set[tuple[str, str]] = set()
+    found: list[dict[str, Any]] = []
 
     for scrobble in scrobbles:
         if scrobble.type not in ("album", "playlist") or not scrobble.type_src:
@@ -86,21 +94,26 @@ def find_continue_listening(
         if index >= len(tracklist) - 1:
             continue  # finished
 
-        return {
-            "type": scrobble.type,
-            "hash": scrobble.type_src,
-            # The track itself, not only its position: a playlist's stored
-            # list can hold orphans (hashes no longer in the library) that the
-            # client never receives, so `track_index` counted here can point
-            # one or more tracks too far there. The client resumes by this
-            # hash and falls back to the index.
-            "trackhash": scrobble.trackhash,
-            "track_index": index,
-            "track_total": len(tracklist),
-            "timestamp": scrobble.timestamp,
-        }
+        found.append(
+            {
+                "type": scrobble.type,
+                "hash": scrobble.type_src,
+                # The track itself, not only its position: a playlist's stored
+                # list can hold orphans (hashes no longer in the library) that the
+                # client never receives, so `track_index` counted here can point
+                # one or more tracks too far there. The client resumes by this
+                # hash and falls back to the index.
+                "trackhash": scrobble.trackhash,
+                "track_index": index,
+                "track_total": len(tracklist),
+                "timestamp": scrobble.timestamp,
+            }
+        )
 
-    return None
+        if len(found) >= limit:
+            break
+
+    return found
 
 
 def rank_rediscover(
