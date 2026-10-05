@@ -2,18 +2,20 @@
 Contains all the track routes.
 """
 
+import io
 import os
 from pathlib import Path
 
-from flask import send_from_directory
+from flask import request, send_file, send_from_directory
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
+from werkzeug.exceptions import RequestedRangeNotSatisfiable
 
 from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.config import UserConfig
 from aivinnet.lib.trackslib import get_silence_paddings
 from aivinnet.store.tracks import TrackStore
-from aivinnet.utils.files import guess_mime_type
+from aivinnet.utils.files import flac_audio_offset, guess_mime_type
 
 bp_tag = Tag(name="File", description="Audio files")
 api = APIBlueprint("track", __name__, url_prefix="/file", abp_tags=[bp_tag])
@@ -82,6 +84,11 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
 
     if track is not None:
         audio_type = guess_mime_type(track.filepath)
+
+        offset = flac_audio_offset(track.filepath) if audio_type == "audio/flac" else 0
+        if offset:
+            return _send_from_offset(track.filepath, offset, audio_type)
+
         return send_from_directory(
             Path(track.filepath).parent,
             Path(track.filepath).name,
@@ -91,6 +98,69 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
         )
 
     return msg, 404
+
+
+class _FileFromOffset(io.RawIOBase):
+    """A read-only view of a file that starts `offset` bytes in."""
+
+    def __init__(self, path: str, offset: int):
+        self._raw = open(path, "rb")  # noqa: SIM115 — the response closes it
+        self._offset = offset
+        self._raw.seek(offset)
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def tell(self):
+        return self._raw.tell() - self._offset
+
+    def seek(self, pos, whence=io.SEEK_SET):
+        if whence == io.SEEK_SET:
+            return self._raw.seek(self._offset + pos) - self._offset
+        return self._raw.seek(pos, whence) - self._offset
+
+    def readinto(self, buffer):
+        return self._raw.readinto(buffer)
+
+    def fileno(self):
+        return self._raw.fileno()
+
+    def close(self):
+        self._raw.close()
+        super().close()
+
+
+def _send_from_offset(filepath: str, offset: int, mimetype: str):
+    """
+    Sends a file from `offset` on, with the same Range/conditional handling as
+    the plain path — seeking has to keep working, and every browser asks with
+    a Range header.
+
+    Used for FLAC files with an ID3v2 tag in front of `fLaC`: Firefox refuses
+    those outright (see `flac_audio_offset`).
+    """
+    stat = os.stat(filepath)
+    size = stat.st_size - offset
+
+    view = _FileFromOffset(filepath, offset)
+    response = send_file(
+        view,
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=Path(filepath).name,
+        conditional=False,
+        etag=f"{stat.st_mtime}-{stat.st_size}-{offset}",
+        last_modified=stat.st_mtime,
+    )
+    response.content_length = size
+    try:
+        return response.make_conditional(request.environ, accept_ranges=True, complete_length=size)
+    except RequestedRangeNotSatisfiable:
+        view.close()
+        raise
 
 
 class GetAudioSilenceBody(BaseModel):

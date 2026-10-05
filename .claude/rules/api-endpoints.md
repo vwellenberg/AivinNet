@@ -43,6 +43,30 @@ Client heißt das „Can't load". Nachmessen: Dateien per `ffmpeg -c:a <codec>` 
 `send_from_directory` ausliefern und im Container `mcr.microsoft.com/playwright:v1.56.1-noble`
 per `new Audio()` auf `canplaythrough`/`error` prüfen.
 
+### Schiefe Dateien: was toleriert wird und was nicht
+
+Nachgemessen am 2026-10-05 (gleiches Playwright-Image, 30-s-Dateien; geprüft: lädt, Dauer,
+spielt, Sprung auf 25 s). **Unproblematisch in allen drei Engines:** MP3 mit 8-MB-Cover, MP3 mit
+4 KB Müll vor den Frames, APEv2-Tag am Ende (MP3 und FLAC), WAV 24 Bit / 32-Bit-Float / 6 Kanäle,
+FLAC 6 Kanäle / 384 kHz, M4A mit `moov` am Ende (Range macht das Spulen möglich), FLAC mit
+ID3v2.4 davor (dank `flac_audio_offset`).
+
+| Fall | Firefox 142 | Chromium 141 | WebKit 26 | Folge |
+|---|---|---|---|---|
+| **FLAC 32 Bit** (seit libFLAC 1.4) | ✗ `DEMUXER_ERR` | ✓ | ✗ | „Can't load" — selten, nicht serverseitig lösbar |
+| **VBR-MP3 ohne Xing-Header** | 30,2 s | 27,1 s | 0,0 s | Browser-Dauer falsch; die Anzeige nimmt die Dauer vom Server (`track.duration`), Spulen geht |
+
+### ⚠️ FLAC mit ID3-Tag davor: Firefox verweigert die ganze Datei
+
+Manche Tagger schreiben ein ID3v2-Tag **vor** den `fLaC`-Marker, obwohl FLAC kein ID3 kennt.
+Chrome/Edge/Safari überspringen es, **Firefox** meldet „Medien-Ressource … konnte nicht dekodiert
+werden" (`NS_ERROR_DOM_MEDIA_METADATA_ERR`) — Track für Track, und der Player springt im Kreis
+(„Can't load"). So bei einem Tester, dessen ganze FLAC-Sammlung betroffen war; saubere,
+von ffmpeg erzeugte Test-FLACs zeigen es **nicht**. Der Stream-Endpoint schickt solche Dateien
+deshalb ab dem `fLaC`-Marker (`utils/files.py::flac_audio_offset`, `api/stream.py::_send_from_offset`,
+Range bleibt intakt); die Datei auf der Platte bleibt unverändert. Wer Testdateien baut: ID3
+vor eine FLAC zu hängen reproduziert es (`tests_api/test_stream_flac_id3.py`).
+
 ## ⚠️ Positionsfelder tolerant typisieren
 
 Der Client liefert `audio.currentTime * 1000` — einen **Float**. Ein `position_ms: int` ließ
