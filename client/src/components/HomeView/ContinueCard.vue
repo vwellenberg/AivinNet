@@ -131,7 +131,14 @@ async function loadUpNext() {
   upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({ track, current: i === 0 }));
 }
 
-watch(() => [props.entry.type, hash.value, props.entry.item?.resume_trackhash], loadUpNext, { immediate: true });
+// A primitive key: a getter that builds a new array is "changed" every time
+// it re-runs, and every Home fetch hands in a fresh entry object — so each
+// visit (and each window widen) refetched the whole album for an equal entry.
+watch(
+  () => `${props.entry.type}|${hash.value}|${props.entry.item?.resume_trackhash ?? ''}`,
+  loadUpNext,
+  { immediate: true }
+);
 
 function playTrack(track: Track) {
   const index = props.entry.item?.track_index ?? 0;

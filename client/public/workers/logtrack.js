@@ -13,5 +13,10 @@ onmessage = (e) => {
     },
     body: JSON.stringify({ trackhash, duration, source, timestamp }),
     credentials: "include"
-  });
+  })
+    .catch(() => {})
+    // A dedicated worker lives until it closes itself or the page goes away.
+    // One is started per play, so a long session piled up hundreds of idle
+    // worker threads (measured: 150 plays, ~150 threads that GC never freed).
+    .finally(() => self.close());
 };

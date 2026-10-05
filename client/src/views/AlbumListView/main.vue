@@ -108,6 +108,12 @@ const scrollerItems = computed(() => {
 
 onBeforeRouteUpdate((to, from, next) => {
   const { sortby, reverse } = to.query;
+
+  // The navigation links to the bare route. Read as a sort, that query reset
+  // the list to `sortby=undefined` — the server's oldest-first fallback with no
+  // chip highlighted. No sort in the link means: keep the current one.
+  if (sortby === undefined && reverse === undefined) return next();
+
   store.setSort(sortby as string);
   store.setReverse(reverse == "1");
 
