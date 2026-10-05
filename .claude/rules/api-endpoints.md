@@ -43,6 +43,17 @@ Client heißt das „Can't load". Nachmessen: Dateien per `ffmpeg -c:a <codec>` 
 `send_from_directory` ausliefern und im Container `mcr.microsoft.com/playwright:v1.56.1-noble`
 per `new Audio()` auf `canplaythrough`/`error` prüfen.
 
+### ⚠️ FLAC mit ID3-Tag davor: Firefox verweigert die ganze Datei
+
+Manche Tagger schreiben ein ID3v2-Tag **vor** den `fLaC`-Marker, obwohl FLAC kein ID3 kennt.
+Chrome/Edge/Safari überspringen es, **Firefox** meldet „Medien-Ressource … konnte nicht dekodiert
+werden" (`NS_ERROR_DOM_MEDIA_METADATA_ERR`) — Track für Track, und der Player springt im Kreis
+(„Can't load"). So bei einem Tester, dessen ganze FLAC-Sammlung betroffen war; saubere,
+von ffmpeg erzeugte Test-FLACs zeigen es **nicht**. Der Stream-Endpoint schickt solche Dateien
+deshalb ab dem `fLaC`-Marker (`utils/files.py::flac_audio_offset`, `api/stream.py::_send_from_offset`,
+Range bleibt intakt); die Datei auf der Platte bleibt unverändert. Wer Testdateien baut: ID3
+vor eine FLAC zu hängen reproduziert es (`tests_api/test_stream_flac_id3.py`).
+
 ## ⚠️ Positionsfelder tolerant typisieren
 
 Der Client liefert `audio.currentTime * 1000` — einen **Float**. Ein `position_ms: int` ließ
