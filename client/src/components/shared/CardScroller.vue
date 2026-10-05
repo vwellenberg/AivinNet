@@ -16,6 +16,8 @@
                     :route="route"
                     :text="seeAllText"
                 />
+                <!-- A row's own action (Home's "Surprise me"), next to the caption. -->
+                <slot name="actions" />
             </div>
             <div v-if="description" class="rdesc">
                 <RouterLink :to="route || ''">

@@ -596,6 +596,20 @@ class PlaylistTable(Base):
         return next(result).scalar()
 
     @classmethod
+    def get_trackhashes_of_user(cls, id: int, userid: int) -> list[str] | None:
+        """
+        A playlist's trackhashes for an EXPLICIT owner.
+
+        For code that runs outside a request (cron routines, the scrobble
+        hook's homepage refresh): `get_trackhashes` filters on
+        `get_current_userid()`, which off-request silently falls back to user 1
+        and would read — or miss — the wrong user's playlist. `None` when the
+        playlist does not exist or belongs to someone else.
+        """
+        result = cls.execute(select(cls.trackhashes).where((cls.id == id) & (cls.userid == userid)))
+        return next(result).scalar()
+
+    @classmethod
     def get_trackhashes_and_extra(cls, id: int):
         """
         Fetch trackhashes and extra in a single round-trip; used by the

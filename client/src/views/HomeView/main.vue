@@ -1,22 +1,30 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
         <GenericHeader />
+        <ContinueCard v-if="home.continueListening" :entry="home.continueListening" />
         <Browse class="browse-phones-only" />
         <PageItem
             v-for="item in home.homepageItems"
-            :key="item.path"
+            :key="item.key"
             :title="item.title || ''"
             :description="item.description"
             :items="item.items"
             :play-source="playSources.track"
             :route="item.path"
             :see-all-text="item.seeAllText"
-        />
+        >
+            <template v-if="item.key === 'rediscover'" #actions>
+                <button class="btn-action surprise" :disabled="surprising" @click="surprise">
+                    <ShuffleSvg />
+                    Surprise me
+                </button>
+            </template>
+        </PageItem>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
@@ -25,11 +33,28 @@ import { maxAbumCards } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
+import ContinueCard from '@/components/HomeView/ContinueCard.vue'
+import ShuffleSvg from '@/assets/icons/shuffle.svg'
+import { playFromAlbumCard } from '@/helpers/usePlayFrom'
+import { getSurpriseAlbum } from '@/requests/home'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
 
 const home = useHome()
+
+// "Surprise me" on the Rediscover row: one random album from the whole
+// library, played from the top. The server picks (RAM only).
+const surprising = ref(false)
+async function surprise() {
+    surprising.value = true
+    try {
+        const albumhash = await getSurpriseAlbum()
+        if (albumhash) await playFromAlbumCard(albumhash, '')
+    } finally {
+        surprising.value = false
+    }
+}
 
 onMounted(async () => {
     updatePageTitle('Home')
@@ -48,6 +73,27 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
 
     .generichead {
         margin-bottom: 0;
+    }
+
+    // "Surprise me" sits in the Rediscover caption row, which is a flex row at
+    // the caption's font size (1.15rem/700). Reset both, or the button inherits
+    // a bold oversized label and the row squeezes it into two lines (measured
+    // in the first branch build: "Surpri/se me").
+    // `btn-action` is the square icon button (width = height); this one has a
+    // label, so it takes its width from the content.
+    .surprise {
+        width: auto;
+        padding: 0 0.9rem;
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        font-weight: 700;
+        gap: 0.4rem;
+
+        svg {
+            width: 1.1rem;
+            height: 1.1rem;
+        }
     }
 
     // Albums and Artists have their own entries in the left navigation, so the

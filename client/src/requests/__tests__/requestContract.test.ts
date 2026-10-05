@@ -193,6 +193,7 @@ const CALLS: Record<string, unknown[]> = {
     'home/getRecentlyAdded': [9],
     'home/getRecentlyPlayed': [9],
     'home/getHomePageData': [9],
+    'home/getSurpriseAlbum': [],
     'lyrics/getLyrics': ['/music/a.flac', 't1'],
     'lyrics/checkExists': ['/music/a.flac', 't1'],
     'metadata/pollJob': ['job1'],

@@ -29,7 +29,14 @@ der Empfehlungen — der Lyrics-Finder (Musixmatch, bei Neuinstallationen aus, s
 - **„Mixes for you"** = aus den Artist-Mixen abgeleitete Track-Mixe (`get_track_mix`).
   **„Because you listened …"** und **„Artists you might like"** speisen sich aus den im
   Mix-`extra` gespeicherten similar artists/albums der Cloud-Antwort.
-- **Top artists week/month, Stats, Recently played** = reine lokale Scrobble-Aggregation
+- **Home (seit 2026-10-05):** „Continue listening" (eine Karte: zuletzt gehörtes, nicht
+  beendetes Album bzw. Playlist, aus den neuesten 200 Scrobbles mit `al:`/`pl:`-Quelle;
+  aktualisiert nach jeder Wiedergabe), „Rediscover" (Alben mit ≥ 5 Plays insgesamt und keinem
+  in den letzten 60 Tagen, täglich), „On this day" (Scrobbles desselben Kalendertags vor einem
+  Jahr, Server-Zeitzone, stündlich), `GET /nothome/surprise` (zufälliges Album, RAM). Regeln und
+  Schwellen: `lib/home/homerows.py`. Die Reihen „Top artists this week/month" sind von Home
+  entfernt (die Stats-Seite hat eigene Charts). Alles lokal, kein Cloud-Anteil.
+- **Stats, Recently played** = reine lokale Scrobble-Aggregation
   (`utils/stats.py`, sortiert nach `playduration`). **Recently added** = Library-Timestamps.
   Kein Cloud-Anteil.
 - **Last.fm-Plugin** (`plugins/lastfm.py`) ist **nur** Scrobble-Export (optional), keine

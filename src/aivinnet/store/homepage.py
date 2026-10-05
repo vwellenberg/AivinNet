@@ -16,16 +16,20 @@ class HomepageStore:
 
     # INFO: map of entry names to entry objects
     entries: dict[str, HomepageEntry] = {
+        "continue_listening": GenericRecoverableEntry(
+            title="Continue listening",
+        ),
         "recently_played": RecentlyPlayedHomepageEntry(
             title="Recently played",
         ),
-        "top_streamed_weekly_artists": GenericRecoverableEntry(
-            title="Top artists this week",
-            description="Your most played artists since Monday",
+        "rediscover": GenericRecoverableEntry(
+            title="Rediscover",
+            description="You played these a lot — not lately",
         ),
-        "top_streamed_monthly_artists": GenericRecoverableEntry(
-            title="Top artists this month",
-            description="Your most played artists since the start of the month",
+        "on_this_day": GenericRecoverableEntry(
+            title="On this day",
+            # Set to the date one year ago by the OnThisDay routine.
+            description="",
         ),
         "recently_added": RecentlyAddedHomepageEntry(
             title="Recently added",
@@ -33,9 +37,37 @@ class HomepageStore:
         ),
     }
 
+    # The order of the response, explicitly. Collection pages go between the
+    # two lists; "Recently added" is pinned to the bottom.
+    ORDER_BEFORE_PAGES = ("continue_listening", "recently_played", "rediscover", "on_this_day")
+    ORDER_AFTER_PAGES = ("recently_added",)
+
+    @classmethod
+    def add_new_user(cls, userid: int):
+        """
+        Give a freshly created user an (empty) slot in every per-user row.
+        """
+        for entry in cls.entries.values():
+            if isinstance(entry, RecentlyPlayedHomepageEntry) and not isinstance(entry, RecentlyAddedHomepageEntry):
+                entry.add_new_user(userid)
+
+    @classmethod
+    def _rows(cls, keys: tuple[str, ...], userid: int, limit: int):
+        rows = []
+
+        for key in keys:
+            row = cls.entries[key].get_items(userid, limit)
+
+            # A row with nothing to show is left out, not sent empty.
+            if row["items"]:
+                rows.append({key: row})
+
+        return rows
+
     @classmethod
     def get_homepage_items(cls, limit: int):
-        # return a dict of entry name to entry items
+        # return a list of {entry name: entry items}, in display order
+        userid = get_current_userid()
         pages = CollectionTable.get_all()
         pagedata = []
 
@@ -52,14 +84,8 @@ class HomepageStore:
                 }
             )
 
-        homedata = [
-            {entry: cls.entries[entry].get_items(get_current_userid(), limit)}
-            for entry in cls.entries
-            if len(cls.entries[entry].items)
-        ]
-
-        # NOTE: "Recently added" is pinned to the bottom, so it is popped off the
-        # end and re-appended after the collection pages. This relies on it being
-        # the LAST entry in `entries` above — keep it there.
-        recently_added = homedata.pop()
-        return homedata + pagedata + [recently_added]
+        return (
+            cls._rows(cls.ORDER_BEFORE_PAGES, userid, limit)
+            + pagedata
+            + cls._rows(cls.ORDER_AFTER_PAGES, userid, limit)
+        )

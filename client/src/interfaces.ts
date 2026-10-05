@@ -92,6 +92,8 @@ export interface Album {
 
 export interface HomePageItem {
     position: number
+    /** The row's key in the homepage response ("recently_played", "rediscover", …). */
+    key?: string
     title?: string
     description?: string
     items: { type: string; item?: any; with_helptext?: boolean }[]
