@@ -32,7 +32,7 @@
         <button class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
           <span class="glyph" v-html="row.current ? PlayIcon : NoteIcon"></span>
           <span class="ellip">
-            <b>{{ row.number }} · {{ row.track.title }}</b>
+            <b>{{ row.track.title }}</b>
             <template v-if="row.track.artists?.length"> — {{ row.track.artists.map(a => a.name).join(", ") }}</template>
           </span>
         </button>
@@ -105,7 +105,7 @@ const link = computed(() =>
 // window around the position is asked for, and the track is found by its hash
 // inside it (the server's index can be off by orphans, see resumeIndex).
 const UP_NEXT = 3;
-const upNext = ref<{ track: Track; number: number; current: boolean }[]>([]);
+const upNext = ref<{ track: Track; current: boolean }[]>([]);
 
 async function loadUpNext() {
   const item = props.entry.item;
@@ -126,11 +126,9 @@ async function loadUpNext() {
   if (!tracks.length) return;
 
   const at = resumeIndex(tracks, item.resume_trackhash, index - offset);
-  upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({
-    track,
-    number: offset + at + i + 1,
-    current: i === 0,
-  }));
+  // No position number in front of the title: many titles carry their own
+  // track number ("19. Rittersleut"), and "3 · 19. …" read as noise.
+  upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({ track, current: i === 0 }));
 }
 
 watch(() => [props.entry.type, hash.value, props.entry.item?.resume_trackhash], loadUpNext, { immediate: true });
@@ -295,6 +293,8 @@ function resume() {
       width: 100%;
       display: flex;
       align-items: center;
+      // Buttons centre their content app-wide; a list row reads from the left.
+      justify-content: flex-start;
       gap: 0.5rem;
       padding: 0.35rem 0.6rem;
       background-color: $mem-panel-static;
