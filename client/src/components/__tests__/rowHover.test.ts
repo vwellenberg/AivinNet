@@ -434,6 +434,23 @@ describe("folder rows hover like playlist rows", () => {
     expect(hover).toMatch(/@include\s+mem-row-plate-hover\b/);
     expect(hover).not.toMatch(/\b(border-color|box-shadow|background-image)\s*:/);
   });
+
+  // A background tile starts at its own element's corner: with the hatch on
+  // each resting row, every playlist in a folder printed the identical strokes
+  // (reported 2026-10-05). The body carries ONE sheet; resting rows are windows
+  // onto it and must not paint a tile of their own.
+  it("paints the resting hatch once on the body, not once per row", () => {
+    const items = rules(styleSource(sidebar)).find(rule => rule.selectors.includes(".sidebar-folder-items"));
+    const row = items && rules(items.body).find(rule => rule.selectors.includes(".sidebar-playlist-item"));
+    expect(items && ownDeclarations(items.body)).toMatch(/@include\s+mem-hatch\(/);
+
+    const rest = row ? ownDeclarations(row.body) : "";
+    expect(rest).toMatch(/background-image\s*:\s*none/);
+    expect(rest).toMatch(/background-color\s*:\s*transparent/);
+    // …and the hover brings its own fill back, or it would be a pill around
+    // the name only.
+    expect(folderRowHover()).toMatch(/background-color\s*:\s*var\(--row-fill\)/);
+  });
 });
 
 describe("track row hover is pointer-gated", () => {
