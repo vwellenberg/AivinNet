@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
-from aivinnet.lib import filename_meta, filename_pattern, library_audit, mbjobs
+from aivinnet.lib import filename_meta, filename_pattern, library_audit, library_lock, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
 from aivinnet.lib.track_edit import ReferenceBatch, TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
@@ -516,7 +516,9 @@ def _run_apply(changes: list[TrackChange]) -> dict:
     global _applying
 
     try:
-        return _apply(changes)
+        # Waits for a rescan in progress, and keeps the next one out until done.
+        with library_lock.hold():
+            return _apply(changes)
     finally:
         with _apply_lock:
             _applying = False
@@ -617,6 +619,14 @@ def _run_merge(changes: list[dict]) -> dict:
     global _applying
 
     try:
+        return _merge(changes)
+    finally:
+        with _apply_lock:
+            _applying = False
+
+
+def _merge(changes: list[dict]) -> dict:
+    with library_lock.hold():
         applied, failed = [], []
         for change in changes:
             if WRITERS.stopping():
@@ -629,6 +639,3 @@ def _run_merge(changes: list[dict]) -> dict:
             except TrackEditError as e:
                 failed.append({"filepath": change["filepath"], "error": str(e)})
         return {"applied": applied, "failed": failed}
-    finally:
-        with _apply_lock:
-            _applying = False

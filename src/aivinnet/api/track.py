@@ -8,6 +8,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
+from aivinnet.lib import library_lock
 from aivinnet.lib.track_edit import AmbiguousTrackError, TrackEditError, TrackNotFoundError, edit_track_tags
 from aivinnet.lib.track_rename import name_after_tags, rename_files
 from aivinnet.serializers.track import serialize_track
@@ -86,19 +87,24 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     if not fields:
         return {"error": "No fields to update"}, 400
 
+    # Never waits: a request that sat out a rescan would stop every listener.
     try:
-        track = edit_track_tags(path.trackhash, fields, body.filepath)
-    except AmbiguousTrackError as e:
-        return {"error": str(e), "filepaths": e.filepaths}, 409
-    except TrackNotFoundError:
-        return {"error": "Track not found"}, 404
-    except TrackEditError as e:
-        return {"error": str(e)}, 400
+        with library_lock.try_hold():
+            try:
+                track = edit_track_tags(path.trackhash, fields, body.filepath)
+            except AmbiguousTrackError as e:
+                return {"error": str(e), "filepaths": e.filepaths}, 409
+            except TrackNotFoundError:
+                return {"error": "Track not found"}, 404
+            except TrackEditError as e:
+                return {"error": str(e)}, 400
 
-    result: dict = {}
-    if body.rename_file:
-        # Before serialising: a successful rename moves `track.filepath`.
-        result["rename"] = _rename_after_edit(track)
+            result: dict = {}
+            if body.rename_file:
+                # Before serialising: a successful rename moves `track.filepath`.
+                result["rename"] = _rename_after_edit(track)
+    except library_lock.LibraryBusy as e:
+        return {"error": str(e), "busy": True}, 409
 
     result["track"] = serialize_track(track)
     return result

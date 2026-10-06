@@ -97,7 +97,8 @@ class TrackStore:
         """
         Returns a flat list of all tracks.
         """
-        return list(itertools.chain.from_iterable([group.tracks for group in cls.trackhashmap.values()]))
+        # A snapshot of the groups: an edit on another thread may add or drop one meanwhile.
+        return list(itertools.chain.from_iterable([group.tracks for group in list(cls.trackhashmap.values())]))
 
     @classmethod
     def load_all_tracks(cls, instance_key: str):
@@ -298,13 +299,10 @@ class TrackStore:
         """
         tracks: list[Track] = []
 
-        for trackhash in cls.trackhashmap:
-            group = cls.trackhashmap.get(trackhash, None)
-
-            if not group:
-                continue
-
-            for track in group.tracks:
+        # A snapshot: iterating the live dict raised "dictionary changed size
+        # during iteration" when an edit on another thread added a group.
+        for group in list(cls.trackhashmap.values()):
+            for track in list(group.tracks):
                 prop_value = getattr(track, key)
                 if predicate(prop_value, value):
                     tracks.append(track)

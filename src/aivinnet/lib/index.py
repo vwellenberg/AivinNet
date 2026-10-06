@@ -3,6 +3,7 @@ import logging
 from time import time
 
 from aivinnet.config import UserConfig
+from aivinnet.lib import library_lock
 from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
@@ -23,6 +24,12 @@ log = logging.getLogger(__name__)
 
 @background
 def index_everything():
+    # After an apply or edit in progress, never alongside it (lib/library_lock.py).
+    with library_lock.hold():
+        _index_everything()
+
+
+def _index_everything():
     IndexTracks()
 
     key = str(time())
