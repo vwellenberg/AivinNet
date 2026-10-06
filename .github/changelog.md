@@ -69,6 +69,21 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A fix release for 2026.10.0.
+
+- **"Something went wrong" when saving**: marking a favourite (especially from
+  the search), recording a played song, pinning an album or registering a
+  device could fail now and then, and worked on the second try. The database
+  was briefly locked by a read the server had not finished cleaning up. Fixed
+  at the source; nothing was lost apart from the failed click itself.
+- **Sync calibration is quiet**: the song no longer plays underneath the clicks
+  or ticks. It keeps running silently, so the speakers stay awake and the
+  measurement stays right, and comes back when calibration ends.
+
+<details>
+<summary>What v2026.10.0 brought</summary>
+
+
 **A new Home, colours that tell you where you are, your files by hand — and
 devices that really play together.** Home picks up where you left off, every
 kind of thing in the library has its own colour, an album's titles and track
@@ -224,6 +239,8 @@ A full review before this release found these, and they are fixed:
 Nothing to do. If you used "shuffle once", press the shuffle button instead.
 A pairing code that was open before the update is no longer valid; open the
 pairing page again for a new one.
+
+</details>
 
 <details>
 <summary>What v2026.9.0 brought</summary>
