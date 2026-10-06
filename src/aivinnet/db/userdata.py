@@ -47,7 +47,8 @@ class UserTable(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     image: Mapped[str] = mapped_column(String(), nullable=True)
     password: Mapped[str] = mapped_column(String())
-    username: Mapped[str] = mapped_column(String(), index=True)
+    # Unique in the database, not only in the handlers (migrations/username_unique.py).
+    username: Mapped[str] = mapped_column(String(), index=True, unique=True)
     roles: Mapped[list[str]] = mapped_column(JSON(), default_factory=lambda: [])
     extra: Mapped[dict[str, Any]] = mapped_column(JSON(), nullable=True, default_factory=dict)
 

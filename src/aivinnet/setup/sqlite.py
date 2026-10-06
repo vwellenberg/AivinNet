@@ -14,6 +14,7 @@ from aivinnet.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from aivinnet.migrations.drop_mixes import drop_mix_data
 from aivinnet.migrations.favorites_unique_per_user import repair_favorites_unique_constraint
 from aivinnet.migrations.user_token_version import add_token_version_column
+from aivinnet.migrations.username_unique import make_usernames_unique
 from aivinnet.settings import Paths
 from aivinnet.start_info_logger import log_generated_admin_password
 from aivinnet.utils.bootstrap import initial_admin_password
@@ -48,6 +49,10 @@ def run_migrations():
     # being versioned. Clears out what the removed mixes feature left in the
     # database (see the module docstring for why the scrobbles are kept).
     drop_mix_data()
+
+    # Idempotent as well: renames duplicate usernames (never deletes a user)
+    # and then adds the unique index the model now declares.
+    make_usernames_unique()
 
 
 def setup_sqlite():
