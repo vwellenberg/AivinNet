@@ -186,12 +186,12 @@ class SimilarArtistTable(Base):
         Check whether an artisthash exists in the database.
         """
 
+        # No `yield_per`: a yes/no answer needs one row, not a stream that
+        # would have to be closed (tests/test_db_streams_released.py).
         with DbEngine.manager() as conn:
-            result = conn.execute(
-                select(cls.artisthash).where(cls.artisthash == artisthash).execution_options(yield_per=100)
-            )
+            result = conn.execute(select(cls.artisthash).where(cls.artisthash == artisthash).limit(1))
 
-            return len(result.scalars().all()) > 0
+            return result.first() is not None
 
     @classmethod
     def get_by_hash(cls, artisthash: str):

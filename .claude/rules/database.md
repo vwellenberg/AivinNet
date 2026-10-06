@@ -116,3 +116,8 @@ Darum gilt:
   (`TrackTable.get_all`), schließt das Ergebnis im `finally`.
 - Nachstellen geht ohne die App: ein Pool mit **einer** Verbindung, halb gelesener Stream,
   fremder Schreiber, eigener Schreiber (`tests_api/test_db_stream_release.py`).
+  ⚠️ Der Stream muss dabei **länger als ein `yield_per`-Batch** sein (>100 Zeilen) — sonst
+  liest das erste `next()` ihn schon zu Ende, und der Test ist auch ohne Fix grün (#367).
+- **Wächter:** `tests/test_db_streams_released.py` — ein Zensus über jede Funktion, die ein
+  `yield_per` auf eigener Session/Verbindung ausführt (nicht über `cls.execute`): Sie muss
+  einfrieren oder im `finally` schließen. Für eine Ja/Nein-Abfrage gar nicht erst streamen.
