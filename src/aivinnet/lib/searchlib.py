@@ -24,6 +24,26 @@ from aivinnet.utils.remove_duplicates import remove_duplicates
 # ratio = fuzz.ratio
 # wratio = fuzz.WRatio
 
+# INFO: Every search compares the query with every title of the library, and
+# the server answers one request at a time (#295). The comparison is C++ and
+# quick; transliterating each title with `unidecode` was Python and took most of
+# the time (measured: 66 ms of a 90 ms track pass at 12k tracks, several times
+# that on a Pi) — for every keystroke and every "load more". A title's choice
+# string never changes, so it is made once. The stores are still read fresh on
+# every search: nothing here can return a track that is gone.
+_choices: dict[str, str] = {}
+_MAX_CHOICES = 500_000  # far beyond any library; a bound against tag-edit churn
+
+
+def _choice(text: str) -> str:
+    """`text` as the fuzzy search compares it: transliterated, lowercased, then rapidfuzz's default processing."""
+    choice = _choices.get(text)
+    if choice is None:
+        if len(_choices) >= _MAX_CHOICES:
+            _choices.clear()
+        choice = _choices[text] = utils.default_process(unidecode(text).lower())
+    return choice
+
 
 class Cutoff:
     """
@@ -59,13 +79,12 @@ class SearchTracks:
         Gets all songs with a given title.
         """
 
-        track_titles = [unidecode(track.title).lower() for track in self.tracks]
+        track_titles = [_choice(track.title) for track in self.tracks]
         results = process.extract(
-            self.query,
+            utils.default_process(self.query),
             track_titles,
             score_cutoff=Cutoff.tracks,
             limit=limit,
-            processor=utils.default_process,
             scorer=fuzz.WRatio,
         )
 
@@ -88,14 +107,13 @@ class SearchArtists:
         """
         Gets all artists with a given name.
         """
-        choices = [unidecode(a.name).lower() for a in self.artists]
+        choices = [_choice(a.name) for a in self.artists]
 
         results = process.extract(
-            self.query,
+            utils.default_process(self.query),
             choices,
             score_cutoff=Cutoff.artists,
             limit=limit,
-            processor=utils.default_process,
             scorer=fuzz.WRatio,
         )
 
@@ -119,14 +137,13 @@ class SearchAlbums:
         Gets all albums with a given title.
         """
 
-        choices = [unidecode(a.title).lower() for a in self.albums]
+        choices = [_choice(a.title) for a in self.albums]
 
         results = process.extract(
-            self.query,
+            utils.default_process(self.query),
             choices,
             score_cutoff=Cutoff.albums,
             limit=limit,
-            processor=utils.default_process,
             scorer=fuzz.token_sort_ratio,
         )
 
@@ -176,13 +193,12 @@ class SearchFolders:
         """
         Gets all folders whose name fuzzily matches the query.
         """
-        choices = [unidecode(name).lower() for name, _ in self.folders]
+        choices = [_choice(name) for name, _ in self.folders]
         results = process.extract(
-            self.query,
+            utils.default_process(self.query),
             choices,
             score_cutoff=Cutoff.folders,
             limit=limit,
-            processor=utils.default_process,
             scorer=fuzz.WRatio,
         )
 
