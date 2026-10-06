@@ -24,7 +24,11 @@ from aivinnet.config import UserConfig
 from aivinnet.db.libdata import TrackTable
 from aivinnet.db.utils import track_to_dataclass
 from aivinnet.lib import tag_writer
-from aivinnet.lib.reference_migration import migrate_track_references, migrate_track_references_many
+from aivinnet.lib.reference_migration import (
+    migrate_item_favorites,
+    migrate_track_references,
+    migrate_track_references_many,
+)
 from aivinnet.lib.tagger import create_albums, create_artists
 from aivinnet.lib.taglib import extract_thumb, get_tags
 from aivinnet.models import Track
@@ -66,6 +70,53 @@ def _identity_artist_hashes(track: Track) -> set[str]:
     for artist in track.albumartists:
         hashes.add(artist["artisthash"])
     return hashes
+
+
+def _retired_identities(old_track: Track, new_track: Track, filepath: str) -> list[tuple[str, str, str]]:
+    """
+    ``(kind, old_hash, new_hash)`` for each album or artist this edit takes the
+    LAST file away from, where it is clear what it becomes.
+
+    Album and artist favourites are keyed by a hash that a tag edit changes just
+    like a track's. Retitling an album on its tracks left every user's album
+    favourite on a hash that no longer existed: gone from Favorites, still in
+    the count (#296). They move with the last file; until then the old album
+    still exists and keeps them. An artist moves only when exactly one name went
+    and exactly one came — anything else has no single answer.
+    """
+    moves: list[tuple[str, str, str]] = []
+
+    if new_track.albumhash != old_track.albumhash and not any(
+        t.filepath != filepath
+        for t in TrackStore.get_tracks_by_albumhash(old_track.albumhash, including_duplicates=True)
+    ):
+        moves.append(("album", old_track.albumhash, new_track.albumhash))
+
+    gone = _identity_artist_hashes(old_track) - _identity_artist_hashes(new_track)
+    came = _identity_artist_hashes(new_track) - _identity_artist_hashes(old_track)
+    if len(gone) == 1 and len(came) == 1:
+        old_artist, new_artist = next(iter(gone)), next(iter(came))
+        if not any(
+            t.filepath != filepath and old_artist in _identity_artist_hashes(t) for t in TrackStore.get_flat_list()
+        ):
+            moves.append(("artist", old_artist, new_artist))
+
+    return moves
+
+
+def _carry_favourite_users(kind: str, old_entry, new_hash: str) -> None:
+    """The retired album/artist's favourite users onto its successor in the store."""
+    if old_entry is None:
+        return
+    store = AlbumStore.albummap if kind == "album" else ArtistStore.artistmap
+    new_entry = store.get(new_hash)
+    if new_entry is None:
+        return
+    old_item = old_entry.album if kind == "album" else old_entry.artist
+    new_item = new_entry.album if kind == "album" else new_entry.artist
+    for userid in old_item.fav_userids:
+        if userid not in new_item.fav_userids:
+            new_item.fav_userids.append(userid)
 
 
 # State the stores derive at startup from OTHER tables (favorites, scrobbles,
@@ -331,13 +382,17 @@ def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -
         # (ReferenceBatch); everything else moves with its row, right here.
         wait = repoint and batch is not None and batch.must_wait(filepath, new_trackhash)
 
+        retired = _retired_identities(old_track, new_track, filepath)
+
+        def also(session) -> None:
+            if repoint and not wait:
+                migrate_track_references(old_trackhash, new_trackhash, session)
+            for kind, old_hash, new_hash in retired:
+                migrate_item_favorites(kind, old_hash, new_hash, session)
+
         new_track.id = TrackTable.replace_by_filepath(
             tags,
-            also=(
-                (lambda session: migrate_track_references(old_trackhash, new_trackhash, session))
-                if repoint and not wait
-                else None
-            ),
+            also=also if (repoint and not wait) or retired else None,
         )
     except Exception as exc:
         log.error("Track edit failed for %s: %s", filepath, exc)
@@ -375,12 +430,20 @@ def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -
     # rebuilds them. Reporting a failure here would make the user redo an
     # edit that is already on disk.
     try:
+        retiring = {
+            (kind, old_hash, new_hash): (
+                AlbumStore.albummap.get(old_hash) if kind == "album" else ArtistStore.artistmap.get(old_hash)
+            )
+            for kind, old_hash, new_hash in retired
+        }
         _store_track(filepath, new_track, carry_references=new_trackhash == old_trackhash or repoint)
         # Reconcile the in-memory album/artist maps for both old and new identities.
         for albumhash in {old_albumhash, new_track.albumhash}:
             _reconcile_album(albumhash)
         for artisthash in old_artist_hashes | _identity_artist_hashes(new_track):
             _reconcile_artist(artisthash)
+        for (kind, _old_hash, new_hash), old_entry in retiring.items():
+            _carry_favourite_users(kind, old_entry, new_hash)
     except Exception:
         log.exception("Track edit of %s is saved, but the library view is stale until the next scan", filepath)
 
