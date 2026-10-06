@@ -41,11 +41,16 @@ class TrackTable(Base):
             config = UserConfig()
             result = conn.execute(select(cls).execution_options(yield_per=100))
 
-            for i in result.scalars():
-                d = i.__dict__
-                del d["_sa_instance_state"]
+            # Closed explicitly, like `Base.execute` (db/__init__.py): a caller
+            # that stops early must not leave the stream's cursor on the pool.
+            try:
+                for i in result.scalars():
+                    d = i.__dict__
+                    del d["_sa_instance_state"]
 
-                yield track_to_dataclass(d, config)
+                    yield track_to_dataclass(d, config)
+            finally:
+                result.close()
 
     @classmethod
     def get_tracks_by_filepaths(cls, filepaths: list[str]):
