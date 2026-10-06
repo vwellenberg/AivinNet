@@ -4,7 +4,7 @@
     class="now-playing-view v-scroll-page"
     :class="{ isSmall, isMedium }"
     style="position: relative"
-    :style="{ backgroundImage: pageGradient() }"
+    :style="{ '--page-gradient': pageGradient(colors.bg) }"
     @dragover="onScrollerDragOver"
     @dragleave="onScrollerDragLeave"
     @drop="stopAutoScroll"
@@ -46,6 +46,7 @@
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import { ScrollerItem, Track } from "@/interfaces";
 
+import useColors from "@/stores/colors";
 import useQueueStore from "@/stores/queue";
 import useTracklist from "@/stores/queue/tracklist";
 import { isMedium, isSmall } from "@/stores/content-width";
@@ -60,6 +61,9 @@ import { trackBandFade } from "@/utils/songItemMethods";
 
 
 const queue = useQueueStore();
+// The playing track's cover colour — extracted on every track change (player.ts),
+// the same `bg` the album / playlist pages take from their own cover.
+const colors = useColors();
 const store = useTracklist();
 
 function playFromQueue(index: number) {
