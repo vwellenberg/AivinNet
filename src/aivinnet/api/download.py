@@ -1,16 +1,18 @@
 """Download endpoints for tracks and albums."""
 
-import tempfile
+import unicodedata
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 
-from flask import after_this_request, send_file, send_from_directory
+from flask import Response, send_from_directory
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema, TrackHashSchema
 from aivinnet.config import UserConfig
 from aivinnet.db.userdata import PlaylistTable
+from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
 
 bp_tag = Tag(name="Download", description="Download audio files")
@@ -138,63 +140,98 @@ def _too_large(entries: list[tuple[object, Path]]) -> tuple[bool, int, int]:
     return (limit > 0 and total > limit), total, limit
 
 
+# What one turn of the generator copies. bjoern takes one chunk per pass of its
+# event loop and handles the other connections in the same pass; a request
+# needs a few passes (accept, read, answer), so another listener waits a few
+# chunks' worth of copying — milliseconds, where it was the whole archive.
+# Measured on ryukyu with a 0.1 s chunk: a second request answered in 0.4 s
+# while a 2 s body was still going out.
+CHUNK = 256 * 1024
+
+
+class _Sink:
+    """Collects what ZipFile writes until the generator hands it on."""
+
+    def __init__(self) -> None:
+        self._parts: list[bytes] = []
+
+    def write(self, data) -> int:
+        self._parts.append(bytes(data))
+        return len(data)
+
+    def flush(self) -> None:
+        pass
+
+    def take(self) -> bytes:
+        data = b"".join(self._parts)
+        self._parts.clear()
+        return data
+
+
+def _zip_chunks(entries: list[tuple[object, Path]]):
+    """
+    The ZIP of these files, produced while it is being sent.
+
+    The sink cannot seek, so ZipFile writes each entry's sizes and CRC in a data
+    descriptor after its bytes — the standard way to stream an archive.
+    `ZipInfo.from_file` still knows each size up front, which is what decides
+    whether an entry needs ZIP64.
+    """
+    sink = _Sink()
+
+    with zipfile.ZipFile(sink, "w", zipfile.ZIP_STORED) as zf:
+        taken: set[str] = set()
+
+        for track, p in entries:
+            # Named after the tags, not after the file on disk — the names in a
+            # real library carry no context (`swamp.mp3`, `Drum Loop 03.mp3`),
+            # and an archive of those is a puzzle.
+            try:
+                info = zipfile.ZipInfo.from_file(p, _unique(download_filename(track, p), taken))
+                src = p.open("rb")
+            except OSError:
+                # Gone since the size check. Leave it out: nothing of it is in
+                # the archive yet, and failing here would cut the download off.
+                continue
+
+            info.compress_type = zipfile.ZIP_STORED
+
+            with src, zf.open(info, "w") as dest:
+                while chunk := src.read(CHUNK):
+                    dest.write(chunk)
+                    yield sink.take()
+
+            yield sink.take()  # the entry's data descriptor
+
+    yield sink.take()  # the central directory, written on close
+
+
 def _zip_response(entries: list[tuple[object, Path]], download_name: str):
     """
-    Stream a ZIP of these files back, building it on DISK rather than in memory.
+    Send a ZIP of these files, built while it is being sent.
 
-    ⚠️ This used to assemble the archive in an `io.BytesIO` — the whole album in
-    RAM before a single byte went out. With ZIP_STORED the buffer is roughly the
-    sum of the files, so one click on a 4 GB album asked for 4 GB, and a playlist
-    had no natural bound at all. The limit above caps it, but a cap alone would
-    still mean "that much RAM at once", and this ships for the Raspberry Pi.
-
-    The temp file is unlinked immediately after opening: on POSIX the open
-    descriptor keeps the data alive until the response has been sent, so there is
-    nothing left to clean up even if the transfer fails or the process dies. On
-    Windows the unlink fails while the file is open, so it is deleted after the
-    response instead.
+    ⚠️ It was built first — in an `io.BytesIO` once (the whole album in RAM),
+    then in a temp file — and only then sent. Either way the archive was written
+    INSIDE the request, and the server answers one request at a time: a 900 MB
+    soundtrack stalled every listener's playback for as long as copying it took
+    (#295). Now each turn of the generator copies one CHUNK and bjoern serves the
+    other connections in between. Memory stays at one chunk, and there is no
+    temp file to clean up when a transfer dies halfway.
     """
+    response = Response(_zip_chunks(entries), mimetype="application/zip")
+    response.headers.set("Content-Disposition", "attachment", **_disposition_name(download_name))
+    return response
 
-    # The noqa is on purpose: this handle has to OUTLIVE the function.
-    # `send_file` reads from it while the response is being sent, so a context
-    # manager would close it before the first byte goes out.
-    tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)  # noqa: SIM115
 
+def _disposition_name(name: str) -> dict[str, str]:
+    """`filename`, plus RFC 5987 `filename*` for a name that is not ASCII (as `send_file` does)."""
     try:
-        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:
-            taken: set[str] = set()
+        name.encode("ascii")
+    except UnicodeEncodeError:
+        simple = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+        return {"filename": simple, "filename*": f"UTF-8''{quote(name, safe='!#$&+^`|~')}"}
 
-            for track, p in entries:
-                # Named after the tags, not after the file on disk — the
-                # names in a real library carry no context (`swamp.mp3`,
-                # `Drum Loop 03.mp3`), and an archive of those is a puzzle.
-                zf.write(p, _unique(download_filename(track, p), taken))
-
-        tmp.flush()
-        tmp.seek(0)
-    except BaseException:
-        tmp.close()
-        Path(tmp.name).unlink(missing_ok=True)
-        raise
-
-    try:
-        Path(tmp.name).unlink()
-    except OSError:
-        # Windows: cannot unlink an open file. Clean up once the response is out.
-        @after_this_request
-        def _cleanup(response):
-            try:
-                Path(tmp.name).unlink(missing_ok=True)
-            except OSError:
-                pass
-            return response
-
-    return send_file(
-        tmp,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=download_name,
-    )
+    return {"filename": name}
 
 
 def _refuse_oversized(total: int, limit: int):
@@ -233,8 +270,13 @@ def download_track(path: TrackHashSchema):
 @api.get("/album/<albumhash>")
 def download_album(path: AlbumHashSchema):
     """Download all tracks in an album as a ZIP file."""
+    # From the album's own track list: walking every group of the library for
+    # its members was a full pass on the request thread (#295).
+    entry = AlbumStore.albummap.get(path.albumhash)
     tracks = [
-        group.get_best() for group in TrackStore.trackhashmap.values() if group.get_best().albumhash == path.albumhash
+        t
+        for t in TrackStore.get_tracks_by_trackhashes(entry.trackhashes if entry else ())
+        if t.albumhash == path.albumhash
     ]
 
     if not tracks:

@@ -73,8 +73,8 @@ uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashi
 ```
 
 **Die API-Tests (`tests_api/`) laufen auch auf Windows:** `uv run --frozen pytest tests_api/`
-(waitress statt bjoern, kein libev nötig). Nur 5 Plattform-Fälle (POSIX-Dateirechte, Löschen
-offener Dateien) sind dort rot. Welche das sind, die Server-Variante und die Test-Konventionen
+(waitress statt bjoern, kein libev nötig). Nur 4 Plattform-Fälle (POSIX-Dateirechte) sind
+dort rot. Welche das sind, die Server-Variante und die Test-Konventionen
 (was in welchen PR gehört, die `sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt
 automatisch, sobald eine Testdatei gelesen wird.
 
@@ -242,6 +242,9 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
      sich gegenseitig den Kontext („Popped wrong request context") und brechen mitten im Body
      ab. So lud Safari die App nicht — flask-compress streamte die Client-Dateien, weil seine
      Config *nach* `Compress()` gesetzt war (Flask-Extensions lesen die Config in `init_app`).
+     Ein Generator **ohne** Request-Kontext ist dagegen genau das Werkzeug für große Antworten:
+     bjoern holt pro Loop-Durchlauf ein Stück und bedient dazwischen die anderen Verbindungen
+     (gemessen, #295; Vorbild `api/download.py::_zip_chunks`).
 
 ## Architektur-Hinweise
 

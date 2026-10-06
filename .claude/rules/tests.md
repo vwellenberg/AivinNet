@@ -20,8 +20,8 @@ läuft die schnelle Lane über `uvx` statt über eine volle Installation.
 braucht es kein libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (am 2026-09-29
 gemessen: 453 grün). Plattformbedingt rot, **kein** Befund: die POSIX-Rechte-Tests in
 `test_hardening_basics.py` (`TestFilePermissions`, `TestExistingInstallsAreFixedToo`; Windows hat
-kein `chmod 600`) und `test_download_bounds.py::test_no_temp_file_is_left_behind` (Windows löscht
-eine noch offene Datei nicht). Die Behauptung „läuft auf Windows nicht" stand hier monatelang,
+kein `chmod 600`). Der fünfte Fall (eine Temp-Datei, die Windows offen nicht löschen ließ) ist
+mit dem gestreamten ZIP-Download (#295) samt Temp-Datei verschwunden. Die Behauptung „läuft auf Windows nicht" stand hier monatelang,
 ohne dass es jemand probiert hatte. Wer die Plattform-Fälle oder bjoern selbst prüfen will, nimmt
 den Server und dessen venv:
 
