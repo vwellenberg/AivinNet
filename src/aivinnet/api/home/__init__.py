@@ -13,8 +13,18 @@ bp_tag = Tag(name="Home", description="Homepage items")
 api = APIBlueprint("home", __name__, url_prefix="/nothome", abp_tags=[bp_tag])
 
 
+class RecentsQuery(GenericLimitSchema):
+    # Not "all": these lists are as long as the library or the history.
+    limit: int = Field(
+        description="The number of items to return",
+        default=GenericLimitSchema.model_fields["limit"].default,
+        ge=1,
+        le=500,
+    )
+
+
 @api.get("/recents/added")
-def get_recently_added(query: GenericLimitSchema):
+def get_recently_added(query: RecentsQuery):
     """
     Get recently added
     """
@@ -22,7 +32,7 @@ def get_recently_added(query: GenericLimitSchema):
 
 
 @api.get("/recents/played")
-def get_recent_plays(query: GenericLimitSchema):
+def get_recent_plays(query: RecentsQuery):
     """
     Get recently played
     """

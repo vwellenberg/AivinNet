@@ -214,7 +214,7 @@ def add_item_to_playlist(path: PlaylistIDPath, body: AddItemToPlaylistBody):
 
 class GetPlaylistQuery(GenericLimitSchema):
     no_tracks: bool = Field(False, description="Whether to include tracks")
-    start: int = Field(0, description="The start index of the tracks")
+    start: int = Field(0, description="The start index of the tracks", ge=0)
 
 
 @api.get("/<playlistid>")

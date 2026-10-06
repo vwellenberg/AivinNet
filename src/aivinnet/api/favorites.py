@@ -125,6 +125,7 @@ class GetAllOfTypeQuery(GenericLimitSchema):
     start: int = Field(
         description="Where to start from",
         default=Defaults.API_CARD_LIMIT,
+        ge=0,
     )
 
 

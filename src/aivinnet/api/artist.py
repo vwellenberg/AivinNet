@@ -12,6 +12,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import Field
 
 from aivinnet.api.apischemas import (
+    CARD_LIMIT_MAX,
     AlbumLimitSchema,
     ArtistHashSchema,
     ArtistLimitSchema,
@@ -37,7 +38,7 @@ class GetArtistAlbumsQuery(AlbumLimitSchema):
 
 
 class GetArtistQuery(TrackLimitSchema, GetArtistAlbumsQuery):
-    albumlimit: int = Field(7, description="The number of albums to return")
+    albumlimit: int = Field(7, description="The number of albums to return", ge=0, le=CARD_LIMIT_MAX)
 
 
 def genres_with_decade(artist) -> list[dict[str, str]]:

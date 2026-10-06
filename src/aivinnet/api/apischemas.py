@@ -52,17 +52,28 @@ class TrackHashSchema(BaseModel):
     )
 
 
+# INFO: The card limits size a page section (an artist's top tracks, similar
+# albums). The client asks for a screenful; an unbounded value made one request
+# serialise as much as the caller liked on the single request thread, and a
+# negative one answered 500 instead of 422 (#295).
+CARD_LIMIT_MAX = 500
+
+
 class GenericLimitSchema(BaseModel):
     """
     Extending this class will give you a model with the `limit` field
     """
 
+    # -1 is "all of them": a playlist's tracks, the favourites "play all"
+    # (usePlayFrom.ts). Anything below that was never meant and went through
+    # to a slice or SQL LIMIT unchecked (#295).
     limit: int = Field(
-        description="The number of items to return",
+        description="The number of items to return; -1 for all",
         json_schema_extra={
             "example": Defaults.API_CARD_LIMIT,
         },
         default=Defaults.API_CARD_LIMIT,
+        ge=-1,
     )
 
 
@@ -79,6 +90,8 @@ class TrackLimitSchema(BaseModel):
         },
         default=5,
         alias="tracklimit",
+        ge=0,
+        le=CARD_LIMIT_MAX,
     )
 
 
@@ -94,6 +107,8 @@ class AlbumLimitSchema(BaseModel):
         },
         default=Defaults.API_CARD_LIMIT,
         alias="albumlimit",
+        ge=0,
+        le=CARD_LIMIT_MAX,
     )
 
 
@@ -109,4 +124,6 @@ class ArtistLimitSchema(BaseModel):
         },
         default=Defaults.API_CARD_LIMIT,
         alias="artistlimit",
+        ge=0,
+        le=CARD_LIMIT_MAX,
     )
