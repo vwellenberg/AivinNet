@@ -69,7 +69,57 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
-A fix release for 2026.10.0.
+A fix release for 2026.10.1: nothing holds up the other listeners any more,
+and library repairs keep every playlist entry and favourite where it belongs.
+
+### No more freezes for everyone
+
+The server answers one request at a time, so one slow job used to pause
+everyone's music. These no longer do:
+
+- **Downloading an album or a playlist.** The archive is now built while it
+  downloads, instead of first, all of it, before the first byte.
+- **"Fetch cover automatically" and the lyrics search** when MusicBrainz or
+  Musixmatch are slow or down. The cover search runs in the background; the
+  lyrics search gives up after a few seconds and leaves Musixmatch alone for
+  a while after an outage.
+- **Searching, playing a whole folder, opening an artist with many albums,
+  and playing a song** — each of these used to go through the whole library.
+- **Play a folder** plays that folder only: "Rock" no longer takes
+  "Rock and Roll" along.
+
+### Your library, safer
+
+- **During a rescan the library stays complete.** It used to be emptied and
+  refilled, and "Remove missing tracks" in that moment could delete playlist
+  entries that were not missing at all.
+- **Repairing an album whose titles were swapped or off by one** keeps every
+  playlist entry, favourite and play count on the right song.
+- **Album and artist favourites follow** when you rename an album or artist.
+- **A cover you chose stays** — a tag edit no longer puts the file's own
+  (often small) picture back.
+- **Restarting the server during an album repair** finishes the file in hand
+  and lists the files that were not done, instead of leaving half an album.
+- **Scans, album repairs and track edits take turns.** Editing a track while a
+  scan runs asks you to try again in a moment.
+- **MusicBrainz being unreachable** is shown as that, not as "nothing found",
+  and is no longer remembered as "this album has no cover".
+- **Docker: backups now live in the config volume** (`/config/aivinnet.backup`)
+  and survive recreating the container. Backups in the old place are moved
+  over on the next start.
+- **User names are unique** in the database as well. Should two accounts share
+  one, the newer is renamed and the log says to what.
+
+### Smaller
+
+- **Now Playing** gets the cover-tinted background of the album and playlist
+  pages.
+- Rows no longer **animate in twice** after scrolling up fast in a long list.
+- One unreadable file no longer stalls the **silence skip between tracks** for
+  everyone.
+
+<details>
+<summary>What v2026.10.1 brought</summary>
 
 - **"Something went wrong" when saving**: marking a favourite (especially from
   the search), recording a played song, pinning an album or registering a
@@ -79,6 +129,8 @@ A fix release for 2026.10.0.
 - **Sync calibration is quiet**: the song no longer plays underneath the clicks
   or ticks. It keeps running silently, so the speakers stay awake and the
   measurement stays right, and comes back when calibration ends.
+
+</details>
 
 <details>
 <summary>What v2026.10.0 brought</summary>
