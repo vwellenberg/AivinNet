@@ -109,7 +109,12 @@ class TrackStore:
         global TRACKS_LOAD_KEY
         TRACKS_LOAD_KEY = instance_key
 
-        cls.trackhashmap = dict()
+        # ⚠️ Built aside and swapped in whole. It was emptied and refilled in
+        # place, so during a rescan every request saw a part of the library:
+        # pages 500ed or lacked tracks, and "Remove missing tracks" took every
+        # not-yet-loaded track for an orphan and deleted it from the playlist
+        # (#296). Until the swap, readers keep the previous library intact.
+        trackhashmap: dict[str, TrackGroup] = dict()
         tracks = TrackTable.get_all()
 
         # INFO: Load all tracks into the dict store
@@ -117,12 +122,13 @@ class TrackStore:
             if instance_key != TRACKS_LOAD_KEY:
                 return
 
-            exists = cls.trackhashmap.get(track.trackhash, None)
+            exists = trackhashmap.get(track.trackhash)
             if not exists:
-                cls.trackhashmap[track.trackhash] = TrackGroup([track])
+                trackhashmap[track.trackhash] = TrackGroup([track])
             else:
-                cls.trackhashmap[track.trackhash].append(track)
+                trackhashmap[track.trackhash].append(track)
 
+        cls.trackhashmap = trackhashmap
         print("Done!")
 
     @classmethod

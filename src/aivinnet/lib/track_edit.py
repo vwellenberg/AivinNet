@@ -129,7 +129,14 @@ def _reconcile_artist(artisthash: str) -> None:
         )
     elif not _artist_still_referenced(artisthash):
         ArtistStore.artistmap.pop(artisthash, None)
-    # else: still referenced only as an album artist elsewhere -> keep existing entry
+    elif (entry := ArtistStore.artistmap.get(artisthash)) is not None:
+        # Only an album artist ("Various Artists"): no track names it as a
+        # performer, so there is nothing to rebuild the entry from — but its
+        # album list must still follow the edit. It kept the album the edit had
+        # just retired and missed the new one, until a restart (#296).
+        tracks = [t for t in TrackStore.get_flat_list() if any(a["artisthash"] == artisthash for a in t.albumartists)]
+        entry.albumhashes = {t.albumhash for t in tracks}
+        entry.trackhashes = {t.trackhash for t in tracks}
 
 
 def _read_tags(filepath: str) -> dict:
@@ -304,8 +311,12 @@ def _edit(old_track: Track, fields: dict) -> Track:
     # would make it disagree with its own row.
     _remove_backup(backup_path)
 
+    # Not overwritten: a tag edit does not change the picture in the file. With
+    # overwrite every edit put the file's (often small) embedded art back over
+    # a cover the user had chosen (#296). A NEW album hash has no thumbnail yet
+    # and still gets one.
     try:
-        extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=True)
+        extract_thumb(filepath, tags["albumhash"] + ".webp", overwrite=False)
     except Exception as exc:
         log.warning("Track edit of %s: could not refresh the thumbnail: %s", filepath, exc)
 
