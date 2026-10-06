@@ -185,7 +185,10 @@ def get_artist_albums(path: ArtistHashSchema, query: GetArtistAlbumsQuery):
     albums = AlbumStore.get_albums_by_hashes(entry.albumhashes)
     tracks = TrackStore.get_tracks_by_trackhashes(entry.trackhashes)
 
-    missing_albumhashes = {t.albumhash for t in tracks if t.albumhash not in {a.albumhash for a in albums}}
+    # The set once, not per track: it was rebuilt for every track, quadratic
+    # on a compilation artist (#295).
+    known_albumhashes = {a.albumhash for a in albums}
+    missing_albumhashes = {t.albumhash for t in tracks} - known_albumhashes
 
     albums.extend(AlbumStore.get_albums_by_hashes(missing_albumhashes))
     albumdict = {a.albumhash: a for a in albums}

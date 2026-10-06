@@ -2,6 +2,7 @@
 Contains all the folder routes.
 """
 
+import itertools
 import os
 import pathlib
 from pathlib import Path
@@ -14,10 +15,10 @@ from showinfm import show_in_file_manager
 from aivinnet import settings
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
-from aivinnet.db.libdata import TrackTable
 from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
 from aivinnet.lib.sortlib import sort_folders
 from aivinnet.serializers.track import serialize_track
+from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.wintools import is_windows
 
 tag = Tag(name="Folders", description="Get folders and tracks in a directory")
@@ -281,9 +282,20 @@ def get_tracks_in_path(query: GetTracksInPathQuery):
     if not is_path_within_root_dirs(str(resolved_path)):
         return {"tracks": [], "error": "Path not within allowed directories"}, 403
 
-    tracks = TrackTable.get_tracks_in_path(str(resolved_path))
-    tracks = (serialize_track(t) for t in tracks if Path(t.filepath).exists())
+    # From the RAM store, and capped BEFORE the stat and the serialisation:
+    # "Play" on a root folder card used to load the whole track table and
+    # stat every file of the library on the single request thread (#295).
+    # The prefix ends in a separator, so /music/Rock no longer takes
+    # /music/Rock and Roll along (the SQL matched any substring).
+    base = str(resolved_path).rstrip("/\\")
+    inside = (base + "/", base + "\\")
+    # Modification time, as the folder view lists files (folderslib).
+    tracks = sorted(
+        (t for t in TrackStore.get_flat_list() if t.filepath.startswith(inside)),
+        key=lambda t: t.last_mod,
+    )
+    existing = (t for t in tracks if Path(t.filepath).exists())
 
     return {
-        "tracks": list(tracks)[:300],
+        "tracks": [serialize_track(t) for t in itertools.islice(existing, 300)],
     }

@@ -57,10 +57,12 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
         }, 400
 
     track = None
-    tracks = TrackStore.get_tracks_by_filepaths([filepath])
+    # By hash: one dict lookup. Asking by path walked the whole store, and
+    # this runs for every ranged chunk of every song (#295).
+    group = TrackStore.trackhashmap.get(requested_trackhash)
 
-    for t in tracks:
-        if os.path.exists(t.filepath) and t.trackhash == requested_trackhash:
+    for t in group.tracks if group else ():
+        if t.filepath == filepath and os.path.exists(t.filepath):
             track = t
             break
 

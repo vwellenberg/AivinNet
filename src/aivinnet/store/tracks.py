@@ -81,6 +81,13 @@ class TrackStore:
     # {'trackhash': Track[]}
     trackhashmap: dict[str, TrackGroup] = dict()
 
+    # filepath -> tracks, for the lookups that arrive with a PATH in a request:
+    # every ranged chunk of a stream, the silence probe, tag edits. Without it
+    # each of them walked the whole store on the single request thread (#295).
+    # Never trusted blindly — a hit is checked against the track itself — so
+    # none of the many places that mutate the store has to keep it in step.
+    _by_filepath: dict[str, list[Track]] = dict()
+
     @classproperty
     def tracks(cls) -> list[Track]:
         return cls.get_flat_list()
@@ -223,26 +230,52 @@ class TrackStore:
         return tracks
 
     @classmethod
-    def get_tracks_by_filepaths(cls, paths: list[str]) -> list[Track]:
+    def _indexed(cls, path: str) -> list[Track] | None:
+        """
+        The index's tracks for `path`, or None when it has none or any of them
+        went stale (renamed in place, removed from the store).
+        """
+        hits = cls._by_filepath.get(path)
+        if not hits:
+            return None
+
+        for track in hits:
+            group = cls.trackhashmap.get(track.trackhash)
+            if track.filepath != path or group is None or not any(t is track for t in group.tracks):
+                return None
+
+        return hits
+
+    @classmethod
+    def get_tracks_by_filepaths(cls, paths: Iterable[str]) -> list[Track]:
         """
         Returns all tracks matching the given paths.
+
+        Answered from the filepath index. Only a path the index does not hold
+        (yet, or any more) costs a full pass over the store, and that pass
+        rebuilds the index, so the next request for it is a dict lookup.
         """
-        # tracks = sorted(cls.trackhashmap, key=lambda x: x.filepath)
-        # tracks = use_bisection(tracks, "filepath", paths)
-        # return [track for track in tracks if track is not None]
-        # return cls.find_tracks_by(key="filepath", value=paths)
-
         tracks: list[Track] = []
+        unknown: list[str] = []
 
-        for trackhash in cls.trackhashmap:
-            group = cls.trackhashmap.get(trackhash)
+        for path in dict.fromkeys(paths):  # each path once, in order
+            hits = cls._indexed(path)
+            if hits is None:
+                unknown.append(path)
+            else:
+                tracks.extend(hits)
 
-            if not group:
-                continue
+        if unknown:
+            index: dict[str, list[Track]] = {}
+            # `list()` snapshots the groups: the indexer may add or drop
+            # one from another thread while this runs.
+            for group in list(cls.trackhashmap.values()):
+                for track in group.tracks:
+                    index.setdefault(track.filepath, []).append(track)
 
-            for track in group.tracks:
-                if track.filepath in paths:
-                    tracks.append(track)
+            cls._by_filepath = index
+            for path in unknown:
+                tracks.extend(index.get(path, ()))
 
         return tracks
 
@@ -298,7 +331,12 @@ class TrackStore:
         """
         Returns all tracks in the given path.
         """
-        predicate: Callable[[str, str], bool] = lambda track_folder, path: track_folder.startswith(path)
+        # The folder itself or one below it: a bare `startswith` also took
+        # /music/Rock and Roll along with /music/Rock.
+        base = path.rstrip("/\\")
+        predicate: Callable[[str, str], bool] = lambda track_folder, _: (
+            track_folder.rstrip("/\\") == base or (track_folder.startswith((base + "/", base + "\\")))
+        )
 
         return cls.find_tracks_by(
             key="folder",
