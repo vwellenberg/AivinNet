@@ -43,6 +43,13 @@ umzug = {vorher[fp]: nachher[fp] for fp in vorher
 # dann playlist.trackhashes, favorite.hash und scrobble.trackhash durchziehen
 ```
 
+⚠️ **Den Umzug GLEICHZEITIG anwenden, nie Paar für Paar** (`migrate_track_references_many`).
+Vertauschte Titel (A→B, B→A) oder eine um eins verschobene Reihe (1→2, 2→3, …) bilden auf
+einen Hash ab, der selbst noch umzieht: Paar für Paar verschmolz der erste Schritt zwei Songs
+zu einem Eintrag, und nach einer Verschiebung zeigte alles auf den letzten Titel (#296). Der
+Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer anderen Datei
+im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
+
 ## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren
 
 Gleiche Tags ⇒ gleicher Hash, egal welches Format: `X.mp3` neben `X.wav` (100-Musicians/
