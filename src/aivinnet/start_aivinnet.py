@@ -12,6 +12,7 @@ from aivinnet.setup import load_into_mem, run_setup
 from aivinnet.start_info_logger import log_startup_info
 from aivinnet.utils.shutdown import ServerShutdown
 from aivinnet.utils.threading import background
+from aivinnet.utils.timezone import ensure_local_timezone
 
 # Short enough that the whole stop, drain deadline included, stays inside
 # Docker's 10 s grace period. A cron job that takes longer is abandoned, with a
@@ -90,6 +91,8 @@ def start_aivinnet(host: str, port: int):
     # NOTE: concurrent and multithreading create own sys.modules -> no globals
 
     config_mimetypes()
+    # Before anything dates a row "x days ago" or a cron asks for today.
+    ensure_local_timezone()
     run_setup()
 
     @background
