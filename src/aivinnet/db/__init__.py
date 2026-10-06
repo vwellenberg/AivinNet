@@ -23,6 +23,22 @@ class Base(MappedAsDataclass, DeclarativeBase):
         with DbEngine.manager(commit=commit) as session:
             result = session.execute(stmt.execution_options(yield_per=100))
 
+            # ⚠️ Read the rows out BEFORE the connection goes back to the pool.
+            # Callers take `next(cls.execute(...))` and read the result after
+            # this generator — and its session — are gone. With a streamed
+            # (`yield_per`) result that left the SQLite statement open on the
+            # pooled connection, holding a read snapshot. Since SQLAlchemy 2.1
+            # (#289) closing the session no longer finalizes it, and Python
+            # >= 3.11 no longer resets statements on rollback. The next writer
+            # handed that connection failed at once with "database is locked"
+            # as soon as anything else had written meanwhile: favourites,
+            # scrobbles, device registration, pins — intermittently, and the
+            # second click worked because it got another connection (live,
+            # 2026-09-29 to 10-06). A frozen result holds every row and no
+            # cursor; DML results return no rows and hold none either.
+            if getattr(result, "returns_rows", True):
+                result = result.freeze()()
+
             if commit:
                 session.commit()
 
