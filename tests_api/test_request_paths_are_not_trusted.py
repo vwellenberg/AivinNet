@@ -152,8 +152,11 @@ class TestSilencePaddings:
             def start(self):
                 pass
 
-            def join(self):
+            def join(self, timeout=None):  # measure_silence waits with a deadline (#296)
                 return 42
+
+            def is_alive(self):
+                return False
 
         monkeypatch.setattr(trackslib, "ProcessWithReturnValue", _FakeProcess)
         cache = SilenceCache(trackslib.measure_silence, autostart=False)

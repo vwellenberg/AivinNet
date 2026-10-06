@@ -14,6 +14,7 @@ from aivinnet.api.auth import admin_required
 from aivinnet.lib import mbjobs
 from aivinnet.lib.coverart import fetch_verified_cover, save_album_cover_bytes
 from aivinnet.lib.musicbrainz import (
+    LookupUnavailable,
     clear_failed,
     fetch_cover_for_album,
     load_failed,
@@ -54,6 +55,9 @@ def _album_has_cover(albumhash: str) -> bool:
 # have silently stopped that cache from ever being written again.
 NO_COVER_FOUND = "No cover found online"
 
+# Not cached: MusicBrainz could not be asked, which says nothing about the album.
+SOURCES_UNAVAILABLE = "MusicBrainz is not reachable right now; try again later"
+
 
 def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
     """
@@ -79,12 +83,19 @@ def _fetch_and_save_for_albumhash(albumhash: str) -> tuple[bool, str]:
 
     title = album.og_title or album.title
 
-    image_bytes = fetch_cover_for_album(title, artist_name)
+    unavailable = False
+    try:
+        image_bytes = fetch_cover_for_album(title, artist_name)
+    except LookupUnavailable as exc:
+        log.info("Cover chain for %r: %s; asking the stores", title, exc)
+        unavailable, image_bytes = True, None
+
     if not image_bytes:
         image_bytes = fetch_verified_cover(title, artist_name)
 
     if not image_bytes:
-        return False, NO_COVER_FOUND
+        # "Nobody has one" only when every source could be asked.
+        return False, SOURCES_UNAVAILABLE if unavailable else NO_COVER_FOUND
 
     filename = save_album_cover_bytes(albumhash, image_bytes)
     if not filename:
