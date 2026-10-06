@@ -26,6 +26,23 @@
 /** The keyframes that count as an arrival. */
 export const ARRIVAL_ANIMATION = 'mem-step-in'
 export const ARRIVED_ATTR = 'data-arrived'
+/** Set when the entrance starts; seeing it again at a start means a RESTART. */
+export const STARTED_ATTR = 'data-arrival-started'
+
+// ⚠️ `animationend` alone is too late. Scroll down, then fast to the very top:
+// the rows that come back are new nodes with a staggered entrance that is still
+// running when the scroller's re-sort (~300 ms after the last scroll) moves
+// them — the move restarts the animation BEFORE any `animationend` has latched
+// it, so the entrance plays twice. A node that reports `animationstart` a second
+// time has been restarted by a move; it has arrived as far as the user is
+// concerned, so it is latched on the spot (and `animation: none` jumps it to its
+// end state instead of replaying).
+function onAnimationStart(e: AnimationEvent) {
+    if (e.animationName !== ARRIVAL_ANIMATION || e.pseudoElement) return
+    if (!(e.target instanceof Element)) return
+    if (e.target.hasAttribute(STARTED_ATTR)) e.target.setAttribute(ARRIVED_ATTR, '')
+    else e.target.setAttribute(STARTED_ATTR, '')
+}
 
 function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
@@ -36,6 +53,10 @@ function onAnimationEnd(e: AnimationEvent) {
 
 export function installArrivalLatch(root: Document = document): () => void {
     // Capture phase: animation events bubble, but a handler below could stop them.
+    root.addEventListener('animationstart', onAnimationStart, true)
     root.addEventListener('animationend', onAnimationEnd, true)
-    return () => root.removeEventListener('animationend', onAnimationEnd, true)
+    return () => {
+        root.removeEventListener('animationstart', onAnimationStart, true)
+        root.removeEventListener('animationend', onAnimationEnd, true)
+    }
 }

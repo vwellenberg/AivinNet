@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ARRIVAL_ANIMATION, ARRIVED_ATTR, installArrivalLatch } from '@/utils/arrivalLatch'
+import { ARRIVAL_ANIMATION, ARRIVED_ATTR, STARTED_ATTR, installArrivalLatch } from '@/utils/arrivalLatch'
 
 // ---------------------------------------------------------------------------
 // The arrival plays once per element. A CSS animation restarts whenever its
@@ -16,6 +16,13 @@ import { ARRIVAL_ANIMATION, ARRIVED_ATTR, installArrivalLatch } from '@/utils/ar
 /** jsdom has no AnimationEvent — an Event carrying the same fields will do. */
 function animationEnd(target: Element, animationName: string, pseudoElement = '') {
     const e = new Event('animationend', { bubbles: true })
+    Object.defineProperty(e, 'animationName', { value: animationName })
+    Object.defineProperty(e, 'pseudoElement', { value: pseudoElement })
+    target.dispatchEvent(e)
+}
+
+function animationStart(target: Element, animationName: string, pseudoElement = '') {
+    const e = new Event('animationstart', { bubbles: true })
     Object.defineProperty(e, 'animationName', { value: animationName })
     Object.defineProperty(e, 'pseudoElement', { value: pseudoElement })
     target.dispatchEvent(e)
@@ -62,6 +69,26 @@ describe('arrival latch', () => {
         animationEnd(row, ARRIVAL_ANIMATION)
         row.className = 'songlist-item band-1 is-last'
         expect(row.hasAttribute(ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('latches a row whose entrance is RESTARTED before it has ended', () => {
+        // Scroll down, then fast to the top: the new rows are still mid-entrance
+        // when the scroller re-sorts them (~300 ms later) and the move restarts
+        // the animation. No `animationend` has happened yet — the second START
+        // is the only sign, and it must latch (the entrance played twice).
+        animationStart(row, ARRIVAL_ANIMATION)
+        expect(row.hasAttribute(STARTED_ATTR)).toBe(true)
+        expect(row.hasAttribute(ARRIVED_ATTR), 'the first start is the entrance itself').toBe(false)
+
+        animationStart(row, ARRIVAL_ANIMATION)
+        expect(row.hasAttribute(ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('does not count pseudo-elements or other animations as a restart', () => {
+        animationStart(row, ARRIVAL_ANIMATION)
+        animationStart(row, ARRIVAL_ANIMATION, '::after')
+        animationStart(row, 'mem-band-drop')
+        expect(row.hasAttribute(ARRIVED_ATTR)).toBe(false)
     })
 
     it('stops listening when uninstalled', () => {
