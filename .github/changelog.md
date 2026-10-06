@@ -117,6 +117,9 @@ everyone's music. These no longer do:
 - Rows no longer **animate in twice** after scrolling up fast in a long list.
 - One unreadable file no longer stalls the **silence skip between tracks** for
   everyone.
+- **A system whose timezone cannot be read** (some containers set up with a
+  broken `/etc/timezone`) no longer shows errors on the album and artist
+  lists; the server uses UTC and says in the log how to set `TZ`.
 
 <details>
 <summary>What v2026.10.1 brought</summary>

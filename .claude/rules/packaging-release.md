@@ -45,6 +45,14 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
 
 ## ⚠️ Fallen, die hier schon zugeschlagen haben
 
+- **Die Update-Tests laufen absichtlich in einer Umgebung mit kaputter Zeitzone.** Seit
+  2026-10-07 schreibt `apt-get install python3` in einem frischen `ubuntu:24.04`-Container
+  `/UTC` nach `/etc/timezone` (tzdata ohne vorherige Zeitzone). pendulum warf darauf, und
+  Alben-/Artist-Listen antworteten 500 — schon in 2026.10.1, gefunden erst vom rc-Test, weil
+  derselbe Test am Vortag (vor dem tzdata-Update) grün war. Abgefangen in
+  `utils/timezone.ensure_local_timezone()` (Fallback UTC). Den Testcontainer NICHT
+  „reparieren“: Er ist genau die Umgebung, die den Fehler zeigt.
+
 - **Das Docker-Image (`python:3.11-slim`) hat kein `/etc/mime.types`.** Pythons `mimetypes`
   fällt dann auf seine eingebaute Tabelle zurück, und die kennt weder `.m4a` noch `.flac` — lokal
   (volle Distro) nicht nachstellbar. Audio-Typen stehen deshalb fest in
