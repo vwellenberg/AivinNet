@@ -61,21 +61,6 @@ class TrackTable(Base):
             return tracks_to_dataclasses(result.fetchall())
 
     @classmethod
-    def get_tracks_in_path(cls, path: str):
-        with DbEngine.manager() as conn:
-            result = conn.execute(
-                select(TrackTable).where(TrackTable.filepath.contains(path)).order_by(TrackTable.last_mod)
-            )
-
-            clean = []
-            for row in result.fetchall():
-                d = row[0].__dict__
-                del d["_sa_instance_state"]
-                clean.append(d)
-
-            return tracks_to_dataclasses(clean)
-
-    @classmethod
     def update_filepath(cls, old: str, new: str) -> int:
         """
         Point a track's row at its renamed file. Returns the rows changed.

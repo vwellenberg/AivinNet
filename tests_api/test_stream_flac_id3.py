@@ -7,7 +7,6 @@ now sends the file from the `fLaC` marker on — and seeking (Range) has to keep
 working on that shifted view, or every jump inside a track breaks.
 """
 
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -27,21 +26,16 @@ def stream(api_client, monkeypatch, tmp_path):
 
     root = tmp_path / "music"
     root.mkdir()
-    files = {}
+    # The handler finds a track by its hash in the store, then by its path.
+    monkeypatch.setattr(stream_api.TrackStore, "trackhashmap", {})
 
     def track_file(name: str, data: bytes):
         path = root / name
         path.write_bytes(data)
-        files[str(path)] = SimpleNamespace(filepath=str(path), trackhash=HASH, bitrate=1000)
+        stream_api.TrackStore.add_track(SimpleNamespace(filepath=str(path), trackhash=HASH, bitrate=1000))
         return path
 
     monkeypatch.setattr(stream_api, "UserConfig", lambda: SimpleNamespace(rootDirs=[str(root)]))
-    monkeypatch.setattr(
-        stream_api.TrackStore,
-        "get_tracks_by_filepaths",
-        lambda paths: [files[str(Path(paths[0]))]] if str(Path(paths[0])) in files else [],
-    )
-    monkeypatch.setattr(stream_api.TrackStore, "trackhashmap", {})
 
     return api_client("aivinnet.api.stream"), track_file
 
