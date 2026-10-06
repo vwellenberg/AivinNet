@@ -22,7 +22,8 @@ from __future__ import annotations
 import threading
 import uuid
 from collections import OrderedDict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 # INFO: Slots are tiny (a list of candidates, or one album's preview), but they
 # are never read again once the client has them. Keeping the newest N bounds the
@@ -86,6 +87,22 @@ def run(job_id: str, work: Callable[[], Any]) -> None:
         finish(job_id, work())
     except Exception as e:  # see the docstring: nothing may escape a worker
         fail(job_id, str(e) or e.__class__.__name__)
+
+
+def spawn(job_id: str, work: Callable[[], Any], *, writes: bool) -> None:
+    """
+    Run `work` on its own thread.
+
+    ⚠️ `writes` decides whether the thread is a daemon, and it is not a detail.
+    A daemon thread is abandoned at exit: fine for a lookup, which holds nothing
+    but a socket and an in-memory slot. For a thread in the middle of writing
+    tags and touching the database it is not — a daemon caught inside SQLite at
+    exit takes the process down with SIGSEGV and leaves the WAL behind (the
+    shutdown notes in CLAUDE.md). So an apply keeps the process alive until it
+    is finished.
+    """
+    thread = threading.Thread(target=run, args=(job_id, work), daemon=not writes)
+    thread.start()
 
 
 def reset_for_tests() -> None:

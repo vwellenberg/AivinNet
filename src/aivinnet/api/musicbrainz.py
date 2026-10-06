@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import AlbumHashSchema
 from aivinnet.api.auth import admin_required
+from aivinnet.lib import mbjobs
 from aivinnet.lib.coverart import fetch_verified_cover, save_album_cover_bytes
 from aivinnet.lib.musicbrainz import (
     clear_failed,
@@ -100,14 +101,29 @@ class FetchCoverBody(AlbumHashSchema):
 @admin_required()
 def fetch_cover(body: FetchCoverBody):
     """
-    Fetch the album cover for the given albumhash from MusicBrainz / CAA
-    and persist it as a webp thumbnail.
-    """
-    success, payload = _fetch_and_save_for_albumhash(body.albumhash)
-    if success:
-        return {"success": True, "image": payload}
+    Look for the album's cover (MusicBrainz / CAA, then the stores) and save
+    it as a webp thumbnail.
 
-    return {"success": False, "error": payload}, 404 if payload == "Album not found" else 200
+    Answers at once with a job id; the client polls `/metadata/job/<id>` for
+    `{"success": true, "image": ...}` or `{"success": false, "error": ...}`.
+
+    ⚠️ Not in the request. The chain is two throttled MusicBrainz searches and
+    a CAA redirect before the stores are even asked — 3-8 s normally, up to a
+    minute when MusicBrainz is slow — and the server answers one request at a
+    time: every listener's playback waited for it (#295).
+    """
+    albumhash = body.albumhash
+    if albumhash not in AlbumStore.albummap:
+        return {"error": "Album not found"}, 404
+
+    def work():
+        success, payload = _fetch_and_save_for_albumhash(albumhash)
+        return {"success": True, "image": payload} if success else {"success": False, "error": payload}
+
+    job_id = mbjobs.create()
+    # It writes the cover file: not a daemon, so an exit lets the write finish.
+    mbjobs.spawn(job_id, work, writes=True)
+    return {"job": job_id}
 
 
 class FetchMissingBody(BaseModel):

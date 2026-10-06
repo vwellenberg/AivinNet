@@ -48,22 +48,6 @@ bp_tag = Tag(
 api = APIBlueprint("metadata", __name__, url_prefix="/metadata", abp_tags=[bp_tag])
 
 
-def _spawn(job_id: str, work, *, writes: bool) -> None:
-    """
-    Run `work` on its own thread.
-
-    ⚠️ `writes` decides whether the thread is a daemon, and it is not a detail.
-    A daemon thread is abandoned at exit: fine for a lookup, which holds nothing
-    but a socket and an in-memory slot. For a thread in the middle of writing
-    tags and touching the database it is not — a daemon caught inside SQLite at
-    exit takes the process down with SIGSEGV and leaves the WAL behind (the
-    shutdown notes in CLAUDE.md). So an apply keeps the process alive until it
-    is finished.
-    """
-    thread = threading.Thread(target=mbjobs.run, args=(job_id, work), daemon=not writes)
-    thread.start()
-
-
 def _album_or_none(albumhash: str):
     entry = AlbumStore.albummap.get(albumhash)
     return entry.album if entry else None
@@ -110,7 +94,7 @@ def album_candidates(body: AlbumCandidatesBody):
         artist = album.albumartists[0].get("name", "") or ""
 
     job_id = mbjobs.create()
-    _spawn(
+    mbjobs.spawn(
         job_id,
         lambda: {"candidates": [c.todict() for c in search_releases(title, artist)]},
         writes=False,
@@ -395,7 +379,7 @@ def album_preview(body: AlbumPreviewBody):
         return {"error": "A MusicBrainz preview needs a release"}, 400
 
     job_id = mbjobs.create()
-    _spawn(job_id, lambda: _preview(body.albumhash, body.mbid, body.source), writes=False)
+    mbjobs.spawn(job_id, lambda: _preview(body.albumhash, body.mbid, body.source), writes=False)
     return {"job": job_id}
 
 
@@ -495,7 +479,7 @@ def album_apply(body: AlbumApplyBody):
 
     changes = list(body.changes)
     job_id = mbjobs.create()
-    _spawn(job_id, lambda: _run_apply(changes), writes=True)
+    mbjobs.spawn(job_id, lambda: _run_apply(changes), writes=True)
     return {"job": job_id}
 
 
@@ -597,7 +581,7 @@ def audit_merge(body: AuditMergeBody):
 
     changes = [{"filepath": fp, "albumartists": [body.albumartist]} for fp in filepaths]
     job_id = mbjobs.create()
-    _spawn(job_id, lambda: _run_merge(changes), writes=True)
+    mbjobs.spawn(job_id, lambda: _run_merge(changes), writes=True)
     return {"job": job_id}
 
 
