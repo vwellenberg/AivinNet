@@ -69,8 +69,9 @@ plus an optional shared guest login, so a visitor can listen without an account
 of their own.
 
 **Backup and restore.** One button writes the whole instance — users, playlists,
-favourites, play history, and artwork — to `~/aivinnet.backup`, and restores it
-on the same machine or another one.
+favourites, play history, and artwork — to `~/aivinnet.backup` (in Docker:
+`/config/aivinnet.backup`, inside the config volume), and restores it on the same
+machine or another one.
 
 **Elsewhere.** The web client installs as a PWA. There is a REST API behind
 everything the client does, and an [MCP server](mcp_server/) so an assistant can

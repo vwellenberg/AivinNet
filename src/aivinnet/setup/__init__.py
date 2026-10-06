@@ -8,6 +8,7 @@ from time import time
 
 from aivinnet.config import UserConfig
 from aivinnet.lib.artist_image import user_set_dir
+from aivinnet.lib.backups import adopt_container_backups
 from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
@@ -39,6 +40,7 @@ def run_setup():
 
     setup_sqlite()
     run_migrations()
+    adopt_container_backups()
 
     # On every start, not only on a scan: the stale face dates from a scan
     # with online metadata on, and nothing but a start is guaranteed to come.

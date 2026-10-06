@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
 from aivinnet.db.userdata import CollectionTable, FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
+from aivinnet.lib.backups import get_backup_root
 from aivinnet.lib.index import index_everything
 from aivinnet.settings import Paths
 from aivinnet.utils.auth import get_current_userid
@@ -20,14 +21,6 @@ log = logging.getLogger(__name__)
 
 bp_tag = Tag(name="Backup and Restore", description="Backup and Restore")
 api = APIBlueprint("backup_and_restore", __name__, url_prefix="/backup", abp_tags=[bp_tag])
-
-
-def get_backup_root() -> Path:
-    """
-    The one directory every backup lives in. A single definition so the guard
-    below and its callers cannot disagree about what "inside" means.
-    """
-    return Path("~").expanduser() / "aivinnet.backup"
 
 
 def copy_playlist_images(image: str, img_folder: Path) -> int:

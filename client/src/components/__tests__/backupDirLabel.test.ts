@@ -17,21 +17,24 @@ import { describe, expect, it } from "vitest";
 // nennen, den `get_backup_root()` im Backend tatsächlich anlegt. Zieht der
 // Ordner erneut um, wird dieser Test rot, statt dass das Label still veraltet.
 //
+// Im Container liegt der Ordner seit #296 im Volume `/config` (unter `~` =
+// /root ging er beim Neuerstellen des Containers verloren) — das Label nennt
+// darum beide Orte.
+//
 // ⚠️ cwd des Runners ist `client/` — das Backend liegt eine Ebene höher.
 // ---------------------------------------------------------------------------
 
-const BACKEND = "../src/aivinnet/api/backup_and_restore.py";
+const BACKEND = "../src/aivinnet/lib/backups.py";
 const LABEL = "src/settings/general/backup.ts";
 
-/** Der Verzeichnisname aus `get_backup_root()` — die einzige Quelle der Wahrheit. */
+/** Der Verzeichnisname aus `lib/backups.py` — die einzige Quelle der Wahrheit. */
 function backupRootName(): string {
   const py = readFileSync(BACKEND, "utf8");
-  const body = py.split("def get_backup_root(")[1];
-  expect(body, "get_backup_root() nicht gefunden — wurde sie umbenannt?").toBeTruthy();
+  expect(py, "get_backup_root() nicht gefunden — wurde sie umbenannt?").toContain("def get_backup_root(");
 
-  // return Path("~").expanduser() / "aivinnet.backup"
-  const match = body.match(/expanduser\(\)\s*\/\s*"([^"]+)"/);
-  expect(match, "Rückgabe von get_backup_root() nicht lesbar").toBeTruthy();
+  // FOLDER = "aivinnet.backup"
+  const match = py.match(/^FOLDER\s*=\s*"([^"]+)"/m);
+  expect(match, "FOLDER in lib/backups.py nicht lesbar").toBeTruthy();
   return match![1];
 }
 
@@ -42,7 +45,7 @@ describe("Backup-Verzeichnis im Label", () => {
 
     const desc = label.match(/desc:\s*'Backup directory: ([^']+)'/);
     expect(desc, "Zeile „Backup directory: …" + "\" nicht gefunden").toBeTruthy();
-    expect(desc![1]).toBe(`~/${ordner}`);
+    expect(desc![1]).toBe(`~/${ordner} (Docker: /config/${ordner})`);
   });
 
   it("trägt keinen Pfad des Ursprungsprojekts mehr", () => {
