@@ -199,13 +199,15 @@ const tickPlayer = new TickPlayer()
 let measuring: AbortController | null = null
 
 /**
- * The music's share of its volume while clicks or ticks play over it (−20 dB).
- * Down, never paused: a paused output can go cold, and a Windows → Bluetooth
- * path measured ~150 ms shorter right after a pause than under music, climbing
- * back ~3 ms a second (2026-09-27). Clicks on a cold path measure a delay the
- * music does not have.
+ * The music's share of its volume while clicks or ticks play over it: none.
+ * Silent, but never PAUSED: the song keeps playing at volume 0, so the output
+ * stays running. A paused output can go cold, and a Windows → Bluetooth path
+ * measured ~150 ms shorter right after a pause than under music, climbing back
+ * ~3 ms a second (2026-09-27) — clicks on a cold path measure a delay the music
+ * does not have. It was 0.1 (−20 dB) until 2026-10-06; the user wanted the song
+ * out of the way while calibrating, and silence also leaves the clicks alone.
  */
-export const CALIBRATION_DUCK = 0.1
+export const CALIBRATION_DUCK = 0
 /** A click plan cannot hold the music down for longer than this past its last click (ms). */
 const MAX_DUCK_TAIL_MS = 60_000
 /** Clicks and ticks keep the music down this long past their plan (ms) — a trim shifts ticks. */

@@ -12,7 +12,7 @@
 // step with the group, trim included, and the user moves the trims until the
 // ticks fall on top of each other. It needs no secure page.
 //
-// The music keeps playing while either runs, turned down on every member
+// The music keeps playing while either runs, silenced on every member
 // (stores/devicesync.ts, CALIBRATION_DUCK) — never paused. A paused output
 // can go cold, and a cold path measures a delay the music does not have: on
 // 2026-09-27 a Windows → Bluetooth path came out ~150 ms short right after a
