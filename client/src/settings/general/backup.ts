@@ -3,7 +3,7 @@ import { SettingType } from '../enums'
 
 const restore: Setting = {
     title: 'Backup now',
-    desc: 'Backup directory: ~/aivinnet.backup',
+    desc: 'Backup directory: ~/aivinnet.backup (Docker: /config/aivinnet.backup)',
     type: SettingType.backup,
     state: () => true,
     action: () => {},
