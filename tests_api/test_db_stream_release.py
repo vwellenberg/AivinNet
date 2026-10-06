@@ -42,6 +42,33 @@ def one_connection(tmp_path, monkeypatch):
             for i in range(300)
         ]
     )
+    # More rows than one `yield_per` batch (100) in BOTH tables: with fewer, a
+    # single `next()` already reads the stream to its end and closes it, and
+    # the test passes whether or not the code closes what it left half-read.
+    TrackTable.insert_many(
+        [
+            {
+                "album": "Album",
+                "albumartists": "Artist",
+                "albumhash": "albumhash0000000",
+                "artists": "Artist",
+                "bitrate": 192,
+                "copyright": "",
+                "date": 1735689600,
+                "disc": 1,
+                "duration": 148,
+                "filepath": f"/music/{i:03}.mp3",
+                "folder": "/music",
+                "genres": None,
+                "last_mod": 1768785726,
+                "title": f"Song {i}",
+                "track": i,
+                "trackhash": f"trackhash{i:07}",
+                "extra": {},
+            }
+            for i in range(300)
+        ]
+    )
     yield path
     engine.dispose()
 
@@ -74,7 +101,7 @@ def test_the_library_stream_read_partly_does_not_lock_either(one_connection):
     from aivinnet.db.userdata import ScrobbleTable
 
     tracks = TrackTable.get_all()
-    next(tracks, None)
+    next(tracks)  # a reader that stops after one track, 299 still unread
     tracks.close()
 
     _write_from_elsewhere(one_connection)
