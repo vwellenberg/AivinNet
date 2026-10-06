@@ -261,6 +261,40 @@ def _migrate_many(session: Any, mapping: dict[str, str]) -> None:
     log.info("Batch edit: moved the references of %s renamed track(s) at once", len(mapping))
 
 
+def migrate_item_favorites(kind: str, old_hash: str, new_hash: str, session: Any) -> None:
+    """
+    Move every user's favourite of an album or artist from ``old_hash`` to ``new_hash``.
+
+    Per user, like tracks: a user who already favourited the new identity keeps
+    that one and the old row goes. Rows from before the ``<type>_`` prefix are
+    moved too.
+    """
+    from sqlalchemy import delete, select, update
+
+    from aivinnet.db.userdata import FavoritesTable
+
+    new_key = f"{kind}_{new_hash}"
+    rows = session.execute(
+        select(FavoritesTable.id, FavoritesTable.userid).where(
+            FavoritesTable.type == kind, FavoritesTable.hash.in_([f"{kind}_{old_hash}", old_hash])
+        )
+    ).all()
+
+    for row_id, userid in rows:
+        taken = session.execute(
+            select(FavoritesTable.id).where(
+                FavoritesTable.userid == userid, FavoritesTable.hash.in_([new_key, new_hash])
+            )
+        ).first()
+        if taken:
+            session.execute(delete(FavoritesTable).where(FavoritesTable.id == row_id))
+        else:
+            session.execute(update(FavoritesTable).where(FavoritesTable.id == row_id).values(hash=new_key))
+
+    if rows:
+        log.info("Tag edit: %s favourite(s) moved from %s %s to %s", len(rows), kind, old_hash, new_hash)
+
+
 def migrate_track_references(old_trackhash: str, new_trackhash: str, session: Any = None) -> None:
     """
     Repoint every reference from ``old_trackhash`` to ``new_trackhash``.
