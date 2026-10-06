@@ -55,8 +55,9 @@ class ArtistStore:
         ARTIST_LOAD_KEY = instance_key
 
         print("Loading artists... ", end="")
-        cls.artistmap.clear()
 
+        # Swapped in whole, never cleared first: a `clear()` here left every
+        # artist page empty for as long as the rebuild took (#296).
         cls.artistmap = {
             artist.artisthash: ArtistMapEntry(artist=artist, albumhashes=albumhashes, trackhashes=trackhashes)
             for artist, trackhashes, albumhashes in create_artists(_trackhashes)

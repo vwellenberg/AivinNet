@@ -31,12 +31,18 @@ class FolderStore:
 
         This is needed to speed up the process of counting the number of tracks in the folder page.
         """
-        cls.filepaths.clear()
+        # Built aside and swapped in whole, like the track store (#296): a
+        # cleared set made every folder count 0 during a rescan, and the map
+        # was never cleared at all, so removed files stayed in it.
+        filepaths: set[str] = set()
+        filemap: dict[str, str] = {}
 
-        tracks = TrackTable.get_all()
-        for track in tracks:
-            cls.filepaths.add(track.filepath)
-            cls.map[track.filepath] = track.trackhash
+        for track in TrackTable.get_all():
+            filepaths.add(track.filepath)
+            filemap[track.filepath] = track.trackhash
+
+        cls.filepaths = filepaths
+        cls.map = filemap
 
     @classmethod
     def index_file(cls, filepath: str, trackhash: str) -> None:
