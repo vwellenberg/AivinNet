@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -11,6 +12,44 @@ from aivinnet.plugins import Plugin, plugin_method
 from aivinnet.settings import Paths
 
 log = logging.getLogger(__name__)
+
+# ⚠️ The lookups run inside a request, and the server answers ONE request at a
+# time: every listener's playback waits for them (#295). `timeout=10` bounds a
+# single call, not the chain — a token fetch, a search and its non-ASCII retry
+# are three calls, 30 s and more while Musixmatch black-holes packets, on every
+# track change with the lyrics view open. Hence a deadline over the whole
+# chain, and an outage that is remembered instead of rediscovered per track.
+DEADLINE_SECONDS = 5
+OUTAGE_SECONDS = 300
+
+_down_until = 0.0
+
+
+def _is_down() -> bool:
+    return time.monotonic() < _down_until
+
+
+def _mark_down(reason: str) -> None:
+    global _down_until
+    _down_until = time.monotonic() + OUTAGE_SECONDS
+    log.warning("Musixmatch: %s; no lyrics lookups for %s s", reason, OUTAGE_SECONDS)
+
+
+def _within_deadline(work, default):
+    """Run one lookup chain, giving up on it after DEADLINE_SECONDS."""
+    if _is_down():
+        return default
+
+    # A pool per call, shut down without waiting: a worker stuck on a dead
+    # socket must not hold the request past the deadline (lib/coverart.py).
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(work).result(timeout=DEADLINE_SECONDS)
+    except TimeoutError:
+        _mark_down(f"no answer within {DEADLINE_SECONDS} s")
+        return default
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 class LRCProvider:
@@ -61,6 +100,10 @@ class LyricsProvider(LRCProvider):
         )
 
     def _get(self, action: str, query: list[tuple]):
+        # Once one call of a chain failed, the rest of it fails at once too.
+        if _is_down():
+            return None
+
         if action != "token.get" and self.token is None:
             self._get_token()
 
@@ -78,12 +121,17 @@ class LyricsProvider(LRCProvider):
 
         try:
             response = self.session.get(url, params=query, timeout=10)
-        except Exception:
+        except Exception as e:
+            _mark_down(f"{action} failed ({e.__class__.__name__})")
             return None
 
         if response is not None and response.ok:
             return response
 
+        # A refusal or a broken server is an outage; "not found" is an answer.
+        status = getattr(response, "status_code", 0)
+        if status >= 500 or status in (401, 403, 429):
+            _mark_down(f"{action} answered HTTP {status}")
         return None
 
     def _get_token(self):
@@ -124,7 +172,7 @@ class LyricsProvider(LRCProvider):
             # answer on this server (same reasoning as lib/loginguard.py); the
             # caller treats a missing token as "no lyrics available", which is
             # the truth while we are being rate-limited.
-            log.warning("Musixmatch is rate-limiting us (401); skipping lyrics for now")
+            _mark_down("rate-limited (401)")
             return None
 
         new_token = res["message"]["body"]["user_token"]
@@ -216,11 +264,11 @@ class Lyrics(Plugin):
 
     @plugin_method
     def search_lyrics_by_title_and_artist(self, title: str, artist: str):
-        return self.provider.get_lrc(title, artist)
+        return _within_deadline(lambda: self.provider.get_lrc(title, artist), [])
 
     @plugin_method
     def download_lyrics(self, trackid: str, path: str):
-        lrc = self.provider.get_lrc_by_id(trackid)
+        lrc = _within_deadline(lambda: self.provider.get_lrc_by_id(trackid), None)
 
         if lrc is None or len(lrc.replace("\n", "").strip()) < 1:
             return None
