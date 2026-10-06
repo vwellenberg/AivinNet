@@ -24,7 +24,7 @@ from aivinnet.config import UserConfig
 from aivinnet.db.libdata import TrackTable
 from aivinnet.db.utils import track_to_dataclass
 from aivinnet.lib import tag_writer
-from aivinnet.lib.reference_migration import migrate_track_references
+from aivinnet.lib.reference_migration import migrate_track_references, migrate_track_references_many
 from aivinnet.lib.tagger import create_albums, create_artists
 from aivinnet.lib.taglib import extract_thumb, get_tags
 from aivinnet.models import Track
@@ -225,7 +225,40 @@ def edit_track_tags(old_trackhash: str, fields: dict, filepath: str | None = Non
     return _edit(group.tracks[0], fields)
 
 
-def edit_track_tags_by_filepath(filepath: str, fields: dict) -> Track:
+class ReferenceBatch:
+    """
+    The references of a multi-file apply, for renames that chain.
+
+    ⚠️ A file whose NEW hash is the CURRENT hash of another file in the same
+    batch — two titles swapped, a run of them shifted by one — must not move
+    its references on its own. They would merge into the other file's, and the
+    next step would carry the merged ones on: a playlist lost entries, and
+    after a shift everything pointed at the last title (#296). Those pairs wait
+    and move together at the end (``finish``); every other edit keeps moving its
+    references in its own transaction, together with its row.
+    """
+
+    def __init__(self, filepaths: list[str]) -> None:
+        # The hashes as they are BEFORE anything in the batch is written.
+        self._old_hashes: dict[str, str] = {}
+        for track in TrackStore.get_tracks_by_filepaths(filepaths):
+            self._old_hashes[track.filepath] = track.trackhash
+        self.pending: dict[str, str] = {}
+        # Files that took a hash during THIS batch. They are not "another file
+        # that keeps the old hash" for the file that still holds it: in a swap,
+        # A lands on B's hash before B is edited (see `_edit`).
+        self.arrived: dict[str, set[str]] = {}
+
+    def must_wait(self, filepath: str, new_trackhash: str) -> bool:
+        return any(h == new_trackhash for p, h in self._old_hashes.items() if p != filepath)
+
+    def finish(self) -> None:
+        """Move the waiting references, all at once. Raises if the database refuses."""
+        migrate_track_references_many(self.pending)
+        self.pending = {}
+
+
+def edit_track_tags_by_filepath(filepath: str, fields: dict, batch: ReferenceBatch | None = None) -> Track:
     """
     Edit the tags of one specific FILE.
 
@@ -233,15 +266,16 @@ def edit_track_tags_by_filepath(filepath: str, fields: dict) -> Track:
     the only one that is unique. A batch that repairs a whole album has to use
     it: addressing the rows by trackhash means several of them can name the same
     group, and then ``get_best()`` decides which file receives which title.
+    A batch passes its ``ReferenceBatch`` so chained renames move together.
     """
     tracks = TrackStore.get_tracks_by_filepaths([filepath])
     if not tracks:
         raise TrackNotFoundError("Track not found")
 
-    return _edit(tracks[0], fields)
+    return _edit(tracks[0], fields, batch)
 
 
-def _edit(old_track: Track, fields: dict) -> Track:
+def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -> Track:
     """The edit itself, once the exact track to change has been resolved."""
     fields = {k: v for k, v in fields.items() if k in EDITABLE_FIELDS}
     if not fields:
@@ -288,12 +322,22 @@ def _edit(old_track: Track, fields: dict) -> Track:
         # files still share the old trackhash (duplicate tracks), the old hash
         # stays valid and its references must not be moved to the edited file.
         group = TrackStore.trackhashmap.get(old_trackhash)
-        others_keep_old_hash = group is not None and any(t.filepath != filepath for t in group.tracks)
+        newcomers = batch.arrived.get(old_trackhash, set()) if batch is not None else set()
+        others_keep_old_hash = group is not None and any(
+            t.filepath != filepath and t.filepath not in newcomers for t in group.tracks
+        )
         repoint = new_trackhash != old_trackhash and not others_keep_old_hash
+        # A rename onto another batch file's current hash waits for the batch
+        # (ReferenceBatch); everything else moves with its row, right here.
+        wait = repoint and batch is not None and batch.must_wait(filepath, new_trackhash)
 
         new_track.id = TrackTable.replace_by_filepath(
             tags,
-            also=(lambda session: migrate_track_references(old_trackhash, new_trackhash, session)) if repoint else None,
+            also=(
+                (lambda session: migrate_track_references(old_trackhash, new_trackhash, session))
+                if repoint and not wait
+                else None
+            ),
         )
     except Exception as exc:
         log.error("Track edit failed for %s: %s", filepath, exc)
@@ -306,10 +350,16 @@ def _edit(old_track: Track, fields: dict) -> Track:
             raise
         raise TrackEditError(str(exc)) from exc
 
-    # Phase 2: the edit is committed — file, row and references agree. Only
-    # the in-memory views follow now, and putting the old file back from here
+    # Phase 2: the edit is committed — file, row and references agree (or, in
+    # a batch, the references wait for `ReferenceBatch.finish`). Only the
+    # in-memory views follow now, and putting the old file back from here
     # would make it disagree with its own row.
     _remove_backup(backup_path)
+    if batch is not None:
+        if wait:
+            batch.pending[old_trackhash] = new_trackhash
+        if new_trackhash != old_trackhash:
+            batch.arrived.setdefault(new_trackhash, set()).add(filepath)
 
     # Not overwritten: a tag edit does not change the picture in the file. With
     # overwrite every edit put the file's (often small) embedded art back over

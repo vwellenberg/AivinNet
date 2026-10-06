@@ -229,7 +229,7 @@ class TestApply:
 
         calls = []
 
-        def fake_edit(filepath, fields):
+        def fake_edit(filepath, fields, batch=None):
             calls.append((filepath, dict(fields)))
             return type("T", (), {"trackhash": "new-hash"})()
 
@@ -262,7 +262,7 @@ class TestApply:
 
         written = {}
 
-        def fake_edit(filepath, fields):
+        def fake_edit(filepath, fields, batch=None):
             written[filepath] = fields["title"]
             return type("T", (), {"trackhash": "h"})()
 
@@ -290,7 +290,7 @@ class TestApply:
         api, module = metadata_api
         from aivinnet.lib.track_edit import TrackEditError
 
-        def fake_edit(filepath, fields):
+        def fake_edit(filepath, fields, batch=None):
             if filepath == "/m/bad.mp3":
                 raise TrackEditError("file is read-only")
             return type("T", (), {"trackhash": "h"})()
@@ -343,7 +343,7 @@ class TestApply:
         monkeypatch.setattr(
             module,
             "edit_track_tags_by_filepath",
-            lambda filepath, fields: release.wait(5) or type("T", (), {"trackhash": "h"})(),
+            lambda filepath, fields, batch=None: release.wait(5) or type("T", (), {"trackhash": "h"})(),
         )
 
         first = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/01.mp3", "track": 1}]})
@@ -567,7 +567,7 @@ class TestFileNames:
         api, module = metadata_api
         order = []
 
-        def fake_edit(filepath, fields):
+        def fake_edit(filepath, fields, batch=None):
             order.append(("tags", filepath))
             return type("T", (), {"trackhash": "new-hash"})()
 
@@ -604,7 +604,7 @@ class TestFileNames:
         api, module = metadata_api
         from aivinnet.lib.track_edit import TrackEditError
 
-        def fake_edit(filepath, fields):
+        def fake_edit(filepath, fields, batch=None):
             raise TrackEditError("file is read-only")
 
         renamed = []

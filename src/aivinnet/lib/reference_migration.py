@@ -135,6 +135,132 @@ def favorite_migration_action(old_userid: int | None, new_userid: int | None) ->
     return "keep"
 
 
+def remap_trackhash_list(trackhashes: Sequence[str], mapping: dict[str, str]) -> list[str]:
+    """
+    Apply a whole batch of renames to a list AT ONCE, preserving order.
+
+    ⚠️ Not the same as calling ``replace_trackhash_in_list`` once per pair. A
+    batch that swaps two titles (A->B, B->A) or shifts a run of them by one
+    (1->2, 2->3, ...) maps a hash onto another one that is itself still being
+    renamed. Pair by pair, the first step merged two different songs into one
+    entry and every later step carried the merged entry on: a playlist lost
+    entries, and after a shift everything pointed at the last title (#296).
+
+    Entries that land on a renamed-to hash more than once collapse to the first
+    (as the single-pair helper does for old+new); everything else, including
+    an intentional duplicate of an unrelated track, is left alone.
+    """
+    targets = set(mapping.values())
+    seen: set[str] = set()
+    result: list[str] = []
+
+    for h in trackhashes:
+        mapped = mapping.get(h, h)
+        if mapped in targets:
+            if mapped in seen:
+                continue
+            seen.add(mapped)
+        result.append(mapped)
+
+    return result
+
+
+def remap_added_at(added_at: dict[str, int] | None, mapping: dict[str, str]) -> dict[str, int]:
+    """``migrate_added_at`` for a whole batch at once; on a collision the EARLIER date wins."""
+    result: dict[str, int] = {}
+
+    for h, ts in (added_at or {}).items():
+        mapped = mapping.get(h, h)
+        result[mapped] = min(ts, result[mapped]) if mapped in result else ts
+
+    return result
+
+
+def playlist_remap_values(
+    trackhashes: Sequence[str] | None, extra: dict[str, Any] | None, mapping: dict[str, str]
+) -> dict[str, Any] | None:
+    """``playlist_migration_values`` for a whole batch: the changed columns, or None."""
+    if not trackhashes or not any(h in mapping for h in trackhashes):
+        return None
+
+    values: dict[str, Any] = {"trackhashes": remap_trackhash_list(trackhashes, mapping)}
+
+    added_at = (extra or {}).get("added_at")
+    if added_at:
+        remapped = remap_added_at(added_at, mapping)
+        if remapped != added_at:
+            values["extra"] = {**(extra or {}), "added_at": remapped}
+
+    return values
+
+
+def migrate_track_references_many(mapping: dict[str, str], session: Any = None) -> None:
+    """
+    Repoint every reference for a whole batch of renames, simultaneously.
+
+    What a batch apply needs when its renames chain (see
+    ``remap_trackhash_list``). Playlists, favorites and scrobbles of all users,
+    in one transaction.
+    """
+    mapping = {old: new for old, new in mapping.items() if old and new and old != new}
+    if not mapping:
+        return
+
+    if session is not None:
+        _migrate_many(session, mapping)
+        return
+
+    from aivinnet.db.engine import DbEngine
+
+    with DbEngine.manager(commit=True) as own_session:
+        _migrate_many(own_session, mapping)
+
+
+def _migrate_many(session: Any, mapping: dict[str, str]) -> None:
+    from sqlalchemy import case, delete, select, update
+
+    from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
+
+    rows = session.execute(select(PlaylistTable.id, PlaylistTable.trackhashes, PlaylistTable.extra)).all()
+    for playlist_id, trackhashes, extra in rows:
+        values = playlist_remap_values(trackhashes, extra, mapping)
+        if values is not None:
+            session.execute(update(PlaylistTable).where(PlaylistTable.id == playlist_id).values(values))
+
+    # Favorites are unique per (hash, userid), and a swap renames A onto B while
+    # B still exists: every involved row moves to a placeholder of its own
+    # first, then onto its target — dropped only where that user already has the
+    # target (two old hashes landing on one new one).
+    fav_mapping = {f"track_{old}": f"track_{new}" for old, new in mapping.items()}
+    moving = session.execute(
+        select(FavoritesTable.id, FavoritesTable.hash, FavoritesTable.userid).where(
+            FavoritesTable.hash.in_(list(fav_mapping))
+        )
+    ).all()
+
+    for row_id, _hash, _userid in moving:
+        session.execute(update(FavoritesTable).where(FavoritesTable.id == row_id).values(hash=f"moving_{row_id}"))
+
+    for row_id, old_hash, userid in moving:
+        target = fav_mapping[old_hash]
+        taken = session.execute(
+            select(FavoritesTable.id).where(FavoritesTable.hash == target, FavoritesTable.userid == userid)
+        ).first()
+        if taken:
+            session.execute(delete(FavoritesTable).where(FavoritesTable.id == row_id))
+        else:
+            session.execute(update(FavoritesTable).where(FavoritesTable.id == row_id).values(hash=target))
+
+    # Scrobbles: no constraint, so one CASE moves them all at once.
+    session.execute(
+        update(ScrobbleTable)
+        .where(ScrobbleTable.trackhash.in_(list(mapping)))
+        .values(trackhash=case(mapping, value=ScrobbleTable.trackhash))
+    )
+
+    log.info("Batch edit: moved the references of %s renamed track(s) at once", len(mapping))
+
+
 def migrate_track_references(old_trackhash: str, new_trackhash: str, session: Any = None) -> None:
     """
     Repoint every reference from ``old_trackhash`` to ``new_trackhash``.

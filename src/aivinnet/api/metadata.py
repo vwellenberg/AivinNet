@@ -33,7 +33,7 @@ from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
 from aivinnet.lib import filename_meta, filename_pattern, library_audit, mbjobs
 from aivinnet.lib.mbrelease import fetch_release_tracks, search_releases
-from aivinnet.lib.track_edit import TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
+from aivinnet.lib.track_edit import ReferenceBatch, TrackEditError, TrackNotFoundError, edit_track_tags_by_filepath
 from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbers_are_useless
 from aivinnet.lib.track_rename import rename_files
 from aivinnet.store.albums import AlbumStore
@@ -417,6 +417,9 @@ def _apply(changes: list[TrackChange]) -> dict:
     applied: dict[str, dict] = {}
     failed = []
     moves: list[tuple[str, str]] = []
+    # Renames that chain (swapped or shifted titles) move their references
+    # together at the end instead of merging them file by file (#296).
+    batch = ReferenceBatch([change.filepath for change in changes])
 
     for change in changes:
         fields = change.model_dump(exclude_none=True)
@@ -425,7 +428,7 @@ def _apply(changes: list[TrackChange]) -> dict:
 
         if fields:
             try:
-                track = edit_track_tags_by_filepath(change.filepath, fields)
+                track = edit_track_tags_by_filepath(change.filepath, fields, batch)
             except TrackNotFoundError:
                 failed.append({"filepath": change.filepath, "error": "Track not found"})
                 continue
@@ -441,6 +444,14 @@ def _apply(changes: list[TrackChange]) -> dict:
 
         if filename:
             moves.append((change.filepath, filename))
+
+    try:
+        batch.finish()
+    except Exception as e:
+        # The tags are written and the rows agree with them; only playlists,
+        # favourites and history still name the old titles of these tracks.
+        log.error("Album apply: could not move the references of %s track(s): %s", len(batch.pending), e)
+        failed.append({"filepath": "", "error": f"Playlists and favourites could not follow the new titles: {e}"})
 
     # Renames go last, as one batch: every tag edit addresses its file by the
     # path it was given, and a batch can order the moves so that files which
