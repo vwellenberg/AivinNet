@@ -2,6 +2,7 @@
 This library contains all the functions related to tracks.
 """
 
+import logging
 import os
 import pathlib
 
@@ -10,6 +11,8 @@ from aivinnet.lib.pydub.pydub.silence import detect_leading_silence, detect_sile
 from aivinnet.lib.silence import LEADING, MISSING, TRAILING, SilenceCache
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.threading import ProcessWithReturnValue
+
+log = logging.getLogger(__name__)
 
 
 def get_leading_silence_end(filepath: pathlib.Path):
@@ -84,6 +87,11 @@ def get_silence_paddings(ending_file: str, starting_file: str):
     }
 
 
+# A decode of an ordinary track takes a second or two; a minute is far beyond any
+# real file and short enough that a stalled mount does not disable gapless skip.
+MEASURE_DEADLINE_SECONDS = 60
+
+
 def measure_silence(kind: str, path: str):
     """
     Measure one file. Blocking — only ever called by SILENCE's worker thread.
@@ -98,7 +106,19 @@ def measure_silence(kind: str, path: str):
     process = ProcessWithReturnValue(target=target, args=(pathlib.Path(path),))
     process.daemon = True
     process.start()
-    return process.join()
+    result = process.join(MEASURE_DEADLINE_SECONDS)
+
+    # ⚠️ One worker measures for everyone. A decode stalled on a dead mount held
+    # it for ever: every later transition, for every user, waited on it and
+    # gapless skip was off until a restart (#296). This track gets no gapless
+    # skip (None is cached); the others are measured again.
+    if process.is_alive():
+        process.terminate()
+        process.join(1)
+        log.warning("Silence measurement of %s gave no answer in %s s; skipped", path, MEASURE_DEADLINE_SECONDS)
+        return None
+
+    return result
 
 
 SILENCE = SilenceCache(measure_silence)

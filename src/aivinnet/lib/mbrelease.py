@@ -24,8 +24,10 @@ import requests
 
 from aivinnet.lib.musicbrainz import (
     USER_AGENT,
+    LookupUnavailable,
     lucene_escape,
     mb_throttle,
+    raise_if_unavailable,
 )
 
 log = logging.getLogger(__name__)
@@ -131,18 +133,26 @@ def _format_summary(media: list[dict]) -> str:
 
 
 def _get(url: str, params: dict) -> dict | None:
-    """One throttled, deadline-bounded GET against musicbrainz.org."""
+    """
+    One throttled, deadline-bounded GET against musicbrainz.org.
+
+    None is an answer ("no such release"). An outage raises LookupUnavailable:
+    it used to be None as well, and the dialog then said MusicBrainz had no
+    such album — nudging the admin to the file-name source for a lookup that
+    would have worked a minute later (#296).
+    """
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     try:
         mb_throttle()
         resp = requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+        raise_if_unavailable(resp.status_code, "MusicBrainz")
         if resp.status_code != 200:
             log.info("MusicBrainz: HTTP %s for %s %s", resp.status_code, url, params.get("query", ""))
             return None
         return resp.json()
     except (requests.RequestException, ValueError) as e:
         log.info("MusicBrainz: request failed for %s: %s", url, e)
-        return None
+        raise LookupUnavailable(f"MusicBrainz is not reachable right now ({e.__class__.__name__})") from e
 
 
 def search_releases(album_title: str, artist_name: str, limit: int = MAX_CANDIDATES) -> list[ReleaseCandidate]:

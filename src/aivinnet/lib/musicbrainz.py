@@ -14,7 +14,10 @@ Usage policy notes (https://musicbrainz.org/doc/MusicBrainz_API):
 - A descriptive User-Agent header is required.
 - Anonymous clients are limited to ~1 request/second.
 
-Failures of any kind return None; this module never raises.
+A definite "nothing" (no match, no front cover) is None. An outage — no
+connection, a refusal (429), a server error — raises LookupUnavailable instead,
+because it is not an answer: the cover batch remembered every album of a
+five-minute MusicBrainz outage as "has no cover" and never asked again (#296).
 """
 
 from __future__ import annotations
@@ -27,6 +30,22 @@ import unicodedata
 from collections.abc import Iterable
 
 import requests
+
+
+class LookupUnavailable(Exception):
+    """
+    A source could not be asked: no connection, refused (429) or broken (5xx).
+
+    Not an answer. Nothing may be cached from it, and a user must not read it
+    as "MusicBrainz has no such album".
+    """
+
+
+def raise_if_unavailable(status_code: int, what: str) -> None:
+    """Turn a refusal or a server error into LookupUnavailable; leave real answers (200, 404) alone."""
+    if status_code == 429 or status_code >= 500:
+        raise LookupUnavailable(f"{what} is not reachable right now (HTTP {status_code}); try again in a few minutes")
+
 
 log = logging.getLogger(__name__)
 
@@ -533,13 +552,14 @@ def _search_release_group_mbid(album_title: str, artist_name: str) -> str | None
     try:
         mb_throttle()
         resp = requests.get(MB_SEARCH_URL, params=params, headers=headers, timeout=10)
+        raise_if_unavailable(resp.status_code, "MusicBrainz")
         if resp.status_code != 200:
             log.debug("MusicBrainz search returned HTTP %s for %r / %r", resp.status_code, album_title, artist_name)
             return None
         data = resp.json()
     except (requests.RequestException, ValueError) as e:
-        log.debug("MusicBrainz search failed for %r / %r: %s", album_title, artist_name, e)
-        return None
+        log.info("MusicBrainz search failed for %r / %r: %s", album_title, artist_name, e)
+        raise LookupUnavailable(f"MusicBrainz is not reachable right now ({e.__class__.__name__})") from e
 
     groups = data.get("release-groups") or []
     if not groups:
@@ -603,9 +623,10 @@ def _fetch_cover_bytes(mbid: str) -> bytes | None:
     try:
         resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
     except requests.RequestException as e:
-        log.debug("Cover Art Archive request failed for %s: %s", mbid, e)
-        return None
+        log.info("Cover Art Archive request failed for %s: %s", mbid, e)
+        raise LookupUnavailable(f"The Cover Art Archive is not reachable right now ({e.__class__.__name__})") from e
 
+    raise_if_unavailable(resp.status_code, "The Cover Art Archive")
     if resp.status_code != 200:
         # 404 just means there is no front cover for this release group.
         log.debug("Cover Art Archive returned HTTP %s for %s", resp.status_code, mbid)
@@ -624,7 +645,9 @@ def fetch_cover_for_album(album_title: str, artist_name: str) -> bytes | None:
     Cover Art Archive.
 
     Returns None whenever the match cannot be verified — see
-    is_usable_albumartist and _search_release_group_mbid.
+    is_usable_albumartist and _search_release_group_mbid. Raises
+    LookupUnavailable when MusicBrainz or the Cover Art Archive could not be
+    asked: that is not a "no".
 
     :param album_title: The album title to search for.
     :param artist_name: The (primary) album artist name. May be empty.
