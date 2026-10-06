@@ -38,6 +38,7 @@ from aivinnet.lib.track_match import LocalTrack, align, order_local, track_numbe
 from aivinnet.lib.track_rename import rename_files
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
+from aivinnet.utils.shutdown import WRITERS
 
 log = logging.getLogger(__name__)
 
@@ -421,14 +422,24 @@ def _apply(changes: list[TrackChange]) -> dict:
     # together at the end instead of merging them file by file (#296).
     batch = ReferenceBatch([change.filepath for change in changes])
 
-    for change in changes:
+    for i, change in enumerate(changes):
+        # A stop ends the apply between files (utils/shutdown.WRITERS): the
+        # rest is reported, not left half-done and silent (#296).
+        if WRITERS.stopping():
+            failed.extend(
+                {"filepath": rest.filepath, "error": "The server stopped before this file; apply again"}
+                for rest in changes[i:]
+            )
+            break
+
         fields = change.model_dump(exclude_none=True)
         fields.pop("filepath", None)
         filename = fields.pop("filename", None)
 
         if fields:
             try:
-                track = edit_track_tags_by_filepath(change.filepath, fields, batch)
+                with WRITERS.active():
+                    track = edit_track_tags_by_filepath(change.filepath, fields, batch)
             except TrackNotFoundError:
                 failed.append({"filepath": change.filepath, "error": "Track not found"})
                 continue
@@ -446,7 +457,8 @@ def _apply(changes: list[TrackChange]) -> dict:
             moves.append((change.filepath, filename))
 
     try:
-        batch.finish()
+        with WRITERS.active():
+            batch.finish()
     except Exception as e:
         # The tags are written and the rows agree with them; only playlists,
         # favourites and history still name the old titles of these tracks.
@@ -456,8 +468,13 @@ def _apply(changes: list[TrackChange]) -> dict:
     # Renames go last, as one batch: every tag edit addresses its file by the
     # path it was given, and a batch can order the moves so that files which
     # swap numbers free each other's names first.
-    if moves:
-        renamed, rename_failed = rename_files(moves)
+    if moves and WRITERS.stopping():
+        failed.extend(
+            {"filepath": old, "error": "The server stopped before the rename; apply again"} for old, _ in moves
+        )
+    elif moves:
+        with WRITERS.active():
+            renamed, rename_failed = rename_files(moves)
         for entry in renamed:
             applied.setdefault(entry["filepath"], {"filepath": entry["filepath"]}).update(entry)
         failed.extend(rename_failed)
@@ -602,8 +619,12 @@ def _run_merge(changes: list[dict]) -> dict:
     try:
         applied, failed = [], []
         for change in changes:
+            if WRITERS.stopping():
+                failed.append({"filepath": change["filepath"], "error": "The server stopped before this file"})
+                continue
             try:
-                edit_track_tags_by_filepath(change["filepath"], {"albumartists": change["albumartists"]})
+                with WRITERS.active():
+                    edit_track_tags_by_filepath(change["filepath"], {"albumartists": change["albumartists"]})
                 applied.append(change["filepath"])
             except TrackEditError as e:
                 failed.append({"filepath": change["filepath"], "error": str(e)})

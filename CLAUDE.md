@@ -285,6 +285,9 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   der die DB anfasst, braucht einen **kooperativen Stopp vor `dispose()`** — Vorbild
   `crons.stop_cron_jobs()`. Gate: Schritt „Stop is clean" im `Docker Smoke Test`. Kein
   `stop_grace_period` als Pflaster.
+  Wer Musikdateien schreibt (Album-Apply), hält jede Datei in `utils/shutdown.WRITERS.active()`
+  und fragt vor der nächsten `stopping()`: Der Stopp wartet bis zu 6 s auf die Datei in der Hand,
+  der Rest wird als „nicht bearbeitet“ gemeldet (#296).
 - `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 
 Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:

@@ -103,3 +103,67 @@ def test_a_second_sigterm_is_not_handed_over_again():
         pytest.fail("the second SIGTERM was handed over as SIGINT again")
 
     assert sum(t.name == "shutdown-deadline" for t in threading.enumerate()) <= 1
+
+
+# ------------------------------------------------- library writers (#296)
+# An album apply rewrites a file's tags, then its row, then its references.
+# A stop between those left a file with new tags under its old row, and the rest
+# of the album unprocessed and unreported.
+
+
+def test_sigterm_asks_library_writers_to_stop_at_once():
+    from aivinnet.utils.shutdown import LibraryWriters
+
+    writers = LibraryWriters()
+    ServerShutdown(cleanup=lambda: None, drain=DRAIN, writers=writers).install()
+
+    with pytest.raises(KeyboardInterrupt):
+        signal.raise_signal(signal.SIGTERM)
+
+    assert writers.stopping(), "an apply would start its next file"
+
+
+def test_cleanup_waits_for_the_file_in_hand():
+    from aivinnet.utils.shutdown import LibraryWriters
+
+    writers = LibraryWriters()
+    order = []
+    shutdown = ServerShutdown(cleanup=lambda: order.append("cleanup"), drain=DRAIN, writers=writers, write_grace=2)
+
+    def write_one_file():
+        with writers.active():
+            time.sleep(0.2)
+            order.append("file done")
+
+    worker = threading.Thread(target=write_one_file)
+    worker.start()
+    time.sleep(0.05)
+    shutdown.finish()
+    worker.join()
+
+    assert order == ["file done", "cleanup"], "the database was closed under a write"
+
+
+def test_a_write_that_never_ends_does_not_hold_the_stop_for_ever():
+    from aivinnet.utils.shutdown import LibraryWriters
+
+    writers = LibraryWriters()
+    calls = []
+    shutdown = ServerShutdown(cleanup=lambda: calls.append("cleanup"), drain=DRAIN, writers=writers, write_grace=0.1)
+    release = threading.Event()
+
+    def stuck():
+        with writers.active():
+            release.wait(5)
+
+    worker = threading.Thread(target=stuck)
+    worker.start()
+    time.sleep(0.05)
+    started = time.monotonic()
+    shutdown.finish()
+    took = time.monotonic() - started
+    release.set()
+    worker.join()
+
+    assert calls == ["cleanup"]
+    assert took < 1

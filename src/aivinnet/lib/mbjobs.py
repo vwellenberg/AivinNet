@@ -98,8 +98,9 @@ def spawn(job_id: str, work: Callable[[], Any], *, writes: bool) -> None:
     but a socket and an in-memory slot. For a thread in the middle of writing
     tags and touching the database it is not — a daemon caught inside SQLite at
     exit takes the process down with SIGSEGV and leaves the WAL behind (the
-    shutdown notes in CLAUDE.md). So an apply keeps the process alive until it
-    is finished.
+    shutdown notes in CLAUDE.md). So an apply keeps the process alive — but a
+    stop does not wait for the whole album: the apply ends between files, and
+    the stop waits only for the file in hand (utils/shutdown.WRITERS).
     """
     thread = threading.Thread(target=run, args=(job_id, work), daemon=not writes)
     thread.start()

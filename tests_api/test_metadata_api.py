@@ -704,3 +704,52 @@ def test_the_local_list_has_a_row_per_file_even_when_they_share_a_hash(metadata_
     rows = module._local_tracks(ALBUM_HASH)
 
     assert sorted(r.filepath for r in rows) == [f.filepath for f in files]
+
+
+class TestStop:
+    """A stop ends an apply between files and says what is left (#296)."""
+
+    def test_the_apply_stops_between_files_and_reports_the_rest(self, metadata_api, monkeypatch):
+        from aivinnet.utils.shutdown import LibraryWriters
+
+        api, module = metadata_api
+        writers = LibraryWriters()
+        monkeypatch.setattr(module, "WRITERS", writers)
+        written = []
+
+        def fake_edit(filepath, fields, batch=None):
+            written.append(filepath)
+            writers.request_stop()  # the stop arrives while the first file is written
+            return type("T", (), {"trackhash": "h"})()
+
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
+
+        res = api.post(
+            "/metadata/album/apply",
+            json={"changes": [{"filepath": f"/m/0{i}.mp3", "track": i} for i in (1, 2, 3)]},
+        )
+        done = await_job(api, res.json["job"])
+
+        assert written == ["/m/01.mp3"], "a file was started after the stop"
+        assert [a["filepath"] for a in done["result"]["applied"]] == ["/m/01.mp3"]
+        assert [f["filepath"] for f in done["result"]["failed"]] == ["/m/02.mp3", "/m/03.mp3"]
+        assert all("stopped" in f["error"] for f in done["result"]["failed"])
+
+    def test_each_file_is_written_inside_the_writers_hold(self, metadata_api, monkeypatch):
+        from aivinnet.utils.shutdown import LibraryWriters
+
+        api, module = metadata_api
+        writers = LibraryWriters()
+        monkeypatch.setattr(module, "WRITERS", writers)
+        idle_during_write = []
+
+        def fake_edit(filepath, fields, batch=None):
+            idle_during_write.append(writers.wait_idle(0))
+            return type("T", (), {"trackhash": "h"})()
+
+        monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
+
+        res = api.post("/metadata/album/apply", json={"changes": [{"filepath": "/m/01.mp3", "track": 1}]})
+        await_job(api, res.json["job"])
+
+        assert idle_during_write == [False], "a stop would not wait for this file"
