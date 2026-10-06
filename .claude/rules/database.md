@@ -93,3 +93,26 @@ in der Query. `FavoritesTable` zeigte alle drei Spielarten des Fehlers gleichzei
 ein `DELETE … WHERE hash` ohne User (löschte fremde Zeilen) und Lookups/Zähler, die die Daten
 aller User zusammenwarfen. Wer eine Methode dort anfasst, prüft alle Geschwister-Methoden mit:
 `unique=True` gehört bei diesen Tabellen in ein `UniqueConstraint(<spalte>, "userid")`.
+
+## ⚠️ Kein Ergebnis darf seinen Cursor über die Sitzung hinaus behalten (#363)
+
+`Base.execute` (`db/__init__.py`) ist ein Generator, und die Aufrufer lesen das Ergebnis
+**nach** dem Ende der Sitzung (`next(cls.execute(...)).scalars()`). Mit `yield_per`
+(Streaming) blieb dabei das SQLite-Statement auf der **gepoolten** Verbindung offen und hielt
+einen Lese-Schnappschuss. SQLAlchemy 2.1 finalisiert es beim Schließen der Sitzung nicht mehr
+(2.0 tat es), und Python ≥ 3.11 setzt Statements beim `rollback` nicht mehr zurück. Der nächste
+**Schreiber**, der genau diese Verbindung bekam, scheiterte sofort mit `database is locked`,
+sobald inzwischen irgendwer geschrieben hatte.
+
+Woran man es erkennt: **sporadische** 500er mit `database is locked` auf einfachen Inserts
+(Favorit, Scrobble, Geräte-Registrierung), die nach ein paar Sekunden — oder beim zweiten
+Klick — gehen. Kein langer Schreiber, kein zweiter Prozess (`fuser` zeigt nur die App).
+
+Darum gilt:
+
+- `Base.execute` **friert** zeilenliefernde Ergebnisse ein (`result.freeze()()`), bevor die
+  Verbindung zurück in den Pool geht. Nicht wieder auf reines Streaming umstellen.
+- Wer selbst in einem `with DbEngine.manager()` streamt und als Generator ausliefert
+  (`TrackTable.get_all`), schließt das Ergebnis im `finally`.
+- Nachstellen geht ohne die App: ein Pool mit **einer** Verbindung, halb gelesener Stream,
+  fremder Schreiber, eigener Schreiber (`tests_api/test_db_stream_release.py`).
