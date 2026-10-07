@@ -130,7 +130,7 @@ Eine SQLite-Datei, WAL-Modus, Zugriff über `DbEngine.manager()`. Alle Tabellen 
 | Modul | Tabellen |
 |---|---|
 | `db/libdata.py` | `track` — die einzige persistierte Bibliothekstabelle |
-| `db/userdata.py` | `user`, `favorite`, `scrobble`, `playlist`, `playlistfolder`, `page` (Collections), `mix`, `artistdata`, `notlastfm_similar_artists`, `plugin`, `device` |
+| `db/userdata.py` | `user`, `favorite`, `scrobble`, `playlist`, `playlistfolder`, `page` (Collections), `artistdata`, `notlastfm_similar_artists`, `plugin`, `device` |
 
 ⚠️ **`Base.execute` liefert sein Result aus einem bereits geschlossenen Session-Scope.** Wer dort
 eine gemappte Entity materialisiert (`select(cls)` + `.scalar()`), bekommt „identity map is no
@@ -168,7 +168,7 @@ nicht durchgehend dem Modulnamen:
 | `/logger` | `scrobble/` | Play-Log **und** alle Statistiken |
 | `/devicesync` | `devicesync.py` | Multiroom (Mechanik in CLAUDE.md) |
 | `/auth` | `auth.py` | Login, Profile, QR-Pairing |
-| `/plugins/*` | `api/plugins/` | Lyrics, Mixes |
+| `/plugins/*` | `api/plugins/` | Lyrics |
 
 `/docs` liefert die generierte OpenAPI-Oberfläche — der schnellste Weg, eine Signatur
 nachzuschlagen, ohne den Code zu lesen.
@@ -207,9 +207,11 @@ Der `?pathhash=`-Parameter macht diese Ordnersuche überhaupt erst möglich — 
 
 `crons/__init__.py` fährt **eine** `schedule`-Schleife in einem Thread:
 
-- `Mixes` alle 12 h — Artist-Mixe, danach „Because you listened" (Details in CLAUDE.md,
-  Abschnitt *Empfehlungen*; einzige externe Quelle ist `smcloud.mungaist.com`).
-- `TopArtists` (Woche/Monat), `RecentlyPlayed`, `RecentlyAdded` — reine lokale Aggregation.
+- `Rediscover` (alle 24 h) und `OnThisDay` (stündlich) als Home-Zeilen. `RecentlyPlayed`,
+  `RecentlyAdded` und `ContinueListening` laufen einmal beim Start, danach ereignisgetrieben
+  (nach Scrobble bzw. Scan). Alles ist reine lokale Aggregation; ein eigenes Empfehlungssystem
+  gibt es noch nicht (#138, Details in `.claude/rules/recommendations.md`). Die Mixes samt Cron
+  und Tabelle `mix` sind entfernt.
 - Group-Session-Reaper alle 2 s, breit abgesichert, damit ein Fehler dort nie die gemeinsame
   Schleife killt.
 
