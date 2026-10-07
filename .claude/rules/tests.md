@@ -77,7 +77,8 @@ SQLite-Tabellen dazu (`tests_api/test_device_table.py`), inklusive FK-Usern im F
 Wer für einen End-to-End-Test eine zweite App-Instanz mit einer Kopie von `aivinnet.db` startet
 und `rootDirs` auf einen Testordner umbiegt, hat **nichts isoliert**: die `track`-Zeilen der
 Kopie tragen die echten Pfade, und weil diese Dateien existieren, behält die Instanz sie beim
-Start (`filter_modded` wirft nur Zeilen fehlender Dateien raus) und arbeitet mit ihnen. So hat
+Start und arbeitet mit ihnen (erst ein Scan wirft Zeilen außerhalb der `rootDirs` raus, #391 —
+gestartet wird ohne Scan). So hat
 der erste E2E-Lauf von #144 die 94 **echten** Dateien eines Albums umbenannt statt der Kopie
 (sofort zurückbenannt, 2026-09-23). Die Suche fand das Album unter beiden Pfaden — der Test
 sah grün aus.

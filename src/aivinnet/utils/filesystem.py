@@ -1,6 +1,9 @@
 import os
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
+from typing import Literal
 
 FILES = ["flac", "mp3", "wav", "m4a", "ogg", "wma", "opus", "alac", "aiff"]
 SUPPORTED_FILES = tuple(f".{file}" for file in FILES)
@@ -67,18 +70,28 @@ def is_excluded(path: Path, exclude: Sequence[str]) -> bool:
     return False
 
 
-def run_fast_scandir(path: str, full=False, exclude: Sequence[str] = ()) -> tuple[list[str], list[str]]:
+def run_fast_scandir(
+    path: str,
+    full=False,
+    exclude: Sequence[str] = (),
+    unreadable: set[str] | None = None,
+    _seen: set[str] | None = None,
+) -> tuple[list[str], list[str]]:
     """
     Scans a directory for files with a specific extension.
     Returns a list of files and folders in the directory.
-
-    TODO: possible recursion error on link inside link: ``dir/folder1/subfolder1/<link-to-folder1>/subfolder1/...``
 
     :param path: folder to scan
     :param full: will call recursively until end of path.
     :param exclude: directories to skip, from `UserConfig().excludeDirs`.
         Passed IN rather than read here on purpose — `config` imports this module
         (for `restrict_to_owner`), so reading it from here would be a cycle.
+    :param unreadable: if given, collects the resolved folders that could not
+        be listed (EIO, a stale NFS handle, a permission flip). Their subtree
+        is missing from the result, which is not the same as empty (#391).
+    :param _seen: resolved folders this walk has already listed. A symlink or
+        a junction back to an ancestor resolves to a folder in here, so the
+        walk ends instead of recursing until `RecursionError` (#391).
     :return: (folder:[], files:[])
     """
 
@@ -87,7 +100,10 @@ def run_fast_scandir(path: str, full=False, exclude: Sequence[str] = ()) -> tupl
         if path == "":
             return [], []
 
-    path: Path = Path(path).resolve()
+    try:
+        path: Path = Path(path).resolve()
+    except (OSError, RuntimeError):  # a symlink loop, on Pythons that raise for it
+        return [], []
 
     if any(path.as_posix().endswith(ignore_path) for ignore_path in IGNORE_PATH_ENDSWITH):
         return [], []
@@ -108,6 +124,13 @@ def run_fast_scandir(path: str, full=False, exclude: Sequence[str] = ()) -> tupl
         if path == library_path or str(path).startswith(str(library_path)):
             return [], []
 
+    # Marked only once it is really listed, so a skipped alias of a folder
+    # does not hide the folder itself.
+    seen = set() if _seen is None else _seen
+    if path.as_posix() in seen:
+        return [], []
+    seen.add(path.as_posix())
+
     subfolders = []
     files = []
 
@@ -125,15 +148,121 @@ def run_fast_scandir(path: str, full=False, exclude: Sequence[str] = ()) -> tupl
                     files.append(entry.as_posix())
 
         if full or len(files) == 0:
+            # Collected aside: each call already returns all of its
+            # descendants, and extending the list being looped over walked
+            # every one of them again (290 512 listings for a depth of 12).
+            descendants = []
             for folder in subfolders:
-                sub_dirs, subfiles = run_fast_scandir(folder, full=True, exclude=exclude)
-                subfolders.extend(sub_dirs)
+                sub_dirs, subfiles = run_fast_scandir(
+                    folder, full=True, exclude=exclude, unreadable=unreadable, _seen=seen
+                )
+                descendants.extend(sub_dirs)
                 files.extend(subfiles)
+            subfolders.extend(descendants)
 
     except (OSError, PermissionError, FileNotFoundError, ValueError):
+        if unreadable is not None:
+            unreadable.add(path.as_posix())
         return [], []
 
     return subfolders, files
+
+
+def dir_prefix(path: str | Path) -> str:
+    """
+    A folder as the prefix of the paths stored beneath it.
+
+    Resolved like `run_fast_scandir` resolves (so a root reached through a
+    symlink matches the files it stored), POSIX separators, and exactly one
+    trailing `/`, so that `/music/Rock` is not a parent of `/music/Rock and Roll/`.
+    """
+    return Path(path).resolve().as_posix().rstrip("/") + "/"
+
+
+@dataclass(frozen=True)
+class ScanScope:
+    """
+    What one scan looked at, so the cleanup after it drops only what it has
+    evidence for (#391).
+
+    A file that cannot be stat'ed is only "deleted" if its music folder
+    answered: a NAS that is offline, an unplugged disk or an empty bind mount
+    list nothing, and every row under them would otherwise be dropped in one go.
+
+    Known limit: the evidence is per configured root. A share mounted BELOW a
+    root that answers (`/media/nas` under `/media`) is, while unmounted, an
+    empty folder like any other, and its rows go as before.
+    """
+
+    # Each root's prefix -> whether the scan found any music under it.
+    roots: dict[str, bool]
+    excluded: tuple[str, ...] = ()
+    # Every file the scan found: in the library, whatever path led there.
+    found: frozenset[str] = frozenset()
+    # Prefixes of folders that could not be listed.
+    unreadable: tuple[str, ...] = ()
+
+    @classmethod
+    def from_scan(
+        cls, found: dict[str, list[str]], exclude: Sequence[str] = (), unreadable: Iterable[str] = ()
+    ) -> "ScanScope":
+        """
+        `found` maps each scanned root to the files `run_fast_scandir` returned
+        for it, `unreadable` is what it collected in its `unreadable` set.
+        """
+        roots: dict[str, bool] = {}
+        for root, files in found.items():
+            try:
+                prefix = dir_prefix(root)
+            except (OSError, RuntimeError, ValueError):
+                continue
+            roots[prefix] = roots.get(prefix, False) or bool(files)
+
+        excluded = []
+        for raw in exclude:
+            if not raw:
+                continue
+            try:
+                excluded.append(dir_prefix(Path(raw).expanduser()))
+            except (OSError, RuntimeError, ValueError):
+                continue
+
+        return cls(
+            roots=roots,
+            excluded=tuple(excluded),
+            found=frozenset().union(*found.values()),
+            unreadable=tuple(folder.rstrip("/") + "/" for folder in unreadable),
+        )
+
+    @cached_property
+    def unanswered(self) -> list[str]:
+        """Roots that listed no music, and folders that could not be listed."""
+        return [root for root, answered in self.roots.items() if not answered] + list(self.unreadable)
+
+    def verdict(self, filepath: str) -> Literal["drop", "keep", "check"]:
+        """
+        `drop`: the row is outside the library now (an excluded folder, or no
+        root contains it while every root answered). `keep`: it cannot be
+        judged, leave it alone. `check`: compare it with the file as before.
+        """
+        if filepath in self.found:
+            # Also through a symlinked folder that leads outside every root:
+            # the scan stores the resolved path, which no root prefix matches.
+            return "check"
+
+        if any(filepath.startswith(prefix) for prefix in self.unreadable):
+            return "keep"
+
+        if any(filepath.startswith(prefix) for prefix in self.excluded):
+            return "drop"
+
+        root = max((r for r in self.roots if filepath.startswith(r)), key=len, default=None)
+        if root is None:
+            # It may belong to an offline root under another spelling of the
+            # path; once every root answers, it is out of the library.
+            return "keep" if self.unanswered else "drop"
+
+        return "check" if self.roots[root] else "keep"
 
 
 def restrict_to_owner(path: Path | str) -> None:

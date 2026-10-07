@@ -1,4 +1,5 @@
 from dataclasses import asdict, fields
+from pathlib import Path
 from typing import Any
 
 from flask_jwt_extended import current_user as jwt_current_user
@@ -17,9 +18,17 @@ api = APIBlueprint("settings", __name__, url_prefix="/notsettings", abp_tags=[bp
 
 
 def get_child_dirs(parent: str, children: list[str]):
-    """Returns child directories in a list, given a parent directory"""
+    """
+    Returns child directories in a list, given a parent directory.
 
-    return [_dir for _dir in children if _dir.startswith(parent) and _dir != parent]
+    Compared as paths, not strings: `/mnt/music-flac` starts with `/mnt/music`
+    but is not inside it, and was dropped from the settings when its sibling was
+    added (#391).
+    """
+    parent_path = Path(parent)
+    # `_dir != parent` on the strings: `/mnt/music/` is the same folder as
+    # `/mnt/music` under another spelling, and is replaced like a child.
+    return [_dir for _dir in children if Path(_dir).is_relative_to(parent_path) and _dir != parent]
 
 
 class AddRootDirsBody(BaseModel):

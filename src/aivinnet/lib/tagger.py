@@ -13,7 +13,7 @@ from aivinnet.models.track import Track
 from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils import flatten
-from aivinnet.utils.filesystem import is_hidden_path, run_fast_scandir
+from aivinnet.utils.filesystem import ScanScope, is_hidden_path, run_fast_scandir
 from aivinnet.utils.parsers import get_base_album_title
 from aivinnet.utils.progressbar import tqdm
 from aivinnet.utils.remove_duplicates import remove_duplicates
@@ -50,13 +50,14 @@ class IndexTracks:
         except IndexError:
             pass
 
-        files = set()
         exclude = UserConfig().excludeDirs
+        unreadable: set[str] = set()
+        found = {
+            _dir: run_fast_scandir(_dir, full=True, exclude=exclude, unreadable=unreadable)[1] for _dir in dirs_to_scan
+        }
+        files = set().union(*found.values())
 
-        for _dir in dirs_to_scan:
-            files = files.union(run_fast_scandir(_dir, full=True, exclude=exclude)[1])
-
-        unmodified, modified_tracks = self.filter_modded()
+        unmodified, modified_tracks = self.filter_modded(ScanScope.from_scan(found, exclude, unreadable))
         untagged = files - unmodified
 
         self.tag_untagged(untagged)
@@ -76,10 +77,13 @@ class IndexTracks:
                 continue
 
     @staticmethod
-    def filter_modded():
+    def filter_modded(scope: ScanScope):
         """
         Removes tracks from the database that have been modified
-        since they were indexed.
+        since they were indexed, or that are no longer in the library.
+
+        A row under a music folder the scan could not reach is left alone:
+        an offline NAS or an empty mount point is not a deleted library (#391).
 
         Returns a tuple of unmodified paths and modified tracks.
         Unmodified paths are indexed and the modified tracks are
@@ -90,6 +94,7 @@ class IndexTracks:
         modified_tracks: list[dict[str, str]] = []
 
         to_remove = set()
+        kept_unjudged = 0
 
         for track in TrackTable.get_all():
             # Drop entries the scanner would now filter out (missing files, but
@@ -97,6 +102,15 @@ class IndexTracks:
             # still exist on disk and therefore never trip the mtime check).
             if is_hidden_path(track.filepath):
                 to_remove.add(track.filepath)
+                continue
+
+            verdict = scope.verdict(track.filepath)
+            if verdict == "drop":
+                to_remove.add(track.filepath)
+                continue
+            if verdict == "keep":
+                kept_unjudged += 1
+                unmodified_paths.add(track.filepath)
                 continue
 
             try:
@@ -114,14 +128,15 @@ class IndexTracks:
                 }
             )
 
+        if kept_unjudged:
+            log.warning(
+                "Kept %d tracks unchecked while %s did not answer (offline, empty or unreadable?)",
+                kept_unjudged,
+                ", ".join(scope.unanswered),
+            )
+
         to_remove = to_remove.union(set(t["filepath"] for t in modified_tracks))
         TrackTable.remove_tracks_by_filepaths(to_remove)
-
-        # REVIEW: Remove after testing!
-        track = TrackTable.get_tracks_by_filepaths(list(to_remove)[:1])
-        if track:
-            raise Exception("Track not removed")
-        # =============================================================
 
         return unmodified_paths, modified_tracks
 

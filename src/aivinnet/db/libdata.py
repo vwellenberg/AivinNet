@@ -7,7 +7,10 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from aivinnet.config import UserConfig
 from aivinnet.db import Base
 from aivinnet.db.engine import DbEngine
-from aivinnet.db.utils import track_to_dataclass, tracks_to_dataclasses
+from aivinnet.db.utils import track_to_dataclass
+
+# Well below SQLite's 32 766 bound variables per statement.
+_PATHS_PER_STATEMENT = 900
 
 
 class TrackTable(Base):
@@ -53,14 +56,6 @@ class TrackTable(Base):
                 result.close()
 
     @classmethod
-    def get_tracks_by_filepaths(cls, filepaths: list[str]):
-        with DbEngine.manager() as conn:
-            result = conn.execute(
-                select(TrackTable).where(TrackTable.filepath.in_(filepaths)).order_by(TrackTable.last_mod)
-            )
-            return tracks_to_dataclasses(result.fetchall())
-
-    @classmethod
     def update_filepath(cls, old: str, new: str) -> int:
         """
         Point a track's row at its renamed file. Returns the rows changed.
@@ -94,5 +89,11 @@ class TrackTable(Base):
 
     @classmethod
     def remove_tracks_by_filepaths(cls, filepaths: set[str]):
+        # In chunks, in one transaction: one `IN (...)` binds a variable per
+        # path, and SQLite refuses more than 32 766. A library above that whose
+        # paths all moved at once (a new mount point) kept every stale row.
+        paths = list(filepaths)
         with DbEngine.manager(commit=True) as conn:
-            conn.execute(delete(TrackTable).where(TrackTable.filepath.in_(filepaths)))
+            for start in range(0, len(paths), _PATHS_PER_STATEMENT):
+                chunk = paths[start : start + _PATHS_PER_STATEMENT]
+                conn.execute(delete(TrackTable).where(TrackTable.filepath.in_(chunk)))
