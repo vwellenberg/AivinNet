@@ -77,6 +77,36 @@ def test_the_folder_index_is_swapped_and_forgets_removed_files(monkeypatch):
     assert FolderStore.map == {"/music/kept.mp3": "k", "/music/new.mp3": "n"}
 
 
+def test_the_swapped_folder_index_can_still_be_counted(monkeypatch):
+    """
+    The folder counts bisect the index, so it must stay SORTED and indexable.
+
+    ⚠️ Equality alone cannot see it: a SortedSet compares equal to a plain set,
+    and the test above stayed green while 2026.10.2 swapped in a plain set —
+    and every Home with a folder row answered 500.
+    """
+    import aivinnet.store.folder as folder_module
+    from aivinnet.store.folder import FolderStore
+
+    monkeypatch.setattr(FolderStore, "filepaths", folder_module.SortedSet())
+    monkeypatch.setattr(FolderStore, "map", {})
+    monkeypatch.setattr(
+        folder_module.TrackTable,
+        "get_all",
+        lambda: iter(
+            [_track("b", "/music/Rock/b.mp3"), _track("a", "/music/Rock/a.mp3"), _track("c", "/music/Pop/c.mp3")]
+        ),
+    )
+
+    FolderStore.load_filepaths()
+
+    assert FolderStore.count_tracks_containing_paths(["/music/Rock", "/music/Pop", "/music"]) == [
+        {"path": "/music/Rock", "trackcount": 2},
+        {"path": "/music/Pop", "trackcount": 1},
+        {"path": "/music", "trackcount": 3},
+    ]
+
+
 def test_the_artist_map_is_not_emptied_while_it_is_rebuilt(monkeypatch):
     import aivinnet.store.artists as artists_module
     from aivinnet.store.artists import ArtistStore

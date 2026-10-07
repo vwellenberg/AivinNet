@@ -34,7 +34,11 @@ class FolderStore:
         # Built aside and swapped in whole, like the track store (#296): a
         # cleared set made every folder count 0 during a rescan, and the map
         # was never cleared at all, so removed files stayed in it.
-        filepaths: set[str] = set()
+        # ⚠️ A SortedSet, like the class attribute: the folder counts bisect it
+        # (`get_index_of_first_match` indexes `paths[mid]`). A plain set here —
+        # the store swap in 2026.10.2 — made every Home with a folder row, and
+        # every folder count, answer 500.
+        filepaths: SortedSet = SortedSet()
         filemap: dict[str, str] = {}
 
         for track in TrackTable.get_all():
