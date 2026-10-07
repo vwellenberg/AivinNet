@@ -21,6 +21,13 @@
     --app-font: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
         sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 
+    // The palette (#395): ink, paper and every accent as a property, from the
+    // literal map in _candy.scss. Everything below that derives from them reads
+    // the property rather than the literal, so a palette only has to set these.
+    @each $role, $value in $mem-palette-static {
+        --mem-#{$role}: #{$value};
+    }
+
     // Theme-dependent memphis roles (light defaults). App.vue toggles
     // body.theme-dark from the appearance setting; everything that sits on
     // the page ground reads these vars (via $mem-ground/$mem-content-* in
@@ -28,12 +35,12 @@
     --mem-ground: #{$mem-paper};
     // Bold near-black grid like the reference art (its lines are full black;
     // middle setting between the subtle original and the full copy).
-    --mem-grid-line: #{rgba($mem-ink, 0.45)};
+    --mem-grid-line: #{mem-alpha($mem-ink, 0.45)};
     --mem-content-text: #{$mem-ink};
     --mem-content-muted: #{$mem-text-muted-static};
-    --mem-content-faint: #{rgba($mem-ink, 0.45)};
+    --mem-content-faint: #{mem-alpha($mem-ink, 0.45)};
     --mem-panel: #{$mem-panel-static};
-    --mem-soft: #{$mem-blush-soft-static};
+    --mem-soft: #{$mem-blush-soft};
     --mem-line: #{$mem-ink};
     --mem-text: #{$mem-ink};
     --mem-text-muted: #{$mem-text-muted-static};
@@ -57,11 +64,11 @@
     --mem-hatch-hover: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.34" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
     // Translucent ground plate behind track lists: text reads clearly while
     // the grid + doodles still shimmer through.
-    --mem-veil: #{rgba($mem-paper, 0.92)};
+    --mem-veil: #{mem-alpha($mem-paper, 0.92)};
     // Hard offset shadow colour (see candy-shadow). Ink on the paper ground.
     --mem-shadow: #{$mem-ink};
-    --mem-scrollbar-thumb: #{rgba($mem-ink, 0.35)};
-    --mem-scrollbar-thumb-hover: #{rgba($mem-ink, 0.55)};
+    --mem-scrollbar-thumb: #{mem-alpha($mem-ink, 0.35)};
+    --mem-scrollbar-thumb-hover: #{mem-alpha($mem-ink, 0.55)};
 
     // HATCH — the texture that means "you can press this" (see mem-hatch in
     // _candy.scss). Two tokens, because the stroke colour has to answer to what

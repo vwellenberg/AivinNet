@@ -55,7 +55,7 @@
             from var(--np-angle),
             transparent 0deg,
             transparent 235deg,
-            rgba($candy-pink-deep, 0.55) 300deg,
+            mem-alpha($candy-pink-deep, 0.55) 300deg,
             $candy-pink-deep 332deg,
             #ffffff 348deg,
             $candy-pink-deep 354deg,

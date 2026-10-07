@@ -134,15 +134,19 @@ export default defineConfig({
       scss: {
         // Feed the brand + memphis colours from the single JSON source into
         // SCSS. These win over the `!default` fallbacks in _variables.scss
-        // and _candy.scss. The $candy-* names are legacy aliases from the
-        // candy design, re-pointed at memphis roles (see _candy.scss).
+        // and _candy.scss, which turns the palette roles into the literal map
+        // `$mem-palette-static` and then into `var(--mem-*)` (#395). The
+        // legacy $candy-* aliases are NOT injected: _candy.scss points them at
+        // the memphis roles unconditionally, so an injected value never won.
         additionalData:
           `$brand-green: ${brandColors.green}; $brand-red: ${brandColors.red}; ` +
           `$mem-ink: ${brandColors.memphis.ink}; $mem-paper: ${brandColors.memphis.paper}; ` +
           `$mem-panel: ${brandColors.memphis.panel}; $mem-teal: ${brandColors.memphis.teal}; ` +
           `$mem-yellow: ${brandColors.memphis.yellow}; $mem-coral: ${brandColors.memphis.coral}; ` +
           `$mem-lavender: ${brandColors.memphis.lavender}; $mem-pink: ${brandColors.memphis.pink}; ` +
-          `$mem-blue: ${brandColors.memphis.blue}; ` +
+          `$mem-blue: ${brandColors.memphis.blue}; $mem-kraft: ${brandColors.memphis.kraft}; ` +
+          `$mem-lime: ${brandColors.memphis.lime}; $mem-gold: ${brandColors.memphis.gold}; ` +
+          `$mem-sea: ${brandColors.memphis.sea}; $mem-orchid: ${brandColors.memphis.orchid}; ` +
           `$mem-blush: ${brandColors.memphis.blush}; $mem-blush-soft: ${brandColors.memphis.blushSoft}; ` +
           `$mem-text-muted: ${brandColors.memphis.textMuted}; ` +
           `$mem-dark-ground: ${brandColors.memphisDark.ground}; ` +
@@ -154,10 +158,6 @@ export default defineConfig({
           `$mem-dark-content-text: ${brandColors.memphisDark.contentText}; ` +
           `$mem-dark-content-muted: ${brandColors.memphisDark.contentMuted}; ` +
           `$mem-dark-grid-line: ${brandColors.memphisDark.gridLine}; ` +
-          `$candy-pink: ${brandColors.memphis.blush}; $candy-pink-soft: ${brandColors.memphis.blushSoft}; ` +
-          `$candy-pink-deep: ${brandColors.memphis.yellow}; $candy-white: ${brandColors.memphis.panel}; ` +
-          `$candy-lavender: ${brandColors.memphis.lavender}; $candy-black: ${brandColors.memphis.ink}; ` +
-          `$candy-text-muted: ${brandColors.memphis.textMuted}; ` +
           `@import "@/assets/scss/_variables.scss", "@/assets/scss/_mixins.scss", "@/assets/scss/_candy.scss", "@/assets/scss/_motion.scss", "@/assets/scss/Global/_buttons.scss";`,
       },
     },
