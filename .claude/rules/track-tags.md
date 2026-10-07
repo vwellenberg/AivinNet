@@ -213,6 +213,33 @@ an der Oberfläche:
 **Folgeeffekt beachten:** Reparierte Dateien kommen mit ihren alten Tags in die Bibliothek. Sie
 waren bei früheren Tag-Durchläufen nicht dabei und brauchen einen eigenen Nachzug.
 
+## ⚠️ Ein Rescan löscht nur, wofür er einen Beleg hat (#391)
+
+`filter_modded` las „Datei lässt sich nicht stat'en" als „gelöscht" und fragte nie, ob der
+Musikordner selbst da war: NAS offline, USB-Platte ab, Bind-Mount leer — der nächste Rescan
+löschte **jede** `track`-Zeile dieses Ordners. Seitdem entscheidet `utils/filesystem.ScanScope`
+je Zeile:
+
+- Datei vom Scan gefunden → wird wie immer geprüft, egal wo sie liegt. Wichtig für Symlinks:
+  der Scanner speichert den **aufgelösten** Pfad, der zu keinem Wurzel-Präfix passen muss —
+  nach Präfix allein flogen solche Zeilen bei jedem Scan raus und wurden neu getaggt.
+- Wurzel, unter der der Scan **nichts** fand, oder Ordner, den er nicht auflisten konnte
+  (`run_fast_scandir(unreadable=…)`, z. B. ESTALE) → Zeile bleibt unangetastet (Warnung im
+  Log). Ein wirklich geleerter Ordner behält seine Zeilen also, bis er aus den Einstellungen fliegt.
+- Zeile außerhalb aller Wurzeln oder unter `excludeDirs` → fliegt raus. Das „außerhalb" aber
+  **nur, wenn jede Wurzel geantwortet hat** — sonst könnte es die Offline-Wurzel unter anderer
+  Schreibweise sein.
+- Präfixe immer über `dir_prefix()` (aufgelöst wie der Scanner, genau ein `/` am Ende):
+  `startswith("/music/Rock")` trifft sonst `/music/Rock and Roll/`. Derselbe Fehler steckte in
+  `api/settings.get_child_dirs` und hätte mit dem neuen Aufräumen echte Zeilen gekostet.
+
+**Grenze:** Belegt wird pro Wurzel. Ein Share, der *unterhalb* einer antwortenden Wurzel hängt
+(`/media/nas` unter `/media`), ist abgehängt ein leerer Ordner wie jeder andere — seine Zeilen
+fliegen wie früher. Shares deshalb selbst als Wurzel eintragen.
+
+Wer einen neuen Lösch- oder Aufräumpfad über die Bibliothek baut: erst „war die Quelle
+erreichbar?", dann löschen. Fehlende Antwort ist kein leeres Ergebnis.
+
 ## MusicBrainz-Abgleich: über die Laufzeit, nie über den Titel
 
 Titel und Tracknummern sind bei solchen Alben ja gerade das Kaputte. Was trägt:

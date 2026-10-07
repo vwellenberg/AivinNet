@@ -17,7 +17,7 @@ These tests lock in that:
 import sys
 from unittest.mock import MagicMock
 
-from aivinnet.utils.filesystem import is_hidden_path, run_fast_scandir
+from aivinnet.utils.filesystem import ScanScope, is_hidden_path, run_fast_scandir
 
 
 class TestIsHiddenPath:
@@ -174,11 +174,8 @@ class TestFilterModdedPrunesHidden:
             lambda fps: removed.update(paths=set(fps)),
             raising=False,
         )
-        # The lingering post-remove debug assertion in filter_modded must see
-        # "nothing left", so return an empty (falsy) list.
-        monkeypatch.setattr(tagger.TrackTable, "get_tracks_by_filepaths", lambda fps: [], raising=False)
 
-        unmodified, modified = tagger.IndexTracks.filter_modded()
+        unmodified, modified = tagger.IndexTracks.filter_modded(ScanScope(roots={"/music/": True}))
 
         assert removed["paths"] == {
             "/music/._01 - Real.mp3",

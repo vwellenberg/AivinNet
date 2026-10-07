@@ -95,8 +95,10 @@ Einstellung geändert. **Es gibt keinen periodischen Scan** — das auskommentie
 ```
 IndexTracks()                       lib/tagger.py
  ├ run_fast_scandir(rootDirs)       alle Audiodateien einsammeln
- ├ filter_modded()                  mtime-Vergleich gegen TrackTable; fehlende Dateien
- │                                  und versteckte/AppleDouble-Pfade fliegen raus
+ ├ filter_modded(ScanScope)         mtime-Vergleich gegen TrackTable; fehlende Dateien,
+ │                                  versteckte/AppleDouble-Pfade und Zeilen außerhalb der
+ │                                  rootDirs/excludeDirs fliegen raus — nie unter einem
+ │                                  Ordner, in dem der Scan nichts fand (offline)
  └ tag_untagged()                   Prozess-Pool (cpu/2) → get_tags() → TrackTable
         ▼
 Stores neu laden, RecentlyAdded, Farb-/Favoriten-/Scrobble-Mapping
