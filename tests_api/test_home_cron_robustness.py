@@ -40,7 +40,7 @@ def crons(monkeypatch):
     monkeypatch.setattr(crons, "schedule", schedule.Scheduler())
     for job in ("RecentlyPlayed", "RecentlyAdded", "ContinueListening"):
         monkeypatch.setattr(crons, job, lambda *a, **kw: None)
-    for job in ("Rediscover", "OnThisDay"):
+    for job in ("Rediscover", "OnThisDay", "BecauseYouListened", "OnRepeat", "NeverPlayed"):
         monkeypatch.setattr(crons, job, type(job, (), {"hours": 1, "__init__": lambda self, *a, **kw: None}))
     yield crons
     crons._stop.set()
@@ -61,6 +61,19 @@ def test_a_failing_startup_job_does_not_end_the_cron_thread(crons, monkeypatch):
 
     assert later == [True], "the jobs after the failing one still ran"
     assert crons._thread.is_alive(), "the loop is still there for the reaper and the routines"
+
+
+def test_the_discover_rows_are_scheduled_and_run_at_startup(crons, monkeypatch):
+    ran = []
+    for job in ("BecauseYouListened", "OnRepeat", "NeverPlayed"):
+        monkeypatch.setattr(
+            crons, job, type(job, (), {"hours": 1, "__init__": lambda self, *a, _job=job, **kw: ran.append(_job)})
+        )
+
+    crons.start_cron_jobs()
+    time.sleep(0.3)
+
+    assert sorted(ran) == ["BecauseYouListened", "NeverPlayed", "OnRepeat"]
 
 
 def test_an_edit_that_leaves_the_old_hash_to_another_file_carries_no_favourites(monkeypatch):

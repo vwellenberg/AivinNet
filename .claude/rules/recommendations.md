@@ -10,12 +10,10 @@ paths:
 
 # Empfehlungen / Home — woher die Vorschläge kommen
 
-⚠️ **Ein eigenes Empfehlungssystem gibt es (noch) nicht.** Es gibt keine Ähnlichkeit zwischen
-Tracks, Alben oder Künstlern, die aus der eigenen Hörhistorie berechnet würde. Der Neuanfang ist
-Issue **#138**; dort stehen auch die Fallen der Vorgängerrunde. Erst lesen, dann bauen.
-
-Alles, was Home heute zeigt, ist **lokale Aggregation** der Hörhistorie (`ScrobbleTable`, pro
-User) plus der eigenen Bibliothek. Kein Cloud-Anteil.
+**Empfehlungen rechnet die App selbst, aus der eigenen Hörhistorie** (`ScrobbleTable`, pro User)
+plus der eigenen Bibliothek. Seit #138 gibt es drei Zeilen, die über „was lief zuletzt“
+hinausgehen (Abschnitt unten). Kein Cloud-Anteil, kein Dienst, der wegsterben kann. Offen in #138
+bleibt der Vergleich externer Dienste (ListenBrainz & Co.) als **optionale** Anreicherung.
 
 ## Was es gab: Mixes (entfernt)
 
@@ -49,7 +47,43 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
 
 Die Regeln und Schwellen stehen in `lib/home/homerows.py`, absichtlich ohne DB- und
 Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen dazu liegen in
-`lib/recipes/homerows.py`. Die Reihen „Top artists this week/month“ sind von Home entfernt, die
+`lib/recipes/homerows.py`.
+
+### Die drei Empfehlungszeilen (#138)
+
+Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores), Routinen in
+`lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Because you listened** → **On
+repeat** → Recently played → **Never played** → Rediscover → On this day.
+
+- **„Because you listened to <Artist>“** (alle 6 h): Seed ist der Album-Artist mit den meisten
+  Plays der letzten 7 Tage, sonst der letzten 30 (Platzhalter wie „Various Artists“ nie).
+  „Ähnlich“ heißt: **lief in derselben Hörsitzung** (Pause > 30 min = neue Sitzung). Jede Sitzung
+  mit dem Seed gibt jedem anderen Album darin 1/√(Zahl der anderen Alben): drei Alben an einem
+  Abend sagen mehr als achtzig im Tages-Shuffle einer großen Playlist. Mindestens 2 gemeinsame
+  Sitzungen, nichts aus den letzten 7 Tagen (steht schon in „Recently played“), ein Album pro
+  Artist, keine ungetaggten Alben („Unknown“). Titel und Link (`/artists/<seed>`) sind **pro
+  User** (`PersonalTitleEntry.meta`) und verschwinden mit dem Seed.
+- **„On repeat“** (stündlich): Tracks mit ≥ 3 Plays in 7 Tagen und mindestens dem Doppelten
+  ihres Wochenschnitts der 8 Wochen davor. Sortiert nach Plays **über** dem Schnitt (Trend, nicht
+  Charts), höchstens 2 pro Album.
+- **„Never played“** (alle 6 h, täglich neu gezogen): Alben ohne einen einzigen Play des Users.
+  Punkte = 2 × Anteil des Album-Artists an den eigenen Plays + Anteil des bestgehörten Genres.
+  Gezogen aus den besten 3 × 15 (höchstens 2 pro Artist), Zufall mit dem Tag als Seed, damit die
+  Zeile nicht ewig dieselbe bleibt. Erst ab **50 Plays** Historie (vorher ist fast alles
+  ungehört, die Zeile wäre nur die Bibliothek). Alben von „Unknown“ (ungetaggt) fliegen raus,
+  Sampler von „Various Artists“ nicht. Button „Play one“ im Client (zufälliges Album der Zeile).
+
+⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
+der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen
+der DB noch in SQLite steckt, lässt den Prozess mit SIGSEGV sterben (CLAUDE.md, „STOPPEN“).
+
+⚠️ **Jede Routine loggt ein leeres Ergebnis mit Grund** (kein Seed, zu kurze Historie, …): eine
+leere Zeile sieht sonst genauso aus wie eine, die nie gelaufen ist.
+
+⚠️ **Scrobbles mit Trackhashes, die nicht mehr in der Bibliothek sind, zählen nirgends** — auch
+nicht für die Historien-Schwelle von „Never played“. Nach einer großen Tag-Korrektur (Hashes
+ändern sich, `track-tags.md`) kann eine Zeile deshalb verschwinden, bis die Scrobbles mitgezogen
+sind. Die Reihen „Top artists this week/month“ sind von Home entfernt, die
 Stats-Seite hat eigene Charts (`utils/stats.py`, sortiert nach `playduration`).
 
 **Ähnliche Künstler auf Artist- und Album-Seiten** kommen aus `notlastfm_similar_artists`

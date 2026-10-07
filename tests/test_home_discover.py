@@ -1,0 +1,309 @@
+"""
+The rules behind the homepage rows "Because you listened to …", "On repeat"
+and "Never played" (`lib/home/discover.py`, #138).
+
+The module imports no database or store code on purpose, so these run in the
+fast lane without any `sys.modules` mocks.
+"""
+
+from dataclasses import dataclass
+
+from aivinnet.lib.home.discover import (
+    AlbumFacts,
+    TrackFacts,
+    because_item,
+    never_played_item,
+    on_repeat_item,
+    pick_seed_artist,
+    rank_because,
+    rank_never_played,
+    rank_on_repeat,
+)
+
+DAY = 86400
+HOUR = 3600
+NOW = 1_790_000_000
+
+
+@dataclass
+class Play:
+    trackhash: str
+    timestamp: int
+
+
+class Library:
+    """
+    Tracks named "<album>/<n>"; each album has one album artist and one genre,
+    given when the album is added.
+    """
+
+    def __init__(self):
+        self.albums: dict[str, tuple[str, str]] = {}
+
+    def add(self, album: str, artist: str, genre: str = "rock"):
+        self.albums[album] = (artist, genre)
+        return self
+
+    def facts(self, trackhash: str) -> TrackFacts | None:
+        album = trackhash.split("/")[0]
+        if album not in self.albums:
+            return None
+
+        artist, genre = self.albums[album]
+        return TrackFacts(albumhash=album, artists=(artist,), genres=(genre,))
+
+    def album_facts(self) -> list[AlbumFacts]:
+        return [AlbumFacts(a, (artist,), (genre,)) for a, (artist, genre) in self.albums.items()]
+
+
+def session(start: int, *trackhashes: str, spacing: int = 4 * 60) -> list[Play]:
+    """Plays back to back, starting at `start`."""
+    return [Play(t, start + i * spacing) for i, t in enumerate(trackhashes)]
+
+
+class TestSeed:
+    def setup_method(self):
+        self.lib = Library().add("rhcp1", "rhcp").add("fnm1", "fnm").add("va1", "various")
+
+    def test_most_played_artist_this_week(self):
+        plays = session(NOW - 2 * DAY, "rhcp1/1", "rhcp1/2", "fnm1/1") + session(NOW - DAY, "rhcp1/3")
+
+        assert pick_seed_artist(plays, self.lib.facts, NOW) == "rhcp"
+
+    def test_falls_back_to_the_month_when_the_week_is_empty(self):
+        plays = session(NOW - 20 * DAY, "fnm1/1", "fnm1/2")
+
+        assert pick_seed_artist(plays, self.lib.facts, NOW) == "fnm"
+
+    def test_nothing_in_the_last_month(self):
+        assert pick_seed_artist(session(NOW - 40 * DAY, "fnm1/1"), self.lib.facts, NOW) is None
+
+    def test_placeholder_artists_are_never_the_seed(self):
+        plays = session(NOW - DAY, "va1/1", "va1/2", "va1/3", "fnm1/1")
+
+        assert pick_seed_artist(plays, self.lib.facts, NOW, skip=lambda a: a == "various") == "fnm"
+
+    def test_tracks_gone_from_the_library_do_not_count(self):
+        plays = session(NOW - DAY, "gone/1", "gone/2", "fnm1/1")
+
+        assert pick_seed_artist(plays, self.lib.facts, NOW) == "fnm"
+
+
+class TestBecause:
+    def setup_method(self):
+        self.lib = (
+            Library()
+            .add("rhcp1", "rhcp")
+            .add("rhcp2", "rhcp")
+            .add("fnm1", "fnm")
+            .add("fnm2", "fnm")
+            .add("primus1", "primus")
+            .add("jazz1", "miles")
+        )
+
+    def rank(self, plays, **kw):
+        return rank_because(plays, self.lib.facts, "rhcp", NOW, **kw)
+
+    def test_albums_played_in_the_same_sessions(self):
+        plays = (
+            session(NOW - 30 * DAY, "rhcp1/1", "fnm1/1", "primus1/1")
+            + session(NOW - 20 * DAY, "rhcp2/1", "fnm1/2")
+            + session(NOW - 10 * DAY, "primus1/2", "rhcp1/2")
+            + session(NOW - 9 * DAY, "jazz1/1")  # never with the seed
+        )
+
+        ranked = self.rank(plays)
+
+        # Equal scores (1/sqrt(2) + 1 each): the album played last goes first.
+        assert [r[0] for r in ranked] == ["primus1", "fnm1"]
+        assert ranked[1][1] == 2
+        assert ranked[1][2] == NOW - 20 * DAY + 4 * 60
+
+    def test_one_shared_session_is_not_enough(self):
+        plays = session(NOW - 30 * DAY, "rhcp1/1", "fnm1/1")
+
+        assert self.rank(plays) == []
+
+    def test_a_pause_longer_than_half_an_hour_ends_the_session(self):
+        plays = []
+        for days in (30, 20):
+            plays += [Play("rhcp1/1", NOW - days * DAY), Play("fnm1/1", NOW - days * DAY + 31 * 60)]
+
+        assert self.rank(plays) == []
+
+    def test_a_small_session_counts_more_than_a_big_shuffle(self):
+        big_shuffle = [f"filler{i}/1" for i in range(40)]
+        for i in range(40):
+            self.lib.add(f"filler{i}", f"filler-artist{i}")
+
+        plays = (
+            session(NOW - 40 * DAY, "rhcp1/1", "primus1/1", *big_shuffle)
+            + session(NOW - 39 * DAY, "rhcp1/1", "primus1/1", *big_shuffle)
+            + session(NOW - 30 * DAY, "rhcp1/1", "fnm1/1")
+            + session(NOW - 20 * DAY, "rhcp1/2", "fnm1/2")
+        )
+
+        assert self.rank(plays)[0][0] == "fnm1"
+
+    def test_albums_played_this_week_are_left_out(self):
+        plays = (
+            session(NOW - 30 * DAY, "rhcp1/1", "fnm1/1", "primus1/1")
+            + session(NOW - 20 * DAY, "rhcp1/1", "primus1/1")
+            + session(NOW - 2 * DAY, "rhcp1/2", "fnm1/2")
+        )
+
+        assert [r[0] for r in self.rank(plays)] == ["primus1"]
+
+    def test_one_album_per_artist(self):
+        plays = (
+            session(NOW - 30 * DAY, "rhcp1/1", "fnm1/1", "fnm2/1")
+            + session(NOW - 20 * DAY, "rhcp1/1", "fnm1/1", "fnm2/1")
+            + session(NOW - 15 * DAY, "rhcp1/1", "fnm1/1")
+        )
+
+        assert [r[0] for r in self.rank(plays)] == ["fnm1"]
+
+    def test_untagged_albums_are_not_recommended(self):
+        self.lib.add("untagged", "unknown")
+        plays = session(NOW - 30 * DAY, "rhcp1/1", "untagged/1", "fnm1/1") + session(
+            NOW - 20 * DAY, "rhcp1/1", "untagged/2", "fnm1/2"
+        )
+
+        ranked = rank_because(plays, self.lib.facts, "rhcp", NOW, exclude=lambda a: a == "unknown")
+
+        assert [r[0] for r in ranked] == ["fnm1"]
+
+    def test_the_seeds_own_albums_are_not_recommended(self):
+        plays = session(NOW - 30 * DAY, "rhcp1/1", "rhcp2/1") + session(NOW - 20 * DAY, "rhcp1/1", "rhcp2/1")
+
+        assert self.rank(plays) == []
+
+    def test_item(self):
+        item = because_item("fnm1", 9, NOW - 30 * DAY)
+
+        assert item["type"] == "album"
+        assert item["hash"] == "fnm1"
+        assert item["help_text"] == "9 sessions together"
+        assert item["secondary_text"].startswith("last ")
+
+
+class TestOnRepeat:
+    def setup_method(self):
+        self.lib = Library().add("a", "x").add("b", "y")
+
+    def rank(self, plays, **kw):
+        return rank_on_repeat(plays, self.lib.facts, NOW, **kw)
+
+    def test_much_more_this_week_than_before(self):
+        plays = [Play("a/1", NOW - d * HOUR) for d in range(1, 8)]  # 7 this week
+        plays += [Play("a/1", NOW - w * 7 * DAY - DAY) for w in range(1, 9)]  # 1 a week before
+
+        assert self.rank(plays) == [("a/1", 7, 1.0)]
+
+    def test_as_often_as_usual_is_not_on_repeat(self):
+        plays = [Play("a/1", NOW - d * HOUR) for d in range(1, 5)]  # 4 this week
+        plays += [Play("a/1", NOW - w * 7 * DAY - h * HOUR) for w in range(1, 9) for h in range(1, 4)]  # 3 a week
+
+        assert self.rank(plays) == []
+
+    def test_a_new_track_needs_three_plays(self):
+        assert self.rank([Play("a/1", NOW - HOUR), Play("a/1", NOW - 2 * HOUR)]) == []
+        assert self.rank([Play("a/1", NOW - h * HOUR) for h in (1, 2, 3)]) == [("a/1", 3, 0.0)]
+
+    def test_ranked_by_plays_above_the_average(self):
+        plays = [Play("a/1", NOW - h * HOUR) for h in range(1, 11)]  # 10, usually 6
+        plays += [Play("a/1", NOW - w * 7 * DAY - h * HOUR) for w in range(1, 9) for h in range(1, 7)]
+        plays += [Play("b/1", NOW - h * HOUR) for h in range(1, 6)]  # 5, new
+
+        assert [r[0] for r in self.rank(plays, min_factor=1.5)] == ["b/1", "a/1"]
+
+    def test_at_most_two_tracks_per_album(self):
+        plays = [Play(f"a/{n}", NOW - h * HOUR - n) for n in range(1, 6) for h in range(1, 4)]
+
+        assert len(self.rank(plays)) == 2
+
+    def test_items(self):
+        assert on_repeat_item("a/1", 7, 0.0) == {
+            "type": "track",
+            "hash": "a/1",
+            "help_text": "7 plays this week",
+            # Not "new": only the baseline weeks were read.
+            "secondary_text": "not in the 8 weeks before",
+        }
+        assert on_repeat_item("a/1", 7, 0.5)["secondary_text"] == "rarely before"
+        assert on_repeat_item("a/1", 7, 2.4)["secondary_text"] == "usually 2 a week"
+
+
+class TestNeverPlayed:
+    def setup_method(self):
+        self.lib = (
+            Library()
+            .add("played", "primus", "funk")
+            .add("primus2", "primus", "funk")
+            .add("primus3", "primus", "funk")
+            .add("primus4", "primus", "funk")
+            .add("funky", "other", "funk")
+            .add("jazz", "miles", "jazz")
+        )
+        self.history = [Play("played/1", NOW - i * HOUR) for i in range(60)]
+
+    def rank(self, plays=None, **kw):
+        plays = self.history if plays is None else plays
+        return rank_never_played(plays, self.lib.facts, self.lib.album_facts(), day=1, **kw)
+
+    def test_unplayed_albums_nearest_to_the_taste_first(self):
+        ranked = self.rank(max_per_artist=5)
+
+        assert [r[0] for r in ranked][:3] == sorted(["primus2", "primus3", "primus4"], reverse=True)
+        assert ranked[3] == ("funky", None, "funk")
+        assert ranked[4] == ("jazz", None, None)
+        assert "played" not in [r[0] for r in ranked]
+
+    def test_the_artist_is_the_reason_when_the_user_plays_them(self):
+        assert self.rank()[0][1:] == ("primus", "funk")
+
+    def test_at_most_two_per_artist(self):
+        ranked = self.rank()
+
+        assert sum(1 for r in ranked if r[0].startswith("primus")) == 2
+
+    def test_a_play_counts_for_every_edition_sharing_the_track(self):
+        facts = self.lib.facts
+
+        def with_edition(trackhash):
+            f = facts(trackhash)
+            if f and f.albumhash == "played":
+                return TrackFacts(f.albumhash, f.artists, f.genres, other_albums=("primus2",))
+            return f
+
+        ranked = rank_never_played(self.history, with_edition, self.lib.album_facts(), day=1, max_per_artist=5)
+
+        assert "primus2" not in [r[0] for r in ranked]
+
+    def test_too_short_a_history_is_none_not_empty(self):
+        assert self.rank(self.history[:10]) is None
+
+    def test_everything_played_is_empty(self):
+        plays = self.history + [Play(f"{a}/1", NOW) for a in self.lib.albums]
+
+        assert self.rank(plays) == []
+
+    def test_drawn_from_a_pool_the_same_way_all_day(self):
+        for i in range(30):
+            self.lib.add(f"x{i}", f"artist{i}", "noise")
+
+        def draw(day):
+            return rank_never_played(self.history, self.lib.facts, self.lib.album_facts(), day=day, limit=5)
+
+        assert draw(7) == draw(7)
+        assert len(draw(7)) == 5
+        assert any(draw(d) != draw(7) for d in range(8, 20))
+
+    def test_items(self):
+        assert never_played_item("x", "you play Primus") == {
+            "type": "album",
+            "hash": "x",
+            "help_text": "you play Primus",
+            "secondary_text": "never played",
+        }
+        assert never_played_item("x", None) == {"type": "album", "hash": "x", "help_text": "never played"}

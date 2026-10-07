@@ -16,6 +16,7 @@ repos:
           src/aivinnet/utils/parsers.py,
           src/aivinnet/utils/__init__.py,
           src/aivinnet/lib/playlist_maintenance.py,
+          src/aivinnet/lib/home/discover.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]
