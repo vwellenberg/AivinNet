@@ -305,14 +305,16 @@ beide AppImage-Jobs des ersten Release-Versuchs starben. Details:
 `.claude/rules/packaging-release.md` (lädt beim Anfassen von `install.sh`, `appimage/**`, den
 Workflows oder `settings.py`).
 
-## Empfehlungen / Mixes
+## Empfehlungen / Home
 
-Alle Personalisierung kommt aus der **lokalen Hörhistorie** (`ScrobbleTable`, pro User) plus der
-eigenen Bibliothek. Einzige externe Quelle ist `smcloud.mungaist.com`, und zwar nur für
-Artist-Mixe — dorthin gehen Track-Metadaten (Titel, Artist, Album) im **Klartext**. Das
-Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
+**Ein eigenes Empfehlungssystem gibt es noch nicht.** Der Neuanfang ist Issue #138. Die Mixes
+(an `smcloud.mungaist.com`) sind samt ihrer Home-Zeilen entfernt, weil der Dienst ab Ende Mai 2026
+durchgehend mit 502 antwortete. Home zeigt heute ausschließlich **lokale Aggregation** der Hörhistorie
+(`ScrobbleTable`, pro User) plus der eigenen Bibliothek: Continue listening, Rediscover, On this
+day, Recently played/added. Das Last.fm-Plugin ist reiner Scrobble-Export, keine
+Empfehlungsquelle.
 
-**Zweite externe Quelle (seit 2026-08-06): der Lyrics-Finder.** Das Plugin `lyrics_finder`
+**Externe Quelle beim Hören: der Lyrics-Finder (seit 2026-08-06).** Das Plugin `lyrics_finder`
 (Musixmatch, inoffizielle Desktop-API) ist bei **Neuinstallationen aus**; ältere Installationen
 behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen der Lyrics-Seite ohne
 lokale Lyrics **Titel + Artist im Klartext** an `apic-desktop.musixmatch.com`; gefundene Lyrics
@@ -324,7 +326,8 @@ Plugins-Seite flog im Mai 2026 wegen Last.fm raus und nahm den Lyrics-Schalter m
 monatelang auf „die Settings". Wer ein Feld in `config.py` anlegt oder eine Settings-Seite
 entfernt, prüft, dass es in `client/src/settings/` erreichbar bleibt.
 
-Vollständige Pipeline, Qualitäts-Gates und Cron-Takte: `.claude/rules/recommendations.md`.
+Home-Zeilen, Schwellen, Cron-Takte und die vollständige Liste ausgehender Verbindungen:
+`.claude/rules/recommendations.md`.
 
 ## Server-Deployment
 
