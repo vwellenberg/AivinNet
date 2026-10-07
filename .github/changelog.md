@@ -69,6 +69,15 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A fix release for 2026.10.2.
+
+- **Home stayed empty** after updating to 2026.10.2 once a folder showed up in
+  one of its rows, and folder track counts failed the same way. The library
+  index the update rebuilt lost its sort order. Fixed; nothing was lost.
+
+<details>
+<summary>What v2026.10.2 brought</summary>
+
 A fix release for 2026.10.1: nothing holds up the other listeners any more,
 and library repairs keep every playlist entry and favourite where it belongs.
 
@@ -120,6 +129,8 @@ everyone's music. These no longer do:
 - **A system whose timezone cannot be read** (some containers set up with a
   broken `/etc/timezone`) no longer shows errors on the album and artist
   lists; the server uses UTC and says in the log how to set `TZ`.
+
+</details>
 
 <details>
 <summary>What v2026.10.1 brought</summary>
