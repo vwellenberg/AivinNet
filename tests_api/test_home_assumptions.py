@@ -129,13 +129,22 @@ def _track(folder: str, last_mod: int, albumhash: str, artisthashes: list[str]):
 @pytest.fixture()
 def recently_added(monkeypatch):
     from aivinnet.lib.home import recentlyadded
+    from aivinnet.store.albums import AlbumMapEntry
+    from aivinnet.store.artists import ArtistMapEntry
 
+    # The real entry classes: the stores hold wrappers, not albums. A bare
+    # stand-in with `created_date` kept this green while the built server
+    # raised AttributeError in the smoke test.
     def stores(albums: dict[str, int], artists: dict[str, int]):
         monkeypatch.setattr(
-            recentlyadded.AlbumStore, "albummap", {h: SimpleNamespace(created_date=d) for h, d in albums.items()}
+            recentlyadded.AlbumStore,
+            "albummap",
+            {h: AlbumMapEntry(SimpleNamespace(created_date=d), set()) for h, d in albums.items()},
         )
         monkeypatch.setattr(
-            recentlyadded.ArtistStore, "artistmap", {h: SimpleNamespace(created_date=d) for h, d in artists.items()}
+            recentlyadded.ArtistStore,
+            "artistmap",
+            {h: ArtistMapEntry(SimpleNamespace(created_date=d), set(), set()) for h, d in artists.items()},
         )
 
     return recentlyadded, stores

@@ -100,7 +100,10 @@ Deshalb, alle drei:
   zweimal live passiert (#36→#167/#39).
 - **Neue Lib-Logik ⇒ Unit-Test** in `tests/`.
 - **Realistische Fixtures.** `Album.image` trägt den `?pathhash=`-Suffix; ein Test mit
-  geschöntem `hash.webp` hat #34 übersehen.
+  geschöntem `hash.webp` hat #34 übersehen. Ebenso: `AlbumStore.albummap` und
+  `ArtistStore.artistmap` halten **Wrapper** (`AlbumMapEntry.album`, `ArtistMapEntry.artist`),
+  keine Alben — ein `SimpleNamespace(created_date=…)` als Map-Wert ließ #400 grün, bis der
+  Smoke-Test am gebauten Server `AttributeError` warf. Map-Werte mit den echten Entry-Klassen bauen.
 
 Der Real-Bytes-Tag-Test liegt bewusst in `tests/` und nicht in einem eigenen Job: `mutagen` und
 `tinytag` sind pure Python und laufen in der schnellen Lane mit (Versionen gepinnt auf

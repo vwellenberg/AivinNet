@@ -100,7 +100,7 @@ def check_folder_type(group_: dict):
             "type": "album",
             "hash": albumhash,
             "timestamp": time,
-            "help_text": ("NEW ALBUM" if entry.created_date >= new_since else "NEW TRACKS"),
+            "help_text": ("NEW ALBUM" if entry.album.created_date >= new_since else "NEW TRACKS"),
         }
 
     is_artist, artisthash, trackcount = check_is_artist_folder(tracks)
@@ -114,7 +114,7 @@ def check_folder_type(group_: dict):
             "type": "artist",
             "hash": artisthash,
             "timestamp": time,
-            "help_text": ("NEW ARTIST" if entry.created_date >= new_since else "NEW MUSIC"),
+            "help_text": ("NEW ARTIST" if entry.artist.created_date >= new_since else "NEW MUSIC"),
         }
 
     is_track_folder = check_is_track_folder(tracks)
