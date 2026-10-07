@@ -1,6 +1,7 @@
 """
 Routines for the personal homepage rows "Rediscover", "On this day",
-"Because you listened to …", "On repeat" and "Never played". The rules
+"Because you listened to …", "On repeat", "Never played", "Your <weekday>
+<evenings>", "Artists you might like" and "Forgotten favorites". The rules
 themselves live in `lib/home/homerows.py` and `lib/home/discover.py`.
 
 Scheduled by `crons/__init__.py` (`schedule.every(cls.hours)`), deliberately
@@ -15,20 +16,29 @@ import logging
 
 import pendulum
 
-from aivinnet.db.userdata import ScrobbleTable
+from aivinnet.db.userdata import PlaylistTable, ScrobbleTable
 from aivinnet.lib.home.create_items import create_items
 from aivinnet.lib.home.discover import (
     REPEAT_BASELINE_WEEKS,
     REPEAT_DAYS,
+    SLOT_DAYS,
     AlbumFacts,
     TrackFacts,
     because_item,
+    for_this_time_item,
+    forgotten_favorite_item,
     never_played_item,
     on_repeat_item,
     pick_seed_artist,
+    playlist_neighbour_item,
     rank_because,
+    rank_for_this_time,
+    rank_forgotten_favorites,
     rank_never_played,
     rank_on_repeat,
+    rank_playlist_neighbours,
+    slot_title,
+    time_slot,
 )
 from aivinnet.lib.home.homerows import (
     ROW_LIMIT,
@@ -121,7 +131,7 @@ class OnThisDay(HomepageRoutine):
 def track_facts(trackhash: str) -> TrackFacts | None:
     """A scrobbled track as the `discover` rules see it; None if it left the library."""
     entry = TrackStore.trackhashmap.get(trackhash)
-    if entry is None:
+    if entry is None or not entry.tracks:
         return None
 
     track = entry.tracks[0]
@@ -133,6 +143,7 @@ def track_facts(trackhash: str) -> TrackFacts | None:
         artists=tuple(a["artisthash"] for a in track.albumartists),
         genres=tuple(track.genrehashes),
         other_albums=tuple({t.albumhash for t in entry.tracks[1:]} - {track.albumhash}),
+        track_artists=tuple(a["artisthash"] for a in track.artists),
     )
 
 
@@ -261,3 +272,138 @@ class NeverPlayed(HomepageRoutine):
                 never_played_item(albumhash, reason(artisthash, genrehash))
                 for albumhash, artisthash, genrehash in ranked or []
             ]
+
+
+class ForThisTime(HomepageRoutine):
+    """
+    "Your weekday evenings": albums the user plays at this time of the week
+    more than at others. Hourly, so the row follows the clock; the title is
+    the same for every user (server time, like "On this day").
+    """
+
+    hours = 1
+    # At the top of every hour, not every hour from the start: the bands
+    # change on the hour, and a job at :40 kept "afternoons" until 17:40.
+    on_the_hour = True
+    store_key = "for_this_time"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        now = pendulum.now()
+        title = slot_title(time_slot(now))
+        start = int(now.timestamp()) - SLOT_DAYS * 86400
+        items: dict[int, list] = {}
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            scrobbles = list(ScrobbleTable.get_all_in_period(start, int(now.timestamp()), userid))
+            ranked = rank_for_this_time(
+                scrobbles,
+                track_facts,
+                now,
+                exclude=UNKNOWN_ARTISTS.__contains__,
+                uncapped=PLACEHOLDER_ARTIST_HASHES.__contains__,
+            )
+
+            if not ranked:
+                log.info("for-this-time: no album stands out in %s for user %s", title.lower(), userid)
+
+            items[userid] = [for_this_time_item(*r) for r in ranked]
+
+        # Title and items change together: set one by one, a reader between
+        # them saw the new slot's name over the old slot's albums.
+        entry = HomepageStore.entries[self.store_key]
+        entry.title = title
+        entry.items = items
+
+
+class ArtistsYouMightLike(HomepageRoutine):
+    """
+    "Artists you might like": artists in the user's own playlists next to the
+    ones they play most, which they hardly play themselves. Every 6 hours.
+    """
+
+    hours = 6
+    store_key = "artists_you_might_like"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        now = pendulum.now().timestamp()
+        playlists: dict[int, list[list[str]]] = {}
+        for playlist in PlaylistTable.get_all(current_user=False):
+            playlists.setdefault(playlist.userid, []).append(playlist.trackhashes)
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            if not playlists.get(userid):
+                log.info("artists-you-might-like: user %s has no playlists", userid)
+                HomepageStore.entries[self.store_key].items[userid] = []
+                continue
+
+            scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            # Artists without a page are left out BEFORE the row is cut to
+            # its length, so the next ones fill their places.
+            ranked = rank_playlist_neighbours(
+                scrobbles,
+                track_facts,
+                playlists[userid],
+                now,
+                skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
+            )
+
+            if not ranked:
+                log.info("artists-you-might-like: nothing new next to the top artists of user %s", userid)
+
+            HomepageStore.entries[self.store_key].items[userid] = [playlist_neighbour_item(*r) for r in ranked]
+
+
+class ForgottenFavorites(HomepageRoutine):
+    """
+    "Forgotten favorites": favourite tracks not played for two months. The
+    favourites come from the RAM store (`fav_userids`), filled at startup and
+    kept current by every (un)favourite. Every 6 hours.
+    """
+
+    hours = 6
+    store_key = "forgotten_favorites"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        now = pendulum.now().timestamp()
+        favorites: dict[int, list[str]] = {}
+        # A copy: a scan or tag edit on another thread changes the map meanwhile.
+        for trackhash, group in list(TrackStore.trackhashmap.items()):
+            if not group.tracks:
+                continue
+            for userid in group.tracks[0].fav_userids:
+                favorites.setdefault(userid, []).append(trackhash)
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            if not favorites.get(userid):
+                HomepageStore.entries[self.store_key].items[userid] = []
+                log.info("forgotten-favorites: user %s has no favourite tracks", userid)
+                continue
+
+            scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            ranked = rank_forgotten_favorites(favorites[userid], scrobbles, track_facts, now)
+
+            if not ranked:
+                log.info("forgotten-favorites: user %s played every favourite lately", userid)
+
+            HomepageStore.entries[self.store_key].items[userid] = [forgotten_favorite_item(*r) for r in ranked]

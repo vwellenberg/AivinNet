@@ -5,7 +5,16 @@ import schedule
 
 from aivinnet.lib.groupsession import manager as group_session_manager
 from aivinnet.lib.recipes.continuelistening import ContinueListening
-from aivinnet.lib.recipes.homerows import BecauseYouListened, NeverPlayed, OnRepeat, OnThisDay, Rediscover
+from aivinnet.lib.recipes.homerows import (
+    ArtistsYouMightLike,
+    BecauseYouListened,
+    ForgottenFavorites,
+    ForThisTime,
+    NeverPlayed,
+    OnRepeat,
+    OnThisDay,
+    Rediscover,
+)
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
@@ -109,8 +118,20 @@ def _run_cron_jobs():
 
     # Initialized CRON jobs. Registered by class: every run constructs the
     # routine, which runs it. The first run is the run_all() below.
-    for routine in (Rediscover, OnThisDay, BecauseYouListened, OnRepeat, NeverPlayed):
-        schedule.every(routine.hours).hours.do(_guarded(routine))
+    for routine in (
+        Rediscover,
+        OnThisDay,
+        BecauseYouListened,
+        OnRepeat,
+        NeverPlayed,
+        ForThisTime,
+        ArtistsYouMightLike,
+        ForgottenFavorites,
+    ):
+        if getattr(routine, "on_the_hour", False):
+            schedule.every().hour.at(":00").do(_guarded(routine))
+        else:
+            schedule.every(routine.hours).hours.do(_guarded(routine))
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)

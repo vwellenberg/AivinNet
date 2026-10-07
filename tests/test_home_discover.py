@@ -1,6 +1,7 @@
 """
-The rules behind the homepage rows "Because you listened to …", "On repeat"
-and "Never played" (`lib/home/discover.py`, #138).
+The rules behind the homepage rows "Because you listened to …", "On repeat",
+"Never played", "Your weekday evenings", "Artists you might like" and
+"Forgotten favorites" (`lib/home/discover.py`, #138).
 
 The module imports no database or store code on purpose, so these run in the
 fast lane without any `sys.modules` mocks.
@@ -8,16 +9,26 @@ fast lane without any `sys.modules` mocks.
 
 from dataclasses import dataclass
 
+import pendulum
+import pytest
+
 from aivinnet.lib.home.discover import (
     AlbumFacts,
     TrackFacts,
     because_item,
+    forgotten_favorite_item,
     never_played_item,
     on_repeat_item,
     pick_seed_artist,
+    playlist_neighbour_item,
     rank_because,
+    rank_for_this_time,
+    rank_forgotten_favorites,
     rank_never_played,
     rank_on_repeat,
+    rank_playlist_neighbours,
+    slot_title,
+    time_slot,
 )
 
 DAY = 86400
@@ -34,7 +45,8 @@ class Play:
 class Library:
     """
     Tracks named "<album>/<n>"; each album has one album artist and one genre,
-    given when the album is added.
+    given when the album is added. "<album>/<n>/<artist>" gives the track its
+    own artist (a compilation); otherwise it is the album artist.
     """
 
     def __init__(self):
@@ -45,12 +57,14 @@ class Library:
         return self
 
     def facts(self, trackhash: str) -> TrackFacts | None:
-        album = trackhash.split("/")[0]
+        parts = trackhash.split("/")
+        album = parts[0]
         if album not in self.albums:
             return None
 
         artist, genre = self.albums[album]
-        return TrackFacts(albumhash=album, artists=(artist,), genres=(genre,))
+        track_artist = parts[2] if len(parts) > 2 else artist
+        return TrackFacts(albumhash=album, artists=(artist,), genres=(genre,), track_artists=(track_artist,))
 
     def album_facts(self) -> list[AlbumFacts]:
         return [AlbumFacts(a, (artist,), (genre,)) for a, (artist, genre) in self.albums.items()]
@@ -307,3 +321,195 @@ class TestNeverPlayed:
             "secondary_text": "never played",
         }
         assert never_played_item("x", None) == {"type": "album", "hash": "x", "help_text": "never played"}
+
+
+def at(dt: pendulum.DateTime, *trackhashes: str) -> list[Play]:
+    return [Play(t, int(dt.timestamp()) + i * 240) for i, t in enumerate(trackhashes)]
+
+
+class TestTimeSlot:
+    @pytest.mark.parametrize(
+        "when, slot",
+        [
+            (pendulum.datetime(2026, 10, 7, 4, 59), (False, "nights")),  # Wednesday
+            (pendulum.datetime(2026, 10, 7, 5, 0), (False, "mornings")),
+            (pendulum.datetime(2026, 10, 7, 16, 59), (False, "afternoons")),
+            (pendulum.datetime(2026, 10, 7, 20, 0), (False, "evenings")),
+            (pendulum.datetime(2026, 10, 7, 23, 0), (False, "nights")),
+            # After midnight it is still the night before: Saturday 01:00 is
+            # Friday night, Monday 01:00 is Sunday night.
+            (pendulum.datetime(2026, 10, 10, 1, 0), (False, "nights")),
+            (pendulum.datetime(2026, 10, 10, 23, 0), (True, "nights")),
+            (pendulum.datetime(2026, 10, 12, 1, 0), (True, "nights")),
+            (pendulum.datetime(2026, 10, 11, 10, 0), (True, "mornings")),  # Sunday
+        ],
+    )
+    def test_slots(self, when, slot):
+        assert time_slot(when) == slot
+
+    def test_title(self):
+        assert slot_title((False, "evenings")) == "Your weekday evenings"
+        assert slot_title((True, "mornings")) == "Your weekend mornings"
+
+
+class TestForThisTime:
+    def setup_method(self):
+        self.lib = Library().add("eve", "a").add("all", "b").add("morning", "c")
+        self.now = pendulum.datetime(2026, 10, 7, 20, 30)  # a Wednesday evening
+
+    def rank(self, plays, now=None, **kw):
+        return rank_for_this_time(plays, self.lib.facts, now or self.now, **kw)
+
+    def weeks_back(self, hour, *trackhashes, weeks=range(1, 5), now=None):
+        now = now or self.now
+        plays = []
+        for w in weeks:
+            plays += at(now.subtract(weeks=w).replace(hour=hour, minute=0), *trackhashes)
+        return plays
+
+    def test_an_album_played_at_this_time_more_than_at_others(self):
+        plays = self.weeks_back(20, "eve/1") + self.weeks_back(20, "all/1") + self.weeks_back(8, "all/1", "morning/1")
+
+        assert self.rank(plays) == [("eve", 4)]
+
+    def test_the_weekend_is_another_slot(self):
+        saturday = self.now.next(pendulum.SATURDAY).replace(hour=20)
+        plays = self.weeks_back(20, "eve/1", now=saturday) + self.weeks_back(8, "all/1")
+
+        assert self.rank(plays) == []
+
+    def test_not_what_was_played_in_the_last_day(self):
+        plays = self.weeks_back(20, "eve/1") + self.weeks_back(8, "all/1") + at(self.now.subtract(hours=2), "eve/2")
+
+        assert self.rank(plays) == []
+
+    def test_the_slot_is_read_in_the_servers_timezone(self):
+        berlin = pendulum.datetime(2026, 10, 7, 20, 30, tz="Europe/Berlin")
+        # 18:00 UTC is 20:00 in Berlin (summer time): the evening there.
+        plays = self.weeks_back(18, "eve/1") + self.weeks_back(6, "all/1")
+
+        assert self.rank(plays, now=berlin) == [("eve", 4)]
+
+    def test_too_few_plays(self):
+        plays = self.weeks_back(20, "eve/1", weeks=range(1, 3)) + self.weeks_back(8, "all/1")
+
+        assert self.rank(plays) == []
+
+    def test_untagged_albums_are_left_out(self):
+        self.lib.add("untagged", "unknown")
+        plays = self.weeks_back(20, "untagged/1") + self.weeks_back(8, "all/1")
+
+        assert self.rank(plays, exclude=lambda a: a == "unknown") == []
+
+    def test_compilations_do_not_share_one_artist_cap(self):
+        for i in range(3):
+            self.lib.add(f"va{i}", "various")
+        plays = self.weeks_back(20, "va0/1", "va1/1", "va2/1") + self.weeks_back(8, "all/1", "all/2", "all/3")
+
+        assert len(self.rank(plays)) == 2
+        assert len(self.rank(plays, uncapped=lambda a: a == "various")) == 3
+
+
+class TestPlaylistNeighbours:
+    def setup_method(self):
+        self.lib = (
+            Library()
+            .add("rhcp1", "rhcp")
+            .add("primus1", "primus")
+            .add("fnm1", "fnm")
+            .add("jazz1", "miles")
+            .add("va1", "various")
+        )
+        # RHCP is the user's top artist; Faith No More is well known to them.
+        self.plays = [Play("rhcp1/1", NOW - i * HOUR) for i in range(1, 20)]
+        self.plays += [Play("fnm1/1", NOW - 200 * DAY - i) for i in range(10)]
+
+    def rank(self, playlists, plays=None, **kw):
+        plays = self.plays if plays is None else plays
+        return rank_playlist_neighbours(plays, self.lib.facts, playlists, NOW, skip=lambda a: a == "various", **kw)
+
+    def test_a_rarely_played_artist_next_to_a_favourite(self):
+        ranked = self.rank([["rhcp1/1", "primus1/1", "fnm1/1"]])
+
+        assert ranked == [("primus", 1, 0)]
+
+    def test_a_playlist_without_a_favourite_says_nothing(self):
+        assert self.rank([["primus1/1", "jazz1/1"]]) == []
+
+    def test_a_small_playlist_counts_more_than_an_everything_list(self):
+        everything = ["rhcp1/1", "jazz1/1"] + [f"x{i}/1" for i in range(50)]
+        for i in range(50):
+            self.lib.add(f"x{i}", f"artist{i}")
+
+        ranked = self.rank([everything, ["rhcp1/1", "primus1/1"]])
+
+        assert ranked[0][0] == "primus"
+
+    def test_a_compilation_brings_its_track_artists(self):
+        ranked = self.rank([["rhcp1/1", "va1/1/sigur"]])
+
+        assert ranked == [("sigur", 1, 0)]
+
+    def test_a_skipped_artist_leaves_its_place_to_the_next(self):
+        ranked = rank_playlist_neighbours(
+            self.plays,
+            self.lib.facts,
+            [["rhcp1/1", "primus1/1", "jazz1/1"]],
+            NOW,
+            skip=lambda a: a in ("various", "primus"),
+            limit=1,
+        )
+
+        assert ranked == [("miles", 1, 0)]
+
+    def test_no_recent_plays_no_favourites(self):
+        old = [Play("rhcp1/1", NOW - 200 * DAY)]
+
+        assert self.rank([["rhcp1/1", "primus1/1"]], plays=old) == []
+
+    def test_item(self):
+        assert playlist_neighbour_item("primus", 1, 0) == {
+            "type": "artist",
+            "hash": "primus",
+            "help_text": "in one of your playlists",
+            "secondary_text": "never played",
+        }
+        assert playlist_neighbour_item("primus", 3, 1)["help_text"] == "in 3 of your playlists"
+        assert playlist_neighbour_item("primus", 3, 1)["secondary_text"] == "1 play"
+
+
+class TestForgottenFavorites:
+    def setup_method(self):
+        self.lib = Library().add("a", "x").add("b", "y")
+
+    def rank(self, favorites, plays, **kw):
+        return rank_forgotten_favorites(favorites, plays, self.lib.facts, NOW, **kw)
+
+    def test_favourites_quiet_for_two_months(self):
+        plays = [Play("a/1", NOW - (100 + i) * DAY) for i in range(10)]
+        plays += [Play("a/2", NOW - DAY)]
+
+        ranked = self.rank(["a/1", "a/2", "b/1"], plays)
+
+        assert ranked == [("a/1", 10, NOW - 100 * DAY), ("b/1", 0, None)]
+
+    def test_the_one_silent_longest_first_among_equals(self):
+        plays = [Play("a/1", NOW - 100 * DAY), Play("b/1", NOW - 300 * DAY)]
+
+        assert [r[0] for r in self.rank(["a/1", "b/1"], plays)] == ["b/1", "a/1"]
+
+    def test_at_most_two_per_album(self):
+        assert len(self.rank(["a/1", "a/2", "a/3"], [])) == 2
+
+    def test_a_favourite_gone_from_the_library_is_skipped(self):
+        assert self.rank(["gone/1"], []) == []
+
+    def test_items(self):
+        assert forgotten_favorite_item("a/1", 0, None) == {
+            "type": "track",
+            "hash": "a/1",
+            "help_text": "not played yet",
+        }
+        item = forgotten_favorite_item("a/1", 10, NOW - 100 * DAY)
+        assert item["help_text"].startswith("last ")
+        assert item["secondary_text"] == "10 plays"
