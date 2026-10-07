@@ -221,6 +221,25 @@ jobs:
             echo "::error::music folder chosen on first run was lost on restart"; exit 1
           fi
 
+      # Every main page, after a real scan of a library with the shapes a real
+      # one has: a folder of two albums, a double album, a compilation, names
+      # outside ASCII, a duplicate, a file without tags. Hand-made test data
+      # kept missing these: Home and the folder search answered 500 in the
+      # released 2026.10.2 (#388) with every other job green. It writes (a
+      # playlist, favourites, a play) — fine on this throwaway container.
+      - name: Every main page answers after a real scan
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/e2e
+          /tmp/e2e/bin/pip install --quiet mutagen
+          /tmp/e2e/bin/python e2e/make_library.py music
+          python3 e2e/check_pages.py http://127.0.0.1:1970 smoke-reset-pw /music
+          errors=$(docker logs smoke 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep '\[ERROR\]' || true)
+          if [ -n "$errors" ]; then
+            echo "$errors"
+            echo "::error::the server logged errors while the pages were checked"; exit 1
+          fi
+
       # `docker stop` sends SIGTERM, and the app is PID 1: without a handler of
       # its own the kernel drops the signal, Docker waits out its 10 s grace
       # period and SIGKILLs — exit 137, on every stop and every update, with the
