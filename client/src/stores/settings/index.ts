@@ -18,7 +18,7 @@ import {
     normalizeTimeZoneSetting,
     themeForNow,
 } from '@/utils/autoTheme'
-import { normalizeLook, type Look } from '@/utils/theme'
+import { normalizeLook, normalizePalette, type Look, type Palette } from '@/utils/theme'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
 export default defineStore('settings', {
@@ -83,6 +83,8 @@ export default defineStore('settings', {
         // utils/theme.ts. `theme` is the mode; the name predates the split and
         // stays so nothing persisted needs migrating.
         look: <Look>'memphis',
+        // Colour scheme of the Memphis look (#395), per device like the look.
+        palette: <Palette>'memphis',
         // Mode: 'light' = grid paper, 'dark' = the near-black ground.
         theme: <'light' | 'dark'>'light',
         /**
@@ -147,6 +149,9 @@ export default defineStore('settings', {
         // theme 👇
         setLook(look: Look) {
             this.look = look
+        },
+        setPalette(palette: Palette) {
+            this.palette = palette
         },
         setTheme(theme: 'light' | 'dark') {
             this.theme = theme
@@ -504,6 +509,7 @@ export default defineStore('settings', {
             // A look this build does not know (stored by a newer one, or one
             // that was removed) would leave the body with no look class at all.
             store.look = normalizeLook(store.look)
+            store.palette = normalizePalette(store.palette)
 
             // Hand-edited or corrupted storage must not leave the schedule on
             // NaN, which would compare false everywhere and pin the app to dark.

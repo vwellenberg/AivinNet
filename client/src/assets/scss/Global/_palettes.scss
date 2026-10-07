@@ -1,0 +1,62 @@
+// ============================================================================
+// COLOUR SCHEMES (#395) — Memphis · Lagune · Terrakotta · Eierschale.
+//
+// A scheme is nothing but property values. Since #397 every palette role is a
+// `--mem-<role>` property on :root, and everything :root derives (ground, grid
+// line, veil, scrollbar, soft fill, hover) reads the roles — so a scheme sets
+// the roles and the rest follows. Memphis is the default and has no block.
+//
+// The values come from `palettes` in src/brand-colors.json, injected as the
+// Sass map `$mem-palettes` (vite.config.ts). Keep the JSON the only place a
+// scheme colour is written; the separation rules (ΔE between neighbouring nav
+// tints and between entity tints, ink contrast) are tested against it
+// (paletteSchemes.test.ts).
+//
+// Three decisions this file stands on:
+//
+//  · The class sits on <html>, the :root element. The derived tokens are
+//    declared on :root and resolve THERE; a scheme on <body> would repaint the
+//    accents but leave ground, veil and grid on Memphis.
+//  · Only Memphis wears a scheme. App.vue sets the class for the Memphis look
+//    only, and the dark block below also refuses `.theme-stream`: Boring has
+//    its own ground and must not be outranked by (0,3,2) here.
+//  · Dark mode keeps the paper LINE and white content text of Memphis dark —
+//    those are contrast roles, not colour. A scheme tints the ground, the
+//    panels and the muted greys, so dark Lagune reads blue-black and dark
+//    Terrakotta brown-black instead of all four being the same near-black.
+// ============================================================================
+
+$mem-palettes: () !default;
+
+@each $name, $palette in $mem-palettes {
+  $light: map-get($palette, light);
+  $dark: map-get($palette, dark);
+
+  html.palette-#{$name} {
+    @each $role, $value in $light {
+      @if $role == "text-muted" {
+        // One muted grey for both surfaces in light mode, like Memphis, and
+        // the mode-independent one for text on accent fills.
+        --mem-text-muted: #{$value};
+        --mem-content-muted: #{$value};
+        --mem-muted: #{$value};
+      } @else {
+        --mem-#{$role}: #{$value};
+      }
+    }
+    // The background doodle in the scheme's colours, generated from the
+    // Memphis one (scripts/palette-doodles.mjs). Read by mem-grid.
+    --mem-doodles: url("@/assets/images/memphis-doodles-#{$name}.svg");
+  }
+
+  html.palette-#{$name} body.theme-dark:not(.theme-stream) {
+    --mem-ground: #{map-get($dark, "ground")};
+    --mem-panel: #{map-get($dark, "panel")};
+    --mem-soft: #{map-get($dark, "soft")};
+    --mem-text-muted: #{map-get($dark, "text-muted")};
+    --mem-content-muted: #{map-get($dark, "content-muted")};
+    // The two dark-mode tokens that are made FROM the ground.
+    --mem-hover-text: #{map-get($dark, "ground")};
+    --mem-veil: #{mem-alpha(map-get($dark, "ground"), 0.92)};
+  }
+}

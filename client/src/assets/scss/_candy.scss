@@ -44,6 +44,10 @@ $mem-lime: #8cc63f !default;
 $mem-gold: #d4a017 !default;
 $mem-sea: #3ebfaf !default;
 $mem-orchid: #c36bbe !default;
+// The top bar's Home button. Memphis wears the brand green there; a colour
+// scheme gives it a tone of its own (#395) without touching the brand green,
+// which keeps meaning "joined" in device sync.
+$mem-home: $brand-green !default;
 $mem-blush: #f5c6ce !default; // soft fills (nav active, buttons)
 $mem-blush-soft: #fbe3e7 !default; // input fills, hover on white
 $mem-text-muted: #6d6a62 !default; // subtitles, captions
@@ -108,6 +112,11 @@ $mem-palette-static: (
   "gold": $mem-gold,
   "sea": $mem-sea,
   "orchid": $mem-orchid,
+  "home": $mem-home,
+  // The muted grey that does NOT change with the mode: text on the light
+  // accent fills, such as the playing row and chips. The theme-dependent one
+  // stays `--mem-text-muted`, which turns light on the dark ground.
+  "muted": $mem-text-muted-static,
   "blush": $mem-blush,
   "blush-soft": $mem-blush-soft,
 ) !default;
@@ -124,6 +133,8 @@ $mem-lime: var(--mem-lime);
 $mem-gold: var(--mem-gold);
 $mem-sea: var(--mem-sea);
 $mem-orchid: var(--mem-orchid);
+$mem-home: var(--mem-home);
+$mem-muted: var(--mem-muted);
 $mem-blush: var(--mem-blush);
 $mem-blush-soft: var(--mem-blush-soft);
 
@@ -1041,7 +1052,9 @@ $mem-seg-reserve: 4px !default;
 @mixin mem-grid($size: 46px, $w: 2px, $doodles: true) {
   background-color: $mem-ground;
   @if $doodles {
-    background-image: var(--shape-doodles, url("@/assets/images/memphis-doodles.svg")),
+    // A look replaces the doodle outright (--shape-doodles); a colour scheme
+    // only recolours it (--mem-doodles, Global/_palettes.scss).
+    background-image: var(--shape-doodles, var(--mem-doodles, url("@/assets/images/memphis-doodles.svg"))),
       linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
     background-size: var(--shape-doodles-size, 3840px 1600px), $size $size, $size $size;

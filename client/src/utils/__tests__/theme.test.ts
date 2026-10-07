@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { LOOKS, fixedMode, lookHasModes, normalizeLook, themeBodyClasses } from '../theme'
+import {
+    LOOKS,
+    PALETTES,
+    fixedMode,
+    lookHasModes,
+    lookHasPalettes,
+    normalizeLook,
+    normalizePalette,
+    paletteHtmlClasses,
+    themeBodyClasses,
+} from '../theme'
 import appearance from '../../settings/general/theme'
 
 describe('themeBodyClasses', () => {
@@ -70,5 +80,51 @@ describe('the Theme setting', () => {
         // The rename is the label only: every saved choice says `stream`, and
         // a value renamed to match the label would drop those users to Memphis.
         expect(options.find((o) => o.title === 'Boring')?.value).toBe('stream')
+    })
+})
+
+describe('colour schemes (#395)', () => {
+    it('Memphis carries no palette class, every other scheme exactly its own', () => {
+        expect(Object.values(paletteHtmlClasses('memphis', 'memphis')).some(Boolean)).toBe(false)
+        for (const palette of PALETTES.filter((p) => p !== 'memphis')) {
+            const on = Object.entries(paletteHtmlClasses('memphis', palette)).filter(([, v]) => v)
+            expect(on).toEqual([[`palette-${palette}`, true]])
+        }
+    })
+
+    it('lists every class for every scheme, so switching clears the last one', () => {
+        const keys = PALETTES.map((p) => Object.keys(paletteHtmlClasses('memphis', p)).sort().join())
+        expect(new Set(keys).size).toBe(1)
+        expect(keys[0].split(',')).toHaveLength(PALETTES.length - 1)
+    })
+
+    it('Boring wears no scheme, and the stored one waits for Memphis', () => {
+        // Boring has its own ground; a scheme block would outrank it.
+        expect(lookHasPalettes('stream')).toBe(false)
+        for (const palette of PALETTES) {
+            expect(Object.values(paletteHtmlClasses('stream', palette)).some(Boolean)).toBe(false)
+        }
+        expect(lookHasPalettes('memphis')).toBe(true)
+    })
+
+    it('normalizePalette keeps known schemes and falls back to Memphis', () => {
+        for (const palette of PALETTES) expect(normalizePalette(palette)).toBe(palette)
+        expect(normalizePalette('neon')).toBe('memphis')
+        expect(normalizePalette(undefined)).toBe('memphis')
+    })
+})
+
+describe('the Colour scheme setting', () => {
+    const setting = appearance.find((s) => s.title === 'Colour scheme')
+
+    it('sits right after Theme', () => {
+        const titles = appearance.map((s) => s.title)
+        expect(titles.indexOf('Colour scheme')).toBe(titles.indexOf('Theme') + 1)
+    })
+
+    it('offers exactly the schemes this build knows', () => {
+        // Same reason as for the looks: an unknown stored value would quietly
+        // turn back into Memphis on the next load.
+        expect((setting?.options ?? []).map((o) => o.value)).toEqual([...PALETTES])
     })
 })

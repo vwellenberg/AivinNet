@@ -40,8 +40,9 @@ const INDEX = readFileSync("src/assets/scss/Global/index.scss", "utf-8");
 function paletteRoles(): string[] {
   const start = CANDY.indexOf("$mem-palette-static: (");
   expect(start, "$mem-palette-static not found in _candy.scss").toBeGreaterThan(-1);
-  const body = CANDY.slice(start, CANDY.indexOf(")", start));
-  return [...body.matchAll(/"([a-z-]+)":\s*\$mem-\1\b/g)].map((m) => m[1]);
+  // Up to the map's own `) !default;` — a `)` inside a comment must not end it.
+  const body = CANDY.slice(start, CANDY.indexOf(") !default;", start));
+  return [...body.matchAll(/"([a-z-]+)":\s*\$mem-[a-z-]+/g)].map((m) => m[1]);
 }
 
 /**
@@ -112,6 +113,8 @@ describe("palette roles are runtime properties (#395)", () => {
       "gold",
       "sea",
       "orchid",
+      "home",
+      "muted",
       "blush",
       "blush-soft",
     ]);

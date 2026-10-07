@@ -399,7 +399,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
 
     .song-album,
     .song-duration {
-        color: var(--look-filled-muted, #{$mem-text-muted-static});
+        color: var(--look-filled-muted, #{$mem-muted});
     }
 
     .options-and-duration {
@@ -409,7 +409,7 @@ const isFavoritesPage = route.path.startsWith('/favorites')
         }
 
         .options-icon svg {
-            stroke: var(--look-filled-muted, #{$mem-text-muted-static});
+            stroke: var(--look-filled-muted, #{$mem-muted});
         }
     }
 

@@ -222,7 +222,7 @@ const mobileTitle = computed(() => {
             // colour for one destination. Hover stays with the role: the
             // override here still painted blush, the pointer colour #422
             // retired.
-            background-color: var(--look-tint, #{mem-pastel($brand-green)});
+            background-color: var(--look-tint, #{mem-pastel($mem-home)});
             color: var(--look-tint-text, #{$candy-black});
         }
 
