@@ -170,6 +170,14 @@ function resume() {
 }
 
 .continue-card {
+  // The arrival (reported 2026-10-07: "no animation when it appears, or a very
+  // subtle one"). It had none of its own — the only movement was the page's
+  // 22px slide, and on a fetch that finished after it, not even that. The
+  // biggest object on Home now arrives like a plate rising out of the page,
+  // then its moving parts follow in reading order: the progress fill runs to
+  // its value, Continue pops, the Up next rows step in. All of it on the
+  // shared vocabulary (Global/_button-classes.scss), nothing local.
+  animation: mem-plate-rise $motion-settle ease-out;
   display: grid;
   grid-template-columns: 8.5rem minmax(0, 1fr);
   gap: 1.25rem;
@@ -261,10 +269,17 @@ function resume() {
       display: block;
       height: 100%;
       background-color: $mem-ink;
+      // Runs from the left to where they are, once the plate is up.
+      transform-origin: left;
+      animation: mem-fill-grow $motion-settle $motion-curve-settle $motion-after-plate backwards;
     }
   }
 
   .resume {
+    // A primary that mounts once per visit opts into the pop at its call site
+    // (btn-primary carries none, see Global/_buttons.scss) — after the fill.
+    @include btn-pop;
+    --btn-pop-delay: #{$motion-after-plate + $motion-stagger};
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -297,6 +312,15 @@ function resume() {
     margin: 0;
     padding: 0;
     min-width: 0;
+
+    // The list arrives top-down, its caption first — as rows, so `drop`. The
+    // `<ol>` holds nothing but these `<li>`, so `:nth-child` counts only them.
+    // No wait for the plate: the rows need a request of their own and mount
+    // after the card has landed anyway (measured: the album's tracks came in
+    // after the rise had finished).
+    > li {
+      @include mem-arrival($beyond: drop);
+    }
 
     .kicker {
       align-self: flex-start;
@@ -368,6 +392,18 @@ function resume() {
           @include mem-row-plate-hover($hatch: false);
         }
       }
+    }
+  }
+
+  // Once risen, it stays risen — the latch the rows have (utils/arrivalLatch.ts
+  // marks the card). The cards are a keyed `v-for`: when a refetch reorders
+  // them, Vue moves the node and every animation inside restarts with it.
+  &[data-arrived] {
+    animation: none;
+
+    .progress span,
+    .resume {
+      animation: none;
     }
   }
 

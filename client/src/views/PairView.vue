@@ -85,13 +85,8 @@ onMounted(async () => {
         border: 3px solid transparent;
         border-top-color: $brand-green;
         border-radius: 50%;
-        animation: pairspin 0.8s linear infinite;
-    }
-
-    @keyframes pairspin {
-        to {
-            transform: rotate(360deg);
-        }
+        // The global `spin` (Global/basic.scss) at the one spinner speed.
+        animation: spin $motion-spin linear infinite;
     }
 }
 </style>

@@ -6,7 +6,6 @@
       <button
         v-for="option in options"
         :key="option.id"
-        v-motion-slide-bottom
         type="button"
         class="option"
         @click="option.action()"
@@ -46,7 +45,6 @@ onMounted(() => {
           id: "$home",
           title: "Home directory",
           info: "Scan all folders in your home directory.",
-          delay: 0,
           action: () =>
             addRootDirs(["$home"], [])
               .then(() => settings.setRootDirs(["$home"]))
@@ -56,7 +54,6 @@ onMounted(() => {
           id: "wtf",
           title: "Specific directories",
           info: "Select folders to scan for music.",
-          delay: 0.1,
           action: () => modal.showSetRootDirsModal(),
         },
       ];
@@ -79,6 +76,11 @@ onMounted(() => {
     margin-top: 1.25rem;
     cursor: pointer;
     transition: background-color $motion-move ease-out;
+    // The choices step in one under the other — the shared arrival, where
+    // they used to slide 100px up on a JS spring that ignored reduced motion
+    // (see `.m-content` in modal.vue). No extra wait for the plate: they only
+    // mount after getRootDirs() answers, when the modal is long up.
+    @include mem-arrival($beyond: drop);
 
     &:hover {
       background-color: $candy-pink-deep;

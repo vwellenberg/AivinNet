@@ -1192,6 +1192,23 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   `pointer-events: none`) leihen sich `btn-action` nur für die Platte und bekommen deshalb
   `animation: none`. Wer eine Rolle für reine Geometrie borgt, prüft, was er sich an Verhalten
   mitgeholt hat.
+- **⚠️ Bewegung gehört ins Stylesheet, nie in eine JS-Bibliothek.** `motion-policy.scss` erreicht
+  nur CSS-Animationen und -Übergänge; was JavaScript Frame für Frame als Inline-Style schreibt,
+  läuft an „weniger Bewegung" vorbei. So fiel das Modal bis 2026-10-07 auf einer
+  `@vueuse/motion`-Feder 100 px herein — für alle, auch mit „weniger Bewegung", und mit Dauern
+  außerhalb von `_motion.scss`. Jetzt `mem-plate-rise` (große Platten: Modal, Continue-Karte);
+  `motionArrival.test.ts` verbietet `v-motion` und JS-Animationsbibliotheken in den
+  Abhängigkeiten. (`v-auto-animate` ist geduldet: es fragt `prefers-reduced-motion` selbst ab.)
+- **Eine Ankunfts-Keyframe ohne 100-%-Frame landet auf dem DEKLARIERTEN Wert.** `mem-plate-rise`
+  startet ohne Schatten und nennt keinen Endschatten — so landet die Karte auf 4 px und das Modal
+  auf 6 px, ohne Sprung am Ende. Ein fester Endwert passte nur zu einer der beiden. Die Karte
+  ist ein `v-for` mit Key — sortiert ein Refetch um, hängt Vue sie um und sie stiege erneut auf;
+  deshalb steht `mem-plate-rise` mit in der Einmal-Sperre (`ARRIVAL_ANIMATIONS`).
+- **Eine Ausnahme per Klassenname verfehlt jeden, der anders heißt.** Die Spinner-Ausnahme in
+  `motion-policy.scss` nannte `.loader, .spinner` — `shared/Spinner.vue` heißt
+  `.player-spinner` und stand unter „weniger Bewegung" still (Puffern, Cover-Suche). Der Test
+  sucht seitdem am Merkmal (`animation: spin`), nicht am Namen. Alle Spinner drehen mit
+  `$motion-spin` (vorher 0,4 / 0,45 / 0,8 s).
 - Das Vokabular (Dauern, Kurven, Staffelung) steht in `_motion.scss` — und wird **benutzt, nicht
   nur definiert** (#173). Die Skala existierte monatelang, während daneben die Zahlen weiter von
   Hand geschrieben wurden (66 → 72 Stellen, jede neue Animation brachte eigene Werte mit).

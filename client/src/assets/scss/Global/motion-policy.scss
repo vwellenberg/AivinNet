@@ -73,8 +73,14 @@
     // Der Spinner ist keine Zierde, sondern die einzige Auskunft darüber, dass
     // überhaupt noch etwas passiert. Steht er still, sieht die App abgestürzt
     // aus. Langsamer statt aus, aus demselben Grund wie oben.
+    //
+    // `.player-spinner` ist `shared/Spinner.vue` (Puffern in der Player-Leiste,
+    // Cover-Suche, Metadaten-Abruf, Bibliotheks-Prüfung). Er fehlte hier, weil
+    // er anders heißt — und stand unter „weniger Bewegung" still, genau das
+    // Bild „abgestürzt", gegen das diese Ausnahme existiert.
     .loader,
-    .spinner {
+    .spinner,
+    .player-spinner {
         animation-duration: 1.4s !important;
         animation-iteration-count: infinite !important;
     }

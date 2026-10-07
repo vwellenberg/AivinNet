@@ -223,6 +223,56 @@
   }
 }
 
+// Die große Platte steigt auf: die Continue-Karte der Startseite und jedes
+// Modal. Beides war vorher stumm bzw. lief über eine JS-Feder (@vueuse/motion),
+// die 100 px von oben nachfederte und „weniger Bewegung“ nicht kannte.
+//
+// Die Geste ist das Gegenstück zum Drücken (`candy-raised`): ein gedrückter
+// Knopf fährt IN seinen Schatten, diese Platte kommt flach aus der Seite und
+// hebt sich aus ihm heraus — der harte Schatten wächst dabei von null auf den
+// eigenen Wert. Das ist dieselbe Sprache, in der jede Platte hier Höhe zeigt,
+// nur einmal rückwärts gelesen.
+//
+// ⚠️ Einen 100-%-Frame gibt es absichtlich NICHT. Fehlt eine Eigenschaft im
+// letzten Keyframe, läuft sie auf den deklarierten Wert des Elements zu — so landet
+// die Karte auf ihren 4 px und das Modal auf seinen 6 px, ohne dass die
+// Keyframe eine der beiden Zahlen kennen muss (und ohne Sprung am Ende).
+//
+// Kein Kippen, kein Pop-Überschwinger: auf einer Fläche dieser Größe liest sich
+// beides als Wackeln (dieselbe Messung wie bei den Kacheln in cards.scss). Die
+// Überhöhung bei 60 % ist ein Pixel und ein halbes Prozent — man sieht sie
+// nicht, man spürt, dass die Platte nicht einfach stehen bleibt.
+@keyframes mem-plate-rise {
+  0% {
+    opacity: 0;
+    // `mem-press`, nicht ein ausgeschriebenes translate: was „flach in der
+    // Seite" heißt, entscheidet der Look (Memphis: in den Schatten geschoben,
+    // Stream: auf 0,97 gestaucht) — dieselbe Stelle, die auch das Drücken
+    // beantwortet. Nichts dazumultiplizieren: im Stream-Look stünde sonst
+    // 0,97 × 0,97 da.
+    transform: mem-press(4px, 4px);
+    box-shadow: 0 0 0 var(--mem-shadow);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translate(-1px, -1px) scale(1.005);
+  }
+}
+
+// Ein Füllstand läuft beim Erscheinen von links auf seinen Wert, statt
+// dazustehen — der Fortschrittsbalken der Continue-Karte. `scaleX` statt
+// `width`: läuft auf dem Compositor und lässt die deklarierte Breite in Ruhe.
+@keyframes mem-fill-grow {
+  0% {
+    transform: scaleX(0);
+  }
+
+  100% {
+    transform: scaleX(1);
+  }
+}
+
 // Der Sticker-Anschlag: von oben, schräg, beim Aufsetzen gestaucht — und der
 // harte Schatten entsteht ERST im Moment des Kontakts.
 //

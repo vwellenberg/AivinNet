@@ -32,6 +32,18 @@ function scssFiles(dir: string): string[] {
     return files
 }
 
+function vueFiles(dir: string): string[] {
+    const files: string[] = []
+
+    for (const entry of readdirSync(dir)) {
+        const path = `${dir}/${entry}`
+        if (statSync(path).isDirectory()) files.push(...vueFiles(path))
+        else if (entry.endsWith('.vue')) files.push(path)
+    }
+
+    return files
+}
+
 const SHEETS = Object.fromEntries(scssFiles('src/assets/scss').map(path => [path, readFileSync(path, 'utf8')]))
 const POLICY = 'src/assets/scss/Global/motion-policy.scss'
 
@@ -95,6 +107,50 @@ describe('reduced motion', () => {
         // start of "reduced motion, except the bits I liked".
         const exceptions = policy.slice(policy.indexOf('Begründete Ausnahmen'))
         expect(exceptions.split('\n').filter(line => line.trim().startsWith('//')).length).toBeGreaterThan(6)
+    })
+
+    it('keeps EVERY spinner turning, whatever its class is called', () => {
+        // `shared/Spinner.vue` heißt `.player-spinner`, nicht `.spinner` — und
+        // stand deshalb unter „weniger Bewegung" still, während die Ausnahme
+        // für Spinner nur die anderen zwei erreichte. Gesucht wird darum am
+        // Merkmal (jede Deklaration, die `spin` dreht), nicht am Namen; der
+        // Name kommt aus dem Block, der sie umschließt.
+        const files = [...scssFiles('src'), ...vueFiles('src')].filter(file => !file.includes('__tests__'))
+        const policy = SHEETS[POLICY]
+        // Nur Code, keine Kommentare: die Begründung NENNT `.player-spinner`, und
+        // ein Treffer dort deckte den Spinner, ohne dass ihn eine Regel trifft.
+        const exceptions = policy
+            .slice(policy.indexOf('Begründete Ausnahmen'))
+            .split('\n')
+            .filter(line => !line.trim().startsWith('//'))
+            .join('\n')
+        const found: string[] = []
+        const uncovered: string[] = []
+
+        for (const file of files) {
+            const source = readFileSync(file, 'utf8')
+            for (const m of source.matchAll(/animation(-name)?:[^;{}]*?(?<![\w-])spin(?![\w-])/g)) {
+                // Rückwärts zur öffnenden Klammer des umschließenden Blocks …
+                let depth = 0
+                let open = (m.index ?? 0) - 1
+                for (; open >= 0; open--) {
+                    if (source[open] === '}') depth++
+                    else if (source[open] === '{' && depth-- === 0) break
+                }
+                // … und der Selektor davor: dessen LETZTE Klasse ist der Spinner.
+                const selector = source
+                    .slice(Math.max(source.lastIndexOf(';', open), source.lastIndexOf('}', open), source.lastIndexOf('{', open - 1)) + 1, open)
+                    .split('\n')
+                    .filter(line => !line.trim().startsWith('//'))
+                    .join(' ')
+                const name = selector.match(/\.([\w-]+)[^.]*$/)?.[1]
+                found.push(`${file}: ${selector.trim()}`)
+                if (!name || !new RegExp(`\\.${name}\\b`).test(exceptions)) uncovered.push(`${file}: ${selector.trim()}`)
+            }
+        }
+
+        expect(found.length, 'kein Spinner gefunden — die Suche ist kaputt').toBeGreaterThanOrEqual(3)
+        expect(uncovered, 'dreht `spin`, steht aber nicht in der Spinner-Ausnahme von motion-policy.scss').toEqual([])
     })
 
     it('leaves no component to answer it privately', () => {

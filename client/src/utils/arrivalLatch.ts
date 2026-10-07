@@ -23,8 +23,15 @@
 // next one somebody writes.
 // ---------------------------------------------------------------------------
 
-/** The keyframes that count as an arrival. */
+/** The staggered entrance of rows and tiles — the arrival `mem-arrival` runs. */
 export const ARRIVAL_ANIMATION = 'mem-step-in'
+/**
+ * Every keyframe that counts as an arrival. `mem-plate-rise` is the Continue
+ * card on Home: a keyed `v-for` item, so a refetch that changes the order of
+ * the cards moves its node — and the card rose a second time, fill and pop
+ * included.
+ */
+export const ARRIVAL_ANIMATIONS: ReadonlySet<string> = new Set([ARRIVAL_ANIMATION, 'mem-plate-rise'])
 export const ARRIVED_ATTR = 'data-arrived'
 /** Set when the entrance starts; seeing it again at a start means a RESTART. */
 export const STARTED_ATTR = 'data-arrival-started'
@@ -38,7 +45,7 @@ export const STARTED_ATTR = 'data-arrival-started'
 // concerned, so it is latched on the spot (and `animation: none` jumps it to its
 // end state instead of replaying).
 function onAnimationStart(e: AnimationEvent) {
-    if (e.animationName !== ARRIVAL_ANIMATION || e.pseudoElement) return
+    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return
     if (!(e.target instanceof Element)) return
     if (e.target.hasAttribute(STARTED_ATTR)) e.target.setAttribute(ARRIVED_ATTR, '')
     else e.target.setAttribute(STARTED_ATTR, '')
@@ -47,7 +54,7 @@ function onAnimationStart(e: AnimationEvent) {
 function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
     // report the row as their target — only the element's own entrance counts.
-    if (e.animationName !== ARRIVAL_ANIMATION || e.pseudoElement) return
+    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return
     if (e.target instanceof Element) e.target.setAttribute(ARRIVED_ATTR, '')
 }
 
