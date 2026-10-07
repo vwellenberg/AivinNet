@@ -12,9 +12,6 @@ const queue = reactive({
 
 vi.mock('@/stores/queue', () => ({ default: () => queue }))
 vi.mock('@/stores/player', () => ({ maxSeekPercent: { value: 100 } }))
-vi.mock('@/utils/colortools/pageGradient', () => ({
-    MEMPHIS: { teal: '#2fbfa3', yellow: '#F5B23C', blush: '#f5c6ce', blushSoft: '#fbe3e7' },
-}))
 
 import Progress from '@/components/LeftSidebar/NP/Progress.vue'
 
@@ -129,7 +126,7 @@ describe('seek bar hover preview', () => {
     // The colour is the look token with Memphis yellow as fallback (#199) — a
     // bare hex here would be a stop no other look can recolour.
     const span = () => {
-        const stops = [...lastBg.matchAll(/var\(--look-track-seek, #F5B23C\) ([\d.]+)%/gi)].map(m => Number(m[1]))
+        const stops = [...lastBg.matchAll(/var\(--look-track-seek, var\(--mem-yellow\)\) ([\d.]+)%/gi)].map(m => Number(m[1]))
         return stops.length === 2 ? { from: stops[0], to: stops[1] } : null
     }
     const textureFrac = (w: ReturnType<typeof mount>) =>

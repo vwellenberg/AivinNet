@@ -50,7 +50,6 @@
 import { maxSeekPercent } from '@/stores/player'
 import useQStore from '@/stores/queue'
 import { formatSeconds } from '@/utils'
-import { MEMPHIS } from '@/utils/colortools/pageGradient'
 import { computed, reactive, ref } from 'vue'
 
 const q = useQStore()
@@ -203,10 +202,12 @@ const seekSpan = computed(() => {
 // against the leftover width and would need the span's own size folded in).
 // Look tokens with the Memphis colour as fallback (_candy.scss, "LOOK TOKENS"):
 // an inline style resolves `var()` like any other declaration.
-const SEEK = `var(--look-track-seek, ${MEMPHIS.yellow})`
-const PLAYED = `var(--look-track-played, ${MEMPHIS.teal})`
-const BUFFERED = `var(--look-track-buffered, ${MEMPHIS.blush})`
-const TRACK = `var(--look-track, ${MEMPHIS.blushSoft})`
+// The fallbacks are the palette properties, not hex literals (#395), so the
+// bar follows the colour scheme like every stylesheet colour does.
+const SEEK = 'var(--look-track-seek, var(--mem-yellow))'
+const PLAYED = 'var(--look-track-played, var(--mem-teal))'
+const BUFFERED = 'var(--look-track-buffered, var(--mem-blush))'
+const TRACK = 'var(--look-track, var(--mem-blush-soft))'
 
 const progressBg = computed(() => {
     const span = seekSpan.value

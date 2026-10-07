@@ -72,6 +72,62 @@ $mem-blush-soft-static: $mem-blush-soft !default;
 $mem-text-muted-static: $mem-text-muted !default;
 
 // ---------------------------------------------------------------------------
+// THE PALETTE — runtime-switchable since #395 (the "Farbschema" setting).
+//
+// Ink, paper and every accent used to be compiled in: `$mem-teal` WAS
+// `#2fbfa3`, and `mem-pastel()` mixed the tints in Sass. A second palette
+// would have needed a second build. Now each role is a custom property on
+// :root (Global/index.scss emits `--mem-<role>` from this map), and the
+// `$mem-<role>` names below point at it — a palette is a set of property
+// values on one selector, nothing more.
+//
+// Same `!default` rule as the -static twins above, and for the same reason:
+// on re-import the role is already the var(), and the map must keep the
+// literal. The map keys are the custom-property names.
+//
+// A palette sets the roles on <html> — the same element as :root — so the
+// tokens :root derives from them (ground, grid line, veil, …) resolve there
+// too. Set on <body>, everything :root already resolved would stay put.
+//
+// ⚠️ NEVER run a palette role through a Sass colour function again —
+// `mix()`, `rgba()`, `lighten()` all choke on a var(). Mix in the browser:
+// `color-mix(in srgb, …)` (see mem-pastel, mem-alpha). Where Sass genuinely
+// needs a literal (a data-URI sprite, a :root rgba), take it from this map.
+// ---------------------------------------------------------------------------
+$mem-palette-static: (
+  "ink": $mem-ink,
+  "paper": $mem-paper,
+  "teal": $mem-teal,
+  "yellow": $mem-yellow,
+  "coral": $mem-coral,
+  "lavender": $mem-lavender,
+  "pink": $mem-pink,
+  "blue": $mem-blue,
+  "kraft": $mem-kraft,
+  "lime": $mem-lime,
+  "gold": $mem-gold,
+  "sea": $mem-sea,
+  "orchid": $mem-orchid,
+  "blush": $mem-blush,
+  "blush-soft": $mem-blush-soft,
+) !default;
+$mem-ink: var(--mem-ink);
+$mem-paper: var(--mem-paper);
+$mem-teal: var(--mem-teal);
+$mem-yellow: var(--mem-yellow);
+$mem-coral: var(--mem-coral);
+$mem-lavender: var(--mem-lavender);
+$mem-pink: var(--mem-pink);
+$mem-blue: var(--mem-blue);
+$mem-kraft: var(--mem-kraft);
+$mem-lime: var(--mem-lime);
+$mem-gold: var(--mem-gold);
+$mem-sea: var(--mem-sea);
+$mem-orchid: var(--mem-orchid);
+$mem-blush: var(--mem-blush);
+$mem-blush-soft: var(--mem-blush-soft);
+
+// ---------------------------------------------------------------------------
 // THEME-DEPENDENT roles — runtime-switchable via CSS custom properties.
 // Global/index.scss defines --mem-* on :root (light values) and overrides
 // them under body.theme-dark. NEVER run these through Sass colour functions
@@ -79,8 +135,9 @@ $mem-text-muted-static: $mem-text-muted !default;
 //  - ground/content-*: the page ground (grid) and text painted over it
 //  - panel/text/text-muted/soft: panel surfaces and their text/hover fills
 //  - line: EVERY border/outline (ink in light, paper in dark)
-// $mem-ink stays STATIC — use it for text/icons on the light accent fills
-// (yellow/teal/blush/white), which look the same in both themes.
+// $mem-ink does not change with the MODE — use it for text/icons on the light
+// accent fills (yellow/teal/blush/white), which look the same in both themes.
+// (It is still a var(): the palette can change it, see THE PALETTE above.)
 // ---------------------------------------------------------------------------
 $mem-ground: var(--mem-ground);
 $mem-content-text: var(--mem-content-text);
@@ -95,15 +152,16 @@ $mem-hover: var(--mem-hover); // hover fill (blush / calm dark tint)
 
 // ---------------------------------------------------------------------------
 // LEGACY candy aliases — kept for the ~100 existing usages; new code should
-// prefer $mem-*. The theme-dependent ones are assigned WITHOUT !default so
-// they beat the static literals the vite injection prepends.
+// prefer $mem-*. All of them are assigned WITHOUT !default so they beat the
+// static literals the vite injection prepends — the accents too, since they
+// became palette vars (#395).
 // ---------------------------------------------------------------------------
-$candy-pink: $mem-blush !default; // accent, theme-independent
+$candy-pink: $mem-blush; // accent, theme-independent
 $candy-pink-soft: $mem-soft; // panel hover/input fill → theme var
-$candy-pink-deep: $mem-yellow !default; // accent, theme-independent
+$candy-pink-deep: $mem-yellow; // accent, theme-independent
 $candy-white: $mem-panel; // panel surface → theme var
-$candy-lavender: $mem-lavender !default;
-$candy-black: $mem-ink !default; // static ink (text on accent fills)
+$candy-lavender: $mem-lavender;
+$candy-black: $mem-ink; // ink (text on accent fills), mode-independent
 
 // Text
 $candy-text: $mem-text; // default text → theme var (ink / paper)
@@ -488,9 +546,20 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // NOT `lighten()`: that raises lightness in HSL and leaves saturation where it
 // was, which turns coral into neon rather than into a pastel. Mixing with the
 // actual ground colour is what makes the two look related.
+//
+// Mixed in the BROWSER (#395): the palette roles are var()s, which Sass cannot
+// mix. `color-mix(in srgb, …)` is the same linear sRGB blend Sass' `mix()` did,
+// and it resolves at the element, so a palette switched on <html> (the :root
+// element, see THE PALETTE) repaints every tint without a rebuild.
 // ---------------------------------------------------------------------------
 @function mem-pastel($color, $amount: 55%) {
-  @return mix($color, $mem-paper, $amount);
+  @return color-mix(in srgb, #{$color} $amount, #{$mem-paper});
+}
+
+/// A palette role at partial opacity — the `rgba($colour, $alpha)` the var()
+/// roles can no longer go through. `$alpha` as a fraction (0.55), like rgba.
+@function mem-alpha($color, $alpha) {
+  @return color-mix(in srgb, #{$color} percentage($alpha), transparent);
 }
 
 // ---------------------------------------------------------------------------

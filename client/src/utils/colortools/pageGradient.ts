@@ -9,7 +9,10 @@ export const BRAND_GREEN = brandColors.green
 export const BRAND_RED = brandColors.red
 
 // Memphis design palette — the TS-side view of the same JSON source that
-// feeds the SCSS $mem-* tokens. Use these for any colour set from script.
+// feeds the SCSS $mem-* tokens. These are the MEMPHIS LITERALS: a colour set
+// from script that should follow the colour scheme reads `var(--mem-<role>)`
+// instead (#395, paletteTokens.test.ts). Use these only where a var() cannot
+// resolve, e.g. an SVG attribute.
 export const MEMPHIS = brandColors.memphis
 
 /**

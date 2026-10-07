@@ -647,6 +647,51 @@ ohne sichtbare Ränder macht sie über die Farbe `--mem-line` unsichtbar, nicht 
 dann bleibt jede Zeile gleich hoch. Ebenfalls unverändert: die Schraffur (`--mem-hatch*`, war
 schon Laufzeit) und Glyph-Konturen (`drop-shadow` am Logo und am Herz gehören zur Zeichnung).
 
+## ⚠️ Die PALETTE ist ein Satz Laufzeit-Properties (#395)
+
+Tinte, Papier und jeder Akzent (`teal`, `yellow`, `coral`, `lavender`, `pink`, `blue`, `kraft`,
+`lime`, `gold`, `sea`, `orchid`, `blush`, `blush-soft`) waren bis #395 **einkompiliert**:
+`$mem-teal` *war* `#2fbfa3`, und `mem-pastel()` mischte die Tönungen per Sass-`mix()`. Ein
+zweites Farbschema hätte einen zweiten Build gebraucht. Jetzt:
+
+- `$mem-<rolle>` ist `var(--mem-<rolle>)`. Die Literale stehen **einmal** in der Map
+  `$mem-palette-static` (`_candy.scss`), und `Global/index.scss` gibt sie per `@each` auf
+  `:root` aus. Die Map steht hinter `!default` — sonst baut der zweite Import von `_candy.scss`
+  sie aus den `var()`s neu und `:root` bekommt `--mem-teal: var(--mem-teal)` (= keine Farbe).
+- **Gemischt wird im Browser:** `mem-pastel()` ist `color-mix(in srgb, …)` — dieselbe lineare
+  sRGB-Mischung wie Sass' `mix()`, aufgelöst am Element. `mem-alpha($rolle, 0.55)` ersetzt
+  `rgba($rolle, 0.55)`.
+- Die abgeleiteten `:root`-Tokens (Raster, `--mem-content-faint`, Veil, Scrollbar) lesen die
+  Properties statt der Literale. **Ein Schema muss deshalb nur die Rollen setzen** — auf
+  demselben Element wie `:root` (also `<html>`), dann lösen die Ableitungen dort mit auf. Auf
+  `<body>` gesetzt, bliebe alles, was `:root` schon aufgelöst hat, beim alten Wert.
+- Aus Script gesetzte Farben lesen `var(--mem-<rolle>)` (Seek-Leiste, Statistik-Kacheln).
+  `MEMPHIS.<rolle>` aus `brand-colors.json` ist das Literal und bliebe in jedem Schema
+  Memphis; einzige Ausnahme ist der QR-Code beim Pairing (SVG-Attribut, dort löst `var()` nicht
+  auf).
+
+⚠️ **Die Falle ist lautlos: eine Sass-Farbfunktion auf einem `var()`.** `mix()` bricht den Build
+ab, `rgba($mem-teal, 0.5)` aber **nicht** — Sass reicht es als `rgba(var(--mem-teal), 0.5)`
+durch, und der Browser verwirft die Deklaration. Kein Fehler, kein Lint, nur eine fehlende
+Farbe. Also `mem-alpha()`/`mem-pastel()`, oder ein `-static`-Zwilling, wo Sass wirklich ein
+Literal braucht. Zensus: `paletteTokens.test.ts` (sechs Mutationen, sechs rote Läufe).
+
+Noch **nicht** erreichbar: die Data-URI-Sprites (Schraffur, Zackenmarke, Sprinkle) tragen die
+Tinte als `%2317171A`, und das Doodle ist eine Datei. `var()` kommt in keines von beiden hinein.
+
+**Beweis wie bei #198, nur über Farben:** berechnete Farbwerte jedes Elements und seiner
+Pseudo-Elemente (`color`, `background-*`, alle vier Ränder, `outline`, `fill`, `stroke`,
+`box-shadow`, `text-shadow`, Masken, Filter), 12 Zustände × Memphis hell/dunkel/Boring, master
+gegen Branch: **203 292 Werte, 203 274 bitgleich**, die 18 übrigen nur der Drehwinkel des
+laufenden Lauflicht-Kometen (Animationsframe; Farben und Stopps gleich). Gegenprobe mit einem
+umgefärbten Build: 70 273 Abweichungen — der Vergleich sieht also Farbe.
+
+⚠️ **Zwei Fallen beim Nachmessen:** Pixel-Diffs taugen hier nicht — zwei Läufe **desselben**
+Builds unterscheiden sich in Player-Leiste und Sidebar genauso stark wie master gegen Branch
+(Lauflicht, Zeitstempel, Wiedergabe-Zustand). Und `getComputedStyle` notiert ein `color-mix()`
+als `color(srgb …)`, ein Literal als `rgb(…)`: Ein String-Vergleich meldet jede Tönung als
+Abweichung. Jeden Farbwert deshalb auf ein 1×1-Canvas malen und die 8-Bit-Werte vergleichen.
+
 ## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis und Stream (#199)
 
 **Stream heißt in der Oberfläche „Boring"** (2026-09-27, Wunsch des Nutzers). Nur der Anzeigename:

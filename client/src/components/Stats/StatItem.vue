@@ -31,7 +31,6 @@ import SparklesSvg from '@/assets/icons/sparkles.svg'
 
 import { paths } from '@/config'
 import { Routes } from '@/router'
-import { MEMPHIS } from '@/utils/colortools/pageGradient'
 
 const props = defineProps<{
     value: string
@@ -69,20 +68,20 @@ const formattedValue = computed(() => {
 const defaultBackgroundStyles = computed(() => {
     switch (props.icon) {
         case 'streams':
-            return MEMPHIS.blush
+            return 'var(--mem-blush)'
         case 'playtime':
-            return MEMPHIS.lavender
+            return 'var(--mem-lavender)'
         case 'trackcount':
-            return MEMPHIS.teal
+            return 'var(--mem-teal)'
         case 'toptrack':
         case 'topalbum':
-            return MEMPHIS.yellow
+            return 'var(--mem-yellow)'
         default:
             // "New favorites" and anything else unclaimed. Coral, not blush:
             // `streams` already takes blush, so the two sat side by side in
             // the same pink (#468). Coral is the palette's secondary accent and
             // the only one free here — teal means playback, yellow means "on".
-            return MEMPHIS.coral
+            return 'var(--mem-coral)'
     }
 })
 
