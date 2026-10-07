@@ -95,7 +95,7 @@ function onKeydown(e: KeyboardEvent) {
             background: none;
             // Static dark-muted so the × stays visible on the lavender chip in
             // dark (the theme var would go light on this light fill).
-            color: $mem-text-muted-static;
+            color: $mem-muted;
             cursor: pointer;
             padding: 0;
             font-size: 1.1rem;

@@ -676,8 +676,10 @@ durch, und der Browser verwirft die Deklaration. Kein Fehler, kein Lint, nur ein
 Farbe. Also `mem-alpha()`/`mem-pastel()`, oder ein `-static`-Zwilling, wo Sass wirklich ein
 Literal braucht. Zensus: `paletteTokens.test.ts` (sechs Mutationen, sechs rote Läufe).
 
-Noch **nicht** erreichbar: die Data-URI-Sprites (Schraffur, Zackenmarke, Sprinkle) tragen die
-Tinte als `%2317171A`, und das Doodle ist eine Datei. `var()` kommt in keines von beiden hinein.
+Nicht erreichbar sind die Data-URI-Sprites (Schraffur, Zackenmarke, Sprinkle): Sie tragen die
+Tinte als `%2317171A`, und `var()` kommt in ein Data-URI nicht hinein. Bewusst so gelassen — die
+Tinte der Schemata weicht kaum ab (Lagune `#101924`, Terrakotta `#1F1611`), und die Striche
+liegen bei 30 % Deckkraft. Das Doodle ist eine Datei und wird pro Schema erzeugt (unten).
 
 **Beweis wie bei #198, nur über Farben:** berechnete Farbwerte jedes Elements und seiner
 Pseudo-Elemente (`color`, `background-*`, alle vier Ränder, `outline`, `fill`, `stroke`,
@@ -691,6 +693,52 @@ Builds unterscheiden sich in Player-Leiste und Sidebar genauso stark wie master 
 (Lauflicht, Zeitstempel, Wiedergabe-Zustand). Und `getComputedStyle` notiert ein `color-mix()`
 als `color(srgb …)`, ein Literal als `rgb(…)`: Ein String-Vergleich meldet jede Tönung als
 Abweichung. Jeden Farbwert deshalb auf ein 1×1-Canvas malen und die 8-Bit-Werte vergleichen.
+
+## ⚠️ Farbschemata: Memphis · Lagune · Terrakotta · Eierschale (#395)
+
+Die dritte Achse neben Look und Modus, gespeichert **pro Gerät** wie der Look
+(`settings.palette`, `utils/theme.ts`). Ein Schema ist **nur ein Satz Property-Werte**:
+
+- **Quelle:** `palettes` in `brand-colors.json` — je Schema `light` (alle Palettenrollen plus
+  `textMuted`), `dark` (Grund, Panel, Soft, zwei Grautöne) und `doodles` (Farbtabelle fürs
+  Hintergrundbild). `vite.config.ts` reicht es als Sass-Map `$mem-palettes` durch,
+  `Global/_palettes.scss` macht daraus `html.palette-<schema>` und den Dunkel-Block.
+- **⚠️ Die Klasse sitzt auf `<html>`, nicht auf `<body>`.** Die abgeleiteten Tokens
+  (Grund, Raster, Veil, Hover) stehen auf `:root` und lösen dort auf. Auf `<body>` würden die
+  Akzente umspringen, Grund und Raster blieben Memphis — und es sähe fast richtig aus.
+- **Nur der Memphis-Look trägt ein Schema.** `paletteHtmlClasses()` setzt unter Boring keine
+  Klasse, und der Dunkel-Block schließt `.theme-stream` zusätzlich aus: mit (0,3,2) überböte er
+  Borings `body.theme-dark.theme-stream` (0,2,1). Die Auswahl ist unter Boring ausgegraut; die
+  gespeicherte Wahl wartet, wie der Modus.
+- **Im Dunkelmodus** tönt ein Schema Grund, Panels und Grautöne; Paper-Linie und weißer Text
+  bleiben (Kontrastrollen, keine Farbe).
+- **Home-Knopf oben** ist die Rolle `home` (Memphis: Brand-Grün). Das Brand-Grün selbst bleibt
+  fest — es heißt „beigetreten" in der Geräte-Synchronisation.
+- **Doodle:** `scripts/palette-doodles.mjs` schreibt `memphis-doodles-<schema>.svg` aus der
+  Memphis-Datei und der Farbtabelle (ein Durchgang, also A→B und B→C ohne A→C). `mem-grid`
+  liest `var(--shape-doodles, var(--mem-doodles, url(memphis)))` — ein Look ersetzt das Bild,
+  ein Schema färbt es nur um. **Nach jeder Änderung an Doodle oder Tabelle das Skript laufen
+  lassen**; der Test schlägt an, solange die Dateien davon abweichen.
+
+⚠️ **Ähnlichere Farben kosten Abstand — die Regeln gelten für jedes Schema.**
+`paletteSchemes.test.ts` misst, was für Memphis gemessen wurde: Nav-**Nachbarn** ΔE ≥ 20,
+**jedes** Paar Entity-Tönungen ΔE ≥ 15, Tinte auf Teal/Gelb und das Grau auf Papier/Weiß ≥ 4,5:1.
+Die Mockup-Fassungen rissen das (Eierschale: Suche/Ordner 12, Ordner/Stats 11, Grau 4,4:1;
+Lagune: Suche/Ordner 19,9) — nachgezogen über Helligkeit, nicht über den Farbton, damit der
+Charakter bleibt. Wer ein Schema umfärbt, bekommt die Abweichung als Test-Meldung mit
+ΔE-Zahl.
+
+⚠️ **Vier Segmente passen auf kein Telefon.** Die Settings-Auswahl (`Select.vue`) darf nicht
+schrumpfen; „Memphis Lagune Terrakotta Eierschale" braucht ~364 px gegen ~340 px Zeile, und die
+ganze Settings-Spalte wurde breiter — jede Zeile rechts abgeschnitten (gemessen: 428 px Inhalt in
+340 px). Ab vier Optionen trägt die Auswahl `is-many` und stapelt sich bis 460 px Breite 2×2 im
+selben Rahmen. Headless bei 390 px gegen master vermessen (rechte Kante 374 px wie vorher).
+
+Noch Memphis-farben: die **Platzhalter-Cover** (Server-Bilder `default/track/artist.webp`,
+#395 Schritt 3).
+
+**Beweis, dass Memphis unberührt bleibt:** derselbe Farbvergleich wie bei #397, master gegen
+Branch, Memphis als Schema: 203 239 Werte bitgleich, 17 nur der Kometen-Winkel.
 
 ## ⚠️ Zwei Achsen: LOOK und MODUS — Memphis und Stream (#199)
 

@@ -7,6 +7,7 @@ import svgLoader from "vite-svg-loader";
 import { VitePWA } from "vite-plugin-pwa";
 import viteCompression from "vite-plugin-compression";
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { sassPalettes } from "./src/utils/colortools/sassPalettes";
 
 const path = require("path");
 // Single source of truth for the brand/accent colours. Injected into SCSS below
@@ -147,6 +148,7 @@ export default defineConfig({
           `$mem-blue: ${brandColors.memphis.blue}; $mem-kraft: ${brandColors.memphis.kraft}; ` +
           `$mem-lime: ${brandColors.memphis.lime}; $mem-gold: ${brandColors.memphis.gold}; ` +
           `$mem-sea: ${brandColors.memphis.sea}; $mem-orchid: ${brandColors.memphis.orchid}; ` +
+          `$mem-palettes: ${sassPalettes(brandColors.palettes)}; ` +
           `$mem-blush: ${brandColors.memphis.blush}; $mem-blush-soft: ${brandColors.memphis.blushSoft}; ` +
           `$mem-text-muted: ${brandColors.memphis.textMuted}; ` +
           `$mem-dark-ground: ${brandColors.memphisDark.ground}; ` +

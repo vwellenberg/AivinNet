@@ -50,3 +50,43 @@ export function themeBodyClasses(look: Look, mode: Mode): Record<ThemeClass, boo
         'theme-stream': look === 'stream',
     }
 }
+
+/**
+ * The COLOUR SCHEME (#395): a third axis next to look and mode. Memphis is the
+ * shipped palette; the others recolour the same Memphis form — analogous hues
+ * (Lagune cool, Terrakotta warm) or nearly none (Eierschale). The values live
+ * in `palettes` of src/brand-colors.json; Global/_palettes.scss turns each
+ * into `html.palette-<scheme>`.
+ *
+ * Kept per device, like the look. Only the Memphis look wears a scheme: Boring
+ * has a ground of its own, so under it the stored choice waits, exactly as the
+ * mode does (see `paletteHtmlClasses`).
+ */
+export type Palette = 'memphis' | 'lagune' | 'terrakotta' | 'eierschale'
+
+export const PALETTES: readonly Palette[] = ['memphis', 'lagune', 'terrakotta', 'eierschale']
+
+/** A stored scheme this build knows, or Memphis. */
+export function normalizePalette(palette: unknown): Palette {
+    return PALETTES.includes(palette as Palette) ? (palette as Palette) : 'memphis'
+}
+
+/** Looks a colour scheme applies to. Settings show the choice inactive elsewhere. */
+export function lookHasPalettes(look: Look): boolean {
+    return look === 'memphis'
+}
+
+type PaletteClass = `palette-${Exclude<Palette, 'memphis'>}`
+
+/**
+ * Which `<html>` classes are on — every one listed, on or off, so a switch
+ * clears the last. On <html>, not <body>: the tokens :root derives from the
+ * palette (ground, veil, grid) resolve on that element.
+ */
+export function paletteHtmlClasses(look: Look, palette: Palette): Record<PaletteClass, boolean> {
+    const active = lookHasPalettes(look) ? palette : 'memphis'
+    // Built from PALETTES, so a new scheme needs no second list here.
+    return Object.fromEntries(
+        PALETTES.filter((p) => p !== 'memphis').map((p) => [`palette-${p}`, active === p]),
+    ) as Record<PaletteClass, boolean>
+}

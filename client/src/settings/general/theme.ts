@@ -3,7 +3,7 @@ import { Setting } from '@/interfaces/settings'
 
 import useSettingsStore from '@/stores/settings'
 import { availableTimeZones, deviceTimeZone, DEVICE_TIME_ZONE, formatHour } from '@/utils/autoTheme'
-import { lookHasModes, type Look } from '@/utils/theme'
+import { lookHasModes, lookHasPalettes, type Look, type Palette } from '@/utils/theme'
 
 const settings = useSettingsStore
 
@@ -23,6 +23,28 @@ const look: Setting = {
     ],
     state: () => settings().look,
     action: (value: Look) => settings().setLook(value),
+}
+
+/**
+ * The COLOUR SCHEME (#395): the Memphis form in another palette. Its own row
+ * rather than more looks, for the same reason look and mode are two: a scheme
+ * is a colour, not a form, and every scheme has a light and a dark mode.
+ */
+const palette: Setting = {
+    title: 'Colour scheme',
+    desc: 'Memphis: the original colours. Lagune: cool blues and greens. Terrakotta: warm reds and ochres. Eierschale: off-white, grey and soft tones.',
+    type: SettingType.select,
+    options: [
+        { title: 'Memphis', value: 'memphis' },
+        { title: 'Lagune', value: 'lagune' },
+        { title: 'Terrakotta', value: 'terrakotta' },
+        { title: 'Eierschale', value: 'eierschale' },
+    ],
+    state: () => settings().palette,
+    action: (value: Palette) => settings().setPalette(value),
+    // Boring has a ground of its own; the stored scheme waits for the switch
+    // back, like the mode does.
+    inactive: () => !lookHasPalettes(settings().look),
 }
 
 /**
@@ -124,4 +146,4 @@ const auto_theme_dark_from: Setting = {
     inactive: autoInactive,
 }
 
-export default [look, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
+export default [look, palette, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]

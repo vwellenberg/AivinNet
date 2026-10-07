@@ -54,7 +54,7 @@ import useTracker from "@/stores/tracker";
 // @utils
 import handleShortcuts from "@/helpers/useKeyboard";
 import { lauflichtClasses } from "@/utils/lauflicht";
-import { themeBodyClasses } from "@/utils/theme";
+import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
 import { xl, xxl } from "./composables/useBreakpoints";
 
 // @small-components
@@ -127,6 +127,19 @@ watch(
     ([look, mode]) => {
         for (const [cls, on] of Object.entries(themeBodyClasses(look, mode))) {
             document.body.classList.toggle(cls, on);
+        }
+    },
+    { immediate: true }
+);
+
+// Colour scheme -> <html> class (utils/theme.ts, Global/_palettes.scss). On the
+// root element, not body: the tokens :root derives from the palette resolve
+// there. The look takes part because only Memphis wears a scheme.
+watch(
+    () => [settings.look, settings.palette] as const,
+    ([look, palette]) => {
+        for (const [cls, on] of Object.entries(paletteHtmlClasses(look, palette))) {
+            document.documentElement.classList.toggle(cls, on);
         }
     },
     { immediate: true }

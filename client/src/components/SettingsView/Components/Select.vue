@@ -1,5 +1,5 @@
 <template>
-    <div class="setting-select rounded-sm no-scroll">
+    <div class="setting-select rounded-sm no-scroll" :class="{ 'is-many': (options?.length ?? 0) > 3 }">
         <!-- Buttons, not divs (#137): the segments are the app's most common
              setting control, and they were unreachable by keyboard. `aria-
              pressed` says which one is on — the fill alone cannot. -->
@@ -76,6 +76,18 @@ const optionsWithActive = computed(() => {
             background-color: var(--mem-hover);
             color: var(--mem-hover-text);
             --label-hatch: var(--mem-hatch-hover);
+        }
+    }
+
+    // Four segments (the Colour scheme, #395) do not fit a phone: "Memphis
+    // Lagune Terrakotta Eierschale" needs ~364px against ~340px of row, and a
+    // control that cannot shrink pushes the whole settings pane sideways. So
+    // there they stack two by two inside the same frame — still one control,
+    // still one plate, nothing cut off.
+    &.is-many {
+        @include mediumPhones {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
         }
     }
 

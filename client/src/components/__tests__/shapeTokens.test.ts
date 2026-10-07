@@ -132,7 +132,12 @@ describe("shape tokens", () => {
   it("the textures fall back to the Memphis artwork", () => {
     const candy = readFileSync(CANDY, "utf-8");
     expect(candy).toMatch(/var\(--shape-sprinkle,\s*url\('data:image\/svg\+xml/);
-    expect(candy).toMatch(/var\(--shape-doodles,\s*url\("@\/assets\/images\/memphis-doodles\.svg"\)\)/);
+    // A colour scheme (#395) recolours the doodle through --mem-doodles, which
+    // sits INSIDE the look's fallback: a look still replaces it outright, and
+    // with neither set the Memphis artwork is what paints.
+    expect(candy).toMatch(
+      /var\(--shape-doodles,\s*var\(--mem-doodles,\s*url\("@\/assets\/images\/memphis-doodles\.svg"\)\)\)/,
+    );
   });
 
   it("Memphis does not set any shape token itself — the fallbacks are the design", () => {
