@@ -104,3 +104,18 @@ Deshalb, alle drei:
 Der Real-Bytes-Tag-Test liegt bewusst in `tests/` und nicht in einem eigenen Job: `mutagen` und
 `tinytag` sind pure Python und laufen in der schnellen Lane mit (Versionen gepinnt auf
 `mutagen<2`, `tinytag<3`, passend zum Prod-Major).
+
+## End-to-end: `e2e/` (gebauter Server, echter Scan)
+
+`e2e/make_library.py` erzeugt eine kleine Bibliothek mit den Formen einer echten (Ordner mit zwei
+Alben, Doppel-CD, Sampler, „feat.“, Umlaute/Japanisch, Duplikat, Datei ohne Tags, tiefe Ordner) —
+stille MP3s, nichts Binäres im Git. `e2e/check_pages.py <url> <passwort> <musik-root>` scannt sie
+und fragt jede Hauptseite ab wie der Client (≈180 Requests). Läuft im CI-Job `Docker Smoke Test`
+und gehört in jeden Release-Test. ⚠️ Es **schreibt** (Playlist, Favoriten, Play) — nur gegen
+Wegwerf-Instanzen, nie gegen den Live-Server.
+
+Warum es das gibt: Handgemachte Testdaten hatten in jedem Ordner genau ein Album. Der Pfad
+„Ordner mit zwei Alben“ brach Home und die Ordnersuche im veröffentlichten 2026.10.2 (#388),
+während alle Unit-, API- und Update-Tests grün waren. Neue Seiten/Endpoints des Clients gehören
+hier mit hinein; neue Bibliotheksformen, die etwas kaputt gemacht haben, in den Generator.
+
