@@ -94,6 +94,13 @@ ein `DELETE … WHERE hash` ohne User (löschte fremde Zeilen) und Lookups/Zähl
 aller User zusammenwarfen. Wer eine Methode dort anfasst, prüft alle Geschwister-Methoden mit:
 `unique=True` gehört bei diesen Tabellen in ein `UniqueConstraint(<spalte>, "userid")`.
 
+## ⚠️ Die `get_all`-Lesemethoden liefern Generatoren, keine Listen
+
+`ScrobbleTable.get_all`, `TrackTable.get_all` & Co. sind Generatoren. `if not rows:` ist dann
+**immer** `False`, und `len()` wirft. So lief „Recently played“ immer alle 20 Batches durch und
+zeigte dieselben Karten mehrfach (#391), ohne dass ein Test rot war. Wer leer/voll oder die Länge
+braucht: erst `list(...)`, oder `next(iter(...), None)`.
+
 ## ⚠️ Kein Ergebnis darf seinen Cursor über die Sitzung hinaus behalten (#363)
 
 `Base.execute` (`db/__init__.py`) ist ein Generator, und die Aufrufer lesen das Ergebnis
