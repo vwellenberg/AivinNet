@@ -14,14 +14,20 @@ from aivinnet.utils.dates import (
     date_string_to_time_passed,
 )
 
+NEW_TOLERANCE_SECONDS = 86_400
+
 older_albums = set()
 older_artists = set()
 
 
 def calc_based_on_percent(items: list[str], total: int):
     """
-    Checks if items is more than 85% of total items. Returns a boolean and the most common item.
+    Checks if items is more than 70% of total items. Returns a boolean and the most common item.
     """
+    # An artist tag of only separators splits to no hashes at all (#391).
+    if not items or not total:
+        return False, None, 0
+
     most_common = max(items, key=items.count)
     most_common_count = items.count(most_common)
 
@@ -69,13 +75,18 @@ def check_folder_type(group_: dict):
     key: str = group_["folder"]
     tracks: list[Track] = group_["tracks"]
     time: float = group_["time"]
-    existing_artist_hashes: set[str] = set(ArtistStore.artistmap.keys())
-    existing_album_hashes: set[str] = set(AlbumStore.albummap.keys())
 
     if len(tracks) == 1:
         entry = create_track(tracks[0])
         entry["timestamp"] = time
         return entry
+
+    # New means nothing of it is much older than this folder's files. The
+    # stores already hold the new files when this runs, so "is it in the
+    # store?" called every album new and no artist new (#391). A day of slack:
+    # CD1/ and CD2/ of a new album, or the album folders of a new artist,
+    # are copied one after the other.
+    new_since = min(t.last_mod for t in tracks) - NEW_TOLERANCE_SECONDS
 
     is_album, albumhash, _ = check_is_album_folder(tracks)
     if is_album:
@@ -89,7 +100,7 @@ def check_folder_type(group_: dict):
             "type": "album",
             "hash": albumhash,
             "timestamp": time,
-            "help_text": ("NEW ALBUM" if albumhash in existing_album_hashes else "NEW TRACKS"),
+            "help_text": ("NEW ALBUM" if entry.created_date >= new_since else "NEW TRACKS"),
         }
 
     is_artist, artisthash, trackcount = check_is_artist_folder(tracks)
@@ -103,7 +114,7 @@ def check_folder_type(group_: dict):
             "type": "artist",
             "hash": artisthash,
             "timestamp": time,
-            "help_text": ("NEW ARTIST" if artisthash not in existing_artist_hashes else "NEW MUSIC"),
+            "help_text": ("NEW ARTIST" if entry.created_date >= new_since else "NEW MUSIC"),
         }
 
     is_track_folder = check_is_track_folder(tracks)

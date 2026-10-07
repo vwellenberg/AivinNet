@@ -47,6 +47,22 @@ ROW_LIMIT = 15
 CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed"}
 
 
+def parse_playlist_id(src: str) -> int | None:
+    """
+    A playlist id from a scrobble's `source`, or None.
+
+    Any account can post that source. A number past SQLite's 64-bit INTEGER
+    made the driver raise OverflowError, in the startup cron job too, which
+    then died for every user; zero and negatives are no playlist either.
+    """
+    try:
+        pid = int(src)
+    except ValueError:
+        return None
+
+    return pid if 0 < pid < 2**63 else None
+
+
 def find_continue_listening(
     scrobbles: Iterable[ScrobbleLike],
     resolve_tracklist: Callable[[str, str], list[str] | None],
@@ -98,11 +114,10 @@ def find_continue_listening(
             {
                 "type": scrobble.type,
                 "hash": scrobble.type_src,
-                # The track itself, not only its position: a playlist's stored
-                # list can hold orphans (hashes no longer in the library) that the
-                # client never receives, so `track_index` counted here can point
-                # one or more tracks too far there. The client resumes by this
-                # hash and falls back to the index.
+                # The track itself, not only its position: the client resumes
+                # by this hash and falls back to the index. (The routine drops a
+                # playlist's orphans before this, so the index counts what the
+                # client receives.)
                 "trackhash": scrobble.trackhash,
                 "track_index": index,
                 "track_total": len(tracklist),

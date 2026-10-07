@@ -48,6 +48,10 @@ bp_tag = Tag(name="Logger", description="Log item plays")
 api = APIBlueprint("logger", __name__, url_prefix="/logger", abp_tags=[bp_tag])
 
 
+# Year 5138: no clock reaches it, every timestamp in milliseconds does.
+MAX_SCROBBLE_TIMESTAMP = 10**11
+
+
 class LogTrackBody(TrackHashSchema):
     timestamp: int = Field(description="The timestamp of the track")
     duration: int = Field(description="The duration of the track in seconds")
@@ -78,8 +82,11 @@ def log_track(body: LogTrackBody):
     duration = body.duration
 
     # `not timestamp` let negative values through; they reached the home-row
-    # routines, which assume a real point in time.
-    if not timestamp or timestamp < 0 or duration < 5:
+    # routines, which assume a real point in time. From above too: one play in
+    # milliseconds sorted first forever and `/nothome/` 500ed on it (#391).
+    # A fixed ceiling, not "now": a server whose clock lags (a Raspberry Pi
+    # without RTC before NTP) would otherwise refuse real plays.
+    if not timestamp or timestamp < 0 or timestamp >= MAX_SCROBBLE_TIMESTAMP or duration < 5:
         return {"msg": "Invalid entry."}, 400
 
     trackentry = TrackStore.trackhashmap.get(body.trackhash)

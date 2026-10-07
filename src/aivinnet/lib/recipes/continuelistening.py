@@ -7,10 +7,11 @@ import logging
 
 from aivinnet.db.userdata import PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib.albumslib import sort_by_track_no
-from aivinnet.lib.home.homerows import CONTINUE_SEARCH_LIMIT, find_continue_listening
+from aivinnet.lib.home.homerows import CONTINUE_SEARCH_LIMIT, find_continue_listening, parse_playlist_id
 from aivinnet.lib.recipes import HomepageRoutine
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.homepage import HomepageStore
+from aivinnet.store.tracks import TrackStore
 
 log = logging.getLogger(__name__)
 
@@ -25,12 +26,17 @@ def _resolve_tracklist(userid: int):
             tracks = AlbumStore.get_album_tracks(src)
             return [t.trackhash for t in sort_by_track_no(tracks)]
 
-        try:
-            playlistid = int(src)
-        except ValueError:
+        playlistid = parse_playlist_id(src)
+        if playlistid is None:
             return None
 
-        return PlaylistTable.get_trackhashes_of_user(playlistid, userid)
+        hashes = PlaylistTable.get_trackhashes_of_user(playlistid, userid)
+        if hashes is None:
+            return None
+
+        # What the client plays: without the orphans (hashes no longer in the
+        # library), the last playable track finishes the playlist (#391).
+        return [h for h in hashes if h in TrackStore.trackhashmap]
 
     return resolve
 
