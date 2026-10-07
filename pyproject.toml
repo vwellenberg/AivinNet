@@ -153,6 +153,7 @@ module = [
     "aivinnet.utils.parsers",
     "aivinnet.utils",
     "aivinnet.lib.coverart",
+    "aivinnet.lib.home.discover",
 ]
 disallow_untyped_defs = true
 warn_return_any = true

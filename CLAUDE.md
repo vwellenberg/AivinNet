@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py --config-file pyproject.toml
 ```
 
 **Die API-Tests (`tests_api/`) laufen auch auf Windows:** `uv run --frozen pytest tests_api/`
@@ -153,7 +153,7 @@ git fetch --prune && git branch -D <branch>
 ## Code-Qualität
 
 - **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
-- **mypy:** Graduelle Einführung — aktuell strict für `utils/hashing.py`, `utils/dates.py`, `utils/parsers.py`, `utils/__init__.py`. Neue Module bei Bearbeitung zur strict-Liste hinzufügen.
+- **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`) und in `.pre-commit-config.yaml`, beide gleich halten. Neue Module bei Bearbeitung dort aufnehmen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs.
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
@@ -307,12 +307,13 @@ Workflows oder `settings.py`).
 
 ## Empfehlungen / Home
 
-**Ein eigenes Empfehlungssystem gibt es noch nicht.** Der Neuanfang ist Issue #138. Die Mixes
-(an `smcloud.mungaist.com`) sind samt ihrer Home-Zeilen entfernt, weil der Dienst ab Ende Mai 2026
-durchgehend mit 502 antwortete. Home zeigt heute ausschließlich **lokale Aggregation** der Hörhistorie
-(`ScrobbleTable`, pro User) plus der eigenen Bibliothek: Continue listening, Rediscover, On this
-day, Recently played/added. Das Last.fm-Plugin ist reiner Scrobble-Export, keine
-Empfehlungsquelle.
+**Empfehlungen rechnet die App selbst, ohne jeden Dienst** (#138): aus der lokalen Hörhistorie
+(`ScrobbleTable`, pro User) plus der eigenen Bibliothek. „Ähnlich“ heißt „lief in derselben
+Hörsitzung“. Home zeigt Continue listening, Because you listened, On repeat, Recently played,
+Never played, Rediscover, On this day und Recently added. Die früheren Mixes (an
+`smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
+antwortete. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.
+Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
 
 **Externe Quelle beim Hören: der Lyrics-Finder (seit 2026-08-06).** Das Plugin `lyrics_finder`
 (Musixmatch, inoffizielle Desktop-API) ist bei **Neuinstallationen aus**; ältere Installationen

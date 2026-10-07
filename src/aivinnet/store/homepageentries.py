@@ -71,3 +71,27 @@ class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):
     # NOTE: This extends RecentlyPlayedHomepageEntry because
     # the shape of the data is the same.
     pass
+
+
+class PersonalTitleEntry(GenericRecoverableEntry):
+    """
+    A row whose title and link differ per user: "Because you listened to
+    Primus" names that user's seed artist. `meta[userid]` holds the user's
+    `title` and `url`; without one the row keeps its generic title.
+    """
+
+    meta: dict[int, dict[str, str]]
+
+    def __init__(self, title: str, description: str = ""):
+        super().__init__(title, description)
+        self.meta = {}
+
+    def get_items(self, userid: int, limit: int | None = None):
+        row = super().get_items(userid, limit)
+        meta = self.meta.get(userid, {})
+
+        row["title"] = meta.get("title", self.title)
+        if "url" in meta:
+            row["url"] = meta["url"]
+
+        return row

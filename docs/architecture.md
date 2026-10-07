@@ -207,11 +207,11 @@ Der `?pathhash=`-Parameter macht diese Ordnersuche überhaupt erst möglich — 
 
 `crons/__init__.py` fährt **eine** `schedule`-Schleife in einem Thread:
 
-- `Rediscover` (alle 24 h) und `OnThisDay` (stündlich) als Home-Zeilen. `RecentlyPlayed`,
-  `RecentlyAdded` und `ContinueListening` laufen einmal beim Start, danach ereignisgetrieben
-  (nach Scrobble bzw. Scan). Alles ist reine lokale Aggregation; ein eigenes Empfehlungssystem
-  gibt es noch nicht (#138, Details in `.claude/rules/recommendations.md`). Die Mixes samt Cron
-  und Tabelle `mix` sind entfernt.
+- Home-Zeilen: `Rediscover` (alle 24 h), `OnThisDay` und `OnRepeat` (stündlich),
+  `BecauseYouListened` und `NeverPlayed` (alle 6 h). `RecentlyPlayed`, `RecentlyAdded` und
+  `ContinueListening` laufen einmal beim Start, danach ereignisgetrieben (nach Scrobble bzw.
+  Scan). Alles rechnet lokal aus Scrobbles und Bibliothek (#138, Regeln in
+  `.claude/rules/recommendations.md`). Die Mixes samt Cron und Tabelle `mix` sind entfernt.
 - Group-Session-Reaper alle 2 s, breit abgesichert, damit ein Fehler dort nie die gemeinsame
   Schleife killt.
 

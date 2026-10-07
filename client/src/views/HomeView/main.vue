@@ -30,6 +30,14 @@
                     Surprise me
                 </button>
             </template>
+            <!-- "Never played": one album of the row, picked here — the row
+                 is already the server's best guess, so no extra request. -->
+            <template v-else-if="item.key === 'never_played'" #actions>
+                <button class="btn-action surprise" @click="playOne(item.items)">
+                    <ShuffleSvg />
+                    Play one
+                </button>
+            </template>
         </PageItem>
     </div>
 </template>
@@ -48,6 +56,7 @@ import ContinueCard from '@/components/HomeView/ContinueCard.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import { playFromAlbumCard } from '@/helpers/usePlayFrom'
 import { getSurpriseAlbum } from '@/requests/home'
+import { pickRowAlbum } from '@/utils/pickRowAlbum'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
@@ -65,6 +74,11 @@ async function surprise() {
     } finally {
         surprising.value = false
     }
+}
+
+function playOne(items: Parameters<typeof pickRowAlbum>[0]) {
+    const pick = pickRowAlbum(items)
+    if (pick) playFromAlbumCard(pick.albumhash, pick.title)
 }
 
 onMounted(async () => {

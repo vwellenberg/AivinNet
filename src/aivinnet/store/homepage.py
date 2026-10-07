@@ -3,6 +3,7 @@ from aivinnet.lib.pagelib import recover_page_items
 from aivinnet.store.homepageentries import (
     GenericRecoverableEntry,
     HomepageEntry,
+    PersonalTitleEntry,
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
 )
@@ -19,8 +20,21 @@ class HomepageStore:
         "continue_listening": GenericRecoverableEntry(
             title="Continue listening",
         ),
+        # Titled per user by the routine: "Because you listened to <artist>".
+        "because_you_listened": PersonalTitleEntry(
+            title="Because you listened",
+            description="Often played in the same sessions",
+        ),
+        "on_repeat": GenericRecoverableEntry(
+            title="On repeat",
+            description="Played much more this week than usual",
+        ),
         "recently_played": RecentlyPlayedHomepageEntry(
             title="Recently played",
+        ),
+        "never_played": GenericRecoverableEntry(
+            title="Never played",
+            description="In your library, not played yet",
         ),
         "rediscover": GenericRecoverableEntry(
             title="Rediscover",
@@ -39,7 +53,15 @@ class HomepageStore:
 
     # The order of the response, explicitly. Collection pages go between the
     # two lists; "Recently added" is pinned to the bottom.
-    ORDER_BEFORE_PAGES = ("continue_listening", "recently_played", "rediscover", "on_this_day")
+    ORDER_BEFORE_PAGES = (
+        "continue_listening",
+        "because_you_listened",
+        "on_repeat",
+        "recently_played",
+        "never_played",
+        "rediscover",
+        "on_this_day",
+    )
     ORDER_AFTER_PAGES = ("recently_added",)
 
     @classmethod

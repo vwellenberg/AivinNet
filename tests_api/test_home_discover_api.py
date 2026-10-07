@@ -1,0 +1,286 @@
+"""
+`GET /nothome/` with the rows "Because you listened to …", "On repeat" and
+"Never played" (#138).
+
+Real request cycle, real SQLite scrobbles, real routines; only the RAM library
+stores are filled by hand (the app fills them at boot). The tracks are built
+through `Track`, so artist and genre hashes are the ones the scanner makes.
+"""
+
+import pendulum
+import pytest
+
+DAY = 86400
+
+ALBUMS = {
+    # albumhash: (title, album artist, genre)
+    "a0000000000000rh": ("Blood Sugar", "Red Hot Chili Peppers", "Funk Rock"),
+    "a0000000000000fn": ("The Real Thing", "Faith No More", "Funk Rock"),
+    "a0000000000000pr": ("Frizzle Fry", "Primus", "Funk Rock"),
+    "a0000000000000mi": ("Kind of Blue", "Miles Davis", "Jazz"),
+    # Untagged files: never played, but nothing to recommend.
+    "a0000000000000un": ("Untagged", "Unknown", ""),
+}
+RHCP, FNM, PRIMUS, MILES, UNTAGGED = ALBUMS
+
+TRACKS: dict[tuple[str, int], object] = {}
+
+
+def _track(albumhash: str, n: int):
+    from aivinnet.config import UserConfig
+    from aivinnet.models.track import Track
+
+    title, artist, genre = ALBUMS[albumhash]
+    return Track(
+        id=n,
+        album=title,
+        albumartists=artist,
+        albumhash=albumhash,
+        artists=artist,
+        bitrate=320,
+        copyright="",
+        date=0,
+        disc=1,
+        duration=200,
+        filepath=f"/music/{title}/{n:02}.flac",
+        folder=f"/music/{title}",
+        genres=genre,
+        last_mod=0,
+        title=f"{title} {n}",
+        track=n,
+        trackhash="",
+        extra={},
+        lastplayed=0,
+        playcount=0,
+        playduration=0,
+        config=UserConfig(),
+    )
+
+
+def _album(albumhash: str, tracks):
+    from aivinnet.models.album import Album
+
+    title = ALBUMS[albumhash][0]
+    first = tracks[0]
+    return Album(
+        albumartists=first.albumartists,
+        albumhash=albumhash,
+        artisthashes=[a["artisthash"] for a in first.albumartists],
+        base_title=title,
+        color="",
+        created_date=0,
+        date=0,
+        duration=0,
+        genres=first.genres,
+        genrehashes=first.genrehashes,
+        og_title=title,
+        title=title,
+        trackcount=len(tracks),
+        lastplayed=0,
+        playcount=0,
+        playduration=0,
+        extra={},
+        pathhash=f"ph-{title}",
+    )
+
+
+def _artist(albumartist: dict):
+    from aivinnet.models.artist import Artist
+
+    return Artist(
+        name=albumartist["name"],
+        albumcount=1,
+        artisthash=albumartist["artisthash"],
+        created_date=0,
+        date=0,
+        duration=0,
+        genres=[],
+        genrehashes=[],
+        trackcount=5,
+        lastplayed=0,
+        playcount=0,
+        playduration=0,
+        extra={},
+    )
+
+
+def th(albumhash: str, n: int) -> str:
+    return TRACKS[(albumhash, n)].trackhash
+
+
+def artisthash(albumhash: str) -> str:
+    return TRACKS[(albumhash, 1)].albumartists[0]["artisthash"]
+
+
+@pytest.fixture()
+def home(api_client, monkeypatch):
+    import aivinnet.store.homepage as homepage
+    from aivinnet.store.albums import AlbumMapEntry, AlbumStore
+    from aivinnet.store.artists import ArtistMapEntry, ArtistStore
+    from aivinnet.store.homepage import HomepageStore
+    from aivinnet.store.homepageentries import PersonalTitleEntry
+    from aivinnet.store.tracks import TrackGroup, TrackStore
+
+    TRACKS.clear()
+    for albumhash in ALBUMS:
+        for n in range(1, 6):
+            TRACKS[(albumhash, n)] = _track(albumhash, n)
+
+    albummap, artistmap = {}, {}
+    for albumhash in ALBUMS:
+        tracks = [t for (a, _), t in TRACKS.items() if a == albumhash]
+        albummap[albumhash] = AlbumMapEntry(_album(albumhash, tracks), {t.trackhash for t in tracks})
+        artist = tracks[0].albumartists[0]
+        artistmap[artist["artisthash"]] = ArtistMapEntry(_artist(artist), {albumhash}, set())
+
+    monkeypatch.setattr(AlbumStore, "albummap", albummap)
+    monkeypatch.setattr(ArtistStore, "artistmap", artistmap)
+    monkeypatch.setattr(TrackStore, "trackhashmap", {t.trackhash: TrackGroup([t]) for t in TRACKS.values()})
+
+    for entry in HomepageStore.entries.values():
+        monkeypatch.setattr(entry, "items", {})
+        if isinstance(entry, PersonalTitleEntry):
+            monkeypatch.setattr(entry, "meta", {})
+
+    api = api_client("aivinnet.api.home")
+    monkeypatch.setattr(homepage, "get_current_userid", lambda: api.userid)
+    return api
+
+
+def scrobble(trackhash: str, timestamp: int, userid: int = 1):
+    from aivinnet.db.userdata import ScrobbleTable
+
+    ScrobbleTable.add({"trackhash": trackhash, "timestamp": timestamp, "duration": 200, "source": "", "userid": userid})
+
+
+def listen(start: int, *trackhashes: str, userid: int = 1):
+    """One listening session: the tracks back to back."""
+    for i, trackhash in enumerate(trackhashes):
+        scrobble(trackhash, start + i * 200, userid)
+
+
+def run_routines():
+    from aivinnet.lib.recipes.homerows import BecauseYouListened, NeverPlayed, OnRepeat
+
+    BecauseYouListened()
+    OnRepeat()
+    NeverPlayed()
+
+
+def rows(api):
+    res = api.get("/nothome/?limit=9")
+    assert res.status_code == 200, res.text
+    body = res.get_json()
+    return {k: v for row in body for k, v in row.items()}, [k for row in body for k in row]
+
+
+@pytest.fixture()
+def history():
+    """
+    User 1: Red Hot Chili Peppers all over this week (one track four times),
+    together with Faith No More in two sessions a month ago, and a long Faith
+    No More history before that. Primus and Miles Davis were never played.
+    """
+    now = int(pendulum.now().timestamp())
+
+    listen(now - DAY, th(RHCP, 1), th(RHCP, 2), th(RHCP, 3))
+    for hours in (30, 50, 70):
+        scrobble(th(RHCP, 1), now - hours * 3600)
+
+    listen(now - 40 * DAY, th(RHCP, 4), th(FNM, 1), th(FNM, 2))
+    listen(now - 30 * DAY, th(FNM, 3), th(RHCP, 5))
+
+    for i in range(50):
+        scrobble(th(FNM, 1 + i % 5), now - (100 + i) * DAY)
+
+    return now
+
+
+def test_the_three_rows_their_shape_and_order(home, history):
+    run_routines()
+    data, order = rows(home)
+
+    assert order == ["because_you_listened", "on_repeat", "never_played"]
+
+    because = data["because_you_listened"]
+    assert because["title"] == "Because you listened to Red Hot Chili Peppers"
+    assert because["url"] == f"/artists/{artisthash(RHCP)}"
+    assert because["description"] == "Often played in the same sessions"
+    (album,) = because["items"]
+    assert album["type"] == "album"
+    assert album["item"]["albumhash"] == FNM
+    assert album["item"]["help_text"] == "2 sessions together"
+    assert album["item"]["image"] == f"{FNM}.webp?pathhash=ph-The Real Thing"
+
+    (track,) = data["on_repeat"]["items"]
+    assert track["type"] == "track"
+    assert track["item"]["trackhash"] == th(RHCP, 1)
+    assert track["item"]["help_text"] == "4 plays this week"
+    assert track["item"]["time"] == "not in the 8 weeks before"
+
+    never = data["never_played"]["items"]
+    assert [i["item"]["albumhash"] for i in never] == [PRIMUS, MILES]  # not UNTAGGED
+    # Primus shares a genre with what the user plays; Miles Davis nothing.
+    assert never[0]["item"]["help_text"] == "funk rock"
+    assert never[0]["item"]["time"] == "never played"
+    assert never[1]["item"]["help_text"] == "never played"
+
+
+def test_another_user_sees_none_of_it(home, history):
+    run_routines()
+    home.userid = 2
+
+    _, order = rows(home)
+    assert order == []
+
+
+def test_the_title_falls_back_while_a_user_has_no_seed(home):
+    from aivinnet.store.homepage import HomepageStore
+
+    entry = HomepageStore.entries["because_you_listened"]
+    entry.items[1] = [{"type": "album", "hash": FNM, "help_text": "2 sessions together"}]
+
+    data, _ = rows(home)
+    assert data["because_you_listened"]["title"] == "Because you listened"
+    assert "url" not in data["because_you_listened"]
+
+
+def test_an_album_played_from_never_played_leaves_it(home, history):
+    run_routines()
+    scrobble(th(PRIMUS, 2), history - 60)
+    run_routines()
+
+    data, _ = rows(home)
+    assert [i["item"]["albumhash"] for i in data["never_played"]["items"]] == [MILES]
+
+
+def test_a_user_who_loses_the_seed_loses_the_title_too(home, history, monkeypatch):
+    from aivinnet.store.homepage import HomepageStore
+
+    run_routines()
+    entry = HomepageStore.entries["because_you_listened"]
+    assert entry.meta[1]["title"] == "Because you listened to Red Hot Chili Peppers"
+
+    # A month and a half later nothing was played: no seed any more.
+    later = pendulum.now().add(days=45)
+    monkeypatch.setattr(pendulum, "now", lambda *a, **kw: later)
+    run_routines()
+
+    assert entry.items[1] == []
+    assert 1 not in entry.meta
+
+
+def test_a_shutdown_stops_the_routines_between_users(home, history, monkeypatch):
+    import threading
+
+    from aivinnet import crons
+    from aivinnet.store.homepage import HomepageStore
+
+    stop = threading.Event()
+    stop.set()
+    monkeypatch.setattr(crons, "_stop", stop)
+
+    run_routines()
+
+    for key in ("because_you_listened", "on_repeat", "never_played"):
+        assert HomepageStore.entries[key].items == {}, key

@@ -54,8 +54,9 @@ export default defineStore('homepage', () => {
             homepageData[key] = item[key]
             // @ts-ignore
             // The server sends the rows in display order (continue listening,
-            // recently played, rediscover, on this day, collections, recently
-            // added) — the index IS the position.
+            // because you listened, on repeat, recently played, never played,
+            // rediscover, on this day, collections, recently added) — the
+            // index IS the position.
             homepageData[key].position = index
             // @ts-ignore
             homepageData[key].path = routes[key]
