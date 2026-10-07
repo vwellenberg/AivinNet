@@ -310,7 +310,8 @@ Workflows oder `settings.py`).
 **Empfehlungen rechnet die App selbst, ohne jeden Dienst** (#138): aus der lokalen Hörhistorie
 (`ScrobbleTable`, pro User) plus der eigenen Bibliothek. „Ähnlich“ heißt „lief in derselben
 Hörsitzung“. Home zeigt Continue listening, Because you listened, On repeat, Recently played,
-Never played, Rediscover, On this day und Recently added. Die früheren Mixes (an
+Your weekday evenings (Zeitfenster), Never played, Artists you might like (aus den eigenen
+Playlists), Forgotten favorites, Rediscover, On this day und Recently added. Die früheren Mixes (an
 `smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
 antwortete. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.
 Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.

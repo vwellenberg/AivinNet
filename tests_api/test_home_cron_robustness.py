@@ -40,7 +40,16 @@ def crons(monkeypatch):
     monkeypatch.setattr(crons, "schedule", schedule.Scheduler())
     for job in ("RecentlyPlayed", "RecentlyAdded", "ContinueListening"):
         monkeypatch.setattr(crons, job, lambda *a, **kw: None)
-    for job in ("Rediscover", "OnThisDay", "BecauseYouListened", "OnRepeat", "NeverPlayed"):
+    for job in (
+        "Rediscover",
+        "OnThisDay",
+        "BecauseYouListened",
+        "OnRepeat",
+        "NeverPlayed",
+        "ForThisTime",
+        "ArtistsYouMightLike",
+        "ForgottenFavorites",
+    ):
         monkeypatch.setattr(crons, job, type(job, (), {"hours": 1, "__init__": lambda self, *a, **kw: None}))
     yield crons
     crons._stop.set()
@@ -65,7 +74,8 @@ def test_a_failing_startup_job_does_not_end_the_cron_thread(crons, monkeypatch):
 
 def test_the_discover_rows_are_scheduled_and_run_at_startup(crons, monkeypatch):
     ran = []
-    for job in ("BecauseYouListened", "OnRepeat", "NeverPlayed"):
+    jobs = ("ArtistsYouMightLike", "BecauseYouListened", "ForThisTime", "ForgottenFavorites", "NeverPlayed", "OnRepeat")
+    for job in jobs:
         monkeypatch.setattr(
             crons, job, type(job, (), {"hours": 1, "__init__": lambda self, *a, _job=job, **kw: ran.append(_job)})
         )
@@ -73,7 +83,22 @@ def test_the_discover_rows_are_scheduled_and_run_at_startup(crons, monkeypatch):
     crons.start_cron_jobs()
     time.sleep(0.3)
 
-    assert sorted(ran) == ["BecauseYouListened", "NeverPlayed", "OnRepeat"]
+    assert sorted(ran) == sorted(jobs)
+
+
+def test_for_this_time_runs_on_the_hour(crons, monkeypatch):
+    from aivinnet.lib.recipes.homerows import ForThisTime
+
+    # The real flag on a stand-in that does no work.
+    stand_in = type("ForThisTime", (), {"hours": 1, "on_the_hour": ForThisTime.on_the_hour, "__init__": lambda s: None})
+    monkeypatch.setattr(crons, "ForThisTime", stand_in)
+
+    crons.start_cron_jobs()
+    time.sleep(0.3)
+
+    on_the_hour = [j for j in crons.schedule.jobs if j.unit == "hours" and j.at_time is not None]
+    assert len(on_the_hour) == 1
+    assert on_the_hour[0].at_time.minute == 0
 
 
 def test_an_edit_that_leaves_the_old_hash_to_another_file_carries_no_favourites(monkeypatch):

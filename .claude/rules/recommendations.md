@@ -11,7 +11,7 @@ paths:
 # Empfehlungen / Home — woher die Vorschläge kommen
 
 **Empfehlungen rechnet die App selbst, aus der eigenen Hörhistorie** (`ScrobbleTable`, pro User)
-plus der eigenen Bibliothek. Seit #138 gibt es drei Zeilen, die über „was lief zuletzt“
+plus der eigenen Bibliothek. Seit #138 gibt es sechs Zeilen, die über „was lief zuletzt“
 hinausgehen (Abschnitt unten). Kein Cloud-Anteil, kein Dienst, der wegsterben kann. Offen in #138
 bleibt der Vergleich externer Dienste (ListenBrainz & Co.) als **optionale** Anreicherung.
 
@@ -49,11 +49,12 @@ Die Regeln und Schwellen stehen in `lib/home/homerows.py`, absichtlich ohne DB- 
 Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen dazu liegen in
 `lib/recipes/homerows.py`.
 
-### Die drei Empfehlungszeilen (#138)
+### Die Empfehlungszeilen (#138)
 
-Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores), Routinen in
-`lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Because you listened** → **On
-repeat** → Recently played → **Never played** → Rediscover → On this day.
+Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores, strikt unter mypy), Routinen
+in `lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Because you listened** → **On
+repeat** → Recently played → **Your weekday evenings** → **Never played** → **Artists you might
+like** → **Forgotten favorites** → Rediscover → On this day → Collections → Recently added.
 
 - **„Because you listened to <Artist>“** (alle 6 h): Seed ist der Album-Artist mit den meisten
   Plays der letzten 7 Tage, sonst der letzten 30 (Platzhalter wie „Various Artists“ nie).
@@ -72,6 +73,24 @@ repeat** → Recently played → **Never played** → Rediscover → On this day
   Zeile nicht ewig dieselbe bleibt. Erst ab **50 Plays** Historie (vorher ist fast alles
   ungehört, die Zeile wäre nur die Bibliothek). Alben von „Unknown“ (ungetaggt) fliegen raus,
   Sampler von „Various Artists“ nicht. Button „Play one“ im Client (zufälliges Album der Zeile).
+
+- **„Your weekday evenings“** (stündlich, Titel nach dem Zeitfenster): Woche geteilt in
+  Werktag/Wochenende × Morgen (ab 5 Uhr) / Nachmittag (11) / Abend (17) / Nacht (22). Alben mit
+  ≥ 3 Plays im aktuellen Fenster (letzte 180 Tage), deren Anteil dort mindestens das 1,5-Fache
+  ihres Gesamtanteils ist — sonst ist es ein Liebling zu jeder Stunde. Nichts aus den letzten
+  24 h, keine ungetaggten Alben, höchstens 2 pro Artist („Various Artists“ zählt nicht). Die
+  Stunden nach Mitternacht gehören zur Nacht davor (Samstag 1 Uhr = Freitagnacht). Läuft **zur
+  vollen Stunde** (`on_the_hour`), nicht „jede Stunde ab Serverstart“ — sonst hinge der Titel
+  bis zu 59 Minuten hinter dem Zeitfenster. ⚠️ **Server-Zeitzone**, wie „On this day“: der Titel
+  ist für alle User gleich und wird global gesetzt, zusammen mit den Items.
+- **„Artists you might like“** (alle 6 h): Artists aus den **eigenen Playlists** des Users, die
+  dort neben seinen 10 meistgehörten Artists (90 Tage) stehen, die er selbst aber weniger als
+  5-mal gespielt hat. Gewicht pro Playlist 1/√(Zahl der anderen Artists) — eine Handvoll-Playlist
+  zählt mehr als eine „alles“-Liste. Bei Samplern zählen die Track-Artists statt „Various
+  Artists“ (`TrackFacts.track_artists`). Ohne Playlists keine Zeile.
+- **„Forgotten favorites“** (alle 6 h): Favoriten-Tracks ohne Play in den letzten 60 Tagen (oder
+  nie). Die früher meistgespielten zuerst, dann die am längsten stillen; höchstens 2 pro Album.
+  Die Favoriten kommen aus dem RAM (`fav_userids` an den Tracks), nicht aus der DB.
 
 ⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
 der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen

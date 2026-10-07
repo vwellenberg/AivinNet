@@ -32,9 +32,22 @@ class HomepageStore:
         "recently_played": RecentlyPlayedHomepageEntry(
             title="Recently played",
         ),
+        # Titled by the routine after the time slot: "Your weekday evenings".
+        "for_this_time": GenericRecoverableEntry(
+            title="For this time",
+            description="What you play at this time more than at others",
+        ),
         "never_played": GenericRecoverableEntry(
             title="Never played",
             description="In your library, not played yet",
+        ),
+        "artists_you_might_like": GenericRecoverableEntry(
+            title="Artists you might like",
+            description="In your playlists next to the ones you play most",
+        ),
+        "forgotten_favorites": GenericRecoverableEntry(
+            title="Forgotten favorites",
+            description="Favorites you have not played in a while",
         ),
         "rediscover": GenericRecoverableEntry(
             title="Rediscover",
@@ -58,7 +71,10 @@ class HomepageStore:
         "because_you_listened",
         "on_repeat",
         "recently_played",
+        "for_this_time",
         "never_played",
+        "artists_you_might_like",
+        "forgotten_favorites",
         "rediscover",
         "on_this_day",
     )

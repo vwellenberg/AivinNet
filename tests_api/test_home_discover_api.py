@@ -139,6 +139,7 @@ def home(api_client, monkeypatch):
 
     for entry in HomepageStore.entries.values():
         monkeypatch.setattr(entry, "items", {})
+        monkeypatch.setattr(entry, "title", entry.title)
         if isinstance(entry, PersonalTitleEntry):
             monkeypatch.setattr(entry, "meta", {})
 
@@ -270,6 +271,84 @@ def test_a_user_who_loses_the_seed_loses_the_title_too(home, history, monkeypatc
     assert 1 not in entry.meta
 
 
+def run_newer_routines():
+    from aivinnet.lib.recipes.homerows import ArtistsYouMightLike, ForgottenFavorites, ForThisTime
+
+    ForThisTime()
+    ArtistsYouMightLike()
+    ForgottenFavorites()
+
+
+def test_artists_you_might_like_come_from_the_users_playlists(home, history):
+    from sqlalchemy import insert
+
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import PlaylistTable
+
+    # Next to Red Hot Chili Peppers (played most lately): Faith No More, known
+    # well (50+ plays), and Primus and Miles Davis, never played.
+    trackhashes = [th(RHCP, 1), th(FNM, 1), th(PRIMUS, 1), th(MILES, 2)]
+    with DbEngine.manager(commit=True) as session:
+        session.execute(
+            insert(PlaylistTable).values(
+                id=3, name="Mixtape", last_updated=0, image=None, userid=1, settings={}, trackhashes=trackhashes
+            )
+        )
+
+    run_newer_routines()
+    data, order = rows(home)
+
+    row = data["artists_you_might_like"]
+    assert row["title"] == "Artists you might like"
+    assert {i["item"]["artisthash"] for i in row["items"]} == {artisthash(PRIMUS), artisthash(MILES)}
+    assert all(i["type"] == "artist" for i in row["items"])
+    assert row["items"][0]["item"]["help_text"] == "in one of your playlists"
+    assert row["items"][0]["item"]["time"] == "never played"
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "artists_you_might_like" not in order
+
+
+def test_forgotten_favorites(home, history):
+    # Faith No More 4: played ten times, last more than three months ago.
+    # RHCP 1: played this week. Miles Davis 1: never played.
+    for trackhash in (th(FNM, 4), th(RHCP, 1), th(MILES, 1)):
+        TRACKS[next(k for k, t in TRACKS.items() if t.trackhash == trackhash)].fav_userids.append(1)
+
+    run_newer_routines()
+    data, _ = rows(home)
+
+    items = data["forgotten_favorites"]["items"]
+    assert [i["item"]["trackhash"] for i in items] == [th(FNM, 4), th(MILES, 1)]
+    assert items[0]["item"]["help_text"].startswith("last ")
+    assert items[0]["item"]["time"] == "10 plays"
+    assert items[1]["item"]["help_text"] == "not played yet"
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "forgotten_favorites" not in order
+
+
+def test_for_this_time_names_the_slot_and_finds_its_album(home, monkeypatch):
+    wednesday_evening = pendulum.local(2026, 10, 7, 20, 30)
+    monkeypatch.setattr(pendulum, "now", lambda *a, **kw: wednesday_evening)
+
+    for week in range(1, 5):
+        day = wednesday_evening.subtract(weeks=week)
+        listen(int(day.replace(hour=20, minute=0).timestamp()), th(PRIMUS, 1))
+        listen(int(day.replace(hour=8, minute=0).timestamp()), th(MILES, 1), th(MILES, 2))
+        listen(int(day.replace(hour=20, minute=10).timestamp()), th(MILES, 3))
+
+    run_newer_routines()
+    data, _ = rows(home)
+
+    row = data["for_this_time"]
+    assert row["title"] == "Your weekday evenings"
+    assert [i["item"]["albumhash"] for i in row["items"]] == [PRIMUS]
+    assert row["items"][0]["item"]["help_text"] == "4 plays at this time"
+
+
 def test_a_shutdown_stops_the_routines_between_users(home, history, monkeypatch):
     import threading
 
@@ -281,6 +360,14 @@ def test_a_shutdown_stops_the_routines_between_users(home, history, monkeypatch)
     monkeypatch.setattr(crons, "_stop", stop)
 
     run_routines()
+    run_newer_routines()
 
-    for key in ("because_you_listened", "on_repeat", "never_played"):
+    for key in (
+        "because_you_listened",
+        "on_repeat",
+        "never_played",
+        "for_this_time",
+        "artists_you_might_like",
+        "forgotten_favorites",
+    ):
         assert HomepageStore.entries[key].items == {}, key
