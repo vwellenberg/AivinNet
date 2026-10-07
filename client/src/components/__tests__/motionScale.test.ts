@@ -52,10 +52,8 @@ const SCALE = ['0.1s', '0.12s', '0.15s', '0.2s', '0.25s', '0.35s', '40ms', '45ms
 const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     // Loops and character pieces — outside the scale on purpose (_motion.scss).
     'src/assets/scss/Global/lauflicht.scss': { values: ['5.5s', '7s', '9s', '12s', '14s'], why: 'ambient loops' },
-    'src/assets/scss/Global/basic.scss': { values: ['0.45s'], why: 'spinner loop' },
     'src/assets/scss/Global/state.scss': { values: ['0.6s'], why: 'pulse loop' },
-    'src/components/shared/Spinner.vue': { values: ['400ms'], why: 'spinner loop' },
-    'src/views/PairView.vue': { values: ['0.8s'], why: 'pairing spinner loop' },
+    // (The three spinners turn at `$motion-spin` now — one speed, no literal.)
     'src/components/shared/CardContent.vue': { values: ['1.7s'], why: 'skeleton pulse loop' },
     'src/components/Logo.vue': { values: ['0.7s', '3s'], why: 'planet spin, orbit loop' },
     // The equaliser bars run at DIFFERENT speeds so they never fall into step.

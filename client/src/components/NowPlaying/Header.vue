@@ -12,7 +12,7 @@
                 title="Go to Album"
                 class="np-image lauflicht-rim"
             >
-                <img v-motion-fade class="rounded" :src="paths.images.thumb.large + queue.currenttrack?.image" />
+                <img class="rounded" :src="paths.images.thumb.large + queue.currenttrack?.image" />
             </RouterLink>
             <NowPlayingInfo @handle-fav="handleFav" />
             <!-- Played time, bar, total time on ONE line: the two times label

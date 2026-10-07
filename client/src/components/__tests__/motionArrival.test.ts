@@ -2,6 +2,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
+import { ARRIVAL_ANIMATIONS } from '@/utils/arrivalLatch'
+
+const ARRIVALS = [...ARRIVAL_ANIMATIONS]
+
 // ---------------------------------------------------------------------------
 // Wie Dinge ANKOMMEN (#143) — die drei Entscheidungen, die man beim Lesen der
 // Regel nicht sieht und beim Ändern zerstört.
@@ -56,7 +60,14 @@ describe('arrival animations', () => {
         // recycled row swaps its content. An animation fires when the node is
         // created. That difference is the whole reason the list can stagger at
         // all without flickering during every scroll.
-        for (const name of ['mem-step-in', 'mem-sticker-slap', 'mem-band-drop', 'mem-texture-wipe']) {
+        for (const name of [
+            'mem-step-in',
+            'mem-sticker-slap',
+            'mem-band-drop',
+            'mem-texture-wipe',
+            'mem-plate-rise',
+            'mem-fill-grow',
+        ]) {
             expect(ALL, `${name} has no @keyframes`).toContain(`@keyframes ${name}`)
 
             const asTransition = new RegExp(`transition:[^;]*${name}`)
@@ -121,6 +132,8 @@ describe('arrival animations', () => {
         ['die Bibliotheks-Kacheln der Startseite', 'src/components/HomeView/Browse.vue', 'hold'],
         ['die Songzeilen', 'src/assets/scss/Global/app-grid.scss', 'drop'],
         ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'drop'],
+        ['die Up-next-Zeilen der Continue-Karte', 'src/components/HomeView/ContinueCard.vue', 'drop'],
+        ['die Ordner-Wahl beim ersten Start', 'src/components/modals/RootDirsPrompt.vue', 'drop'],
     ])('%s nehmen die geteilte Ankunft (%s, $beyond: %s)', (_label, file, beyond) => {
         // Aufrufstellen statt Schreibweisen: wer `mem-step-in` von Hand
         // ausschreibt, hat die Kopie wieder — und ihm fehlt dann der Deckel.
@@ -204,5 +217,93 @@ describe('arrival animations', () => {
 
         expect(wipeBody).toMatch(/translateX/)
         expect(wipeBody, 'the texture fades in — that is a paint fade, not motion').not.toMatch(/opacity/)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Die große Platte (2026-10-07). Die Continue-Karte — das größte Objekt der
+// Startseite — kam ohne jede eigene Bewegung an: gemessen per
+// `animationstart`-Zensus auf Home null Animationen an `.continue-card`,
+// während jede Kachel und jede Caption darunter eintraf. Und das Modal fiel als
+// einziges Element der App auf einer JS-Feder (@vueuse/motion) 100 px herein,
+// außerhalb des Vokabulars und außerhalb von `prefers-reduced-motion`.
+// ---------------------------------------------------------------------------
+
+describe('a plate rises', () => {
+    const classes = SHEETS['src/assets/scss/Global/_button-classes.scss']
+    const keyframes = classes.slice(classes.indexOf('@keyframes mem-plate-rise'))
+    const body = keyframes.slice(0, keyframes.search(/^}/m) + 1)
+
+    it('rises out of its own shadow and lands on the DECLARED one', () => {
+        expect(body, 'mem-plate-rise ist weg').toMatch(/@keyframes mem-plate-rise/)
+        // Startet ohne Schatten — das Gegenstück zum Drücken.
+        expect(body).toMatch(/0% \{[^}]*box-shadow: 0 0 0 var\(--mem-shadow\)/)
+        // Kein 100-%-Frame: ohne ihn läuft jede Eigenschaft auf den Wert des
+        // Elements zu — 4 px an der Karte, 6 px am Modal. Ein fester Endwert
+        // hier wäre an einer der beiden Stellen ein Sprung am Ende.
+        expect(body, 'ein fester Endframe springt am Ende auf den deklarierten Schatten').not.toMatch(/100% \{/)
+    })
+
+    it.each([
+        ['die Continue-Karte', 'src/components/HomeView/ContinueCard.vue'],
+        ['das Modal', 'src/components/modal.vue'],
+    ])('%s steigt auf', (_label, file) => {
+        const source = readFileSync(file, 'utf8')
+        expect(source).toMatch(/animation: mem-plate-rise \$motion-settle/)
+    })
+
+    it('lets the moving parts of the Continue card follow the plate, not ride along', () => {
+        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
+
+        // Der Balken läuft auf seinen Wert, nach der Platte; `backwards`, sonst
+        // steht er während der Wartezeit schon voll da und springt auf null.
+        expect(card).toMatch(/animation: mem-fill-grow [^;]*\$motion-after-plate backwards/)
+        // Continue poppt — ein Primärknopf, der einmal pro Besuch entsteht,
+        // holt sich den Pop an der Aufrufstelle (btn-primary hat keinen).
+        expect(card).toMatch(/@include btn-pop;\s*--btn-pop-delay: #\{\$motion-after-plate/)
+    })
+
+    it('rises ONCE, even when Home reorders the cards under it', () => {
+        // Eine CSS-Animation startet neu, sobald Vue ihren Knoten umhängt — und
+        // die Karten sind ein `v-for` mit Key: kommt `fetchAll()` mit neuer
+        // Reihenfolge zurück, stieg die verschobene Karte samt Balken und Pop
+        // ein zweites Mal auf. Dieselbe Einmal-Sperre wie die Zeilen.
+        expect(ARRIVALS).toContain('mem-plate-rise')
+        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
+        const latched = card.slice(card.indexOf('&[data-arrived]'))
+        expect(latched, 'die Karte hat keine Einmal-Sperre').toMatch(/^&\[data-arrived\] \{\s*animation: none;/)
+        // Die Kinder hängen mit um und starten mit neu — sie gehören in dieselbe Sperre.
+        expect(latched.slice(0, latched.indexOf('\n  }'))).toMatch(/\.progress span[\s\S]*\.resume[\s\S]*animation: none;/)
+    })
+})
+
+describe('no motion outside the stylesheet', () => {
+    it('animates nothing through @vueuse/motion', () => {
+        // Eine JS-Animation schreibt Inline-Styles pro Frame — die pauschale
+        // Regel in motion-policy.scss erreicht sie nicht, und ihre Federn und
+        // Dauern kommen nicht aus _motion.scss. Von den drei Direktiven, die es
+        // gab, laufen Modal und Ordner-Wahl jetzt über CSS; das Now-Playing-
+        // Cover hat keine eigene mehr — es kommt mit seiner Seite an
+        // (`mem-page-enter`), wie jedes andere Bild einer Seite.
+        const offenders: string[] = []
+        const walk = (dir: string) => {
+            for (const entry of readdirSync(dir)) {
+                const path = `${dir}/${entry}`
+                if (statSync(path).isDirectory()) {
+                    if (entry !== '__tests__') walk(path)
+                } else if (/\.(vue|ts)$/.test(entry)) {
+                    const source = readFileSync(path, 'utf8')
+                    if (/\bv-motion[\w-]*[\s=>]|from ['"](@vueuse\/motion|motion|popmotion|animejs|gsap)['"]/.test(source))
+                        offenders.push(path)
+                }
+            }
+        }
+        walk('src')
+
+        expect(offenders).toEqual([])
+
+        // Und keine solche Bibliothek in den Abhängigkeiten, die nur darauf wartet.
+        const deps = Object.keys(JSON.parse(readFileSync('package.json', 'utf8')).dependencies)
+        expect(deps.filter(dep => ['@vueuse/motion', 'motion', 'popmotion', 'animejs', 'gsap'].includes(dep))).toEqual([])
     })
 })

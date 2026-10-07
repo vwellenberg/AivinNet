@@ -3,7 +3,6 @@
     <div v-if="modal.visible || modal.component == ModalOptions.login" class="modal">
         <div class="bg" @click="modal.hideModal"></div>
         <div
-            v-motion-slide-top
             class="m-content rounded"
             :class="{
                 settings: modal.component == modal.options.settings,
@@ -224,6 +223,12 @@ function deletePlaylist() {
     }
 
     .m-content {
+        // The modal rises out of the page like the Continue card on Home
+        // (`mem-plate-rise`, Global/_button-classes.scss). It used to drop 100px
+        // from above on @vueuse/motion's bouncy spring — outside the shared
+        // vocabulary and, being JavaScript writing inline styles every frame,
+        // out of reach of `prefers-reduced-motion` (motion-policy.scss).
+        animation: mem-plate-rise $motion-settle ease-out;
         width: calc(100% - 4rem);
         max-height: calc(100% - 4rem);
         padding: 2rem 1.25rem;

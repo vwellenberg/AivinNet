@@ -1,7 +1,6 @@
 import { createApp, type Plugin } from "vue";
 import { createPinia } from "pinia";
 
-import { MotionPlugin } from "@vueuse/motion";
 import WrapBalancer from "vue-wrap-balancer";
 
 import {
@@ -46,7 +45,6 @@ app.use(VWave as Plugin, {
   color: "var(--mem-line)",
   duration: 0.35,
 });
-app.use(MotionPlugin);
 
 app.directive("tooltip", vTooltip);
 // Right-click, the context-menu key AND a touch long-press — iOS fires no

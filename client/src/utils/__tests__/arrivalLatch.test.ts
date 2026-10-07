@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ARRIVAL_ANIMATION, ARRIVED_ATTR, STARTED_ATTR, installArrivalLatch } from '@/utils/arrivalLatch'
+import { ARRIVAL_ANIMATION, ARRIVAL_ANIMATIONS, ARRIVED_ATTR, STARTED_ATTR, installArrivalLatch } from '@/utils/arrivalLatch'
 
 // ---------------------------------------------------------------------------
 // The arrival plays once per element. A CSS animation restarts whenever its
@@ -56,6 +56,16 @@ describe('arrival latch', () => {
         expect(row.hasAttribute(ARRIVED_ATTR)).toBe(false)
     })
 
+    it('latches the Continue card too, which Home reorders under it', () => {
+        // A keyed `v-for` item: a refetch with a new order moves its node, and
+        // the move restarts its rise — the same restart the scroller causes.
+        const card = document.createElement('div')
+        document.body.appendChild(card)
+        animationStart(card, 'mem-plate-rise')
+        animationStart(card, 'mem-plate-rise')
+        expect(card.hasAttribute(ARRIVED_ATTR)).toBe(true)
+    })
+
     it('ignores every other animation', () => {
         animationEnd(row, 'mem-band-drop')
         animationEnd(row, 'btn-pop')
@@ -102,7 +112,7 @@ describe('arrival latch', () => {
 describe('the two halves agree', () => {
     it('latches the keyframes the arrival actually runs', () => {
         const classes = readFileSync('src/assets/scss/Global/_button-classes.scss', 'utf8')
-        expect(classes).toContain(`@keyframes ${ARRIVAL_ANIMATION}`)
+        for (const name of ARRIVAL_ANIMATIONS) expect(classes).toContain(`@keyframes ${name}`)
     })
 
     it('switches the arrival off for latched elements, inside the shared mixin', () => {
