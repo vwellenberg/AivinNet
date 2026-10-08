@@ -1,8 +1,7 @@
 import os
-import pathlib
 
 from aivinnet.db.userdata import PlaylistTable
-from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
+from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS, parse_playlist_id
 from aivinnet.models.logger import TrackLog
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
@@ -15,32 +14,29 @@ def _playlist_exists(playlistid: str, userid: int | None) -> bool:
     user. Without one, `get_by_id` uses the request's user — which OFF a
     request silently falls back to user 1, so the routines must pass it.
     """
-    if userid is None:
-        return PlaylistTable.get_by_id(playlistid) is not None
+    pid = parse_playlist_id(playlistid)
+    if pid is None:
+        return False
 
-    # The id comes from a scrobble's `source`, which any account can post. A
-    # number past SQLite's 64-bit INTEGER made the driver raise OverflowError —
-    # in the startup cron job too, which then died for every user.
-    try:
-        pid = int(playlistid)
-    except ValueError:
-        return False
-    if not 0 < pid < 2**63:
-        return False
+    if userid is None:
+        return PlaylistTable.get_by_id(pid) is not None
 
     return PlaylistTable.get_trackhashes_of_user(pid, userid) is not None
 
 
-def create_items(entries: list[TrackLog], limit: int, userid: int | None = None):
+def create_items(entries: list[TrackLog], limit: int, userid: int | None = None, added: set[str] | None = None):
     """
     TODO: rework so that returns a dict with
     {
         "recently_played": ...,
     }
     also keep in mind that the web-ui is beeing translated.
+
+    `added` holds the sources already shown; pass the same set to every batch
+    of one listing, or each batch repeats them.
     """
     items = []
-    added = set()
+    added = set() if added is None else added
 
     for entry in entries:
         if len(items) >= limit:
@@ -96,7 +92,10 @@ def create_items(entries: list[TrackLog], limit: int, userid: int | None = None)
             if is_home_dir:
                 folder = os.path.expanduser("~")
 
-            if not pathlib.Path(folder).exists():
+            # Not `Path.exists()`: it raises for a name that is too long or a
+            # stale mount, and the path comes from a scrobble any account
+            # can post. Inside the scrobble request that was a 500 (#391).
+            if not os.path.isdir(folder):
                 continue
 
             item = {

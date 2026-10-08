@@ -130,6 +130,9 @@ def test_a_played_track_is_recorded_and_counted(logger):
         ({"duration": 4}, "under the 5 s floor"),
         ({"timestamp": 0}, "no timestamp"),
         ({"timestamp": -1}, "before 1970: the home rows assume a real point in time"),
+        # Newest forever by `timestamp DESC`, and `/nothome/` 500s on it (#391).
+        ({"timestamp": TIMESTAMP * 1000}, "milliseconds, not seconds"),
+        ({"timestamp": 253402300800}, "year 10000"),
     ],
 )
 def test_an_invalid_entry_is_rejected_and_writes_nothing(logger, overrides, why):
@@ -219,3 +222,11 @@ class TestLastFm:
         logger.lastfm_enabled = False
         log(logger.api, duration=150)
         assert logger.scrobbled == []
+
+
+def test_a_source_longer_than_any_path_is_refused(logger):
+    """Stored with every play, and any account can post one (#297)."""
+    res = log(logger.api, source="fo:/" + "a" * 5000)
+
+    assert res.status_code == 422
+    assert scrobbles(logger.api) == []

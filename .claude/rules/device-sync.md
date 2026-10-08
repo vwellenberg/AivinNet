@@ -64,6 +64,16 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
   `CALIBRATION_LOGS` pro Nutzer im RAM, `GET /devicesync/diag` liefert sie als `calibrations`.
   Größen sind gedeckelt (Geräte, Klicks, Details, Stringlängen), `allow_inf_nan=False` wie beim
   Sync-Bericht — ein `Infinity` machte sonst die Diag-Antwort zu ungültigem JSON.
+- **Was ein Client schickt, wird vor dem Kern geprüft** (#297, `api/devicesync.py`):
+  `_check_transport_payload` lässt nur endliche Zahlen als `position_ms` durch (geklemmt auf
+  0 … `MAX_POSITION_MS` = 24 h; bei `seek` Pflicht, sonst wird eine kaputte Position verworfen),
+  `playing` nur als bool, `repeat` nur aus `REPEAT_MODES`. ⚠️ Der Client sagt **`'none'`**, nicht
+  `'off'` (`stores/settings`) — `#297` schlug `off` vor, das hätte jedes Repeat-Aus abgelehnt.
+  Poll, Command und Queue-Set haben `allow_inf_nan=False`. Ohne das wurde ein NaN-Seek
+  (`typeof NaN === 'number'`) zum `null`-Anker, an dem jedes spätere Play/Pause mit 500 starb.
+  Und ein Seek ohne Position warf `KeyError`, **nachdem** der Kern die gebuchte Track-Änderung
+  schon zurückgezogen hatte. Register-Felder sind längenbegrenzt, die Presence hält höchstens
+  `MAX_DEVICES_PER_USER` Geräte pro User (das älteste fliegt).
 - Reaper-Cron alle 2 s räumt stale Member und leere Sessions.
 - Serverneustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück.
 - ⚠️ **Ein Neustart leert auch die Presence — und nur `register` füllt sie.** `touch()` lässt

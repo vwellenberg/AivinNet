@@ -16,7 +16,9 @@ class ArtistMapEntry:
         self.trackhashes: set[str] = trackhashes
 
     def increment_playcount(self, duration: int, timestamp: int, playcount: int = 1):
-        self.artist.lastplayed = timestamp
+        # The newest play, not the last one added: the startup aggregate
+        # visits the tracks in hash order (#391).
+        self.artist.lastplayed = max(self.artist.lastplayed or 0, timestamp)
         self.artist.playduration += duration
         self.artist.playcount += playcount
 
