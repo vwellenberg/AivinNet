@@ -47,6 +47,7 @@ class FolderStore:
 
         cls.filepaths = filepaths
         cls.map = filemap
+        cls._generation += 1
 
     @classmethod
     def index_file(cls, filepath: str, trackhash: str) -> None:
@@ -59,7 +60,9 @@ class FolderStore:
         94 files, and stayed that way until the next full rescan.
         """
         filepath = pathlib.Path(filepath).as_posix()
-        cls.filepaths.add(filepath)
+        if filepath not in cls.filepaths:
+            cls.filepaths.add(filepath)
+            cls._generation += 1  # a new path; a tag edit keeps the folder index
         cls.map[filepath] = trackhash
 
     @classmethod
@@ -68,6 +71,7 @@ class FolderStore:
         old = pathlib.Path(old).as_posix()
         cls.filepaths.discard(old)
         cls.map.pop(old, None)
+        cls._generation += 1
         cls.index_file(new, trackhash)
 
     @classmethod
@@ -109,21 +113,25 @@ class FolderStore:
     # contains tracks, within the configured root dirs. Derived from the
     # in-memory `filepaths` index so folder search never walks the filesystem.
     _folder_index: list[tuple[str, str]] = []
-    _folder_index_size: int = -1
+    _folder_index_key: tuple = ()
+    # Bumped by every change to `filepaths`. The index used to be keyed on
+    # their NUMBER: a renamed folder of N files (N out, N in) kept its old
+    # name in the folder search until the count changed (#391).
+    _generation: int = 0
 
     @classmethod
     def get_folder_index(cls) -> list[tuple[str, str]]:
         """
         Returns the cached folder index as a list of (name, path) tuples,
-        rebuilding it when the number of indexed filepaths has changed
-        (i.e. the library was rescanned).
+        rebuilt when the indexed filepaths or the root dirs have changed.
         """
-        if cls._folder_index and cls._folder_index_size == len(cls.filepaths):
+        roots = cls._resolve_root_dirs()
+        key = (cls._generation, tuple(roots))
+        if cls._folder_index and cls._folder_index_key == key:
             return cls._folder_index
 
-        roots = cls._resolve_root_dirs()
         cls._folder_index = derive_folder_paths(cls.filepaths, roots)
-        cls._folder_index_size = len(cls.filepaths)
+        cls._folder_index_key = key
         return cls._folder_index
 
     @staticmethod

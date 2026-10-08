@@ -13,17 +13,13 @@ def map_scrobble_data():
     The scrobble data is loaded from the database and grouped by trackhash.
     The album and artist scrobble data (for those tracks) are then incremented based on the data.
     """
-    records = ScrobbleTable.get_all(0, None)
-
-    # group records by trackhash
-    grouped: dict[str, dict[str, Any]] = {}
-
-    for record in records:
-        # aggregate playcount, playduration and lastplayed
-        item = grouped.setdefault(record.trackhash, {})
-        item["playcount"] = item.get("playcount", 0) + 1
-        item["playduration"] = item.get("playduration", 0) + record.duration
-        item["lastplayed"] = max(item.get("lastplayed", 0), record.timestamp)
+    # Every user's plays, as `log_track` adds them while the server runs. The
+    # user-less `get_all` read only user 1 off a request, so after each
+    # restart everyone else's plays were gone from the counts (#391).
+    grouped: dict[str, dict[str, Any]] = {
+        trackhash: {"playcount": count, "playduration": duration or 0, "lastplayed": last}
+        for trackhash, count, duration, last in ScrobbleTable.plays_by_trackhash()
+    }
 
     # increment playcount, playduration and lastplayed for albums and artists
     for trackhash, data in grouped.items():

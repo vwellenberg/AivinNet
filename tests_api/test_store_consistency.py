@@ -124,26 +124,35 @@ def test_the_artist_map_is_not_emptied_while_it_is_rebuilt(monkeypatch):
 
 
 def test_an_album_artist_only_entry_follows_the_edit(monkeypatch):
-    """Various Artists names no track as a performer, but its album list must still move."""
+    """
+    Various Artists names no track as a performer, but its album list must still move.
+
+    Rebuilt like the full build at startup builds it (#391): before, the
+    one-artist rebuild found no track for an album-only artist and a
+    separate patch-up branch guessed the entry instead.
+    """
+    from test_store_assumptions import _track as real_track
+
     from aivinnet.lib import track_edit
+    from aivinnet.lib.tagger import create_artists
     from aivinnet.store.artists import ArtistMapEntry, ArtistStore
-    from aivinnet.store.tracks import TrackStore
+    from aivinnet.store.tracks import TrackGroup, TrackStore
 
-    va = {"artisthash": "va", "name": "Various Artists"}
-    monkeypatch.setattr(TrackStore, "trackhashmap", {})
-    for i, album in enumerate(("fixed", "fixed", "other")):
-        TrackStore.add_track(
-            _track(
-                f"t{i}", albumhash=album, artisthashes=[f"p{i}"], albumartists=[va], artists=[{"artisthash": f"p{i}"}]
-            )
-        )
-    entry = ArtistMapEntry(artist=SimpleNamespace(), albumhashes={"retired", "other"}, trackhashes={"t9"})
-    monkeypatch.setattr(ArtistStore, "artistmap", {"va": entry})
+    tracks = [
+        real_track(1, "Ann", "Various Artists", "Fixed"),
+        real_track(2, "Bob", "Various Artists", "Fixed"),
+        real_track(3, "Cid", "Various Artists", "Other"),
+    ]
+    monkeypatch.setattr(TrackStore, "trackhashmap", {t.trackhash: TrackGroup([t]) for t in tracks})
+    full = next(r for r in create_artists([]) if r[0].name == "Various Artists")
+    va = full[0].artisthash
+    entry = ArtistMapEntry(artist=SimpleNamespace(), albumhashes={"retired"}, trackhashes={"t9"})
+    monkeypatch.setattr(ArtistStore, "artistmap", {va: entry})
 
-    track_edit._reconcile_artist("va")
+    track_edit._reconcile_artist(va)
 
-    assert ArtistStore.artistmap["va"].albumhashes == {"fixed", "other"}
-    assert ArtistStore.artistmap["va"].trackhashes == {"t0", "t1", "t2"}
+    assert ArtistStore.artistmap[va].albumhashes == full[2] == {t.albumhash for t in tracks}
+    assert ArtistStore.artistmap[va].trackhashes == full[1]
 
 
 def test_a_tag_edit_does_not_replace_the_albums_cover(library, monkeypatch):  # noqa: F811
