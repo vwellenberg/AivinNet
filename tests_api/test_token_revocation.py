@@ -132,7 +132,23 @@ class TestTheLookup:
 
         assert callback(None, self._identity(1, fresh)) is not None
 
-    def test_a_token_from_before_the_feature_keeps_working(self, users, monkeypatch):
+    @pytest.fixture()
+    def never_revoked(self, users):
+        """An account whose counter is still 0: the state every account had before revocation."""
+        from sqlalchemy import delete, insert
+
+        from aivinnet.db.engine import DbEngine
+        from aivinnet.db.userdata import UserTable
+
+        userid = 77
+        with DbEngine.manager(commit=True) as session:
+            session.execute(delete(UserTable).where(UserTable.id == userid))
+            session.execute(insert(UserTable).values(id=userid, username="legacy-77", password="x", roles=[], extra={}))
+        yield userid
+        with DbEngine.manager(commit=True) as session:
+            session.execute(delete(UserTable).where(UserTable.id == userid))
+
+    def test_a_token_from_before_the_feature_keeps_working(self, users, monkeypatch, never_revoked):
         """
         ⚠️ Deliberate. Tokens minted before this existed carry no version claim,
         and adding revocation should not log the whole household out during an
@@ -140,7 +156,21 @@ class TestTheLookup:
         """
         callback = self._callback(monkeypatch)
 
-        assert callback(None, self._identity(1)) is not None
+        assert callback(None, self._identity(never_revoked)) is not None
+
+    def test_a_token_from_before_the_feature_is_revoked_too(self, users, monkeypatch, never_revoked):
+        """
+        A missing claim counts as version 0, not as "whatever the row says now".
+        Read as the current version, it passed every revocation, and the cookie
+        refresh re-minted it within 7 days of expiry: a copied pre-revocation
+        token stayed good indefinitely (#297).
+        """
+        _handle, table = users
+        callback = self._callback(monkeypatch)
+
+        table.bump_token_version(never_revoked)
+
+        assert callback(None, self._identity(never_revoked)) is None
 
     def test_a_deleted_user_is_still_rejected(self, users, monkeypatch):
         callback = self._callback(monkeypatch)

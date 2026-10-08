@@ -61,6 +61,11 @@ TARGETED_COMMAND_TTL_MS = 15000
 # Presence entries older than this are forgotten entirely (device long gone).
 PRESENCE_TTL_MS = 30 * 60 * 1000
 
+# Devices one user keeps in presence. A client that mints a fresh id per page
+# load (cleared storage, private windows) grew the list, and every poll
+# serialises it on the single request thread (#297). The oldest goes first.
+MAX_DEVICES_PER_USER = 32
+
 # Sync diagnostics: what each joined device reports about itself with every
 # poll, kept per device for this many polls (30 min at the joined cadence).
 # "Sounds off" is otherwise unanswerable from here — the server only knows the
@@ -239,6 +244,11 @@ class GroupSessionManager:
             devices = self._presence.setdefault(userid, {})
             entry = devices.get(device_id)
             if entry is None:
+                session = self._sessions.get(userid)
+                members = session.members if session is not None else {}
+                while len(devices) >= MAX_DEVICES_PER_USER:
+                    # Members of the running group last, then the longest silent.
+                    del devices[min(devices, key=lambda d: (d in members, devices[d]["last_seen"]))]
                 devices[device_id] = {
                     "name": name,
                     "type": dtype,

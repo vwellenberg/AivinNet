@@ -222,3 +222,11 @@ class TestLastFm:
         logger.lastfm_enabled = False
         log(logger.api, duration=150)
         assert logger.scrobbled == []
+
+
+def test_a_source_longer_than_any_path_is_refused(logger):
+    """Stored with every play, and any account can post one (#297)."""
+    res = log(logger.api, source="fo:/" + "a" * 5000)
+
+    assert res.status_code == 422
+    assert scrobbles(logger.api) == []

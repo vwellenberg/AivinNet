@@ -18,6 +18,7 @@ module are the device-registry upsert on ``/register`` and the ``last_seen``
 touch on ``/leave``.
 """
 
+import math
 import time
 from typing import Any
 
@@ -49,11 +50,23 @@ MAX_QUEUE_TRACKS = 5000
 # refused here on every poll, and the other devices never got it.
 MAX_RESOLVE_TRACKS = MAX_QUEUE_TRACKS
 
+# A day: no track is longer, and nothing past it is a playhead (#297).
+MAX_POSITION_MS = 24 * 3600 * 1000
+# What the client's settings store holds (`'all' | 'one' | 'none'`).
+REPEAT_MODES = frozenset({"all", "one", "none"})
+
+
+def _clamp_position(position_ms: float) -> int:
+    """Whole milliseconds within a day: positions come from `currentTime * 1000`."""
+    return max(0, min(round(position_ms), MAX_POSITION_MS))
+
 
 class RegisterBody(BaseModel):
-    device_id: str = Field(description="Client-generated stable device UUID")
-    name: str = Field(description="Human-friendly device name, e.g. 'Chrome on Windows'")
-    type: str = Field(description="Device type, e.g. 'desktop', 'phone', 'tablet'")
+    # Bounded: kept in RAM, written to the database and sent with every poll
+    # of every device of the user; any account may register (#297).
+    device_id: str = Field(max_length=64, description="Client-generated stable device UUID")
+    name: str = Field(max_length=120, description="Human-friendly device name, e.g. 'Chrome on Windows'")
+    type: str = Field(max_length=32, description="Device type, e.g. 'desktop', 'phone', 'tablet'")
 
 
 class SyncDiag(BaseModel):
@@ -135,6 +148,9 @@ class CalibrationLogBody(BaseModel):
 
 
 class PollBody(BaseModel):
+    # A NaN volume went out to every device of the user as invalid JSON (#297).
+    model_config = ConfigDict(allow_inf_nan=False)
+
     device_id: str = Field(description="This device's id")
     known_version: int = Field(0, description="Highest session version the client has already applied")
     client_sent_ms: int = Field(0, description="Client clock at send time (for Cristian offset estimation)")
@@ -144,6 +160,8 @@ class PollBody(BaseModel):
 
 
 class CommandBody(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     device_id: str = Field(description="Originating device id")
     type: str = Field(description="Command type (transport or targeted)")
     payload: dict[str, Any] = Field(default_factory=dict, description="Command-specific payload")
@@ -157,6 +175,8 @@ class CommandBody(BaseModel):
 
 
 class QueueSetBody(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     device_id: str = Field(description="Sending device id (must be a session member)")
     trackhashes: list[str] = Field(description="Full ordered queue of track hashes")
     from_: dict[str, Any] = Field(alias="from", description="The client's 'from' descriptor for the queue")
@@ -167,7 +187,7 @@ class QueueSetBody(BaseModel):
     # a track was playing (pydantic `int_from_float` -> 422), so the group queue
     # silently never reached the server. Accept the real shape and round here.
     position_ms: float = Field(0, description="Playhead position of the current track (ms, may be fractional)")
-    repeat: str = Field("all", description="Repeat mode ('all' / 'one' / 'off')")
+    repeat: str = Field("all", description="Repeat mode ('all' / 'one' / 'none')")
     live: bool = Field(
         False,
         description="position_ms is the sender's playhead at send time (queue edits while listening): "
@@ -203,7 +223,10 @@ def poll(body: PollBody):
     """
     userid = get_current_userid()
     diag = body.diag.model_dump() if body.diag is not None else None
-    manager.touch(userid, body.device_id, body.volume, body.mute, diag=diag)
+    # Held to 0..1: it goes out to every device, and an audio element throws
+    # outside that range (#297).
+    volume = max(0.0, min(body.volume, 1.0)) if body.volume is not None else None
+    manager.touch(userid, body.device_id, volume, body.mute, diag=diag)
     return manager.snapshot(userid, body.device_id, body.known_version)
 
 
@@ -230,6 +253,35 @@ def calibration_log(body: CalibrationLogBody):
     return {"msg": "ok"}
 
 
+def _check_transport_payload(ctype: str, payload: dict[str, Any]) -> str | None:
+    """
+    Check and normalise a transport payload in place; the reason when refused.
+
+    Before the session core sees it: a NaN position (`typeof NaN === 'number'`
+    in the client) became a `null` anchor that 500ed every later play and
+    pause, and a seek without one raised KeyError after the core had already
+    withdrawn a booked track change, without a version bump (#297).
+    """
+    if "position_ms" in payload or ctype == "seek":
+        position = payload.get("position_ms")
+        if isinstance(position, bool) or not isinstance(position, (int, float)) or not math.isfinite(position):
+            if ctype == "seek":
+                return "position_ms must be a number."
+            # Optional elsewhere: a track change whose audio element had no
+            # time yet (NaN -> null in JSON) still changes the track, from 0.
+            del payload["position_ms"]
+        else:
+            payload["position_ms"] = _clamp_position(position)
+
+    if "playing" in payload and not isinstance(payload["playing"], bool):
+        return "playing must be true or false."
+
+    if ctype == "set_repeat" and payload.get("repeat") not in REPEAT_MODES:
+        return "repeat must be one of: all, one, none."
+
+    return None
+
+
 @api.post("/command")
 def command(body: CommandBody):
     """
@@ -249,10 +301,9 @@ def command(body: CommandBody):
     if ctype in TRANSPORT_TYPES:
         payload = dict(body.payload)
 
-        # Positions arrive from `audio.currentTime * 1000` and can be fractional;
-        # normalise so the anchor math stays in whole milliseconds.
-        if isinstance(payload.get("position_ms"), (int, float)):
-            payload["position_ms"] = round(payload["position_ms"])
+        refused = _check_transport_payload(ctype, payload)
+        if refused:
+            return {"msg": refused}, 400
 
         if ctype == "track_change":
             state = manager.snapshot(userid, body.device_id, known_version=-1).get("state")
@@ -292,6 +343,8 @@ def queue_set(body: QueueSetBody):
     trackhashes = body.trackhashes
     if len(trackhashes) > MAX_QUEUE_TRACKS:
         return {"msg": f"Too many trackhashes (max {MAX_QUEUE_TRACKS})."}, 400
+    if body.repeat not in REPEAT_MODES:
+        return {"msg": "repeat must be one of: all, one, none."}, 400
 
     currentindex = max(0, min(body.currentindex, len(trackhashes) - 1)) if trackhashes else 0
 
@@ -302,7 +355,7 @@ def queue_set(body: QueueSetBody):
         body.from_,
         currentindex,
         body.playing,
-        round(body.position_ms),
+        _clamp_position(body.position_ms),
         body.repeat,
         live=body.live,
     )
