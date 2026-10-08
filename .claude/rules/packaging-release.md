@@ -40,8 +40,16 @@ geschützter Endpunkt ohne Login **401** und mit Login **200**, die vier Securit
 Bundle nach der Version greppen). Letzteres ist der einzige Beleg, dass wirklich der neue Client
 drinsteckt und nicht ein Cache-Treffer.
 
-⚠️ **Testinstanz über den PORT beenden, nie über `kill $!`** — beim entpackten AppImage trifft das
-nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.0`).
+⚠️ **Testinstanz eines AppImage bis v2026.10.3 über den PORT beenden, nie über `kill $!`.** Dort
+trifft das nur den Wrapper, das Kind überlebt und lauscht eventuell noch auf `0.0.0.0`. Seit #300
+ruft `appimage/entrypoint.sh` den Interpreter unter `opt/` direkt per `exec` auf, nicht mehr
+python-appimages `usr/bin/python`. Das ist ein Bash-Wrapper, der Python **ohne** `exec` als Kind
+startet. Seitdem ist die gestartete PID der Server selbst (`tests/test_appimage_entrypoint.py`),
+solange der Interpreter unter `opt/` gefunden wird. Sonst fällt der Entrypoint auf den Wrapper
+zurück, damit die App überhaupt startet, und der Release-Workflow verweigert so ein AppDir. Vom
+Wrapper übernimmt der Entrypoint nur `SSL_CERT_FILE`, und zwar nur, wenn der Bundle existiert.
+Das betrifft das TLS der stdlib; `requests` nimmt certifi. Unter systemd fiel der Fehler nie auf,
+weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
 
 ## ⚠️ Fallen, die hier schon zugeschlagen haben
 
