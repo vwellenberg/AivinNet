@@ -734,8 +734,30 @@ ganze Settings-Spalte wurde breiter — jede Zeile rechts abgeschnitten (gemesse
 340 px). Ab vier Optionen trägt die Auswahl `is-many` und stapelt sich bis 460 px Breite 2×2 im
 selben Rahmen. Headless bei 390 px gegen master vermessen (rechte Kante 374 px wie vorher).
 
-Noch Memphis-farben: die **Platzhalter-Cover** (Server-Bilder `default/track/artist.webp`,
-#395 Schritt 3).
+**Platzhalter-Cover** (#395 Schritt 3): Die Server-Bilder `default/track/artist.webp` sind ein
+Tinten-Glyph auf **transparenter** Kachel. Die Farbe malt `Global/cover-placeholders.scss` als
+`background-color` des `<img>` — erkannt an der Route (`/img/thumbnail/` Album, `…fb=track`
+Track, `/img/artist/` Artist), eine Regel statt ~30 Komponenten. Drei Fallen:
+
+- **Wer einem Cover-`<img>` selbst einen Hintergrund gibt, überdeckt die Kachel** — auch für den
+  Platzhalter. Der Albumkopf tat das (Letterbox für breite Scans) und zeigte im Dunkelmodus
+  Schwarz auf Schwarz. Dort setzt jetzt `colors.placeholder` aus dem Album-Store die Klasse
+  `.is-placeholder`. Zensus: `coverPlaceholders.test.ts` — er sieht nur `img { … }`-Blöcke;
+  eine Klassenregel auf einem Cover-Bild entdeckt erst die Messung am laufenden Client.
+- **Ein Farb-Extraktor liest den Platzhalter als Cover:** node-vibrant überspringt die klaren
+  Pixel und findet nur den Glyph → fast schwarzer Seitenverlauf. `setColorsToStore` fragt
+  vorher `coverIsPlaceholder()` und lässt den Verlauf dann weg. ⚠️ **Nicht an den Pixeln
+  erkennen:** Der erste Wurf prüfte „Ecke durchsichtig" — der Server behält aber auch bei echten
+  Covern und Artist-Bildern den Alpha-Kanal, ein freigestelltes PNG hätte seinen Verlauf
+  verloren. Der Server markiert jede Platzhalter-Antwort mit `X-Aivinnet-Placeholder`
+  (`api/imgserver.py`, per CORS freigegeben), der Client fragt per `HEAD`.
+- **Echte Bilder mit Transparenz zeigen jetzt die Entity-Tönung dahinter** statt der
+  Kartenfläche — die Regel kann Platzhalter und Artwork nicht unterscheiden. Bewusst so: Es
+  trifft nur freigestellte Bilder, und die Tönung ist die Farbe ihrer Entität.
+- **Die Bilddateien sind Teil des Vertrags.** Wer sie neu exportiert, muss die Ecken klar lassen
+  — `tests_api/test_placeholder_assets.py` prüft Transparenz und Tinten-Glyph. Das
+  Sperrbild-Artwork des Betriebssystems (Media Session) hat keinen CSS-Hintergrund; dort steht
+  der Glyph ohne Kachel.
 
 **Beweis, dass Memphis unberührt bleibt:** derselbe Farbvergleich wie bei #397, master gegen
 Branch, Memphis als Schema: 203 239 Werte bitgleich, 17 nur der Kometen-Winkel.

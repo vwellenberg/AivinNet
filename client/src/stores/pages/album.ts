@@ -65,6 +65,8 @@ export default defineStore('album', {
             bg: '',
             bg2: '',
             btn: '',
+            // The cover is the server's placeholder (#395), set by setColorsToStore.
+            placeholder: false,
         },
         fetched_similar_hash: '',
         fetched_version_hash: '',

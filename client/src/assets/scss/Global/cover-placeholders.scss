@@ -1,0 +1,32 @@
+// ============================================================================
+// PLACEHOLDER COVERS FOLLOW THE COLOUR SCHEME (#395).
+//
+// The server answers a missing cover with a placeholder — the record (album),
+// the note (track, `?fb=track`) or the person (artist). Those used to be
+// finished pictures: a Memphis-lavender, -sea or -lime tile with an ink glyph,
+// so under Lagune or Terrakotta every cover-less album stayed lavender.
+//
+// Since #395 they are an ink glyph on a TRANSPARENT tile
+// (src/aivinnet/assets/*.webp), and the tile colour is painted here, behind the
+// image, from the entity tint the cards and the navigation already use. One
+// rule per image route instead of one per component: there are ~30 `<img>`
+// sites, and an <img> paints its own background-color under transparent
+// pixels, rounded corners included.
+//
+// A real cover is opaque and hides this colour completely; it only shows for
+// the moment the image is still loading — as a calm tile instead of a hole.
+// ============================================================================
+
+img[src*="/img/thumbnail/"] {
+  background-color: mem-pastel(map-get($mem-entities, "album"));
+
+  // The track's placeholder is the note on the track tint. Same file route as
+  // the album — the entity travels as `fb=track` (imgserver.thumbnail_fallback).
+  &[src*="fb=track"] {
+    background-color: mem-pastel(map-get($mem-entities, "track"));
+  }
+}
+
+img[src*="/img/artist/"] {
+  background-color: mem-pastel(map-get($mem-entities, "artist"));
+}

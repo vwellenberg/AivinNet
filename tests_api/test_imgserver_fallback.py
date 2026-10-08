@@ -93,6 +93,38 @@ def test_unknown_fb_value_falls_back_to_the_record(img_client):
     assert res.data == DEFAULT_BYTES
 
 
+# --- the placeholder marker (#395) --------------------------------------------
+# The web client reads this header (HEAD) before taking colours from a cover:
+# the placeholders are transparent since #395, and a real cover may be too, so
+# the pixels cannot tell them apart.
+
+
+@pytest.mark.parametrize(
+    ("url", "entity"),
+    [
+        ("/img/thumbnail/missing.webp", "album"),
+        ("/img/thumbnail/medium/missing.webp?pathhash=someph&fb=track", "track"),
+    ],
+)
+def test_a_placeholder_says_which_entity_it_stands_for(img_client, url, entity):
+    res = img_client.get(url)
+    assert res.headers.get("X-Aivinnet-Placeholder") == entity
+
+
+def test_a_real_cover_carries_no_placeholder_marker(img_client):
+    res = img_client.get("/img/thumbnail/known.webp?fb=track")
+    assert res.data == COVER_BYTES
+    assert "X-Aivinnet-Placeholder" not in res.headers
+
+
+def test_head_answers_the_marker_without_the_image(img_client):
+    # What the client actually sends: no body, just the answer.
+    res = img_client.head("/img/thumbnail/medium/missing.webp")
+    assert res.status_code == 200
+    assert res.data == b""
+    assert res.headers.get("X-Aivinnet-Placeholder") == "album"
+
+
 # --- the model side of the contract -----------------------------------------
 
 
