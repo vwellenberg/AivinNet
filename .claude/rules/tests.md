@@ -92,6 +92,18 @@ Deshalb, alle drei:
   jedem schreibenden Aufruf, nicht erst in der Auswertung.
 - **Prüfsumme** der Namensliste des echten Ordners vor und nach dem Lauf vergleichen.
 
+## ⚠️ Die CI läuft in UTC — Zeitzonen-Bugs sieht sie nicht
+
+GitHub-Runner laufen in UTC (`ci.yml` setzt kein `TZ`). Ein Grenzfall, der nur **westlich von UTC** bricht, bleibt dort
+grün: In New York ist die erste Sekunde von Jahr 10000 noch der 31.12.9999, `fromtimestamp`
+nimmt sie an, und `timestamp_to_time_passed` lief erst eine Zeile später, außerhalb des Guards,
+in einen `OverflowError`. Aufgefallen ist das nur, weil die schnelle Bahn einmal unter
+`TZ=America/New_York` lief. Code, der lokale Zeit rechnet, lokal einmal mit
+`TZ=America/New_York` und `TZ=Asia/Tokyo` laufen lassen; ein Regressionstest setzt die
+Zone selbst (`monkeypatch.setenv("TZ", …)` + `time.tzset()` + `pendulum.set_local_timezone(
+pendulum.timezone(…))`, danach alles zurück). ⚠️ `set_local_timezone` nimmt **kein** `str` —
+ein String wirft `TypeError`, und der Test ist „rot ohne Fix“ aus dem falschen Grund.
+
 ## Was in welchen PR gehört (Pflicht)
 
 - **Bugfix ⇒ Regressionstest**, der den Bug reproduziert: vor dem Fix rot, danach grün.

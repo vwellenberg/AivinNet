@@ -53,13 +53,14 @@ def timestamp_to_time_passed(timestamp: str | int | float):
     now_ts = datetime.now().timestamp()
     try:
         then = datetime.fromtimestamp(int(timestamp)).timestamp()
+        # Inside the guard too: west of UTC, the first second of year 10000 is
+        # still 9999-12-31 locally, so `fromtimestamp` passes and the overflow
+        # only comes here.
+        return pendulum.now().subtract(seconds=now_ts - then).diff_for_humans()
     except (OverflowError, OSError, ValueError):
         # No date (a play written in milliseconds, year 10000): an empty label,
         # not a 500 for the whole page that lists it (#391).
         return ""
-
-    diff = now_ts - then
-    return pendulum.now().subtract(seconds=diff).diff_for_humans()
 
 
 def date_string_to_time_passed(prev_date: str) -> str:
