@@ -74,7 +74,10 @@ class AlbumStore:
         """
         Returns a flat list of all albums.
         """
-        return [a.album for a in cls.albummap.values()]
+        # A snapshot first: an album apply adds keys from a worker thread, and a
+        # comprehension over the live dict then raised "dictionary changed size
+        # during iteration" in whichever request was reading (#391).
+        return [a.album for a in list(cls.albummap.values())]
 
     @classmethod
     def get_album_by_hash(cls, albumhash: str) -> Album | None:

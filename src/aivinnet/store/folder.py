@@ -3,7 +3,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from sortedcontainers import SortedSet
 
-from aivinnet.db.libdata import TrackTable
 from aivinnet.lib.folder_index import derive_folder_paths
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.filesystem import dir_prefix
@@ -28,7 +27,7 @@ class FolderStore:
     @classmethod
     def load_filepaths(cls):
         """
-        Load all the filepaths from the database into memory.
+        Load all the filepaths of the track store into memory.
 
         This is needed to speed up the process of counting the number of tracks in the folder page.
         """
@@ -39,10 +38,17 @@ class FolderStore:
         # (`get_index_of_first_match` indexes `paths[mid]`). A plain set here —
         # the store swap in 2026.10.2 — made every Home with a folder row, and
         # every folder count, answer 500.
+        #
+        # From the track store, not a second pass over the table (#391): the
+        # map points INTO that store, by hash. Read from the database after
+        # Albums and Artists had loaded, it lagged the store by the whole
+        # rebuild, and every file whose hash a scan had changed went missing
+        # from its folder in between (`get_tracks_by_filepaths` skips a hash
+        # the store does not know). Call this right after the track store swap.
         filepaths: SortedSet = SortedSet()
         filemap: dict[str, str] = {}
 
-        for track in TrackTable.get_all():
+        for track in TrackStore.get_flat_list():
             filepaths.add(track.filepath)
             filemap[track.filepath] = track.trackhash
 

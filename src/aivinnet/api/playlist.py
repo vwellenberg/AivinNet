@@ -23,7 +23,7 @@ from aivinnet.lib.playlist_maintenance import (
     prune_orphan_trackhashes,
     trackhash_diff,
 )
-from aivinnet.lib.sortlib import sort_tracks
+from aivinnet.lib.sortlib import folder_order, sort_tracks
 from aivinnet.models.playlist import Playlist
 from aivinnet.serializers.playlist import serialize_for_card
 from aivinnet.serializers.track import serialize_tracks
@@ -64,14 +64,12 @@ def get_path_trackhashes(path: str, tracksortby: str, reverse: bool):
     """
     tracks = TrackStore.get_tracks_in_path(path)
 
-    # The folder view lists files by modification time when no explicit sort
-    # is set (see folderslib.get_files_and_dirs), while the store returns
-    # tracks in arbitrary map order and sort_tracks("default") is a no-op —
-    # saving a folder as a playlist scrambled the visible order.
-    if tracksortby == "default":
-        tracks = sorted(tracks, key=lambda t: t.last_mod)
-    else:
-        tracks = sort_tracks(tracks, key=tracksortby, reverse=reverse)
+    # The store returns tracks in arbitrary map order and
+    # sort_tracks("default") is a no-op, so saving a folder as a playlist
+    # scrambled the visible order. Start from the folder view's own order
+    # (`folder_order`, as folderslib does), so ties of an explicit sort come
+    # out as the view shows them too.
+    tracks = sort_tracks(sorted(tracks, key=folder_order), key=tracksortby, reverse=reverse)
 
     return [t.trackhash for t in tracks]
 

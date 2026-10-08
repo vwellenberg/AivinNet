@@ -249,6 +249,13 @@ je Zeile:
   Ordnerzählung `FolderStore.count_tracks_containing_paths`, die außerdem eine Wurzel hinter
   einem Symlink mit 0 zählte.
 
+Ein Ordner hat **eine** Reihenfolge, wenn keine Sortierung gewählt ist:
+`sortlib.folder_order`, also gespeichertes `last_mod` und danach der Pfad. Diese Reihenfolge
+gilt für die Ordneransicht, „Play“ auf der Ordnerkarte (`/folder/tracks/all`) und „als Playlist
+speichern“. Früher sortierte die Ansicht nach der mtime auf der Platte, die anderen beiden nach
+`last_mod`. Bei Gleichstand entschied einmal die Verzeichnisreihenfolge, einmal die Hash-Reihenfolge,
+und ein aus einem Zip entpacktes Album ist ein einziger Gleichstand (#391).
+
 **Grenze:** Belegt wird pro Wurzel. Ein Share, der *unterhalb* einer antwortenden Wurzel hängt
 (`/media/nas` unter `/media`), ist abgehängt ein leerer Ordner wie jeder andere — seine Zeilen
 fliegen wie früher. Shares deshalb selbst als Wurzel eintragen.

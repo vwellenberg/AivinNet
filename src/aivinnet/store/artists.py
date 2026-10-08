@@ -85,7 +85,8 @@ class ArtistStore:
         """
         Returns a flat list of all artists.
         """
-        return [a.artist for a in cls.artistmap.values()]
+        # A snapshot first, as AlbumStore.get_flat_list (#391).
+        return [a.artist for a in list(cls.artistmap.values())]
 
     # @classmethod
     # def map_artist_color(cls, artist_tuple: tuple):

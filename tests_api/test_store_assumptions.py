@@ -169,8 +169,8 @@ def test_the_folder_search_follows_a_renamed_folder(monkeypatch):
 
     from sortedcontainers import SortedSet
 
-    from aivinnet.db.libdata import TrackTable
     from aivinnet.store.folder import FolderStore
+    from aivinnet.store.tracks import TrackStore
 
     def _row(path):
         return SimpleNamespace(filepath=path, trackhash="h" + path)
@@ -183,7 +183,7 @@ def test_the_folder_search_follows_a_renamed_folder(monkeypatch):
 
     # A rescan after the rename: two files out, two in, the same count.
     monkeypatch.setattr(
-        TrackTable, "get_all", lambda: iter([_row("/music/New Name/1.mp3"), _row("/music/New Name/2.mp3")])
+        TrackStore, "get_flat_list", lambda: [_row("/music/New Name/1.mp3"), _row("/music/New Name/2.mp3")]
     )
     FolderStore.load_filepaths()
 
@@ -241,3 +241,180 @@ def test_an_album_was_last_played_when_its_newest_play_was(plays, library, monke
     mapstuff.map_scrobble_data()
 
     assert (album.lastplayed, artist.lastplayed) == (T0 + 500, T0 + 500)
+
+
+# ── A rescan swaps the stores in one by one, and the server keeps serving ──
+# Between `TrackStore.load_all_tracks` and the maps at the end of
+# `_index_everything` a play or a favorite lands on the FRESH objects and in
+# the database. The maps then have to state the database, not add to it (#391).
+
+
+class _Counted:
+    """The play and favorite fields of an Album or Artist, with the model's own toggle."""
+
+    def __init__(self):
+        self.lastplayed = self.playduration = self.playcount = 0
+        self.fav_userids: list[int] = []
+
+    def toggle_favorite_user(self, userid: int):
+        if userid in self.fav_userids:
+            self.fav_userids.remove(userid)
+        else:
+            self.fav_userids.append(userid)
+
+
+def _fresh_entries(monkeypatch, track):
+    from aivinnet.lib import mapstuff
+    from aivinnet.store.albums import AlbumMapEntry
+    from aivinnet.store.artists import ArtistMapEntry
+
+    album, artist = _Counted(), _Counted()
+    album_entry = AlbumMapEntry(album, {track.trackhash})
+    artist_entries = {h: ArtistMapEntry(artist, {track.trackhash}, {track.albumhash}) for h in track.artisthashes}
+    monkeypatch.setattr(mapstuff.AlbumStore, "albummap", {track.albumhash: album_entry})
+    monkeypatch.setattr(mapstuff.ArtistStore, "artistmap", artist_entries)
+    return album, artist, album_entry, artist_entries
+
+
+def test_a_play_logged_during_a_rescan_counts_once(plays, library, monkeypatch):
+    from aivinnet.lib import mapstuff
+    from aivinnet.store.tracks import TrackStore
+
+    (track,) = library(_track(1, "Ann", "Ann", "First"))
+    album, artist, album_entry, artist_entries = _fresh_entries(monkeypatch, track)
+
+    # What `log_track` does: the row, and the RAM counters of the fresh objects.
+    plays([{"trackhash": track.trackhash, "duration": 100, "timestamp": T0, "source": "", "userid": 1, "extra": {}}])
+    TrackStore.trackhashmap[track.trackhash].increment_playcount(100, T0)
+    album_entry.increment_playcount(100, T0)
+    for entry in artist_entries.values():
+        entry.increment_playcount(100, T0)
+
+    mapstuff.map_scrobble_data()
+
+    assert (track.playcount, track.playduration, track.lastplayed) == (1, 100, T0)
+    assert (album.playcount, album.playduration, album.lastplayed) == (1, 100, T0)
+    assert (artist.playcount, artist.playduration, artist.lastplayed) == (1, 100, T0)
+
+
+def test_a_favorite_added_during_a_rescan_stays_a_favorite(playlist_db, library, monkeypatch):
+    from sqlalchemy import delete, insert
+
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib import mapstuff
+    from aivinnet.store.tracks import TrackStore
+
+    userid = 1  # a real user: `playlist_db` creates it (favorite.userid is a foreign key)
+    (track,) = library(_track(1, "Ann", "Ann", "First"))
+    album, artist, album_entry, artist_entries = _fresh_entries(monkeypatch, track)
+
+    # What `/favorites/add` does: the row, and the explicit set on the fresh objects.
+    rows = [
+        {"hash": track.trackhash, "type": "track"},
+        {"hash": track.albumhash, "type": "album"},
+        *({"hash": h, "type": "artist"} for h in track.artisthashes),
+    ]
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(FavoritesTable))
+        session.execute(insert(FavoritesTable), [{**r, "timestamp": T0, "userid": userid, "extra": {}} for r in rows])
+    TrackStore.trackhashmap[track.trackhash].set_favorite_user(True, userid)
+    album_entry.set_favorite_user(True, userid)
+    for entry in artist_entries.values():
+        entry.set_favorite_user(True, userid)
+
+    try:
+        mapstuff.map_favorites()
+    finally:
+        with DbEngine.manager(commit=True) as session:
+            session.execute(delete(FavoritesTable))
+
+    assert track.fav_userids == [userid]
+    assert album.fav_userids == [userid]
+    assert artist.fav_userids == [userid]
+
+
+def test_the_folder_view_finds_a_rescanned_file_under_its_new_hash(library, monkeypatch):
+    """The folder map is built from the track store it points into, not re-read from the table."""
+    from types import SimpleNamespace
+
+    import aivinnet.store.folder as folder_module
+    from aivinnet.store.folder import FolderStore
+
+    (track,) = library(_track(1, "Ann", "Ann", "First"))
+    # The table as a second read would see it while the stores are being rebuilt.
+    stale = SimpleNamespace(filepath=track.filepath, trackhash="0123456789abcdef")
+    monkeypatch.setattr(folder_module, "TrackTable", SimpleNamespace(get_all=lambda: iter([stale])), raising=False)
+    monkeypatch.setattr(FolderStore, "map", {})
+    monkeypatch.setattr(FolderStore, "filepaths", folder_module.SortedSet())
+
+    FolderStore.load_filepaths()
+
+    assert list(FolderStore.get_tracks_by_filepaths([track.filepath])) == [track]
+
+
+def test_a_rescan_rebuilds_the_folder_map_right_behind_the_track_store(monkeypatch):
+    from aivinnet.lib import index
+
+    calls = []
+
+    def step(name):
+        return lambda *a, **k: calls.append(name)
+
+    monkeypatch.setattr(index, "IndexTracks", step("scan"))
+    monkeypatch.setattr(index.TrackStore, "load_all_tracks", step("tracks"))
+    monkeypatch.setattr(index.FolderStore, "load_filepaths", step("folders"))
+    monkeypatch.setattr(index.AlbumStore, "load_albums", step("albums"))
+    monkeypatch.setattr(index.ArtistStore, "load_artists", step("artists"))
+    for name in ("RecentlyAdded", "map_album_colors", "map_artist_colors", "map_scrobble_data", "map_favorites"):
+        monkeypatch.setattr(index, name, step(name))
+    monkeypatch.setattr(index, "CordinateMedia", step("media"))
+
+    index._index_everything()
+
+    assert calls[:3] == ["scan", "tracks", "folders"]
+
+
+class _GrowsWhenRead:
+    """A store entry whose read adds an entry to its map, as an apply on another thread can."""
+
+    def __init__(self, live: dict, value):
+        self._live = live
+        self._value = value
+
+    @property
+    def album(self):
+        self._live[f"new{len(self._live)}"] = self
+        return self._value
+
+    artist = album
+
+
+@pytest.mark.parametrize("store", ["albums", "artists"])
+def test_a_flat_list_survives_a_store_that_grows_meanwhile(monkeypatch, store):
+    from aivinnet.store.albums import AlbumStore
+    from aivinnet.store.artists import ArtistStore
+
+    cls, attr = (AlbumStore, "albummap") if store == "albums" else (ArtistStore, "artistmap")
+    live: dict = {}
+    live["a"] = _GrowsWhenRead(live, "A")
+    live["b"] = _GrowsWhenRead(live, "B")
+    monkeypatch.setattr(cls, attr, live)
+
+    assert cls.get_flat_list() == ["A", "B"]
+
+
+def test_the_cover_count_survives_an_album_added_meanwhile(monkeypatch):
+    from aivinnet.api import musicbrainz
+
+    live = {"a": object(), "b": object()}
+
+    def has_cover(albumhash):
+        live[f"new-{albumhash}"] = object()  # an apply retitled an album meanwhile
+        return False
+
+    monkeypatch.setattr(musicbrainz.AlbumStore, "albummap", live)
+    monkeypatch.setattr(musicbrainz, "_album_has_cover", has_cover)
+    monkeypatch.setattr(musicbrainz, "load_failed", lambda: set())
+
+    assert musicbrainz.missing_count()["total"] == 2
