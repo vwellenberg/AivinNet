@@ -117,14 +117,19 @@ def get_duration_ago(duration: str, units_ago: int = 1) -> int:
             raise ValueError(f"Invalid duration: {duration}")
 
 
-def get_duration_in_seconds(duration: str) -> int:
+def get_previous_period_start(duration: str, start: int) -> int:
     """
-    Returns the number of seconds in a given duration.
+    Returns the start of the calendar period before the one that begins at
+    `start`: yesterday for "day", last week for "week", and so on.
+
+    The charts compare the current period against this one for their trend
+    arrows. "alltime" has nothing before it, so its previous period is empty.
     """
     match duration:
-        case "week" | "month" | "year":
-            return int(pendulum.now().subtract().start_of(duration).timestamp())
+        case "day" | "week" | "month" | "year":
+            previous = pendulum.from_timestamp(start, tz="local").subtract(seconds=1)
+            return int(previous.start_of(duration).timestamp())
         case "alltime":
-            return int(pendulum.now().timestamp())
+            return start
 
     raise ValueError(f"Invalid duration: {duration}")
