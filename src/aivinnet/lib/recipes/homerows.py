@@ -15,21 +15,25 @@ All are per user and purely local (scrobbles + own library).
 import logging
 
 import pendulum
+from pendulum.tz import local_timezone
 
 from aivinnet.db.userdata import PlaylistTable, ScrobbleTable
-from aivinnet.lib.home.create_items import create_items
 from aivinnet.lib.home.discover import (
+    ON_THIS_DAY_YEARS,
     REPEAT_BASELINE_WEEKS,
     REPEAT_DAYS,
     SLOT_DAYS,
     AlbumFacts,
     TrackFacts,
     because_item,
+    day_playlist,
+    day_summary,
     for_this_time_item,
     forgotten_favorite_item,
     never_played_chips,
     never_played_item,
     on_repeat_item,
+    on_this_day_item,
     pick_seed_artist,
     playlist_neighbour_item,
     rank_because,
@@ -37,13 +41,13 @@ from aivinnet.lib.home.discover import (
     rank_forgotten_favorites,
     rank_never_played,
     rank_on_repeat,
+    rank_on_this_day,
     rank_playlist_neighbours,
     score_unplayed,
     slot_title,
     time_slot,
 )
 from aivinnet.lib.home.homerows import (
-    ROW_LIMIT,
     on_this_day_window,
     rank_rediscover,
     rediscover_item,
@@ -121,13 +125,52 @@ class OnThisDay(HomepageRoutine):
         return True
 
     def run(self):
-        start, end, label = on_this_day_window()
+        now = pendulum.now()
+        tz = local_timezone()
         entry = HomepageStore.entries[self.store_key]
-        entry.description = label
+        windows = [(now.year - years, *on_this_day_window(now, years)) for years in range(1, ON_THIS_DAY_YEARS + 1)]
+
+        def name_of(artisthash: str) -> str | None:
+            # "mostly Various Artists" says nothing about the day.
+            if artisthash in PLACEHOLDER_ARTIST_HASHES:
+                return None
+            artist = ArtistStore.artistmap.get(artisthash)
+            return artist.artist.name if artist else None
 
         for userid in all_userids():
-            scrobbles = list(ScrobbleTable.get_all_in_period(start, end, userid))
-            entry.items[userid] = create_items(scrobbles, ROW_LIMIT, userid) if scrobbles else []
+            if _stopping():
+                return
+
+            # One small read per year: the same calendar day, newest first.
+            days = []
+            for year, start, end, label in windows:
+                plays = list(ScrobbleTable.get_all_in_period(start, end, userid))
+                if plays:
+                    days.append((year, label, plays))
+
+            ranked = rank_on_this_day([(year, plays) for year, _, plays in days], track_facts)
+
+            # The newest year whose plays are still in the library is the day
+            # "Play that day" plays and the summary describes; older years only
+            # add their albums. Not simply the newest year with plays: after a
+            # retag its tracks may all be gone, and the button would play nothing.
+            playable = next(((label, plays, tracks) for _, label, plays in days if (tracks := day_playlist(plays, track_facts))), None)
+
+            # Description and playlist first, the cards last: a reader between
+            # them would see the new cards under the old day's text.
+            if playable is None:
+                entry.meta.pop(userid, None)
+                entry.trackhashes.pop(userid, None)
+            else:
+                label, plays, tracks = playable
+                summary = day_summary(plays, track_facts, name_of, tz)
+                entry.meta[userid] = {
+                    "description": f"{label} · {summary}" if summary else label,
+                    "playlist_name": f"On this day · {label}",
+                }
+                entry.trackhashes[userid] = tracks
+
+            entry.items[userid] = [on_this_day_item(*r) for r in ranked]
 
 
 def track_facts(trackhash: str) -> TrackFacts | None:
@@ -290,7 +333,9 @@ class NeverPlayed(HomepageRoutine):
                     "label": genre_names.get(genre, genre),
                     "items": [never_played_item(a, reason(artist, g)) for a, artist, g in picks],
                 }
-                for genre, picks in (never_played_chips(scrobbles, track_facts, albums, unplayed=unplayed) if unplayed else [])
+                for genre, picks in (
+                    never_played_chips(scrobbles, track_facts, albums, unplayed=unplayed) if unplayed else []
+                )
             ]
 
 

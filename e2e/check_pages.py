@@ -144,6 +144,7 @@ if albums and tracks:
     call("GET", "/playlists")
     # Home's "On repeat" served as a playlist; empty on a fresh library, still 200.
     call("GET", "/playlists/onrepeat?start=0&limit=50")
+    call("GET", "/playlists/onthisday?start=0&limit=50")
     call("POST", "/favorites/add", {"hash": first["trackhash"], "type": "track"})
     call("POST", "/favorites/add", {"hash": albums[0]["albumhash"], "type": "album"})
     call("GET", "/favorites?track_limit=6&album_limit=6&artist_limit=6")

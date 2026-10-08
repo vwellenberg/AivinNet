@@ -45,7 +45,11 @@ ROW_LIMIT = 15
 # Playlists the server builds on the fly, by name; their handlers are in
 # `generated_playlists.GENERATED_PLAYLISTS` (kept apart: this module stays free
 # of store imports). They have no stable track order, so nothing to continue.
-CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed", "onrepeat"}
+CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed", "onrepeat", "onthisday"}
+
+# Generated playlists whose content belongs to one day. A "Recently played"
+# card for one would play whatever day it is when it is clicked, so none is made.
+DATED_PLAYLISTS = {"onthisday"}
 
 
 def parse_playlist_id(src: str) -> int | None:
@@ -191,16 +195,16 @@ def rediscover_item(albumhash: str, playcount: int, last_played: int) -> dict[st
     }
 
 
-def on_this_day_window(now: pendulum.DateTime | None = None) -> tuple[int, int, str]:
+def on_this_day_window(now: pendulum.DateTime | None = None, years: int = 1) -> tuple[int, int, str]:
     """
-    Start and end (unix seconds, inclusive) of the same calendar day one year
+    Start and end (unix seconds, inclusive) of the same calendar day `years`
     ago, plus its label, e.g. "4 October 2025".
 
     Server-local time, like `utils/dates.get_date_range` (`pendulum.now()`).
     On 29 February the day a year ago is the 28th (pendulum clamps).
     """
     now = now or pendulum.now()
-    day = now.subtract(years=1)
+    day = now.subtract(years=years)
 
     start = day.start_of("day")
     end = day.end_of("day")

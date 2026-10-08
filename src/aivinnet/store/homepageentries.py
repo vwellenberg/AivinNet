@@ -75,9 +75,10 @@ class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):
 
 class PersonalTitleEntry(GenericRecoverableEntry):
     """
-    A row whose title and link differ per user: "Because you listened to
-    Primus" names that user's seed artist. `meta[userid]` holds the user's
-    `title` and `url`; without one the row keeps its generic title.
+    A row whose title, description and link differ per user: "Because you
+    listened to Primus" names that user's seed artist. `meta[userid]` holds
+    the user's `title`, `description` and `url`, each optional; without one
+    the row keeps its generic text.
     """
 
     meta: dict[int, dict[str, str]]
@@ -91,10 +92,25 @@ class PersonalTitleEntry(GenericRecoverableEntry):
         meta = self.meta.get(userid, {})
 
         row["title"] = meta.get("title", self.title)
+        row["description"] = meta.get("description", self.description)
         if "url" in meta:
             row["url"] = meta["url"]
 
         return row
+
+
+class PlayableEntry(PersonalTitleEntry):
+    """
+    A row that can also be played as a whole ("On this day": the day in the
+    order it was heard). `trackhashes[userid]` is that list, read by its
+    generated playlist (`generated_playlists`).
+    """
+
+    trackhashes: dict[int, list[str]]
+
+    def __init__(self, title: str, description: str = ""):
+        super().__init__(title, description)
+        self.trackhashes = {}
 
 
 class ChipsEntry(GenericRecoverableEntry):

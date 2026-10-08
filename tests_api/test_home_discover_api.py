@@ -146,6 +146,9 @@ def home(api_client, monkeypatch):
         monkeypatch.setattr(entry, "title", entry.title)
         if isinstance(entry, PersonalTitleEntry):
             monkeypatch.setattr(entry, "meta", {})
+        for attr in ("chips", "trackhashes"):
+            if hasattr(entry, attr):
+                monkeypatch.setattr(entry, attr, {})
 
     api = api_client("aivinnet.api.home", "aivinnet.api.playlist")
     monkeypatch.setattr(homepage, "get_current_userid", lambda: api.userid)
@@ -409,3 +412,71 @@ def test_every_generated_playlist_is_known_by_name_too():
     from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 
     assert set(GENERATED_PLAYLISTS) == CUSTOM_PLAYLISTS
+
+
+def test_on_this_day_shows_the_albums_of_several_years_and_plays_the_day(home, monkeypatch):
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.db.userdata import ScrobbleTable
+    from aivinnet.lib.recipes.homerows import OnThisDay
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+
+    def evening(years: int) -> int:
+        return int(pendulum.now().subtract(years=years).start_of("day").add(hours=20).timestamp())
+
+    # A year ago: one playlist session — Faith No More twice around one RHCP track.
+    for i, trackhash in enumerate((th(FNM, 1), th(RHCP, 1), th(FNM, 2), th(FNM, 1))):
+        ScrobbleTable.add(
+            {"trackhash": trackhash, "timestamp": evening(1) + i * 200, "duration": 200, "source": "pl:7", "userid": 1}
+        )
+    # Two years ago: Primus, and Faith No More again (shown once, with its newest year).
+    listen(evening(2), th(PRIMUS, 1), th(FNM, 3))
+
+    OnThisDay()
+    data, _ = rows(home)
+
+    otd = data["on_this_day"]
+    year = pendulum.now().year
+    # Albums, not the one playlist the plays came from.
+    assert [(i["item"]["albumhash"], i["item"]["help_text"]) for i in otd["items"]] == [
+        (FNM, f"{year - 1} · 3 plays"),
+        (RHCP, f"{year - 1} · 1 play"),
+        (PRIMUS, f"{year - 2} · 1 play"),
+    ]
+    label = pendulum.now().subtract(years=1).format("D MMMM YYYY")
+    assert otd["description"] == f"{label} · 13 min · mostly Faith No More · in the evening"
+
+    # "Play that day": last year's day in the order heard, each track once.
+    res = home.get("/playlists/onthisday")
+    assert res.status_code == 200, res.text
+    assert res.get_json()["info"]["name"] == f"On this day · {label}"
+    assert [t["trackhash"] for t in res.get_json()["tracks"]] == [th(FNM, 1), th(RHCP, 1), th(FNM, 2)]
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "on_this_day" not in order
+    assert home.get("/playlists/onthisday").get_json()["tracks"] == []
+
+
+def test_on_this_day_plays_the_newest_year_still_in_the_library(home, monkeypatch):
+    """A year whose tracks were all retagged away gives no summary and no playlist."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.db.userdata import ScrobbleTable
+    from aivinnet.lib.recipes.homerows import OnThisDay
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+
+    def evening(years: int) -> int:
+        return int(pendulum.now().subtract(years=years).start_of("day").add(hours=20).timestamp())
+
+    # Last year: only a hash the library no longer has (a retag changed it).
+    ScrobbleTable.add({"trackhash": "0" * 16, "timestamp": evening(1), "duration": 200, "source": "", "userid": 1})
+    listen(evening(2), th(PRIMUS, 1), th(PRIMUS, 2))
+
+    OnThisDay()
+    data, _ = rows(home)
+
+    two_years = pendulum.now().subtract(years=2).format("D MMMM YYYY")
+    assert data["on_this_day"]["description"].startswith(two_years + " · ")
+    tracks = home.get("/playlists/onthisday").get_json()["tracks"]
+    assert [t["trackhash"] for t in tracks] == [th(PRIMUS, 1), th(PRIMUS, 2)]

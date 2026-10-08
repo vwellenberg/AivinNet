@@ -195,6 +195,12 @@ class TestOnThisDay:
 
         assert label == "1 January 2025"
 
+    def test_further_years_back(self):
+        start, _, label = on_this_day_window(pendulum.datetime(2026, 10, 8, 12, tz="UTC"), years=3)
+
+        assert label == "8 October 2023"
+        assert pendulum.from_timestamp(start, tz=pendulum.local_timezone()).year == 2023
+
     def test_leap_day_falls_back_to_the_28th(self):
         _, _, label = on_this_day_window(pendulum.datetime(2028, 2, 29, 12, tz=pendulum.local_timezone()))
 

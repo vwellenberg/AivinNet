@@ -103,6 +103,10 @@ def home(api_client, monkeypatch):
     for entry in HomepageStore.entries.values():
         monkeypatch.setattr(entry, "items", {})
         monkeypatch.setattr(entry, "description", entry.description)
+        # Per-user state of some rows (titles, chips, "Play that day").
+        for attr in ("meta", "chips", "trackhashes"):
+            if hasattr(entry, attr):
+                monkeypatch.setattr(entry, attr, {})
 
     api = api_client("aivinnet.api.home", "aivinnet.api.scrobble")
     # The store asks auth for the user directly, not through the DB layer.
@@ -173,8 +177,11 @@ def test_new_rows_their_shape_and_order(home):
     ).format("MMMM YYYY")
 
     otd = data["on_this_day"]
-    assert otd["description"] == pendulum.now().subtract(years=1).format("D MMMM YYYY")
+    # The date and a line about the day: one 3-minute play at noon. No
+    # "mostly …": this library has no artist pages to name.
+    assert otd["description"] == pendulum.now().subtract(years=1).format("D MMMM YYYY") + " · 3 min · in the afternoon"
     assert [i["item"]["albumhash"] for i in otd["items"]] == [ALBUM_A]
+    assert otd["items"][0]["item"]["help_text"] == f"{pendulum.now().year - 1} · 1 play"
 
 
 def test_a_finished_album_is_not_continued(home):
@@ -302,3 +309,18 @@ def test_every_entry_has_a_place_in_the_order():
 
     ordered = HomepageStore.ORDER_BEFORE_PAGES + HomepageStore.ORDER_AFTER_PAGES
     assert sorted(ordered) == sorted(HomepageStore.entries)
+
+
+def test_a_play_from_on_this_day_makes_no_recently_played_card(home):
+    """Its content is one day's: a card for it tomorrow would play another day."""
+    from aivinnet.lib.recipes.recents import RecentlyPlayed
+    from aivinnet.store.homepage import HomepageStore
+
+    now = int(pendulum.now().timestamp())
+    scrobble(_trackhash(ALBUM_A, 1), now - 120, "pl:onthisday")
+    scrobble(_trackhash(ALBUM_B, 2), now - 60, f"al:{ALBUM_B}")
+
+    RecentlyPlayed()
+
+    items = HomepageStore.entries["recently_played"].items[1]
+    assert [(i["type"], i["hash"]) for i in items] == [("album", ALBUM_B)]
