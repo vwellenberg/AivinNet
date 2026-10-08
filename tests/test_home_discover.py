@@ -16,10 +16,13 @@ from aivinnet.lib.home.discover import (
     AlbumFacts,
     TrackFacts,
     because_item,
+    day_playlist,
+    day_summary,
     forgotten_favorite_item,
     never_played_chips,
     never_played_item,
     on_repeat_item,
+    on_this_day_item,
     pick_seed_artist,
     playlist_neighbour_item,
     rank_because,
@@ -27,6 +30,7 @@ from aivinnet.lib.home.discover import (
     rank_forgotten_favorites,
     rank_never_played,
     rank_on_repeat,
+    rank_on_this_day,
     rank_playlist_neighbours,
     slot_title,
     time_slot,
@@ -552,3 +556,67 @@ class TestForgottenFavorites:
         item = forgotten_favorite_item("a/1", 10, NOW - 100 * DAY)
         assert item["help_text"].startswith("last ")
         assert item["secondary_text"] == "10 plays"
+
+
+@dataclass
+class TimedPlay:
+    trackhash: str
+    timestamp: int
+    duration: int = 180
+
+
+class TestOnThisDay:
+    def setup_method(self):
+        self.lib = Library().add("dream", "dreamcorp").add("syx", "jasinka").add("cnc", "klepacki")
+
+    def test_the_albums_of_the_day_not_where_they_were_started(self):
+        # One playlist session: three albums, not one playlist card.
+        day = [Play("dream/1", 1), Play("syx/1", 2), Play("dream/2", 3), Play("cnc/1", 4), Play("dream/3", 5)]
+
+        assert rank_on_this_day([(2025, day)], self.lib.facts) == [
+            ("dream", 2025, 3),
+            ("cnc", 2025, 1),
+            ("syx", 2025, 1),
+        ]
+
+    def test_earlier_years_follow_and_an_album_shows_once(self):
+        last_year = [Play("dream/1", 1)]
+        two_years = [Play("dream/2", 1), Play("dream/3", 2), Play("syx/1", 3)]
+
+        ranked = rank_on_this_day([(2025, last_year), (2024, two_years)], self.lib.facts)
+
+        assert ranked == [("dream", 2025, 1), ("syx", 2024, 1)]
+
+    def test_tracks_gone_from_the_library_are_left_out(self):
+        assert rank_on_this_day([(2025, [Play("gone/1", 1)])], self.lib.facts) == []
+
+    def test_capped(self):
+        day = [Play(a + "/1", i) for i, a in enumerate(("dream", "syx", "cnc"))]
+
+        assert len(rank_on_this_day([(2025, day)], self.lib.facts, limit=2)) == 2
+
+    def test_item(self):
+        assert on_this_day_item("dream", 2024, 1) == {"type": "album", "hash": "dream", "help_text": "2024 · 1 play"}
+
+    def test_summary(self):
+        evening = int(pendulum.datetime(2025, 10, 8, 20, 0).timestamp())
+        day = [TimedPlay("dream/1", evening + i * 240, 240) for i in range(40)]
+        day.append(TimedPlay("syx/1", evening - 12 * 3600, 240))  # one morning play
+
+        summary = day_summary(day, self.lib.facts, {"dreamcorp": "Dream.Corp"}.get, pendulum.timezone("UTC"))
+
+        assert summary == "2 h 44 min · mostly Dream.Corp · in the evening"
+
+    def test_summary_skips_an_artist_without_a_name_and_short_days(self):
+        noon = int(pendulum.datetime(2025, 10, 8, 12, 0).timestamp())
+        day = [TimedPlay("dream/1", noon, 30)]
+
+        assert day_summary(day, self.lib.facts, lambda a: None, pendulum.timezone("UTC")) == "1 min · in the afternoon"
+
+    def test_no_summary_without_plays(self):
+        assert day_summary([], self.lib.facts, lambda a: None, pendulum.timezone("UTC")) is None
+
+    def test_the_day_as_a_playlist_in_the_order_heard(self):
+        day = [Play("syx/1", 3), Play("dream/1", 1), Play("syx/1", 2), Play("gone/1", 4)]
+
+        assert day_playlist(day, self.lib.facts) == ["dream/1", "syx/1"]

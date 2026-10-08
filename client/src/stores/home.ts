@@ -29,6 +29,7 @@ export default defineStore('homepage', () => {
         recently_played: '/playlist/recentlyplayed',
         // Served as a playlist too, so the caption opens the whole list.
         on_repeat: '/playlist/onrepeat',
+        on_this_day: '/playlist/onthisday',
         // top_streamed_weekly_artists: '',
         recently_added: '/playlist/recentlyadded',
     }

@@ -1,7 +1,7 @@
 """
 Pure rules behind the homepage rows "Because you listened to …", "On repeat",
-"Never played", "Your <weekday> <evenings>", "Artists you might like" and
-"Forgotten favorites" (#138).
+"Never played", "Your <weekday> <evenings>", "Artists you might like",
+"Forgotten favorites" and the albums and summary of "On this day" (#138).
 
 Like `homerows.py`, deliberately free of database and store imports: the
 routines in `lib/recipes/homerows.py` read the scrobbles and resolve each
@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 import pendulum
+from pendulum import FixedTimezone, Timezone
 from pendulum.tz import local_timezone
 
 DAY = 86400
@@ -88,6 +89,9 @@ LIKE_MAX_PLAYS = 5
 # "Forgotten favorites": favourite tracks not played for this long.
 FAVORITE_QUIET_DAYS = 60
 FAVORITE_MAX_PER_ALBUM = 2
+
+# "On this day": how many years back the row looks for the same calendar day.
+ON_THIS_DAY_YEARS = 15
 
 ROW_LIMIT = 15
 
@@ -791,3 +795,107 @@ def forgotten_favorite_item(trackhash: str, plays: int, last_played: int | None)
         "help_text": f"last {_month(last_played)}",
         "secondary_text": _plays(plays),
     }
+
+
+class TimedPlay(Play, Protocol):
+    """A play with its listened seconds (`TrackLog.duration`)."""
+
+    duration: int
+
+
+def rank_on_this_day(
+    days: Sequence[tuple[int, Sequence[Play]]],
+    facts_of: Callable[[str], TrackFacts | None],
+    limit: int = ROW_LIMIT,
+) -> list[tuple[str, int, int]]:
+    """
+    The albums the user played on this calendar day in earlier years. `days`
+    is `[(year, plays of that day), ...]`, most recent year first.
+
+    The ALBUMS of the tracks, not where they were started from: a day spent
+    in one playlist used to be a single playlist card. Within a year the most
+    played album first; an album played in several years shows once, with its
+    most recent year.
+
+    Returns `(albumhash, year, plays_that_day)`.
+    """
+    result: list[tuple[str, int, int]] = []
+    seen: set[str] = set()
+
+    for year, plays in days:
+        counts: Counter[str] = Counter(r.facts.albumhash for r in _resolve(plays, facts_of))
+        for albumhash, count in sorted(counts.items(), key=lambda c: (-c[1], c[0])):
+            if albumhash in seen:
+                continue
+
+            seen.add(albumhash)
+            result.append((albumhash, year, count))
+            if len(result) >= limit:
+                return result
+
+    return result
+
+
+def on_this_day_item(albumhash: str, year: int, plays: int) -> dict[str, Any]:
+    return {"type": "album", "hash": albumhash, "help_text": f"{year} · {_plays(plays)}"}
+
+
+_BAND_PHRASES = {
+    "mornings": "in the morning",
+    "afternoons": "in the afternoon",
+    "evenings": "in the evening",
+    "nights": "at night",
+}
+
+
+def _duration(seconds: int) -> str:
+    minutes = round(seconds / 60)
+    if minutes < 60:
+        return f"{max(minutes, 1)} min"
+
+    hours, rest = divmod(minutes, 60)
+    return f"{hours} h {rest} min" if rest else f"{hours} h"
+
+
+def day_summary(
+    plays: Sequence[TimedPlay],
+    facts_of: Callable[[str], TrackFacts | None],
+    name_of: Callable[[str], str | None],
+    tz: Timezone | FixedTimezone,
+) -> str | None:
+    """
+    One line about a day of listening: "2 h 40 min · mostly Dream.Corp · in
+    the evening". The time is the sum of the listened seconds; the artist the
+    album artist with the most plays (`name_of` gives the name, None skips
+    one); the part of the day the band with the most plays, in `tz`.
+    None for a day without a play still in the library.
+    """
+    resolved = _resolve(plays, facts_of)
+    if not resolved:
+        return None
+
+    parts = [_duration(sum(p.duration for p in plays if facts_of(p.trackhash) is not None))]
+
+    artists: Counter[str] = Counter(a for r in resolved for a in r.facts.artists)
+    for artist, _ in artists.most_common():
+        name = name_of(artist)
+        if name:
+            parts.append(f"mostly {name}")
+            break
+
+    bands: Counter[str] = Counter(time_slot(datetime.fromtimestamp(r.play.timestamp, tz))[1] for r in resolved)
+    parts.append(_BAND_PHRASES[bands.most_common(1)[0][0]])
+
+    return " · ".join(parts)
+
+
+def day_playlist(plays: Sequence[Play], facts_of: Callable[[str], TrackFacts | None]) -> list[str]:
+    """The tracks of a day in the order first played, each once — "Play that day"."""
+    order: list[str] = []
+    seen: set[str] = set()
+    for r in _resolve(plays, facts_of):
+        if r.play.trackhash not in seen:
+            seen.add(r.play.trackhash)
+            order.append(r.play.trackhash)
+
+    return order

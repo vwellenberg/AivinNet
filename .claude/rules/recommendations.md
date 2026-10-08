@@ -39,8 +39,16 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
   `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu.
 - **„Rediscover“**: Alben mit ≥ 5 Plays insgesamt und keinem in den letzten 60 Tagen, täglich.
   Dazu der Button „Surprise me“ (`GET /nothome/surprise`, zufälliges Album, RAM).
-- **„On this day“**: Scrobbles desselben Kalendertags vor einem Jahr, in der Zeitzone des
-  Servers, stündlich.
+- **„On this day“** (stündlich, Server-Zeitzone): derselbe Kalendertag in den letzten 15 Jahren.
+  Gezeigt werden die **Alben der gehörten Tracks**, nicht die Quellen — vorher wurde ein Tag in
+  einer Playlist zu einer einzigen Playlist-Karte. Pro Jahr meistgehört zuerst, jedes Album
+  einmal (mit seinem jüngsten Jahr), Karte „2024 · 8 plays“. Der Untertitel ist pro User
+  (`PlayableEntry.meta`): Datum des jüngsten Jahres mit Plays plus Tagesbilanz („2 h 40 min ·
+  mostly Dream.Corp · in the evening“). **„Play that day“** spielt diesen Tag in der Reihenfolge,
+  in der er lief, als erzeugte Playlist `onthisday` (`lib/home/onrepeat.py`) — vom jüngsten Jahr,
+  dessen Plays **noch in der Bibliothek** sind (nach einem Retag kann das neueste Jahr leer
+  sein). Sie steht in `homerows.DATED_PLAYLISTS`: ein Play daraus macht **keine** Karte in
+  „Recently played“, die würde morgen einen anderen Tag spielen.
 - **Recently played** (lokale Scrobble-Aggregation, neu nach jedem Scrobble) und **Recently
   added** (Library-Timestamps, neu nach jedem Scan in `lib/index.py`): beide auch beim Start
   gefüllt.

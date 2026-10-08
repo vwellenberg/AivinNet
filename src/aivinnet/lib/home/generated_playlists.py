@@ -20,8 +20,15 @@ def _on_repeat_playlist():
     return get_on_repeat_playlist()
 
 
+def _on_this_day_playlist():
+    from aivinnet.lib.home.onrepeat import get_on_this_day_playlist
+
+    return get_on_this_day_playlist()
+
+
 GENERATED_PLAYLISTS = {
     "recentlyadded": get_recently_added_playlist,
     "recentlyplayed": get_recently_played_playlist,
     "onrepeat": _on_repeat_playlist,
+    "onthisday": _on_this_day_playlist,
 }

@@ -47,6 +47,14 @@
                     Play all
                 </button>
             </template>
+            <!-- "On this day": the day a year ago in the order it was heard
+                 (playlist "onthisday"), not just its albums one by one. -->
+            <template v-else-if="item.key === 'on_this_day'" #actions>
+                <button class="btn-action surprise" @click="playFromPlaylist('onthisday')">
+                    <PlaySvg />
+                    Play that day
+                </button>
+            </template>
             <template v-if="item.chips?.length" #chips>
                 <div class="row-chips" role="group" aria-label="Filter by genre">
                     <button

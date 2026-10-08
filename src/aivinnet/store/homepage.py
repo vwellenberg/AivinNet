@@ -5,6 +5,7 @@ from aivinnet.store.homepageentries import (
     GenericRecoverableEntry,
     HomepageEntry,
     PersonalTitleEntry,
+    PlayableEntry,
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
 )
@@ -55,9 +56,10 @@ class HomepageStore:
             title="Rediscover",
             description="You played these a lot — not lately",
         ),
-        "on_this_day": GenericRecoverableEntry(
+        # Per user: the date and a summary of that day as the description, and
+        # the day's tracks for "Play that day" (playlist "onthisday").
+        "on_this_day": PlayableEntry(
             title="On this day",
-            # Set to the date one year ago by the OnThisDay routine.
             description="",
         ),
         "recently_added": RecentlyAddedHomepageEntry(

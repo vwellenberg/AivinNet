@@ -1,7 +1,7 @@
 import os
 
 from aivinnet.db.userdata import PlaylistTable
-from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS, parse_playlist_id
+from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS, DATED_PLAYLISTS, parse_playlist_id
 from aivinnet.models.logger import TrackLog
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
@@ -108,6 +108,9 @@ def create_items(entries: list[TrackLog], limit: int, userid: int | None = None,
             continue
 
         if entry.type == "playlist":
+            if entry.type_src in DATED_PLAYLISTS:
+                continue
+
             is_custom = entry.type_src in CUSTOM_PLAYLISTS
 
             if is_custom:
