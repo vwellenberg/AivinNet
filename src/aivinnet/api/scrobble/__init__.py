@@ -55,7 +55,10 @@ MAX_SCROBBLE_TIMESTAMP = 10**11
 class LogTrackBody(TrackHashSchema):
     timestamp: int = Field(description="The timestamp of the track")
     duration: int = Field(description="The duration of the track in seconds")
+    # Bounded: stored with every play. A folder source is a path, so room
+    # for one at the usual PATH_MAX (#297).
     source: str = Field(
+        max_length=4200,
         description="The play source of the track",
         json_schema_extra={
             "examples": [
