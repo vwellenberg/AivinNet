@@ -75,10 +75,10 @@ jobs:
       # to be cloned from `vwellenberg/AivinNet-Client` with no ref pinned,
       # which meant a release was not reproducible from its own tag: re-running
       # an old build picked up whatever the client's default branch had become.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup Node 20
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3.9.1
         with:
           node-version: 20.x
 
@@ -93,7 +93,7 @@ jobs:
           yarn build --outDir ../dist-client
 
       - name: Upload client
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           path: "dist-client/"
           compression-level: 0
@@ -106,12 +106,12 @@ jobs:
 
     steps:
       - name: Checkout AivinNet
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
       - name: Download client artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: client
           path: client
@@ -122,7 +122,7 @@ jobs:
           rm -r client
           cp client.zip src/aivinnet/client.zip
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
 
@@ -137,7 +137,7 @@ jobs:
       - name: Build wheels
         run: pip wheel . -w wheelhouse --no-deps
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           path: ./wheelhouse/*.whl
           compression-level: 0
@@ -158,7 +158,7 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
 
@@ -166,7 +166,7 @@ jobs:
         run: sudo apt-get install libev-dev libfuse-dev -y > /dev/null
 
       - name: Checkout AivinNet
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
           sparse-checkout: appimage
@@ -179,20 +179,33 @@ jobs:
             echo "APPIMAGE_ARCH=x86_64" >> $GITHUB_ENV
           fi
 
+      # ⚠️ Both tools build the AppImage that `install.sh` hands to every user,
+      # so neither may change under us (#300). python-appimage by version (a
+      # PyPI version is immutable); appimagetool by checksum, because its only
+      # download is the moving `continuous` release. AppImageKit is archived,
+      # the asset has not changed since 2023-03-08: a different file now means
+      # a different tool, and the build stops instead of shipping it.
       - name: Install appimage builder
         run: |
-          pip install python-appimage
+          pip install "python-appimage==1.4.6"
           wget -nv -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$APPIMAGE_ARCH.AppImage"
+          case "$APPIMAGE_ARCH" in
+            x86_64)  expected=b90f4a8b18967545fda78a445b27680a1642f1ef9488ced28b65398f2be7add2 ;;
+            aarch64) expected=a48972e5ae91c944c5a7c80214e7e0a42dd6aa3ae979d8756203512a74ff574d ;;
+            *) echo "::error::no appimagetool checksum for $APPIMAGE_ARCH"; exit 1 ;;
+          esac
+          echo "$expected  appimagetool-$APPIMAGE_ARCH.AppImage" | sha256sum -c - \
+            || { echo "::error::appimagetool-$APPIMAGE_ARCH.AppImage is not the reviewed build"; exit 1; }
           chmod +x "appimagetool-$APPIMAGE_ARCH.AppImage"
 
       - name: Download client artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: client
           path: client
 
       - name: Download wheel artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheels
           path: wheels
@@ -282,7 +295,7 @@ jobs:
             "$APPDIR" \
             "aivinnet-v${{ github.event.inputs.tag }}-$APPIMAGE_ARCH.AppImage"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           path: ./aivinnet-*.AppImage
           compression-level: 0
@@ -319,7 +332,7 @@ jobs:
           exit 1
 
       - name: Checkout into repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
 
       # INFO: Container registries reject upper-case image names, and this repo
       # is `vwellenberg/AivinNet` — using ${{ github.repository }} verbatim
@@ -334,21 +347,21 @@ jobs:
           echo "IMAGE_TAGS=$tags" >> $GITHUB_ENV
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480 # v1.2.0
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9 # v1.7.0
 
       - name: Login to GHCR
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1.14.1
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           platforms: linux/amd64, linux/arm64 #,linux/arm
@@ -383,19 +396,19 @@ jobs:
 
     steps:
       - name: Checkout AivinNet
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           sparse-checkout: |
             aivinnet.spec
             src/aivinnet/assets
 
       - name: Install Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11.x"
 
       - name: Download client artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: client
           path: client
@@ -411,7 +424,7 @@ jobs:
           Compress-Archive -Path client -DestinationPath client.zip -Force
 
       - name: Download wheel artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheels
           path: wheels
@@ -454,7 +467,7 @@ jobs:
         run: pyinstaller aivinnet.spec
 
       - name: upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Pyinstaller-${{ matrix.os }}
           path: ./dist/aivinnet_*
@@ -480,13 +493,13 @@ jobs:
 
     steps:
       - name: Checkout AivinNet
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           sparse-checkout: |
             .github/changelog.md
 
       - name: Download client artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: client
           path: client
@@ -497,7 +510,7 @@ jobs:
           rm -r client
 
       - name: Download wheel artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: wheels
           path: wheels
@@ -505,7 +518,7 @@ jobs:
 
       - name: Download all Pyinstaller builds
         if: ${{ github.event.inputs.binary_build == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: Pyinstaller-*
           path: pyinstaller
@@ -513,7 +526,7 @@ jobs:
 
       - name: Download AppImages build
         if: ${{ github.event.inputs.binary_build == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: appimage*
           path: appimage
@@ -538,7 +551,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Upload artifacts to GitHub Release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           allowUpdates: true
           draft: ${{ github.event.inputs.is_draft == 'true' }}

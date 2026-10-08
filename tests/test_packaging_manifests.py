@@ -468,3 +468,39 @@ def test_the_release_can_be_dispatched_again_for_its_tag():
     assert tags, "build-wheels no longer tags — update this test"
     for line in tags:
         assert re.search(r"git tag\s+(-f|--force)\b", line), line.strip()
+
+
+class TestPinnedBuildInputs:
+    """Nothing a workflow runs may change under it (#300).
+
+    A tag like `ncipollo/release-action@v1` is a pointer that whoever controls
+    that repository can move to other code, and the release jobs run it with
+    write access to releases and images. The same holds for the AppImage
+    tools: they build what `install.sh` hands to every user. Dependabot
+    (`.github/dependabot.yml`) brings the updates as PRs instead.
+    """
+
+    PINNED = re.compile(r"^\S+@[0-9a-f]{40} # v\d+(\.\d+)*$")
+
+    def _uses(self):
+        for workflow in sorted(WORKFLOWS.glob("*.yml")):
+            for line in workflow.read_text(encoding="utf-8").splitlines():
+                found = re.match(r"^\s*(?:- )?uses: (.+)$", line)
+                if found:
+                    yield workflow.name, found.group(1).strip()
+
+    def test_every_action_is_pinned_to_a_commit(self):
+        uses = list(self._uses())
+        assert uses, "no `uses:` found — update this test"
+        loose = [f"{name}: {ref}" for name, ref in uses if not self.PINNED.match(ref)]
+        assert not loose, f"pin these to a full commit SHA with a `# vX.Y.Z` comment: {loose}"
+
+    def test_the_appimage_tools_are_pinned(self):
+        workflow = _release_workflow()
+        assert re.search(r'pip install "python-appimage==[\d.]+"', workflow)
+        assert "appimagetool-$APPIMAGE_ARCH.AppImage" in workflow
+        assert re.search(r"sha256sum -c -", workflow), "appimagetool must be checked against its checksum"
+
+    def test_dependabot_keeps_the_pins_fresh(self):
+        config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        assert "package-ecosystem: github-actions" in config

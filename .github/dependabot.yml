@@ -1,0 +1,17 @@
+# Keeps the pins fresh (#300). The workflows reference every action by commit
+# SHA (a tag like `v1` can be moved to other code by whoever controls that
+# repository, and a release job runs it with write access), so updates no
+# longer arrive by themselves: Dependabot opens one grouped PR a week with the
+# new SHAs and their version comments, CI checks it, and it is merged like any
+# other PR.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

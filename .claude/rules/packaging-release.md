@@ -100,10 +100,15 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
   Attrappen-Verzeichnis fehlt jedes davon. Zensus in `tests/test_packaging_manifests.py`
   (`TestAppimageWorkflow`), weil die Kopplung unsichtbar ist: Wer die App im Desktop-File
   umbenennt, bricht einen Workflow drei Dateien weiter.
-- **⚠️ Die Build-Toolchain ist ungepinnt** (`pip install python-appimage`, `appimagetool`
-  *continuous*). Ein Release-Lauf baut also nicht zwangsläufig mit derselben Toolchain wie der
-  letzte. Wenn ein Schritt „ohne Zutun" bricht, zuerst die Version im Log ablesen
-  (`Successfully installed …`) und gegen das PyPI-Datum halten, statt im eigenen Diff zu suchen.
+- **⚠️ Alles, was ein Workflow ausführt, ist gepinnt (#300).** Jede Action steht mit voller
+  Commit-SHA und `# vX.Y.Z` dahinter. Ein Tag wie `@v1` ist nur ein Zeiger, den der Besitzer des
+  fremden Repos umbiegen kann, und die Release-Jobs führen ihn mit Schreibrechten aus.
+  `python-appimage` ist auf eine Version gepinnt, `appimagetool` auf die sha256 des seit
+  2023-03-08 unveränderten `continuous`-Builds von AppImageKit. Eine andere Datei bricht den
+  Build ab. Updates bringt **Dependabot** (`.github/dependabot.yml`): einmal pro Woche ein
+  gruppierter PR mit neuen SHAs. Wächter: `TestPinnedBuildInputs` in
+  `tests/test_packaging_manifests.py`. Noch frei bleibt das Python, das `python-appimage` beim
+  Bauen herunterlädt. Bricht ein Schritt „ohne Zutun", zuerst im Log die Versionen ablesen.
 - **Ein übersprungener `needs`-Job überspringt den abhängigen Job.** Mit `binary_build=false`
   entstand früher gar kein Release, bei grüner Übersicht. `upload-builds` prüft die Job-Results
   jetzt explizit.
