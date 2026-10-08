@@ -9,7 +9,8 @@ export function formatDate(timestamp: number, yearOnly = false, month: 'long' | 
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month, day: 'numeric' }
 
     if (yearOnly) {
-        return date.getFullYear()
+        // Only ever asked of release dates, which are UTC calendar days (#391).
+        return releaseYear(timestamp)
     }
 
     return date.toLocaleDateString('en-US', options)
@@ -40,3 +41,18 @@ export function formatDateAdded(timestamp: number) {
 
     return formatDate(timestamp, false, 'short') as string
 }
+
+/**
+ * The year of a release date from the tags (album, track, artist `date`).
+ *
+ * In UTC, because the server stores a tag "2020" as 2020-01-01T00:00 UTC:
+ * `getFullYear()` reads that as 2019 anywhere west of UTC (#391). For real
+ * moments (added, played) the local date stays right: use `formatDate`.
+ * @param timestamp unix timestamp in seconds
+ */
+export function releaseYear(timestamp: number): number | '' {
+    // 0 is an unknown date, not 1970: the server's `tag_year` says the same.
+    if (!timestamp) return ''
+    return new Date(timestamp * 1000).getUTCFullYear()
+}
+

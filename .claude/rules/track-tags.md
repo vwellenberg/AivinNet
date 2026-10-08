@@ -213,6 +213,20 @@ an der Oberfläche:
 **Folgeeffekt beachten:** Reparierte Dateien kommen mit ihren alten Tags in die Bibliothek. Sie
 waren bei früheren Tag-Durchläufen nicht dabei und brauchen einen eigenen Nachzug.
 
+## ⚠️ Ein Release-Datum ist ein Kalendertag, kein Zeitpunkt (#391)
+
+`taglib.parse_date` speichert „2020“ als 2020-01-01 00:00 **UTC**. Wer das Jahr mit
+`datetime.fromtimestamp(...)` (Server) oder `new Date(...).getFullYear()` (Client) liest, bekommt
+westlich von UTC **2019** — jedes Album mit reinem Jahres-Tag ein Jahr zu früh, der Dekaden-Chip
+eines Artists bei „2020“ ein Jahrzehnt zu früh. Leser für Tag-Daten: Server
+`utils/dates.tag_year()`, Client `utils/dates.ts::releaseYear()`. Echte Zeitpunkte (hinzugefügt,
+gespielt) bleiben lokal (`formatDate`).
+
+`parse_date` nimmt nur noch eine Jahreszahl vorn (mit Monat/Tag, wenn sie folgen) oder eine
+alleinstehende vierstellige Jahreszahl. `pendulum.parse(strict=False)` machte aus „1“ den 1. des
+**laufenden** Monats und aus „May 2019“ den heutigen Tag im Mai — solche Alben wanderten mit jedem
+Scan. Ohne Jahr: `None`, der Indexer nimmt dann die mtime.
+
 ## ⚠️ Ein Rescan löscht nur, wofür er einen Beleg hat (#391)
 
 `filter_modded` las „Datei lässt sich nicht stat'en" als „gelöscht" und fragte nie, ob der

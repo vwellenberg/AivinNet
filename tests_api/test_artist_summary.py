@@ -8,6 +8,8 @@ response and still block the app's only thread.
 """
 
 import dataclasses
+import os
+import time
 
 import pytest
 
@@ -250,3 +252,26 @@ def test_artist_dataclass_still_has_the_fields_the_route_reads():
     names = {f.name for f in dataclasses.fields(Artist)}
 
     assert {"albumcount", "genres", "playcount", "lastplayed", "image", "color"} <= names
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="time.tzset is POSIX-only")
+def test_the_decade_chip_is_the_same_west_of_utc(artist_api, monkeypatch):
+    """
+    A tag "2020" is stored as 2020-01-01T00:00 UTC. Read in local time on a
+    host west of UTC that is 2019, and the chip said "10s" (#391).
+    """
+    api, entry = artist_api
+    monkeypatch.setattr(entry.artist, "date", 1_577_836_800)  # 2020-01-01T00:00Z
+    original = os.environ.get("TZ")
+    os.environ["TZ"] = "America/New_York"
+    time.tzset()
+    try:
+        artist = api.get("/artist/9d24d526ac9192b1/summary").get_json()["artist"]
+    finally:
+        if original is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = original
+        time.tzset()
+
+    assert artist["genres"][0] == {"name": "20s", "genrehash": "20s"}

@@ -13,6 +13,7 @@ from aivinnet.utils.dates import (
     create_new_date,
     date_string_to_time_passed,
     seconds_to_time_string,
+    tag_year,
     timestamp_to_time_passed,
 )
 
@@ -147,7 +148,8 @@ def get_all_items(path: GetAllItemsPath, query: GetAllItemsQuery):
         item_dict = serialize_album(item) if is_albums else serialize_artist(item)
 
         if sort_is_date:
-            item_dict["help_text"] = datetime.fromtimestamp(item.date).year
+            # The release year in UTC, as stored; "" for none (#391).
+            item_dict["help_text"] = tag_year(item.date) or ""
 
         if sort_is_create_date:
             date = create_new_date(datetime.fromtimestamp(item.created_date))

@@ -27,7 +27,7 @@
                 {{ album.title }}
             </h4>
             <div class="artist ellip" @click.prevent.stop="() => {}">
-                <template v-if="show_date"> {{ new Date(album.date * 1000).getFullYear() }} </template>
+                <template v-if="show_date"> {{ releaseYear(album.date) }} </template>
                 <span v-if="show_date && artists.length > 0"> • </span>
                 <RouterLink
                     v-if="artists.length > 0"
@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { releaseYear } from '@/utils/dates'
 import { Routes } from '@/router'
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
