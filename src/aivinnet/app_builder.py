@@ -146,11 +146,13 @@ def config_jwt(web):
         # carries an older number — immediately, and without the server keeping
         # any session state of its own.
         #
-        # ⚠️ Defaults to the token's OWN version when the claim is absent, so a
-        # token minted before this existed keeps working. Adding revocation
-        # should not log the whole household out during an upgrade; from the
-        # next login onwards every token carries the claim.
-        token_version = identity.get("token_version", user.token_version)
+        # ⚠️ A token minted before revocation existed carries no claim; it counts
+        # as version 0, which every account started at. So it keeps working
+        # through the upgrade, and the first revocation ends it too. It used
+        # to default to the row's CURRENT version and passed every revocation,
+        # while the cookie refresh re-minted it: a copied old token stayed good
+        # indefinitely (#297).
+        token_version = identity.get("token_version", 0)
 
         if token_version != user.token_version:
             return None

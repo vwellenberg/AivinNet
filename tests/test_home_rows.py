@@ -14,6 +14,7 @@ import pytest
 from aivinnet.lib.home.homerows import (
     find_continue_listening,
     on_this_day_window,
+    parse_playlist_id,
     rank_rediscover,
     rediscover_item,
 )
@@ -198,3 +199,19 @@ class TestOnThisDay:
         _, _, label = on_this_day_window(pendulum.datetime(2028, 2, 29, 12, tz=pendulum.local_timezone()))
 
         assert label == "28 February 2027"
+
+
+@pytest.mark.parametrize(
+    ("src", "expected"),
+    [
+        ("7", 7),
+        ("0", None),
+        ("-3", None),
+        ("abc", None),
+        ("99999999999999999999", None),  # past SQLite's 64-bit INTEGER
+        (str(2**63 - 1), 2**63 - 1),
+    ],
+)
+def test_a_playlist_id_from_a_scrobble_source(src, expected):
+    """Shared by "Recently played" and "Continue listening" (#391)."""
+    assert parse_playlist_id(src) == expected

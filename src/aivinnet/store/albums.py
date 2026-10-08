@@ -19,7 +19,9 @@ class AlbumMapEntry:
         return self.album.base_title
 
     def increment_playcount(self, duration: int, timestamp: int, playcount: int = 1):
-        self.album.lastplayed = timestamp
+        # The newest play, not the last one added: the startup aggregate
+        # visits the tracks in hash order (#391).
+        self.album.lastplayed = max(self.album.lastplayed or 0, timestamp)
         self.album.playduration += duration
         self.album.playcount += playcount
 

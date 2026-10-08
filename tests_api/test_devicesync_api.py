@@ -635,3 +635,172 @@ def test_a_calibration_log_refuses_what_would_bloat_or_break_it(ds):
     )
     assert infinite.status_code == 422
     assert ds.client.get("/devicesync/diag").get_json()["calibrations"] == []
+
+
+# --- #297: what a client may send ---------------------------------------------
+
+
+def _session_with_queue(ds):
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+    ds.client.post(
+        "/devicesync/queue-set",
+        json={
+            "device_id": "dev-a",
+            "trackhashes": ["h1", "h2"],
+            "from": {"type": "album", "id": "x"},
+            "currentindex": 0,
+            "playing": True,
+        },
+    )
+    return _poll(ds, "dev-a", known_version=-1)["state"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("device_id", "d" * 65), ("name", "n" * 121), ("type", "t" * 33)],
+)
+def test_a_registration_with_an_oversized_field_is_refused(ds, field, value):
+    """Every registration is kept in RAM and written to the database; any account can send one."""
+    body = {"device_id": "dev-a", "name": "Chrome", "type": "desktop", field: value}
+
+    assert ds.client.post("/devicesync/register", json=body).status_code == 422
+    assert ds.calls["upsert"] == []
+
+
+def test_presence_keeps_a_bounded_number_of_devices_per_user(ds):
+    """A client minting a fresh id per page load must not grow the list (and every poll) forever."""
+    from aivinnet.lib.groupsession import MAX_DEVICES_PER_USER
+
+    for n in range(MAX_DEVICES_PER_USER + 8):
+        ds.clock["t"] += 1
+        _register(ds, f"dev-{n}")
+
+    devices = _poll(ds, f"dev-{MAX_DEVICES_PER_USER + 7}")["devices"]
+    assert len(devices) == MAX_DEVICES_PER_USER
+    assert "dev-0" not in {d["device_id"] for d in devices}
+
+
+@pytest.mark.parametrize("body", ['"volume": NaN', '"volume": Infinity'])
+def test_a_poll_with_a_volume_that_is_no_number_is_refused(ds, body):
+    _register(ds, "dev-a")
+    res = ds.client.post(
+        "/devicesync/poll", data='{"device_id": "dev-a", ' + body + "}", content_type="application/json"
+    )
+
+    assert res.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("payload", "why"),
+    [
+        ('{"position_ms": NaN}', "NaN"),
+        ('{"position_ms": null}', "null"),
+        ("{}", "missing"),
+        ('{"position_ms": "12"}', "a string"),
+        ('{"position_ms": true}', "a bool"),
+    ],
+)
+def test_a_seek_without_a_real_position_is_refused_and_changes_nothing(ds, payload, why):
+    before = _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command",
+        data='{"device_id": "dev-a", "type": "seek", "payload": ' + payload + "}",
+        content_type="application/json",
+    )
+
+    assert res.status_code == 400, why
+    assert _poll(ds, "dev-a", known_version=-1)["state"] == before
+
+
+def test_a_repeat_mode_that_does_not_exist_is_refused(ds):
+    before = _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command", json={"device_id": "dev-a", "type": "set_repeat", "payload": {"repeat": "forever"}}
+    )
+
+    assert res.status_code == 400
+    assert _poll(ds, "dev-a", known_version=-1)["state"] == before
+
+
+def test_a_position_beyond_a_day_is_held_to_one(ds):
+    """Not an anchor at 1e308 ms until the next mutation."""
+    from aivinnet.api.devicesync import MAX_POSITION_MS
+
+    _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command", json={"device_id": "dev-a", "type": "seek", "payload": {"position_ms": 1e308}}
+    )
+
+    assert res.status_code == 200
+    assert _poll(ds, "dev-a", known_version=-1)["state"]["anchor"]["position_ms"] == MAX_POSITION_MS
+
+
+@pytest.mark.parametrize("mode", ["all", "one", "none"])
+def test_every_repeat_mode_the_client_sends_is_taken(ds, mode):
+    """The client's modes are `'all' | 'one' | 'none'` (stores/settings)."""
+    _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command", json={"device_id": "dev-a", "type": "set_repeat", "payload": {"repeat": mode}}
+    )
+
+    assert res.status_code == 200
+    assert _poll(ds, "dev-a", known_version=-1)["state"]["repeat"] == mode
+
+
+def test_a_track_change_without_a_usable_position_still_changes_the_track(ds):
+    """An audio element with no time yet sends NaN, which JSON turns into null."""
+    _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command",
+        json={"device_id": "dev-a", "type": "track_change", "payload": {"index": 1, "position_ms": None}},
+    )
+
+    assert res.status_code == 200
+    state = _poll(ds, "dev-a", known_version=-1)["state"]
+    assert (state["currentindex"], state["anchor"]["position_ms"]) == (1, 0)
+
+
+def test_a_queue_set_with_an_unknown_repeat_mode_is_refused(ds):
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        json={
+            "device_id": "dev-a",
+            "trackhashes": ["h1"],
+            "from": {"type": "album", "id": "x"},
+            "currentindex": 0,
+            "playing": True,
+            "repeat": "forever",
+        },
+    )
+
+    assert res.status_code == 400
+
+
+def test_a_volume_out_of_range_is_held_to_one(ds):
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/poll", json={"device_id": "dev-a", "volume": 1e300})
+
+    (device,) = _poll(ds, "dev-a")["devices"]
+    assert device["volume"] == 1.0
+
+
+def test_capping_the_list_keeps_the_devices_in_the_group(ds):
+    """The sleeping phone that is playing along is not what a page-load id loop pushes out."""
+    from aivinnet.lib.groupsession import MAX_DEVICES_PER_USER
+
+    _register(ds, "phone")
+    ds.client.post("/devicesync/join", json={"device_id": "phone"})
+    for n in range(MAX_DEVICES_PER_USER + 8):
+        ds.clock["t"] += 1
+        _register(ds, f"tab-{n}")
+
+    assert "phone" in {d["device_id"] for d in _poll(ds, "phone")["devices"]}

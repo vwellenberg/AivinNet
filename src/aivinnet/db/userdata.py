@@ -486,6 +486,22 @@ class ScrobbleTable(Base):
         return cls.insert_one(item)
 
     @classmethod
+    def plays_by_trackhash(cls) -> list[tuple[str, int, int, int]]:
+        """
+        `(trackhash, plays, total duration, last timestamp)` over ALL users.
+
+        For the shared store counts at startup. One grouped query instead of
+        every scrobble row, and no user filter: off a request, the user
+        falls back to 1.
+        """
+        result = cls.execute(
+            select(cls.trackhash, func.count(cls.id), func.sum(cls.duration), func.max(cls.timestamp)).group_by(
+                cls.trackhash
+            )
+        )
+        return [tuple(row) for row in next(result).all()]
+
+    @classmethod
     def get_all(cls, start: int, limit: int | None = None, userid: int | None = None):
         result = cls.execute(
             select(cls)
