@@ -245,7 +245,9 @@ je Zeile:
   Schreibweise sein.
 - Präfixe immer über `dir_prefix()` (aufgelöst wie der Scanner, genau ein `/` am Ende):
   `startswith("/music/Rock")` trifft sonst `/music/Rock and Roll/`. Derselbe Fehler steckte in
-  `api/settings.get_child_dirs` und hätte mit dem neuen Aufräumen echte Zeilen gekostet.
+  `api/settings.get_child_dirs` (hätte mit dem neuen Aufräumen echte Zeilen gekostet) und in der
+  Ordnerzählung `FolderStore.count_tracks_containing_paths`, die außerdem eine Wurzel hinter
+  einem Symlink mit 0 zählte.
 
 **Grenze:** Belegt wird pro Wurzel. Ein Share, der *unterhalb* einer antwortenden Wurzel hängt
 (`/media/nas` unter `/media`), ist abgehängt ein leerer Ordner wie jeder andere — seine Zeilen

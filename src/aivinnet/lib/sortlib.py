@@ -1,5 +1,6 @@
 import os
 from collections.abc import Callable
+from typing import Any
 from itertools import groupby
 
 from aivinnet.lib.albumslib import sort_by_track_no
@@ -8,23 +9,49 @@ from aivinnet.models.track import Track
 from aivinnet.utils import flatten
 
 
+# What the folder view offers (`api/folder.FolderTree.sorttracksby`).
+TRACK_SORT_KEYS = frozenset(
+    {
+        "album",
+        "albumartists",
+        "artists",
+        "bitrate",
+        "date",
+        "disc",
+        "duration",
+        "last_mod",
+        "lastplayed",
+        "playcount",
+        "playduration",
+        "title",
+    }
+)
+
+
 def sort_tracks(tracks: list[Track], key: str, reverse: bool = False):
     """
     Sorts a list of tracks by a key.
     """
-    if key == "default":
+    # The key comes from the request: anything but these keeps the order. An
+    # unknown field was an AttributeError, a list or dict one ("genres",
+    # "config") a TypeError in `sorted`: a 500 for the folder either way (#391).
+    if key not in TRACK_SORT_KEYS or not tracks:
         return tracks
 
-    sortfunc: Callable[[Track], str] = lambda track: getattr(track, key)
-    if key == "artists" or key == "albumartists":
-        sortfunc = lambda track: getattr(track, key)[0]["name"]
-
     if key == "disc":
-        # INFO: Group tracks into albums, then sort them by disc number.
-        tracks = sorted(tracks, key=lambda x: x.album.casefold())
+        # INFO: Group tracks into albums, then sort them by disc number. By
+        # name AND hash, so two albums of the same name are not interleaved.
+        tracks = sorted(tracks, key=lambda x: (x.album.casefold(), x.albumhash))
         groups = groupby(tracks, lambda x: x.albumhash)
 
         return flatten([sort_by_track_no(list(g)) for k, g in groups])
+
+    def value_of(track: Track) -> Any:
+        value = getattr(track, key, None)
+        if key in ("artists", "albumartists"):
+            # An artist tag of only separators splits to no artist at all.
+            value = value[0]["name"] if value else ""
+        return value.casefold() if isinstance(value, str) else value
 
     # INFO: sort tracks by title for a fallback value
     tracks = sorted(tracks, key=lambda t: t.title.casefold())
@@ -32,11 +59,20 @@ def sort_tracks(tracks: list[Track], key: str, reverse: bool = False):
     if key == "title" and not reverse:
         return tracks
 
-    return sorted(
-        tracks,
-        key=lambda track: sortfunc(track).casefold() if isinstance(sortfunc(track), str) else sortfunc(track),
-        reverse=reverse,
-    )
+    # Missing values go last in either direction, and are never compared with
+    # real ones (None < 3 is a TypeError).
+    known = [t for t in tracks if value_of(t) is not None]
+    missing = [t for t in tracks if value_of(t) is None]
+    return sorted(known, key=value_of, reverse=reverse) + missing
+
+
+def _folder_mtime(folder: Folder) -> float:
+    # A folder removed (or a mount gone) since it was listed sorts as oldest
+    # instead of failing the whole page (#391).
+    try:
+        return os.path.getmtime(folder.path)
+    except OSError:
+        return 0.0
 
 
 def sort_folders(folders: list[Folder], key: str, reverse: bool = False):
@@ -51,6 +87,6 @@ def sort_folders(folders: list[Folder], key: str, reverse: bool = False):
     if key == "name":
         sortfunc = lambda folder: folder.name.casefold()
     elif key == "lastmod":
-        sortfunc = lambda folder: os.path.getmtime(folder.path)
+        sortfunc = _folder_mtime
 
     return sorted(folders, key=sortfunc, reverse=reverse)
