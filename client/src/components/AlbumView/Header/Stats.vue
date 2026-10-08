@@ -10,7 +10,7 @@
       />
     </div>
     <div v-if="isSmallPhone" class="stats2">
-      {{ new Date(album.date * 1000).getFullYear() }} {{ !album.is_single ? `• ${album.trackcount} Tracks` : "" }} •
+      {{ releaseYear(album.date) }} {{ !album.is_single ? `• ${album.trackcount} Tracks` : "" }} •
       {{ formatSeconds(album.duration, true) }}
     </div>
   </div>
@@ -20,6 +20,7 @@
 import { computed } from "vue";
 
 import { Album } from "@/interfaces";
+import { releaseYear } from "@/utils/dates";
 import { isSmallPhone } from "@/stores/content-width";
 import { formatSeconds } from "@/utils";
 
@@ -33,7 +34,7 @@ const statsText = computed(() => {
   const is_single = props.album.is_single;
 
   // hide track count if it's a single, also add an s to track if it's plural
-  return `• ${new Date(props.album.date * 1000).getFullYear()} ${
+  return `• ${releaseYear(props.album.date)} ${
     !is_single ? `• ${props.album.trackcount.toLocaleString()} Track${props.album.trackcount > 1 ? "s" : ""}` : ""
   } • ${formatSeconds(props.album.duration, true)}`;
 });

@@ -48,7 +48,7 @@
                 {{ res_type === 'artist' ? item.name : item.title }}
             </div>
             <div v-if="res_type === 'album'" class="meta with-artists">
-                <span>{{ formatDate(item.date, true) }} •</span>
+                <span>{{ releaseYear(item.date) }} •</span>
                 <ArtistName :artists="item.albumartists" :albumartists="''" />
             </div>
             <div v-if="res_type === 'artist'" class="meta ellip">
@@ -85,7 +85,7 @@ import { formatSeconds } from '@/utils'
 
 import PlayBtn from '@/components/shared/PlayBtn.vue'
 import { playSources } from '@/enums'
-import { formatDate } from '@/utils/dates'
+import { releaseYear } from '@/utils/dates'
 
 const search = useSearchStore()
 

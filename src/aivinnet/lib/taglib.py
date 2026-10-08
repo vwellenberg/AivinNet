@@ -2,10 +2,10 @@ import os
 import pathlib
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 
-import pendulum
 from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
@@ -182,15 +182,38 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
     return False
 
 
+# A year in front, with month and day if they follow ("2019", "2019-05-03",
+# "2019/05", "2019-05-03T10:00:00Z", or compact "20190503") ...
+_LEADING_DATE = re.compile(r"\s*(\d{4})(?:[-/.](\d{1,2})(?:[-/.](\d{1,2}))?)?(?!\d)")
+_COMPACT_DATE = re.compile(r"\s*(\d{4})(\d{2})(\d{2})(?!\d)")
+# ... or a year standing alone anywhere ("03.05.2019", "May 2019").
+_LONE_YEAR = re.compile(r"(?<!\d)(\d{4})(?!\d)")
+
+
 def parse_date(date_str: str) -> int | None:
     """
-    Extracts the date from a string and returns a timestamp.
+    The release date in a tag as a UTC timestamp (midnight), or None.
+
+    Only a year counts, with month and day when they follow it. A lenient
+    parser read anything: "1" became the 1st of the CURRENT month, "May 2019"
+    today's day in May, so such an album moved with every scan (#391). The
+    readers take the year in UTC (`utils.dates.tag_year`).
     """
-    try:
-        date = pendulum.parse(date_str, strict=False)
-        return int(date.timestamp())
-    except Exception:
+    match = _LEADING_DATE.match(date_str) or _COMPACT_DATE.match(date_str)
+    if match:
+        year, month, day = (int(part) if part else 1 for part in match.groups())
+    elif lone := _LONE_YEAR.search(date_str):
+        year, month, day = int(lone.group(1)), 1, 1
+    else:
         return None
+
+    if year < 1000:  # "0099" is no release year; the chip would read "s"
+        return None
+    try:
+        date = datetime(year, month, day, tzinfo=UTC)
+    except ValueError:
+        date = datetime(year, 1, 1, tzinfo=UTC)  # a broken month or day keeps the year
+    return int(date.timestamp())
 
 
 def clean_filename(filename: str):

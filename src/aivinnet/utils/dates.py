@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pendulum
 
 _format = "%Y-%m-%d %H:%M:%S"
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def timestamp_from_days_ago(days_ago: int):
@@ -25,6 +26,24 @@ def create_new_date(date: datetime | None = None) -> str:
         date = datetime.now()
 
     return date.strftime(_format)
+
+
+def tag_year(timestamp: int | float | None) -> int | None:
+    """
+    The year of a release date from a tag, or None when there is none.
+
+    Read in UTC, because that is how `taglib.parse_date` stores it: "2020"
+    is 2020-01-01T00:00 UTC, and in local time west of UTC that is 2019 (#391).
+    `0` means unknown, not 1970.
+    """
+    if not timestamp:
+        return None
+    try:
+        # From the epoch, not `fromtimestamp`: on Windows that raises for any
+        # date before 1970, and a 1965 album would get no year at all.
+        return (_EPOCH + timedelta(seconds=timestamp)).year
+    except (OverflowError, ValueError):
+        return None
 
 
 def timestamp_to_time_passed(timestamp: str | int | float):

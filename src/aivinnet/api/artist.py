@@ -5,7 +5,6 @@ Contains all the artist(s) routes.
 import math
 import random
 from collections import defaultdict
-from datetime import datetime
 from typing import Any
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -27,6 +26,7 @@ from aivinnet.serializers.track import serialize_track
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
 from aivinnet.store.tracks import TrackStore
+from aivinnet.utils.dates import tag_year
 from aivinnet.utils.stats import get_track_group_stats
 
 bp_tag = Tag(name="Artist", description="Single artist")
@@ -50,17 +50,12 @@ def genres_with_decade(artist) -> list[dict[str, str]]:
     and a decade chip that appears on one and not the other reads as a bug in
     whichever one the user looked at second.
     """
-    # ⚠️ `date == 0` means UNKNOWN, not 1970 — and `fromtimestamp(0).year` is
-    # 1970, which the old `if year:` check happily accepted. Every artist without
-    # a date therefore got a "70s" chip it had no claim to. Checking the
-    # timestamp instead of the derived year is the whole fix.
-    if not artist.date:
-        return [*artist.genres]
-
-    try:
-        year = datetime.fromtimestamp(artist.date).year
-    except (ValueError, OverflowError, OSError):
-        # Out-of-range values come from bad tags; no chip beats a wrong one.
+    # `tag_year` reads in UTC, as the tag date was stored ("2020" read in local
+    # time west of UTC gave a "10s" chip, #391), and gives None for `date == 0`
+    # (UNKNOWN, not 1970: every artist without a date once got a "70s" chip)
+    # and for out-of-range values from bad tags. No chip beats a wrong one.
+    year = tag_year(artist.date)
+    if year is None:
         return [*artist.genres]
 
     decade = str(math.floor(year / 10) * 10)[2:] + "s"

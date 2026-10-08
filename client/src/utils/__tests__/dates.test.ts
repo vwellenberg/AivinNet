@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatDateAdded } from "../dates";
+import { formatDateAdded, releaseYear } from "../dates";
 
 // Fixed "now": 2026-07-12T12:00:00Z
 const NOW = Date.UTC(2026, 6, 12, 12, 0, 0);
@@ -51,5 +51,30 @@ describe("formatDateAdded", () => {
   it("formats old dates absolutely", () => {
     const jan5 = Math.floor(Date.UTC(2026, 0, 5, 12, 0, 0) / 1000);
     expect(formatDateAdded(jan5)).toBe("Jan 5, 2026");
+  });
+});
+
+describe("releaseYear", () => {
+  // A tag "2020" is stored as 2020-01-01T00:00 UTC (server `taglib.parse_date`).
+  // `getFullYear()` reads it in the browser's zone: 2019 anywhere west of UTC (#391).
+  const NEW_YEAR_2020 = Date.UTC(2020, 0, 1) / 1000;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("reads the year in UTC, as the server stored it", () => {
+    // A browser west of UTC, whatever zone this runner is in.
+    vi.spyOn(Date.prototype, "getFullYear").mockReturnValue(2019);
+
+    expect(releaseYear(NEW_YEAR_2020)).toBe(2020);
+  });
+
+  it("gives the year of a full date", () => {
+    expect(releaseYear(Date.UTC(1987, 6, 15) / 1000)).toBe(1987);
+  });
+
+  it("shows nothing for an unknown date instead of 1970", () => {
+    expect(releaseYear(0)).toBe("");
   });
 });
