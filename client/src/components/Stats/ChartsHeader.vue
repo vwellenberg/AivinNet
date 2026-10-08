@@ -48,13 +48,13 @@ defineEmits<{
 }>()
 
 const groups = ['artists', 'albums', 'tracks', 'playlists']
-const periods = ['week', 'month', 'year', 'alltime']
+const periods = ['day', 'week', 'month', 'year', 'alltime']
 
 const groupSeg = ref<HTMLElement | null>(null)
 const periodSeg = ref<HTMLElement | null>(null)
 
 // A plate that scrolls can hold the selected tab off-screen — "playlists" and
-// "alltime" are the last of their four, so the state the page opens in is
+// "alltime" are the last of their plates, so the state the page opens in is
 // exactly the one a phone would not show. The scroller is the plate's PARENT,
 // so `scrollIntoView` on the button moves the right box.
 //

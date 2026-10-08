@@ -72,6 +72,32 @@ def test_a_huge_limit_is_rejected(chart_query_app):
     assert chart_query_app.get("/charts?limit=50").status_code == 200
 
 
+def test_day_is_an_accepted_chart_period(chart_query_app):
+    """The charts gained a "day" tab; before, the model only knew week..alltime
+    and answered the tab with a 422."""
+    res = chart_query_app.get("/charts?duration=day")
+
+    assert res.status_code == 200
+    assert res.get_json()["duration"] == "day"
+
+
+def test_an_unknown_chart_period_is_still_rejected(chart_query_app):
+    assert chart_query_app.get("/charts?duration=hour").status_code == 422
+
+
+def test_format_date_names_a_single_day_once():
+    import pendulum
+
+    from aivinnet.api.scrobble import format_date
+
+    morning = pendulum.datetime(2026, 10, 8, 0, 0, tz="local")
+    evening = morning.add(hours=21)
+    week_later = morning.add(days=6)
+
+    assert format_date(morning.timestamp(), evening.timestamp()) == "Oct 8, 2026"
+    assert format_date(morning.timestamp(), week_later.timestamp()) == "Oct 8, 2026 - Oct 14, 2026"
+
+
 def test_paginate_window_slices_and_reports_total():
     from aivinnet.api.scrobble import paginate_window
 

@@ -27,7 +27,7 @@ from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import (
     get_date_range,
-    get_duration_in_seconds,
+    get_previous_period_start,
     seconds_to_time_string,
 )
 from aivinnet.utils.stats import (
@@ -71,9 +71,11 @@ class LogTrackBody(TrackHashSchema):
 
 
 def format_date(start: float, end: float):
-    return (
-        f"{pendulum.from_timestamp(start).format('MMM D, YYYY')} - {pendulum.from_timestamp(end).format('MMM D, YYYY')}"
-    )
+    first = pendulum.from_timestamp(start, tz="local").format("MMM D, YYYY")
+    last = pendulum.from_timestamp(end, tz="local").format("MMM D, YYYY")
+
+    # "day" starts and ends on the same date: "Oct 8, 2026", not "Oct 8, 2026 - Oct 8, 2026".
+    return first if first == last else f"{first} - {last}"
 
 
 @api.post("/track/log")
@@ -134,7 +136,7 @@ def log_track(body: LogTrackBody):
 
 
 class ChartItemsQuery(BaseModel):
-    duration: Literal["week", "month", "year", "alltime"] = Field(
+    duration: Literal["day", "week", "month", "year", "alltime"] = Field(
         "year",
         description="Duration to fetch data for",
     )
@@ -200,7 +202,7 @@ def get_top_tracks(query: ChartItemsQuery):
     Get the top N tracks played within a given duration.
     """
     start_time, end_time = get_date_range(query.duration)
-    previous_start_time = start_time - get_duration_in_seconds(query.duration)
+    previous_start_time = get_previous_period_start(query.duration, start_time)
 
     current_period_tracks, current_period_scrobbles, duration = get_tracks_in_period(start_time, end_time)
     previous_period_tracks, previous_period_scrobbles, _ = get_tracks_in_period(previous_start_time, start_time)
@@ -248,7 +250,7 @@ def get_top_artists(query: ChartItemsQuery):
     Get the top N artists played within a given duration.
     """
     start_time, end_time = get_date_range(query.duration)
-    previous_start_time = start_time - get_duration_in_seconds(query.duration)
+    previous_start_time = get_previous_period_start(query.duration, start_time)
 
     current_period_artists = get_artists_in_period(start_time, end_time)
     previous_period_artists = get_artists_in_period(previous_start_time, start_time)
@@ -305,7 +307,7 @@ def get_top_albums(query: ChartItemsQuery):
     Get the top N albums played within a given duration.
     """
     start_time, end_time = get_date_range(query.duration)
-    previous_start_time = start_time - get_duration_in_seconds(query.duration)
+    previous_start_time = get_previous_period_start(query.duration, start_time)
 
     current_period_albums = get_albums_in_period(start_time, end_time)
     previous_period_albums = get_albums_in_period(previous_start_time, start_time)
@@ -352,7 +354,7 @@ def get_top_playlists(query: ChartItemsQuery):
     ``pl:<id>``). Dynamic/custom playlists (non-numeric ids) are skipped.
     """
     start_time, end_time = get_date_range(query.duration)
-    previous_start_time = start_time - get_duration_in_seconds(query.duration)
+    previous_start_time = get_previous_period_start(query.duration, start_time)
 
     current_period_playlists = get_playlists_in_period(start_time, end_time)
     previous_period_playlists = get_playlists_in_period(previous_start_time, start_time)
