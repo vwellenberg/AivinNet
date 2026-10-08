@@ -4,7 +4,10 @@
          detail headers share them. -->
     <div ref="albumheaderthing" class="a-header">
         <div class="dh-art no-scroll">
-            <img :src="imguri.thumb.large + album.image + (store.coverVersion ? '?v=' + store.coverVersion : '')" />
+            <img
+                :src="imguri.thumb.large + album.image + (store.coverVersion ? '?v=' + store.coverVersion : '')"
+                :class="{ 'is-placeholder': store.colors.placeholder }"
+            />
         </div>
         <Info />
     </div>
@@ -30,6 +33,12 @@ const nav = useNavStore()
 const store = useAlbumStore()
 
 const { info: album } = storeToRefs(store)
+
+// The cell paints a soft letterbox behind wide scans (object-fit: contain),
+// which outranks the scheme-tinted tile the placeholder cover needs
+// (Global/cover-placeholders.scss, #395). Whether this cover IS the
+// placeholder is known from the colour extraction (`colors.placeholder`, the
+// server's own marker), so the cell does not ask a second time.
 
 defineEmits<{
     // eslint-disable-next-line no-unused-vars
@@ -62,6 +71,10 @@ useVisibility(albumheaderthing, handleVisibilityState)
     .dh-art img {
         object-fit: contain;
         background-color: $candy-pink-soft;
+
+        &.is-placeholder {
+            background-color: mem-pastel(map-get($mem-entities, "album"));
+        }
     }
 }
 </style>

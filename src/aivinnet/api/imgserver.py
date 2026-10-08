@@ -88,9 +88,23 @@ def find_thumbnail(albumhash: str, pathhash: str):
     return first_image.parent, first_image.name, track_file.albumhash
 
 
+# Marks a response as a placeholder, naming the entity it stands for. The web
+# client asks for it (HEAD) before reading colours from a cover: since #395 the
+# placeholders are an ink glyph on a transparent tile, and read as artwork they
+# would yield a near-black page gradient. A header instead of a guess from the
+# pixels, because real covers and artist cut-outs keep their alpha channel too.
+PLACEHOLDER_HEADER = "X-Aivinnet-Placeholder"
+PLACEHOLDER_ENTITY = {
+    "default.webp": "album",
+    "track.webp": "track",
+    "artist.webp": "artist",
+    "playlist.svg": "playlist",
+}
+
+
 def send_fallback_img(filename: str = "default.webp"):
     """
-    Returns the fallback image from the assets folder.
+    Returns the fallback image from the assets folder, marked as a placeholder.
     """
     folder = Paths().assets_path
     img = Path(folder) / filename
@@ -98,7 +112,9 @@ def send_fallback_img(filename: str = "default.webp"):
     if not img.exists():
         return "", 404
 
-    return send_from_directory(folder, filename)
+    response = send_from_directory(folder, filename)
+    response.headers[PLACEHOLDER_HEADER] = PLACEHOLDER_ENTITY.get(filename, "other")
+    return response
 
 
 def send_best_available_thumbnail(requested_folder: Path, filename: str):

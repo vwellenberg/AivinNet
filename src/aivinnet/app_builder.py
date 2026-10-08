@@ -59,7 +59,12 @@ def config_app(web):
     # The wildcard stays because header-authenticated clients (mobile app,
     # scripts) rely on it and are unaffected by this flag. The web client is
     # served by THIS process, so it is same-origin and never involves CORS.
-    CORS(web, origins="*", supports_credentials=False)
+    #
+    # The placeholder marker (api/imgserver.py) is the one response header the
+    # web client reads itself; exposing it only matters when the client runs from
+    # another origin (the Vite dev server), and it says nothing but "this image
+    # is a placeholder".
+    CORS(web, origins="*", supports_credentials=False, expose_headers=["X-Aivinnet-Placeholder"])
 
     # RESPONSE COMPRESSION
     # Only compress JSON responses.
