@@ -44,7 +44,9 @@ def test_year_10000_west_of_utc_is_an_empty_label(monkeypatch):
     time.tzset()
     pendulum.set_local_timezone(pendulum.timezone("America/New_York"))
     try:
-        assert timestamp_to_time_passed(253_402_300_800) == ""
+        # Many times: the old arithmetic gave "in 7973 years" on two calls in
+        # three, depending on float rounding, so a single call proved nothing.
+        assert {timestamp_to_time_passed(253_402_300_800) for _ in range(300)} == {""}
     finally:
         pendulum.set_local_timezone(None)
         monkeypatch.undo()
