@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs'
+
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
 
+import { blocks, ownDeclarations, styleBlock } from '../../__tests__/scssBlocks'
 import NoItems from '../NoItems.vue'
 
 // ---------------------------------------------------------------------------
@@ -65,5 +68,21 @@ describe('NoItems', () => {
         // Die Formen tragen selbst keinen Text, sonst läse ihn der Screenreader
         // trotz aria-hidden über die Textextraktion mancher Werkzeuge mit.
         expect(wrapper.find('.nothing-shapes').text()).toBe('')
+    })
+
+    it('legt die Meldung auf eine Veil-Platte statt nackt auf den Doodle-Grund', () => {
+        // „No results" stand direkt auf dem Grund und war dort unlesbar, wo
+        // eine Form unter den Wörtern durchlief (styling.md, `--mem-veil`).
+        const wrapper = mount(NoItems, { props })
+        const plate = wrapper.find('.nothing-plate')
+
+        expect(plate.exists()).toBe(true)
+        expect(plate.text()).toContain('Nichts gefunden')
+        expect(plate.text()).toContain('Hier ist es leer.')
+
+        const style = styleBlock(readFileSync('src/components/shared/NoItems.vue', 'utf-8'))
+        const decl = ownDeclarations(blocks(style, '.nothing-plate')[0] ?? '')
+        expect(decl, 'kein .nothing-plate-Block').toContain('var(--mem-veil)')
+        expect(decl).toMatch(/border:\s*\$candy-border/)
     })
 })

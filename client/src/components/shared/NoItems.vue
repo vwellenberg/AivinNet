@@ -1,6 +1,6 @@
 <template>
   <div v-if="flag" class="nothing rounded">
-    <div>
+    <div class="nothing-plate">
       <!-- Das Achselzucken (#143). Vier Memphis-Formen stieben einmal
            auseinander und kommen zurück, während die Meldung mit den Schultern
            zuckt.
@@ -80,7 +80,17 @@ defineProps<{
   margin: 0 auto;
   position: relative;
 
-  > div {
+  // Die Meldung liegt auf einer Platte wie jeder Text auf dem Doodle-Grund
+  // (styling.md, `--mem-veil`). Sie stand nackt darauf, und „No results" war
+  // genau dort unlesbar, wo eine Form unter den Wörtern durchlief. Die Formen
+  // richten sich an der Platte aus und stieben aus ihren Ecken.
+  .nothing-plate {
+    position: relative;
+    padding: 1.5rem 2rem;
+    background-color: var(--mem-veil);
+    border: $candy-border;
+    border-radius: $candy-radius;
+    @include candy-shadow;
     animation: nothing-shrug $motion-settle $motion-curve-back;
   }
 
@@ -96,11 +106,18 @@ defineProps<{
     }
 
     // Die vier Grundformen des Stils, in den Farben, die sie sonst auch tragen.
+    // Sie sitzen AUF dem oberen und unteren Plattenrand, halb überstehend:
+    // innerhalb der Platte lag der Punkt mitten in der Beschreibung
+    // („We●an't find …"). Nur oben/unten, je 1.5rem von der Ecke — seitlich
+    // überstehend (plus 16px Streuung) liefen sie am Handy, wo die Platte so
+    // breit ist wie ihr Wirt, über dessen Kante; in einem `overflow: auto`-Wirt
+    // (die Suchspalte) hieße das ein horizontaler Scrollbalken während der
+    // Animation. Den Überstand nach oben und unten fängt `padding-block` ab.
     // ⚠️ Über `var(--mem-…)` bzw. die Token, nie als Literal: sonst ist die
     // Bewegung beim nächsten Theme farblich falsch (#143, Theme-Abschnitt).
     .zig {
-      left: 8%;
-      top: 12%;
+      left: 1.5rem;
+      top: -6px;
       width: 34px;
       height: 12px;
       --sx: -16px;
@@ -109,8 +126,8 @@ defineProps<{
     }
 
     .tri {
-      right: 10%;
-      top: 8%;
+      right: 1.5rem;
+      top: -10px;
       width: 0;
       height: 0;
       --sx: 14px;
@@ -121,8 +138,8 @@ defineProps<{
     }
 
     .dot {
-      left: 14%;
-      bottom: 16%;
+      left: 1.5rem;
+      bottom: -9px;
       width: 17px;
       height: 17px;
       --sx: -13px;
@@ -132,8 +149,8 @@ defineProps<{
     }
 
     .sq {
-      right: 12%;
-      bottom: 18%;
+      right: 1.5rem;
+      bottom: -8px;
       width: 15px;
       height: 15px;
       --sx: 15px;
@@ -142,9 +159,11 @@ defineProps<{
     }
   }
   display: grid;
-  // Empty states are shown mostly at page level (over the page ground), so use
-  // theme-aware colours. The few white-panel hosts (queue, right-sidebar
-  // search) re-pin ink via local overrides in those components.
+  // Raum für die Formen, die über den oberen und unteren Plattenrand ragen
+  // (bis 10px plus 16px Streuung).
+  padding-block: 1.75rem;
+  // Die Platte ist `--mem-veil` und wechselt mit dem Theme, also auch die
+  // Schrift darauf: theme-abhängige Farben, kein festes Ink.
   color: $mem-content-text;
 
   p {
