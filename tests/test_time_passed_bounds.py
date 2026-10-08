@@ -28,3 +28,24 @@ def test_no_date_is_an_empty_label(timestamp):
 
 def test_a_real_moment_still_reads_as_time_passed():
     assert timestamp_to_time_passed(time.time() - 3 * 3600) == "3 hours ago"
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="time.tzset is POSIX-only")
+def test_year_10000_west_of_utc_is_an_empty_label(monkeypatch):
+    """
+    West of UTC the first second of year 10000 is 9999-12-31 locally, so
+    `fromtimestamp` accepts it and the overflow came one line later, out of
+    the guard. CI runs in UTC and never saw it; the suite went red under
+    TZ=America/New_York.
+    """
+    import pendulum
+
+    monkeypatch.setenv("TZ", "America/New_York")
+    time.tzset()
+    pendulum.set_local_timezone(pendulum.timezone("America/New_York"))
+    try:
+        assert timestamp_to_time_passed(253_402_300_800) == ""
+    finally:
+        pendulum.set_local_timezone(None)
+        monkeypatch.undo()
+        time.tzset()
