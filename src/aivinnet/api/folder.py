@@ -16,7 +16,7 @@ from aivinnet import settings
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
 from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
-from aivinnet.lib.sortlib import sort_folders
+from aivinnet.lib.sortlib import folder_order, sort_folders
 from aivinnet.serializers.track import serialize_track
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.wintools import is_windows
@@ -289,10 +289,10 @@ def get_tracks_in_path(query: GetTracksInPathQuery):
     # /music/Rock and Roll along (the SQL matched any substring).
     base = str(resolved_path).rstrip("/\\")
     inside = (base + "/", base + "\\")
-    # Modification time, as the folder view lists files (folderslib).
+    # In the folder view's own order (`folder_order`).
     tracks = sorted(
         (t for t in TrackStore.get_flat_list() if t.filepath.startswith(inside)),
-        key=lambda t: t.last_mod,
+        key=folder_order,
     )
     existing = (t for t in tracks if Path(t.filepath).exists())
 

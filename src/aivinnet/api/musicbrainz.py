@@ -210,7 +210,9 @@ def fetch_missing_covers(body: FetchMissingBody):
     # Skip albums we've already failed to find a cover for.
     failed = load_failed()
     missing: list[str] = []
-    for albumhash in AlbumStore.albummap:
+    # A snapshot: each album costs a file check, long enough for an apply on
+    # another thread to add an album to the live dict (#391).
+    for albumhash in list(AlbumStore.albummap):
         if _album_has_cover(albumhash) or albumhash in failed:
             continue
         missing.append(albumhash)
@@ -238,7 +240,7 @@ def missing_count():
     total = 0
     missing = 0
     failed = 0
-    for albumhash in AlbumStore.albummap:
+    for albumhash in list(AlbumStore.albummap):  # a snapshot, see above
         total += 1
         if not _album_has_cover(albumhash):
             missing += 1

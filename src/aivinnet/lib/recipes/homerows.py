@@ -282,6 +282,9 @@ class NeverPlayed(HomepageRoutine):
     def run(self):
         now = pendulum.now()
         day = now.date().toordinal()
+        # A snapshot: this runs in the cron thread while a scan or an apply may
+        # add albums to the live dict (#391).
+        entries = list(AlbumStore.albummap.values())
         albums = [
             AlbumFacts(
                 albumhash=a.album.albumhash,
@@ -293,10 +296,10 @@ class NeverPlayed(HomepageRoutine):
                 genres=tuple(g["genrehash"] for g in a.album.genres or []),
                 created=a.album.created_date or 0,
             )
-            for a in AlbumStore.albummap.values()
+            for a in entries
             if not all(x["artisthash"] in UNKNOWN_ARTISTS for x in a.album.albumartists)
         ]
-        genre_names = {g["genrehash"]: g["name"] for a in AlbumStore.albummap.values() for g in (a.album.genres or [])}
+        genre_names = {g["genrehash"]: g["name"] for a in entries for g in (a.album.genres or [])}
 
         def reason(artisthash: str | None, genrehash: str | None) -> str | None:
             artist = ArtistStore.artistmap.get(artisthash) if artisthash else None

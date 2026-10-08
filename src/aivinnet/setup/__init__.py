@@ -58,9 +58,9 @@ def load_into_mem():
     # INFO: Load all tracks, albums, and artists data into memory
     key = str(time())
     TrackStore.load_all_tracks(get_random_str())
+    FolderStore.load_filepaths()  # reads the track store, as in lib/index.py
     AlbumStore.load_albums(key)
     ArtistStore.load_artists(key)
-    FolderStore.load_filepaths()
 
     map_scrobble_data()
     map_favorites()

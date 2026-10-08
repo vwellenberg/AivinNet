@@ -9,6 +9,22 @@ from aivinnet.models.track import Track
 from aivinnet.utils import flatten
 
 
+
+def folder_order(track: Track) -> tuple[int, str]:
+    """
+    The order a folder lists its files in when no sort is chosen: oldest
+    first, then by path.
+
+    ONE key for the folder view, "Play" on a folder card (`/folder/tracks/all`)
+    and "save folder as playlist" (#391). They used to differ: the view sorted
+    by the file's float mtime from disk, the other two by the stored
+    `last_mod`, and a tie (an album unpacked from a zip or rsync'ed with its
+    times) fell back to directory order in one and hash order in the others,
+    so the queue and the playlist did not follow what the user saw.
+    """
+    return (track.last_mod or 0, track.filepath)
+
+
 # What the folder view offers (`api/folder.FolderTree.sorttracksby`).
 TRACK_SORT_KEYS = frozenset(
     {

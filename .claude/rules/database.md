@@ -41,6 +41,24 @@ nach einem Tag-Edit nahm nur Tracks, auf denen der Artist *spielt*, der Start au
 Artist-Seite. Und was der Start aufsummiert, läuft über alle User (`plays_by_trackhash`), nicht
 über `get_current_userid()`: Das ist außerhalb eines Requests immer User 1.
 
+⚠️ **Ein Rescan tauscht die Stores einzeln aus, und der Server bedient weiter** (#391).
+Zwischen `TrackStore.load_all_tracks` und den `map_*`-Aufrufen am Ende von `_index_everything`
+liegen Sekunden bis Minuten. In dieser Zeit landen Plays und Favoriten auf den **frischen**
+Objekten und zugleich in der DB. Deshalb gilt für jeden, der nach einem Neuaufbau Daten aus der
+DB auf die Stores legt:
+
+- **Setzen, nie addieren oder umschalten.** `map_scrobble_data` addierte die DB-Summen: Ein Play
+  in diesem Fenster zählte doppelt. `map_favorites` schaltete um: Ein frisch gesetzter Favorit
+  war danach wieder aus. Beide setzen jetzt den DB-Stand (`set_favorite_user(True, …)`).
+- **Ein Index, der in einen Store zeigt, wird aus diesem Store gebaut und direkt nach ihm
+  getauscht.** `FolderStore.map` (Pfad → Hash) las früher die Tabelle ein zweites Mal, und zwar
+  erst nach Alben und Artists. Bis dahin suchte die Ordneransicht neue Hashes in der alten Map,
+  und jede Datei, deren Hash der Scan geändert hatte, fehlte in ihrem Ordner.
+- **Über die Live-Dicts nie direkt iterieren.** Ein Album-Apply fügt aus einem Worker-Thread
+  Schlüssel hinzu, dann wirft die Iteration „dictionary changed size during iteration“. Erst
+  `list(cls.albummap.values())` bzw. `list(AlbumStore.albummap)` nehmen, wie
+  `TrackStore.get_flat_list` es schon tat.
+
 ## ⚠️ Was zusammen stimmen muss, gehört in EINE Transaktion — und ein Rollback braucht keine DB
 
 Jede Tabellen-Hilfsmethode (`insert_one`, `remove_tracks_by_filepaths`, …) committet für sich.
