@@ -58,6 +58,14 @@ on:
 env:
   PIP_USE_PEP517: true
 
+# Read-only by default (#300). Every job here runs third-party actions or
+# fetches build tools, and without this key GITHUB_TOKEN gets the repository
+# default — write access to code and releases in all of them. Write is granted
+# per job, only to `upload-builds` (the release) and `docker` (the image);
+# tests/test_packaging_manifests.py keeps it that way.
+permissions:
+  contents: read
+
 jobs:
   build-client:
     runs-on: ubuntu-latest
@@ -118,9 +126,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      # Local only: setuptools-scm reads the version from it. `-f` because
+      # `fetch-depth: 0` brings the tag along once the release is published,
+      # and a plain `git tag` then failed — re-running a release (say, after a
+      # failed Docker push) stopped here before anything was rebuilt (#300).
       - name: Create git tag
         run: |
-          git tag v${{ github.event.inputs.tag }}
+          git tag -f v${{ github.event.inputs.tag }}
 
       - name: Build wheels
         run: pip wheel . -w wheelhouse --no-deps

@@ -99,6 +99,18 @@ nur den Wrapper, das Kind überlebt (und lauscht dann eventuell noch auf `0.0.0.
 - **Ein übersprungener `needs`-Job überspringt den abhängigen Job.** Mit `binary_build=false`
   entstand früher gar kein Release, bei grüner Übersicht. `upload-builds` prüft die Job-Results
   jetzt explizit.
+- **⚠️ `GITHUB_TOKEN` ist nur lesend, Schreibrechte gibt es pro Job (#300).** Beide Workflows
+  setzen oben `permissions: contents: read`. Schreiben dürfen nur `upload-builds` (`contents`,
+  legt das Release an) und `docker` (`packages`, ghcr). Ohne den Schlüssel bekommt jeder Job die
+  Repo-Voreinstellung, und die kann Schreibzugriff auf Code und Releases sein, auch in Jobs mit
+  Fremd-Actions oder `appimagetool` *continuous*. Wer einem Job ein Recht gibt, trägt es in
+  `ALLOWED_WRITES` (`tests/test_packaging_manifests.py`) ein. Sonst wird `Unit Tests` rot.
+- **Ein Release lässt sich für denselben Tag erneut starten** (`git tag -f` in `build-wheels`,
+  #300). Vorher scheiterte das, weil `fetch-depth: 0` den schon veröffentlichten Tag mitbrachte.
+  ⚠️ Gebaut wird aber, wovon der Lauf gestartet wurde. Eine Wiederholung startet man deshalb
+  **vom Tag aus** („Use workflow from" → Tag `v…`), nicht von `master`. Sonst landet neuerer Code
+  unter der alten Versionsnummer: `ncipollo/release-action` verschiebt einen bestehenden Tag
+  nicht und hängt die neuen Dateien an das alte Release.
 - **Musikordner auf externem Mount ⇒ `RequiresMountsFor=` in der Unit.** Startet der Dienst vor
   dem Mount, entfernt der Scan alle „fehlenden" Tracks aus der DB
   (`lib/tagger.py::remove_tracks_by_filepaths`) → Playlists voller Waisen. `install.sh --music`
