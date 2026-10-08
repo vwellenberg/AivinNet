@@ -264,6 +264,16 @@ jobs:
           test -f "$APPDIR/usr/lib/libev.so.4" \
             || { echo "::error::libev not bundled into $APPDIR"; exit 1; }
           test -d "$APPDIR/client" || { echo "::error::web client missing from $APPDIR"; exit 1; }
+          # appimage/entrypoint.sh execs this interpreter directly; without it
+          # the server would run as a child of python-appimage's wrapper and
+          # outlive a `kill` of the AppImage (#300).
+          # Same lookup as the entrypoint: opt/python3.X/bin/python3.X, executable.
+          interpreter=""
+          for dir in "$APPDIR"/opt/python3.*; do
+            if [ -x "$dir/bin/${dir##*/}" ]; then interpreter="$dir/bin/${dir##*/}"; fi
+          done
+          test -n "$interpreter" \
+            || { echo "::error::no interpreter under $APPDIR/opt for entrypoint.sh to exec"; exit 1; }
           echo "AppDir complete: $APPDIR"
 
       - name: Package AppImage
