@@ -42,9 +42,10 @@ REDISCOVER_MIN_PLAYS = 5
 REDISCOVER_QUIET_DAYS = 60
 ROW_LIMIT = 15
 
-# Playlists the server builds on the fly (`create_items.custom_playlists`).
-# They have no stable track order, so there is nothing to continue.
-CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed"}
+# Playlists the server builds on the fly, by name; their handlers are in
+# `generated_playlists.GENERATED_PLAYLISTS` (kept apart: this module stays free
+# of store imports). They have no stable track order, so nothing to continue.
+CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed", "onrepeat"}
 
 
 def find_continue_listening(

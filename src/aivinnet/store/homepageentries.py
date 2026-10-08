@@ -95,3 +95,29 @@ class PersonalTitleEntry(GenericRecoverableEntry):
             row["url"] = meta["url"]
 
         return row
+
+
+class ChipsEntry(GenericRecoverableEntry):
+    """
+    A row with chips above it ("Never played": one per genre). Each chip
+    carries its own items, so switching is instant and needs no request.
+    `chips[userid]` is `[{"key", "label", "items"}]`, items stored like the
+    row's own.
+    """
+
+    chips: dict[int, list[dict[str, Any]]]
+
+    def __init__(self, title: str, description: str = ""):
+        super().__init__(title, description)
+        self.chips = {}
+
+    def get_items(self, userid: int, limit: int | None = None):
+        row = super().get_items(userid, limit)
+        chips = [
+            {"key": c["key"], "label": c["label"], "items": recover_items(c["items"][:limit])}
+            for c in self.chips.get(userid, [])
+        ]
+        if chips:
+            row["chips"] = chips
+
+        return row

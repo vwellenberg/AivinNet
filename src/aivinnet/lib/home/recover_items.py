@@ -1,6 +1,5 @@
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable
-from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
-from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
+from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
 from aivinnet.lib.playlistlib import get_first_4_images
 from aivinnet.serializers.album import album_serializer
 from aivinnet.serializers.artist import serialize_for_card
@@ -14,10 +13,6 @@ from aivinnet.utils.dates import timestamp_to_time_passed
 
 
 def recover_items(items: list[dict]):
-    custom_playlists = [
-        {"name": "recentlyadded", "handler": get_recently_added_playlist},
-        {"name": "recentlyplayed", "handler": get_recently_played_playlist},
-    ]
     recovered = []
 
     for item in items:
@@ -65,7 +60,10 @@ def recover_items(items: list[dict]):
             }
         elif item["type"] == "playlist":
             if item.get("is_custom"):
-                playlist, _ = next(i["handler"]() for i in custom_playlists if i["name"] == item["hash"])
+                handler = GENERATED_PLAYLISTS.get(item["hash"])
+                if handler is None:
+                    continue
+                playlist, _ = handler()
                 playlist.images = [i["image"] for i in playlist.images]
 
                 playlist = serialize_playlist(playlist, to_remove={"settings", "duration"})
@@ -136,6 +134,10 @@ def recover_items(items: list[dict]):
             for key in ("track_index", "track_total"):
                 if key in item:
                     recovered_item["item"][key] = item[key]
+            # What a row draws on its cards beyond the shared fields ("On
+            # repeat": the weekly bars and the factor).
+            if "home" in item:
+                recovered_item["item"]["home"] = item["home"]
             # Under its own name: the recovered item is the album/playlist
             # card, and a bare `trackhash` on it would read as its identity.
             if "trackhash" in item and "track_index" in item:

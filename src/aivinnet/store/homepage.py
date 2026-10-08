@@ -1,6 +1,7 @@
 from aivinnet.db.userdata import CollectionTable
 from aivinnet.lib.pagelib import recover_page_items
 from aivinnet.store.homepageentries import (
+    ChipsEntry,
     GenericRecoverableEntry,
     HomepageEntry,
     PersonalTitleEntry,
@@ -37,7 +38,8 @@ class HomepageStore:
             title="For this time",
             description="What you play at this time more than at others",
         ),
-        "never_played": GenericRecoverableEntry(
+        # Genre chips by the routine: the user's most played genres.
+        "never_played": ChipsEntry(
             title="Never played",
             description="In your library, not played yet",
         ),

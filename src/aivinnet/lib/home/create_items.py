@@ -2,8 +2,7 @@ import os
 import pathlib
 
 from aivinnet.db.userdata import PlaylistTable
-from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
-from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
+from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.models.logger import TrackLog
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
@@ -40,11 +39,6 @@ def create_items(entries: list[TrackLog], limit: int, userid: int | None = None)
     }
     also keep in mind that the web-ui is beeing translated.
     """
-    custom_playlists = [
-        {"name": "recentlyadded", "handler": get_recently_added_playlist},
-        {"name": "recentlyplayed", "handler": get_recently_played_playlist},
-    ]
-
     items = []
     added = set()
 
@@ -115,7 +109,7 @@ def create_items(entries: list[TrackLog], limit: int, userid: int | None = None)
             continue
 
         if entry.type == "playlist":
-            is_custom = entry.type_src in [i["name"] for i in custom_playlists]
+            is_custom = entry.type_src in CUSTOM_PLAYLISTS
 
             if is_custom:
                 items.append(

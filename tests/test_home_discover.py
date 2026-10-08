@@ -17,6 +17,7 @@ from aivinnet.lib.home.discover import (
     TrackFacts,
     because_item,
     forgotten_favorite_item,
+    never_played_chips,
     never_played_item,
     on_repeat_item,
     pick_seed_artist,
@@ -212,7 +213,8 @@ class TestOnRepeat:
         plays = [Play("a/1", NOW - d * HOUR) for d in range(1, 8)]  # 7 this week
         plays += [Play("a/1", NOW - w * 7 * DAY - DAY) for w in range(1, 9)]  # 1 a week before
 
-        assert self.rank(plays) == [("a/1", 7, 1.0)]
+        # One play in each of the 8 weeks before, oldest first, then this week.
+        assert self.rank(plays) == [("a/1", 7, 1.0, [1, 1, 1, 1, 1, 1, 1, 1, 7])]
 
     def test_as_often_as_usual_is_not_on_repeat(self):
         plays = [Play("a/1", NOW - d * HOUR) for d in range(1, 5)]  # 4 this week
@@ -222,7 +224,14 @@ class TestOnRepeat:
 
     def test_a_new_track_needs_three_plays(self):
         assert self.rank([Play("a/1", NOW - HOUR), Play("a/1", NOW - 2 * HOUR)]) == []
-        assert self.rank([Play("a/1", NOW - h * HOUR) for h in (1, 2, 3)]) == [("a/1", 3, 0.0)]
+        assert self.rank([Play("a/1", NOW - h * HOUR) for h in (1, 2, 3)]) == [("a/1", 3, 0.0, [0] * 8 + [3])]
+
+    def test_the_weeks_put_each_play_in_its_week(self):
+        plays = [Play("a/1", NOW - h * HOUR) for h in range(1, 6)]
+        plays += [Play("a/1", NOW - 8 * DAY), Play("a/1", NOW - 9 * DAY)]  # the week before this one
+        plays += [Play("a/1", NOW - 62 * DAY)]  # the oldest week
+
+        assert self.rank(plays)[0][3] == [1, 0, 0, 0, 0, 0, 0, 2, 5]
 
     def test_ranked_by_plays_above_the_average(self):
         plays = [Play("a/1", NOW - h * HOUR) for h in range(1, 11)]  # 10, usually 6
@@ -237,15 +246,23 @@ class TestOnRepeat:
         assert len(self.rank(plays)) == 2
 
     def test_items(self):
-        assert on_repeat_item("a/1", 7, 0.0) == {
+        weeks = [0] * 8 + [7]
+        assert on_repeat_item("a/1", 7, 0.0, weeks) == {
             "type": "track",
             "hash": "a/1",
             "help_text": "7 plays this week",
             # Not "new": only the baseline weeks were read.
             "secondary_text": "not in the 8 weeks before",
+            # No average to compare with, so no factor.
+            "home": {"weeks": weeks, "factor": None},
         }
-        assert on_repeat_item("a/1", 7, 0.5)["secondary_text"] == "rarely before"
-        assert on_repeat_item("a/1", 7, 2.4)["secondary_text"] == "usually 2 a week"
+        assert on_repeat_item("a/1", 7, 0.5, weeks)["secondary_text"] == "rarely before"
+        assert on_repeat_item("a/1", 7, 2.4, weeks)["secondary_text"] == "usually 2 a week"
+        assert on_repeat_item("a/1", 7, 1.0, weeks)["home"]["factor"] == 7
+        # Fewer than one play a week before: "28x usual" would be arithmetic,
+        # not news — and the text already says "rarely before".
+        assert on_repeat_item("a/1", 7, 0.25, weeks)["home"]["factor"] is None
+        assert on_repeat_item("a/1", 7, 0.5, weeks)["home"]["factor"] is None
 
 
 class TestNeverPlayed:
@@ -293,6 +310,28 @@ class TestNeverPlayed:
         ranked = rank_never_played(self.history, with_edition, self.lib.album_facts(), day=1, max_per_artist=5)
 
         assert "primus2" not in [r[0] for r in ranked]
+
+    def test_chips_are_the_most_played_genres_with_their_albums(self):
+        self.lib.add("jazz2", "miles", "jazz").add("jazz3", "coltrane", "jazz")
+        plays = self.history + [Play("jazz1/1", NOW - i) for i in range(5)]
+        self.lib.add("jazz1", "miles", "jazz")
+
+        chips = never_played_chips(plays, self.lib.facts, self.lib.album_facts(), max_per_artist=5)
+
+        # funk is played most; jazz next — and only genres with two albums.
+        assert [genre for genre, _ in chips] == ["funk", "jazz"]
+        # jazz1 was played, so not in it.
+        assert {a for a, _, _ in chips[1][1]} == {"jazz", "jazz2", "jazz3"}
+        assert all(g == "jazz" for _, _, g in chips[1][1])
+
+    def test_a_genre_with_one_unplayed_album_gets_no_chip(self):
+        chips = never_played_chips(self.history, self.lib.facts, self.lib.album_facts())
+
+        # funk: primus2-4 (two allowed per artist) and funky; jazz: one album only.
+        assert [genre for genre, _ in chips] == ["funk"]
+
+    def test_no_chips_below_the_history_threshold(self):
+        assert never_played_chips(self.history[:10], self.lib.facts, self.lib.album_facts()) == []
 
     def test_too_short_a_history_is_none_not_empty(self):
         assert self.rank(self.history[:10]) is None

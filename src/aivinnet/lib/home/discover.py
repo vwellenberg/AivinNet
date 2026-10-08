@@ -17,9 +17,9 @@ mixes did.
 import math
 import random
 from collections import Counter
-from datetime import datetime, timedelta
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 import pendulum
@@ -48,6 +48,10 @@ REPEAT_MIN_PLAYS = 3
 REPEAT_MIN_FACTOR = 2.0
 # Without a cap, one album played through three times fills the whole row.
 REPEAT_MAX_PER_ALBUM = 2
+# Below one play a week the factor is arithmetic, not news: two plays in eight
+# weeks and four now read "16x usual". The card then shows no factor, and its
+# text says "rarely before" — the same boundary, so the two never disagree.
+REPEAT_MIN_AVERAGE_FOR_FACTOR = 1.0
 
 # "Never played": below this many plays nearly the whole library is unplayed,
 # and the row would only be the library in another order.
@@ -57,6 +61,10 @@ NEVER_MAX_PER_ARTIST = 2
 # candidates, re-drawn each day — else it would show the same albums until the
 # user plays them.
 NEVER_POOL_FACTOR = 3
+# Genre chips above the row: the user's most played genres that have at least
+# NEVER_CHIP_MIN unplayed albums — a chip that leads to one album is no choice.
+NEVER_CHIPS = 4
+NEVER_CHIP_MIN = 2
 
 # "Your weekday evenings": the user's habits at this time of the week. Days
 # are split into weekday/weekend and these bands (start hour, name); the
@@ -291,7 +299,7 @@ def rank_on_repeat(
     min_factor: float = REPEAT_MIN_FACTOR,
     max_per_album: int = REPEAT_MAX_PER_ALBUM,
     limit: int = ROW_LIMIT,
-) -> list[tuple[str, int, float]]:
+) -> list[tuple[str, int, float, list[int]]]:
     """
     Tracks played much more in the last `days` than the user's weekly average
     over the `baseline_weeks` before: at least `min_plays` this week and at
@@ -301,12 +309,15 @@ def rank_on_repeat(
     Ranked by the plays above the average — the trend, not the total, which is
     what sets this row apart from the charts on the Stats page.
 
-    Returns `(trackhash, plays_this_week, weekly_average_before)`.
+    Returns `(trackhash, plays_this_week, weekly_average_before, weeks)`;
+    `weeks` holds the plays of each baseline week, oldest first, then this
+    week's — what the card draws as bars.
     """
     week_start = now - days * DAY
     base_start = week_start - baseline_weeks * 7 * DAY
     week: Counter[str] = Counter()
     before: Counter[str] = Counter()
+    per_week: dict[str, list[int]] = {}
     last: dict[str, int] = {}
     album_of: dict[str, str] = {}
 
@@ -318,6 +329,8 @@ def rank_on_repeat(
             album_of[r.play.trackhash] = r.facts.albumhash
         elif base_start <= ts < week_start:
             before[r.play.trackhash] += 1
+            index = min(int((ts - base_start) // (7 * DAY)), baseline_weeks - 1)
+            per_week.setdefault(r.play.trackhash, [0] * baseline_weeks)[index] += 1
 
     candidates = []
     for trackhash, count in week.items():
@@ -335,14 +348,20 @@ def rank_on_repeat(
             continue
 
         per_album[albumhash] += 1
-        result.append((trackhash, count, average))
+        weeks = [*per_week.get(trackhash, [0] * baseline_weeks), count]
+        result.append((trackhash, count, average, weeks))
         if len(result) >= limit:
             break
 
     return result
 
 
-def on_repeat_item(trackhash: str, plays: int, average: float) -> dict[str, Any]:
+def on_repeat_item(trackhash: str, plays: int, average: float, weeks: list[int]) -> dict[str, Any]:
+    """
+    `home` rides along to the card (`recover_items`): the weekly bars and the
+    factor against the average — None where the average is too small to
+    compare with (`REPEAT_MIN_AVERAGE_FOR_FACTOR`).
+    """
     if average == 0:
         # Only the baseline weeks are read: a track loved last year and
         # back now is not "new", so this says no more than it knows.
@@ -357,37 +376,23 @@ def on_repeat_item(trackhash: str, plays: int, average: float) -> dict[str, Any]
         "hash": trackhash,
         "help_text": f"{plays} plays this week",
         "secondary_text": usual,
+        "home": {
+            "weeks": weeks,
+            "factor": round(plays / average) if average >= REPEAT_MIN_AVERAGE_FOR_FACTOR else None,
+        },
     }
 
 
-def rank_never_played(
-    plays: Iterable[Play],
-    facts_of: Callable[[str], TrackFacts | None],
-    albums: Iterable[AlbumFacts],
-    day: int,
-    min_history: int = NEVER_MIN_HISTORY,
-    max_per_artist: int = NEVER_MAX_PER_ARTIST,
-    pool_factor: int = NEVER_POOL_FACTOR,
-    limit: int = ROW_LIMIT,
-) -> list[tuple[str, str | None, str | None]] | None:
+_Scored = tuple[float, int, AlbumFacts, str | None, str | None]
+
+
+def _score_unplayed(resolved: list[_Resolved], albums: Iterable[AlbumFacts]) -> tuple[list[_Scored], Counter[str]]:
     """
-    Albums of the library the user has never played a track of, nearest to
-    their taste first: an album by an artist they play scores by that
-    artist's share of their plays (doubled — the artist is the stronger
-    hint), plus the share of its best-played genre.
-
-    The row is drawn from the best `limit * pool_factor` candidates (at most
-    `max_per_artist` per artist), re-drawn per `day` (any int that changes
-    daily), then shown best first.
-
-    Returns `(albumhash, artisthash, genrehash)` — the artist or genre that put
-    the album here, None where nothing did — or None (not []) when the
-    history is shorter than `min_history`, so the caller can say why.
+    Every album without a play, nearest to the user's taste first, as
+    `(score, created, album, reason_artist, reason_genre)`; plus the plays per
+    genre. Score: twice the album artist's share of the plays (the artist is the
+    stronger hint) + the share of the album's best-played genre.
     """
-    resolved = _resolve(plays, facts_of)
-    if len(resolved) < min_history:
-        return None
-
     played = {r.facts.albumhash for r in resolved} | {a for r in resolved for a in r.facts.other_albums}
     artist_plays: Counter[str] = Counter()
     genre_plays: Counter[str] = Counter()
@@ -396,7 +401,7 @@ def rank_never_played(
         genre_plays.update(set(r.facts.genres))
 
     total = len(resolved)
-    scored = []
+    scored: list[_Scored] = []
 
     for album in albums:
         if album.albumhash in played:
@@ -412,8 +417,37 @@ def rank_never_played(
         scored.append((2 * a_share + g_share, album.created, album, reason_artist, reason_genre))
 
     scored.sort(key=lambda s: (s[0], s[1], s[2].albumhash), reverse=True)
+    return scored, genre_plays
 
-    pool = []
+
+@dataclass
+class Unplayed:
+    """`_score_unplayed` once, for both the row and its chips."""
+
+    scored: list[_Scored]
+    genre_plays: Counter[str]
+
+
+def score_unplayed(
+    plays: Iterable[Play],
+    facts_of: Callable[[str], TrackFacts | None],
+    albums: Iterable[AlbumFacts],
+    min_history: int = NEVER_MIN_HISTORY,
+) -> Unplayed | None:
+    """
+    The scoring "Never played" and its chips share: the whole history resolved
+    and every album scored, once. None below `min_history`.
+    """
+    resolved = _resolve(plays, facts_of)
+    if len(resolved) < min_history:
+        return None
+
+    return Unplayed(*_score_unplayed(resolved, albums))
+
+
+def _capped(scored: Iterable[_Scored], max_per_artist: int, limit: int) -> list[_Scored]:
+    """The first `limit` entries with at most `max_per_artist` per artist."""
+    picked = []
     per_artist: Counter[str] = Counter()
     for entry in scored:
         artists = entry[2].artists
@@ -421,14 +455,84 @@ def rank_never_played(
             continue
 
         per_artist.update(artists)
-        pool.append(entry)
-        if len(pool) >= limit * pool_factor:
+        picked.append(entry)
+        if len(picked) >= limit:
             break
+
+    return picked
+
+
+def rank_never_played(
+    plays: Iterable[Play],
+    facts_of: Callable[[str], TrackFacts | None],
+    albums: Iterable[AlbumFacts],
+    day: int,
+    min_history: int = NEVER_MIN_HISTORY,
+    max_per_artist: int = NEVER_MAX_PER_ARTIST,
+    pool_factor: int = NEVER_POOL_FACTOR,
+    limit: int = ROW_LIMIT,
+    unplayed: Unplayed | None = None,
+) -> list[tuple[str, str | None, str | None]] | None:
+    """
+    Albums of the library the user has never played a track of, nearest to
+    their taste first (`_score_unplayed`).
+
+    The row is drawn from the best `limit * pool_factor` candidates (at most
+    `max_per_artist` per artist), re-drawn per `day` (any int that changes
+    daily), then shown best first.
+
+    Returns `(albumhash, artisthash, genrehash)` — the artist or genre that put
+    the album here, None where nothing did — or None (not []) when the
+    history is shorter than `min_history`, so the caller can say why.
+    `unplayed` (from `score_unplayed`) skips the scoring the chips share.
+    """
+    unplayed = unplayed or score_unplayed(plays, facts_of, albums, min_history)
+    if unplayed is None:
+        return None
+
+    pool = _capped(unplayed.scored, max_per_artist, limit * pool_factor)
 
     picked = random.Random(day).sample(pool, min(limit, len(pool)))
     picked.sort(key=lambda s: (s[0], s[1], s[2].albumhash), reverse=True)
 
     return [(s[2].albumhash, s[3], s[4]) for s in picked]
+
+
+def never_played_chips(
+    plays: Iterable[Play],
+    facts_of: Callable[[str], TrackFacts | None],
+    albums: Iterable[AlbumFacts],
+    min_history: int = NEVER_MIN_HISTORY,
+    chips: int = NEVER_CHIPS,
+    chip_min: int = NEVER_CHIP_MIN,
+    max_per_artist: int = NEVER_MAX_PER_ARTIST,
+    limit: int = ROW_LIMIT,
+    unplayed: Unplayed | None = None,
+) -> list[tuple[str, list[tuple[str, str | None, str]]]]:
+    """
+    The genre chips of "Never played": the user's most played genres, each
+    with its best unplayed albums (same order as the row, without the daily
+    draw: a chip is a deliberate choice). Only genres with at least
+    `chip_min` such albums; at most `chips` of them.
+
+    Returns `[(genrehash, [(albumhash, artisthash, genrehash), ...]), ...]`,
+    most played genre first; [] below `min_history`. `unplayed` as for the row.
+    """
+    unplayed = unplayed or score_unplayed(plays, facts_of, albums, min_history)
+    if unplayed is None:
+        return []
+
+    result = []
+    for genre, _ in unplayed.genre_plays.most_common():
+        picks = _capped((e for e in unplayed.scored if genre in e[2].genres), max_per_artist, limit)
+        if len(picks) < chip_min:
+            continue
+
+        result.append((genre, [(e[2].albumhash, e[3], genre) for e in picks]))
+        if len(result) >= chips:
+            break
+
+    return result
 
 
 def never_played_item(albumhash: str, reason: str | None) -> dict[str, Any]:

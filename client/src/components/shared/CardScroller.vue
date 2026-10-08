@@ -31,6 +31,8 @@
                 />
             </div>
         </div>
+        <!-- Between the caption and the cards: Home's genre chips. -->
+        <slot name="chips" />
         <div ref="grid" class="recentitems">
             <component
                 :is="getComponent(i.type)"

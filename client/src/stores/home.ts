@@ -27,6 +27,8 @@ export default defineStore('homepage', () => {
 
     const routes = {
         recently_played: '/playlist/recentlyplayed',
+        // Served as a playlist too, so the caption opens the whole list.
+        on_repeat: '/playlist/onrepeat',
         // top_streamed_weekly_artists: '',
         recently_added: '/playlist/recentlyadded',
     }
