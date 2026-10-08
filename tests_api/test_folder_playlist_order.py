@@ -10,7 +10,9 @@ from types import SimpleNamespace
 
 
 def _track(trackhash: str, last_mod: int, title: str = ""):
-    return SimpleNamespace(trackhash=trackhash, last_mod=last_mod, title=title or trackhash)
+    return SimpleNamespace(
+        trackhash=trackhash, last_mod=last_mod, title=title or trackhash, filepath=f"/music/folder/{trackhash}.mp3"
+    )
 
 
 def test_default_sort_follows_folder_view_mtime_order(monkeypatch):

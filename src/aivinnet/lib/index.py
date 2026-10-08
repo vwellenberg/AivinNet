@@ -34,9 +34,12 @@ def _index_everything():
 
     key = str(time())
     TrackStore.load_all_tracks(key)
+    # Right behind the track store it points into, not after the albums and
+    # artists: the folder view looked up the new hashes through the old map
+    # for the whole rebuild (#391).
+    FolderStore.load_filepaths()
     AlbumStore.load_albums(key)
     ArtistStore.load_artists(key)
-    FolderStore.load_filepaths()
 
     # NOTE: Rebuild recently added items on the homepage store
     RecentlyAdded()

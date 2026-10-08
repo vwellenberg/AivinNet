@@ -68,7 +68,7 @@ def test_the_folder_index_is_swapped_and_forgets_removed_files(monkeypatch):
         during.append(set(FolderStore.filepaths))
         yield _track("n", "/music/new.mp3")
 
-    monkeypatch.setattr(folder_module.TrackTable, "get_all", get_all)
+    monkeypatch.setattr(folder_module.TrackStore, "get_flat_list", get_all)
 
     FolderStore.load_filepaths()
 
@@ -91,8 +91,8 @@ def test_the_swapped_folder_index_can_still_be_counted(monkeypatch):
     monkeypatch.setattr(FolderStore, "filepaths", folder_module.SortedSet())
     monkeypatch.setattr(FolderStore, "map", {})
     monkeypatch.setattr(
-        folder_module.TrackTable,
-        "get_all",
+        folder_module.TrackStore,
+        "get_flat_list",
         lambda: iter(
             [_track("b", "/music/Rock/b.mp3"), _track("a", "/music/Rock/a.mp3"), _track("c", "/music/Pop/c.mp3")]
         ),

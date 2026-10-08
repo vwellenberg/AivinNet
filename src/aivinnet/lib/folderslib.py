@@ -2,7 +2,7 @@ import logging
 import pathlib
 from pathlib import Path
 
-from aivinnet.lib.sortlib import sort_folders, sort_tracks
+from aivinnet.lib.sortlib import folder_order, sort_folders, sort_tracks
 from aivinnet.models import Folder
 from aivinnet.serializers.track import serialize_tracks
 from aivinnet.store.folder import FolderStore
@@ -86,23 +86,6 @@ def get_files_and_dirs(
         elif entry.is_file() and ext in SUPPORTED_FILES:
             files.append(entry)
 
-    # sort files by most recent
-    # TODO: rework if realy needed.
-    files_with_mtime = []
-    for file in files:
-        try:
-            files_with_mtime.append(
-                {
-                    "path": file.as_posix(),
-                    "time": file.lstat().st_mtime,
-                }
-            )
-        except OSError as e:
-            log.error(e)
-
-    files_with_mtime.sort(key=lambda f: f["time"])
-    files = [f["path"] for f in files_with_mtime]
-
     # if supported files were found
     # convert files to tracks
     tracks = []
@@ -110,8 +93,9 @@ def get_files_and_dirs(
         if limit == -1:
             limit = len(files)
 
-        # only return tracks already indexed by us
-        tracks = list(FolderStore.get_tracks_by_filepaths(files))
+        # only return tracks already indexed by us, in the folder's own order
+        # (`folder_order`, shared with "Play" and "save as playlist")
+        tracks = sorted(FolderStore.get_tracks_by_filepaths([f.as_posix() for f in files]), key=folder_order)
         tracks = sort_tracks(tracks, tracksortby, tracksort_reverse)
         tracks = tracks[start : start + limit]
 
