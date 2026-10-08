@@ -45,7 +45,7 @@ def _old(query, titles, scorer, cutoff=50, limit=150):
 
 
 @pytest.mark.parametrize("query", ["night woods", "NIGHT", "motley", "drum loop", "guild theme", "x"])
-def test_tracks_artists_and_albums_rank_exactly_as_before(searchlib, monkeypatch, query):
+def test_tracks_artists_and_albums_rank_as_the_uncached_formula(searchlib, monkeypatch, query):
     tracks = [SimpleNamespace(title=t, trackhash=f"t{i}") for i, t in enumerate(TITLES)]
     artists = [SimpleNamespace(name=t) for t in TITLES]
     albums = [SimpleNamespace(title=t) for t in TITLES]
@@ -59,8 +59,9 @@ def test_tracks_artists_and_albums_rank_exactly_as_before(searchlib, monkeypatch
     got = [(artists.index(a), round(a._score, 6)) for a in searchlib.SearchArtists(query)()]
     assert got == _old(query, TITLES, fuzz.WRatio)
 
+    # Albums score with WRatio too (formerly token_sort_ratio, see test_album_search_word.py).
     got = [(albums.index(a), round(a._score, 6)) for a in searchlib.SearchAlbums(query)()]
-    assert got == _old(query, TITLES, fuzz.token_sort_ratio)
+    assert got == _old(query, TITLES, fuzz.WRatio)
 
 
 def test_a_second_search_does_not_transliterate_again(searchlib, monkeypatch):

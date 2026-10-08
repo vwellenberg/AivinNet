@@ -344,8 +344,16 @@ liegt, ist genau dort unlesbar, wo eine Form darunter durchläuft — und das is
 sondern der Normalfall, weil die Doodle-Kachel 3840×1600 groß ist und jeden Bildschirm füllt.
 
 Deshalb liegt Inhaltstext auf `--mem-veil` (Ordner-Liste, Chart-Zeilen, die Now-Playing-Quelle,
-seit #486 die Lyrics). Die Regel gilt für **Fließtext und Listen**, nicht für einzelne
-Bedienelemente: die tragen ihre eigene Fläche ohnehin.
+seit #486 die Lyrics, seit 2026-10-08 die Leer-Meldung `NoItems.vue`). Die Regel gilt für
+**Fließtext und Listen**, nicht für einzelne Bedienelemente: die tragen ihre eigene Fläche ohnehin.
+
+⚠️ **Ein selten sichtbarer Zustand fällt hier zuletzt auf.** „No results" stand bis 2026-10-08
+nackt auf dem Grund — auf einer gefüllten Bibliothek sieht man den Leerzustand fast nie, also
+auch nicht, dass er unlesbar ist. Wer eine geteilte Komponente für Leer-, Fehler- oder
+Ladezustände baut, gibt ihr die Platte **in der Komponente**, nicht im Wirt. Und Deko, die
+vorher über dem nackten Grund lag, landet mit der Platte **auf** dem Text: Die Formen des
+Achselzuckens sitzen deshalb auf dem oberen/unteren Plattenrand, nie seitlich (am Handy ist die
+Platte so breit wie der Wirt, seitlicher Überstand wird zum horizontalen Scrollbalken).
 
 Zwei Dinge, die dazugehören:
 

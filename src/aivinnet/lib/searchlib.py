@@ -139,12 +139,19 @@ class SearchAlbums:
 
         choices = [_choice(a.title) for a in self.albums]
 
+        # INFO: WRatio, like tracks and artists. Albums used `token_sort_ratio`,
+        # which compares the WHOLE title against the query: one word of a long
+        # title scored far below the cutoff ("essentials" against "Kingdom Come:
+        # Deliverance II - Soundtrack Essentials" is 34), so an album was only
+        # found by typing most of its name. WRatio takes the best of the full,
+        # the token and the partial comparison, scaled by the length ratio — the
+        # word alone scores 90, the whole title still scores highest.
         results = process.extract(
             utils.default_process(self.query),
             choices,
             score_cutoff=Cutoff.albums,
             limit=limit,
-            scorer=fuzz.token_sort_ratio,
+            scorer=fuzz.WRatio,
         )
 
         albums: list[Album] = []
