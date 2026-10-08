@@ -27,6 +27,7 @@ from aivinnet.lib.home.discover import (
     because_item,
     for_this_time_item,
     forgotten_favorite_item,
+    never_played_chips,
     never_played_item,
     on_repeat_item,
     pick_seed_artist,
@@ -37,6 +38,7 @@ from aivinnet.lib.home.discover import (
     rank_never_played,
     rank_on_repeat,
     rank_playlist_neighbours,
+    score_unplayed,
     slot_title,
     time_slot,
 )
@@ -241,7 +243,11 @@ class NeverPlayed(HomepageRoutine):
             AlbumFacts(
                 albumhash=a.album.albumhash,
                 artists=tuple(x["artisthash"] for x in a.album.albumartists),
-                genres=tuple(a.album.genrehashes),
+                # From `genres`, not `genrehashes`: the scanner stores the
+                # latter as ONE space-joined string (`tagger.py`), and
+                # `tuple()` of that is a tuple of characters — no genre ever
+                # matched, so "Never played" never gave a genre as its reason.
+                genres=tuple(g["genrehash"] for g in a.album.genres or []),
                 created=a.album.created_date or 0,
             )
             for a in AlbumStore.albummap.values()
@@ -261,16 +267,27 @@ class NeverPlayed(HomepageRoutine):
                 return
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
-            ranked = rank_never_played(scrobbles, track_facts, albums, day)
+            # Scored once, for the row and its chips.
+            unplayed = score_unplayed(scrobbles, track_facts, albums)
+            ranked = rank_never_played(scrobbles, track_facts, albums, day, unplayed=unplayed) if unplayed else None
 
             if ranked is None:
                 log.info("never-played: user %s has too short a history for this row", userid)
             elif not ranked:
                 log.info("never-played: user %s has played every album", userid)
 
-            HomepageStore.entries[self.store_key].items[userid] = [
+            entry = HomepageStore.entries[self.store_key]
+            entry.items[userid] = [
                 never_played_item(albumhash, reason(artisthash, genrehash))
                 for albumhash, artisthash, genrehash in ranked or []
+            ]
+            entry.chips[userid] = [
+                {
+                    "key": genre,
+                    "label": genre_names.get(genre, genre),
+                    "items": [never_played_item(a, reason(artist, g)) for a, artist, g in picks],
+                }
+                for genre, picks in (never_played_chips(scrobbles, track_facts, albums, unplayed=unplayed) if unplayed else [])
             ]
 
 

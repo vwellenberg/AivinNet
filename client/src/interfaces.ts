@@ -47,6 +47,8 @@ export interface Track extends AlbumDisc {
     // Only present on playlist-page tracks; null for entries added before the
     // backend started recording it (rendered as a placeholder).
     added_at?: number | null
+    /** What a Home row draws on the card beyond the shared fields ("On repeat"). */
+    home?: { weeks?: number[]; factor?: number | null }
 }
 
 export interface Folder {
@@ -97,6 +99,8 @@ export interface HomePageItem {
     title?: string
     description?: string
     items: { type: string; item?: any; with_helptext?: boolean }[]
+    /** Chips above the row ("Never played": one per genre), each with its own items. */
+    chips?: { key: string; label: string; items: { type: string; item?: any }[] }[]
     path?: string
     seeAllText?: string
     url?: string

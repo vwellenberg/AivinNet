@@ -66,13 +66,25 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   User** (`PersonalTitleEntry.meta`) und verschwinden mit dem Seed.
 - **„On repeat“** (stündlich): Tracks mit ≥ 3 Plays in 7 Tagen und mindestens dem Doppelten
   ihres Wochenschnitts der 8 Wochen davor. Sortiert nach Plays **über** dem Schnitt (Trend, nicht
-  Charts), höchstens 2 pro Album.
+  Charts), höchstens 2 pro Album. Jede Karte trägt `home: {weeks, factor}` (8 Wochen + diese,
+  Faktor gegen den Schnitt, `None` unter einem Play pro Woche — dort sagt der Text „rarely before“) und zeichnet daraus Mini-Balken
+  (`client/src/components/HomeView/RepeatBars.vue`). Die Zeile ist **auch eine Playlist**
+  (`onrepeat`, `lib/home/onrepeat.py`, aus dem RAM-Store der Zeile): „Play all“ spielt sie, der
+  Titel öffnet sie. ⚠️ Eine neue erzeugte Playlist gehört in **`lib/home/generated_playlists.py`** (das
+  Register, das Endpoint und Home-Karten lesen) **und** in `homerows.CUSTOM_PLAYLISTS` (nur Namen,
+  für die schnelle Testbahn). Ein Test in `tests_api/test_home_discover_api.py` prüft, dass beide
+  übereinstimmen — fehlt sie in einem, 404t ihre Seite oder sie verschwindet aus „Recently
+  played“.
 - **„Never played“** (alle 6 h, täglich neu gezogen): Alben ohne einen einzigen Play des Users.
   Punkte = 2 × Anteil des Album-Artists an den eigenen Plays + Anteil des bestgehörten Genres.
   Gezogen aus den besten 3 × 15 (höchstens 2 pro Artist), Zufall mit dem Tag als Seed, damit die
   Zeile nicht ewig dieselbe bleibt. Erst ab **50 Plays** Historie (vorher ist fast alles
   ungehört, die Zeile wäre nur die Bibliothek). Alben von „Unknown“ (ungetaggt) fliegen raus,
-  Sampler von „Various Artists“ nicht. Button „Play one“ im Client (zufälliges Album der Zeile).
+  Sampler von „Various Artists“ nicht. Button „Play one“ im Client (zufälliges Album der
+  angezeigten Karten). **Genre-Chips** über der Zeile: die meistgehörten Genres des Users mit
+  mindestens 2 ungehörten Alben (höchstens 4), jeder mit eigenen Items in der Antwort
+  (`ChipsEntry`) — Umschalten braucht keinen Request. Im Client gestrichelter Rahmen und
+  „0 plays“-Marke auf dem Cover (CSS über die Zeilenklasse `home-row-never_played`).
 
 - **„Your weekday evenings“** (stündlich, Titel nach dem Zeitfenster): Woche geteilt in
   Werktag/Wochenende × Morgen (ab 5 Uhr) / Nachmittag (11) / Abend (17) / Nacht (22). Alben mit
@@ -95,6 +107,12 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
 ⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
 der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen
 der DB noch in SQLite steckt, lässt den Prozess mit SIGSEGV sterben (CLAUDE.md, „STOPPEN“).
+
+⚠️ **`Album.genrehashes` ist ein String, keine Liste** — der Scanner speichert die Hashes mit
+Leerzeichen verbunden (`tagger.py`), `Track.genrehashes` dagegen ist eine Liste. `tuple()` des
+Album-Felds zerlegt es in Zeichen, und kein Genre passt mehr: „Never played“ nannte deshalb seit
+#396 nie ein Genre als Grund. Album-Genres aus `album.genres` (Liste von Dicts) lesen, und in
+Fixtures die echte Form verwenden.
 
 ⚠️ **Jede Routine loggt ein leeres Ergebnis mit Grund** (kein Seed, zu kurze Historie, …): eine
 leere Zeile sieht sonst genauso aus wie eine, die nie gelaufen ist.

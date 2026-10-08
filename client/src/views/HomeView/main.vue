@@ -18,8 +18,9 @@
             v-for="item in home.homepageItems"
             :key="item.key"
             :title="item.title || ''"
+            :class="'home-row-' + item.key"
             :description="item.description"
-            :items="item.items"
+            :items="rowItems(item)"
             :play-source="playSources.track"
             :route="item.path"
             :see-all-text="item.seeAllText"
@@ -30,20 +31,48 @@
                     Surprise me
                 </button>
             </template>
-            <!-- "Never played": one album of the row, picked here — the row
-                 is already the server's best guess, so no extra request. -->
+            <!-- "Never played": one album of the row (or of the chip shown),
+                 picked here — the row is already the server's best guess. -->
             <template v-else-if="item.key === 'never_played'" #actions>
-                <button class="btn-action surprise" @click="playOne(item.items)">
+                <button class="btn-action surprise" @click="playOne(rowItems(item))">
                     <ShuffleSvg />
                     Play one
                 </button>
+            </template>
+            <!-- "On repeat" is also a playlist the server serves ("onrepeat"),
+                 so the queue is named after it and keeps the row's order. -->
+            <template v-else-if="item.key === 'on_repeat'" #actions>
+                <button class="btn-action surprise" @click="playFromPlaylist('onrepeat')">
+                    <PlaySvg />
+                    Play all
+                </button>
+            </template>
+            <template v-if="item.chips?.length" #chips>
+                <div class="row-chips" role="group" aria-label="Filter by genre">
+                    <button
+                        class="row-chip"
+                        :aria-pressed="!chipOf[item.key!]"
+                        @click="chipOf[item.key!] = null"
+                    >
+                        Closest to you
+                    </button>
+                    <button
+                        v-for="chip in item.chips"
+                        :key="chip.key"
+                        class="row-chip"
+                        :aria-pressed="chipOf[item.key!] === chip.key"
+                        @click="chipOf[item.key!] = chip.key"
+                    >
+                        {{ chip.label }}
+                    </button>
+                </div>
             </template>
         </PageItem>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
@@ -54,9 +83,12 @@ import updatePageTitle from '@/utils/updatePageTitle'
 import Browse from '@/components/HomeView/Browse.vue'
 import ContinueCard from '@/components/HomeView/ContinueCard.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
-import { playFromAlbumCard } from '@/helpers/usePlayFrom'
+import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
 import { getSurpriseAlbum } from '@/requests/home'
 import { pickRowAlbum } from '@/utils/pickRowAlbum'
+import { chipItems } from '@/utils/homeRows'
+import { HomePageItem } from '@/interfaces'
+import PlaySvg from '@/assets/icons/play.svg'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
@@ -74,6 +106,13 @@ async function surprise() {
     } finally {
         surprising.value = false
     }
+}
+
+// The chip selected per row (by row key); none = the row's own items.
+const chipOf = reactive<Record<string, string | null>>({})
+
+function rowItems(item: HomePageItem) {
+    return chipItems(item.items, item.chips, item.key ? (chipOf[item.key] ?? null) : null)
 }
 
 function playOne(items: Parameters<typeof pickRowAlbum>[0]) {
@@ -153,6 +192,54 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         svg {
             width: 1.1rem;
             height: 1.1rem;
+        }
+    }
+
+    // Genre chips of "Never played", between its caption and the cards. The
+    // pressed one wears the accent fill: the same yellow means "active" across
+    // the app, and it reads in both themes.
+    .row-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $small;
+        margin: -0.5rem 0 1.5rem;
+    }
+
+    .row-chip {
+        min-height: 2.25rem;
+        padding: 0 0.9rem;
+        border-radius: $candy-radius-pill;
+        border: $mem-ring-w solid $mem-frame;
+        background-color: $mem-panel;
+        color: $candy-text;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+
+        &[aria-pressed='true'] {
+            background-color: $mem-yellow;
+            border-color: $mem-ink;
+            color: $mem-ink;
+        }
+    }
+
+    // "Never played": a dashed frame and a "0 plays" tag on the artwork — the
+    // album is in the library, but the user has not met it yet.
+    .home-row-never_played .card-art {
+        border-style: dashed;
+
+        &::after {
+            content: '0 plays';
+            position: absolute;
+            top: $small;
+            left: $small;
+            padding: 0 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: $mem-ink;
+            background-color: $mem-panel-static;
+            border: $mem-hairline-w solid $mem-ink;
+            border-radius: $candy-radius-xs;
         }
     }
 

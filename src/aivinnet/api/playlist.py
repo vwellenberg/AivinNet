@@ -16,8 +16,7 @@ from aivinnet.api.apischemas import GenericLimitSchema
 from aivinnet.db.userdata import PlaylistTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.albumslib import sort_by_track_no
-from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
-from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
+from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
 from aivinnet.lib.playlist_maintenance import (
     TrackhashNotInPlaylist,
     prune_added_at,
@@ -225,19 +224,14 @@ def get_playlist(path: PlaylistIDPath, query: GetPlaylistQuery):
     no_tracks = query.no_tracks
     playlistid = path.playlistid
 
-    custom_playlists = [
-        {"name": "recentlyadded", "handler": get_recently_added_playlist},
-        {"name": "recentlyplayed", "handler": get_recently_played_playlist},
-    ]
-    is_custom = playlistid in {p["name"] for p in custom_playlists}
+    handler = GENERATED_PLAYLISTS.get(playlistid)
 
-    if is_custom:
+    if handler is not None:
         if query.start != 0:
             return {
                 "tracks": [],
             }
 
-        handler = next(p["handler"] for p in custom_playlists if p["name"] == playlistid)
         playlist, tracks = handler()
         return format_custom_playlist(playlist, tracks)
 

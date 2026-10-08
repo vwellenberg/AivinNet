@@ -20,8 +20,10 @@ ALBUMS = {
     "a0000000000000mi": ("Kind of Blue", "Miles Davis", "Jazz"),
     # Untagged files: never played, but nothing to recommend.
     "a0000000000000un": ("Untagged", "Unknown", ""),
+    # A second unplayed Funk Rock album: with Primus it makes a genre chip.
+    "a0000000000000fi": ("Truth and Soul", "Fishbone", "Funk Rock"),
 }
-RHCP, FNM, PRIMUS, MILES, UNTAGGED = ALBUMS
+RHCP, FNM, PRIMUS, MILES, UNTAGGED, FISHBONE = ALBUMS
 
 TRACKS: dict[tuple[str, int], object] = {}
 
@@ -72,7 +74,9 @@ def _album(albumhash: str, tracks):
         date=0,
         duration=0,
         genres=first.genres,
-        genrehashes=first.genrehashes,
+        # As the scanner stores it (`tagger.py`): ONE space-joined string. A
+        # list here hid that the routine split it into characters.
+        genrehashes=" ".join(first.genrehashes),
         og_title=title,
         title=title,
         trackcount=len(tracks),
@@ -143,7 +147,7 @@ def home(api_client, monkeypatch):
         if isinstance(entry, PersonalTitleEntry):
             monkeypatch.setattr(entry, "meta", {})
 
-    api = api_client("aivinnet.api.home")
+    api = api_client("aivinnet.api.home", "aivinnet.api.playlist")
     monkeypatch.setattr(homepage, "get_current_userid", lambda: api.userid)
     return api
 
@@ -218,13 +222,21 @@ def test_the_three_rows_their_shape_and_order(home, history):
     assert track["item"]["trackhash"] == th(RHCP, 1)
     assert track["item"]["help_text"] == "4 plays this week"
     assert track["item"]["time"] == "not in the 8 weeks before"
+    # The card's bars: nothing in the 8 weeks before, 4 this week; no average, no factor.
+    assert track["item"]["home"] == {"weeks": [0] * 8 + [4], "factor": None}
 
     never = data["never_played"]["items"]
-    assert [i["item"]["albumhash"] for i in never] == [PRIMUS, MILES]  # not UNTAGGED
-    # Primus shares a genre with what the user plays; Miles Davis nothing.
+    ids = [i["item"]["albumhash"] for i in never]
+    # Primus and Fishbone share a genre with what the user plays; Miles Davis
+    # nothing; the untagged album is left out.
+    assert set(ids[:2]) == {PRIMUS, FISHBONE} and ids[2:] == [MILES]
     assert never[0]["item"]["help_text"] == "funk rock"
     assert never[0]["item"]["time"] == "never played"
-    assert never[1]["item"]["help_text"] == "never played"
+    assert never[2]["item"]["help_text"] == "never played"
+
+    (chip,) = data["never_played"]["chips"]
+    assert chip["label"] == "funk rock"
+    assert {i["item"]["albumhash"] for i in chip["items"]} == {PRIMUS, FISHBONE}
 
 
 def test_another_user_sees_none_of_it(home, history):
@@ -252,7 +264,9 @@ def test_an_album_played_from_never_played_leaves_it(home, history):
     run_routines()
 
     data, _ = rows(home)
-    assert [i["item"]["albumhash"] for i in data["never_played"]["items"]] == [MILES]
+    assert [i["item"]["albumhash"] for i in data["never_played"]["items"]] == [FISHBONE, MILES]
+    # One unplayed Funk Rock album left: no choice, no chip.
+    assert "chips" not in data["never_played"]
 
 
 def test_a_user_who_loses_the_seed_loses_the_title_too(home, history, monkeypatch):
@@ -371,3 +385,27 @@ def test_a_shutdown_stops_the_routines_between_users(home, history, monkeypatch)
         "forgotten_favorites",
     ):
         assert HomepageStore.entries[key].items == {}, key
+
+
+def test_on_repeat_is_also_a_playlist(home, history, monkeypatch):
+    import aivinnet.lib.home.onrepeat as onrepeat
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    run_routines()
+
+    res = home.get("/playlists/onrepeat")
+    assert res.status_code == 200, res.text
+    body = res.get_json()
+    assert body["info"]["name"] == "On repeat"
+    assert [t["trackhash"] for t in body["tracks"]] == [th(RHCP, 1)]
+
+    home.userid = 2
+    assert home.get("/playlists/onrepeat").get_json()["tracks"] == []
+
+
+def test_every_generated_playlist_is_known_by_name_too():
+    """The registry and the name list must agree, see `generated_playlists`."""
+    from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
+    from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
+
+    assert set(GENERATED_PLAYLISTS) == CUSTOM_PLAYLISTS

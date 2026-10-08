@@ -22,6 +22,7 @@
       </div>
       <div class="ttitle ellip">{{ track.title }}</div>
       <ArtistName :albumartists="track.albumartists" :artists="track.artists" />
+      <RepeatBars v-if="track.home?.weeks" :weeks="track.home.weeks" :factor="track.home.factor ?? null" />
     </div>
   </RouterLink>
 </template>
@@ -37,6 +38,7 @@ import { showTrackContextMenu } from "@/helpers/contextMenuHandler";
 import ArtistName from "../shared/ArtistName.vue";
 import CardTypeLabel from "../shared/CardTypeLabel.vue";
 import PlayBtn from "../shared/PlayBtn.vue";
+import RepeatBars from "../HomeView/RepeatBars.vue";
 import { isTypeEcho } from "@/utils/cardTypes";
 
 const props = defineProps<{
