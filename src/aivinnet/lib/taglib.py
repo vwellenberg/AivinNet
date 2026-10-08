@@ -104,6 +104,10 @@ def find_folder_cover(folder: str) -> bytes | None:
     return None
 
 
+# A thumbnail is at most this many times as high as it is wide.
+MAX_THUMB_ASPECT = 4
+
+
 def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths = None) -> bool:
     """
     Extracts the thumbnail from an audio file.
@@ -132,7 +136,11 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
         ratio = width / height
 
         for path, size in images:
-            resized = img.resize((size, int(size / ratio)), Image.LANCZOS)
+            # Held to 1 .. 4x the width: a 2000x1 banner came out 0 pixels high
+            # (ValueError, the album retried on every scan), and a 1x2000 strip
+            # asked for millions of rows, then failed at WebP's size limit (#391).
+            thumb_height = max(1, min(int(size / ratio), MAX_THUMB_ASPECT * size))
+            resized = img.resize((size, thumb_height), Image.LANCZOS)
             resized.save(path, "webp")
             resized.close()
 
@@ -168,6 +176,8 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
 
         try:
             save_image(img)
+        except ValueError:
+            return False  # an image Pillow cannot resize or encode: no cover beats a crashed scan
         except OSError:
             try:
                 png = img.convert("RGB")
