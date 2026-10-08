@@ -33,6 +33,7 @@ from aivinnet.lib.musicbrainz import (
     album_matches,
     is_usable_albumartist,
 )
+from aivinnet.utils.thumbs import crop_box, thumb_size
 
 log = logging.getLogger(__name__)
 
@@ -586,7 +587,7 @@ def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
 
     try:
         img = Image.open(BytesIO(image_bytes))
-    except (UnidentifiedImageError, OSError) as e:
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
         log.warning("Cover for %s could not be decoded: %s", albumhash, e)
         return None
 
@@ -602,15 +603,20 @@ def save_album_cover_bytes(albumhash: str, image_bytes: bytes) -> str | None:
     backup_album_cover(albumhash)
 
     try:
-        width, height = img.size
-        ratio = (width / height) if height else 1.0
 
         def _save_all(source: Image.Image) -> None:
-            for path, size in targets:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                resized = source.resize((size, max(1, int(size / ratio))), Image.Resampling.LANCZOS)
-                resized.save(path, "webp")
-                resized.close()
+            width, height = source.size
+            box = crop_box(width, height)  # odd shapes keep their centre (#391)
+            cropped = source.crop(box) if box else source
+            try:
+                for path, size in targets:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    resized = cropped.resize(thumb_size(cropped.width, cropped.height, size), Image.Resampling.LANCZOS)
+                    resized.save(path, "webp")
+                    resized.close()
+            finally:
+                if cropped is not source:
+                    cropped.close()
 
         try:
             _save_all(img)

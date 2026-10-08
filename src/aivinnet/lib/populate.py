@@ -82,7 +82,9 @@ def get_image(tracks: list[Track], paths=None):
     """
 
     for track in tracks:
-        extracted = extract_thumb(track.filepath, track.albumhash + ".webp", paths)
+        # By keyword: positionally it landed in `overwrite`, so every call
+        # overwrote and built its own Paths() (#391).
+        extracted = extract_thumb(track.filepath, track.albumhash + ".webp", paths=paths)
 
         if extracted:
             return

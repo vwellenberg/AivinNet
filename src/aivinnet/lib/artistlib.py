@@ -22,6 +22,7 @@ from aivinnet.store.artists import ArtistStore
 # from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.hashing import create_hash
 from aivinnet.utils.progressbar import tqdm
+from aivinnet.utils.thumbs import crop_box, thumb_size
 
 LARGE_ENOUGH_NUMBER = 100
 PngImagePlugin.MAX_TEXT_CHUNK = LARGE_ENOUGH_NUMBER * (1024**2)
@@ -129,15 +130,20 @@ class DownloadImage:
         """
         Saves the image to the destinations.
         """
-        ratio = img.width / img.height
+        # Odd shapes keep their centre: a banner came out 0 pixels high and
+        # `resize` raised, a strip went past WebP's size limit (#391).
+        box = crop_box(img.width, img.height)
+        source = img.crop(box) if box else img
         for entry in entries:
             path, size = entry
 
             if size is None:
-                img.save(path, format="webp")
+                source.save(path, format="webp")
                 continue
 
-            img.resize((size, int(size / ratio)), Image.Resampling.LANCZOS).save(path, format="webp")
+            source.resize(thumb_size(source.width, source.height, size), Image.Resampling.LANCZOS).save(
+                path, format="webp"
+            )
 
 
 class CheckArtistImages:
