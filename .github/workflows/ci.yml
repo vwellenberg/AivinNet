@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [master]
 
+# No job here writes anything to GitHub; read-only keeps a compromised action
+# from doing so either (#300). See tests/test_packaging_manifests.py.
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint & Format

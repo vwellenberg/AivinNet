@@ -362,3 +362,109 @@ class TestImageVersion:
             "src/aivinnet/api/settings.py",
         ):
             assert not use.search((REPO_ROOT / rel).read_text(encoding="utf-8")), rel
+
+
+WORKFLOWS = REPO_ROOT / ".github" / "workflows"
+
+# The only write access any workflow may hold, per job (#300). Everything else
+# inherits the workflow-level `contents: read`.
+ALLOWED_WRITES = {
+    ("build.yml", "upload-builds"): {"contents"},  # creates the release
+    ("build.yml", "docker"): {"packages"},  # pushes the image to ghcr
+}
+
+
+def _permission_grants(text: str) -> dict[str | None, dict[str, str]]:
+    """`permissions:` per scope: None for the workflow level, else the job id.
+
+    A plain line scan: the fast lane has no YAML parser, and both workflows
+    keep the usual layout (jobs at two spaces). `write-all`/`read-all` come
+    back as {"*": "write"/"read"}.
+    """
+    grants: dict[str | None, dict[str, str]] = {}
+    in_jobs = False
+    job: str | None = None
+    block_indent: int | None = None
+    scope: dict[str, str] | None = None
+
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+
+        if block_indent is not None:
+            if indent > block_indent and scope is not None:
+                key, _, value = line.strip().partition(":")
+                scope[key.strip()] = value.split("#")[0].strip()
+                continue
+            block_indent = None
+
+        if indent == 0:
+            in_jobs = line.startswith("jobs:")
+            job = None
+        elif in_jobs and indent == 2 and re.match(r"^  [\w-]+:\s*$", line):
+            job = line.strip().rstrip(":")
+
+        found = re.match(r"^(\s*)permissions:\s*([\w-]*)", line)
+        if found:
+            scope = grants.setdefault(job if in_jobs else None, {})
+            inline = found.group(2)
+            if inline:
+                scope["*"] = inline.removesuffix("-all")
+            else:
+                block_indent = len(found.group(1))
+
+    return grants
+
+
+class TestWorkflowPermissions:
+    """Least privilege for the workflows (#300).
+
+    Without a `permissions:` key, GITHUB_TOKEN gets the repository default,
+    which can be write access to everything. A compromised action or a
+    poisoned tool download in any job (the release builds run third-party
+    actions and fetch appimagetool) could then rewrite code or releases.
+    So: `contents: read` for the whole workflow, write only where a job needs it.
+    """
+
+    def _workflows(self):
+        files = sorted(WORKFLOWS.glob("*.yml"))
+        assert files, "no workflows found — update this test"
+        return [(f.name, f.read_text(encoding="utf-8")) for f in files]
+
+    def test_every_workflow_defaults_to_read_only(self):
+        for name, text in self._workflows():
+            top = _permission_grants(text).get(None)
+            assert top, f"{name}: no workflow-level `permissions:` — every job gets the repository default"
+            assert top.get("contents") == "read", f"{name}: {top}"
+            assert set(top.values()) <= {"read", "none"}, f"{name}: workflow-level write access {top}"
+
+    def test_write_access_only_where_a_job_needs_it(self):
+        for name, text in self._workflows():
+            for job, scope in _permission_grants(text).items():
+                if job is None:
+                    continue
+                writes = {key for key, value in scope.items() if value == "write"}
+                allowed = ALLOWED_WRITES.get((name, job), set())
+                assert writes <= allowed, f"{name}: job `{job}` writes {sorted(writes - allowed)}"
+
+    def test_the_grant_scan_sees_job_blocks(self):
+        # Guards the scanner itself: if it stopped finding the release job's
+        # block, the test above would pass for any workflow.
+        grants = _permission_grants(_release_workflow())
+        assert grants.get("upload-builds") == {"contents": "write"}
+        assert grants.get("docker") == {"contents": "read", "packages": "write"}
+
+
+def test_the_release_can_be_dispatched_again_for_its_tag():
+    """`git tag v<x>` fails when the tag exists — and after a published release it does (#300).
+
+    `fetch-depth: 0` brings the release's tag along, so re-running the workflow
+    for the same version (say, after a failed Docker push) stopped in
+    build-wheels before anything was rebuilt. The tag is local only, read by
+    setuptools-scm for the version; `-f` moves it to the commit being built.
+    """
+    tags = re.findall(r"^\s*git tag\b.*$", _release_workflow(), re.MULTILINE)
+    assert tags, "build-wheels no longer tags — update this test"
+    for line in tags:
+        assert re.search(r"git tag\s+(-f|--force)\b", line), line.strip()
