@@ -10,7 +10,6 @@ from aivinnet.lib.taglib import extract_thumb, get_tags
 from aivinnet.models.album import Album
 from aivinnet.models.artist import Artist
 from aivinnet.models.track import Track
-from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils import flatten
 from aivinnet.utils.filesystem import ScanScope, is_hidden_path, run_fast_scandir
@@ -158,9 +157,10 @@ class IndexTracks:
                     results.append(result)
 
         # Bulk insert results
+        # The folder store is NOT touched here: it is read by request threads
+        # while this runs, and `load_filepaths()` rebuilds it after the scan.
         for tags in results:
             TrackTable.insert_one(tags)
-            FolderStore.filepaths.add(tags["filepath"])
 
         print(f"{len(results)} new files indexed")
         print("Done")
@@ -259,21 +259,31 @@ def create_artists(artisthashes: list[str]) -> list[tuple[Artist, set[str], set[
     >>> list[tuple[Artist, set[str], set[str]]]
     """
 
+    all_tracks: list[Track] = TrackStore.get_flat_list()
+
     if artisthashes:
-        all_tracks: list[Track] = flatten([TrackStore.get_tracks_by_artisthash(hash) for hash in artisthashes])
-    else:
-        all_tracks: list[Track] = TrackStore.get_flat_list()
+        # Performer OR album artist, as the full build counts them. By
+        # performer alone, rebuilding one artist after an edit dropped the
+        # albums where they are only the album artist (#391).
+        wanted = set(artisthashes)
+        all_tracks = [
+            t
+            for t in all_tracks
+            if wanted.intersection(t.artisthashes) or any(a["artisthash"] in wanted for a in t.albumartists)
+        ]
 
     all_tracks = remove_duplicates(all_tracks)
     artists = dict()
 
     for track in all_tracks:
         this_artists = [*track.artists]
+        performers = {a["artisthash"] for a in track.artists}
 
         for a in track.albumartists:
-            if a not in this_artists:
-                a["in_track"] = False
-                this_artists.append(a)
+            if a["artisthash"] not in performers:
+                # A copy: these are the track's own dicts, and the key went
+                # out to the client with every album artist (#391).
+                this_artists.append({**a, "in_track": False})
 
         for thisartist in this_artists:
             if thisartist["artisthash"] not in artists:
@@ -284,7 +294,10 @@ def create_artists(artisthashes: list[str]) -> list[tuple[Artist, set[str], set[
                     "created_date": track.last_mod,
                     "date": track.date,
                     "duration": track.duration,
-                    "genres": track.genres if track.genres else [],
+                    # A copy, like create_albums: extended below, the
+                    # track's own list gave every artist of it every other
+                    # artist's genres (#391).
+                    "genres": [*track.genres] if track.genres else [],
                     "name": None,
                     "names": {thisartist["name"]},
                     "lastplayed": track.lastplayed,

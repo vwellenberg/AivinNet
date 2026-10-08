@@ -156,16 +156,6 @@ def _reconcile_album(albumhash: str) -> None:
         return
 
 
-def _artist_still_referenced(artisthash: str) -> bool:
-    """Whether any track still lists this artist as a performer or album artist."""
-    for track in TrackStore.get_flat_list():
-        if artisthash in track.artisthashes:
-            return True
-        if any(a["artisthash"] == artisthash for a in track.albumartists):
-            return True
-    return False
-
-
 def _reconcile_artist(artisthash: str) -> None:
     """Rebuild an artist map entry from current store truth, or drop it if orphaned."""
     rebuilt = next((r for r in create_artists([artisthash]) if r[0].artisthash == artisthash), None)
@@ -178,16 +168,11 @@ def _reconcile_artist(artisthash: str) -> None:
         ArtistStore.artistmap[artisthash] = ArtistMapEntry(
             artist=artist, albumhashes=albumhashes, trackhashes=trackhashes
         )
-    elif not _artist_still_referenced(artisthash):
+    else:
+        # No track names it, as performer or album artist: `create_artists`
+        # selects both since #391, so an album-only artist ("Various Artists")
+        # is rebuilt above like the full build does, not patched up here.
         ArtistStore.artistmap.pop(artisthash, None)
-    elif (entry := ArtistStore.artistmap.get(artisthash)) is not None:
-        # Only an album artist ("Various Artists"): no track names it as a
-        # performer, so there is nothing to rebuild the entry from — but its
-        # album list must still follow the edit. It kept the album the edit had
-        # just retired and missed the new one, until a restart (#296).
-        tracks = [t for t in TrackStore.get_flat_list() if any(a["artisthash"] == artisthash for a in t.albumartists)]
-        entry.albumhashes = {t.albumhash for t in tracks}
-        entry.trackhashes = {t.trackhash for t in tracks}
 
 
 def _read_tags(filepath: str) -> dict:

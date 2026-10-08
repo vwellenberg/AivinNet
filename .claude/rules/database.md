@@ -35,6 +35,12 @@ Tracks (`lib/tagger.py::create_albums` / `create_artists`). Eine Migration, die 
 muss deshalb **danach einen Scan auslösen** (`GET /notsettings/trigger-scan`); sonst verlieren
 Alben ihr Bild, die eines hätten.
 
+⚠️ **Ein Teil-Neuaufbau muss dieselben Tracks wählen wie der volle** (#391). `create_artists([hash])`
+nach einem Tag-Edit nahm nur Tracks, auf denen der Artist *spielt*, der Start auch die, deren
+*Album-Artist* er ist. Ergebnis: Soundtracks und Sampler fielen nach jedem Edit von der
+Artist-Seite. Und was der Start aufsummiert, läuft über alle User (`plays_by_trackhash`), nicht
+über `get_current_userid()`: Das ist außerhalb eines Requests immer User 1.
+
 ## ⚠️ Was zusammen stimmen muss, gehört in EINE Transaktion — und ein Rollback braucht keine DB
 
 Jede Tabellen-Hilfsmethode (`insert_one`, `remove_tracks_by_filepaths`, …) committet für sich.
