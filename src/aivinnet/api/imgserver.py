@@ -10,6 +10,7 @@ from aivinnet.settings import Defaults, Paths
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.threading import background
+from aivinnet.utils.thumbs import crop_box, thumb_size
 
 bp_tag = Tag(name="Images", description="Image filenames are constructured as '{itemhash}.webp'")
 api = APIBlueprint("imgserver", __name__, url_prefix="/img", abp_tags=[bp_tag])
@@ -23,7 +24,11 @@ def cache_thumbnails(filepath: Path, trackhash: str):
     image = Image.open(filepath)
     try:
         path = Path(Paths().image_cache_path)
-        aspect_ratio = image.width / image.height
+        box = crop_box(image.width, image.height)  # odd shapes keep their centre (#391)
+        if box:
+            cropped = image.crop(box)
+            image.close()
+            image = cropped
 
         sizes = {
             "xsmall": 64,
@@ -33,12 +38,9 @@ def cache_thumbnails(filepath: Path, trackhash: str):
         }
 
         for size, width in sizes.items():
-            width = min(width, image.width)
-            height = int(width / aspect_ratio)
-
             resized_path = path / size / (trackhash + ".webp")
             resized_path.parent.mkdir(parents=True, exist_ok=True)
-            resized = image.resize((width, height))
+            resized = image.resize(thumb_size(image.width, image.height, width, upscale=False))
             resized.save(resized_path, format="webp")
             resized.close()
     finally:

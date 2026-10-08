@@ -14,6 +14,7 @@ from aivinnet.lib.albumhash import album_hash, album_title
 from aivinnet.settings import Defaults, Paths
 from aivinnet.utils.hashing import create_hash
 from aivinnet.utils.parsers import split_artists
+from aivinnet.utils.thumbs import crop_box, thumb_size
 
 
 def parse_album_art(filepath: str):
@@ -128,13 +129,25 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
     ]
 
     def save_image(img: Image.Image):
-        width, height = img.size
-        ratio = width / height
+        # Odd shapes are cropped to their centre first (`utils.thumbs`): a
+        # 2000x1 banner came out 0 pixels high, a 1x2000 strip asked for
+        # millions of rows (#391).
+        box = crop_box(*img.size)
+        source = img.crop(box) if box else img
+        try:
+            for path, size in images:
+                resized = source.resize(thumb_size(*source.size, size), Image.LANCZOS)
+                resized.save(path, "webp")
+                resized.close()
+        finally:
+            if source is not img:
+                source.close()
 
-        for path, size in images:
-            resized = img.resize((size, int(size / ratio)), Image.LANCZOS)
-            resized.save(path, "webp")
-            resized.close()
+    def discard_partial():
+        # A half-written set reads as done: the next scan sees the small thumb
+        # and never makes the others.
+        for path, _size in images:
+            path.unlink(missing_ok=True)
 
     if not overwrite and sm_img_path.exists():
         img_size = os.path.getsize(sm_img_path)
@@ -163,17 +176,20 @@ def extract_thumb(filepath: str, webp_path: str, overwrite=False, paths: Paths =
     if album_art is not None:
         try:
             img = Image.open(BytesIO(album_art))
-        except (UnidentifiedImageError, OSError):
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+            # A bomb is not an OSError: it escaped and ended the whole thumbnail pass.
             return False
 
         try:
             save_image(img)
-        except OSError:
+        except (OSError, ValueError):
             try:
                 png = img.convert("RGB")
                 save_image(png)
                 png.close()
-            except:  # pylint: disable=bare-except
+            except Exception:
+                # An image Pillow cannot resize or encode: no cover beats a crashed scan.
+                discard_partial()
                 return False
         finally:
             img.close()
