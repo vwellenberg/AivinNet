@@ -50,13 +50,12 @@ def timestamp_to_time_passed(timestamp: str | int | float):
     """
     Converts a timestamp to time passed. e.g. 2 minutes ago, 1 hour ago, yesterday, 2 days ago, 2 weeks ago, etc.
     """
-    now_ts = datetime.now().timestamp()
     try:
-        then = datetime.fromtimestamp(int(timestamp)).timestamp()
-        # Inside the guard too: west of UTC, the first second of year 10000 is
-        # still 9999-12-31 locally, so `fromtimestamp` passes and the overflow
-        # only comes here.
-        return pendulum.now().subtract(seconds=now_ts - then).diff_for_humans()
+        # The moment itself, not "now minus the difference": that arithmetic ran
+        # at 2.5e11 s, where a float step is ~30 µs, so whether year 10000 west
+        # of UTC overflowed or read "in 7973 years" depended on rounding — two
+        # calls out of three said the latter, and the test of #411 flaked.
+        return pendulum.from_timestamp(int(timestamp)).diff_for_humans()
     except (OverflowError, OSError, ValueError):
         # No date (a play written in milliseconds, year 10000): an empty label,
         # not a 500 for the whole page that lists it (#391).

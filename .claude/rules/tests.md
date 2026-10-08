@@ -104,6 +104,13 @@ Zone selbst (`monkeypatch.setenv("TZ", …)` + `time.tzset()` + `pendulum.set_lo
 pendulum.timezone(…))`, danach alles zurück). ⚠️ `set_local_timezone` nimmt **kein** `str` —
 ein String wirft `TypeError`, und der Test ist „rot ohne Fix“ aus dem falschen Grund.
 
+⚠️ **Ein Grenzfall, der mit Float-Zeit rechnet, ist ein Würfel.** `timestamp_to_time_passed`
+rechnete „jetzt minus Differenz". Bei 2,5e11 s ist ein Float-Schritt etwa 30 µs groß, und ob
+Jahr 10000 überlief oder „in 7973 years" ergab, entschied die Rundung: zwei von drei Aufrufen
+lieferten das Zweite. Der Test aus #411 war deshalb auf `master` zufällig grün und auf dem
+nächsten PR rot. Grenzfälle direkt aus dem Zeitstempel rechnen (`pendulum.from_timestamp`). Der
+Test ruft die Funktion mehrfach auf, denn ein einzelner Aufruf beweist hier nichts.
+
 ## Was in welchen PR gehört (Pflicht)
 
 - **Bugfix ⇒ Regressionstest**, der den Bug reproduziert: vor dem Fix rot, danach grün.
