@@ -16,6 +16,33 @@ Aussehen gehört in eine **Rolle**, nicht in die Komponente. Die fünf Rollen st
 Wiederkehrendes UI-Element ⇒ geteilte Komponente (`src/components/shared/`) **oder** Rolle,
 nicht pro View kopieren.
 
+## ⚠️ Neues Bedienelement? Erst die Rolle wählen, dann nichts mehr von Hand
+
+Jedes drückbare Element in Memphis hat **fünf** Merkmale, und eine Rolle bringt alle fünf mit:
+Offset-Schatten (3 px, Hover 4 px), Press in den Schatten bzw. Skalierung, Schraffur (bei
+Wort-Buttons als Ring ums Label), Hover über `--mem-hover` + `--mem-hover-text`, 44-px-Ziel.
+Wer Rahmen und Fläche **von Hand** schreibt, bekommt genau die Hälfte, die man im Kopf hatte —
+der Schatten ist dabei am unauffälligsten, weil er beim Schreiben nirgends fehlt.
+
+Real passiert (#402 → Fix 2026-10-09): Die Genre-Chips unter „Never played" trugen
+`border` + `background-color` + `cursor: pointer` von Hand und standen als einzige Platten der
+Zeile **ohne Schatten** da, 36 statt 44 px hoch, ohne Schraffur und ohne Press — direkt unter
+zwei Stickern, die alle einen werfen. Der Nutzer sah es sofort, kein Test sah es.
+
+| was es ist | Rolle |
+|---|---|
+| Wort-Button, Chip, Filter, Tab (Muster: Such-Tabs) | `btn-pill` (Chips: `$radius: $candy-radius-pill`) |
+| Icon-Button auf einer Fläche, Header-Aktion | `btn-action` (Wort darauf: `$hatch: label`) |
+| Haupt-CTA (Play, Speichern im Hauptfluss) | `btn-primary` |
+| blanker Glyph ohne Ruhefläche | `btn-quiet` |
+| „An"-Zustand eines Toggles | `btn-toggle-on` |
+
+Ausgewählt/gedrückt (`aria-pressed`, aktiver Tab) heißt `var(--look-selected-fill)` +
+`var(--look-selected-text)` **und** `--label-hatch: var(--mem-hatch-accent)` — Gelb ist ein
+statischer Akzent, ohne den Sprite-Tausch steht im Dark-Theme ein leerer Ring. Und vor dem PR
+einmal ansehen: hell **und** dunkel, Desktop **und** Handy, Computed `box-shadow` ≠ `none`.
+`~/uitest/chipshot.js` zeigt, wie man das für eine Reihe Chips misst.
+
 ## ⚠️ Icons nie über `fill` einfärben — immer über `color`
 
 Der Transport-/Chrome-Satz (play, pause, next, shuffle, repeat, repeat-one, lyrics, volume-*) ist
