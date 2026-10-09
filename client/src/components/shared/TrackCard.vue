@@ -11,8 +11,11 @@
     :class="{ 'context-menu-open': contextMenuFlag }"
   >
     <CardTypeLabel type="track" />
-    <div class="image card-art">
+    <div class="image card-art" :class="{ 'has-stamp': repeatFactor }">
       <img :src="paths.images.thumb.large + track.image" />
+      <!-- "On repeat": how many times the usual this week's plays are. Below
+           one play a week there is no factor, and nothing is shown. -->
+      <CardStamp v-if="repeatFactor" :value="`${repeatFactor}×`" caption="usual" />
       <PlayBtn :source="playSource" :track="track" />
     </div>
     <div class="tinfo card-plate">
@@ -22,7 +25,6 @@
       </div>
       <div class="ttitle ellip">{{ track.title }}</div>
       <ArtistName :albumartists="track.albumartists" :artists="track.artists" />
-      <RepeatFactor v-if="track.home?.weeks" :factor="track.home.factor ?? null" />
     </div>
   </RouterLink>
 </template>
@@ -33,12 +35,12 @@ import { playSources } from "@/enums";
 import { Track } from "@/interfaces";
 
 import { Routes } from "@/router";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { showTrackContextMenu } from "@/helpers/contextMenuHandler";
 import ArtistName from "../shared/ArtistName.vue";
 import CardTypeLabel from "../shared/CardTypeLabel.vue";
 import PlayBtn from "../shared/PlayBtn.vue";
-import RepeatFactor from "../HomeView/RepeatFactor.vue";
+import CardStamp from "./CardStamp.vue";
 import { isTypeEcho } from "@/utils/cardTypes";
 
 const props = defineProps<{
@@ -47,6 +49,8 @@ const props = defineProps<{
 }>();
 
 const contextMenuFlag = ref(false);
+
+const repeatFactor = computed(() => (props.track.home?.weeks ? (props.track.home.factor ?? null) : null));
 
 function showMenu(e: MouseEvent) {
   showTrackContextMenu(e, props.track, contextMenuFlag);

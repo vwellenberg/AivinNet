@@ -163,6 +163,17 @@ $card-cover-pad: 6px;
     }
 }
 
+// A tile with a stamp (CardStamp.vue) lets it hang over the artwork's corner,
+// so the art stops clipping — and the picture takes over the rounded corners the
+// clip used to cut (inner radius: the frame is drawn on the art itself).
+.card-art.has-stamp {
+    overflow: visible;
+
+    > img {
+        border-radius: calc(#{$candy-radius} - #{$candy-border-w});
+    }
+}
+
 // A glyph placeholder instead of a picture (folder tile, favourites tile).
 .card-art.is-glyph {
     background-color: $candy-pink-soft;
