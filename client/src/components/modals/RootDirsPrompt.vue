@@ -68,14 +68,17 @@ onMounted(() => {
     display: block;
     width: 100%;
     text-align: left;
-    color: inherit;
     font: inherit;
     padding: 1.25rem;
     position: relative;
-    @include candy-box($candy-pink-soft, $candy-radius-sm);
+    // The row plate, like the settings rows (handDrawnPlates.test.ts): frame
+    // and fill used to come from `candy-box` with a pointer on top — no
+    // shadow, no press, and a hover on `$candy-pink-deep`, which is YELLOW,
+    // the "playing" signal. No hatch, for the settings rows' reason: two lines
+    // of type per row, and every row here is a choice.
+    @include mem-row-plate($candy-radius-sm, $hatch: false);
     margin-top: 1.25rem;
     cursor: pointer;
-    transition: background-color $motion-move ease-out;
     // The choices step in one under the other — the shared arrival, where
     // they used to slide 100px up on a JS spring that ignored reduced motion
     // (see `.m-content` in modal.vue). No extra wait for the plate: they only
@@ -83,7 +86,7 @@ onMounted(() => {
     @include mem-arrival($beyond: drop);
 
     &:hover {
-      background-color: $candy-pink-deep;
+      @include mem-row-plate-hover($hatch: false);
     }
 
     .info {
