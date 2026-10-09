@@ -101,18 +101,14 @@ function getSvg(notif: NotifType) {
         padding-right: $medium;
     }
 
+    // A word button, so the pill role (handDrawnPlates.test.ts). It was a frame
+    // and a pointer by hand: no shadow on the one plate inside a toast that
+    // casts one, a 31px target, and the retired blush as its hover. The panel
+    // fill reads on all three toast colours; it is theme-aware, so the label is
+    // too — the role's static ink is only legal on a static accent.
     .notif-action {
-        background-color: transparent;
-        border: $candy-border;
-        color: $candy-text;
-        font-weight: 700;
-        padding: $smaller $small;
-        height: unset;
-        cursor: pointer;
-
-        &:hover {
-            background-color: $candy-pink-soft;
-        }
+        @include btn-pill($fill: $mem-panel);
+        color: $mem-content-text;
     }
 
     @include smallestPhones {

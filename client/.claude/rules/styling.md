@@ -29,6 +29,19 @@ Real passiert (#402 → Fix 2026-10-09): Die Genre-Chips unter „Never played" 
 Zeile **ohne Schatten** da, 36 statt 44 px hoch, ohne Schraffur und ohne Press — direkt unter
 zwei Stickern, die alle einen werfen. Der Nutzer sah es sofort, kein Test sah es.
 
+**Jetzt sieht es einer:** [handDrawnPlates.test.ts](../../src/components/__tests__/handDrawnPlates.test.ts)
+läuft über jeden Style-Block (`.vue` + `src/**/*.scss`) und wird rot, sobald ein Block
+**drückbar** ist (`cursor: pointer` oder Regel auf `button`), einen **sichtbaren Rahmen** zieht
+und eine **Fläche** malt — auch eine, die erst im Hover kommt —, ohne dass er oder ein
+verschachtelter Block eine Rolle bzw. einen Schatten nimmt (`btn-*`, `candy-raised`,
+`candy-shadow`, `mem-row-plate*`, `candy-row-*`, `mem-sticker`, `candy-box`, `box-shadow` ≠
+`none`). Ausnahmen stehen in `ALLOWED`, **mit Begründung**. Der erste Lauf fand das „Undo" im
+Toast und die Nutzer-Karte unter Settings → Accounts (beide umgebaut) und die Regler-Leiste
+(Ausnahme: wird gezogen, nicht gedrückt). Der Schnell-Scan davor hatte 18 „Kandidaten" — 15
+davon waren blanke Glyphen mit `border: none` + `transparent`, also gar keine Platten. Blind ist
+der Zensus für gefüllte Buttons **ganz ohne** Rahmen (Pair-Seite, „Load more" der
+Ordnersuche): #424.
+
 | was es ist | Rolle |
 |---|---|
 | Wort-Button, Chip, Filter, Tab (Muster: Such-Tabs) | `btn-pill` (Chips: `$radius: $candy-radius-pill`) |

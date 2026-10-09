@@ -162,3 +162,59 @@ export function ruleBodies(css: string): string[] {
   }
   return out;
 }
+
+/** One rule of a stylesheet, with the selector that opened it. */
+export interface NamedRule {
+  /** The selector as written (`&:hover`, `.chip`), whitespace collapsed. */
+  selector: string;
+  /** The selectors of the enclosing rules, outermost first. */
+  parents: string[];
+  /** The block verbatim, nested rules included. */
+  body: string;
+  /** `ownDeclarations(body)`: its own declarations plus breakpoint overrides. */
+  own: string;
+}
+
+/**
+ * `ruleBodies` with names attached — for a census that has to say WHICH block
+ * broke the rule, or allow-list one by name.
+ *
+ * Sass interpolation is neutralised first: `#{…}` opens a brace that is not a
+ * block, and left in, it is read as a nested rule and takes the declaration it
+ * sits in out of `own`.
+ */
+export function namedRules(css: string, parents: string[] = []): NamedRule[] {
+  const clean = css.replace(/#\{[^{}]*\}/g, "#_");
+  const out: NamedRule[] = [];
+  let pending = "";
+  let i = 0;
+
+  while (i < clean.length) {
+    const char = clean[i];
+
+    if (char === "{") {
+      let depth = 1;
+      let j = i + 1;
+      while (j < clean.length && depth > 0) {
+        if (clean[j] === "{") depth++;
+        else if (clean[j] === "}") depth--;
+        j++;
+      }
+
+      const selector = pending.trim().replace(/\s+/g, " ");
+      const body = clean.slice(i + 1, j - 1);
+      out.push({ selector, parents, body, own: ownDeclarations(body) });
+      out.push(...namedRules(body, [...parents, selector]));
+
+      pending = "";
+      i = j;
+      continue;
+    }
+
+    pending += char;
+    if (char === ";" || char === "}") pending = "";
+    i++;
+  }
+
+  return out;
+}

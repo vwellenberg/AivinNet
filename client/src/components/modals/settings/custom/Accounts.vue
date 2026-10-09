@@ -300,12 +300,17 @@ onMounted(async () => {
         padding: 1rem;
         padding-bottom: 0;
         margin-top: 1rem;
-        border: $candy-border;
-        cursor: pointer;
-
-        &:hover {
-            background-color: $candy-pink-soft;
-        }
+        // A CARD around two controls, not a control itself: since #137 the
+        // toggle and the delete glyph are the buttons, so the card no longer
+        // claims the pointer (its padding never did anything) or paints the
+        // retired blush hover over everything inside it, the expanded settings
+        // included. What it lacked was the shadow — the one framed plate in
+        // this panel without one, under a "New user" pill and two switches that
+        // all cast one (handDrawnPlates.test.ts). A static shadow, like the
+        // toast's: no press and no transition of its own, which would also
+        // override the list's move/enter transitions above.
+        @include candy-box($mem-panel, $candy-radius);
+        @include candy-shadow(3px, 3px);
 
         .userinfo {
             display: grid;
