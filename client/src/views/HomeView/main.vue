@@ -203,9 +203,13 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         }
     }
 
-    // Genre chips of "Never played", between its caption and the cards. The
-    // pressed one wears the accent fill: the same yellow means "active" across
-    // the app, and it reads in both themes.
+    // Genre chips of "Never played", between its caption and the cards. They
+    // are filter chips like the search tabs, so they take the same `pill` role
+    // (shadow, press, label hatch, hover token, 44px target) instead of a
+    // hand-drawn plate: the hand-drawn one shipped without a shadow next to
+    // a row where every other plate has one. The pressed one wears the
+    // selected fill: the same yellow means "active" across the app, and it
+    // reads in both themes.
     .row-chips {
         display: flex;
         flex-wrap: wrap;
@@ -214,20 +218,18 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
     }
 
     .row-chip {
-        min-height: 2.25rem;
-        padding: 0 0.9rem;
-        border-radius: $candy-radius-pill;
-        border: $mem-ring-w solid $mem-frame;
-        background-color: $mem-panel;
+        @include btn-pill($radius: $candy-radius-pill, $fill: $mem-panel);
+        // Panel is theme-aware (dark in the dark theme), so the label has to
+        // be too: the role's static ink is only legal on a static accent fill.
         color: $candy-text;
         font-size: 0.85rem;
-        font-weight: 700;
-        cursor: pointer;
 
-        &[aria-pressed='true'] {
-            background-color: $mem-yellow;
-            border-color: $mem-ink;
-            color: $mem-ink;
+        &[aria-pressed='true'],
+        &[aria-pressed='true']:hover {
+            background-color: var(--look-selected-fill, #{$candy-pink-deep});
+            color: var(--look-selected-text, #{$mem-ink});
+            // Yellow is a static accent: the ink sprite, in both themes.
+            --label-hatch: var(--mem-hatch-accent);
         }
     }
 

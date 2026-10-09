@@ -132,6 +132,19 @@ describe("label call sites", () => {
     expect(block(seeAll, "&:hover").body).toMatch(/--label-hatch:\s*var\(--mem-hatch-hover\)/);
   });
 
+  it("the genre chips on Home are pills, not a hand-drawn plate", () => {
+    // Reported on "Never played": the chips had border and fill written by
+    // hand and no shadow, next to caption plates that all cast one. They are
+    // filter chips like the search tabs, so they take the same role, and the
+    // pressed (yellow) one takes the static ink sprite.
+    const home = styleBlock(SOURCES["/src/views/HomeView/main.vue"] ?? "");
+    const chip = block(home, ".row-chip").body;
+    expect(chip, ".row-chip block not found").not.toBe("");
+    expect(chip).toMatch(/@include btn-pill\(/);
+    expect(chip).not.toMatch(/^\s*border:/m);
+    expect(chip).toMatch(/&\[aria-pressed='true'\][^{]*\{[^}]*--label-hatch:\s*var\(--mem-hatch-accent\)/);
+  });
+
   it("keeps the non-pressable sort labels smooth", () => {
     // "Sort By" and the chart glyph share the chips' anatomy but cannot be
     // pressed; a texture there would promise a press.
