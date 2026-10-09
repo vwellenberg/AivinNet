@@ -142,7 +142,7 @@ describe("label call sites", () => {
     expect(chip, ".row-chip block not found").not.toBe("");
     expect(chip).toMatch(/@include btn-pill\(/);
     expect(chip).not.toMatch(/^\s*border:/m);
-    expect(chip).toMatch(/&\[aria-pressed='true'\][^{]*\{[^}]*--label-hatch:\s*var\(--mem-hatch-accent\)/);
+    expect(block(chip, "&[aria-pressed='true']:hover").body).toMatch(/--label-hatch:\s*var\(--mem-hatch-accent\)/);
   });
 
   it("keeps the non-pressable sort labels smooth", () => {
