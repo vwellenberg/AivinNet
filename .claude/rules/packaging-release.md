@@ -44,8 +44,11 @@ drinsteckt und nicht ein Cache-Treffer.
 trifft das nur den Wrapper, das Kind überlebt und lauscht eventuell noch auf `0.0.0.0`. Seit #300
 ruft `appimage/entrypoint.sh` den Interpreter unter `opt/` direkt per `exec` auf, nicht mehr
 python-appimages `usr/bin/python`. Das ist ein Bash-Wrapper, der Python **ohne** `exec` als Kind
-startet. Seitdem ist die gestartete PID der Server selbst (`tests/test_appimage_entrypoint.py`),
-solange der Interpreter unter `opt/` gefunden wird. Sonst fällt der Entrypoint auf den Wrapper
+startet. Seitdem ist die PID von `AppRun` der Server selbst (`tests/test_appimage_entrypoint.py`),
+solange der Interpreter unter `opt/` gefunden wird. ⚠️ Das gilt für das **entpackte** AppImage
+(`install.sh`, `--appimage-extract`). Die `.AppImage`-Datei selbst startet `AppRun` als Kind ihrer
+Laufzeit; ein `kill` auf deren PID lässt den Server weiterlaufen (gemessen 2026-10-09). Eine
+solche Testinstanz also weiter über den Port beenden. Sonst fällt der Entrypoint auf den Wrapper
 zurück, damit die App überhaupt startet, und der Release-Workflow verweigert so ein AppDir. Vom
 Wrapper übernimmt der Entrypoint nur `SSL_CERT_FILE`, und zwar nur, wenn der Bundle existiert.
 Das betrifft das TLS der stdlib; `requests` nimmt certifi. Unter systemd fiel der Fehler nie auf,
@@ -76,10 +79,18 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
   `aivinnet` heißt, gibt es auf PyPI nichts, was gewinnen könnte. Die `--no-index`-Flags im
   Workflow bleiben als Gürtel-und-Hosenträger stehen — sie kosten nichts und halten den Build
   offline-deterministisch.
-- **`appimage/requirements.txt` ist ein Handduplikat von `[project].dependencies`** (das AppImage
-  installiert `aivinnet` mit `--no-deps`). Ein fehlender Eintrag ergibt einen ImportError erst
-  beim Start, bei grüner CI. Abgesichert durch `tests/test_packaging_manifests.py` — bei jeder
-  neuen Dependency mitpflegen.
+- **⚠️ Releases installieren genau `uv.lock`, mit Hashes (#300).** Vorher löste jedes Artefakt die
+  offenen Bereiche aus `pyproject.toml` (`pillow>=…`) am Release-Tag frisch auf: Docker über
+  `pip install .`, die Binaries über `aivinnet[build]` und das AppImage über ein handgepflegtes
+  `appimage/requirements.txt`. Eine Bibliotheksversion, die nach dem letzten grünen CI-Lauf
+  erschien, ging ungetestet raus (getestet wird der Lock in der API-Bahn, `uv sync --locked`). Heute exportiert `build-wheels` den Lock einmal (`uv export
+  --frozen`, Artefakt `locked-requirements`, für Runtime und `+build`). AppImage und PyInstaller
+  installieren ihn mit `pip --require-hashes`, und das Dockerfile macht dasselbe in seiner
+  `lock`-Stage. `aivinnet` selbst kommt immer mit `--no-deps`. ⚠️ **Kein
+  `appimage/requirements.txt` mehr anlegen:** python-appimage installiert es Zeile für Zeile mit
+  `pip install -U`, prüft dabei keinen Hash und hebt jeden Pin aus. Neue Abhängigkeit heißt also
+  `uv add` / `uv lock`, sonst nichts. Wächter: `TestLockedReleaseDependencies`. Den eigenen
+  Server betrifft das nicht, der läuft per `uv` aus dem Checkout.
 - **`settings.py::AssetHandler.RELEASES_URL` muss auf den Fork zeigen**, sonst lädt ein Install
   ohne gebündeltes `client.zip` (Quell-Checkout) den Upstream-Client. Ein Upstream-Merge stellt den alten Wert
   stillschweigend wieder her → derselbe Test wacht darüber.
