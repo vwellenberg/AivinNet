@@ -730,12 +730,34 @@ $sidebar-inset: 0.875rem;
 
   // Short windows (utils/sidebarFit.ts): the nav and the LIBRARY heading
   // alone filled the panel and left the playlists ~30 px. Then the panel
-  // scrolls as ONE. The active entry's reach-out is clipped meanwhile — a
-  // scroller cannot keep x visible — which is the price for a reachable list.
+  // scrolls as ONE — and a scroller cannot keep x visible, so the active
+  // entry's reach past the frame was cut off at the frame (#420, reported as
+  // "the arrow is clipped after a window change": the window sat right at the
+  // threshold). Here the reach is taken back (`--nav-reach`, NavButtons.vue):
+  // the plate keeps its row width and its point fits the nav's 22px inset,
+  // so nothing is clipped and the point still aims at the page.
   &.whole-scroll {
     grid-template-rows: auto auto auto;
     overflow-y: auto;
     overflow-x: hidden;
+    --nav-reach: 0px;
+    // The same quiet scrollbar the list has (below): thin, and only shown
+    // while the pointer is on the panel. Without it this mode showed a grey
+    // classic bar the list never does.
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background-color: transparent;
+    }
+
+    &:hover {
+      scrollbar-color: $gray2 transparent;
+    }
+
+    &:hover::-webkit-scrollbar-thumb {
+      background-color: $gray2;
+    }
 
     .scrollable {
       height: auto;

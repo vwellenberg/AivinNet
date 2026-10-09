@@ -129,7 +129,11 @@ import { menus } from "./navitems";
       z-index: 1;
       // +1.6rem plus the point's ~22px: past the nav padding, the panel
       // padding and the 3px frame, so the point lands on the gap to the page.
-      width: calc(100% + 1.6rem);
+      // The reach is a property because the panel can take it back: when the
+      // whole panel scrolls (short windows, `.whole-scroll` in index.vue) it is
+      // a scroll container, which clips x, and the reach-out was cut off at
+      // the frame (#420). There it is 0 and the point fits the nav's inset.
+      width: calc(100% + var(--nav-reach, 1.6rem));
       // No right border at all rather than a transparent one: a transparent
       // side still takes its share of the corner miter, which left a small
       // notch of fill where the top and bottom frame meet the point. The 3px

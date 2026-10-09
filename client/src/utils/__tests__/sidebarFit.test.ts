@@ -12,9 +12,16 @@ describe('sidebarScrollsWhole', () => {
         [430, true], // 1366x600
         [480, true], // 1366x650 — the fixed parts alone overflow the panel
         [590, true], // 1440x760 — 47 px left for the playlists
+        [697, false], // 1080p with bookmarks + status bar (#420) — 154 px, three rows
         [780, false], // 1920x950 — 237 px, the list keeps its own scroller
     ])('a %ipx panel scrolls whole: %s', (panel, whole) => {
         expect(sidebarScrollsWhole(panel, NAV, HEADING)).toBe(whole)
+    })
+
+    it('asks for two and a half library rows, not more', () => {
+        // #420: 160 sent the user's 1080p window into the whole-panel mode,
+        // which costs the active entry its reach past the frame.
+        expect(MIN_LIBRARY_LIST).toBe(2 * (44 + 8) + 22)
     })
 
     it('flips exactly where the list would get less than the minimum', () => {
