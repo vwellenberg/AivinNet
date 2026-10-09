@@ -76,7 +76,7 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   ihres Wochenschnitts der 8 Wochen davor. Sortiert nach Plays **über** dem Schnitt (Trend, nicht
   Charts), höchstens 2 pro Album. Jede Karte trägt `home: {weeks, factor}` (8 Wochen + diese,
   Faktor gegen den Schnitt, `None` unter einem Play pro Woche — dort sagt der Text „rarely before“) und zeigt daraus das „N× usual“-Badge
-  (`client/src/components/HomeView/RepeatFactor.vue`; die Mini-Balken sind seit 2026-10-09 weg, `weeks` bleibt in der API). Die Zeile ist **auch eine Playlist**
+  (als Stempel auf dem Cover: `client/src/components/shared/CardStamp.vue`, generisch auch für andere Kachel-Hinweise; die Mini-Balken sind seit 2026-10-09 weg, `weeks` bleibt in der API). Die Zeile ist **auch eine Playlist**
   (`onrepeat`, `lib/home/onrepeat.py`, aus dem RAM-Store der Zeile): „Play all“ spielt sie, der
   Titel öffnet sie. ⚠️ Eine neue erzeugte Playlist gehört in **`lib/home/generated_playlists.py`** (das
   Register, das Endpoint und Home-Karten lesen) **und** in `homerows.CUSTOM_PLAYLISTS` (nur Namen,
