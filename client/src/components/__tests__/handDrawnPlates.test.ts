@@ -80,14 +80,22 @@ function values(css: string, property: string): string[] {
   );
 }
 
+/**
+ * `candy-box` IS a frame and a fill (Global/_candy.scss) — and nothing else: no
+ * shadow, no press. So it counts as drawing the plate, never as a role.
+ */
+const BOX = /@include\s+candy-box\b/;
+
 /** A frame you can see: not `none`/`0`, and not the reserved transparent one. */
 const framed = (css: string) =>
+  BOX.test(css) ||
   values(css, "border").some(
     value => !/^(none|0|0px|unset|initial|inherit)$/.test(value) && !value.includes("transparent")
   );
 
 /** A fill you can see — `background` or `background-color`, never `-image`. */
 const filled = (css: string) =>
+  BOX.test(css) ||
   values(css, "background(?:-color)?").some(value => !/^(none|transparent|unset|initial|inherit|0)$/.test(value));
 
 /**
@@ -100,10 +108,11 @@ const pressable = (own: string, selector: string) =>
 /**
  * A role, or one of the mixins a role is built from, or a shadow stated by
  * hand. `box-shadow: none` is NOT a shadow — a plate that switches its shadow
- * off is exactly the flat plate this census is about.
+ * off is exactly the flat plate this census is about. (`candy-box` is not in
+ * here — see BOX.)
  */
 const ROLE_OR_SHADOW =
-  /@include\s+(?:btn-[\w-]+|candy-raised|candy-shadow|mem-row-plate[\w-]*|candy-row-[\w-]+|mem-sticker|candy-box)\b|mem-shadow\(|box-shadow\s*:\s*(?!none\b)[^;\s]/;
+  /@include\s+(?:btn-[\w-]+|candy-raised|candy-shadow|mem-row-plate[\w-]*|candy-row-[\w-]+|mem-sticker)\b|mem-shadow\(|box-shadow\s*:\s*(?!none\b)[^;\s]/;
 
 interface Plate {
   /** `file :: outer » inner` — the key ALLOWED is written in. */

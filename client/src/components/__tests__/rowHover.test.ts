@@ -63,6 +63,10 @@ const PLATES = [
   // list where every row plays — the chart-row case, so no texture. The fill
   // is the static panel because the card under it is a static pastel.
   { file: "/src/components/HomeView/ContinueCard.vue", selector: ".next-row", hatch: false },
+  // The "where do you want to look for music?" choices: two lines of type per
+  // row and every row a choice — the setting rows' case. They were `candy-box`
+  // plus a pointer, without a shadow (handDrawnPlates.test.ts).
+  { file: "/src/components/modals/RootDirsPrompt.vue", selector: ".option", hatch: false },
 ];
 
 /** The static light fills a hovered/marked row is allowed to wear. */
