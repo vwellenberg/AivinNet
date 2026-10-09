@@ -24,9 +24,8 @@ import { namedRules } from "./scssBlocks";
 // app: something pressable (`cursor: pointer`, or a rule on a `button`) that
 // draws a visible frame and a fill, while the block takes no role and no shadow
 // at rest (a role that only arrives in `&:hover` does not count). The fill may
-// sit in a state — a framed button
-// that only fills under the pointer (the toast's "Undo") is the same plate, it
-// just shows its fill later.
+// sit in a state — a framed button that only fills under the pointer (the
+// toast's "Undo") is the same plate, it just shows its fill later.
 //
 // What it does NOT see: a filled button with no frame at all (the pair page's
 // "Go to login", the folder search's "Load more"). That is the same drift one
@@ -90,7 +89,10 @@ const BOX = /@include\s+candy-box\b/;
 /** A frame you can see: not `none`/`0`, and not the reserved transparent one. */
 const framed = (css: string) =>
   BOX.test(css) ||
-  values(css, "border").some(
+  // The longhands too: a frame spelled `border-width` + `border-color` is the
+  // same frame, and a census that only knows the shorthand is one rewrite away
+  // from blind.
+  values(css, "border(?:-width|-color)?").some(
     value => !/^(none|0|0px|unset|initial|inherit)$/.test(value) && !value.includes("transparent")
   );
 
@@ -104,7 +106,8 @@ const filled = (css: string) =>
  * its pointer from the global base (Global/basic.scss) and never restates it.
  */
 const pressable = (own: string, selector: string) =>
-  values(own, "cursor").includes("pointer") || /(?:^|[\s>+~])button\b/.test(selector.split(",").pop() ?? "");
+  values(own, "cursor").includes("pointer") ||
+  selector.split(",").some(part => /(?:^|[\s>+~])button\b/.test(part.trim()));
 
 /**
  * A role, or one of the mixins a role is built from, or a shadow stated by
