@@ -33,6 +33,22 @@ COPY --from=client /dist/client /dist/client
 RUN cd /dist && python -m zipfile -c /client.zip client
 
 # ---------------------------------------------------------------------------
+# The dependency versions the tests ran against (#300).
+#
+# `pip install .` resolved pyproject's open ranges (`pillow>=11.1.0`) fresh at
+# build time, so an image could ship a library release that appeared after the
+# last green CI run. uv.lock is what `uv sync` and the API tests use; this stage
+# turns it into a requirements file with hashes and platform markers (the same
+# for every target, hence $BUILDPLATFORM). Its own stage: uv stays out of the
+# image.
+# ---------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM python:3.11-slim AS lock
+RUN pip install --no-cache-dir "uv==0.11.32"
+WORKDIR /lock
+COPY pyproject.toml uv.lock ./
+RUN uv export --locked --no-dev --no-emit-project --no-header -o /requirements.lock
+
+# ---------------------------------------------------------------------------
 # Stage 2: the server.
 # ---------------------------------------------------------------------------
 FROM python:3.11-slim
@@ -50,8 +66,13 @@ RUN apt-get install -y gcc libev-dev
 RUN apt-get install -y ffmpeg libavcodec-extra 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy repo root files needed for installation
-COPY pyproject.toml requirements.txt ./
+# The locked dependencies first, in their own layer, so a source change keeps
+# them cached. `--require-hashes`: exactly the files uv.lock names.
+COPY --from=lock /requirements.lock /tmp/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock \
+    && rm /tmp/requirements.lock
+
+COPY pyproject.toml ./
 COPY src/ ./src/
 # Must land BEFORE `pip install .`, and must be listed in
 # `[tool.setuptools.package-data]` — the build has no `.git`, so setuptools-scm
@@ -76,7 +97,7 @@ ARG app_version=
 RUN if [ -n "$app_version" ]; then \
         export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AIVINNET="${app_version#v}"; \
     fi \
-    && pip install --no-cache-dir .
+    && pip install --no-cache-dir --no-deps .
 
 # ⚠️ The default config parent, so a bare `aivinnet --password-reset` (as the
 # startup banner suggests) reaches the SAME data as the server. Without it the

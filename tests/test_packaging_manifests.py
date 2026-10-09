@@ -1,12 +1,11 @@
-"""Guards for the release packaging manifests.
+"""Guards for the release packaging.
 
-These are hand-maintained duplicates of information that lives elsewhere, and
-both have failed silently in a way CI could not see:
+Each of these has failed silently once, in a way CI could not see:
 
-* ``appimage/requirements.txt`` is a second copy of the runtime dependencies.
-  The AppImage installs ``aivinnet`` with ``--no-deps``, so a dependency that
-  exists only in ``pyproject.toml`` is missing from the AppImage and blows up
-  as an ImportError at start — long after a green CI run.
+* The release artifacts install their dependencies from ``uv.lock``, the set
+  the tests ran against (``TestLockedReleaseDependencies``). The AppImage used
+  a hand-kept ``appimage/requirements.txt`` with open ranges instead, so a
+  release could ship whatever PyPI had that day.
 * ``settings.py::AssetHandler.RELEASES_URL`` decides whose web client an
   installation downloads when no ``client.zip`` is bundled. Pointing at the
   upstream repo silently ships the upstream UI, and an upstream merge would
@@ -24,47 +23,60 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Dependencies whose environment marker excludes Linux are legitimately absent
-# from the (Linux-only) AppImage requirements file.
-WINDOWS_ONLY_MARKER = re.compile(r"sys_platform\s*==\s*['\"]win32['\"]")
 
+class TestLockedReleaseDependencies:
+    """Every release artifact installs exactly what uv.lock pins, with hashes (#300).
 
-def _canonical(name: str) -> str:
-    """PEP 503 normalisation, so `colorgram.py` == `colorgram-py`."""
-    return re.sub(r"[-_.]+", "-", name).lower()
+    They resolved pyproject's open ranges (`pillow>=11.1.0`) fresh at build
+    time: the Docker image via `pip install .`, the binaries via
+    `pip install aivinnet[build]`, the AppImage via a hand-kept copy of the
+    dependency list. A library release between the last green CI run and a
+    release dispatch shipped untested. The lock is exported once per release
+    (`build-wheels`) and in the Dockerfile's `lock` stage.
+    """
 
+    EXPORT = re.compile(r"uv export --locked --no-dev --no-emit-project")
 
-def _requirement_name(spec: str) -> str:
-    return _canonical(re.split(r"[><=!~\[;\s]", spec.strip(), maxsplit=1)[0])
+    def test_the_release_exports_the_lock_once_for_every_binary(self):
+        workflow = _release_workflow()
+        assert len(self.EXPORT.findall(workflow)) == 2, "runtime and runtime+build, both in build-wheels"
+        assert "--extra build -o locked/build.txt" in workflow
+        assert 'name: "locked-requirements"' in workflow
 
+    def test_the_binaries_install_only_the_lock(self):
+        workflow = _release_workflow()
+        assert "--require-hashes -r locked/runtime.txt" in workflow, "AppImage"
+        assert "pip install --require-hashes -r locked/build.txt" in workflow, "PyInstaller"
+        # The wheel itself never pulls dependencies of its own.
+        assert "aivinnet[build]" not in workflow
+        # Whole commands: `pip install --target … \` carries `aivinnet` on its
+        # continuation line.
+        commands = re.sub(r"\\\n\s*", " ", workflow).splitlines()
+        for command in commands:
+            if not command.strip().startswith("#") and re.search(r"pip install .*\baivinnet\b", command):
+                assert "--no-deps" in command, command.strip()
 
-def _pyproject_runtime_deps() -> set[str]:
-    with (REPO_ROOT / "pyproject.toml").open("rb") as file:
-        pyproject = tomllib.load(file)
+    def test_the_image_installs_only_the_lock(self):
+        dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        assert self.EXPORT.search(dockerfile)
+        assert "pip install --no-cache-dir --require-hashes -r /tmp/requirements.lock" in dockerfile
+        assert "pip install --no-cache-dir --no-deps ." in dockerfile
 
-    return {
-        _requirement_name(dep) for dep in pyproject["project"]["dependencies"] if not WINDOWS_ONLY_MARKER.search(dep)
-    }
+    def test_no_unhashed_copy_of_the_dependencies_is_left(self):
+        # python-appimage installs an appimage/requirements.txt line by line
+        # with `pip install -U`, which checks no hash and upgrades past pins.
+        assert not (REPO_ROOT / "appimage" / "requirements.txt").exists()
+        # Nothing read the root one any more either; a dead list drifts.
+        assert not (REPO_ROOT / "requirements.txt").exists()
 
-
-def _appimage_deps() -> set[str]:
-    lines = (REPO_ROOT / "appimage" / "requirements.txt").read_text(encoding="utf-8").splitlines()
-    return {_requirement_name(line) for line in lines if line.strip() and not line.strip().startswith("#")}
-
-
-class TestAppimageRequirements:
-    def test_no_runtime_dependency_is_missing(self):
-        missing = _pyproject_runtime_deps() - _appimage_deps()
-        assert not missing, (
-            f"Dependencies missing from appimage/requirements.txt: {sorted(missing)}. "
-            "The AppImage installs aivinnet with --no-deps, so these would be absent at runtime."
-        )
-
-    def test_no_stale_extra_dependency(self):
-        extra = _appimage_deps() - _pyproject_runtime_deps()
-        assert not extra, (
-            f"appimage/requirements.txt lists dependencies that pyproject.toml no longer has: {sorted(extra)}"
-        )
+    def test_a_stale_lock_stops_the_build(self):
+        # `--frozen` exports whatever is committed; `--locked` refuses a lock
+        # that no longer matches pyproject.toml (a dependency added without
+        # `uv lock` would otherwise ship missing).
+        dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+        ci = (WORKFLOWS / "ci.yml").read_text(encoding="utf-8")
+        assert "uv export --frozen" not in _release_workflow() + dockerfile
+        assert "uv sync --locked" in ci
 
 
 def _release_workflow() -> str:
@@ -288,7 +300,7 @@ class TestDockerfile:
         dockerfile = self._dockerfile()
         build = re.search(r"^RUN yarn build\b", dockerfile, re.MULTILINE)
         bundle = re.search(r"^COPY --from=\S+ \S*client\.zip \./src/aivinnet/client\.zip$", dockerfile, re.MULTILINE)
-        install = re.search(r"pip install --no-cache-dir \.", dockerfile)
+        install = re.search(r"pip install --no-cache-dir (--no-deps )?\.", dockerfile)
 
         assert build, "Dockerfile no longer builds the web client"
         assert bundle, "Dockerfile no longer copies client.zip into src/aivinnet/"

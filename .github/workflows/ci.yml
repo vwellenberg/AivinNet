@@ -101,8 +101,11 @@ jobs:
       - name: Install libev
         run: sudo apt-get update && sudo apt-get install -y libev-dev
 
+      # `--locked`: a uv.lock that no longer matches pyproject.toml fails here.
+      # A plain `uv sync` re-locked silently and tested the new resolution,
+      # while the release installs the committed lock (#300).
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked
 
       # Full-stack request-cycle tests (real flask_openapi3, real request
       # models). This lane exists because the request-model layer broke twice

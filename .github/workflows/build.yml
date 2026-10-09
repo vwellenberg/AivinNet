@@ -143,6 +143,32 @@ jobs:
           compression-level: 0
           name: "wheels"
 
+      # ⚠️ The dependency versions the tests ran against, not whatever PyPI has
+      # on release day (#300). `pip install aivinnet` resolved pyproject's open
+      # ranges (`pillow>=11.1.0`) fresh, so a release could ship a library
+      # version no CI run had seen. uv.lock is what `uv sync` and the API tests
+      # use; exported once here, with hashes and platform markers, and every
+      # binary build installs exactly this with `--require-hashes`. Exported
+      # HERE so the macOS/Windows/ARM runners need no uv of their own.
+      # `--locked`, not `--frozen`: a lock that no longer matches pyproject.toml
+      # (a dependency added without `uv lock`) stops the release instead of
+      # shipping without it. uv here and in the Dockerfile: the same pinned
+      # version, bumped together.
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.11.32"
+
+      - name: Export the locked dependencies
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-header -o locked/runtime.txt
+          uv export --locked --no-dev --no-emit-project --no-header --extra build -o locked/build.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          path: ./locked/*.txt
+          name: "locked-requirements"
+          if-no-files-found: error
+
   build-appimage:
     name: Build Appimage
     runs-on: ${{ matrix.os }}
@@ -211,6 +237,12 @@ jobs:
           path: wheels
           merge-multiple: true
 
+      - name: Download the locked dependencies
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: locked-requirements
+          path: locked
+
       # INFO: --no-index keeps this build offline-deterministic. While the
       # distribution was still called `swingmusic`, this flag was load-bearing:
       # upstream publishes that name on PyPI, pip compared our fresh wheel
@@ -219,7 +251,7 @@ jobs:
       # our client, their API, no device sync and no playlist endpoints. Since
       # the rename to `aivinnet` there is no such package on PyPI (checked:
       # 404), but the name is unclaimed and anyone could take it, so the flag
-      # stays. Runtime deps come from appimage/requirements.txt.
+      # stays. Runtime deps come from uv.lock (step below), not from PyPI's latest.
       #
       # INFO: The AppDir path is DISCOVERED, never spelled out. python-appimage
       # names it after `Name=` in appimage/aivinnet.desktop (-> AivinNet-x86_64),
@@ -241,6 +273,16 @@ jobs:
           APPDIR="${appdirs[0]}"
           echo "APPDIR=$APPDIR" >> $GITHUB_ENV
           echo "Using AppDir: $APPDIR"
+
+          # The locked dependencies, with hashes, by the AppDir's own interpreter
+          # (#300). Not through python-appimage's requirements.txt: that runs
+          # `pip install -U <line>` per line, which can check no hash and
+          # upgrades past any pin. APPDIR absolute for this one call: the
+          # AppDir's sitecustomize then rewrites the installed scripts'
+          # shebangs to relative ones, as it did for its own installs (it only
+          # acts when sys.prefix is $APPDIR/opt/python3.11).
+          APPDIR="$(realpath "$APPDIR")" "$APPDIR/opt/python3.11/bin/python3.11" -I -m pip install \
+            --no-warn-script-location --require-hashes -r locked/runtime.txt
 
           pip install --target "$APPDIR/opt/python3.11/lib/python3.11/" \
             --no-deps --no-index --find-links=wheels/ aivinnet
@@ -430,6 +472,12 @@ jobs:
           path: wheels
           merge-multiple: true
 
+      - name: Download the locked dependencies
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: locked-requirements
+          path: locked
+
       # install system packages
       #
       # ⚠️ `Homebrew/actions/setup-homebrew@master` used to sit here and was
@@ -454,14 +502,14 @@ jobs:
         run: |
           sudo apt-get install libev-dev -y > /dev/null
 
-      # INFO: Two steps on purpose — see the --no-index comment in build-appimage.
-      # The first line installs the local wheel with the index switched off, so
-      # nothing from PyPI can win the version comparison; the second only pulls
-      # the dependencies (runtime + pyinstaller) for that installed distribution.
+      # INFO: The dependencies (runtime + pyinstaller) exactly as uv.lock pins
+      # them, with hashes (#300); then the local wheel with the index switched
+      # off, so nothing from PyPI can win the version comparison (see the
+      # --no-index comment in build-appimage).
       - name: Install AivinNet
         run: |
+          pip install --require-hashes -r locked/build.txt
           pip install --no-index --no-deps --find-links=wheels/ aivinnet
-          pip install --find-links=wheels/ aivinnet[build]
 
       - name: Build with Pyinstaller on ${{ matrix.os }}
         run: pyinstaller aivinnet.spec

@@ -102,7 +102,8 @@ aivinnet/
 │   ├── settings.py           # Path and system settings
 │   └── start_aivinnet.py   # Application startup
 ├── run.py                    # Application launcher
-├── requirements.txt          # Python dependencies
+├── pyproject.toml            # Python dependencies (ranges)
+├── uv.lock                   # ... resolved and hashed: what CI tests and releases ship
 └── docs/                     # Documentation
 ```
 
