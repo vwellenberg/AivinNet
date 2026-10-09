@@ -22,8 +22,9 @@ import { namedRules } from "./scssBlocks";
 //
 // So this census looks for the SHAPE of that bug in every style block of the
 // app: something pressable (`cursor: pointer`, or a rule on a `button`) that
-// draws a visible frame and a fill, while neither the block nor anything nested
-// in it takes a role or a shadow. The fill may sit in a state — a framed button
+// draws a visible frame and a fill, while the block takes no role and no shadow
+// at rest (a role that only arrives in `&:hover` does not count). The fill may
+// sit in a state — a framed button
 // that only fills under the pointer (the toast's "Undo") is the same plate, it
 // just shows its fill later.
 //
@@ -110,9 +111,14 @@ const pressable = (own: string, selector: string) =>
  * hand. `box-shadow: none` is NOT a shadow — a plate that switches its shadow
  * off is exactly the flat plate this census is about. (`candy-box` is not in
  * here — see BOX.)
+ *
+ * The roles are NAMED, not `btn-[\w-]+`: that also matched `btn-pop`, the
+ * arrival animation every role includes, so the mutation probe that took the
+ * shadow out of `btn-pill` stayed green. Same for `mem-row-plate` without its
+ * `-hover`/`-tint`/`-active` halves: none of those paints a resting shadow.
  */
 const ROLE_OR_SHADOW =
-  /@include\s+(?:btn-[\w-]+|candy-raised|candy-shadow|mem-row-plate[\w-]*|candy-row-[\w-]+|mem-sticker)\b|mem-shadow\(|box-shadow\s*:\s*(?!none\b)[^;\s]/;
+  /@include\s+(?:btn-(?:primary|action|quiet|pill|toggle-on)|candy-raised|candy-shadow|mem-row-plate(?!-)|candy-row-base|mem-sticker)\b|mem-shadow\(|box-shadow\s*:\s*(?!none\b)[^;\s]/;
 
 interface Plate {
   /** `file :: outer » inner` — the key ALLOWED is written in. */
@@ -127,7 +133,11 @@ function platesIn(file: string, css: string): Plate[] {
     .filter(rule => pressable(rule.own, rule.selector) && framed(rule.own) && filled(rule.body))
     .map(rule => ({
       key: `${file} :: ${[...rule.parents, rule.selector].join(" » ")}`,
-      exempt: ROLE_OR_SHADOW.test(rule.body),
+      // The block's OWN declarations (breakpoint overrides included), not its
+      // nested states: a role that only arrives in `&:hover` leaves the plate
+      // flat at rest — the half-converted block the probe let through when
+      // this read `rule.body`.
+      exempt: ROLE_OR_SHADOW.test(rule.own),
     }));
 }
 
