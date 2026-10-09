@@ -365,12 +365,14 @@ function resume() {
       // units are ink. The ♪ under it is from the chrome set, 17 of 24. In
       // one box size the ▶ read a quarter smaller than the ♪ right below it
       // ("play icon too small?", user 2026-10-09). 17/13 = 1.3 gives both the
-      // same ink height; the svg overflows its 1rem box evenly instead of
-      // growing the row.
+      // same ink height. The negative margin keeps its layout size at the
+      // 1rem box (so the row does not grow) and spreads the overflow evenly:
+      // a grid cell aligns an oversized item to its START, which sat the ▶
+      // 2.4px low (measured).
       &.current .glyph svg {
         width: 1.3rem;
         height: 1.3rem;
-        flex-shrink: 0;
+        margin: -0.15rem;
       }
 
       .words {
