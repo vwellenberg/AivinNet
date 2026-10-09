@@ -347,14 +347,30 @@ function resume() {
       text-align: left;
       cursor: pointer;
 
+      // One 1rem box for every row's glyph, so all rows keep one height.
       .glyph {
         flex-shrink: 0;
         display: grid;
+        place-items: center;
+        width: 1rem;
+        height: 1rem;
 
         svg {
           width: 1rem;
           height: 1rem;
         }
+      }
+
+      // The ▶ is the TRANSPORT glyph, drawn for a 44px button: 13 of its 24
+      // units are ink. The ♪ under it is from the chrome set, 17 of 24. In
+      // one box size the ▶ read a quarter smaller than the ♪ right below it
+      // ("play icon too small?", user 2026-10-09). 17/13 = 1.3 gives both the
+      // same ink height; the svg overflows its 1rem box evenly instead of
+      // growing the row.
+      &.current .glyph svg {
+        width: 1.3rem;
+        height: 1.3rem;
+        flex-shrink: 0;
       }
 
       .words {
