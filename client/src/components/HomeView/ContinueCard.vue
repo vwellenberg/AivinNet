@@ -283,11 +283,11 @@ function resume() {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-
-    svg {
-      width: 1.1rem;
-      height: 1.1rem;
-    }
+    // No svg size here: the glyph is the role's (`$glyph`, 1.75rem), the same
+    // ▶ as the player bar's play button and the header "Play". It was shrunk
+    // to 1.1rem at this call site, and the Continue button read as the small
+    // one next to every other play control ("play icon too small?", user
+    // 2026-10-09). Census: primaryGlyph.test.ts.
   }
 
   // "Up next" only where the card has room for a third column; below that the
