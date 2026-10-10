@@ -43,8 +43,10 @@ Lauf fand das „Undo" im Toast (im Dark-Theme praktisch unsichtbar), die Nutzer
 Settings → Accounts und diese Karten (alle drei umgebaut) sowie die Regler-Leiste (Ausnahme:
 wird gezogen, nicht gedrückt). Der Schnell-Scan davor hatte 18 „Kandidaten" — 15
 davon waren blanke Glyphen mit `border: none` + `transparent`, also gar keine Platten. Blind ist
-der Zensus für gefüllte Buttons **ganz ohne** Rahmen (Pair-Seite, „Load more" der
-Ordnersuche): #424.
+gefüllte Flächen **ganz ohne** Rahmen deckt der zweite Zensus ab, „FILLED WITHOUT A FRAME" in
+`handDrawnPlates.test.ts` (#424). Er findet genau das Muster, das die Pair-Seite, „Load more" und
+die Login-Kacheln hatten. Ausnahmen sind Scrims über Artwork und die Kopf-Sektion einer
+Ordner-Platte, jeweils mit Begründung.
 
 | was es ist | Rolle |
 |---|---|

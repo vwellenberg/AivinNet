@@ -27,10 +27,10 @@ import { namedRules } from "./scssBlocks";
 // sit in a state — a framed button that only fills under the pointer (the
 // toast's "Undo") is the same plate, it just shows its fill later.
 //
-// What it does NOT see: a filled button with no frame at all (the pair page's
-// "Go to login", the folder search's "Load more"). That is the same drift one
-// step further along, but a different shape, with its own exceptions (scrims
-// over artwork, the sidebar folder head's `--row-fill`) — tracked in #424.
+// A filled button with no frame at all (the pair page's "Go to login", the folder
+// search's "Load more") is a different shape: the FILLED WITHOUT A FRAME census
+// below catches it, with its own exceptions (scrims over artwork, a folder head
+// whose frame belongs to its parent) — #424.
 //
 // ⚠️ A source-scanning test goes quietly GREEN when its parser breaks
 // (.claude/rules/testing.md), so the census is guarded three ways: the scan
