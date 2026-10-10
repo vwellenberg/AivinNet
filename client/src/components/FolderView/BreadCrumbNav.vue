@@ -113,16 +113,21 @@ onMounted(() => {
             padding-right: $smaller;
         }
 
+        // The shared pointer token (#418), not a tint: the plate around the
+        // crumbs is the only fill here, and a second pink inside it read as two
+        // colours side by side.
         &:hover {
             .text {
-                background-color: $gray;
+                background-color: var(--mem-hover);
+                color: var(--mem-hover-text);
             }
         }
     }
 
+    // The current folder is marked by weight, not by a fill of its own — the
+    // plate already is the one container in this row.
     .inthisfolder > .text {
-        background-color: $gray;
-        transition: all 0.5s;
+        font-weight: 700;
     }
 }
 </style>
