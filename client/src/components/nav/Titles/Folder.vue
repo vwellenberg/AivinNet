@@ -138,11 +138,15 @@ const currentFolderSort = computed(() => {
     }
 
     .fname {
-        // Hug the path instead of stretching the pill across its whole track.
+        // Hug the path instead of stretching the plate across its whole track.
         justify-self: start;
-        background-color: $gray5;
-        border-radius: $candy-radius-sm;
-        height: 2.188rem;
+        // A plate like the sort dropdowns beside it: panel fill, ink frame, the
+        // offset shadow, and the same 44px height. It was a bare tint with no
+        // frame and no shadow — the one filled box in this row without a frame
+        // (handDrawnPlates.test.ts, #424), and 35px against their 44.
+        @include candy-box($mem-panel, $candy-radius-sm);
+        @include candy-shadow(3px, 3px);
+        height: 2.75rem;
         display: flex;
         align-items: center;
         max-width: 100%;

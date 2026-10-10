@@ -66,7 +66,6 @@ const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     'src/assets/scss/Global/index.scss': { values: ['300ms'], why: 'modal dimmer fade' },
     'src/components/RightSideBar/SearchInput.vue': { values: ['0.3s'], why: 'clear-button fade' },
     'src/components/modals/settings/custom/Accounts.vue': { values: ['0.5s'], why: 'account card entrance' },
-    'src/components/FolderView/BreadCrumbNav.vue': { values: ['0.5s'], why: 'current crumb settle' },
     'src/components/SettingsView/Components/Switch.vue': { values: ['0.18s'], why: 'switch knob travel' },
     'src/components/shared/Input.vue': { values: ['1s'], why: 'show-password hint delay' },
     // `var(--btn-pop-delay, 0s)`: "no delay" as a fallback, not a duration.
