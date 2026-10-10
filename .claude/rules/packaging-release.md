@@ -284,3 +284,18 @@ mit einem JSON-Objekt**; darüber zu iterieren liefert Strings, und `release["ta
 einen `TypeError` am Startpfad — im Container mit `restart: unless-stopped` eine Absturzschleife.
 Typ und Timeouts sind seit v2026.8.1 geprüft, ein Fehlschlag lässt einen vorhandenen Client
 stehen, statt zu sterben.
+
+## Release in einem Rutsch: `scripts/release.sh` (seit 2026-10-10)
+
+Vier Schritte, je ein Befehl, kurze Ausgabe; die langen Logs bleiben auf dem Testhost.
+Das Skript prüft die Regeln selbst (Guards, siehe Kopf der Datei):
+
+1. `bash scripts/release.sh rc 2026.10.4` baut `2026.10.4-rc1` als Vorabversion mit Docker.
+2. `AIVINNET_TEST_HOST=user@host bash scripts/release.sh test 2026.10.3 2026.10.4-rc1` startet die
+   Update-Tests auf dem Testhost (AppImage und Docker) und wartet darauf. Danach ist `final` erlaubt.
+3. `bash scripts/release.sh final 2026.10.4` baut die finale Version als `latest`. Die Freigabe
+   verweigert es, wenn seit dem rc Code gemergt wurde; dann rc und test wiederholen.
+4. `bash scripts/release.sh cleanup 2026.10.4` zeigt nur, was weg soll. Mit `--yes` entfernt es den
+   alten Release (Tag bleibt), die rc-Releases samt Tags und die älteren Images in ghcr.io.
+
+Ohne Testhost bricht `test` ab. `status` zeigt die letzten Builds und Releases.
