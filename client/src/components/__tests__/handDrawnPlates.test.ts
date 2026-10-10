@@ -27,10 +27,10 @@ import { namedRules } from "./scssBlocks";
 // sit in a state — a framed button that only fills under the pointer (the
 // toast's "Undo") is the same plate, it just shows its fill later.
 //
-// What it does NOT see: a filled button with no frame at all (the pair page's
-// "Go to login", the folder search's "Load more"). That is the same drift one
-// step further along, but a different shape, with its own exceptions (scrims
-// over artwork, the sidebar folder head's `--row-fill`) — tracked in #424.
+// A filled button with no frame at all (the pair page's "Go to login", the folder
+// search's "Load more") is a different shape: the FILLED WITHOUT A FRAME census
+// below catches it, with its own exceptions (scrims over artwork, a folder head
+// whose frame belongs to its parent) — #424.
 //
 // ⚠️ A source-scanning test goes quietly GREEN when its parser breaks
 // (.claude/rules/testing.md), so the census is guarded three ways: the scan
@@ -226,6 +226,63 @@ describe("hand-drawn pressable plates", () => {
     const keys = PLATES.filter(plate => !plate.exempt).map(plate => plate.key);
     expect(Object.keys(ALLOWED).filter(key => !keys.includes(key))).toEqual([]);
     for (const [key, reason] of Object.entries(ALLOWED)) {
+      expect(reason.length, `${key} is allowed without a reason`).toBeGreaterThan(20);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FILLED WITHOUT A FRAME (#424).
+//
+// The census above is blind to a pressable that is filled but has no frame: the
+// pair page's "Go to login" (green, no frame, no shadow), the folder search's
+// "Load more", the Devices "Play here". Same drift — a plate with no role and no
+// shadow — one shape further along. A FILL on its own is the plate here, so this
+// checks the block's own declarations: pressable, painting a fill, no frame of
+// its own, and no role or shadow.
+//
+// Exceptions here are not "hand-drawn on purpose" but a different kind of
+// surface: a scrim over artwork (a dimmer, not a plate) and a plate's head whose
+// frame belongs to the parent box. Each says so in its reason.
+// ---------------------------------------------------------------------------
+function flatFillsIn(file: string, css: string): Plate[] {
+  return namedRules(css)
+    .filter(rule => !rule.selector.startsWith("@") || rule.selector.startsWith("@mixin"))
+    .filter(rule => pressable(rule.own, rule.selector) && !framed(rule.own) && filled(rule.own))
+    .map(rule => ({
+      key: `${file} :: ${[...rule.parents, rule.selector].join(" » ")}`,
+      exempt: ROLE_OR_SHADOW.test(rule.own),
+    }));
+}
+
+const FLAT_FILLS = SOURCES.flatMap(([file, css]) => flatFillsIn(file, css));
+
+const FLAT_ALLOWED: Record<string, string> = {
+  "src/components/LeftSidebar/index.vue :: .sidebar-library » .sidebar-pl-img » .pl-play-overlay":
+    "a scrim over the cover art, not a plate: it dims the artwork under the play glyph, and a frame would box the picture",
+  "src/components/LeftSidebar/index.vue :: .sidebar-library » .sidebar-folder » .sidebar-folder-header":
+    "the head of a folder's plate: its frame and shadow belong to the parent .sidebar-folder box (mem-row-plate), so the head only fills its own section",
+  "src/components/modals/updatePlaylist.vue :: .playlist-modal » #upload » .delete-icon":
+    "a scrim over the uploaded cover on hover — it dims the artwork it covers, like the play overlay, and the glyph sits on it",
+};
+
+describe("filled pressables without a frame (#424)", () => {
+  it("finds the flat fills it claims to check", () => {
+    expect(FLAT_FILLS.length, "the flat-fill census found nothing").toBeGreaterThan(0);
+  });
+
+  it("no pressable is filled without a frame or a role", () => {
+    const offenders = FLAT_FILLS.filter(plate => !plate.exempt && !(plate.key in FLAT_ALLOWED)).map(plate => plate.key);
+    expect(
+      offenders,
+      "a fill with no frame and no role — take a role (styling.md), or add it to FLAT_ALLOWED with the reason"
+    ).toEqual([]);
+  });
+
+  it("every flat exception still exists, with a reason", () => {
+    const keys = FLAT_FILLS.filter(plate => !plate.exempt).map(plate => plate.key);
+    expect(Object.keys(FLAT_ALLOWED).filter(key => !keys.includes(key))).toEqual([]);
+    for (const [key, reason] of Object.entries(FLAT_ALLOWED)) {
       expect(reason.length, `${key} is allowed without a reason`).toBeGreaterThan(20);
     }
   });

@@ -67,6 +67,9 @@ const PLATES = [
   // row and every row a choice — the setting rows' case. They were `candy-box`
   // plus a pointer, without a shadow (handDrawnPlates.test.ts).
   { file: "/src/components/modals/RootDirsPrompt.vue", selector: ".option", hatch: false },
+  // The login screen's user choices: the same case as the root-dirs prompt, and
+  // they had only a grey hover tint with no frame (#424).
+  { file: "/src/components/shared/LoginUserCard.vue", selector: ".loginuser", hatch: false },
 ];
 
 /** The static light fills a hovered/marked row is allowed to wear. */
