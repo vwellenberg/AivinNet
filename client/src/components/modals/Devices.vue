@@ -500,15 +500,13 @@ async function playHereOnly() {
     .play-here {
         justify-self: start;
         @include btn-pill($fill: $mem-panel);
+        // The panel is theme-aware, so the label is too — the static ink is only
+        // legal on a static accent fill.
+        color: $mem-content-text;
 
         &:disabled {
             cursor: progress;
             opacity: 0.65;
-
-            &:hover {
-                background-color: rgba(125, 125, 125, 0.2);
-                color: inherit;
-            }
         }
     }
 }
