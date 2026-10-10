@@ -69,11 +69,35 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A feature and fix release on top of 2026.10.3.
+
+- **Home has more to listen to, all from your own history.** *On this day* shows
+  what you played on this day in earlier years, with a day summary and *Play that
+  day*. *On repeat* shows how often each song came back. *Never played* can be
+  narrowed by genre. *Because you listened to …*, *Your weekday evenings*, *Artists
+  you might like* and *Forgotten favorites* are new too. None of it leaves your server.
+- **Colour schemes.** Lagune, Terrakotta and Eierschale join Memphis. Each device
+  keeps its own choice, set in Settings.
+- **Stats** charts get a day period, and trends compare with the period before.
+- **Search** finds an album by any one word of its title.
+- **Folders** show the right track counts, and sorting a folder never fails.
+- **Safer scans.** A rescan removes only the tracks it has evidence are gone, so
+  a disconnected drive no longer empties your library.
+- **Dates.** Release years are read in UTC, and a year like 10000 no longer breaks a page.
+- **Security.** What a client sends is length-checked before it is stored.
+- **Installer.** Stopping the AppImage stops the server, and release builds install
+  exactly the locked dependency versions.
+
+<details>
+<summary>What v2026.10.3 brought</summary>
+
 A fix release for 2026.10.2.
 
 - **Home stayed empty** after updating to 2026.10.2 once a folder showed up in
   one of its rows, and folder track counts failed the same way. The library
   index the update rebuilt lost its sort order. Fixed; nothing was lost.
+
+</details>
 
 <details>
 <summary>What v2026.10.2 brought</summary>
