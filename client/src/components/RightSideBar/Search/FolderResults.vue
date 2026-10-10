@@ -38,10 +38,6 @@ const search = useSearch();
       // The soft fill is theme-aware (dark in the dark theme), so the label is too:
       // the role's static ink would sit on a dark plate (measured, #424).
       color: $candy-text;
-
-      &:hover {
-        background-color: $gray4;
-      }
     }
   }
 }
