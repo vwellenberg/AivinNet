@@ -230,3 +230,53 @@ describe("hand-drawn pressable plates", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// FILLED WITHOUT A FRAME (#424).
+//
+// The census above is blind to a pressable that is filled but has no frame: the
+// pair page's "Go to login" (green, no frame, no shadow), the folder search's
+// "Load more", the Devices "Play here". Same drift — a plate with no role and no
+// shadow — one shape further along. A FILL on its own is the plate here, so this
+// checks the block's own declarations: pressable, painting a fill, no frame of
+// its own, and no role or shadow.
+//
+// Exceptions here are not "hand-drawn on purpose" but a different kind of
+// surface: a scrim over artwork (a dimmer, not a plate) and a plate's head whose
+// frame belongs to the parent box. Each says so in its reason.
+// ---------------------------------------------------------------------------
+function flatFillsIn(file: string, css: string): Plate[] {
+  return namedRules(css)
+    .filter(rule => !rule.selector.startsWith("@") || rule.selector.startsWith("@mixin"))
+    .filter(rule => pressable(rule.own, rule.selector) && !framed(rule.own) && filled(rule.own))
+    .map(rule => ({
+      key: `${file} :: ${[...rule.parents, rule.selector].join(" » ")}`,
+      exempt: ROLE_OR_SHADOW.test(rule.own),
+    }));
+}
+
+const FLAT_FILLS = SOURCES.flatMap(([file, css]) => flatFillsIn(file, css));
+
+const FLAT_ALLOWED: Record<string, string> = {};
+
+describe("filled pressables without a frame (#424)", () => {
+  it("finds the flat fills it claims to check", () => {
+    expect(FLAT_FILLS.length, "the flat-fill census found nothing").toBeGreaterThan(0);
+  });
+
+  it("no pressable is filled without a frame or a role", () => {
+    const offenders = FLAT_FILLS.filter(plate => !plate.exempt && !(plate.key in FLAT_ALLOWED)).map(plate => plate.key);
+    expect(
+      offenders,
+      "a fill with no frame and no role — take a role (styling.md), or add it to FLAT_ALLOWED with the reason"
+    ).toEqual([]);
+  });
+
+  it("every flat exception still exists, with a reason", () => {
+    const keys = FLAT_FILLS.filter(plate => !plate.exempt).map(plate => plate.key);
+    expect(Object.keys(FLAT_ALLOWED).filter(key => !keys.includes(key))).toEqual([]);
+    for (const [key, reason] of Object.entries(FLAT_ALLOWED)) {
+      expect(reason.length, `${key} is allowed without a reason`).toBeGreaterThan(20);
+    }
+  });
+});
