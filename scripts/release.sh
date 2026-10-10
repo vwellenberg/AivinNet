@@ -128,7 +128,7 @@ cmd_cleanup() {  # base, [--yes]
     rels=$(gh release list --repo "$REPO" --limit 100 --json tagName -q '.[].tagName' | grep -v -x "v$base" || true)
     # Image versions pushed before the final build started. The final image
     # itself is never in this list: it was pushed after the start time.
-    ids=$(gh api --paginate "/users/$OWNER/packages/container/aivinnet/versions" \
+    ids=$(gh api --paginate "users/$OWNER/packages/container/aivinnet/versions" \
         -q ".[] | select(.created_at < \"$start\" and ((.metadata.container.tags // []) | index(\"v$base\") | not)) | .id")
     echo "releases to remove: ${rels:-none}"
     echo "image versions to remove: $(printf '%s\n' "$ids" | sed '/^$/d' | wc -l)"
@@ -142,7 +142,7 @@ cmd_cleanup() {  # base, [--yes]
         fi
     done
     for id in $ids; do
-        gh api -X DELETE "/users/$OWNER/packages/container/aivinnet/versions/$id" >/dev/null
+        gh api -X DELETE "users/$OWNER/packages/container/aivinnet/versions/$id" >/dev/null
     done
     say "cleanup done"
 }
