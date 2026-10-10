@@ -31,14 +31,10 @@ const search = useSearch();
     justify-content: center;
     margin-top: 1rem;
 
+    // A word button, so the pill role (#424). It was a frameless tint: no frame,
+    // no shadow and no hatch, next to "Load More" on every other list.
     button {
-      padding: $small $medium;
-      border: none;
-      border-radius: $candy-radius-sm;
-      background-color: $gray;
-      color: inherit;
-      cursor: pointer;
-      transition: background-color $motion-move ease-out;
+      @include btn-pill($fill: $candy-pink-soft);
 
       &:hover {
         background-color: $gray4;

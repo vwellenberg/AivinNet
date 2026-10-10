@@ -257,7 +257,14 @@ function flatFillsIn(file: string, css: string): Plate[] {
 
 const FLAT_FILLS = SOURCES.flatMap(([file, css]) => flatFillsIn(file, css));
 
-const FLAT_ALLOWED: Record<string, string> = {};
+const FLAT_ALLOWED: Record<string, string> = {
+  "src/components/LeftSidebar/index.vue :: .sidebar-library » .sidebar-pl-img » .pl-play-overlay":
+    "a scrim over the cover art, not a plate: it dims the artwork under the play glyph, and a frame would box the picture",
+  "src/components/LeftSidebar/index.vue :: .sidebar-library » .sidebar-folder » .sidebar-folder-header":
+    "the head of a folder's plate: its frame and shadow belong to the parent .sidebar-folder box (mem-row-plate), so the head only fills its own section",
+  "src/components/modals/updatePlaylist.vue :: .playlist-modal » #upload » .delete-icon":
+    "a scrim over the uploaded cover on hover — it dims the artwork it covers, like the play overlay, and the glyph sits on it",
+};
 
 describe("filled pressables without a frame (#424)", () => {
   it("finds the flat fills it claims to check", () => {

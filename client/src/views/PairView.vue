@@ -70,12 +70,11 @@ onMounted(async () => {
             height: 4rem;
         }
 
+        // The page's one call to action, so the primary role (handDrawnPlates.test.ts,
+        // #424): a teal plate with the ink frame and shadow, not a frameless green
+        // fill. It was the only filled control on this screen without a frame.
         button {
-            padding: 0.75rem 1.5rem;
-            background-color: $brand-green;
-            color: white;
-            border: none;
-            cursor: pointer;
+            @include btn-primary;
         }
     }
 

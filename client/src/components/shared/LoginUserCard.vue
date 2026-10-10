@@ -25,6 +25,15 @@ defineProps<{
     padding: $small;
     gap: $small;
     width: max-content;
+    cursor: pointer;
+    // The choice is a plate, like the choices in the root-dirs prompt (#424): it
+    // used to be a bare grey tint on hover only, the one pressable on the login
+    // screen with neither a frame nor a shadow.
+    @include mem-row-plate($candy-radius-sm, $hatch: false);
+
+    &:hover {
+        @include mem-row-plate-hover($hatch: false);
+    }
 
     &.selected {
         pointer-events: none;
@@ -33,10 +42,5 @@ defineProps<{
     > .username {
         font-weight: 500;
     }
-}
-
-.loginuser:hover {
-    background-color: $gray3;
-    cursor: pointer;
 }
 </style>

@@ -494,17 +494,12 @@ async function playHereOnly() {
         }
     }
 
+    // A word button: the pill role (#424). It was a translucent grey fill with no
+    // frame, and a hover in the retired brand green that nothing else on the
+    // screen uses.
     .play-here {
         justify-self: start;
-        border: none;
-        cursor: pointer;
-        padding: 0.6rem 1rem;
-        background-color: rgba(125, 125, 125, 0.2);
-
-        &:hover {
-            background-color: $brand-green;
-            color: white;
-        }
+        @include btn-pill($fill: $mem-panel);
 
         &:disabled {
             cursor: progress;
