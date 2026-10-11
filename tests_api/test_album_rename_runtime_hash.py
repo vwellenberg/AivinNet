@@ -31,7 +31,16 @@ def runtime_trackhash(title: str, album: str, artists: str) -> str:
 @pytest.fixture()
 def untagged_track(playlist_db):
     """One untagged track in a folder-grouped album, as the scanner leaves it before the rename."""
+    import importlib
+
+    from aivinnet.db import create_all_tables
     from aivinnet.db.engine import DbEngine
+
+    # The library table is only created once its module is imported (see
+    # conftest._register_all_models); playlist_db creates the rest.
+    importlib.import_module("aivinnet.db.libdata")
+    create_all_tables()
+
     from aivinnet.db.libdata import TrackTable
 
     with DbEngine.manager(commit=True) as session:
