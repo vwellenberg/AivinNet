@@ -259,7 +259,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-press          what pressing does to a plate (Memphis: into its shadow)
 //   --shape-radius(-sm)    corner radii (above)
 //   --shape-sprinkle       the terrazzo dash texture
-//   --shape-terrazzo       the squiggle-and-dot tile of a surface that is only read (mem-terrazzo)
+//   --shape-halftone       the printed dots of a surface that is only read (mem-halftone)
 //   --shape-doodles        the doodle layer of the page ground
 //   --shape-doodles-size   its background-size (one entry per layer, when a
 //                          look puts several images in that slot)
@@ -1209,26 +1209,26 @@ $mem-seg-reserve: 4px !default;
   }
 }
 
-// Terrazzo — the squiggle-and-dot tile of the page's slabs (memphis-doodles.svg,
-// the `tzk` pattern, in ink). Used on a surface that is only READ (a stat tile,
-// the Continue card), so the page's own texture carries it. Written as a
-// `::before` layer: `&::before { @include mem-terrazzo; }`.
+// Halftone dots — the printed texture of a surface that is only READ (a stat
+// tile, not a control). Written as a `::before` layer: `&::before { @include
+// mem-halftone; }`.
 //
-// Not the hatch: the dash strokes say "pressable" in this design (styling.md),
-// and the squiggles are a separate vocabulary that carries no state.
+// Not the hatch. The terrazzo strokes say "pressable" in this design
+// (styling.md), so a texture on something that cannot be pressed reads as a
+// button. Dots are a separate vocabulary and carry no state.
 //
-// By default the texture gathers in the top-right corner and fades out before
-// the centre and the bottom-left, where the numbers sit: a texture behind text
-// costs legibility. `$reach: null` drops the fade, for a plate whose text
-// already sits on covers (the Continue card). `--shape-terrazzo` lets a look
-// drop it.
-@mixin mem-terrazzo($reach: 58%) {
+// By default the dots gather in the top-right corner and fade out before the
+// centre and the bottom-left, where the numbers sit: a texture behind text
+// costs legibility, a corner costs nothing. `$reach: null` drops the fade, for a
+// plate whose text already sits on covers (the Continue card). `--shape-halftone`
+// lets a look drop them.
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%) {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: var(--shape-terrazzo, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g fill="none" stroke="%232B2733" stroke-width="4" stroke-linecap="round"><path d="M6 10 q5 -6 10 0 t10 0"/><path d="M26 30 q5 -6 10 0 t10 0"/><path d="M2 36 q4 -5 8 0"/></g><g fill="%232B2733"><circle cx="36" cy="10" r="3"/><circle cx="14" cy="24" r="3"/><circle cx="42" cy="42" r="3"/></g></svg>'));
-  background-size: 46px 46px;
+  background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
+  background-size: $pitch $pitch;
   @if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
