@@ -78,13 +78,17 @@ useVisibility(albumheaderthing, handleVisibilityState)
     }
 
     // The cover recedes as the header scrolls away. Scroll-driven: no script
-    // runs on scroll. `view()` ties the progress to the cover's own exit from
-    // the scroll port, so the length of the album does not change the feel.
-    // Without the support the cover stays put.
+    // runs on scroll. The timeline belongs to the HEAD, not to the cover: the
+    // cover's own nearest scroll container is the `overflow: hidden` cell, which
+    // never scrolls, so a view() on the cover stays inactive. The head's
+    // ancestors up to the album scroller do not clip, so its exit is the
+    // scroll the page actually does. Without the support the cover stays put.
     @supports (animation-timeline: view()) {
+        view-timeline: --album-head block;
+
         .dh-art img {
             animation: album-cover-recede linear both;
-            animation-timeline: view();
+            animation-timeline: --album-head;
             animation-range: exit 0% exit 100%;
         }
     }
