@@ -827,17 +827,19 @@ def forgotten_favorite_item(
     if last_played is None:
         return {"type": "track", "hash": trackhash, "help_text": "not played yet"}
 
+    # The card draws only `help_text` (TrackCard.vue), so a burst goes there:
+    # the caption is what the reader sees, and "last …" would hide the phase.
     phase_plays, phase_start = phase
     if phase_start is not None and is_burst(phase_plays, plays):
-        secondary = f"{phase_plays} plays in {PHASE_DAYS} days · {_month(phase_start)}"
+        help_text = f"{phase_plays} plays in {PHASE_DAYS} days · {_month(phase_start)}"
     else:
-        secondary = _plays(plays)
+        help_text = f"last {_month(last_played)}"
 
     return {
         "type": "track",
         "hash": trackhash,
-        "help_text": f"last {_month(last_played)}",
-        "secondary_text": secondary,
+        "help_text": help_text,
+        "secondary_text": _plays(plays),
     }
 
 

@@ -558,15 +558,17 @@ class TestForgottenFavorites:
         assert not is_burst(9, 9)  # too few plays
         assert not is_burst(12, 48)  # a spike of a quarter of the history
 
-    def test_a_burst_shows_its_phase_in_the_text(self):
+    def test_a_burst_shows_its_phase_in_the_caption(self):
+        # The card draws help_text only, so the phase has to be there.
         item = forgotten_favorite_item("a/1", 48, NOW - 100 * DAY, (32, NOW - 400 * DAY))
 
-        assert item["secondary_text"].startswith("32 plays in 3 days · ")
-        assert item["help_text"].startswith("last ")
+        assert item["help_text"].startswith("32 plays in 3 days · ")
+        assert item["secondary_text"] == "48 plays"
 
-    def test_no_burst_keeps_the_plain_count(self):
+    def test_no_burst_keeps_the_last_played_caption(self):
         item = forgotten_favorite_item("a/1", 100, NOW - 100 * DAY, (12, NOW - 400 * DAY))
 
+        assert item["help_text"].startswith("last ")
         assert item["secondary_text"] == "100 plays"
 
     def test_the_one_silent_longest_first_among_equals(self):
