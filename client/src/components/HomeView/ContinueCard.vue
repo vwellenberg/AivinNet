@@ -195,7 +195,12 @@ function resume() {
   // own covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
     // A white margin on all four sides, so the dots stop short of the frame.
+    // Two fades keep the dots off the words: a short one in from the left edge,
+    // and a longer one out from the right edge to the middle, where the up next
+    // text sits.
     @include mem-halftone($reach: null, $inset: 10px);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 50%, transparent 100%);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }
