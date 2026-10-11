@@ -19,6 +19,7 @@ from aivinnet.lib.home.discover import (
     day_playlist,
     day_summary,
     forgotten_favorite_item,
+    is_burst,
     never_played_chips,
     never_played_item,
     on_repeat_item,
@@ -33,6 +34,7 @@ from aivinnet.lib.home.discover import (
     rank_on_this_day,
     rank_playlist_neighbours,
     slot_title,
+    strongest_phase,
     time_slot,
 )
 
@@ -534,7 +536,38 @@ class TestForgottenFavorites:
 
         ranked = self.rank(["a/1", "a/2", "b/1"], plays)
 
-        assert ranked == [("a/1", 10, NOW - 100 * DAY), ("b/1", 0, None)]
+        assert [r[:3] for r in ranked] == [("a/1", 10, NOW - 100 * DAY), ("b/1", 0, None)]
+
+    def test_a_burst_goes_first_though_it_has_fewer_plays_in_total(self):
+        # 12 plays in two days, 80 days ago, and then nothing: a real phase.
+        burst = [Play("a/1", NOW - 80 * DAY + i * 3600) for i in range(12)]
+        # 30 plays, one a day for a month, 100 days ago: more in total, no phase.
+        steady = [Play("b/1", NOW - (100 + i) * DAY) for i in range(30)]
+
+        ranked = self.rank(["b/1", "a/1"], burst + steady)
+
+        assert [r[0] for r in ranked] == ["a/1", "b/1"]
+        assert ranked[0][3][0] == 12
+
+    def test_strongest_phase_is_the_densest_window(self):
+        assert strongest_phase([0, DAY, 2 * DAY, 10 * DAY]) == (3, 0)
+        assert strongest_phase([]) == (0, None)
+
+    def test_a_burst_needs_ten_plays_and_a_real_share(self):
+        assert is_burst(12, 12)
+        assert not is_burst(9, 9)  # too few plays
+        assert not is_burst(12, 48)  # a spike of a quarter of the history
+
+    def test_a_burst_shows_its_phase_in_the_text(self):
+        item = forgotten_favorite_item("a/1", 48, NOW - 100 * DAY, (32, NOW - 400 * DAY))
+
+        assert item["secondary_text"].startswith("32 plays in 3 days · ")
+        assert item["help_text"].startswith("last ")
+
+    def test_no_burst_keeps_the_plain_count(self):
+        item = forgotten_favorite_item("a/1", 100, NOW - 100 * DAY, (12, NOW - 400 * DAY))
+
+        assert item["secondary_text"] == "100 plays"
 
     def test_the_one_silent_longest_first_among_equals(self):
         plays = [Play("a/1", NOW - 100 * DAY), Play("b/1", NOW - 300 * DAY)]

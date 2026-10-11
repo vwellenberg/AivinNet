@@ -89,6 +89,12 @@ LIKE_MAX_PLAYS = 5
 # "Forgotten favorites": favourite tracks not played for this long.
 FAVORITE_QUIET_DAYS = 60
 FAVORITE_MAX_PER_ALBUM = 2
+# A listening phase: the most plays in any PHASE_DAYS window. It shows as a
+# burst only when it is at least PHASE_MIN_PLAYS and PHASE_MIN_SHARE of all
+# plays the track ever got (a 2-year favourite with a 4-day spike is no burst).
+PHASE_DAYS = 3
+PHASE_MIN_PLAYS = 10
+PHASE_MIN_SHARE = 0.3
 
 # "On this day": how many years back the row looks for the same calendar day.
 ON_THIS_DAY_YEARS = 15
@@ -736,6 +742,23 @@ def playlist_neighbour_item(artisthash: str, playlists: int, plays: int) -> dict
     return item
 
 
+def strongest_phase(timestamps: Iterable[int]) -> tuple[int, int | None]:
+    """The most plays in any `PHASE_DAYS` window, and where that window starts."""
+    ts = sorted(timestamps)
+    best, start, j = 0, None, 0
+    for i in range(len(ts)):
+        while ts[i] - ts[j] > PHASE_DAYS * DAY:
+            j += 1
+        if i - j + 1 > best:
+            best, start = i - j + 1, ts[j]
+    return best, start
+
+
+def is_burst(phase_plays: int, total_plays: int) -> bool:
+    """A phase counts when it is real rotation, not a background hum."""
+    return phase_plays >= PHASE_MIN_PLAYS and phase_plays >= PHASE_MIN_SHARE * total_plays
+
+
 def rank_forgotten_favorites(
     favorites: Iterable[str],
     plays: Iterable[Play],
@@ -744,20 +767,24 @@ def rank_forgotten_favorites(
     quiet_days: int = FAVORITE_QUIET_DAYS,
     max_per_album: int = FAVORITE_MAX_PER_ALBUM,
     limit: int = ROW_LIMIT,
-) -> list[tuple[str, int, int | None]]:
+) -> list[tuple[str, int, int | None, tuple[int, int | None]]]:
     """
     Favourite tracks (trackhashes) not played in the last `quiet_days`, or
-    never. The ones played most before go first — a favourite that was on
-    heavy rotation and then dropped out is the one most worth a reminder —
-    then the one silent longest. At most `max_per_album` per album.
+    never. A favourite with a real burst in its history goes first — the phase
+    that ran hot and then stopped is the one most worth a reminder — then the
+    ones played most before, then the one silent longest. At most
+    `max_per_album` per album.
 
-    Returns `(trackhash, plays, last_played or None)`.
+    Returns `(trackhash, plays, last_played or None, (strongest phase plays,
+    phase start or None))`.
     """
     count: Counter[str] = Counter()
     last: dict[str, int] = {}
+    stamps: dict[str, list[int]] = {}
     for play in plays:
         count[play.trackhash] += 1
         last[play.trackhash] = max(last.get(play.trackhash, play.timestamp), play.timestamp)
+        stamps.setdefault(play.trackhash, []).append(play.timestamp)
 
     cutoff = now - quiet_days * DAY
     candidates = []
@@ -769,31 +796,48 @@ def rank_forgotten_favorites(
             continue
         candidates.append((trackhash, facts.albumhash))
 
-    candidates.sort(key=lambda c: (-count[c[0]], last.get(c[0], 0), c[0]))
+    phase = {trackhash: strongest_phase(stamps.get(trackhash, [])) for trackhash, _ in candidates}
 
-    result: list[tuple[str, int, int | None]] = []
+    def burst(trackhash: str) -> int:
+        n, _ = phase[trackhash]
+        return n if is_burst(n, count[trackhash]) else 0
+
+    candidates.sort(key=lambda c: (-burst(c[0]), -count[c[0]], last.get(c[0], 0), c[0]))
+
+    result: list[tuple[str, int, int | None, tuple[int, int | None]]] = []
     per_album: Counter[str] = Counter()
     for trackhash, album in candidates:
         if per_album[album] >= max_per_album:
             continue
 
         per_album[album] += 1
-        result.append((trackhash, count[trackhash], last.get(trackhash)))
+        result.append((trackhash, count[trackhash], last.get(trackhash), phase[trackhash]))
         if len(result) >= limit:
             break
 
     return result
 
 
-def forgotten_favorite_item(trackhash: str, plays: int, last_played: int | None) -> dict[str, Any]:
+def forgotten_favorite_item(
+    trackhash: str,
+    plays: int,
+    last_played: int | None,
+    phase: tuple[int, int | None] = (0, None),
+) -> dict[str, Any]:
     if last_played is None:
         return {"type": "track", "hash": trackhash, "help_text": "not played yet"}
+
+    phase_plays, phase_start = phase
+    if phase_start is not None and is_burst(phase_plays, plays):
+        secondary = f"{phase_plays} plays in {PHASE_DAYS} days · {_month(phase_start)}"
+    else:
+        secondary = _plays(plays)
 
     return {
         "type": "track",
         "hash": trackhash,
         "help_text": f"last {_month(last_played)}",
-        "secondary_text": _plays(plays),
+        "secondary_text": secondary,
     }
 
 
