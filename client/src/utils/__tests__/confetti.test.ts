@@ -32,7 +32,7 @@ describe('celebrate', () => {
     it('aims every piece on its own, with its own spin', () => {
         celebrate(8)
 
-        const pieces = [...document.querySelectorAll<HTMLElement>('.confetti-piece')]
+        const pieces = Array.from(document.querySelectorAll<HTMLElement>('.confetti-piece'))
         expect(new Set(pieces.map(p => p.style.getPropertyValue('--x'))).size).toBeGreaterThan(1)
         for (const piece of pieces) {
             expect(piece.style.getPropertyValue('--r')).toMatch(/deg$/)
@@ -44,7 +44,7 @@ describe('celebrate', () => {
         celebrate(9)
 
         const shapes = new Set(
-            [...document.querySelectorAll('.confetti-piece')].map(p =>
+            Array.from(document.querySelectorAll('.confetti-piece')).map(p =>
                 ['square', 'circle', 'triangle'].find(s => p.classList.contains(`confetti-${s}`))
             )
         )
