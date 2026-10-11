@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { binEdges, bandLevels, levelsSupported, normalizeLevels, quantizeLevel, subscribeLevels } from '@/utils/audioLevels'
+import { binEdges, bandLevels, levelsSupported, newRanges, normalizeLevels, quantizeLevel, subscribeLevels } from '@/utils/audioLevels'
 
 // The analyser's maths, pure. The browser tap itself (captureStream on a live
 // element) is measured headless on the server, not here: jsdom has no
@@ -38,22 +38,30 @@ describe('bandLevels', () => {
 })
 
 describe('normalizeLevels', () => {
-    it('scales each band against its own recent peak, so a quiet track still fills the bars', () => {
-        const peaks = [0, 0, 0, 0]
-        expect(normalizeLevels([0.2, 0, 0, 0], peaks)[0]).toBe(1)
-        // a quieter reading later on: about half the peak, so about half height
-        expect(normalizeLevels([0.1, 0, 0, 0], peaks)[0]).toBeCloseTo(0.5, 1)
+    it('shows a band loud above its average and quiet below it, whatever the loudness', () => {
+        const ranges = newRanges()
+        // about a second of a band that alternates loud and quiet
+        for (let i = 0; i < 30; i++) normalizeLevels([i % 2 ? 0.8 : 0.2, 0, 0, 0], ranges)
+        expect(normalizeLevels([0.8, 0, 0, 0], ranges)[0]).toBeGreaterThan(0.8)
+        expect(normalizeLevels([0.2, 0, 0, 0], ranges)[0]).toBeLessThan(0.2)
     })
 
-    it('keeps near-silence low: the floor stops a tiny signal looking like a full bar', () => {
-        const peaks = [0, 0, 0, 0]
-        expect(normalizeLevels([0.02, 0, 0, 0], peaks)[0]).toBeCloseTo(0.1, 1)
+    it('reads silence as silence', () => {
+        expect(normalizeLevels([0, 0, 0, 0], newRanges())).toEqual([0, 0, 0, 0])
     })
 
-    it('lets a peak fall back slowly, not at once', () => {
-        const peaks = [0.8, 0, 0, 0]
-        normalizeLevels([0, 0, 0, 0], peaks)
-        expect(peaks[0]).toBeCloseTo(0.796, 3)
+    it('uses the full height for a steady band, which has no range to speak of', () => {
+        const ranges = newRanges()
+        let level = 0
+        for (let i = 0; i < 60; i++) level = normalizeLevels([0.5, 0, 0, 0], ranges)[0]
+        expect(level).toBe(1)
+    })
+
+    it('lets the loud end fall back slowly, not at once', () => {
+        const ranges = newRanges()
+        normalizeLevels([0.8, 0, 0, 0], ranges)
+        for (let i = 0; i < 100; i++) normalizeLevels([0, 0, 0, 0], ranges)
+        expect(ranges[0].high).toBeCloseTo(0.8 * 0.995 ** 100, 3)
     })
 })
 
