@@ -51,7 +51,7 @@ const SIDEBAR = "/src/components/LeftSidebar/index.vue";
  * a name it was 756 anonymous instances, the single biggest group in the app.
  */
 const DENSE_CONTROLS: [file: string, selector: string, what: string][] = [
-  [SIDEBAR, ".sidebar-newfolder", "the library's new-folder button"],
+  [SIDEBAR, ".sidebar-newplaylist", "the library's new-playlist button"],
   [SIDEBAR, ".sidebar-pl-img", "the sidebar row thumbnail"],
   [SIDEBAR, ".pl-play-overlay", "the play overlay on that thumbnail"],
 ];

@@ -7,7 +7,7 @@
          playlists below them scroll. -->
     <div ref="titleEl" class="sidebar-library-title">
       <span>Library</span>
-      <button class="sidebar-newfolder" title="New folder" @click="onNewFolder">
+      <button class="sidebar-newplaylist" title="New playlist" @click="onNewPlaylist">
         <PlusSvg />
       </button>
     </div>
@@ -470,8 +470,9 @@ function onDropToTop(e: DragEvent) {
   clearDrag();
   if (pid !== null) folderStore.move(pid, null);
 }
-function onNewFolder() {
-  modal.showFolderModal();
+// Same action as the phone's top-bar [+] on the playlists page (NavBar headerAction).
+function onNewPlaylist() {
+  modal.showNewPlaylistModal();
 }
 // All tracks of a folder: its playlists in folder order, each in full.
 // Returns null (with a toast) when the folder yields no tracks.
@@ -852,16 +853,17 @@ $sidebar-label-opacity: 0.85;
     padding: 3px 10px;
   }
 
-  // "New folder". Its blush circle came from the global button base — the
-  // comment here used to say so — which meant a control with no owner: no
-  // border, no shadow, and 22px across in a design where every other button
-  // has a frame it sits in. It takes the action role now, at the smallest
-  // size that still reads as a button next to the section caption.
+  // "New playlist", the same action as the phone's [+]. Its blush circle came
+  // from the global button base — the comment here used to say so — which meant
+  // a control with no owner: no border, no shadow, and 22px across in a design
+  // where every other button has a frame it sits in. It takes the action role
+  // now, at the smallest size that still reads as a button next to the section
+  // caption.
   // `$control-dense`, the same footprint as the thumbnails in the rows below
   // — the size was already right, it just had no name, and the glyph came
   // from a hand-written override because `btn-action` had no `$glyph` knob.
   // It does now, so both numbers come from the tier.
-  .sidebar-newfolder {
+  .sidebar-newplaylist {
     @include btn-action($size: $control-dense, $glyph: $control-dense-glyph, $radius: 50%);
   }
 }

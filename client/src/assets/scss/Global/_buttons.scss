@@ -141,7 +141,7 @@ $control-compact-glyph: 1rem;
 // Same census, one round later: 28px is now the biggest group in the app (756
 // of 1156 square icon buttons, 65 %), and it owned no token either. It got
 // there deliberately — #388 pulled the sidebar thumbnail from 2rem to 1.75rem
-// so the row height would survive the hatch ring, and `sidebar-newfolder` was
+// so the row height would survive the hatch ring, and `sidebar-newplaylist` was
 // already sitting at 1.75rem beside it.
 //
 // So this is NOT the compact scale under another name, and forcing the two
