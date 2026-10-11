@@ -51,8 +51,15 @@ def _hash_of(path) -> str:
 
 @pytest.fixture()
 def library(playlist_db, monkeypatch, tmp_path):
+    import importlib
+
     from aivinnet.config import UserConfig
+    from aivinnet.db import create_all_tables
     from aivinnet.store.tracks import TrackStore
+
+    # The library table exists only once its module is imported (conftest._register_all_models).
+    importlib.import_module("aivinnet.db.libdata")
+    create_all_tables()
 
     root = tmp_path / "music"
     file = root / ARTIST / ALBUM / "01 - Old Title.mp3"
