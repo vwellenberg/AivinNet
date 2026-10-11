@@ -85,8 +85,11 @@ const defaultBackgroundStyles = computed(() => {
     }
 })
 
+// `--row-fill` is the tile's one fill source: the label covers below read it, so
+// a cover always matches the tile it sits on.
 const tileStyle = computed(() => ({
     backgroundColor: defaultBackgroundStyles.value,
+    '--row-fill': defaultBackgroundStyles.value,
 }))
 </script>
 
@@ -110,10 +113,11 @@ const tileStyle = computed(() => ({
     overflow: hidden;
     position: relative;
 
-    // Dots, not hatch: the tile is read, never pressed (mem-halftone). They build
-    // up as a wave along the row; the tiles' places in it are set below.
+    // Dots, not hatch: the tile is read, never pressed (mem-halftone). They cover
+    // the whole tile, like the Continue card, and build up as a wave along the
+    // row; the tiles' places in it are set below.
     &::before {
-        @include mem-halftone;
+        @include mem-halftone($reach: null);
         @include mem-dots-wave;
     }
 
@@ -129,12 +133,19 @@ const tileStyle = computed(() => ({
         align-items: flex-start;
         gap: $small;
 
+        // A plain cover under each label keeps the dots off the letters, as on
+        // the Continue card. The cover's own inset is pulled back so the text
+        // keeps its line.
         .count {
+            @include mem-hatch-clear(6px);
+            margin-left: -4px;
             font-size: 1.55rem;
             font-weight: 900;
         }
 
         .title {
+            @include mem-hatch-clear(6px);
+            margin-left: -4px;
             font-size: 14px;
             font-weight: 500;
         }
