@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { countSeparator, countUpAt, formatCount } from '@/utils/countUp'
+import { countTokens, countUpAt, renderCounts } from '@/utils/countUp'
 
 import StopWatchSvg from '@/assets/icons/timer.svg'
 import HeadphoneSvg from '@/assets/icons/headphones.svg'
@@ -59,41 +59,42 @@ const icon = computed(() => {
     }
 })
 
-// A plain count counts up from zero (or from the figure it showed before) to
-// its value. Anything that is not a count — a unit, a date — is shown as it
-// arrives, with no motion at all.
+// The numbers in the value count up from zero (or from the figure they showed
+// before) to their value; the words around them stay. A top tile shows a title
+// or an album, where a number is not a count, so it is never counted. Reduced
+// motion jumps straight to the value.
 const COUNT_MS = 900
-const separator = computed(() => countSeparator(props.value))
-const counted = ref<number | null>(separator.value === null ? null : 0)
+const tokens = computed(() => (props.icon.startsWith('top') ? [] : countTokens(props.value)))
+const figures = ref<number[]>(tokens.value.map(() => 0))
 let frame = 0
 
 function prefersLessMotion() {
     return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-function countTo(to: number) {
+function countTo(targets: number[]) {
     cancelAnimationFrame(frame)
-    const from = counted.value ?? 0
+    const from = figures.value.length === targets.length ? [...figures.value] : targets.map(() => 0)
     if (typeof requestAnimationFrame !== 'function' || prefersLessMotion()) {
-        counted.value = to
+        figures.value = targets
         return
     }
     const start = performance.now()
     const step = (now: number) => {
         const elapsed = now - start
-        counted.value = countUpAt(from, to, elapsed, COUNT_MS)
+        figures.value = targets.map((to, i) => countUpAt(from[i], to, elapsed, COUNT_MS))
         if (elapsed < COUNT_MS) frame = requestAnimationFrame(step)
     }
     frame = requestAnimationFrame(step)
 }
 
 function startCount() {
-    if (separator.value === null) {
-        cancelAnimationFrame(frame)
-        counted.value = null
+    cancelAnimationFrame(frame)
+    if (tokens.value.length === 0) {
+        figures.value = []
         return
     }
-    countTo(Number(props.value.replace(/\D/g, '')))
+    countTo(tokens.value.map(token => token.value))
 }
 
 onMounted(startCount)
@@ -101,8 +102,10 @@ watch(() => props.value, startCount)
 onUnmounted(() => cancelAnimationFrame(frame))
 
 const formattedValue = computed(() => {
-    if (counted.value === null || separator.value === null) return props.value.toLocaleString()
-    return formatCount(counted.value, separator.value)
+    // Between a new value and its watcher the figures still belong to the old
+    // one: show the value as it arrived rather than a mix of the two.
+    if (figures.value.length !== tokens.value.length) return props.value
+    return renderCounts(props.value, tokens.value, figures.value)
 })
 
 // Flat memphis tile colour, cycled by stat type across the palette

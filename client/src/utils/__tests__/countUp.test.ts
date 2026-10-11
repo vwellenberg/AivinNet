@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { countSeparator, countUpAt, formatCount } from '@/utils/countUp'
+import { countTokens, countUpAt, formatCount, renderCounts } from '@/utils/countUp'
+
+// The values below are the shapes the stats page really sends: a count with a
+// unit (`408 track plays`), a count split over two units, a grouped figure, and
+// the top tiles' titles, where a number is part of a name.
+const STAT_VALUES = [
+    '408 track plays',
+    '12 hrs, 49 mins listened',
+    '30 new favorites',
+    '1,248 streams',
+    '1.234.567 bytes',
+    '02. Auf Den Strassen - Gerhard Ottmer',
+]
 
 describe('countUpAt', () => {
     it('starts at the old figure and lands exactly on the target', () => {
@@ -28,24 +40,38 @@ describe('countUpAt', () => {
     })
 })
 
-describe('countSeparator', () => {
-    it('reads a plain count as having no separator', () => {
-        expect(countSeparator('1248')).toBe('')
-        expect(countSeparator('0')).toBe('')
+describe('countTokens', () => {
+    it('finds each count in the text, with its value and grouping', () => {
+        expect(countTokens('1,248 streams')).toEqual([{ start: 0, end: 5, value: 1248, separator: ',' }])
+        expect(countTokens('408 track plays')).toEqual([{ start: 0, end: 3, value: 408, separator: '' }])
     })
 
-    it('reads one grouping separator, whichever the server used', () => {
-        expect(countSeparator('1,248')).toBe(',')
-        expect(countSeparator('1.248')).toBe('.')
-        expect(countSeparator('1 248')).toBe(' ')
-        expect(countSeparator('1,248,000')).toBe(',')
+    it('counts every number of a multi-unit value', () => {
+        const tokens = countTokens('12 hrs, 49 mins listened')
+        expect(tokens.map(t => t.value)).toEqual([12, 49])
     })
 
-    it('leaves anything that is not a count alone', () => {
-        expect(countSeparator('12.5')).toBeNull()
-        expect(countSeparator('3 days')).toBeNull()
-        expect(countSeparator('')).toBeNull()
-        expect(countSeparator('2024-10-11')).toBeNull()
+    it('leaves track numbers and decimals as written', () => {
+        expect(countTokens('02. Auf Den Strassen')).toEqual([])
+        expect(countTokens('12.5 hrs')).toEqual([])
+    })
+
+    it('finds nothing in a value without numbers', () => {
+        expect(countTokens('Gerhard Ottmer')).toEqual([])
+    })
+})
+
+describe('renderCounts', () => {
+    it('puts the figures into the text and keeps the words', () => {
+        const raw = '12 hrs, 49 mins listened'
+        expect(renderCounts(raw, countTokens(raw), [3, 7])).toBe('3 hrs, 7 mins listened')
+    })
+
+    it('renders the target figures back to the value as it arrived', () => {
+        for (const raw of STAT_VALUES) {
+            const tokens = countTokens(raw)
+            expect(renderCounts(raw, tokens, tokens.map(t => t.value))).toBe(raw)
+        }
     })
 })
 
