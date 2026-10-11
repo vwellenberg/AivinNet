@@ -301,6 +301,9 @@ Nutzer gehört). **Align by ear** ist derselbe Weg ohne Mikrofon: alle ticken im
   „measure again" als ein Trim vom kalten Weg.
 - ⚠️ **Klicks durch ein `<audio>`, nie Web Audio** (`utils/deviceSync/clickPlayer.ts`). Der
   Trim korrigiert den Weg der Musik; ein anderer Weg misst etwas anderes.
+  Dasselbe gilt für die Musik selbst: Der Equalizer liest sie über `captureStream` in einen
+  Analyser (`utils/audioLevels.ts`), nie über `createMediaElementSource`, denn das leitet das
+  Element durch den AudioContext um und verschiebt den gemessenen Weg.
 - ⚠️ **Das Mitglied muss nicht pünktlich klicken, nur ehrlich melden.** Gesucht wird um die
   *gemeldete* Zeit, nicht um den Plan. Deshalb startet das Element sofort mit Stille bis zum
   ersten Klick: Ein Hintergrund-Tab bekommt Timer nur noch einmal pro Sekunde, das spielende

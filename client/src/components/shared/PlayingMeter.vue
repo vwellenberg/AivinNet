@@ -1,5 +1,6 @@
 <template>
   <svg
+    ref="root"
     class="playing-meter"
     :class="{ paused: !playing }"
     viewBox="0 0 24 24"
@@ -46,7 +47,11 @@ let seq = 0
 </script>
 
 <script setup lang="ts">
-withDefaults(
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+import { quantizeLevel, subscribeLevels } from '@/utils/audioLevels'
+
+const props = withDefaults(
   defineProps<{
     playing?: boolean
     /**
@@ -59,6 +64,41 @@ withDefaults(
   }>(),
   { playing: true, decorative: false }
 )
+
+const root = ref<SVGSVGElement | null>(null)
+let stopListening: (() => void) | null = null
+
+// Painted from the music's real levels while the browser can tap it
+// (utils/audioLevels.ts). Otherwise nothing is painted, and the bars keep their
+// own loops from the stylesheet. Bar i is band i, low to high.
+function paint(levels: number[] | null) {
+  const svg = root.value
+  if (!svg) return
+  const bars = svg.querySelectorAll<SVGElement>('.bar')
+  if (!levels) {
+    svg.classList.remove('live')
+    bars.forEach(bar => bar.style.removeProperty('transform'))
+    return
+  }
+  svg.classList.add('live')
+  bars.forEach((bar, i) => bar.style.setProperty('transform', `scaleY(${quantizeLevel(levels[i] ?? 0)})`))
+}
+
+function sync() {
+  if (props.playing && !stopListening) stopListening = subscribeLevels(paint)
+  else if (!props.playing && stopListening) {
+    stopListening()
+    stopListening = null
+    paint(null)
+  }
+}
+
+onMounted(sync)
+watch(() => props.playing, sync)
+onBeforeUnmount(() => {
+  stopListening?.()
+  stopListening = null
+})
 
 // Chrome raster (#311): 24x24 box, ink from 3 to 21.
 const TOP = 3
@@ -152,6 +192,12 @@ const clipId = (i: number) => `pm-clip-${uid}-${i}`
   // Paused freezes mid-pose. Hiding it would reflow the row it sits in.
   &.paused .bar {
     animation-play-state: paused;
+  }
+
+  // Painted from the music's levels (see paint() above): the loops step aside,
+  // so the inline transform is the only thing that moves the bars.
+  &.live .bar {
+    animation: none;
   }
 }
 

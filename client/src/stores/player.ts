@@ -16,6 +16,7 @@ import type { Track } from '@/interfaces'
 // Imported for the two call sites below, re-exported so every existing
 // `import { getUrl } from '@/stores/player'` keeps working (#181).
 import { getUrl } from '@/utils/streamUrl'
+import { setLevelProvider } from '@/utils/audioLevels'
 export { getUrl }
 import updateMediaNotif from '@/helpers/mediaNotification'
 import { cancelFade, crossFade } from '@/utils/audio/crossFade'
@@ -175,6 +176,8 @@ class AudioSource {
 
 
 const audioSource = new AudioSource()
+// The equaliser taps whichever element is playing right now (utils/audioLevels.ts).
+setLevelProvider(() => audioSource.playingSource)
 let audio = audioSource.playingSource
 const buffering = ref(true)
 const maxSeekPercent = ref(0)
