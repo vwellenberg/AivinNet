@@ -88,8 +88,10 @@ describe('coverMorph', () => {
     })
 
     it('a click from long before the navigation is not the navigation\'s cause', () => {
+        // Built before the spy: jsdom stamps every Event with Date.now() itself.
+        const stale = click()
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(10_000)
-        armCoverMorph(card, click())
+        armCoverMorph(card, stale)
         beginCoverMorph(true)
 
         expect((document as any).startViewTransition).not.toHaveBeenCalled()
