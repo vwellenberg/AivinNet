@@ -196,10 +196,11 @@ const tileStyle = computed(() => ({
 
     // The motif, behind the content. It is the top-right 150x90 of the tile and
     // the tile's `overflow: hidden` crops what leaves it. All of it ends above
-    // the text: the number has two lines at most, and the lowest point of any
-    // shape (the triangle's tip, y=74) is still clear of the top of those two
-    // lines. Not the hatch and not dots — those say "pressable" or run behind
-    // the letters; this stays out of the way (#468 follow-up).
+    // the text: the number has two lines at most and starts 85px below the
+    // tile's outer edge, while the lowest point of any shape (the triangle's tip)
+    // is at 77px, so 8px of air at the closest (measured on the running client,
+    // light and dark, desktop and phone). Not the hatch and not dots — those say
+    // "pressable" or run behind the letters; this stays out of the way.
     //
     // The colour is the tile's own ink at 13 %, so it reads on every accent
     // and in both themes, and it follows a colour scheme's ink. `--shape-motif`

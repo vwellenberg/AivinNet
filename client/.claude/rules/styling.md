@@ -394,8 +394,9 @@ irgendwo abgeschnitten.
 Ein **Motiv** hat eine Kante: eine ganze Form (Kreis, Dreieck, Welle, Zickzack, Balken, je Art
 eine), groß in die obere rechte Ecke gesetzt, Ton in Ton (`mem-alpha($mem-ink, 0.13)`) und von
 der Kachel angeschnitten. Sie endet **über** dem Text — die Zahl hat höchstens zwei Zeilen, ihre
-Oberkante liegt gemessen ~80 px unter dem Kachelrand, die tiefste Stelle eines Motivs (Spitze des
-Dreiecks) bei 74 px. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
+Oberkante liegt gemessen 85 px unter der Kachel-Außenkante, die tiefste Stelle eines Motivs
+(Spitze des Dreiecks, Welle 76 px) bei 77 px: mindestens 8 px Luft, hell und dunkel, Desktop und
+Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 
 - **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
   Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
@@ -406,8 +407,10 @@ Dreiecks) bei 74 px. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `-
   deshalb in einer **spezifischeren** Regel dahinter.
 - Zensus: `Stats/__tests__/StatItem.test.ts` (jede Art ihre eigene Form, kein Halbton-Layer und kein
   Cover mehr, Token und Animation gekoppelt).
-- ⚠️ **Die Obergrenze (~74 px) ist eine Messung, kein Gesetz.** Wer ein Motiv vergrößert oder die
-  Zahl größer setzt, misst gegen die echte Kachel mit zweizeiliger Zahl neu.
+- ⚠️ **Die Luft von 8 px ist eine Messung, kein Gesetz.** Wer ein Motiv vergrößert oder die Zahl
+  größer setzt, misst gegen die echte Kachel mit zweizeiliger Zahl neu — an der **Umrisslinie**
+  (`getPointAtLength` über `getScreenCTM`), nicht an `getBoundingClientRect()`: Das ist bei einem
+  gedrehten Pfad die Box der gedrehten Box und meldete bei der Welle 85 statt 76 px (= „zu nah").
 
 ## ⚠️ Text auf dem Grund braucht eine Platte — `--mem-veil`
 
