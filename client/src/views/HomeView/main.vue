@@ -26,7 +26,7 @@
             :see-all-text="item.seeAllText"
         >
             <template v-if="item.key === 'rediscover'" #actions>
-                <button class="btn-action surprise" :disabled="surprising" @click="surprise">
+                <button class="btn-action btn-action-label surprise" :disabled="surprising" @click="surprise">
                     <ShuffleSvg />
                     Surprise me
                 </button>
@@ -34,7 +34,7 @@
             <!-- "Never played": one album of the row (or of the chip shown),
                  picked here — the row is already the server's best guess. -->
             <template v-else-if="item.key === 'never_played'" #actions>
-                <button class="btn-action surprise" @click="playOne(rowItems(item))">
+                <button class="btn-action btn-action-label surprise" @click="playOne(rowItems(item))">
                     <ShuffleSvg />
                     Play one
                 </button>
@@ -42,7 +42,7 @@
             <!-- "On repeat" is also a playlist the server serves ("onrepeat"),
                  so the queue is named after it and keeps the row's order. -->
             <template v-else-if="item.key === 'on_repeat'" #actions>
-                <button class="btn-action surprise" @click="playFromPlaylist('onrepeat')">
+                <button class="btn-action btn-action-label surprise" @click="playFromPlaylist('onrepeat')">
                     <PlaySvg />
                     Play all
                 </button>
@@ -50,7 +50,7 @@
             <!-- "On this day": the day a year ago in the order it was heard
                  (playlist "onthisday"), not just its albums one by one. -->
             <template v-else-if="item.key === 'on_this_day'" #actions>
-                <button class="btn-action surprise" @click="playFromPlaylist('onthisday')">
+                <button class="btn-action btn-action-label surprise" @click="playFromPlaylist('onthisday')">
                     <PlaySvg />
                     Play that day
                 </button>

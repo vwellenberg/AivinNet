@@ -110,8 +110,16 @@ defineEmits<{
         color: $candy-text;
     }
 
-    button.aux.aux-off svg {
-        opacity: 0.45;
+    // Dimmed through the colour, not `opacity` on the glyph: opacity faded the
+    // glyph's cover too, and the hatch showed through the grey icon.
+    button.aux.aux-off {
+        color: mem-alpha($candy-text, 0.45);
+    }
+
+    // The hover fill is dark in the light theme, so the dimmed glyph takes the
+    // hover text colour at the same strength.
+    button.aux.aux-off:hover {
+        color: mem-alpha(var(--mem-hover-text), 0.45);
     }
 
     // Active shuffle / repeat wear the yellow memphis box, mirroring the

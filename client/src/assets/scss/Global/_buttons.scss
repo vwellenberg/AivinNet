@@ -483,13 +483,14 @@ $control-dense-glyph: 1rem;
     height: $glyph;
   }
 
-  // The glyph gets the same cover as btn-primary's (#237): pin, download and
-  // overflow sat with the hatch running through their icons. `inherit` follows
-  // every fill the call sites give it (the yellow open-menu state included),
-  // and on the bare variant it inherits `transparent` at rest, i.e. nothing.
+  // The glyph gets a cover (#237): pin, download and overflow sat with the
+  // hatch running through their icons. The cover is the full glyph box, square.
+  // A round one left the corners of the 24px icons on the texture, because the
+  // strokes run to the edge of their box (3–21 of 24). `inherit` follows every
+  // fill the call sites give it (the yellow open-menu state included), and on
+  // the bare variant it inherits `transparent` at rest, i.e. nothing.
   > svg {
     background-color: inherit;
-    border-radius: 50%;
   }
 
   // Hover only. An open context menu is deliberately NOT folded in here: in

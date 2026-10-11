@@ -96,6 +96,22 @@
   @include btn-action;
 }
 
+// A `btn-action` that carries WORDS: the texture is a ring around the label and
+// the text band stays clear (mem-label-hatch). The full-plate texture of
+// `.btn-action` would run through the letters. Only the hatch is set here, so
+// the call site keeps its own size, padding and font. The doubled selector
+// outranks `.btn-action` at rest (0,2,0) and on hover (0,3,0), where the base
+// class paints its own texture.
+.btn-action.btn-action-label {
+  background-image: none;
+  @include mem-label-hatch(26px, $on: surface);
+}
+
+.btn-action.btn-action-label:hover {
+  background-image: none;
+  --label-hatch: var(--mem-hatch-hover);
+}
+
 .btn-quiet {
   @include btn-quiet;
 }
