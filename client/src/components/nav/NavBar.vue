@@ -105,9 +105,9 @@ const mobileTitle = computed(() => {
 .topnav {
     position: relative;
     display: grid;
-    // Test: the corner halftone of the page ground (F), on the top bar.
+    // The halftone of the page ground, over the whole bar (test, 2026-10-11).
     &::before {
-        @include mem-halftone;
+        @include mem-halftone($reach: null);
     }
     > * {
         position: relative;
