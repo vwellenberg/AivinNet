@@ -51,7 +51,7 @@ const SCALE = ['0.1s', '0.12s', '0.15s', '0.2s', '0.25s', '0.35s', '40ms', '45ms
 /** Literal durations that are deliberately NOT on the scale, per file. */
 const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     // Loops and character pieces — outside the scale on purpose (_motion.scss).
-    'src/assets/scss/Global/lauflicht.scss': { values: ['5.5s', '7s', '9s', '12s', '14s'], why: 'ambient loops' },
+    'src/assets/scss/Global/lauflicht.scss': { values: ['8s', '11s', '12s', '16s', '18s'], why: 'ambient loops' },
     'src/assets/scss/Global/state.scss': { values: ['0.6s'], why: 'pulse loop' },
     'src/assets/scss/Global/confetti.scss': { values: ['0.9s'], why: 'one-off celebration burst (a character piece)' },
     // (The three spinners turn at `$motion-spin` now — one speed, no literal.)

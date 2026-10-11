@@ -266,6 +266,12 @@ defineEmits<{
             display: none;
         }
 
+        // The comet is the only light on this 48px cover, and at full strength
+        // it reads as glare. Half strength keeps the ring saying "playing".
+        &.lauflicht-rim {
+            --lauflicht-strength: 0.5;
+        }
+
         img {
             height: 100%;
             width: auto;

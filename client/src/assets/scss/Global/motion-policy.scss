@@ -54,19 +54,19 @@
     // aus" hinausgeht.
     // ------------------------------------------------------------------
 
-    // Das Lauflicht bleibt laufen, nur langsamer (14s / 9s statt 7s / 5.5s).
+    // Das Lauflicht bleibt laufen, nur langsamer (18s / 12s statt 11s / 8s).
     // Der Grund steht in lauflicht.scss und stammt aus einem echten Fehlerbild:
     // Auf Telefonen schaltet der Energiesparmodus `prefers-reduced-motion` mit
     // ein. Fror der Komet dort ein, las sich das nicht als Rücksichtnahme,
     // sondern als kaputter Effekt — der Ring ist die Anzeige "hier läuft
     // gerade etwas", und eine stehende Laufanzeige ist eine falsche Aussage.
     .lauflicht-rim::before {
-        animation-duration: 14s !important;
+        animation-duration: 18s !important;
         animation-iteration-count: infinite !important;
     }
 
     .lauflicht-rim::after {
-        animation-duration: 9s !important;
+        animation-duration: 12s !important;
         animation-iteration-count: infinite !important;
     }
 

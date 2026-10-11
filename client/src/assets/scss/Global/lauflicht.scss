@@ -1,9 +1,10 @@
 // Lauflicht / running-light — issue #32.
 //
 // "Running light" around an active container (now-playing card & full
-// now-playing cover art): a soft PINK glimmer breathes all around it while a
-// brighter PINK comet with a white-hot tip travels along the rim — candy
-// pink-deep throughout (recolored from brand green for the candy design).
+// now-playing cover art): a soft glimmer breathes all around it while a
+// brighter comet with a white-hot tip travels along the rim. Both take the
+// play button's colour (--look-play-fill), so the light always matches the
+// button that started the music.
 //
 // Cheap by construction: only a registered `--np-angle` angle and `opacity`
 // animate — no layout, no animated box-shadow. Lives in Global/index.scss
@@ -42,9 +43,12 @@
 .lauflicht-rim {
     position: relative;
     isolation: isolate;
+    // One colour for the whole light: the play button's own fill. Memphis
+    // gives teal, the Stream look gives its green — the light follows.
+    --lauflicht-color: var(--look-play-fill, #{$mem-teal});
 
-    // The travelling GREEN light comet (white-hot tip), masked to a 5px ring: thick
-    // enough that the comet reads as a rim, not a hairline on the cover's frame.
+    // The travelling comet (white-hot tip), masked to a 5px ring: thick enough
+    // that it reads as a rim, not a hairline on the cover's frame.
     &::before {
         content: "";
         position: absolute;
@@ -56,10 +60,10 @@
             from var(--np-angle),
             transparent 0deg,
             transparent 235deg,
-            mem-alpha($candy-pink-deep, 0.55) 300deg,
-            $candy-pink-deep 332deg,
+            color-mix(in srgb, var(--lauflicht-color) 55%, transparent) 300deg,
+            var(--lauflicht-color) 332deg,
             #ffffff 348deg,
-            $candy-pink-deep 354deg,
+            var(--lauflicht-color) 354deg,
             transparent 360deg
         );
         -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -68,21 +72,24 @@
         mask-composite: exclude;
         pointer-events: none;
         opacity: var(--lauflicht-strength, 1);
-        animation: np-comet-spin 7s linear infinite;
+        // Slower than the first cut (7s): the comet reads as a calm light, not a chase.
+        animation: np-comet-spin 11s linear infinite;
     }
 
-    // Soft GREEN outer glimmer that gently "breathes" — blur + opacity only.
+    // The outer glimmer, thicker than before: it starts 6px out (was 2px) and
+    // spreads further, so the light reads as a halo on the outside. Breathes
+    // more slowly than it did (8s, was 5.5s). Blur + opacity only.
     &::after {
         content: "";
         position: absolute;
-        inset: -2px;
+        inset: -6px;
         z-index: -1;
         border-radius: inherit;
-        background: $candy-pink-deep;
-        filter: blur(24px);
+        background: var(--lauflicht-color);
+        filter: blur(28px);
         opacity: 0.34;
         pointer-events: none;
-        animation: np-comet-breathe 5.5s ease-in-out infinite;
+        animation: np-comet-breathe 8s ease-in-out infinite;
     }
 }
 
@@ -116,7 +123,7 @@ body.lauflicht-subtle .lauflicht-rim {
     --lauflicht-strength: 0.35;
 
     &::before {
-        animation-duration: 12s;
+        animation-duration: 16s;
     }
 }
 
@@ -127,10 +134,10 @@ body.lauflicht-subtle .lauflicht-rim {
 // which reads as the effect being broken (mobile Lauflicht fix).
 @media (prefers-reduced-motion: reduce) {
     .lauflicht-rim::before {
-        animation-duration: 14s;
+        animation-duration: 18s;
     }
 
     .lauflicht-rim::after {
-        animation-duration: 9s;
+        animation-duration: 12s;
     }
 }

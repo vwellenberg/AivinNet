@@ -101,7 +101,7 @@ describe('reduced motion', () => {
         // effect rather than as consideration — it is the "something is playing"
         // indicator, and a still one states something false.
         expect(policy).toMatch(/lauflicht-rim::before/)
-        expect(policy).toMatch(/animation-duration: 14s !important/)
+        expect(policy).toMatch(/animation-duration: 18s !important/)
 
         // Every exception carries prose. A bare selector list here would be the
         // start of "reduced motion, except the bits I liked".
