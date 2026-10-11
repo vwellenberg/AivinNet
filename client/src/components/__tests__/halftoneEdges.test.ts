@@ -35,7 +35,7 @@ describe('halftone at the ends', () => {
         expect(edges, 'the $edges branch exists').not.toBeNull()
         const gradient = edges![1]
         // full at both outer edges, transparent through the middle
-        expect(gradient.startsWith('linear-gradient(to right, #000 0, #000 #{$edges}, transparent')).toBe(true)
+        expect(gradient.startsWith('linear-gradient(to right, #000 0, #000 $edges, transparent')).toBe(true)
         expect(gradient.endsWith('#000 calc(100% - #{$edges}), #000 100%)')).toBe(true)
     })
 })
