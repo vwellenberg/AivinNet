@@ -22,9 +22,20 @@ vi.mock('@/requests/playlists', () => ({
     createNewPlaylist: (...a: any[]) => createNewPlaylist(...a),
 }))
 
+// The store's list is what the server answers for "all playlists" (`fetchAll`).
+let storedList: unknown[] = []
+let serverList: unknown[] = []
 const addPlaylist = vi.fn()
+const fetchAll = vi.fn(async () => {
+    storedList.splice(0, storedList.length, ...serverList)
+})
 vi.mock('@/stores/pages/playlists', () => ({
-    default: () => ({ addPlaylist }),
+    default: () => ({ addPlaylist, fetchAll, playlists: storedList }),
+}))
+
+const celebrate = vi.fn()
+vi.mock('@/utils/confetti', () => ({
+    celebrate: (...a: any[]) => celebrate(...a),
 }))
 
 vi.mock('@/stores/queue/tracklist', () => ({
@@ -76,6 +87,22 @@ beforeEach(() => {
     })
     addPlaylist.mockClear()
     notification.mockClear()
+    celebrate.mockClear()
+    serverList = []
+})
+
+describe('NewPlaylist celebrates the first playlist', () => {
+    it('bursts when the server list holds only the new playlist', async () => {
+        serverList = [PLAYLIST]
+        await submit({})
+        expect(celebrate).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays quiet when the list already held other playlists', async () => {
+        serverList = [{ id: 1, name: 'older' }, PLAYLIST]
+        await submit({})
+        expect(celebrate).not.toHaveBeenCalled()
+    })
 })
 
 describe('NewPlaylist create() dispatch', () => {

@@ -1,0 +1,47 @@
+// Konfetti: one burst for a moment somebody chose (a device joined the group,
+// the first playlist was made). It is a character piece like the Lauflicht
+// comet, so its duration is a named exception in motionScale.test.ts, not a new
+// step on the scale. Pieces are placed and aimed by utils/confetti.ts; the
+// movement itself lives here, like every other movement in the app.
+.confetti-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.confetti-piece {
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 2px;
+    animation: confetti-burst 0.9s $motion-curve-settle forwards;
+}
+
+.confetti-circle {
+    border-radius: 50%;
+}
+
+.confetti-triangle {
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+@keyframes confetti-burst {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--x), var(--y)) rotate(var(--r));
+        opacity: 0;
+    }
+}

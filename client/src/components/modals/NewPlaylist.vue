@@ -26,9 +26,11 @@ import {
   saveTrackAsPlaylist,
 } from "@/requests/playlists";
 
+import { Playlist } from "@/interfaces";
 import { NotifType, Notification } from "@/stores/notification";
 import usePlaylistStore from "@/stores/pages/playlists";
 import useTracklist from "@/stores/queue/tracklist";
+import { celebrate } from "@/utils/confetti";
 
 const props = defineProps<{
   trackhash?: string;
@@ -40,6 +42,21 @@ const props = defineProps<{
 }>();
 
 const store = usePlaylistStore();
+
+/**
+ * A playlist was just made: put it in the list, and celebrate the first one.
+ *
+ * The count comes from the server, not from the store. The desktop sidebar is
+ * what fills the store, and on a phone there is no sidebar: the store is empty
+ * whatever the real count is. The fresh list holds the new playlist, so one
+ * entry means it is the first.
+ */
+async function added(playlist: Playlist | undefined) {
+  if (!playlist) return;
+  store.addPlaylist(playlist);
+  await store.fetchAll();
+  if (store.playlists.length === 1) celebrate();
+}
 
 onMounted(() => {
   const input_elem = document.getElementById("modal-playlist-name-input") as HTMLInputElement;
@@ -71,7 +88,7 @@ function create(e: Event) {
   const createTrackPlaylist = () =>
     saveTrackAsPlaylist(name, props?.trackhash || "").then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });
@@ -79,7 +96,7 @@ function create(e: Event) {
   const createEmptyPlaylist = () =>
     createNewPlaylist(name).then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });
@@ -87,7 +104,7 @@ function create(e: Event) {
   const createFolderPlaylist = () => {
     saveFolderAsPlaylist(name, props.path as string).then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });
@@ -96,7 +113,7 @@ function create(e: Event) {
   const createAlbumPlaylist = () => {
     saveAlbumAsPlaylist(name, props.albumhash as string).then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });
@@ -105,7 +122,7 @@ function create(e: Event) {
   const createArtistPlaylist = () => {
     saveArtistAsPlaylist(name, props.artisthash as string).then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });
@@ -118,7 +135,7 @@ function create(e: Event) {
 
     saveTrackAsPlaylist(name, itemhash).then((res) => {
       if (res) {
-        store.addPlaylist(res);
+        void added(res);
       }
       emit("hideModal");
     });

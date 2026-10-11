@@ -53,6 +53,7 @@ const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     // Loops and character pieces — outside the scale on purpose (_motion.scss).
     'src/assets/scss/Global/lauflicht.scss': { values: ['5.5s', '7s', '9s', '12s', '14s'], why: 'ambient loops' },
     'src/assets/scss/Global/state.scss': { values: ['0.6s'], why: 'pulse loop' },
+    'src/assets/scss/Global/confetti.scss': { values: ['0.9s'], why: 'one-off celebration burst (a character piece)' },
     // (The three spinners turn at `$motion-spin` now — one speed, no literal.)
     'src/components/shared/CardContent.vue': { values: ['1.7s'], why: 'skeleton pulse loop' },
     'src/components/Logo.vue': { values: ['0.7s', '3s'], why: 'planet spin, orbit loop' },
