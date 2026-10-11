@@ -76,5 +76,33 @@ useVisibility(albumheaderthing, handleVisibilityState)
             background-color: mem-pastel(map-get($mem-entities, "album"));
         }
     }
+
+    // The cover recedes as the header scrolls away. Scroll-driven: no script
+    // runs on scroll. `view()` ties the progress to the cover's own exit from
+    // the scroll port, so the length of the album does not change the feel.
+    // Without the support the cover stays put.
+    @supports (animation-timeline: view()) {
+        .dh-art img {
+            animation: album-cover-recede linear both;
+            animation-timeline: view();
+            animation-range: exit 0% exit 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .dh-art img {
+            animation: none;
+        }
+    }
+}
+
+@keyframes album-cover-recede {
+    from {
+        transform: none;
+    }
+
+    to {
+        transform: scale(0.8) translateY(-0.75rem);
+    }
 }
 </style>
