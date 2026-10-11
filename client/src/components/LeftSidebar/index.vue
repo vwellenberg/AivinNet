@@ -676,9 +676,9 @@ $sidebar-label-opacity: 0.85;
   // Above the content panel: the active nav entry and its arrow reach across
   // the gap onto the page's frame and would otherwise be painted under it.
   z-index: 2;
-  // Test: the corner halftone of the page ground (F), on the sidebar.
+  // The halftone of the page ground, over the whole sidebar (test, 2026-10-11).
   &::before {
-    @include mem-halftone;
+    @include mem-halftone($reach: null);
   }
   > * {
     position: relative;
