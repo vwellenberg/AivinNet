@@ -105,10 +105,14 @@ const mobileTitle = computed(() => {
 .topnav {
     position: relative;
     display: grid;
-    // The halftone of the page ground: the middle of the bar, fading out to the
-    // ends, where the nav links and the avatar sit.
+    // The halftone of the page ground runs over the full height of the bar, in a
+    // core around the middle. The ends stay white, where the nav links and the
+    // avatar sit: the outer quarter is clear, and the dots fade in over the next
+    // 15%.
     &::before {
-        @include mem-halftone($reach: null, $band: 35%);
+        @include mem-halftone($reach: null);
+        -webkit-mask-image: linear-gradient(to right, transparent 0, transparent 25%, #000 40%, #000 60%, transparent 75%, transparent 100%);
+        mask-image: linear-gradient(to right, transparent 0, transparent 25%, #000 40%, #000 60%, transparent 75%, transparent 100%);
     }
     > * {
         position: relative;
