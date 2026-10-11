@@ -111,7 +111,8 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
 - **„Forgotten favorites“** (alle 6 h): Favoriten-Tracks ohne Play in den letzten 60 Tagen (oder
   nie). Zuerst kommen die mit einem **Burst** (`strongest_phase`: die meisten Plays in einem
   3-Tage-Fenster, `is_burst`: mindestens 10 davon und mindestens 30 % aller Plays des Tracks). Die
-  Karte sagt es dann: „24 plays in 3 days · Aug 2025“. Danach die früher meistgespielten, dann die
+  Karte sagt es dann: „24 plays · Aug 2025“ (eine Zeile auf der Karte, die Phase ist die
+  stärkste 3-Tage-Spanne). Danach die früher meistgespielten, dann die
   am längsten stillen; höchstens 2 pro Album. Die Favoriten kommen aus dem RAM
   (`fav_userids` an den Tracks), nicht aus der DB. Ein Favorit ohne Bibliothekstrack fällt
   lautlos heraus — das ist die Lücke aus #433.

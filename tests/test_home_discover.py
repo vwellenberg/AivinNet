@@ -562,7 +562,8 @@ class TestForgottenFavorites:
         # The card draws help_text only, so the phase has to be there.
         item = forgotten_favorite_item("a/1", 48, NOW - 100 * DAY, (32, NOW - 400 * DAY))
 
-        assert item["help_text"].startswith("32 plays in 3 days · ")
+        assert item["help_text"].startswith("32 plays · ")
+        assert len(item["help_text"]) <= 22  # one line on the card, like "LAST AUGUST 2026"
         assert item["secondary_text"] == "48 plays"
 
     def test_no_burst_keeps_the_last_played_caption(self):
