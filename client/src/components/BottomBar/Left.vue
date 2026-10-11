@@ -267,9 +267,10 @@ defineEmits<{
         }
 
         // The comet is the only light on this 48px cover, and at full strength
-        // it reads as glare. Half strength keeps the ring saying "playing".
+        // it reads as glare. Half of whatever level is chosen keeps the ring
+        // saying "playing" (a factor, so the level setting still decides the base).
         &.lauflicht-rim {
-            --lauflicht-strength: 0.5;
+            --lauflicht-scale: 0.5;
         }
 
         img {
