@@ -198,7 +198,7 @@ function resume() {
   &::before {
     // Full height, like the top bar: the dot rows reach the top and bottom
     // edges too, and the left and right ends are the only thing that is shaped.
-    @include mem-halftone($reach: null, $edges: 5%, $right: 55%);
+    @include mem-halftone($reach: null, $edges: 5%, $right: 45%);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }

@@ -35,7 +35,7 @@ describe('halftone at the ends', () => {
 
     it('the continue card dots more on its right than on its left', () => {
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*55%/)
+        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*45%/)
     })
 
     it('the mixin leaves the middle clear and the ends full', () => {
