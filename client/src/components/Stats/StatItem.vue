@@ -110,9 +110,11 @@ const tileStyle = computed(() => ({
     overflow: hidden;
     position: relative;
 
-    // Dots, not hatch: the tile is read, never pressed (mem-halftone).
+    // Dots, not hatch: the tile is read, never pressed (mem-halftone). They build
+    // up as a wave along the row; the tiles' places in it are set below.
     &::before {
         @include mem-halftone;
+        @include mem-dots-wave;
     }
 
     .itemcontent {
@@ -158,5 +160,12 @@ const tileStyle = computed(() => ({
 .statitem.toptrack,
 .statitem.topalbum {
     aspect-ratio: 1.5;
+}
+
+// The wave along the row: each tile starts one stagger after the one before it.
+@for $i from 1 through 6 {
+    .statitem:nth-child(#{$i})::before {
+        animation-delay: $motion-stagger * ($i - 1);
+    }
 }
 </style>
