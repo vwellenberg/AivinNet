@@ -9,6 +9,7 @@ import useArtistPageStore from '@/stores/pages/artist'
 import useSettingsStore from '@/stores/settings'
 import { installChunkReload } from '@/utils/chunkReload'
 import { beginCoverMorph, finishCoverMorph } from '@/utils/coverMorph'
+import { groundDrifts } from '@/utils/groundDrift'
 
 import HomeView from '@/views/HomeView'
 const Lyrics = () => import('@/views/LyricsView')
@@ -275,7 +276,8 @@ const router = createRouter({
  * Richtung nicht erneut — ein laufender Name auf demselben Element wird von
  * der Engine nicht neu angestoßen.
  */
-router.afterEach(() => {
+router.afterEach((to, from) => {
+    if (!groundDrifts(to, from)) return
     const content = document.getElementById('acontent')
     if (!content) return
 
