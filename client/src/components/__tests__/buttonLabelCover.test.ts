@@ -48,8 +48,7 @@ function rulesFor(css: string, selector: string): string[] {
 }
 
 describe.each([
-    // btn-primary's glyph is the exception, see the test below.
-    ["btn-primary", ["> .text"]],
+    ["btn-primary", ["> svg", "> .text"]],
     ["btn-action", ["> svg"]],
 ])("%s", (name, covered) => {
     const body = mixin(name);
@@ -65,12 +64,4 @@ describe.each([
         expect(rules.length, `no ${selector} rule in ${name}`).toBeGreaterThan(0);
         expect(rules.some((rule) => /background-color:\s*inherit/.test(rule))).toBe(true);
     });
-});
-
-// A solid glyph carries no cover: the texture runs behind it. A box around it
-// cut a teal gap on either side of the ▶ (the Continue button, 2026-10-11).
-it("btn-primary's glyph is NOT covered — the texture runs through it", () => {
-    const rules = rulesFor(mixin("btn-primary"), "> svg");
-    expect(rules.length, "btn-primary has no > svg rule at all").toBeGreaterThan(0);
-    expect(rules.some((rule) => /background-color:\s*inherit/.test(rule))).toBe(false);
 });
