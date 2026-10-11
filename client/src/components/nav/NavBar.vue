@@ -105,11 +105,11 @@ const mobileTitle = computed(() => {
 .topnav {
     position: relative;
     display: grid;
-    // The halftone of the page ground runs over the full height of the bar, at
-    // the two ends. The middle stays white (user, 2026-10-12): the outer quarter
-    // is dotted, and the dots fade out over the next 15%.
+    // The dots stand at the two ends only, and the middle stays white (user,
+    // 2026-10-12: more whitespace in the middle). The outer tenth is dotted,
+    // and the dots fade out over the next 15%.
     &::before {
-        @include mem-halftone($reach: null, $edges: 25%);
+        @include mem-halftone($reach: null, $edges: 10%);
     }
     > * {
         position: relative;
