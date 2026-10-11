@@ -47,13 +47,14 @@ describe('PlayingMeter with live levels', () => {
         barStyles(wrapper).forEach(style => expect(style).not.toContain('transform'))
     })
 
-    it('stops listening when it pauses, and again when it unmounts', () => {
+    it('stops listening when it pauses, and again when it unmounts', async () => {
         stop.mockClear()
         const wrapper = mount(PlayingMeter)
-        wrapper.setProps({ playing: false })
+        // The playing watcher runs on the next tick, so wait for it.
+        await wrapper.setProps({ playing: false })
         expect(stop).toHaveBeenCalledTimes(1)
 
-        wrapper.setProps({ playing: true })
+        await wrapper.setProps({ playing: true })
         wrapper.unmount()
         expect(stop).toHaveBeenCalledTimes(2)
     })
