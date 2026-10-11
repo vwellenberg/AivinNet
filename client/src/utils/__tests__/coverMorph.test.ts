@@ -16,7 +16,7 @@ import {
 // behaviour itself is measured headless (see client/docs/verification.md).
 // ---------------------------------------------------------------------------
 
-function click(init: MouseEventInit = {}) {
+function click(init: { button?: number; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; shiftKey?: boolean } = {}) {
     return new MouseEvent('click', { button: 0, bubbles: true, ...init })
 }
 
