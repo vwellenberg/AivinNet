@@ -110,9 +110,9 @@ const tileStyle = computed(() => ({
     overflow: hidden;
     position: relative;
 
-    // Dots, not hatch: the tile is read, never pressed (mem-halftone).
+    // The page's terrazzo, not the hatch: the tile is read, never pressed.
     &::before {
-        @include mem-halftone;
+        @include mem-terrazzo;
     }
 
     .itemcontent {
