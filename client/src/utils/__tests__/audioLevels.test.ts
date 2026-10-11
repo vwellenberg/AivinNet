@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { binEdges, bandLevels, levelsSupported, quantizeLevel, subscribeLevels } from '@/utils/audioLevels'
+import { binEdges, bandLevels, levelsSupported, normalizeLevels, quantizeLevel, subscribeLevels } from '@/utils/audioLevels'
 
 // The analyser's maths, pure. The browser tap itself (captureStream on a live
 // element) is measured headless on the server, not here: jsdom has no
@@ -34,6 +34,26 @@ describe('bandLevels', () => {
         const data = new Uint8Array(512)
         data.fill(255, 1, 3) // half of the 4 bins of band 0 are full
         expect(bandLevels(data, edges)[0]).toBeCloseTo(0.5)
+    })
+})
+
+describe('normalizeLevels', () => {
+    it('scales each band against its own recent peak, so a quiet track still fills the bars', () => {
+        const peaks = [0, 0, 0, 0]
+        expect(normalizeLevels([0.2, 0, 0, 0], peaks)[0]).toBe(1)
+        // a quieter reading later on: about half the peak, so about half height
+        expect(normalizeLevels([0.1, 0, 0, 0], peaks)[0]).toBeCloseTo(0.5, 1)
+    })
+
+    it('keeps near-silence low: the floor stops a tiny signal looking like a full bar', () => {
+        const peaks = [0, 0, 0, 0]
+        expect(normalizeLevels([0.02, 0, 0, 0], peaks)[0]).toBeCloseTo(0.1, 1)
+    })
+
+    it('lets a peak fall back slowly, not at once', () => {
+        const peaks = [0.8, 0, 0, 0]
+        normalizeLevels([0, 0, 0, 0], peaks)
+        expect(peaks[0]).toBeCloseTo(0.796, 3)
     })
 })
 

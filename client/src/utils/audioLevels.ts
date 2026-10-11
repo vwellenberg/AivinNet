@@ -27,6 +27,9 @@ const FFT_SIZE = 1024
 const FRAME_MS = 33
 /** A failed capture is not tried again more often than this. */
 const RETRY_MS = 1000
+/** Per reading: a peak keeps 99.5% of its height, about half after five seconds. */
+const PEAK_DECAY = 0.995
+const PEAK_FLOOR = 0.2
 
 let provider: () => HTMLMediaElement | null = () => null
 const listeners = new Set<LevelListener>()
@@ -43,6 +46,7 @@ let failed: HTMLMediaElement | null = null
 let failedAt = 0
 let edges: number[] = []
 let bins = new Uint8Array(0)
+let peaks: number[] = [0, 0, 0, 0]
 
 /** The store says which element is playing right now (player.ts). */
 export function setLevelProvider(fn: () => HTMLMediaElement | null) {
@@ -79,6 +83,19 @@ export function binEdges(sampleRate: number, fftSize: number, hz: number[] = BAN
     return hz.map(frequency => Math.min(bins, Math.round((frequency * fftSize) / sampleRate)))
 }
 
+/**
+ * Each band is scaled against its own recent peak, so the bars use the full
+ * height whatever the track's loudness is. The peak falls back slowly (about
+ * five seconds to half), and never below `PEAK_FLOOR`, so near-silence stays low.
+ * `peaks` is the running state, one entry per band; it is updated in place.
+ */
+export function normalizeLevels(raw: number[], peaks: number[]): number[] {
+    return raw.map((value, band) => {
+        peaks[band] = Math.max(value, (peaks[band] ?? 0) * PEAK_DECAY)
+        return Math.min(1, value / Math.max(peaks[band], PEAK_FLOOR))
+    })
+}
+
 /** The LED grid of the meter: quarter steps, and never less than one lit segment. */
 export function quantizeLevel(value: number): number {
     return Math.min(1, Math.max(0.25, Math.round(value * 4) / 4))
@@ -93,6 +110,7 @@ function detach() {
     stream = null
     attached = null
     bins = new Uint8Array(0)
+    peaks = peaks.map(() => 0)
 }
 
 /** Taps `el` into the analyser. False if the browser cannot, or the attempt just failed. */
@@ -155,7 +173,7 @@ function tick(now: number) {
     }
     silent = false
     analyser.getByteFrequencyData(bins)
-    emit(bandLevels(bins, edges))
+    emit(normalizeLevels(bandLevels(bins, edges), peaks))
 }
 
 /**
