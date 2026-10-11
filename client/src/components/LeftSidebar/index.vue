@@ -670,6 +670,14 @@ $sidebar-inset: 0.875rem;
   // Above the content panel: the active nav entry and its arrow reach across
   // the gap onto the page's frame and would otherwise be painted under it.
   z-index: 2;
+  // Test: the corner halftone of the page ground (F), on the sidebar.
+  &::before {
+    @include mem-halftone;
+  }
+  > * {
+    position: relative;
+    z-index: 1;
+  }
   // ⚠️ No padding here — it belongs to the scroller below. A padded panel
   // moves the scrollport's clip edge INWARDS, and a scroll container clips at
   // its padding box: rows then vanished 14px short of the ink frame, inside a

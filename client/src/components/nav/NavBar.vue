@@ -103,7 +103,16 @@ const mobileTitle = computed(() => {
 
 <style lang="scss">
 .topnav {
+    position: relative;
     display: grid;
+    // Test: the corner halftone of the page ground (F), on the top bar.
+    &::before {
+        @include mem-halftone;
+    }
+    > * {
+        position: relative;
+        z-index: 1;
+    }
     // Left column hugs the logo/title; the right column spans the rest so the
     // search group can centre and the avatar can sit in the far-right corner.
     grid-template-columns: max-content 1fr;

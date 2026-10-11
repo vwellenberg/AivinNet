@@ -59,7 +59,16 @@ function handleFav() {
 
 <style lang="scss">
 .b-bar {
+    position: relative;
     display: grid;
+    // Test: the corner halftone of the page ground (F), on the player bar.
+    &::before {
+        @include mem-halftone;
+    }
+    > * {
+        position: relative;
+        z-index: 1;
+    }
     grid-template-columns: 1fr max-content 1fr;
     align-items: center;
     z-index: 1;
