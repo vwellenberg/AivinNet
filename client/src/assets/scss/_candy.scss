@@ -1227,7 +1227,7 @@ $mem-seg-reserve: 4px !default;
 // white — the top bar and the Continue card name their own width, and the
 // bottom bar wears none.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null) {
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null) {
   content: "";
   position: absolute;
   inset: $inset;
@@ -1238,8 +1238,12 @@ $mem-seg-reserve: 4px !default;
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
     mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
   } @else if $edges {
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$edges} - 15%), #000 calc(100% - #{$edges}), #000 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$edges} - 15%), #000 calc(100% - #{$edges}), #000 100%);
+    // `$right` is the right end's own width (the Continue card dots more on
+    // its right than on its left); it defaults to `$edges`.
+    $right-edge: $edges;
+    @if $right { $right-edge: $right; }
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
   } @else if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);

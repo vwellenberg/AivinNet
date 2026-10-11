@@ -192,11 +192,13 @@ function resume() {
   // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
   // Continue, the rows) carries its own plate, and the hatch says "pressable"
   // (styling.md). The dots stand at the two ends of the plate and the middle
-  // stays white (user, 2026-10-12), like the bars. The labels sit on their own
+  // stays white (user, 2026-10-12), like the top bar's ends, but fewer on the
+  // left and more on the right. The labels sit on their own
   // covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
-    // A white margin on all four sides, so the dots stop short of the frame.
-    @include mem-halftone($reach: null, $inset: 10px, $edges: 25%);
+    // Full height, like the top bar: the dot rows reach the top and bottom
+    // edges too, and the left and right ends are the only thing that is shaped.
+    @include mem-halftone($reach: null, $edges: 5%, $right: 45%);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }

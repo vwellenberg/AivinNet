@@ -19,7 +19,7 @@ const read = (path: string) => readFileSync(path, 'utf8')
 
 const HOSTS: [string, string][] = [
     ['src/components/nav/NavBar.vue', '10%'],
-    ['src/components/HomeView/ContinueCard.vue', '25%'],
+    ['src/components/HomeView/ContinueCard.vue', '5%'],
 ]
 
 describe('halftone at the ends', () => {
@@ -33,13 +33,18 @@ describe('halftone at the ends', () => {
         expect(read('src/components/BottomBar/BottomBar.vue')).not.toMatch(/mem-halftone/)
     })
 
+    it('the continue card dots more on its right than on its left', () => {
+        const src = read('src/components/HomeView/ContinueCard.vue')
+        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*45%/)
+    })
+
     it('the mixin leaves the middle clear and the ends full', () => {
         const mixin = read('src/assets/scss/_candy.scss')
-        const edges = mixin.match(/@else if \$edges \{\s*-webkit-mask-image:\s*([^;]+);/)
+        const edges = mixin.match(/@else if \$edges \{[\s\S]*?-webkit-mask-image:\s*([^;]+);/)
         expect(edges, 'the $edges branch exists').not.toBeNull()
         const gradient = edges![1]
         // full at both outer edges, transparent through the middle
         expect(gradient.startsWith('linear-gradient(to right, #000 0, #000 $edges, transparent')).toBe(true)
-        expect(gradient.endsWith('#000 calc(100% - #{$edges}), #000 100%)')).toBe(true)
+        expect(gradient.endsWith('#000 calc(100% - #{$right-edge}), #000 100%)')).toBe(true)
     })
 })
