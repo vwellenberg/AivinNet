@@ -7,10 +7,11 @@
         }"
         class="album-card"
         :class="{ 'context-menu-open': contextMenuFlag }"
+        @click.capture="armCoverMorph(coverImg, $event)"
     >
         <CardTypeLabel type="album" />
         <div class="with-img card-art no-scroll">
-            <img class="shadow-lg" :src="imguri + album.image" alt="" />
+            <img ref="coverImg" class="shadow-lg" :src="imguri + album.image" alt="" />
             <PlayBtn
                 :store="useAlbumStore"
                 :source="playSources.album"
@@ -67,9 +68,11 @@ import { paths } from '../../config'
 import MasterFlag from './MasterFlag.vue'
 import { showAlbumContextMenu } from '@/helpers/contextMenuHandler'
 import { isTypeEcho } from '@/utils/cardTypes'
+import { armCoverMorph } from '@/utils/coverMorph'
 
 const route = useRoute()
 const contextMenuFlag = ref(false)
+const coverImg = ref<HTMLImageElement | null>(null)
 const imguri = paths.images.thumb.medium
 
 const props = defineProps<{

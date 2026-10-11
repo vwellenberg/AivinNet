@@ -119,6 +119,14 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     }
 }
 
+// The cover's glide from its card to this cell (utils/coverMorph.ts). The
+// browser's quarter-second default reads as lag over a move this large; the
+// settle step is the same curve the page itself lands on.
+::view-transition-group(album-cover) {
+    animation-duration: $motion-settle;
+    animation-timing-function: $motion-curve-settle;
+}
+
 // The text side. The dividing rule belongs HERE, not to the media cell: the
 // cell can be round or padded, and a border on it would follow that shape.
 .dh-art + .dh-body {
