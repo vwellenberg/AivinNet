@@ -189,13 +189,12 @@ function resume() {
   @include candy-shadow(4px, 4px);
   color: $mem-ink;
 
-  // The page's terrazzo, not the hatch. The card is read; what can be pressed on
-  // it (cover, title, Continue, the rows) carries its own plate, and the hatch
-  // says "pressable" (styling.md). The texture covers the whole plate evenly: the
-  // labels sit on their own covers, so no squiggle lands under a letter. The
-  // children sit above it.
+  // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
+  // Continue, the rows) carries its own plate, and the hatch says "pressable"
+  // (styling.md). The dots cover the whole plate evenly: the labels sit on their
+  // own covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
-    @include mem-terrazzo($reach: null);
+    @include mem-halftone($reach: null);
   }
 
   > * {
