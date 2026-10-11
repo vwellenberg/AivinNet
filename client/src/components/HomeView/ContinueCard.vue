@@ -160,8 +160,8 @@ function resume() {
 </script>
 
 <style lang="scss">
-// The one big card on Home. Same anatomy as every plate (ink frame, hatch,
-// hard offset), filled with the entity's pastel like a browse tile, so an
+// The one big card on Home. Same frame and offset as every plate, filled with
+// the entity's pastel like a browse tile, so an
 // album reads lavender and a playlist pink before the name is read.
 // Each card is its own size container for the Up next column; the spacing
 // to the rows below belongs to the row of cards (HomeView/main.vue).
@@ -183,11 +183,23 @@ function resume() {
   gap: 1.25rem;
   align-items: center;
   padding: 1rem;
+  position: relative;
   --row-fill: #{$mem-panel};
   @include candy-box(var(--row-fill), $candy-radius);
-  @include mem-hatch(38px, $on: accent);
   @include candy-shadow(4px, 4px);
   color: $mem-ink;
+
+  // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
+  // Continue, the rows) carries its own plate, and the hatch says "pressable"
+  // (styling.md). The children sit above the dots.
+  &::before {
+    @include mem-halftone;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 
   @each $name in album, playlist {
     &.ent-#{$name} {
@@ -231,7 +243,7 @@ function resume() {
     min-width: 0;
   }
 
-  // Covers on the hatch, like every label on a hatched plate.
+  // A plain cover under each label keeps the dots off the letters.
   .kicker,
   .name,
   .meta {
