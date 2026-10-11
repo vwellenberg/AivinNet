@@ -653,6 +653,11 @@ onBeforeUnmount(teardown);
 // playlists — the three must line up edge for edge.
 $sidebar-inset: 0.875rem;
 
+// The tone of a library row's name. Playlist names and folder names read it
+// from here, so the two cannot drift apart: the folder head sat at full ink
+// while the playlists beside it were dimmed (2026-10-11).
+$sidebar-label-opacity: 0.85;
+
 .l-sidebar {
   grid-area: l-sidebar;
   display: grid;
@@ -993,8 +998,9 @@ $sidebar-inset: 0.875rem;
         }
       }
 
-      // Same as the playlist rows, small buffer for the same reason.
+      // Same tone and same small buffer as the playlist rows, for the same reason.
       span.ellip {
+        opacity: $sidebar-label-opacity;
         @include mem-hatch-clear($small);
       }
 
@@ -1117,7 +1123,7 @@ $sidebar-inset: 0.875rem;
     // a whole word early ("Chill Gami…" instead of "Chill Gaming"), and a name
     // you cannot read is a worse trade than a little less texture.
     span.ellip {
-      opacity: 0.85;
+      opacity: $sidebar-label-opacity;
       @include mem-hatch-clear($small);
     }
 
