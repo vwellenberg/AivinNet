@@ -1221,10 +1221,12 @@ $mem-seg-reserve: 4px !default;
 // By default the dots gather in the top-right corner and fade out before the
 // centre and the bottom-left, where the numbers sit: a texture behind text
 // costs legibility, a corner costs nothing. `$reach: null` drops the corner
-// fade. `$band` is the other shape: the dots stand in the middle of the plate
-// and fade out towards both sides, for a bar whose ends carry text and icons.
+// fade. `$band` is another shape: the dots stand in the middle of the plate
+// and fade out towards both sides. `$edges` is its inverse: the dots stand at
+// both ends, `$edges` wide, fade out over the next 15% and leave the middle
+// white — the bars and the Continue card use it, one value, so they match.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0) {
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null) {
   content: "";
   position: absolute;
   inset: $inset;
@@ -1234,6 +1236,9 @@ $mem-seg-reserve: 4px !default;
   @if $band {
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
     mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
+  } @else if $edges {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$edges} - 15%), #000 calc(100% - #{$edges}), #000 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$edges} - 15%), #000 calc(100% - #{$edges}), #000 100%);
   } @else if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
