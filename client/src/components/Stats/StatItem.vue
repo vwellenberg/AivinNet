@@ -1,5 +1,21 @@
 <template>
     <div class="statitem" :class="props.icon" :style="tileStyle">
+        <svg class="statmotif" viewBox="0 0 150 90" aria-hidden="true" focusable="false">
+            <circle v-if="motif === 'disc'" cx="128" cy="-6" r="58" />
+            <polygon v-else-if="motif === 'triangle'" points="52,-14 168,6 104,74" />
+            <path
+                v-else-if="motif === 'wave'"
+                class="line"
+                transform="rotate(-14 150 40)"
+                d="M40 42 q14 -18 28 0 t28 0 t28 0 t28 0 t28 0"
+            />
+            <path
+                v-else-if="motif === 'zigzag'"
+                class="line"
+                d="M50 62 l16 -20 l16 20 l16 -20 l16 20 l16 -20 l16 20"
+            />
+            <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
+        </svg>
         <div class="itemcontent">
             <div class="count ellip2" :title="formattedValue">{{ formattedValue }}</div>
             <div class="title">{{ text }}</div>
@@ -132,11 +148,29 @@ const defaultBackgroundStyles = computed(() => {
     }
 })
 
-// `--row-fill` is the tile's one fill source: the label covers below read it, so
-// a cover always matches the tile it sits on.
+// One Memphis shape per kind, drawn big and tone in tone in the top-right corner
+// and cropped by the tile's edge. It is a motif, not a texture: a whole shape
+// can end clear of the text, where a dot pattern could only be cut off at the
+// letters. Same split as the colour above: top tiles share one, and the kinds
+// nobody claimed ("New favorites") take the zigzag.
+const motif = computed(() => {
+    switch (props.icon) {
+        case 'toptrack':
+        case 'topalbum':
+            return 'disc'
+        case 'streams':
+            return 'triangle'
+        case 'playtime':
+            return 'wave'
+        case 'trackcount':
+            return 'bar'
+        default:
+            return 'zigzag'
+    }
+})
+
 const tileStyle = computed(() => ({
     backgroundColor: defaultBackgroundStyles.value,
-    '--row-fill': defaultBackgroundStyles.value,
 }))
 </script>
 
@@ -160,12 +194,39 @@ const tileStyle = computed(() => ({
     overflow: hidden;
     position: relative;
 
-    // Dots, not hatch: the tile is read, never pressed (mem-halftone). They cover
-    // the whole tile, like the Continue card, and build up as a wave along the
-    // row; the tiles' places in it are set below.
-    &::before {
-        @include mem-halftone($reach: null);
-        @include mem-dots-wave;
+    // The motif, behind the content. It is the top-right 150x90 of the tile and
+    // the tile's `overflow: hidden` crops what leaves it. All of it ends above
+    // the text: the number has two lines at most and starts 85px below the
+    // tile's outer edge, while the lowest point of any shape (the triangle's tip)
+    // is at 77px, so 8px of air at the closest (measured on the running client,
+    // light and dark, desktop and phone). Not the hatch and not dots — those say
+    // "pressable" or run behind the letters; this stays out of the way.
+    //
+    // The colour is the tile's own ink at 13 %, so it reads on every accent
+    // and in both themes, and it follows a colour scheme's ink. `--shape-motif`
+    // lets a look drop it (Boring: `none`).
+    .statmotif {
+        display: var(--shape-motif, block);
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 150px;
+        height: 90px;
+        overflow: visible;
+        pointer-events: none;
+        color: mem-alpha($mem-ink, 0.13);
+        fill: currentColor;
+        transform-origin: 100% 0;
+        @include mem-motif-pop;
+
+        // Open shapes (the wave, the zigzag) are strokes, not fills.
+        .line {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 9;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
     }
 
     .itemcontent {
@@ -180,18 +241,12 @@ const tileStyle = computed(() => ({
         align-items: flex-start;
         gap: $small;
 
-        // Small type takes a plain cover, so no dot lands under a letter. The
-        // number is large: the dots read through it, and a box around it would
-        // only cut gaps in the tile. The cover's own inset is pulled back so the
-        // title keeps its line.
         .count {
             font-size: 1.55rem;
             font-weight: 900;
         }
 
         .title {
-            @include mem-hatch-clear(6px);
-            margin-left: -4px;
             font-size: 14px;
             font-weight: 500;
         }
@@ -219,9 +274,10 @@ const tileStyle = computed(() => ({
     aspect-ratio: 1.5;
 }
 
-// The wave along the row: each tile starts one stagger after the one before it.
+// The wave along the row: each tile's motif pops in one stagger after the one
+// before it.
 @for $i from 1 through 6 {
-    .statitem:nth-child(#{$i})::before {
+    .statitem:nth-child(#{$i}) .statmotif {
         animation-delay: $motion-stagger * ($i - 1);
     }
 }

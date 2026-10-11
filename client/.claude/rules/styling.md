@@ -383,6 +383,35 @@ es keine passende Kachel mehr, weil die Fläche nicht mehr als *ein Ding* gelese
 Tapete. Wenn die Frage lautet „welche Kachelgröße passt hier noch?", ist die Antwort meistens
 **gar keine** — siehe die Chrome-Regel oben.
 
+## ⚠️ Eine Lesetafel mit großer Zahl trägt ein MOTIV, keine Textur (Stat-Kacheln)
+
+Die Statistik-Kacheln trugen Halbtonpunkte über die ganze Fläche. Sie wurden an den runden Ecken
+halb angeschnitten, liefen durch die große Zahl, und die Unterzeile brauchte eine Deckfläche in
+`--row-fill`, damit kein Punkt unter einem Buchstaben stand. Jede dieser drei Stellen war ein
+Pflaster für dieselbe Ursache: **Ein Muster hat keine Kante.** Es ist überall oder es wird
+irgendwo abgeschnitten.
+
+Ein **Motiv** hat eine Kante: eine ganze Form (Kreis, Dreieck, Welle, Zickzack, Balken, je Art
+eine), groß in die obere rechte Ecke gesetzt, Ton in Ton (`mem-alpha($mem-ink, 0.13)`) und von
+der Kachel angeschnitten. Sie endet **über** dem Text — die Zahl hat höchstens zwei Zeilen, ihre
+Oberkante liegt gemessen 85 px unter der Kachel-Außenkante, die tiefste Stelle eines Motivs
+(Spitze des Dreiecks, Welle 76 px) bei 77 px: mindestens 8 px Luft, hell und dunkel, Desktop und
+Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
+
+- **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
+  Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
+  steht.
+- **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
+- **Der Aufbau ist ein Pop aus der Ecke** (`mem-motif-pop`, `transform-origin: 100% 0`), gestaffelt
+  über `:nth-child` auf `.statmotif`. Die `animation`-Kurzform setzt das Delay zurück — es steht
+  deshalb in einer **spezifischeren** Regel dahinter.
+- Zensus: `Stats/__tests__/StatItem.test.ts` (jede Art ihre eigene Form, kein Halbton-Layer und kein
+  Cover mehr, Token und Animation gekoppelt).
+- ⚠️ **Die Luft von 8 px ist eine Messung, kein Gesetz.** Wer ein Motiv vergrößert oder die Zahl
+  größer setzt, misst gegen die echte Kachel mit zweizeiliger Zahl neu — an der **Umrisslinie**
+  (`getPointAtLength` über `getScreenCTM`), nicht an `getBoundingClientRect()`: Das ist bei einem
+  gedrehten Pfad die Box der gedrehten Box und meldete bei der Welle 85 statt 76 px (= „zu nah").
+
 ## ⚠️ Text auf dem Grund braucht eine Platte — `--mem-veil`
 
 Der Seitengrund ist Rasterpapier **mit** den Memphis-Doodles. Jede Textfläche, die direkt darauf

@@ -304,6 +304,16 @@
   }
 }
 
+// The motif of a read-only plate (a stat tile's big shape, `mem-motif-pop` in
+// _candy.scss) grows out of the corner it is cropped by. The end frame is
+// undeclared on purpose: it lands on the element's own transform.
+@keyframes mem-motif-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+
 // Der Sticker-Anschlag: von oben, schräg, beim Aufsetzen gestaucht — und der
 // harte Schatten entsteht ERST im Moment des Kontakts.
 //
