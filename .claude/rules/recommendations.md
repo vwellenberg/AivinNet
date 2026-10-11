@@ -109,8 +109,12 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   zählt mehr als eine „alles“-Liste. Bei Samplern zählen die Track-Artists statt „Various
   Artists“ (`TrackFacts.track_artists`). Ohne Playlists keine Zeile.
 - **„Forgotten favorites“** (alle 6 h): Favoriten-Tracks ohne Play in den letzten 60 Tagen (oder
-  nie). Die früher meistgespielten zuerst, dann die am längsten stillen; höchstens 2 pro Album.
-  Die Favoriten kommen aus dem RAM (`fav_userids` an den Tracks), nicht aus der DB.
+  nie). Zuerst kommen die mit einem **Burst** (`strongest_phase`: die meisten Plays in einem
+  3-Tage-Fenster, `is_burst`: mindestens 10 davon und mindestens 30 % aller Plays des Tracks). Die
+  Karte sagt es dann: „24 plays in 3 days · Aug 2025“. Danach die früher meistgespielten, dann die
+  am längsten stillen; höchstens 2 pro Album. Die Favoriten kommen aus dem RAM
+  (`fav_userids` an den Tracks), nicht aus der DB. Ein Favorit ohne Bibliothekstrack fällt
+  lautlos heraus — das ist die Lücke aus #433.
 
 ⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
 der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen
