@@ -561,6 +561,10 @@ def _month(timestamp: int) -> str:
     return pendulum.from_timestamp(timestamp).in_timezone(local_timezone()).format("MMMM YYYY")
 
 
+def _short_month(timestamp: int) -> str:
+    return pendulum.from_timestamp(timestamp).in_timezone(local_timezone()).format("MMM YYYY")
+
+
 def time_slot(dt: datetime) -> tuple[bool, str]:
     """
     `(weekend, band)` of a local time: Saturday 20:00 is `(True, "evenings")`.
@@ -829,9 +833,11 @@ def forgotten_favorite_item(
 
     # The card draws only `help_text` (TrackCard.vue), so a burst goes there:
     # the caption is what the reader sees, and "last …" would hide the phase.
+    # Short month and no "in N days": the caption is one line on the card,
+    # "24 plays in 3 days · August 2025" wrapped and pushed the title down.
     phase_plays, phase_start = phase
     if phase_start is not None and is_burst(phase_plays, plays):
-        help_text = f"{phase_plays} plays in {PHASE_DAYS} days · {_month(phase_start)}"
+        help_text = f"{phase_plays} plays · {_short_month(phase_start)}"
     else:
         help_text = f"last {_month(last_played)}"
 
