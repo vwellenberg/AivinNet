@@ -61,12 +61,6 @@ function handleFav() {
 .b-bar {
     position: relative;
     display: grid;
-    // The halftone of the page ground runs over the full height of the bar, at
-    // the two ends. The middle stays white (user, 2026-10-12): the outer quarter
-    // is dotted, and the dots fade out over the next 15%.
-    &::before {
-        @include mem-halftone($reach: null, $edges: 25%);
-    }
     > * {
         position: relative;
         z-index: 1;
@@ -237,8 +231,7 @@ function handleFav() {
             }
         }
 
-        // On the veil like every label on the ground: the halftone of the bar
-        // stands behind the centre, where these numbers sit.
+        // On the veil like every label on the ground, where these numbers sit.
         .time {
             font-weight: 500;
             font-size: $medium;

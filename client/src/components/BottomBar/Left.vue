@@ -343,8 +343,8 @@ defineEmits<{
         // exposed — the box was 12px wide and the words were still there.
         overflow: hidden;
 
-        // The words sit on the veil, not on the dots of the bar's halftone: a
-        // dot behind a letter costs legibility (styling.md, text on the ground).
+        // The words sit on the veil, like every label on the ground: a dot
+        // behind a letter costs legibility (styling.md, text on the ground).
         .title {
             color: $candy-text;
             display: flex;

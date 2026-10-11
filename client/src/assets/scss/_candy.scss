@@ -1224,7 +1224,8 @@ $mem-seg-reserve: 4px !default;
 // fade. `$band` is another shape: the dots stand in the middle of the plate
 // and fade out towards both sides. `$edges` is its inverse: the dots stand at
 // both ends, `$edges` wide, fade out over the next 15% and leave the middle
-// white — the bars and the Continue card use it, one value, so they match.
+// white — the top bar and the Continue card name their own width, and the
+// bottom bar wears none.
 // `--shape-halftone` lets a look drop them.
 @mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null) {
   content: "";
