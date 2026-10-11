@@ -246,6 +246,10 @@ defineEmits<{
         // was pinned and every desktop width was not.
         flex-shrink: 0;
 
+        // A link is a control: it carries the same 3px offset as the transport
+        // buttons beside it, and presses into it like they do.
+        @include candy-raised(3px, 3px);
+
         // Lauflicht comet ring around the playing cover (always visible here).
         // The soft green bloom is suppressed in the compact bar — it would be
         // clipped by no-scroll (overflow:hidden) anyway; the bloom lives on the
