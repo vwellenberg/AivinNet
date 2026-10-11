@@ -25,7 +25,7 @@ const HOSTS: [string, string][] = [
 describe('halftone at the ends', () => {
     it.each(HOSTS)('%s asks the mixin for its edges and writes no mask of its own', (path, width) => {
         const src = read(path)
-        expect(src).toMatch(new RegExp(`mem-halftone\([^)]*\$edges:\s*${width}`))
+        expect(src).toMatch(new RegExp('mem-halftone\\([^)]*\\$edges:\\s*' + width))
         expect(src).not.toMatch(/mask-image/)
     })
 
