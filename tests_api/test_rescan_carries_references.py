@@ -8,14 +8,32 @@ on it.
 
 from types import SimpleNamespace
 
-from sqlalchemy import insert, select
+import pytest
+from sqlalchemy import delete, insert, select
 
 OLD = "0ld0ld0ld0ld0ld0"
 NEW = "n3wn3wn3wn3wn3w0"
 FILE = "/m/Gothic/swamp camp.mp3"
 
 
-def test_a_rescan_that_changed_a_hash_carries_the_favourite(playlist_db, monkeypatch):
+@pytest.fixture()
+def reference_db(playlist_db):
+    """playlist_db wipes playlists only; favourites and plays are wiped here, both ways."""
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable, ScrobbleTable
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(FavoritesTable))
+        session.execute(delete(ScrobbleTable))
+
+    yield
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(FavoritesTable))
+        session.execute(delete(ScrobbleTable))
+
+
+def test_a_rescan_that_changed_a_hash_carries_the_favourite(reference_db, monkeypatch):
     from aivinnet.db.engine import DbEngine
     from aivinnet.db.userdata import FavoritesTable
     from aivinnet.lib import index
@@ -36,7 +54,7 @@ def test_a_rescan_that_changed_a_hash_carries_the_favourite(playlist_db, monkeyp
         assert session.execute(select(FavoritesTable.hash)).scalars().all() == [f"track_{NEW}"]
 
 
-def test_a_rescan_that_changed_nothing_touches_nothing(playlist_db, monkeypatch):
+def test_a_rescan_that_changed_nothing_touches_nothing(reference_db, monkeypatch):
     from aivinnet.db.engine import DbEngine
     from aivinnet.db.userdata import FavoritesTable
     from aivinnet.lib import index
