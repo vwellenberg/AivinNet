@@ -343,6 +343,8 @@ defineEmits<{
         // exposed — the box was 12px wide and the words were still there.
         overflow: hidden;
 
+        // The words sit on the veil, not on the dots of the bar's halftone: a
+        // dot behind a letter costs legibility (styling.md, text on the ground).
         .title {
             color: $candy-text;
             display: flex;
@@ -352,10 +354,20 @@ defineEmits<{
             // default, so the `.ellip` span inside never reached its own
             // ellipsis and pushed this row wider than its parent instead.
             min-width: 0;
+            background-color: var(--mem-veil);
+            border-radius: 6px;
+            padding: 0 4px;
+            align-self: flex-start;
+            max-width: 100%;
         }
 
         .artistname {
             color: $candy-text-muted;
+            background-color: var(--mem-veil);
+            border-radius: 6px;
+            padding: 0 4px;
+            width: fit-content;
+            max-width: 100%;
 
             a {
                 font-size: 0.8rem;

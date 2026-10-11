@@ -236,10 +236,15 @@ function handleFav() {
             }
         }
 
+        // On the veil like every label on the ground: the halftone of the bar
+        // stands behind the centre, where these numbers sit.
         .time {
             font-weight: 500;
             font-size: $medium;
             color: $candy-text;
+            background-color: var(--mem-veil);
+            border-radius: 6px;
+            padding: 0 4px;
 
             .numbers {
                 // Plain time text, no pill/box background.
