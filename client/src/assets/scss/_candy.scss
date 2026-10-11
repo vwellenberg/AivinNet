@@ -260,6 +260,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-radius(-sm)    corner radii (above)
 //   --shape-sprinkle       the terrazzo dash texture
 //   --shape-halftone       the printed dots of a surface that is only read (mem-halftone)
+//   --shape-motif          the display of a stat tile's big corner shape (Memphis: block)
 //   --shape-doodles        the doodle layer of the page ground
 //   --shape-doodles-size   its background-size (one entry per layer, when a
 //                          look puts several images in that slot)
@@ -1209,8 +1210,8 @@ $mem-seg-reserve: 4px !default;
   }
 }
 
-// Halftone dots — the printed texture of a surface that is only READ (a stat
-// tile, not a control). Written as a `::before` layer: `&::before { @include
+// Halftone dots — the printed texture of a surface that is only READ (the
+// Continue card and the bars, not a control; the stat tiles wear a motif instead). Written as a `::before` layer: `&::before { @include
 // mem-halftone; }`.
 //
 // Not the hatch. The terrazzo strokes say "pressable" in this design
@@ -1245,6 +1246,15 @@ $mem-seg-reserve: 4px !default;
 // the dots rest at their normal size once the wave has passed.
 @mixin mem-dots-wave($delay: 0s) {
   animation: mem-dots-grow $motion-settle $motion-curve-settle $delay backwards;
+}
+
+// The build-up of a read-only plate's motif (`mem-motif-pop`, in
+// Global/_button-classes.scss): it grows out of its cropped corner. The host
+// sets `transform-origin` to that corner and its place in a row's wave as
+// `animation-delay` (the shorthand here resets the delay, so a later, more
+// specific rule has to set it). `backwards`, not `both`.
+@mixin mem-motif-pop($delay: 0s) {
+  animation: mem-motif-pop $motion-settle $motion-curve-settle $delay backwards;
 }
 
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
