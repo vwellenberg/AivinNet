@@ -45,6 +45,19 @@ class Base(MappedAsDataclass, DeclarativeBase):
             yield result
 
     @classmethod
+    def rows(cls, stmt: Any):
+        """
+        The frozen result of a read, with its session already released.
+
+        Use this in a generator that yields rows, not `next(cls.execute(...))`
+        held in a variable: the variable keeps the `execute` generator alive, so
+        its session and pooled connection stay checked out until the generator
+        is garbage-collected. `close()` on a half-read stream did not free it
+        (#446). Here the temporary generator is dropped at once and closed.
+        """
+        return next(cls.execute(stmt))
+
+    @classmethod
     def insert_many(cls, items: list[dict[str, Any]]):
         """
         Inserts multiple items into the database.

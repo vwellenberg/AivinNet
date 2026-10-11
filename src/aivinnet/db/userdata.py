@@ -59,9 +59,9 @@ class UserTable(Base):
 
     @classmethod
     def get_all(cls):
-        result = cls.execute(select(cls))
+        result = cls.rows(select(cls))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield user_to_dataclass(i)
 
     @classmethod
@@ -90,8 +90,8 @@ class UserTable(Base):
 
     @classmethod
     def get_by_id(cls, id: int):
-        result = cls.execute(select(cls).where(cls.id == id))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(cls.id == id))
+        res = result.scalar()
 
         if res:
             return user_to_dataclass(res)
@@ -140,9 +140,9 @@ class PluginTable(Base):
 
     @classmethod
     def get_all(cls):
-        result = cls.execute(select(cls))
+        result = cls.rows(select(cls))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield plugin_to_dataclass(i)
 
     @classmethod
@@ -151,8 +151,8 @@ class PluginTable(Base):
 
     @classmethod
     def get_by_name(cls, name: str):
-        result = cls.execute(select(cls).where(cls.name == name))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(cls.name == name))
+        res = result.scalar()
 
         if res:
             return plugin_to_dataclass(res)
@@ -176,9 +176,9 @@ class SimilarArtistTable(Base):
 
     @classmethod
     def get_all(cls):
-        result = cls.execute(select(cls).execution_options(yield_per=100))
+        result = cls.rows(select(cls).execution_options(yield_per=100))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield similar_artist_to_dataclass(i)
 
     @classmethod
@@ -199,8 +199,8 @@ class SimilarArtistTable(Base):
         """
         Get a single artist by hash.
         """
-        result = cls.execute(select(cls).where(cls.artisthash == artisthash))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(cls.artisthash == artisthash))
+        res = result.scalar()
 
         if res:
             return similar_artist_to_dataclass(res)
@@ -314,9 +314,9 @@ class FavoritesTable(Base):
         out of a session scope, and materializing a mapped entity from it is the
         "identity map is no longer valid" trap (see .claude/rules/database.md).
         """
-        result = cls.execute(select(cls.id).where(and_(cls.hash == hash, cls.userid == userid)))
+        result = cls.rows(select(cls.id).where(and_(cls.hash == hash, cls.userid == userid)))
 
-        return next(result).scalar()
+        return result.scalar()
 
     @classmethod
     def remove_item(cls, item: dict[str, Any]):
@@ -349,7 +349,7 @@ class FavoritesTable(Base):
         what made `/favorites/check` show a filled heart on another user's
         favorite, and made album pin/unpin operate on a foreign row.
         """
-        result = cls.execute(
+        result = cls.rows(
             select(cls.id).where(
                 and_(
                     cls.userid == get_current_userid(),
@@ -358,11 +358,11 @@ class FavoritesTable(Base):
             )
         )
 
-        return next(result).scalar() is not None
+        return result.scalar() is not None
 
     @classmethod
     def get_by_hash(cls, hash: str, type: str):
-        result = cls.execute(
+        result = cls.rows(
             select(cls).where(
                 and_(
                     cls.userid == get_current_userid(),
@@ -371,7 +371,7 @@ class FavoritesTable(Base):
             )
         )
 
-        return next(result).scalars().all()
+        return result.scalars().all()
 
     @classmethod
     def set_extra(cls, hash: str, type: str, extra_updates: dict[str, Any]):
@@ -379,7 +379,7 @@ class FavoritesTable(Base):
         Merge the given keys into the `extra` JSON of the current user's
         favorite entry (e.g. the sidebar position of a pinned album).
         """
-        result = cls.execute(
+        result = cls.rows(
             select(cls).where(
                 and_(
                     cls.type == type,
@@ -389,13 +389,13 @@ class FavoritesTable(Base):
             )
         )
 
-        for row in next(result).scalars().all():
+        for row in result.scalars().all():
             new_extra = {**(row.extra or {}), **extra_updates}
             next(cls.execute(update(cls).where(cls.id == row.id).values(extra=new_extra), commit=True))
 
     @classmethod
     def get_all_of_type(cls, type: str, start: int, limit: int):
-        result = cls.execute(
+        result = cls.rows(
             select(cls)
             # .select_from(join(table, cls, field == cls.hash))
             .where(and_(cls.type == type, cls.userid == get_current_userid()))
@@ -405,7 +405,7 @@ class FavoritesTable(Base):
             .limit(limit if start != 0 else None)
         )
 
-        res = next(result).scalars().all()
+        res = result.scalars().all()
 
         if start == 0:
             # if limit == -1, return all
@@ -433,13 +433,13 @@ class FavoritesTable(Base):
 
     @classmethod
     def count_favs_in_period(cls, start_time: int, end_time: int):
-        result = cls.execute(
+        result = cls.rows(
             select(func.count(cls.id))
             .where(cls.userid == get_current_userid())
             .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
         )
 
-        res = next(result).scalar()
+        res = result.scalar()
 
         if res:
             return res
@@ -450,21 +450,21 @@ class FavoritesTable(Base):
     def count_tracks(cls):
         # Both of these feed the "favorites" card on the home page, which is a
         # per-user view — unfiltered they counted every user's favorites.
-        result = cls.execute(
+        result = cls.rows(
             select(func.count(cls.id)).where(and_(cls.type == "track", cls.userid == get_current_userid()))
         )
 
-        return next(result).scalar()
+        return result.scalar()
 
     @classmethod
     def get_last_trackhash(cls):
-        result = cls.execute(
+        result = cls.rows(
             select(cls.hash)
             .where(and_(cls.type == "track", cls.userid == get_current_userid()))
             .order_by(cls.timestamp.desc())
         )
 
-        return next(result).scalar()
+        return result.scalar()
 
 
 class ScrobbleTable(Base):
@@ -494,16 +494,16 @@ class ScrobbleTable(Base):
         every scrobble row, and no user filter: off a request, the user
         falls back to 1.
         """
-        result = cls.execute(
+        result = cls.rows(
             select(cls.trackhash, func.count(cls.id), func.sum(cls.duration), func.max(cls.timestamp)).group_by(
                 cls.trackhash
             )
         )
-        return [tuple(row) for row in next(result).all()]
+        return [tuple(row) for row in result.all()]
 
     @classmethod
     def get_all(cls, start: int, limit: int | None = None, userid: int | None = None):
-        result = cls.execute(
+        result = cls.rows(
             select(cls)
             .where(cls.userid == (userid if userid else get_current_userid()))
             .order_by(cls.timestamp.desc())
@@ -512,7 +512,7 @@ class ScrobbleTable(Base):
             .execution_options(yield_per=100)
         )
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield tracklog_to_dataclass(i)
 
     @classmethod
@@ -522,7 +522,7 @@ class ScrobbleTable(Base):
         if userid is None:
             userid = get_current_userid()
 
-        result = cls.execute(
+        result = cls.rows(
             select(cls)
             .where(cls.userid == userid)
             .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
@@ -530,13 +530,13 @@ class ScrobbleTable(Base):
             .execution_options(yield_per=100)
         )
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield tracklog_to_dataclass(i)
 
     @classmethod
     def get_last_entry(cls, userid: int):
-        result = cls.execute(select(cls).where(cls.userid == userid).order_by(cls.timestamp.desc()))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(cls.userid == userid).order_by(cls.timestamp.desc()))
+        res = result.scalar()
 
         if res:
             return tracklog_to_dataclass(res)
@@ -557,11 +557,11 @@ class PlaylistTable(Base):
     @classmethod
     def get_all(cls, current_user: bool = True):
         if current_user:
-            result = cls.execute(select(cls).where(cls.userid == get_current_userid()).execution_options(yield_per=100))
+            result = cls.rows(select(cls).where(cls.userid == get_current_userid()).execution_options(yield_per=100))
         else:
-            result = cls.execute(select(cls).execution_options(yield_per=100))
+            result = cls.rows(select(cls).execution_options(yield_per=100))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield playlist_to_dataclass(i)
 
     @classmethod
@@ -580,8 +580,8 @@ class PlaylistTable(Base):
 
     @classmethod
     def check_exists_by_name(cls, name: str):
-        result = cls.execute(select(cls).where((cls.name == name) & (cls.userid == get_current_userid())))
-        return next(result).scalar() is not None
+        result = cls.rows(select(cls).where((cls.name == name) & (cls.userid == get_current_userid())))
+        return result.scalar() is not None
 
     @classmethod
     def append_to_playlist(cls, id: int, trackhashes: list[str]):
@@ -609,8 +609,8 @@ class PlaylistTable(Base):
 
     @classmethod
     def get_trackhashes(cls, id: int):
-        result = cls.execute(select(cls.trackhashes).where((cls.id == id) & (cls.userid == get_current_userid())))
-        return next(result).scalar()
+        result = cls.rows(select(cls.trackhashes).where((cls.id == id) & (cls.userid == get_current_userid())))
+        return result.scalar()
 
     @classmethod
     def get_trackhashes_of_user(cls, id: int, userid: int) -> list[str] | None:
@@ -623,8 +623,8 @@ class PlaylistTable(Base):
         and would read — or miss — the wrong user's playlist. `None` when the
         playlist does not exist or belongs to someone else.
         """
-        result = cls.execute(select(cls.trackhashes).where((cls.id == id) & (cls.userid == userid)))
-        return next(result).scalar()
+        result = cls.rows(select(cls.trackhashes).where((cls.id == id) & (cls.userid == userid)))
+        return result.scalar()
 
     @classmethod
     def get_trackhashes_and_extra(cls, id: int):
@@ -632,10 +632,10 @@ class PlaylistTable(Base):
         Fetch trackhashes and extra in a single round-trip; used by the
         mutation paths that maintain the added_at map alongside the list.
         """
-        result = cls.execute(
+        result = cls.rows(
             select(cls.trackhashes, cls.extra).where((cls.id == id) & (cls.userid == get_current_userid()))
         )
-        row = next(result).first()
+        row = result.first()
 
         if row is None:
             return None, None
@@ -693,8 +693,8 @@ class PlaylistTable(Base):
 
     @classmethod
     def get_by_id(cls, id: int):
-        result = cls.execute(select(cls).where((cls.id == id) & (cls.userid == get_current_userid())))
-        result = next(result).scalar()
+        result = cls.rows(select(cls).where((cls.id == id) & (cls.userid == get_current_userid())))
+        result = result.scalar()
 
         if result:
             return playlist_to_dataclass(result)
@@ -763,14 +763,14 @@ class LibDataTable(Base):
 
     @classmethod
     def find_one(cls, hash: str, type: Literal["album", "artist"]):
-        result = cls.execute(select(cls).where((cls.itemhash == type + hash) & (cls.itemtype == type)))
-        return next(result).scalar()
+        result = cls.rows(select(cls).where((cls.itemhash == type + hash) & (cls.itemtype == type)))
+        return result.scalar()
 
     @classmethod
     def get_all_colors(cls, type: str) -> Iterable[dict[str, str]]:
-        result = cls.execute(select(cls).where(cls.itemtype == type))
+        result = cls.rows(select(cls).where(cls.itemtype == type))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield {"itemhash": i.itemhash.replace(type, ""), "color": i.color}
 
 
@@ -797,17 +797,17 @@ class CollectionTable(Base):
         # requesting user's collections, so the default stays as it was. Same
         # shape as `PlaylistTable.get_all`.
         if current_user:
-            result = cls.execute(select(cls).where(cls.userid == get_current_userid()))
+            result = cls.rows(select(cls).where(cls.userid == get_current_userid()))
         else:
-            result = cls.execute(select(cls))
+            result = cls.rows(select(cls))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield cls.to_dict(i)
 
     @classmethod
     def get_by_id(cls, id: int):
-        result = cls.execute(select(cls).where(and_(cls.id == id, cls.userid == get_current_userid())))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(and_(cls.id == id, cls.userid == get_current_userid())))
+        res = result.scalar()
 
         if res:
             return cls.to_dict(res)
@@ -869,15 +869,15 @@ class PlaylistFolderTable(Base):
 
     @classmethod
     def get_all(cls):
-        result = cls.execute(select(cls).where(cls.userid == get_current_userid()).order_by(cls.position))
+        result = cls.rows(select(cls).where(cls.userid == get_current_userid()).order_by(cls.position))
 
-        for i in next(result).scalars():
+        for i in result.scalars():
             yield cls.to_dict(i)
 
     @classmethod
     def get_by_id(cls, id: int):
-        result = cls.execute(select(cls).where(and_(cls.id == id, cls.userid == get_current_userid())))
-        res = next(result).scalar()
+        result = cls.rows(select(cls).where(and_(cls.id == id, cls.userid == get_current_userid())))
+        res = result.scalar()
 
         if res:
             return cls.to_dict(res)
