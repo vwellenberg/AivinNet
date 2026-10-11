@@ -8,6 +8,7 @@ import usePlaylistListPageStore from '@/stores/pages/playlists'
 import useArtistPageStore from '@/stores/pages/artist'
 import useSettingsStore from '@/stores/settings'
 import { installChunkReload } from '@/utils/chunkReload'
+import { beginCoverMorph, finishCoverMorph } from '@/utils/coverMorph'
 
 import HomeView from '@/views/HomeView'
 const Lyrics = () => import('@/views/LyricsView')
@@ -283,6 +284,17 @@ router.afterEach(() => {
     // einem Frame zusammen, und es passiert gar nichts.
     void content.offsetWidth
     content.classList.add('ground-drift')
+})
+
+// Cover-Übergang Karte → Detailkopf (utils/coverMorph.ts). `beforeEach` friert
+// den alten Zustand ein, bevor die Route wechselt; `afterEach` gibt den neuen
+// frei, sobald der Kopf im DOM steht.
+router.beforeEach(to => {
+    beginCoverMorph(to.name === Routes.album)
+})
+
+router.afterEach(() => {
+    void finishCoverMorph()
 })
 
 // A page chunk that failed to load (bad connection, or a deploy under an open
