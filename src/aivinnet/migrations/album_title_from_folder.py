@@ -7,11 +7,12 @@ a single album; once `albumhash_collapse` started grouping them by folder, it
 turned into hundreds of correctly grouped albums each named after whichever
 track happened to be first.
 
-Unlike the album hash, the title is load-bearing: `trackhash` is derived from
-`(artists, album, title)`. Renaming an album therefore **changes the trackhash of
+Unlike the album hash, the title is load-bearing: the trackhash is derived from
+the title and the album. Renaming an album therefore **changes the trackhash of
 every track in it**, and playlists, favourites, scrobbles and mixes all point at
 trackhashes. So this migration does not just rewrite the tracks — it carries
-every reference across with them.
+every reference across with them, using the hash the server stores for them
+(`runtime_trackhash`), not the column's (#433).
 
 Safe to run repeatedly: a row is only touched while its stored album still
 differs from its folder's name, so a second run finds nothing.
@@ -23,23 +24,35 @@ from collections import defaultdict
 
 from sqlalchemy import select, update
 
+from aivinnet.config import UserConfig
 from aivinnet.db.engine import DbEngine
 from aivinnet.db.libdata import TrackTable
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib.albumhash import album_hash, album_title
 from aivinnet.utils.hashing import create_hash
+from aivinnet.utils.parsers import split_artists
 
 logger = logging.getLogger(__name__)
 
 
 def track_hash(artists: str, album: str, title: str) -> str:
     """
-    The scanner's trackhash rule, mirrored so the migration can compute the
-    hash a row WILL get. Verified against the live database before this was
-    written: all 12675 rows reproduce their stored trackhash from these three
-    columns, which is what makes the old -> new mapping trustworthy.
+    The scanner's rule for the `track.trackhash` COLUMN. Verified against the
+    live database: all 12675 rows reproduce their stored trackhash from these
+    three columns.
     """
     return create_hash(artists or "", album or "", title or "")
+
+
+def runtime_trackhash(title: str, album: str, artists: str) -> str:
+    """
+    The hash the running server gives a track, and therefore the one that
+    favourites, scrobbles and playlists store: `models/track.py::recreate_trackhash`,
+    `create_hash(title, album, *artist names)`. It is NOT the column rule above —
+    the argument order differs, so the two never agree (#433).
+    """
+    names = split_artists(artists or "", config=UserConfig())
+    return create_hash(title or "", album or "", *names)
 
 
 def _plan(conn) -> list[dict]:
@@ -65,7 +78,7 @@ def _plan(conn) -> list[dict]:
 
     plan: list[dict] = []
 
-    for id_, artists, album, albumartists, albumhash, folder, title, trackhash in rows:
+    for id_, artists, album, albumartists, albumhash, folder, title, _trackhash in rows:
         if albumhash != album_hash(None, folder, albumartists):
             continue
 
@@ -74,12 +87,18 @@ def _plan(conn) -> list[dict]:
         if not new_album or new_album == album:
             continue
 
+        # Two hashes, two jobs. The DB column gets the scanner's formula, so the
+        # table stays consistent with what the scanner writes. The mapping gets
+        # the RUNTIME formula, because that is the hash favourites, scrobbles
+        # and playlists store. Mapping with the column formula matched nothing
+        # (#433): the references stayed on the old hash.
         plan.append(
             {
                 "id": id_,
                 "album": new_album,
-                "old_hash": trackhash,
-                "new_hash": track_hash(artists, new_album, title),
+                "db_hash": track_hash(artists, new_album, title),
+                "old_hash": runtime_trackhash(title, album, artists),
+                "new_hash": runtime_trackhash(title, new_album, artists),
             }
         )
 
@@ -150,7 +169,7 @@ def rename_albums_after_their_folder() -> dict[str, int]:
             conn.execute(
                 update(TrackTable)
                 .where(TrackTable.id == row["id"])
-                .values(album=row["album"], trackhash=row["new_hash"])
+                .values(album=row["album"], trackhash=row["db_hash"])
             )
 
         report["tracks"] = len(plan)
