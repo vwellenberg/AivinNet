@@ -1217,9 +1217,11 @@ $mem-seg-reserve: 4px !default;
 // (styling.md), so a texture on something that cannot be pressed reads as a
 // button. Dots are a separate vocabulary and carry no state.
 //
-// The dots gather in the top-right corner and fade out before the centre and
-// the bottom-left, where the numbers sit: a texture behind text costs
-// legibility, a corner costs nothing. `--shape-halftone` lets a look drop them.
+// By default the dots gather in the top-right corner and fade out before the
+// centre and the bottom-left, where the numbers sit: a texture behind text
+// costs legibility, a corner costs nothing. `$reach: null` drops the fade, for a
+// plate whose text already sits on covers (the Continue card). `--shape-halftone`
+// lets a look drop them.
 @mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%) {
   content: "";
   position: absolute;
@@ -1227,8 +1229,10 @@ $mem-seg-reserve: 4px !default;
   pointer-events: none;
   background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
   background-size: $pitch $pitch;
-  -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
-  mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
+  @if $reach {
+    -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
+    mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
+  }
 }
 
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —

@@ -191,9 +191,10 @@ function resume() {
 
   // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
   // Continue, the rows) carries its own plate, and the hatch says "pressable"
-  // (styling.md). The children sit above the dots.
+  // (styling.md). The dots cover the whole plate evenly: the labels sit on their
+  // own covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
-    @include mem-halftone;
+    @include mem-halftone($reach: null);
   }
 
   > * {
