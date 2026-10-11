@@ -31,7 +31,9 @@
             }"
             class="np-image lauflicht-rim rounded-sm no-scroll"
         >
-            <img :src="paths.images.thumb.small + queue.currenttrack?.image" alt="" />
+            <!-- Keyed by the track: a new track is a new image, so the sticker
+                 slaps down again instead of the cover swapping in place. -->
+            <img :key="queue.currenttrackhash" :src="paths.images.thumb.small + queue.currenttrack?.image" alt="" />
             <div class="expandicon">
                 <ExpandSvg />
             </div>
@@ -245,6 +247,12 @@ defineEmits<{
         // room to spare. It stood inside `@include largePhones`, so the phone
         // was pinned and every desktop width was not.
         flex-shrink: 0;
+
+        // A new track slaps its cover down (the keyed image in the template).
+        // The sticker keyframes are the design's own; the image only replays them.
+        img {
+            animation: mem-sticker-slap $motion-settle $motion-curve-settle backwards;
+        }
 
         // A link is a control: it carries the same 3px offset as the transport
         // buttons beside it, and presses into it like they do.

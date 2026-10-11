@@ -239,24 +239,29 @@ onMounted(() => {
 
     .text {
       position: relative;
+      // Keeps the sweep's z-index inside this span: it paints behind the words
+      // and above the row's own fill.
+      isolation: isolate;
     }
 
-    // How far into this line playback has run — drawn as the app already draws
-    // progress (Volume/NowPlaying seek bars): teal fill on a blush track inside
-    // an ink frame. The frame is the contrast edge; the fill carries identity.
-    .text::after {
+    // Lyrics-Sweep: the sung part of the line is a teal band behind the words,
+    // growing with playback (--line-progress, set by the view). Ink on teal
+    // reads well above the 3:1 the yellow row needs, so the band carries the
+    // progress without the words ever sitting on a colour they cannot hold.
+    // It replaces the underline, which showed the same progress below the line.
+    .text::before {
       content: "";
       position: absolute;
       left: 0;
-      right: 0;
-      bottom: -0.62rem;
-      height: 8px;
-      border: $mem-ring-w solid $candy-black;
+      top: 0.12em;
+      bottom: 0.12em;
+      width: var(--line-progress, 0%);
+      z-index: -1;
       border-radius: $candy-radius-pill;
-      background-color: $candy-pink;
-      background-image: linear-gradient($mem-teal, $mem-teal);
-      background-repeat: no-repeat;
-      background-size: var(--line-progress, 0%) 100%;
+      background-color: $mem-teal;
+      // The store reports playback about four times a second; the glide between
+      // two reports is what makes it read as a sweep.
+      transition: width $motion-settle linear;
     }
   }
 
