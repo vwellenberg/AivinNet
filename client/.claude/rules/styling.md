@@ -1293,6 +1293,12 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
 
 ## Bewegung
 
+- **Ein `view-transition-name` gibt es nur, während der Übergang läuft.** `utils/coverMorph.ts`
+  setzt ihn beim Klick auf die Albumkarte und am Kopf erst beim Ankommen, und beides wird danach
+  wieder entfernt. Stünde er dauerhaft auf beiden Elementen, trüge das Raster denselben Namen
+  mehrfach, und der Browser bricht den Übergang ab. Die `::view-transition-*`-Pseudoelemente
+  erreicht die Policy in `motion-policy.scss` nicht (`*` matcht keine Pseudoelemente dieser Art),
+  deshalb prüft `canMorph()` „weniger Bewegung" in JS, bevor ein Übergang beginnt.
 - **Die `animation`-Kurzform setzt `animation-delay` und `-fill-mode` zurück.** Die Button-Rollen
   schreiben die komplette Kurzform, und zwar aus einem **tieferen** Selektor, als eine Zeilen-Regel
   erreichen kann — ein `animation-delay` auf den Kindern einer Reihe wurde deshalb jedes Mal
