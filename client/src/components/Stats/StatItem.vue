@@ -110,6 +110,11 @@ const tileStyle = computed(() => ({
     overflow: hidden;
     position: relative;
 
+    // Dots, not hatch: the tile is read, never pressed (mem-halftone).
+    &::before {
+        @include mem-halftone;
+    }
+
     .itemcontent {
         position: relative;
         z-index: 1;
