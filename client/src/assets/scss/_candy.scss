@@ -259,6 +259,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --shape-press          what pressing does to a plate (Memphis: into its shadow)
 //   --shape-radius(-sm)    corner radii (above)
 //   --shape-sprinkle       the terrazzo dash texture
+//   --shape-halftone       the printed dots of a surface that is only read (mem-halftone)
 //   --shape-doodles        the doodle layer of the page ground
 //   --shape-doodles-size   its background-size (one entry per layer, when a
 //                          look puts several images in that slot)
@@ -1206,6 +1207,28 @@ $mem-seg-reserve: 4px !default;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     pointer-events: none;
   }
+}
+
+// Halftone dots — the printed texture of a surface that is only READ (a stat
+// tile, not a control). Written as a `::before` layer: `&::before { @include
+// mem-halftone; }`.
+//
+// Not the hatch. The terrazzo strokes say "pressable" in this design
+// (styling.md), so a texture on something that cannot be pressed reads as a
+// button. Dots are a separate vocabulary and carry no state.
+//
+// The dots gather in the top-right corner and fade out before the centre and
+// the bottom-left, where the numbers sit: a texture behind text costs
+// legibility, a corner costs nothing. `--shape-halftone` lets a look drop them.
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%) {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
+  background-size: $pitch $pitch;
+  -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
+  mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
 }
 
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
