@@ -61,13 +61,11 @@ function handleFav() {
 .b-bar {
     position: relative;
     display: grid;
-    // The halftone of the page ground runs over the full height of the bar, in a
-    // core around the middle. The ends stay white, where the icons and the volume
-    // sit: the outer quarter is clear, and the dots fade in over the next 15%.
+    // The halftone of the page ground runs over the full height of the bar, at
+    // the two ends. The middle stays white (user, 2026-10-12): the outer quarter
+    // is dotted, and the dots fade out over the next 15%.
     &::before {
-        @include mem-halftone($reach: null);
-        -webkit-mask-image: linear-gradient(to right, transparent 0, transparent 25%, #000 40%, #000 60%, transparent 75%, transparent 100%);
-        mask-image: linear-gradient(to right, transparent 0, transparent 25%, #000 40%, #000 60%, transparent 75%, transparent 100%);
+        @include mem-halftone($reach: null, $edges: 25%);
     }
     > * {
         position: relative;
