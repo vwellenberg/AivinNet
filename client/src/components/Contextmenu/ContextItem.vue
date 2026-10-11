@@ -350,15 +350,14 @@ function runChildAction(action: () => void) {
     }
 
     // The keyboard's position in the menu reads the way the pointer's does.
+    // The frame is the focus ring, drawn inside the row: an outline takes no
+    // layout space, so the row does not shift when it appears.
     &:hover,
     &:focus-visible {
         // A look token (#241): Memphis keeps its soft pink, Desktop 98 the
         // navy menu highlight of its era.
         background: var(--look-menu-hover, #{$candy-pink-soft});
         color: var(--look-menu-hover-text, inherit);
-    }
-
-    &:focus-visible {
         outline: $focus-ring-w solid $mem-line;
         outline-offset: -$focus-ring-w;
     }
