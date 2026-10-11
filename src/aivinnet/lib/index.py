@@ -12,6 +12,8 @@ from aivinnet.lib.mapstuff import (
 )
 from aivinnet.lib.populate import CordinateMedia
 from aivinnet.lib.recipes.recents import RecentlyAdded
+from aivinnet.lib.reference_migration import migrate_track_references_many
+from aivinnet.lib.rescan_remap import hashes_by_path, remap_by_path
 from aivinnet.lib.tagger import IndexTracks
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
@@ -30,10 +32,16 @@ def index_everything():
 
 
 def _index_everything():
+    # What the running server knows before the scan: the hash of every file.
+    # A tag changed outside the app shows up as the same path with a new hash.
+    before = hashes_by_path(TrackStore.trackhashmap)
+
     IndexTracks()
 
     key = str(time())
     TrackStore.load_all_tracks(key)
+    # Before the play and favourite maps below read the references (#433).
+    _carry_references(before)
     # Right behind the track store it points into, not after the albums and
     # artists: the folder view looked up the new hashes through the old map
     # for the whole rebuild (#391).
@@ -54,6 +62,21 @@ def _index_everything():
     CordinateMedia(instance_key=str(time()))
     gc.collect()
     log.info("Indexing completed")
+
+
+def _carry_references(before: dict[str, str]) -> None:
+    """
+    Move favourites, scrobbles and playlists from the hashes the scan replaced
+    to the new ones. Only a file whose hash changed and whose old hash no other
+    file still holds gets moved (lib/rescan_remap.py).
+    """
+    mapping = remap_by_path(before, hashes_by_path(TrackStore.trackhashmap))
+
+    if not mapping:
+        return
+
+    migrate_track_references_many(mapping)
+    log.info("Scan changed %d track hashes; their references were carried over", len(mapping))
 
 
 def index_if_never_scanned() -> bool:

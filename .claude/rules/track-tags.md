@@ -33,6 +33,11 @@ Daraus folgt beides, und beides ist wichtig:
   Favoriten und Scrobbles zeigen danach ins Leere. Sie zählen weiter mit, lassen sich aber
   nicht mehr anzeigen — das ist genau die Orphan-Lücke aus `playlist-writes.md`.
 
+**Ein Rescan trägt die Referenzen selbst mit** (`lib/index.py::_carry_references`, #433): Er merkt
+sich vor dem Scan Pfad → Hash und zieht nach dem Laden die Referenzen um, wo der Hash einer Datei
+wechselte und kein anderes Stück ihn noch hält (`lib/rescan_remap.py`). Das deckt Tag-Änderungen
+von außen ab. Die Regel darunter beschreibt, was dieser Pfad im Kern tut:
+
 **Vor jeder Tag-Änderung** also die Hashes je Dateipfad festhalten, nach dem Rescan erneut
 holen und die Referenzen umziehen. Die Zuordnung läuft über den Dateipfad, der sich ja nicht
 ändert:
