@@ -21,7 +21,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+
+import { countSeparator, countUpAt, formatCount } from '@/utils/countUp'
 
 import StopWatchSvg from '@/assets/icons/timer.svg'
 import HeadphoneSvg from '@/assets/icons/headphones.svg'
@@ -57,8 +59,50 @@ const icon = computed(() => {
     }
 })
 
+// A plain count counts up from zero (or from the figure it showed before) to
+// its value. Anything that is not a count — a unit, a date — is shown as it
+// arrives, with no motion at all.
+const COUNT_MS = 900
+const separator = computed(() => countSeparator(props.value))
+const counted = ref<number | null>(separator.value === null ? null : 0)
+let frame = 0
+
+function prefersLessMotion() {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function countTo(to: number) {
+    cancelAnimationFrame(frame)
+    const from = counted.value ?? 0
+    if (typeof requestAnimationFrame !== 'function' || prefersLessMotion()) {
+        counted.value = to
+        return
+    }
+    const start = performance.now()
+    const step = (now: number) => {
+        const elapsed = now - start
+        counted.value = countUpAt(from, to, elapsed, COUNT_MS)
+        if (elapsed < COUNT_MS) frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+}
+
+function startCount() {
+    if (separator.value === null) {
+        cancelAnimationFrame(frame)
+        counted.value = null
+        return
+    }
+    countTo(Number(props.value.replace(/\D/g, '')))
+}
+
+onMounted(startCount)
+watch(() => props.value, startCount)
+onUnmounted(() => cancelAnimationFrame(frame))
+
 const formattedValue = computed(() => {
-    return props.value.toLocaleString()
+    if (counted.value === null || separator.value === null) return props.value.toLocaleString()
+    return formatCount(counted.value, separator.value)
 })
 
 // Flat memphis tile colour, cycled by stat type across the palette
