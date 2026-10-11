@@ -19,7 +19,7 @@ const read = (path: string) => readFileSync(path, 'utf8')
 
 const HOSTS: [string, string][] = [
     ['src/components/nav/NavBar.vue', '10%'],
-    ['src/components/HomeView/ContinueCard.vue', '10%'],
+    ['src/components/HomeView/ContinueCard.vue', '5%'],
 ]
 
 describe('halftone at the ends', () => {
@@ -35,7 +35,7 @@ describe('halftone at the ends', () => {
 
     it('the continue card dots more on its right than on its left', () => {
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/\$edges:\s*10%,\s*\$right:\s*30%/)
+        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*40%/)
     })
 
     it('the mixin leaves the middle clear and the ends full', () => {
