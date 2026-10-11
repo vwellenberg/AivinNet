@@ -676,9 +676,12 @@ $sidebar-label-opacity: 0.85;
   // Above the content panel: the active nav entry and its arrow reach across
   // the gap onto the page's frame and would otherwise be painted under it.
   z-index: 2;
-  // The halftone of the page ground, over the whole sidebar (test, 2026-10-11).
+  // The halftone of the page ground, fading out downwards: the dots are full at
+  // the top, where the navigation starts, and the lower sidebar stays clear.
   &::before {
     @include mem-halftone($reach: null);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 30%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 30%, transparent 100%);
   }
   > * {
     position: relative;

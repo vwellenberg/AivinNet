@@ -106,9 +106,10 @@ const mobileTitle = computed(() => {
     position: relative;
     display: grid;
     // The halftone of the page ground: the middle of the bar, fading out to the
-    // ends, where the nav links and the avatar sit.
+    // ends, where the nav links and the avatar sit. A white margin at the top and
+    // bottom edge, so the dots never touch the frame.
     &::before {
-        @include mem-halftone($reach: null, $band: 35%);
+        @include mem-halftone($reach: null, $band: 25%, $inset: 10px 0);
     }
     > * {
         position: relative;

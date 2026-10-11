@@ -194,7 +194,8 @@ function resume() {
   // (styling.md). The dots cover the whole plate evenly: the labels sit on their
   // own covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
-    @include mem-halftone($reach: null);
+    // A white margin on all four sides, so the dots stop short of the frame.
+    @include mem-halftone($reach: null, $inset: 10px);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }

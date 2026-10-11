@@ -1223,10 +1223,10 @@ $mem-seg-reserve: 4px !default;
 // fade. `$band` is the other shape: the dots stand in the middle of the plate
 // and fade out towards both sides, for a bar whose ends carry text and icons.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null) {
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0) {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: $inset;
   pointer-events: none;
   background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
   background-size: $pitch $pitch;
