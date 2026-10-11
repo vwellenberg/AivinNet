@@ -246,9 +246,9 @@ function resume() {
     min-width: 0;
   }
 
-  // A plain cover under each label keeps the dots off the letters.
+  // Small type takes a plain cover, so no dot lands under a letter. The name is
+  // large: the dots read through it, and a box around it would only cut gaps.
   .kicker,
-  .name,
   .meta {
     @include mem-hatch-clear(6px);
     max-width: 100%;
@@ -262,6 +262,7 @@ function resume() {
   }
 
   .name {
+    max-width: 100%;
     font-size: 1.35rem;
     font-weight: 700;
     color: inherit;

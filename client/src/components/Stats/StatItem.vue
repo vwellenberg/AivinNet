@@ -133,12 +133,11 @@ const tileStyle = computed(() => ({
         align-items: flex-start;
         gap: $small;
 
-        // A plain cover under each label keeps the dots off the letters, as on
-        // the Continue card. The cover's own inset is pulled back so the text
-        // keeps its line.
+        // Small type takes a plain cover, so no dot lands under a letter. The
+        // number is large: the dots read through it, and a box around it would
+        // only cut gaps in the tile. The cover's own inset is pulled back so the
+        // title keeps its line.
         .count {
-            @include mem-hatch-clear(6px);
-            margin-left: -4px;
             font-size: 1.55rem;
             font-weight: 900;
         }
