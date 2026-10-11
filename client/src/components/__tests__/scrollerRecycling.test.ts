@@ -45,15 +45,30 @@ describe("virtual scroller rows are recycled, not rebuilt", () => {
 
     for (const [path, raw] of Object.entries(VUE_SOURCES)) {
       for (const block of scrollerBlocks(stripComments(raw))) {
+        // The scroller's OWN tag may carry a key: it remounts the whole list
+        // (a new playlist is a new scroller), it does not touch its rows.
+        const slot = block.replace(/^<(DynamicScroller|RecycleScroller)\b[^>]*>/, "");
         // `:key` / `v-bind:key` — but not `key-field`, which is the scroller's
         // own (and correct) way of naming identity.
-        for (const m of block.matchAll(/(?:^|\s)(?::|v-bind:)key="([^"]*)"/g)) {
+        for (const m of slot.matchAll(/(?:^|\s)(?::|v-bind:)key="([^"]*)"/g)) {
           offenders.push(`${path}: :key="${m[1]}"`);
         }
       }
     }
 
     expect(offenders, "a key on recycled slot content remounts the row on every recycle").toEqual([]);
+  });
+
+  it("gives a playlist switch a new scroller, so its rows build up again", () => {
+    // Recycled nodes keep their arrival latch (data-arrived) from the playlist
+    // before. A switch that keeps the scroller shows the new rows at once, with
+    // no build-up. The scroller's own key is what makes it a new one.
+    const raw = VUE_SOURCES["/src/views/PlaylistView/index.vue"];
+    expect(raw, "PlaylistView moved — the census lost the playlist list").toBeTruthy();
+
+    const scroller = scrollerBlocks(stripComments(raw))[0] ?? "";
+    expect(scroller, "the playlist list is no longer a DynamicScroller").toBeTruthy();
+    expect(scroller).toMatch(/<DynamicScroller\b[^>]*:key="route\.params\.pid"/);
   });
 
   it("keys the tiles of a recycled card row by position", () => {

@@ -13,8 +13,13 @@
             <Header />
             <EditList />
         </div>
+        <!-- Keyed by playlist: a switch is a NEW scroller, so its rows are new
+             nodes and build up again. Recycled nodes keep the arrival latch
+             (data-arrived) of the playlist before, and the new rows just appeared
+             with no build-up and a blank frame in between. -->
         <DynamicScroller
             v-else
+            :key="route.params.pid"
             id="contentscroller"
             :items="scrollerItems"
             :min-item-size="72"
