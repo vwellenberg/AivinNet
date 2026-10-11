@@ -273,6 +273,21 @@
   }
 }
 
+// The dots of a read-only plate build up like a wave (`mem-dots-wave` in
+// _candy.scss): each dot grows from nothing. The end size is the dot pitch of
+// `mem-halftone` (11px), so change the two together.
+@keyframes mem-dots-grow {
+  0% {
+    opacity: 0;
+    background-size: 0px 0px;
+  }
+
+  100% {
+    opacity: 1;
+    background-size: 11px 11px;
+  }
+}
+
 // Der Sticker-Anschlag: von oben, schräg, beim Aufsetzen gestaucht — und der
 // harte Schatten entsteht ERST im Moment des Kontakts.
 //

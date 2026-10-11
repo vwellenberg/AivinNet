@@ -1235,6 +1235,14 @@ $mem-seg-reserve: 4px !default;
   }
 }
 
+// The wave build-up of a read-only plate's dots (`mem-dots-grow`, in
+// Global/_button-classes.scss). `$delay` is the plate's place in the wave: a row
+// sets it per child, so the wave runs along the row. `backwards`, not `both`:
+// the dots rest at their normal size once the wave has passed.
+@mixin mem-dots-wave($delay: 0s) {
+  animation: mem-dots-grow $motion-settle $motion-curve-settle $delay backwards;
+}
+
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
 // combine with a background-color on the same element (use background-color,
 // not the background shorthand, or the image layer gets wiped).

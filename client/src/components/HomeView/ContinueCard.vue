@@ -195,6 +195,8 @@ function resume() {
   // own covers, so no dot lands under a letter. The children sit above the dots.
   &::before {
     @include mem-halftone($reach: null);
+    // The wave starts when the plate has risen (its own arrival above).
+    @include mem-dots-wave($motion-settle);
   }
 
   > * {
@@ -431,6 +433,10 @@ function resume() {
   // them, Vue moves the node and every animation inside restarts with it.
   &[data-arrived] {
     animation: none;
+
+    &::before {
+      animation: none;
+    }
 
     .progress span,
     .resume {
