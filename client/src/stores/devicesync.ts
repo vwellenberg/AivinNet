@@ -21,6 +21,7 @@ import { defineStore } from 'pinia'
 import { clampOffset, loadAudioOffset, saveAudioOffset } from '@/utils/deviceSync/audioOffset'
 import { playMeasurement, TickPlayer, type MeasureResult, type TickPlan } from '@/utils/deviceSync/clickPlayer'
 import { computeCorrection, MAX_RATE_DELTA, SEEK_MS } from '@/utils/deviceSync/driftSteer'
+import { celebrate } from '@/utils/confetti'
 import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
@@ -1343,9 +1344,10 @@ export default defineStore('devicesync', {
             this.restartPollingCadence()
         },
 
-        /** User-gesture join (device picker). */
+        /** User-gesture join (device picker). A device that made it into the group gets its burst. */
         async join() {
             await this.joinInternal()
+            if (this.joined) celebrate()
         },
 
         /** Remote-invite join: audio play() may be autoplay-blocked → needsGesture. */
