@@ -1219,17 +1219,21 @@ $mem-seg-reserve: 4px !default;
 //
 // By default the dots gather in the top-right corner and fade out before the
 // centre and the bottom-left, where the numbers sit: a texture behind text
-// costs legibility, a corner costs nothing. `$reach: null` drops the fade, for a
-// plate whose text already sits on covers (the Continue card). `--shape-halftone`
-// lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%) {
+// costs legibility, a corner costs nothing. `$reach: null` drops the corner
+// fade. `$band` is the other shape: the dots stand in the middle of the plate
+// and fade out towards both sides, for a bar whose ends carry text and icons.
+// `--shape-halftone` lets a look drop them.
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null) {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
   background-size: $pitch $pitch;
-  @if $reach {
+  @if $band {
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
+  } @else if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
   }

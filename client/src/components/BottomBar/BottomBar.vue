@@ -61,9 +61,10 @@ function handleFav() {
 .b-bar {
     position: relative;
     display: grid;
-    // The halftone of the page ground, over the whole bar (test, 2026-10-11).
+    // The halftone of the page ground: the middle of the bar, fading out to the
+    // ends, where the icons and the volume sit.
     &::before {
-        @include mem-halftone($reach: null);
+        @include mem-halftone($reach: null, $band: 35%);
     }
     > * {
         position: relative;

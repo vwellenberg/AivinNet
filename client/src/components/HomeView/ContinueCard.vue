@@ -246,10 +246,12 @@ function resume() {
     min-width: 0;
   }
 
-  // Small type takes a plain cover, so no dot lands under a letter. The name is
-  // large: the dots read through it, and a box around it would only cut gaps.
+  // Every label takes the cover, the name too (user, 2026-10-11: dots over the
+  // thick title read as noise). The cover is the card's own fill, so the only
+  // visible effect is that no dot lands under a letter.
   .kicker,
-  .meta {
+  .meta,
+  .name {
     @include mem-hatch-clear(6px);
     max-width: 100%;
   }
@@ -346,10 +348,12 @@ function resume() {
     // bold, artist muted beside it, duration in its pill — on a pressable row
     // plate (ink frame, offset shadow). It was a thin-ringed strip with
     // "Title — Artist" in one run, which read as an input field, not as rows
-    // (user, 2026-10-06). No hatch: a content list does not wear it.
+    // (user, 2026-10-06). It is pressable, so it wears the hatch (user,
+    // 2026-10-11: the rows read as dead without it). The words, the glyph and the
+    // duration take their own covers, so no stroke crosses a letter or an icon.
     // The fill stays the static panel: the card under it is a static pastel.
     .next-row {
-      @include mem-row-plate($hatch: false);
+      @include mem-row-plate($hatch: true);
       --row-fill: #{$mem-panel-static};
       color: $mem-ink;
       width: 100%;
@@ -371,9 +375,11 @@ function resume() {
         width: 1rem;
         height: 1rem;
 
+        // The glyph's own cover: the hatch stops at its box.
         svg {
           width: 1rem;
           height: 1rem;
+          background-color: var(--row-fill);
         }
       }
 
@@ -399,19 +405,25 @@ function resume() {
         flex: 1;
       }
 
+      // Each word takes its own cover. The artist is muted by colour, not by
+      // `opacity`: opacity would fade the cover too, and the hatch would show
+      // through the letters. The colour follows the hover text colour.
       .title {
+        @include mem-hatch-clear(6px);
         flex-shrink: 1;
         min-width: 0;
       }
 
       .artist {
+        @include mem-hatch-clear(6px);
         flex-shrink: 2;
         min-width: 0;
         font-size: 0.8rem;
-        opacity: 0.7;
+        color: color-mix(in srgb, currentColor 70%, transparent);
       }
 
       .dur {
+        @include mem-hatch-clear(6px);
         flex-shrink: 0;
         margin-left: auto;
         padding: 0 0.45rem;
@@ -423,7 +435,7 @@ function resume() {
 
       @media (hover: hover) {
         &:hover {
-          @include mem-row-plate-hover($hatch: false);
+          @include mem-row-plate-hover($hatch: true);
         }
       }
     }

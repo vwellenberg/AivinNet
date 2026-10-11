@@ -59,10 +59,12 @@ const PLATES = [
   // row, nothing for the texture to distinguish.
   { file: "/src/components/modals/settings/Sidebar.vue", selector: ".gitem", hatch: true },
   { file: "/src/components/SettingsView/Group.vue", selector: ".setting-item", hatch: false },
-  // Home's Continue card: its "Up next" rows are small song rows, a content
-  // list where every row plays — the chart-row case, so no texture. The fill
-  // is the static panel because the card under it is a static pastel.
-  { file: "/src/components/HomeView/ContinueCard.vue", selector: ".next-row", hatch: false },
+  // Home's Continue card: its "Up next" rows are small song rows, and every
+  // row plays, so each one is a pressable plate and wears the texture (user,
+  // 2026-10-11: without it the rows read as dead). Its words and glyph take
+  // covers, so the strokes stay off the letters and icons. The fill is the
+  // static panel because the card under it is a static pastel.
+  { file: "/src/components/HomeView/ContinueCard.vue", selector: ".next-row", hatch: true },
   // The "where do you want to look for music?" choices: two lines of type per
   // row and every row a choice — the setting rows' case. They were `candy-box`
   // plus a pointer, without a shadow (handDrawnPlates.test.ts).
