@@ -121,11 +121,18 @@ const settings = useSettings()
         }
     }
 
-    // Off is a STATE, so it stays dimmed — that is the only opacity left in
-    // the row. Idle prev/next used to be dimmed to 0.7 as decoration, which
-    // made "unavailable" and "just sitting there" look the same.
-    .aux-off svg {
-        opacity: 0.45;
+    // Off is a STATE, so it stays dimmed. Dimmed through the colour, not
+    // `opacity` on the glyph: opacity faded the glyph's cover too, and the hatch
+    // showed through the grey icon. The hover fill is dark, so the dimmed glyph
+    // takes the hover text colour at the same strength. Idle prev/next used to
+    // be dimmed to 0.7 as decoration, which made "unavailable" and "just sitting
+    // there" look the same.
+    .aux-off {
+        color: mem-alpha($candy-text, 0.45);
+    }
+
+    .aux-off:hover {
+        color: mem-alpha(var(--mem-hover-text), 0.45);
     }
 
     // Active shuffle / repeat: the yellow memphis box (v1.4.0 decision, kept).
