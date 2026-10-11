@@ -40,7 +40,7 @@ describe('halftone at the ends', () => {
 
     it('the mixin leaves the middle clear and the ends full', () => {
         const mixin = read('src/assets/scss/_candy.scss')
-        const edges = mixin.match(/@else if \$edges \{\s*-webkit-mask-image:\s*([^;]+);/)
+        const edges = mixin.match(/@else if \$edges \{[\s\S]*?-webkit-mask-image:\s*([^;]+);/)
         expect(edges, 'the $edges branch exists').not.toBeNull()
         const gradient = edges![1]
         // full at both outer edges, transparent through the middle
