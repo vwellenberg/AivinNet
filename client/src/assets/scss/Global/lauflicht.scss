@@ -43,26 +43,24 @@
     position: relative;
     isolation: isolate;
 
-    // The travelling GREEN light comet (white-hot tip), masked to a 3px ring.
+    // The travelling GREEN light comet (white-hot tip), masked to a 5px ring: thick
+    // enough that the comet reads as a rim, not a hairline on the cover's frame.
     &::before {
         content: "";
         position: absolute;
         inset: 0;
         z-index: 2;
         border-radius: inherit;
-        padding: 3px;
-        // A solid pastel base under the comet, so the ring is never see-through:
-        // where the comet is not, the cover's ink frame must not show as a black
-        // rim. The comet still travels over it in the deeper pink.
+        padding: 5px;
         background: conic-gradient(
             from var(--np-angle),
-            mem-pastel($candy-pink-deep, 45%) 0deg,
-            mem-pastel($candy-pink-deep, 45%) 235deg,
+            transparent 0deg,
+            transparent 235deg,
             mem-alpha($candy-pink-deep, 0.55) 300deg,
             $candy-pink-deep 332deg,
             #ffffff 348deg,
             $candy-pink-deep 354deg,
-            mem-pastel($candy-pink-deep, 45%) 360deg
+            transparent 360deg
         );
         -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
         mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
