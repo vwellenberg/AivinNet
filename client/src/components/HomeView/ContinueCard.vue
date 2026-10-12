@@ -199,6 +199,10 @@ function resume() {
     // Full height, like the top bar: the dot rows reach the top and bottom
     // edges too, and the left and right ends are the only thing that is shaped.
     @include mem-halftone($reach: null, $edges: 5%, $right: 45%);
+    // On phones both ends are equal (user, 2026-10-12): 5% right as left.
+    @include allPhones {
+      @include mem-halftone($reach: null, $edges: 5%, $right: 5%);
+    }
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }

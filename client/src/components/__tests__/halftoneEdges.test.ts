@@ -38,6 +38,13 @@ describe('halftone at the ends', () => {
         expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*45%/)
     })
 
+    it('on phones the top bar has no dots and the continue card dots both ends alike', () => {
+        const nav = read('src/components/nav/NavBar.vue')
+        expect(nav).toMatch(/mem-halftone\([^)]*\);\s*[^}]*@include allPhones\s*\{\s*display:\s*none/)
+        const card = read('src/components/HomeView/ContinueCard.vue')
+        expect(card).toMatch(/@include allPhones\s*\{\s*@include mem-halftone\([^)]*\$edges:\s*5%,\s*\$right:\s*5%/)
+    })
+
     it('the mixin leaves the middle clear and the ends full', () => {
         const mixin = read('src/assets/scss/_candy.scss')
         const edges = mixin.match(/@else if \$edges \{[\s\S]*?-webkit-mask-image:\s*([^;]+);/)

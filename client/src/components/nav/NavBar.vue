@@ -110,6 +110,10 @@ const mobileTitle = computed(() => {
     // and the dots fade out over the next 15%.
     &::before {
         @include mem-halftone($reach: null, $edges: 10%);
+        // Phones wear no dots in the top bar (user, 2026-10-12).
+        @include allPhones {
+            display: none;
+        }
     }
     > * {
         position: relative;
