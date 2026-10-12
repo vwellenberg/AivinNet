@@ -73,7 +73,10 @@ describe('StatItem motif styling', () => {
         // The dots were cut off at the tile's rounded corners and ran behind the
         // number; the caption needed a cover to stay readable. The motif ends
         // above the text, so none of that is needed any more.
-        expect(style).not.toMatch(/mem-halftone|mem-dots-wave|&::before/)
+        expect(style).not.toMatch(/mem-halftone|mem-dots-wave/)
+        // A `::before` that paints is the old layer; the count box's one is an
+        // invisible sizer (text only, `visibility: hidden`).
+        expect(style).not.toMatch(/&::before\s*\{[^}]*(background|mem-)/s)
         expect(style).not.toMatch(/mem-hatch-clear|--row-fill/)
         expect(vue).not.toMatch(/--row-fill/)
     })
@@ -99,5 +102,38 @@ describe('StatItem motif styling', () => {
         expect(style).toMatch(/\.statitem:nth-child\(#\{\$i\}\)\s+\.statmotif\s*\{\s*animation-delay/)
         expect(read('src/assets/scss/Global/_button-classes.scss')).toMatch(/@keyframes mem-motif-pop/)
         expect(read('src/assets/scss/_candy.scss')).toMatch(/@mixin mem-motif-pop\(\$delay: 0s\)/)
+    })
+})
+
+describe('StatItem count box', () => {
+    const counted = () =>
+        mount(StatItem, {
+            props: { icon: 'trackcount', value: '12,671 tracks', text: 'in your library' },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+
+    // The count-up showed figures with wider digits than the final one ("12,671"
+    // is mostly narrow 1s), so a figure mid-count wrapped onto a second line and
+    // the tile jumped. The box is sized by the final value instead.
+    it('sizes a counted value by its final text, whatever figure is showing', () => {
+        const count = counted().find('.count')
+        expect(count.classes()).toContain('counting')
+        expect(count.attributes('data-final')).toBe('12,671 tracks')
+        expect(count.find('.count-live').exists()).toBe(true)
+    })
+
+    it('draws the final text invisibly and keeps the live figure out of the flow', () => {
+        const css = read('src/components/Stats/StatItem.vue')
+        expect(css).toMatch(/&::before\s*\{[^}]*content:\s*attr\(data-final\)[^}]*visibility:\s*hidden/s)
+        expect(css).toMatch(/\.count-live\s*\{[^}]*position:\s*absolute[^}]*white-space:\s*nowrap/s)
+    })
+
+    it('leaves a value that is not counted (top tiles) as plain text', () => {
+        const w = mount(StatItem, {
+            props: { icon: 'toptrack', value: 'Some Song', text: 'top track', image: 'abc.webp' },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+        expect(w.find('.count').classes()).not.toContain('counting')
+        expect(w.find('.count').text()).toBe('Some Song')
     })
 })
