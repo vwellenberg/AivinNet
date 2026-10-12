@@ -17,7 +17,20 @@
             <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
         </svg>
         <div class="itemcontent">
-            <div class="count ellip2" :title="formattedValue">{{ formattedValue }}</div>
+            <!-- While counting, the box is sized by the FINAL value (data-final, drawn
+                 invisibly by ::before) and the live figure floats in it, so a wider
+                 intermediate figure cannot wrap onto a second line. -->
+            <div
+                v-if="tokens.length"
+                ref="countEl"
+                class="count counting ellip2"
+                :class="{ oneline }"
+                :title="formattedValue"
+                :data-final="props.value"
+            >
+                <span class="count-live">{{ formattedValue }}</span>
+            </div>
+            <div v-else class="count ellip2" :title="formattedValue">{{ formattedValue }}</div>
             <div class="title">{{ text }}</div>
         </div>
 
@@ -37,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { countTokens, countUpAt, renderCounts } from '@/utils/countUp'
 
@@ -113,8 +126,28 @@ function startCount() {
     countTo(tokens.value.map(token => token.value))
 }
 
-onMounted(startCount)
-watch(() => props.value, startCount)
+// Whether the final value fits on one line: only then may the live figure refuse
+// to wrap. A value that wraps anyway ("12 hrs, 49 mins listened") keeps wrapping.
+const countEl = ref<HTMLElement | null>(null)
+const oneline = ref(true)
+function measureLines() {
+    const el = countEl.value
+    if (!el) return
+    const size = parseFloat(getComputedStyle(el).fontSize) || 0
+    oneline.value = !size || el.offsetHeight < size * 1.5
+}
+
+onMounted(() => {
+    measureLines()
+    startCount()
+})
+watch(
+    () => props.value,
+    () => {
+        startCount()
+        nextTick(measureLines)
+    }
+)
 onUnmounted(() => cancelAnimationFrame(frame))
 
 const formattedValue = computed(() => {
@@ -244,6 +277,28 @@ const tileStyle = computed(() => ({
         .count {
             font-size: 1.55rem;
             font-weight: 900;
+
+            // Only for a value that fits on one line. A value that wraps anyway
+            // stays in the flow: floating it would clip a line the box has no
+            // room for.
+            &.counting.oneline {
+                position: relative;
+
+                &::before {
+                    content: attr(data-final);
+                    display: block;
+                    visibility: hidden;
+                }
+
+                // Anchored to the bottom, like the text it stands in for.
+                .count-live {
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    white-space: nowrap;
+                }
+            }
         }
 
         .title {
