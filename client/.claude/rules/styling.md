@@ -883,7 +883,7 @@ Stelle findet, die der Look nicht erreicht, macht sie zum Token mit Memphis-Fall
 Rahmen, Offset) — der Text liest gegen die Panel-Fläche. Ein Look, der die Seite ohnehin aus dem
 Cover einfärbt, lässt stattdessen den Farbverlauf selbst der Kopf sein: `--look-detail-head-fill:
 transparent`, stärkerer und weiter laufender Verlauf (`--look-veil-top/-mid/-end`, gelesen in
-`pageGradient()` — `var()` in `rgba()` löst ganz normal auf) und ein größerer Titel
+`app-grid.scss` als `calc(var(--look-veil-top, 0.72) * 100%)` im `color-mix()`) und ein größerer Titel
 (`--shape-detail-title`, plus die Phone-Variante). Der Play-CTA nimmt die Look-Farbe
 (`--look-play-fill`/`-glyph`), in Memphis weiterhin Teal mit Ink-Glyph.
 
@@ -1322,6 +1322,12 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
 
 ## Bewegung
 
+- **Der Grund steht still.** Er driftete beim Seitenwechsel gegen den hereinwandernden Inhalt
+  (Parallaxe, #143; #473 beschränkte es auf echte Seitenwechsel) und wurde als „Hintergrund
+  wackelt bei jedem Screenwechsel" gemeldet. Es wandert nur noch der Inhalt
+  (`#acontent.page-enter > *`, `utils/pageEnter.ts`); `pageEnter.test.ts` verbietet eine
+  Animation auf `#acontent` selbst.
+
 - **Ein `view-transition-name` gibt es nur, während der Übergang läuft.** `utils/coverMorph.ts`
   setzt ihn beim Klick auf die Albumkarte und am Kopf erst beim Ankommen, und beides wird danach
   wieder entfernt. Stünde er dauerhaft auf beiden Elementen, trüge das Raster denselben Namen
@@ -1358,6 +1364,12 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Falz. Beide Hälften stecken seit #168 in **einem** Mixin: `mem-arrival($beyond: hold)` für alles
   nebeneinander, `mem-arrival($beyond: drop)` für alles untereinander. Neue Reihen binden das ein
   statt die Staffel ein viertes Mal auszuschreiben. Festgehalten in `motionArrival.test.ts`.
+  ⚠️ **„Untereinander" heißt hier „virtualisiert und unter der Falz", nicht „eine Liste".** Die
+  Chart-Zeilen trugen `drop` — sie sind aber eine feste Seite aus einem `v-for`, und auf einem
+  großen Bildschirm stehen alle zehn im Bild: Zeile 9 und 10 waren fertig, bevor Zeile 1 ankam
+  (gemeldet als „1–8 mit Aufbau-Animation, danach direkt schon da"). Sie nehmen jetzt
+  `mem-arrival($steps: 10, $beyond: hold)`, `$steps` = kleinste Seitengröße
+  (`CHART_PAGE_SIZES[0]`, getestet). `drop` bleibt für Scroller, die beim Scrollen recyceln.
 - ⚠️ **Eine CSS-Animation startet neu, sobald ihr Knoten UMGEHÄNGT wird — nicht nur, wenn er
   entsteht.** Die Ankunft (`mem-step-in`) hing an der Annahme „läuft einmal, beim Erzeugen", und
   die virtuellen Scroller verletzen sie auf zwei Wegen: (1) ein `:key` auf dem Slot-Inhalt, der
@@ -1807,6 +1819,93 @@ Breakpoint-Override braucht **beide** Vorkommen: die erste Fassung zählte einen
 Mutation der Desktop-Regel auf `max-height` blieb grün, weil der Phone-Override das Muster erfüllte.
 Solche Tests gegen Mutationen prüfen, nicht nur gegen den Ist-Zustand.
 
+## ⚠️ Dunkelmodus: Grund dunkel reicht nicht — die Tönungen gehen mit runter
+
+Bis 2026-10 waren im Dunkelmodus nur Grund und Panels dunkel. Alles **darauf** hatte die
+Helligkeit des hellen Modus: `mem-pastel()` mischte gegen Papier (Navigation, Karten,
+Continue-Karte), die Stat-Kacheln trugen den vollen Akzent, und die Doodles sind das helle
+Artwork. Gemeldet als „Dark Mode: dunklere Farben verwenden". Drei Tokens, alle auf
+`body.theme-dark:not(.theme-stream)` (Global/index.scss), Boring bleibt unberührt:
+
+- `--mem-pastel-base` — wogegen `mem-pastel()` mischt: ein Dämmerton aus Papier und **dem
+  Grund des Schemas** (Lagune bleibt blau, Terrakotta braun). Der Papier-Anteil steht pro Schema
+  in `brand-colors.json` (`pastelPaper`, Memphis 60 %, Lagune 68, Terrakotta 76, Eierschale 95):
+  so dunkel, wie Ink es auf **jeder** Tönung bei ≥ 4,5:1 zulässt. Eierschale kann kaum dunkler,
+  weil ihr Kraft (#5B4329) schon im hellen Modus fast an der Grenze liegt — ein einziger globaler
+  Wert hätte sie unter 3:1 gedrückt.
+- `--mem-tile-depth` (82 %) — wie viel Akzent eine Stat-Kachel behält (`StatItem.vue`, inline).
+- `--mem-doodle-veil` — eine halbdeckende Schicht in Grundfarbe über dem Doodle, als **erste**
+  Ebene in `mem-grid` (dämpft das Raster mit; dessen Größe dort deshalb `auto, …`).
+
+Der Text auf allen Tönungen bleibt Ink — das ist die Bedingung, unter der die Anteile gewählt
+sind. Wer ein Schema umfärbt oder einen Anteil ändert: `paletteSchemes.test.ts` rechnet Kontrast
+**und** „dunkler als hell" für jede Rolle jedes Schemas nach.
+
+## ⚠️ Ein Verlauf lässt sich nicht überblenden — eine registrierte Farbe schon
+
+Die Cover-Tönung der Detailseiten war ein Verlaufs-**String** auf `--page-gradient`. Ein
+Bildwert wird nicht interpoliert, und der Store setzt seine Farbe beim Wechsel zurück, solange
+das neue Cover gelesen wird: Farbe → nichts → Farbe, jeweils in einem Frame — das Flackern beim
+Wechsel von Playlist zu Playlist oder Album zu Album.
+
+Jetzt reist nur die **Farbe**, auf `--page-tint`, registriert per `@property` als `<color>`
+(app-grid.scss); der Verlauf wird im Stylesheet daraus gezeichnet und `transition: --page-tint
+$motion-veil`. Gemessen beim Wechsel Playlist 3 → 2: die Farbe wandert in ~450 ms stetig von
+`rgb(10,32,71)` nach `rgb(46,20,61)`, ohne Sprung. „Keine Tönung" ist `transparent` (der
+Initialwert), nicht `none` — sonst gäbe es keinen Weg dorthin, den man überblenden kann.
+
+Allgemein: **Wer etwas Animierbares aus einer Custom Property zeichnet, registriert sie.** Eine
+unregistrierte Property ist ein Token-String und schaltet in einem Frame, egal was `transition`
+sagt. Ein Wert in `color-mix()` braucht dafür eine Prozentangabe — eine Zahl aus einem
+Look-Token wird mit `calc(var(--x) * 100%)` zu einer.
+
+## ⚠️ Der Desktop hat EINE Startlinie: `$page-start`
+
+Das Handy hat seit `$phone-page-start` eine Startlinie für jede Seite. Der Desktop (Alt-Layout,
+Inhalt > 900 px) hatte sieben: gemessen bei 1440 ab Innenkante der Inhaltsplatte 32 px auf den
+Detailseiten, 52 unter einem Seitentitel, 68 auf Home, 84 auf Albums/Artists/Favorites, 92 auf
+Stats, 16 bei einer Suche, 0 bei der leeren Suche und 8 bei den Ordnern. Gemeldet als „der
+Content geht auf jedem Screen auf einer anderen Höhe los".
+
+Die Ursache war überall dieselbe Form: Der Seiten-Container gibt im Alt-Layout schon 2rem
+(`.content-page`, die Scroller), und das **erste Element** legte trotzdem sein eigenes Polster
+darauf — der leere `GenericHeader` 36 px, die Sortier-Chips 1rem, die erste Favoriten-Reihe 1rem,
+das Chart-Raster 1,25rem + 4 px. Suche und Ordner verwalten eigene Scroller und hatten gar nichts.
+
+- **Der Container gibt `$page-start`, das erste Element gibt nichts dazu.** Erreichbar über das
+  Mixin `altLayout` (`#app-grid.is_alt_layout &` — es ist ein Store-Wert, keine Media Query).
+- **Ein leerer Seitenkopf nimmt auf dem Desktop keinen Platz** (`.is-empty`, berechnet aus dem,
+  was er *malt*: Titel, Aktionen, `#after` — die Beschreibung wird nie gemalt).
+- ⚠️ **Ein 0-px-Eintrag im `DynamicScroller` zählt als ungemessen.** Der leere Kopf war auf
+  Albums/Artists ein Scroller-Eintrag; mit 0 px Höhe behielt er die Schätzung `min-item-size`
+  (64 px), und die Chips standen danach **tiefer** als vorher. Auf dem Desktop fällt der Eintrag
+  deshalb ganz weg. Wer einen Eintrag auf null schrumpft, nimmt ihn heraus, statt ihn leer zu
+  lassen.
+- **Ordner:** Die Klebe-Platte trägt ihre 8 px Luft selbst, und die wandern beim Kleben mit
+  (siehe „sticky Kopf ist eine Platte"). Der Rest von `$page-start` steht deshalb **vor** dem
+  Scroller (`.folder-view.is_alt_layout`), nicht in ihm — sonst klebte die Platte 32 px tief, mit
+  Zeilen, die darüber durchlaufen.
+- Messung nach der Änderung: 32 px auf 18 Hauptrouten bei 1440 und 1920. Zensus:
+  `pageStart.test.ts`. **Nicht abgedeckt** ist das mittlere Layout (Fenster ~900–1150 px, Inhalt
+  ≤ 900): dort haben die Container gar kein oberes Polster und die Werte streuen weiter (0–60 px).
+
+## Ein Regler zeigt vor dem Klick, wo er landet — Seek **und** Lautstärke
+
+Die Lautstärke-Leiste war ein nacktes Teal-Band; die Seek-Leiste daneben zeigt seit #66 eine
+gelbe Spanne bis zum Zeiger, Sprinkle über allem Gemalten und eine Pille mit dem Ziel. Beide
+nehmen jetzt dieselbe Anatomie (`.progress-wrap` + `.progress-fill-sprinkle` +
+`.progress-tooltip`) und dieselbe Rechnung (`utils/rangePreview.ts`: Zeiger → Anteil über die
+**volle** Breite, Spanne, gemalter Anteil, Hintergrund-Ebene der Spanne).
+
+- **Der Klick setzt genau den Wert der Pille** — der native Regler bildet ihn über eine um den
+  halben Knopf eingerückte Spur ab, also ein paar Prozent daneben. Tastatur und Ziehen behalten
+  den nativen Wert (`detail === 0` ist ein Tastatur-Klick).
+- **Die Pille der Lautstärke gleitet mit ihrer eigenen Breite** (`--pill-ratio`: linke Kante am
+  Zeiger bei 0 %, rechte bei 100 %) statt zu zentrieren: die Leiste endet wenige Pixel vor dem
+  Fensterrand, und eine zentrierte „100%" lief gemessen 2–5 px darüber hinaus.
+- Touch zeigt keine Vorschau (kein Hover). Im mobilen Now-Playing-Kopf bekommt die Leiste mit der
+  `.progress-wrap`-Klasse die Finger-Geometrie der Seek-Leiste darüber.
+
 ## Weitere Fallen
 
 - **Abstand nie als INHALT schreiben** (`<br>`, `&nbsp;`). Was als Text im Markup steht, sieht keine
@@ -1826,8 +1925,10 @@ Solche Tests gegen Mutationen prüfen, nicht nur gegen den Ist-Zustand.
 - **Layout-Grid:** `#app-grid` Zeilen `max-content minmax(0,1fr) 5.125rem` — `minmax(0,...)` ist
   kritisch, sonst schiebt eine hohe Sidebar die Bottom-Bar aus dem Viewport.
 - **Farbsystem:** `setColorsToStore` wählt die *dominante* Farbe (nicht die gesättigtste),
-  `getTextColor` entscheidet luminanz-basiert. Der Seiten-Verlauf ist **zentral** in
-  [`pageGradient()`](../../src/utils/colortools/pageGradient.ts) — nicht pro View duplizieren.
+  `getTextColor` entscheidet luminanz-basiert. Die Seiten-Tönung ist **zentral**:
+  [`pageTint()`](../../src/utils/colortools/pageGradient.ts) liefert die Farbe, `.v-scroll-page`
+  in `app-grid.scss` malt den Verlauf daraus — nicht pro View duplizieren (siehe „Ein Verlauf
+  lässt sich nicht überblenden" unten).
 - **Brand-Farben haben eine Quelle:** `src/brand-colors.json`. Nicht hardcoden.
 
 ## ⚠️ Eine Daueranimation muss aufhören können

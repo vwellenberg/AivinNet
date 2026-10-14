@@ -55,6 +55,50 @@ zu einem Eintrag, und nach einer Verschiebung zeigte alles auf den letzten Titel
 Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer anderen Datei
 im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
 
+## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
+
+Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den Namen ab
+(`utils/parsers.py`):
+
+- **Eine Tracknummer vor dem Titel** (`strip_track_number`): „049 Saint Wenceslaus Theme" →
+  „Saint Wenceslaus Theme", „6-001 Fistcuffs" (CD-Präfix) → „Fistcuffs". Nur mit **zweitem
+  Zeugen**, denn eine Zahl allein beweist nichts („007 Theme", „7 Seconds", „24-7"): die eigene
+  Tracknummer aus den Tags (dann null-gepolstert oder mit Satzzeichen, „7. Intro"), oder ein
+  Dateiname, der mit **derselben** Zahl beginnt (unpolstert nur, wenn auch die Tracknummer passt
+  — „14 swamp camp.mp3", Track 14; gepolstert nur, wenn die Tags keine andere Nummer kennen).
+  Gemeldet war: „saint" fand den Titel nicht unter den Top-Treffern, und die Nummer stand doppelt
+  in der Liste.
+- **Eine Rolle vor dem Interpreten** (`strip_artist_credit`): „Composed by Adam Sporka" → „Adam
+  Sporka" (auch „Music by", „Original Score by", „Arranged/Performed/… by", „Komponiert von").
+  Bewusst **nicht** „Written by" (es gibt die Band „Written by Wolves") und „Produced by".
+
+Weil beides in `trackhash` (Titel, Interpreten) und `artisthash` (Name) eingeht, ändern sich die
+Hashes **ohne** Scan und ohne Dateiänderung — beim ersten Start mit dem neuen Code. Jeder Track
+merkt sich deshalb, wie er vorher hieß (`Track._legacyhash`, `_legacy_artisthashes`, beide mit
+Unterstrich, also nie in einer API-Antwort), und `lib/name_cleanup.py::carry_cleaned_names()`
+zieht direkt nach `TrackStore.load_all_tracks` (in `setup.load_into_mem`) Playlists, Favoriten,
+Scrobbles, Artist-Favoriten und Artist-Bilder um. Dieselben Regeln wie beim Rescan
+(`remap_by_path`): Ein alter Hash, den noch ein anderer Track trägt, bleibt; einer, der sich auf
+zwei neue verteilt, kann keinem folgen. Es **liest erst und schreibt nur, was noch referenziert
+ist** — ab dem zweiten Start schreibt es nichts, und ein Fehler darin verhindert den Start nicht.
+
+Drei Folgen, die man kennen muss:
+
+- **Die Tags zeigen weiter das Original.** Der Tag-Editor liest die Datei, die Bibliothek den
+  bereinigten Namen. Wer „den echten Titel" sucht (`ffprobe`, MCP-Tools), sieht die Nummer.
+- **Der Album-Hash bleibt der alte.** Er kommt aus der Spalte (`album_hash` mit Ordner); bei
+  `mergeAlbums` rechnet `map_with_config` mit den **getaggten** Album-Interpreten, damit kein
+  Cover und kein Album-Favorit verwaist.
+- **Wer Hashes außerhalb des Modells nachrechnet** (Migrationen wie `album_title_from_folder`,
+  Skripte), rechnet mit den Rohnamen und bekommt den alten Hash. Das ist in Ordnung, solange der
+  Umzug danach durch `carry_cleaned_names` läuft — Migrationen laufen vor dem Laden.
+
+Ein neuer Bereinigungsschritt im Modell braucht dasselbe: den alten Hash in
+`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos. Tests:
+`tests/test_parsers.py` (Regeln), `tests_api/test_name_cleanup.py` (Umzug gegen die echten
+Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
+`e2e/make_library.py`.
+
 ## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren
 
 Gleiche Tags ⇒ gleicher Hash, egal welches Format: `X.mp3` neben `X.wav` (100-Musicians/
@@ -159,7 +203,8 @@ ebenfalls Tracknummer, der Bindestrich gehört zum Titel. Ohne führende Null bl
 (`50 Cent`, `3 Doors Down`). Zweite Falle in derselben Funktion: Sie bekommt schon den **Stem**
 und schnitt trotzdem noch eine „Endung" ab — `01. Intro` wurde zu `01`.
 
-⚠️ **Eine Parser-Änderung erreicht den Bestand nicht.** Der Scan liest eine Datei nur neu, wenn
+⚠️ **Eine Parser-Änderung erreicht den Bestand nicht** (anders als eine Bereinigung im Modell,
+siehe oben — die greift bei jedem Start). Der Scan liest eine Datei nur neu, wenn
 sich ihr `last_mod` ändert — die 455 Titel, die der Doppel-Schnitt verstümmelt hatte („090",
 „H.A.M"), standen nach dem Fix weiter so da. Bestand gezielt nachziehen, und zwar per
 `/metadata/album/apply` (Dateipfad): der neue Titel ändert den trackhash, der Weg zieht
