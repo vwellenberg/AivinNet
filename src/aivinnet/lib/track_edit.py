@@ -36,6 +36,7 @@ from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistMapEntry, ArtistStore
 from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
+from aivinnet.utils.parsers import strip_track_number
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
 # setup_logger() runs and the imported name never picks up the reassignment.
@@ -311,11 +312,30 @@ def edit_track_tags_by_filepath(filepath: str, fields: dict, batch: ReferenceBat
     return _edit(tracks[0], fields, batch)
 
 
+def keep_shown_title(old_track: Track, fields: dict) -> dict:
+    """
+    A renumber keeps the title the user saw.
+
+    The library takes a track number off the front of a title when the tags
+    confirm it (`utils.parsers.strip_track_number`): "049 Saint Wenceslaus
+    Theme" as track 49 shows as "Saint Wenceslaus Theme". The editor sends only
+    what changed, so a new number alone left "049 …" in the file — and under
+    number 50 nothing confirms the 049 any more: the number was back in the
+    title, and a rename wrote "50 - 049 Saint Wenceslaus Theme.mp3". So the
+    title the library showed goes into the file with the new number.
+    """
+    if "title" in fields or not ({"track", "disc"} & fields.keys()):
+        return fields
+    shown = strip_track_number(old_track.og_title, old_track.track, old_track.disc, old_track.filepath)
+    return {**fields, "title": shown} if shown != old_track.og_title else fields
+
+
 def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -> Track:
     """The edit itself, once the exact track to change has been resolved."""
     fields = {k: v for k, v in fields.items() if k in EDITABLE_FIELDS}
     if not fields:
         raise TrackEditError("No editable fields provided")
+    fields = keep_shown_title(old_track, fields)
 
     old_trackhash = old_track.trackhash
     filepath = old_track.filepath

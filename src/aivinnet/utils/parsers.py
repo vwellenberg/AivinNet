@@ -90,52 +90,44 @@ def strip_track_number(title: str, track: int, disc: int, filepath: str = "") ->
     sort files the song under "0", and a search for "saint" ranked it below
     every title that merely looked like the word.
 
-    A number alone proves nothing ("007 Theme", "7 Seconds", "24-7"), so it
-    goes only with a second witness:
+    A number alone proves nothing ("007 Theme", "3 Libras", "24-7"), so it goes
+    only with a second witness:
 
     - it is the track's own number from the tags (with the disc, if the title
-      names one), and it is zero-padded or set off by punctuation ("7. Intro");
-    - or the file's name begins with the very same number, so the title was made
-      from the file name or copied from it: with the track's own number even
-      unpadded ("14 swamp camp.mp3", track 14), and zero-padded when the tags
-      know no other number. A file without one reads as track 1; a different
-      one means the "007" in "007 Theme" is part of the name.
+      names one), and it is zero-padded, set off by punctuation ("7. Intro") or
+      carries a disc ("6-001");
+    - or it is zero-padded, the tags know no other number (a file without one
+      reads as track 1), and the file's name begins with the very same number.
+      Unpadded, the file name is no witness: a song named after its own number
+      sits in a file named after the song ("3 Libras.mp3" is track 3).
+
+    And it must be a number in FRONT of words, not part of one: the rest has to
+    contain a letter, and a separator without a space only counts after a
+    padded number and before a letter — "1-Up", "24-7" and "1.5 Degrees" stay.
     """
     match = _TITLE_NUMBER.fullmatch(title)
-    if not match or not re.search(r"\w", match["rest"]):
+    if not match:
         return title
 
-    num, disc_part = match["num"], match["disc"]
+    num, disc_part, sep, rest = match["num"], match["disc"], match["sep"], match["rest"]
     padded = len(num) > 1 and num.startswith("0")
-    punctuated = not match["sep"].isspace()
+
+    if not re.search(r"[^\W\d_]", rest):
+        return title
+    if not any(c.isspace() for c in sep) and not (padded and rest[0].isalpha()):
+        return title
+
+    punctuated = not sep.isspace()
     same_track = int(num) == track and (disc_part is None or int(disc_part) == disc)
 
     if same_track and (padded or punctuated or disc_part is not None):
-        return match["rest"].strip()
+        return rest.strip()
 
-    leading = _LEADING_NUMBER.match(filepath.rsplit("/", 1)[-1])
-    token = num if disc_part is None else f"{disc_part}-{num}"
-    named_so = leading is not None and leading.group(0) == token
-
-    if named_so and (same_track or (padded and track <= 1)):
-        return match["rest"].strip()
-
-    return title
-
-    num, disc_part = match["num"], match["disc"]
-    padded = len(num) > 1 and num.startswith("0")
-    punctuated = not match["sep"].isspace()
-
-    same_track = int(num) == track and (disc_part is None or int(disc_part) == disc)
-    if same_track and (padded or punctuated or disc_part is not None):
-        return match["rest"].strip()
-
-    if padded and filepath and track <= 1:
-        stem = filepath.rsplit("/", 1)[-1]
-        leading = _LEADING_NUMBER.match(stem)
-        token = f"{disc_part}-{num}" if disc_part is not None else num
-        if leading and leading.group(0) == token:
-            return match["rest"].strip()
+    if padded and track <= 1 and filepath:
+        leading = _LEADING_NUMBER.match(filepath.rsplit("/", 1)[-1])
+        token = num if disc_part is None else f"{disc_part}-{num}"
+        if leading is not None and leading.group(0) == token:
+            return rest.strip()
 
     return title
 

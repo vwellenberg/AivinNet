@@ -68,7 +68,9 @@ describe("desktop page start", () => {
     const head = read("components/shared/GenericHeader.vue");
     const blocks = includeBlocks(head, "altLayout");
     expect(blocks.length).toBe(1);
-    expect(blocks[0]).toMatch(/^\s*padding-top: 0;/m);
+    // Only the head that starts the page: /stats has a second one as a section
+    // heading under the charts.
+    expect(blocks[0]).toMatch(/&:first-child \{\s*padding-top: 0;/);
     expect(blocks[0]).toMatch(/&\.is-empty \{\s*padding-bottom: 0;/);
     // "Empty" is what the head PAINTS: the description slot never is.
     expect(head).toContain(":class=\"{ 'is-empty': !painted }\"");

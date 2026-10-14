@@ -161,7 +161,7 @@ def test_the_second_start_finds_nothing_to_move(reference_db, tracks):
     report = carry_cleaned_names(tracks)
 
     assert _references() == moved
-    assert report == {"tracks": 0, "artists": 0, "artist_images": 0}
+    assert report == {"tracks": 0, "artists": 0, "collections": 0, "artist_images": 0}
 
 
 def test_an_old_hash_another_track_still_holds_keeps_its_references(reference_db):
@@ -225,3 +225,102 @@ def test_a_database_error_does_not_stop_the_start(tracks, monkeypatch):
     monkeypatch.setattr(DbEngine, "manager", broken)
 
     assert carry_cleaned_names(tracks)["tracks"] == 0
+
+
+def test_a_single_keeps_its_album_name_and_its_old_hash():
+    # A single: album and title are the same tag. The number comes off the
+    # title only — the album keeps its tagged name (and with it its hash under
+    # mergeAlbums), and the old trackhash is the one the previous code made.
+    from aivinnet.config import UserConfig
+    from aivinnet.db.utils import track_to_dataclass
+
+    row = {
+        "id": 6,
+        "album": "01 - Intro",
+        "albumartists": "Adam Sporka",
+        "albumhash": create_hash("01 - Intro", FOLDER),
+        "artists": "Adam Sporka",
+        "bitrate": 320,
+        "copyright": "",
+        "date": 0,
+        "disc": 1,
+        "duration": 120,
+        "filepath": f"{FOLDER}/01 - Intro.mp3",
+        "folder": FOLDER,
+        "genres": None,
+        "last_mod": 1,
+        "title": "01 - Intro",
+        "track": 1,
+        "trackhash": "",
+        "extra": {},
+        "lastplayed": 0,
+        "playcount": 0,
+        "playduration": 0,
+    }
+    track = track_to_dataclass(row, UserConfig())
+
+    assert track.title == "Intro"
+    assert track.album == "01 - Intro"
+    assert track._legacyhash == create_hash("01 - Intro", "01 - Intro", "Adam Sporka")
+
+
+def test_a_renumber_writes_the_title_the_library_showed():
+    # "049 Saint Wenceslaus Theme" as track 49 shows without its number. The
+    # editor sends only the new number; under 50 nothing would confirm the 049,
+    # so the shown title goes into the file with it.
+    from aivinnet.lib.track_edit import keep_shown_title
+
+    saint = _track(1, "049 Saint Wenceslaus Theme", "Adam Sporka", "a.mp3", 49)
+
+    assert keep_shown_title(saint, {"track": 50}) == {"track": 50, "title": "Saint Wenceslaus Theme"}
+    # A title the user typed wins, and edits that do not renumber are left alone.
+    assert keep_shown_title(saint, {"track": 50, "title": "Other"}) == {"track": 50, "title": "Other"}
+    assert keep_shown_title(saint, {"album": "X"}) == {"album": "X"}
+    plain = _track(2, "Main Theme", "Adam Sporka", "b.mp3", 2)
+    assert keep_shown_title(plain, {"track": 3}) == {"track": 3}
+
+
+def test_a_homepage_collection_follows_the_renamed_artist(reference_db, tracks):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import CollectionTable
+    from aivinnet.lib.name_cleanup import carry_cleaned_names
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(
+            insert(CollectionTable).values(
+                name="Games",
+                userid=1,
+                items=[{"type": "artist", "hash": OLD_ARTIST}, {"type": "album", "hash": "a1b2c3d4e5f60718"}],
+                extra={},
+            )
+        )
+
+    try:
+        report = carry_cleaned_names(tracks)
+
+        with DbEngine.manager() as session:
+            items = session.execute(select(CollectionTable.items)).scalars().all()
+        assert items == [[{"type": "artist", "hash": NEW_ARTIST}, {"type": "album", "hash": "a1b2c3d4e5f60718"}]]
+        assert report["collections"] == 1
+    finally:
+        with DbEngine.manager(commit=True) as session:
+            session.execute(delete(CollectionTable))
+
+
+def test_a_picture_the_owner_removed_under_the_new_name_does_not_come_back(reference_db, tracks):
+    from aivinnet.lib.artist_image import user_set_dir
+    from aivinnet.lib.name_cleanup import carry_cleaned_names
+    from aivinnet.settings import Paths
+
+    folder = Paths().md_artist_img_path
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{OLD_ARTIST}.webp").write_bytes(b"picture")
+    user_set_dir().mkdir(parents=True, exist_ok=True)
+    (user_set_dir() / NEW_ARTIST).touch()  # removed by hand under the new name
+
+    try:
+        carry_cleaned_names(tracks)
+        assert not (folder / f"{NEW_ARTIST}.webp").exists()
+    finally:
+        for path in (folder / f"{OLD_ARTIST}.webp", folder / f"{NEW_ARTIST}.webp", user_set_dir() / NEW_ARTIST):
+            path.unlink(missing_ok=True)

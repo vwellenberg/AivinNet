@@ -146,6 +146,20 @@ describe('volume bar click', () => {
         expect(settings.setVolume).toHaveBeenLastCalledWith(0.5)
     })
 
+    it('keeps the dragged value when the drag ends with a click on the slider', async () => {
+        const w = mount(Volume)
+        const input = w.find('.volume-slider')
+        input.element.dispatchEvent(new MouseEvent('pointerdown', { clientX: 140, bubbles: true }))
+        ;(input.element as HTMLInputElement).value = '0'
+        await input.trigger('input') // dragged to the left end
+        settings.setVolume.mockClear()
+
+        await clickAt(w, 10) // released 130px from where it went down
+
+        expect(settings.setVolume).not.toHaveBeenCalled()
+        expect(settings.volume).toBe(0)
+    })
+
     it('still follows a drag (native input value)', async () => {
         const w = mount(Volume)
         const input = w.find('.volume-slider')

@@ -67,10 +67,14 @@ const painted = computed(() => Boolean(slots.name || slots.right || slots.after)
 
     // On the desktop the page container already starts the page
     // (`$page-start`, app-grid.scss): the title sticker or the actions are the
-    // first thing at that line, and an empty head adds nothing. The padding
-    // above stays for the narrower layouts, where the container has none.
+    // first thing at that line, and an empty head adds nothing. Only for the
+    // head that IS the page's first element: /stats also uses one as a section
+    // heading under the charts, and that one keeps its air. The padding above
+    // stays for the narrower layouts, where the container has none.
     @include altLayout {
-        padding-top: 0;
+        &:first-child {
+            padding-top: 0;
+        }
 
         &.is-empty {
             padding-bottom: 0;

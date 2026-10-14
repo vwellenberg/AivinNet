@@ -6,7 +6,8 @@ Theme") and a role off the front of an artist ("Composed by Adam Sporka") —
 `utils/parsers.py::strip_track_number` and `strip_artist_credit`, applied in
 `models/track.py`. The files keep their tags. But a trackhash is made of title,
 album and artists, and an artisthash of the name, so both change: favourites,
-playlists and scrobbles still hold the old hashes and would point at nothing.
+playlists, scrobbles and homepage collections still hold the old hashes and
+would point at nothing.
 
 Each track remembers what it was called before (`Track._legacyhash`,
 `Track._legacy_artisthashes`). After every load this module moves what still
@@ -115,6 +116,28 @@ def _favorited_artisthashes(session: Any, hashes: set[str]) -> set[str]:
     return found
 
 
+def _collections_with_artists(session: Any, mapping: dict[str, str]) -> list[tuple[int, list[dict[str, Any]]]]:
+    """(id, items rewritten) of every homepage collection that holds a renamed artist."""
+    from sqlalchemy import select
+
+    from aivinnet.db.userdata import CollectionTable
+
+    out: list[tuple[int, list[dict[str, Any]]]] = []
+
+    for collection_id, items in session.execute(select(CollectionTable.id, CollectionTable.items)).all():
+        items = items or []
+        rewritten = [
+            {**item, "hash": mapping[item["hash"]]}
+            if isinstance(item, dict) and item.get("type") == "artist" and item.get("hash") in mapping
+            else item
+            for item in items
+        ]
+        if rewritten != items:
+            out.append((collection_id, rewritten))
+
+    return out
+
+
 def _copy_artist_images(mapping: dict[str, str]) -> int:
     """
     Give each renamed artist the picture of its old name, where it has none.
@@ -132,6 +155,12 @@ def _copy_artist_images(mapping: dict[str, str]) -> int:
     copied = 0
 
     for old, new in mapping.items():
+        # The owner already decided about the NEW name (removed its picture, or
+        # set one): the old picture must not come back over that decision on
+        # the next start.
+        if (marker_dir / new).exists():
+            continue
+
         for folder in folders:
             source, target = folder / f"{old}.webp", folder / f"{new}.webp"
             if source.exists() and not target.exists():
@@ -158,7 +187,7 @@ def carry_cleaned_names(tracks: Iterable[Any] | None = None) -> dict[str, int]:
     are mapped onto the stores. Returns a small report for the log. Never
     raises: a start must not fail over references it could carry next time.
     """
-    report = {"tracks": 0, "artists": 0, "artist_images": 0}
+    report = {"tracks": 0, "artists": 0, "collections": 0, "artist_images": 0}
 
     try:
         _carry(tracks, report)
@@ -192,24 +221,34 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
     with DbEngine.manager() as session:
         referenced = _referenced_trackhashes(session, set(track_map)) if track_map else set()
         favorited = _favorited_artisthashes(session, set(artist_map)) if artist_map else set()
+        collections = _collections_with_artists(session, artist_map) if artist_map else []
 
     track_map = {old: new for old, new in track_map.items() if old in referenced}
-    artist_map = {old: new for old, new in artist_map.items() if old in favorited}
+    favorite_map = {old: new for old, new in artist_map.items() if old in favorited}
 
-    if track_map or artist_map:
+    if track_map or favorite_map or collections:
+        from sqlalchemy import update
+
+        from aivinnet.db.userdata import CollectionTable
+
         with DbEngine.manager(commit=True) as session:
             if track_map:
                 migrate_track_references_many(track_map, session=session)
-            for old, new in artist_map.items():
+            for old, new in favorite_map.items():
                 migrate_item_favorites("artist", old, new, session)
+            for collection_id, items in collections:
+                session.execute(update(CollectionTable).where(CollectionTable.id == collection_id).values(items=items))
 
     report["tracks"] = len(track_map)
-    report["artists"] = len(artist_map)
+    report["artists"] = len(favorite_map)
+    report["collections"] = len(collections)
 
     if any(report.values()):
         log.info(
-            "Cleaned names: moved the references of %d track(s) and %d artist(s), copied %d artist picture(s)",
+            "Cleaned names: moved the references of %d track(s) and %d artist(s), "
+            "%d collection(s), copied %d artist picture(s)",
             report["tracks"],
             report["artists"],
+            report["collections"],
             report["artist_images"],
         )

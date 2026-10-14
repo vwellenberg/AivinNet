@@ -214,9 +214,23 @@ class TestStripTrackNumber:
         path = "/m/KCD2/049 Saint Wenceslaus Theme.mp3"
         assert strip_track_number("049 Saint Wenceslaus Theme", 1, 1, path) == "Saint Wenceslaus Theme"
 
-    def test_an_unpadded_number_goes_when_tag_and_file_name_agree(self):
-        # Gothic rips: "14 swamp camp.mp3.mp3", track 14.
-        assert strip_track_number("14 swamp camp", 14, 1, "/g/14 swamp camp.mp3.mp3") == "swamp camp"
+    def test_an_unpadded_number_needs_punctuation_even_when_the_file_name_agrees(self):
+        # The file is named after the song, so it repeats the title and proves
+        # nothing: "3 Libras" is track 3 of its album, "10 Years" track 10.
+        assert strip_track_number("3 Libras", 3, 1, "/m/3 Libras.mp3") == "3 Libras"
+        assert strip_track_number("10 Years", 10, 1, "/m/10 Years.mp3") == "10 Years"
+        assert strip_track_number("14 swamp camp", 14, 1, "/g/14 swamp camp.mp3.mp3") == "14 swamp camp"
+        assert strip_track_number("14. swamp camp", 14, 1, "/g/14. swamp camp.mp3") == "swamp camp"
+
+    def test_a_number_inside_a_name_stays(self):
+        # Hyphenated and decimal names: the number is not in front of words.
+        assert strip_track_number("24-7", 24, 1, "/m/a.mp3") == "24-7"
+        assert strip_track_number("7-11", 7, 1, "/m/a.mp3") == "7-11"
+        assert strip_track_number("1-2-3", 2, 1, "/m/a.mp3") == "1-2-3"
+        assert strip_track_number("1.5 Degrees", 1, 1, "/m/a.mp3") == "1.5 Degrees"
+        assert strip_track_number("1-Up", 1, 1, "/m/a.mp3") == "1-Up"
+        # A padded number with no space before the words is still a number in front.
+        assert strip_track_number("01-intro", 1, 1, "/m/01-intro.mp3") == "intro"
 
     def test_a_number_that_belongs_to_the_name_stays(self):
         assert strip_track_number("007 Theme", 12, 1, "/m/007 Theme.mp3") == "007 Theme"

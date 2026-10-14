@@ -3,7 +3,6 @@ This library contains all the functions related to the search functionality.
 """
 
 import heapq
-import re
 
 from rapidfuzz import fuzz, process, utils
 from unidecode import unidecode
@@ -73,7 +72,13 @@ def _rank(query: str, choices: list[str], cutoff: float, limit: int | None) -> l
     Both `query` and `choices` arrive processed (`_choice`, `default_process`).
     The cutoff applies to WRatio, as it always did.
     """
-    matches = process.extract(query, choices, score_cutoff=cutoff, limit=None, scorer=fuzz.WRatio)
+    # A one- or two-letter query resembles most of a library, and ranking all
+    # of it here is a Python loop on the single request thread (measured 255 ms
+    # against 158 at 50k titles for "a"). Its order among thousands of hits
+    # says nothing yet, so it ranks only the WRatio top; from three letters on
+    # every match takes part, which is where a word has to beat a lookalike.
+    pool = max(limit * 4, 200) if limit is not None and len(query) < 3 else None
+    matches = process.extract(query, choices, score_cutoff=cutoff, limit=pool, scorer=fuzz.WRatio)
     # " saint" inside " " + title: the query starts a word, without a regex. A
     # plain loop, not a scorer per item: for a one-letter query this runs over
     # most of the library on every keystroke. Several words match in any order

@@ -63,9 +63,11 @@ Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den
 - **Eine Tracknummer vor dem Titel** (`strip_track_number`): „049 Saint Wenceslaus Theme" →
   „Saint Wenceslaus Theme", „6-001 Fistcuffs" (CD-Präfix) → „Fistcuffs". Nur mit **zweitem
   Zeugen**, denn eine Zahl allein beweist nichts („007 Theme", „7 Seconds", „24-7"): die eigene
-  Tracknummer aus den Tags (dann null-gepolstert oder mit Satzzeichen, „7. Intro"), oder ein
-  Dateiname, der mit **derselben** Zahl beginnt (unpolstert nur, wenn auch die Tracknummer passt
-  — „14 swamp camp.mp3", Track 14; gepolstert nur, wenn die Tags keine andere Nummer kennen).
+  Tracknummer aus den Tags (dann null-gepolstert, mit Satzzeichen „7. Intro" oder mit CD-Präfix),
+  oder — nur null-gepolstert und ohne andere Tracknummer in den Tags — ein Dateiname, der mit
+  **derselben** Zahl beginnt. Unpolstert ist der Dateiname kein Zeuge: ein Song, der nach seiner
+  eigenen Nummer heißt, liegt in einer Datei mit seinem Namen („3 Libras.mp3" ist Track 3).
+  Und die Zahl muss **vor** Wörtern stehen: „24-7", „1-Up", „1.5 Degrees" bleiben.
   Gemeldet war: „saint" fand den Titel nicht unter den Top-Treffern, und die Nummer stand doppelt
   in der Liste.
 - **Eine Rolle vor dem Interpreten** (`strip_artist_credit`): „Composed by Adam Sporka" → „Adam
@@ -76,16 +78,27 @@ Weil beides in `trackhash` (Titel, Interpreten) und `artisthash` (Name) eingeht,
 Hashes **ohne** Scan und ohne Dateiänderung — beim ersten Start mit dem neuen Code. Jeder Track
 merkt sich deshalb, wie er vorher hieß (`Track._legacyhash`, `_legacy_artisthashes`, beide mit
 Unterstrich, also nie in einer API-Antwort), und `lib/name_cleanup.py::carry_cleaned_names()`
-zieht direkt nach `TrackStore.load_all_tracks` (in `setup.load_into_mem`) Playlists, Favoriten,
-Scrobbles, Artist-Favoriten und Artist-Bilder um. Dieselben Regeln wie beim Rescan
+zieht direkt nach `TrackStore.load_all_tracks` (beim Start in `setup.load_into_mem` und nach
+jedem Scan in `index._index_everything`, in dem auch ein Backup-Restore endet) Playlists,
+Favoriten, Scrobbles, Artist-Favoriten, Artist-Karten in Home-Sammlungen und Artist-Bilder um
+(ein Bild nur, solange der Besitzer über den **neuen** Namen nicht selbst entschieden hat). Dieselben Regeln wie beim Rescan
 (`remap_by_path`): Ein alter Hash, den noch ein anderer Track trägt, bleibt; einer, der sich auf
 zwei neue verteilt, kann keinem folgen. Es **liest erst und schreibt nur, was noch referenziert
 ist** — ab dem zweiten Start schreibt es nichts, und ein Fehler darin verhindert den Start nicht.
 
 Drei Folgen, die man kennen muss:
 
-- **Die Tags zeigen weiter das Original.** Der Tag-Editor liest die Datei, die Bibliothek den
-  bereinigten Namen. Wer „den echten Titel" sucht (`ffprobe`, MCP-Tools), sieht die Nummer.
+- **Die Datei behält das Original, alles im Client zeigt den bereinigten Namen** — auch der
+  Tag-Editor (`EditTrack.vue` füllt aus dem Track der API). Er schickt nur, was sich geändert hat;
+  wer dort einen bereinigten Titel anfasst, schreibt den bereinigten in die Datei. Wer „den echten
+  Titel" sucht (`ffprobe`, MCP-Tools), sieht die Nummer.
+- **Eine neue Tracknummer nimmt den gezeigten Titel mit** (`track_edit.keep_shown_title`): Unter
+  Nummer 50 bestätigt nichts mehr die „049", die Nummer stünde wieder im Titel — und ein
+  Umbenennen schrieb „50 - 049 Saint Wenceslaus Theme.mp3".
+- **Gespeicherte Queues im Browser tragen die alten Hashes.** `/file/<hash>/legacy` spielt einen
+  unbekannten Hash deshalb über seinen Pfad, wenn die Bibliothek genau diesen Pfad kennt
+  (`api/stream.py`, nie einen unindizierten). Scrobbles aus solchen Queues landen unter dem alten
+  Hash und ziehen beim nächsten Scan oder Start mit um.
 - **Der Album-Hash bleibt der alte.** Er kommt aus der Spalte (`album_hash` mit Ordner); bei
   `mergeAlbums` rechnet `map_with_config` mit den **getaggten** Album-Interpreten, damit kein
   Cover und kein Album-Favorit verwaist.
@@ -94,9 +107,10 @@ Drei Folgen, die man kennen muss:
   Umzug danach durch `carry_cleaned_names` läuft — Migrationen laufen vor dem Laden.
 
 Ein neuer Bereinigungsschritt im Modell braucht dasselbe: den alten Hash in
-`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos. Tests:
-`tests/test_parsers.py` (Regeln), `tests_api/test_name_cleanup.py` (Umzug gegen die echten
-Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
+`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos. Und er darf
+nur den **Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-Hash). Tests:
+`tests/test_parsers.py` (Regeln), `tests/test_name_cleanup_mapping.py` (was umzieht, Verdrahtung),
+`tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
 `e2e/make_library.py`.
 
 ## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren

@@ -39,6 +39,7 @@
                 :value="level01"
                 :style="{ background: volumeBg }"
                 @input="changeVolume"
+                @pointerdown="onPress"
                 @click="clickVolume"
             />
             <div class="progress-fill-sprinkle" />
@@ -113,10 +114,20 @@ const onPointerLeave = () => {
 
 // A real click lands where the pill says: the native range maps it over a
 // track inset by half the thumb, a few percent off near the ends. Keyboard and
-// drag keep the native value (`input` above); `detail > 0` tells a pointer
-// click from a keyboard-synthesised one.
+// drag keep the native value (`input` above): `detail > 0` tells a pointer
+// click from a keyboard-synthesised one, and a pointer that travelled since it
+// went down was a drag — its release fires `click` too, and the full-width
+// ratio there is not the value the knob was dragged to (a knob dragged to the
+// left end would land at ~11 %).
+const DRAG_PX = 3
+let pressAt: number | null = null
+const onPress = (e: PointerEvent) => {
+    pressAt = e.clientX
+}
 const clickVolume = (e: MouseEvent) => {
-    if (e.detail === 0) return
+    const dragged = pressAt !== null && Math.abs(e.clientX - pressAt) > DRAG_PX
+    pressAt = null
+    if (e.detail === 0 || dragged) return
     const ratio = ratioFromClientX(e.clientX)
     if (ratio !== null) setLevel(Math.round(ratio * 100) / 100)
 }

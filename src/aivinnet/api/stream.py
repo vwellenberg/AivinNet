@@ -84,6 +84,18 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
                     track = t
                     break
 
+    # INFO: A hash the library no longer knows, at a path it does. The track's
+    # name changed under a saved queue — the server's name cleanup
+    # (models/track.py: a track number off the title, "Composed by" off the
+    # artist) or a retag outside the app — and browsers keep their queues with
+    # the old hashes: every one of those tracks answered 404 until the queue was
+    # rebuilt. Only a path the library indexes is served, never one it does not.
+    if track is None and group is None:
+        for t in TrackStore.get_tracks_by_filepaths([filepath]):
+            if os.path.exists(t.filepath):
+                track = t
+                break
+
     if track is not None:
         audio_type = guess_mime_type(track.filepath)
 
