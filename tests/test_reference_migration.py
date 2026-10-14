@@ -106,6 +106,14 @@ class TestMoveCollectionItems:
         items = [{"type": "album", "hash": "new"}, {"type": "album", "hash": "old"}]
         assert move_collection_items(items, "album", {"old": "new"}) == [{"type": "album", "hash": "new"}]
 
+    def test_a_duplicate_the_move_does_not_touch_stays(self):
+        items = [{"type": "artist", "hash": "z"}, {"type": "artist", "hash": "z"}, {"type": "artist", "hash": "old"}]
+        assert move_collection_items(items, "artist", {"old": "new"}) == [
+            {"type": "artist", "hash": "z"},
+            {"type": "artist", "hash": "z"},
+            {"type": "artist", "hash": "new"},
+        ]
+
     def test_other_fields_and_foreign_entries_survive(self):
         items = [{"type": "album", "hash": "old", "extra": {"pinned": True}}, "not-a-card", {"type": "album"}]
         assert move_collection_items(items, "album", {"old": "new"}) == [

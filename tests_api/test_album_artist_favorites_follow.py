@@ -202,8 +202,13 @@ def test_the_artist_card_moves_when_its_last_file_is_renamed(collections_db):
     with DbEngine.manager(commit=True) as session:
         _collection(session, 1, [{"type": "artist", "hash": old}])
 
-    for path in paths:
-        track_edit.edit_track_tags_by_filepath(path, {"artists": "The Artist", "albumartists": "The Artist"})
+    renamed = {"artists": "The Artist", "albumartists": "The Artist"}
+    track_edit.edit_track_tags_by_filepath(paths[0], renamed)
+    with DbEngine.manager() as session:
+        # The second file still carries the old name: the artist exists.
+        assert _collections(session) == {1: [{"type": "artist", "hash": old}]}
+
+    track_edit.edit_track_tags_by_filepath(paths[1], renamed)
 
     with DbEngine.manager() as session:
         assert _collections(session) == {1: [{"type": "artist", "hash": new}]}
@@ -223,3 +228,30 @@ def test_a_collection_that_already_holds_the_new_album_keeps_one_card(collection
 
     with DbEngine.manager() as session:
         assert _collections(session) == {1: [{"type": "album", "hash": new}]}
+
+
+def test_the_album_pin_moves_with_the_last_file(collections_db):
+    # Pinned to the sidebar is a favourite of its own type; it was left behind
+    # the same way and the pin vanished from the sidebar.
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    with DbEngine.manager(commit=True) as session:
+        session.execute(
+            insert(FavoritesTable).values(
+                hash=f"pinned_album_{old}", type="pinned_album", timestamp=1, userid=1, extra={"position": 3}
+            )
+        )
+
+    for path in paths:
+        new = track_edit.edit_track_tags_by_filepath(path, {"album": "Abbey Road"}).albumhash
+
+    with DbEngine.manager() as session:
+        pins = session.execute(
+            select(FavoritesTable.userid, FavoritesTable.hash, FavoritesTable.extra).where(
+                FavoritesTable.type == "pinned_album"
+            )
+        ).all()
+    assert pins == [(1, f"pinned_album_{new}", {"position": 3})]

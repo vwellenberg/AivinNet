@@ -18,6 +18,7 @@ repos:
           src/aivinnet/lib/playlist_maintenance.py,
           src/aivinnet/lib/home/discover.py,
           src/aivinnet/lib/name_cleanup.py,
+          src/aivinnet/lib/reference_migration.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]

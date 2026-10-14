@@ -8,6 +8,8 @@ paths:
   - "src/aivinnet/lib/folder_index.py"
   - "src/aivinnet/utils/filesystem.py"
   - "src/aivinnet/lib/track_edit.py"
+  - "src/aivinnet/lib/reference_migration.py"
+  - "src/aivinnet/lib/name_cleanup.py"
   - "src/aivinnet/api/track.py"
   - "mcp_server/server.py"
   - "src/aivinnet/utils/stats.py"
@@ -56,14 +58,15 @@ Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer 
 im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
 
 **Alben und Artists ziehen mit ihrer LETZTEN Datei um** (`track_edit._retired_identities`): ihre
-Favoriten (#296) und ihre Karten in den Home-Sammlungen (#481), beides in derselben Transaktion
-wie die Zeile (`reference_migration.migrate_item_favorites`, `migrate_collection_items`). Solange
-noch eine Datei den alten Namen trägt, gibt es das alte Album und es behält alles. Bis #481 zogen
-nur die Favoriten mit: Home überspringt eine Karte, die sich nicht auflösen lässt, und so
-verschwand sie nach einem Umbenennen ohne jede Meldung. **Wer eine neue Stelle baut, die Album-
-oder Artist-Hashes speichert, hängt sie dort an.** ⚠️ Ein Rescan nach einer Änderung **von
-außen** zieht nur Track-Referenzen um (`_carry_references`), keine Album- oder Artist-Favoriten
-und keine Karten.
+Favoriten (#296), die Sidebar-Pins eines Albums (`pinned_album`) und ihre Karten in den
+Home-Sammlungen (#481), alles in derselben Transaktion wie die Zeile, über **eine** Stelle:
+`reference_migration.migrate_identity_references`. Solange noch eine Datei den alten Namen trägt,
+gibt es das alte Album und es behält alles. Bis #481 zogen nur die Favoriten mit; jeder Speicher
+war einzeln verdrahtet, und jeder vergessene verlor lautlos: Home und die Sidebar überspringen
+einen Hash, den sie nicht auflösen können. **Wer eine neue Stelle baut, die Album- oder
+Artist-Hashes speichert, hängt sie in diese Funktion.** Noch nicht drin: die Quellen `al:`/`ar:`
+der Scrobbles (Recently played, Continue listening). ⚠️ Ein Rescan nach einer Änderung **von
+außen** zieht nur Track-Referenzen um (`_carry_references`), nichts davon.
 
 ## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
 
