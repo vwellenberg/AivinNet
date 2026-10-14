@@ -51,6 +51,95 @@ def split_artists(src: str, config: UserConfig):
     return result
 
 
+# A role in front of a name: "Composed by Adam Sporka". Game and film
+# soundtracks put the credit into the artist tag, and since the artist hash is
+# made of the whole string, the composer stood in the library twice: "Adam
+# Sporka" from one album, "Composed by Adam Sporka" from the next. Deliberately
+# no "written by" or "produced by": "Written by Wolves" is a band.
+_ARTIST_CREDIT = re.compile(
+    r"^\s*(?:(?:(?:original\s+)?(?:music|score)\s+)?(?:composed|arranged|orchestrated|conducted|performed)"
+    r"|(?:original\s+)?(?:music|score))\s+by\s+(?=\S)"
+    r"|^\s*(?:komponiert|musik)\s+von\s+(?=\S)",
+    re.IGNORECASE,
+)
+
+
+def strip_artist_credit(name: str) -> str:
+    """
+    `name` without a leading credit: "Composed by Adam Sporka" -> "Adam Sporka".
+
+    Applied to each name after the split, so "Composed by A; B" loses the role
+    on A and leaves B alone. A name that would be empty without it keeps it.
+    """
+    stripped = _ARTIST_CREDIT.sub("", name, count=1).strip()
+    return stripped or name
+
+
+# A number in front of a title: "049 Saint Wenceslaus Theme", "6-001 Fistcuffs",
+# "07. Intro", "1-04 - Home". The optional "6-" is the disc.
+_TITLE_NUMBER = re.compile(r"(?:(?P<disc>\d{1,2})-)?(?P<num>\d{1,4})(?P<sep>\s*[.)_-]\s*|\s+)(?P<rest>\S.*)")
+_LEADING_NUMBER = re.compile(r"(?:\d{1,2}-)?\d{1,4}(?!\d)")
+
+
+def strip_track_number(title: str, track: int, disc: int, filepath: str = "") -> str:
+    """
+    `title` without a track number in front of it, when the number is one.
+
+    Rips and game soundtracks often carry the number in the title itself
+    ("049 Saint Wenceslaus Theme"): the list shows it twice, the alphabetical
+    sort files the song under "0", and a search for "saint" ranked it below
+    every title that merely looked like the word.
+
+    A number alone proves nothing ("007 Theme", "7 Seconds", "24-7"), so it
+    goes only with a second witness:
+
+    - it is the track's own number from the tags (with the disc, if the title
+      names one), and it is zero-padded or set off by punctuation ("7. Intro");
+    - or the file's name begins with the very same number, so the title was made
+      from the file name or copied from it: with the track's own number even
+      unpadded ("14 swamp camp.mp3", track 14), and zero-padded when the tags
+      know no other number. A file without one reads as track 1; a different
+      one means the "007" in "007 Theme" is part of the name.
+    """
+    match = _TITLE_NUMBER.fullmatch(title)
+    if not match or not re.search(r"\w", match["rest"]):
+        return title
+
+    num, disc_part = match["num"], match["disc"]
+    padded = len(num) > 1 and num.startswith("0")
+    punctuated = not match["sep"].isspace()
+    same_track = int(num) == track and (disc_part is None or int(disc_part) == disc)
+
+    if same_track and (padded or punctuated or disc_part is not None):
+        return match["rest"].strip()
+
+    leading = _LEADING_NUMBER.match(filepath.rsplit("/", 1)[-1])
+    token = num if disc_part is None else f"{disc_part}-{num}"
+    named_so = leading is not None and leading.group(0) == token
+
+    if named_so and (same_track or (padded and track <= 1)):
+        return match["rest"].strip()
+
+    return title
+
+    num, disc_part = match["num"], match["disc"]
+    padded = len(num) > 1 and num.startswith("0")
+    punctuated = not match["sep"].isspace()
+
+    same_track = int(num) == track and (disc_part is None or int(disc_part) == disc)
+    if same_track and (padded or punctuated or disc_part is not None):
+        return match["rest"].strip()
+
+    if padded and filepath and track <= 1:
+        stem = filepath.rsplit("/", 1)[-1]
+        leading = _LEADING_NUMBER.match(stem)
+        token = f"{disc_part}-{num}" if disc_part is not None else num
+        if leading and leading.group(0) == token:
+            return match["rest"].strip()
+
+    return title
+
+
 def remove_prod(title: str) -> str:
     """
     Removes the producer string in a track title using regex.

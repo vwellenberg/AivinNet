@@ -8,7 +8,7 @@ search's time, on the single request thread, for every keystroke and every
 from types import SimpleNamespace
 
 import pytest
-from rapidfuzz import fuzz, process, utils
+from rapidfuzz import utils
 from unidecode import unidecode
 
 TITLES = [
@@ -33,15 +33,12 @@ def searchlib(monkeypatch):
     return searchlib
 
 
-def _old(query, titles, scorer, cutoff=50, limit=150):
-    """The formula before the cache, as the reference."""
-    choices = [unidecode(t).lower() for t in titles]
-    return [
-        (i, round(score, 6))
-        for _c, score, i in process.extract(
-            query, choices, score_cutoff=cutoff, limit=limit, processor=utils.default_process, scorer=scorer
-        )
-    ]
+def _old(query, titles, cutoff=50, limit=150):
+    """The same ranking without the cache, as the reference: every title transliterated afresh."""
+    import aivinnet.lib.searchlib as searchlib
+
+    choices = [utils.default_process(unidecode(t).lower()) for t in titles]
+    return [(i, round(score, 6)) for i, score in searchlib._rank(utils.default_process(query), choices, cutoff, limit)]
 
 
 @pytest.mark.parametrize("query", ["night woods", "NIGHT", "motley", "drum loop", "guild theme", "x"])
@@ -54,14 +51,14 @@ def test_tracks_artists_and_albums_rank_as_the_uncached_formula(searchlib, monke
     monkeypatch.setattr(searchlib.AlbumStore, "get_flat_list", classmethod(lambda cls: list(albums)))
 
     got = [(tracks.index(t), round(t._score, 6)) for t in searchlib.SearchTracks(query)()]
-    assert got == _old(query, TITLES, fuzz.WRatio)
+    assert got == _old(query, TITLES)
 
     got = [(artists.index(a), round(a._score, 6)) for a in searchlib.SearchArtists(query)()]
-    assert got == _old(query, TITLES, fuzz.WRatio)
+    assert got == _old(query, TITLES)
 
     # Albums score with WRatio too (formerly token_sort_ratio, see test_album_search_word.py).
     got = [(albums.index(a), round(a._score, 6)) for a in searchlib.SearchAlbums(query)()]
-    assert got == _old(query, TITLES, fuzz.WRatio)
+    assert got == _old(query, TITLES)
 
 
 def test_a_second_search_does_not_transliterate_again(searchlib, monkeypatch):

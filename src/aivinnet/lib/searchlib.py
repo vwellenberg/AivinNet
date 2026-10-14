@@ -2,6 +2,9 @@
 This library contains all the functions related to the search functionality.
 """
 
+import heapq
+import re
+
 from rapidfuzz import fuzz, process, utils
 from unidecode import unidecode
 
@@ -45,6 +48,59 @@ def _choice(text: str) -> str:
     return choice
 
 
+# The score bands `_rank` gives: the whole title, and the query as a word of it.
+EXACT_MATCH = 100.0
+WORD_MATCH = 90.0
+
+
+def _rank(query: str, choices: list[str], cutoff: float, limit: int | None) -> list[tuple[int, float]]:
+    """
+    (index, score) of the choices that match `query`, best first.
+
+    WRatio alone ranked by resemblance. Every title that merely looked like the
+    query stood level with the one that contained it as a word: "saint" scored
+    90 against "Saint Wenceslaus Theme" and 91 against "Saints", and with four
+    track slots in the top results the song a person was after fell off the
+    end. The score now says HOW the query sits in the title first, and WRatio
+    only orders within that:
+
+    - 100: the title is the query;
+    - 90-99: every word of the query starts a word of the title ("saint",
+      "saint theme"), a title that starts with it one point ahead;
+    - 80-89: the query stands inside a word ("ndrom" in "Syndrome");
+    - below 80: the title only resembles it — typos keep finding it.
+
+    Both `query` and `choices` arrive processed (`_choice`, `default_process`).
+    The cutoff applies to WRatio, as it always did.
+    """
+    matches = process.extract(query, choices, score_cutoff=cutoff, limit=None, scorer=fuzz.WRatio)
+    # " saint" inside " " + title: the query starts a word, without a regex. A
+    # plain loop, not a scorer per item: for a one-letter query this runs over
+    # most of the library on every keystroke. Several words match in any order
+    # ("saint theme" finds "Theme of Saint Wenceslaus").
+    needles = [" " + token for token in query.split()]
+    single = needles[0] if len(needles) == 1 else None
+    ranked: list[tuple[int, float]] = []
+
+    for choice, wratio, index in matches:
+        padded = " " + choice
+
+        if choice == query:
+            score = EXACT_MATCH
+        elif (single in padded) if single else (needles and all(n in padded for n in needles)):
+            score = WORD_MATCH + 8 * wratio / 100 + (1 if choice.startswith(query) else 0)
+        elif query in choice:
+            score = 80 + 9 * wratio / 100
+        else:
+            score = wratio * 0.79
+        ranked.append((index, score))
+
+    # Ties keep the order process.extract gave them.
+    if limit is None:
+        return sorted(ranked, key=lambda item: -item[1])
+    return heapq.nlargest(limit, ranked, key=lambda item: item[1])
+
+
 class Cutoff:
     """
     Holds all the default cutoff values.
@@ -80,19 +136,13 @@ class SearchTracks:
         """
 
         track_titles = [_choice(track.title) for track in self.tracks]
-        results = process.extract(
-            utils.default_process(self.query),
-            track_titles,
-            score_cutoff=Cutoff.tracks,
-            limit=limit,
-            scorer=fuzz.WRatio,
-        )
+        results = _rank(utils.default_process(self.query), track_titles, Cutoff.tracks, limit)
 
         tracks: list[Track] = []
 
-        for item in results:
-            track = self.tracks[item[2]]
-            track._score = item[1]
+        for index, score in results:
+            track = self.tracks[index]
+            track._score = score
             tracks.append(track)
 
         return remove_duplicates(tracks)
@@ -108,20 +158,13 @@ class SearchArtists:
         Gets all artists with a given name.
         """
         choices = [_choice(a.name) for a in self.artists]
-
-        results = process.extract(
-            utils.default_process(self.query),
-            choices,
-            score_cutoff=Cutoff.artists,
-            limit=limit,
-            scorer=fuzz.WRatio,
-        )
+        results = _rank(utils.default_process(self.query), choices, Cutoff.artists, limit)
 
         artists: list[Artist] = []
 
-        for item in results:
-            artist = self.artists[item[2]]
-            artist._score = item[1]
+        for index, score in results:
+            artist = self.artists[index]
+            artist._score = score
             artists.append(artist)
 
         return artists
@@ -146,19 +189,13 @@ class SearchAlbums:
         # found by typing most of its name. WRatio takes the best of the full,
         # the token and the partial comparison, scaled by the length ratio — the
         # word alone scores 90, the whole title still scores highest.
-        results = process.extract(
-            utils.default_process(self.query),
-            choices,
-            score_cutoff=Cutoff.albums,
-            limit=limit,
-            scorer=fuzz.WRatio,
-        )
+        results = _rank(utils.default_process(self.query), choices, Cutoff.albums, limit)
 
         albums: list[Album] = []
 
-        for item in results:
-            album = self.albums[item[2]]
-            album._score = item[1]
+        for index, score in results:
+            album = self.albums[index]
+            album._score = score
             albums.append(album)
 
         return albums
@@ -170,21 +207,14 @@ class SearchPlaylists:
         self.query = query
 
     def __call__(self, limit: int = Limit.playlists):
-        choices = [p.name for p in self.playlists]
-        results = process.extract(
-            self.query,
-            choices,
-            score_cutoff=Cutoff.playlists,
-            limit=limit,
-            processor=utils.default_process,
-            scorer=fuzz.WRatio,
-        )
+        choices = [utils.default_process(p.name) for p in self.playlists]
+        results = _rank(utils.default_process(self.query), choices, Cutoff.playlists, limit)
 
         playlists: list[Playlist] = []
 
-        for item in results:
-            playlist = self.playlists[item[2]]
-            playlist._score = item[1]
+        for index, score in results:
+            playlist = self.playlists[index]
+            playlist._score = score
             playlists.append(playlist)
 
         return playlists
@@ -201,23 +231,14 @@ class SearchFolders:
         Gets all folders whose name fuzzily matches the query.
         """
         choices = [_choice(name) for name, _ in self.folders]
-        results = process.extract(
-            utils.default_process(self.query),
-            choices,
-            score_cutoff=Cutoff.folders,
-            limit=limit,
-            scorer=fuzz.WRatio,
-        )
+        results = _rank(utils.default_process(self.query), choices, Cutoff.folders, limit)
 
         # Only compute track counts for the matched folders (cheap, in-memory).
-        matched = [self.folders[item[2]] for item in results]
+        matched = [self.folders[index] for index, _score in results]
         counts = FolderStore.count_tracks_containing_paths([path for _, path in matched])
         count_map = {c["path"]: c["trackcount"] for c in counts}
 
-        return [
-            Folder(name=name, path=path, trackcount=count_map.get(path, 0))
-            for name, path in matched
-        ]
+        return [Folder(name=name, path=path, trackcount=count_map.get(path, 0)) for name, path in matched]
 
 
 _type = models.Track | models.Album | models.Artist
@@ -315,18 +336,26 @@ class TopResults:
         top_tracks = []
 
         if not albums_only:
-            top_tracks = TopResults.get_track_items(top_result, limit=tracks_limit)
+            own = TopResults.get_track_items(top_result, limit=tracks_limit)
+            # Tracks whose TITLE holds the query as a word. They used to come
+            # only after the top result's own tracks, so "saint" with an artist
+            # "Saint …" on top listed four songs of that artist and not one
+            # titled "Saint". The own tracks still lead when the top result IS
+            # the query ("adele" -> Adele's songs).
+            hits = [track for track in tracks if track._score >= WORD_MATCH]
+            exact = top_result is not None and top_result._score >= EXACT_MATCH
+            ordered = [*own, *hits] if exact else [*hits, *own]
 
-            # INFO: If there are not enough tracks, fill with search results
-            if len(top_tracks) < tracks_limit:
-                found_tracks_set = {track.trackhash for track in top_tracks}
+            top_tracks = []
+            found_tracks_set: set[str] = set()
 
-                for track in tracks:
-                    if track.trackhash not in found_tracks_set:
-                        top_tracks.append(track)
+            for track in [*ordered, *tracks]:
+                if track.trackhash not in found_tracks_set:
+                    found_tracks_set.add(track.trackhash)
+                    top_tracks.append(track)
 
-                    if len(top_tracks) >= tracks_limit:
-                        break
+                if len(top_tracks) >= tracks_limit:
+                    break
 
             top_tracks = serialize_tracks(top_tracks)
 

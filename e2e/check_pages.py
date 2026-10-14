@@ -123,10 +123,19 @@ if isinstance(mixed, dict) and len(mixed.get("tracks", [])) != 3:
     failures.append(f"/folder/tracks/all for Mixed: {len(mixed.get('tracks', []))} tracks, expected 3")
 
 # ---------------------------------------------------------------- search
-for term in ("dawn", "Hoppípolla", "夜", "various", "weather", "feat", "echo", "zzzz"):
+for term in ("dawn", "Hoppípolla", "夜", "various", "weather", "feat", "echo", "saint", "zzzz"):
     call("GET", f"/search/top?q={q(term)}&limit=6")
     for kind in ("tracks", "albums", "artists", "folders"):
         call("GET", f"/search/?q={q(term)}&itemtype={kind}&start=0&limit=20")
+
+# The soundtrack's number and credit are off its names, and a word finds it.
+top = call("GET", f"/search/top?q={q('saint')}&limit=6") or {}
+top_titles = [t.get("title") for t in top.get("tracks", [])] if isinstance(top, dict) else []
+if "Saint Wenceslaus Theme" not in top_titles:
+    failures.append(f"/search/top?q=saint: tracks {top_titles}, expected 'Saint Wenceslaus Theme'")
+names = {a.get("name") for a in artists}
+if "Composed by Adam Sporka" in names or "Adam Sporka" not in names:
+    failures.append(f"artist list: expected 'Adam Sporka' without its credit, got {sorted(n for n in names if n)}")
 
 # ---------------------------------------------------------------- writes: playlist, favourites, a play
 if albums and tracks:

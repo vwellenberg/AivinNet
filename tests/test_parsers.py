@@ -6,6 +6,8 @@ from aivinnet.utils.parsers import (
     parse_feat_from_title,
     remove_prod,
     split_artists,
+    strip_artist_credit,
+    strip_track_number,
     tag_int,
 )
 
@@ -190,3 +192,64 @@ class TestTagInt:
 
     def test_bool_is_not_a_number(self):
         assert tag_int(True, 7) == 7
+
+
+class TestStripTrackNumber:
+    """A number in front of a title goes only with a second witness."""
+
+    def test_the_tracks_own_number_goes(self):
+        # The report: "049 Saint Wenceslaus Theme" never showed up for "saint".
+        assert strip_track_number("049 Saint Wenceslaus Theme", 49, 1, "/m/a.mp3") == "Saint Wenceslaus Theme"
+
+    def test_a_disc_and_track_prefix_goes(self):
+        title = "6-001 Fistcuffs 1 (Extended Version)"
+        assert strip_track_number(title, 1, 6, "/m/a.mp3") == "Fistcuffs 1 (Extended Version)"
+
+    def test_punctuation_after_the_number_counts(self):
+        assert strip_track_number("7. Intro", 7, 1, "/m/a.mp3") == "Intro"
+        assert strip_track_number("01 - Intro", 1, 1, "/m/a.mp3") == "Intro"
+
+    def test_a_file_named_with_the_same_number_is_a_witness(self):
+        # No track tag: the file reads as track 1, and its name carries the number.
+        path = "/m/KCD2/049 Saint Wenceslaus Theme.mp3"
+        assert strip_track_number("049 Saint Wenceslaus Theme", 1, 1, path) == "Saint Wenceslaus Theme"
+
+    def test_an_unpadded_number_goes_when_tag_and_file_name_agree(self):
+        # Gothic rips: "14 swamp camp.mp3.mp3", track 14.
+        assert strip_track_number("14 swamp camp", 14, 1, "/g/14 swamp camp.mp3.mp3") == "swamp camp"
+
+    def test_a_number_that_belongs_to_the_name_stays(self):
+        assert strip_track_number("007 Theme", 12, 1, "/m/007 Theme.mp3") == "007 Theme"
+        assert strip_track_number("007 Theme", 12, 1, "/m/12 - 007 Theme.mp3") == "007 Theme"
+        assert strip_track_number("7 Seconds", 7, 1, "/m/Youssou - Seven.mp3") == "7 Seconds"
+        assert strip_track_number("24-7 Love", 3, 1, "/m/24-7 Love.mp3") == "24-7 Love"
+        assert strip_track_number("99 Luftballons", 99, 1, "/m/a.mp3") == "99 Luftballons"
+        assert strip_track_number("2001 A Space Odyssey", 5, 1, "/m/2001 A Space Odyssey.mp3") == (
+            "2001 A Space Odyssey"
+        )
+
+    def test_a_padded_number_without_a_witness_stays(self):
+        assert strip_track_number("049 Saint Wenceslaus Theme", 1, 1, "/m/Saint.mp3") == ("049 Saint Wenceslaus Theme")
+
+    def test_nothing_but_a_number_stays(self):
+        assert strip_track_number("1979", 1, 1, "/m/1979.mp3") == "1979"
+        assert strip_track_number("01 -", 1, 1, "/m/a.mp3") == "01 -"
+        assert strip_track_number("", 1, 1, "") == ""
+
+
+class TestStripArtistCredit:
+    def test_the_role_goes(self):
+        assert strip_artist_credit("Composed by Adam Sporka") == "Adam Sporka"
+        assert strip_artist_credit("composed by  Adam Sporka") == "Adam Sporka"
+        assert strip_artist_credit("Music by Jan Valta") == "Jan Valta"
+        assert strip_artist_credit("Music composed by Inon Zur") == "Inon Zur"
+        assert strip_artist_credit("Original Score by Hans Zimmer") == "Hans Zimmer"
+        assert strip_artist_credit("Komponiert von Klaus Doldinger") == "Klaus Doldinger"
+
+    def test_a_name_stays(self):
+        assert strip_artist_credit("Adam Sporka") == "Adam Sporka"
+        assert strip_artist_credit("Written by Wolves") == "Written by Wolves"  # a band
+        assert strip_artist_credit("Bypass") == "Bypass"
+
+    def test_a_role_without_a_name_stays(self):
+        assert strip_artist_credit("Composed by") == "Composed by"
