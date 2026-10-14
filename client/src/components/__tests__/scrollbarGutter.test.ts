@@ -85,7 +85,9 @@ describe("the cover veil is painted under the scrollbar", () => {
   const veil = page.slice(0, page.indexOf(".scroller {"));
 
   it("is the static page's background, behind the scroller", () => {
-    expect(veil).toMatch(/background-image:\s*var\(--page-gradient,\s*none\);/);
+    // The fade is drawn here from the transitioning `--page-tint` colour
+    // (pageGradient.test.ts has why it is a colour now).
+    expect(veil).toMatch(/background-image:\s*linear-gradient\(\s*180deg,\s*color-mix\(in srgb, var\(--page-tint\)/);
     expect(veil).toMatch(/background-size:\s*100%\s*\d+px;/);
   });
 

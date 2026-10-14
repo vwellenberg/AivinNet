@@ -202,8 +202,11 @@ const motif = computed(() => {
     }
 })
 
+// In Memphis dark the tile keeps `--mem-tile-depth` of its accent and takes the
+// rest from the dusk base, like every pastel there (Global/index.scss). Light
+// mode sets neither, so the mix is the accent itself.
 const tileStyle = computed(() => ({
-    backgroundColor: defaultBackgroundStyles.value,
+    backgroundColor: `color-mix(in srgb, ${defaultBackgroundStyles.value} var(--mem-tile-depth, 100%), var(--mem-pastel-base, var(--mem-paper)))`,
 }))
 </script>
 

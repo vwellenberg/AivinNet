@@ -16,38 +16,32 @@ export const BRAND_RED = brandColors.red
 export const MEMPHIS = brandColors.memphis
 
 /**
- * Single source of truth for the page background of the detail views
- * (Album / Artist / Playlist). The memphis ground (grid + doodles) lives on
- * the content shell (#acontent, app-grid.scss); this paints a LIGHT
- * cover-tinted veil over it — a translucent fade from the extracted cover
- * colour (colors.bg) that lets the grid and doodles show through, echoing
- * the old dark header fade in a memphis-compatible way.
+ * Single source of truth for the page TINT of the detail views (Album /
+ * Artist / Playlist / Now Playing). The memphis ground (grid + doodles) lives
+ * on the content shell (#acontent, app-grid.scss); the views put the extracted
+ * cover colour (colors.bg) on `--page-tint`, and `.v-scroll-page` paints a
+ * translucent fade of it over the ground that lets the grid and doodles show
+ * through.
+ *
+ * A colour, not a gradient: `--page-tint` is a registered <color> property
+ * (app-grid.scss), so the browser can TRANSITION it. A gradient image cannot
+ * be transitioned — a switch from one playlist to the next jumped from one
+ * colour to none (the store resets while the new cover is read) and then to
+ * the next, a visible flicker. Now it fades out and the new colour fades in.
  *
  * The veil can be switched off in Settings -> Appearance ("Cover-tinted page
  * gradient"), which leaves the bare grid-paper ground on those pages. The
- * setting is read HERE rather than in each view, so the three detail views
- * keep sharing exactly one decision (see CLAUDE.md: do not duplicate the
- * gradient per view). Called during render, so the store read makes the views
- * re-render when the setting flips.
+ * setting is read HERE rather than in each view, so the detail views keep
+ * sharing exactly one decision (see CLAUDE.md: do not duplicate the gradient
+ * per view). Called during render, so the store read makes the views re-render
+ * when the setting flips.
  */
-export function pageGradient(bg?: string): string {
-    // `none`, not `transparent`: the veil is a background IMAGE now (see
-    // `.v-scroll-page .scroller` in app-grid.scss), and `transparent` is not a
-    // valid <image> — the whole declaration would be dropped instead of
-    // resolving to "no veil".
-    if (!bg || !useSettings().use_page_gradient) return 'none'
+export function pageTint(bg?: string): string {
+    // `transparent`, the property's initial value: "no veil" fades out like a
+    // colour change does.
+    if (!bg || !useSettings().use_page_gradient) return 'transparent'
     const [r, g, b] = parseColor(bg)
-    // The strength is a look token with the Memphis value as fallback (#200):
-    // on the paper ground the tint is a light wash, on a near-black one it can
-    // carry the whole head. `var()` inside `rgba()` resolves like anywhere else.
-    const stop = (a: number, token: string) => `rgba(${r}, ${g}, ${b}, var(${token}, ${a}))`
-    // Slightly stronger than the first memphis iteration (0.55/0.25): with the
-    // reference-copied doodles the header band needs more wash so the muted
-    // metadata lines stay readable over saturated shapes (judge finding).
-    return (
-        `linear-gradient(180deg, ${stop(0.72, '--look-veil-top')} 0%, ` +
-        `${stop(0.42, '--look-veil-mid')} 240px, ${stop(0, '--look-veil-end')} 460px)`
-    )
+    return `rgb(${r}, ${g}, ${b})`
 }
 
 /**

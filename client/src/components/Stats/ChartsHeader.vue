@@ -77,6 +77,10 @@ watch(() => props.period, () => nextTick(() => revealActive(periodSeg.value)))
 <style lang="scss">
 .chartheader {
     padding: $smaller 0 1rem 0;
+    // The first thing on the desktop stats page: it starts at `$page-start`.
+    @include altLayout {
+        padding-top: 0;
+    }
     // No horizontal inset, same call as the group's other non-row children in
     // #555: the tabs are a plate with their own padding, and they line up with
     // the page title above and the chart rows below. It sat 16px inside both.

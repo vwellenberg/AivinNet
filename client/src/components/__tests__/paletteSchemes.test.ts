@@ -105,7 +105,7 @@ describe('colour schemes: the data (#395)', () => {
 
     it.each(SCHEMES.filter((s) => s !== 'memphis'))('%s has a dark ground of its own', (scheme) => {
         const { dark } = (brandColors.palettes as Record<string, { dark: Roles }>)[scheme]
-        expect(Object.keys(dark).sort()).toEqual(['contentMuted', 'ground', 'panel', 'soft', 'textMuted'])
+        expect(Object.keys(dark).sort()).toEqual(['contentMuted', 'ground', 'panel', 'pastelPaper', 'soft', 'textMuted'])
         expect(dark.ground).not.toBe(brandColors.memphisDark.ground)
     })
 })
@@ -140,6 +140,84 @@ describe('colour schemes: the rules Memphis was measured against', () => {
         expect(contrast(p.ink, p.yellow), `${scheme}: ink on yellow`).toBeGreaterThanOrEqual(4.5)
         expect(contrast(p['text-muted'], p.paper), `${scheme}: muted on paper`).toBeGreaterThanOrEqual(4.5)
         expect(contrast(p['text-muted'], '#FFFFFF'), `${scheme}: muted on white`).toBeGreaterThanOrEqual(4.5)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// DARK MODE TAKES THE TINTS DOWN — AND INK STAYS LEGIBLE ON THEM.
+//
+// In the dark theme the tints were mixed toward paper like in the light one,
+// so the nav rows, the cards and the Continue card stood at their full
+// light-mode brightness on a near-black screen. They now mix toward a dusk
+// tone of paper and the scheme's ground (`--mem-pastel-base`), and the stat
+// tiles keep `--mem-tile-depth` of their accent. The text on all of them stays
+// ink, so the share of paper is set per scheme: as dark as ink allows. A
+// scheme whose darkest accent sits near the floor already (Eierschale's kraft)
+// can only go a little darker, and this is where that is decided.
+// ---------------------------------------------------------------------------
+
+const INDEX = readFileSync('src/assets/scss/Global/index.scss', 'utf-8')
+const TILE_ROLES = ['blush', 'lavender', 'teal', 'yellow', 'coral'] // StatItem.vue
+const TINT_ROLES = [...new Set([...Object.values(NAV_TINTS), ...ENTITIES.map(([, role]) => role), 'home'])]
+
+function darkScheme(scheme: string) {
+    const dark =
+        scheme === 'memphis'
+            ? (brandColors.memphisDark as Roles)
+            : (brandColors.palettes as Record<string, { dark: Roles }>)[scheme].dark
+    return { ground: dark.ground, paperShare: parseFloat(dark.pastelPaper) / 100 }
+}
+
+const toHex = (c: number[]) => '#' + c.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+const mixed = (a: number[], b: number[], share: number) => a.map((v, i) => v * share + b[i] * (1 - share))
+const luminance = (c: number[]) => {
+    const [r, g, b] = c.map(lin)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+describe('dark mode: darker tones, ink still legible', () => {
+    const tileDepth = parseFloat(INDEX.match(/--mem-tile-depth:\s*([\d.]+)%/)?.[1] ?? 'NaN') / 100
+
+    it('reads its own inputs (guard over the parsers)', () => {
+        expect(tileDepth).toBeGreaterThan(0.5)
+        expect(tileDepth).toBeLessThan(1)
+        expect(TINT_ROLES).toContain('kraft')
+        expect(TINT_ROLES).toContain('lavender')
+        for (const scheme of SCHEMES) expect(darkScheme(scheme).paperShare, scheme).toBeGreaterThan(0)
+    })
+
+    it('the stylesheet mixes the tints and the tiles toward the dusk tone in Memphis dark only', () => {
+        expect(CANDY).toMatch(/color-mix\(in srgb, #\{\$color\} \$amount, var\(--mem-pastel-base, #\{\$mem-paper\}\)\)/)
+        expect(INDEX).toMatch(/body\.theme-dark:not\(\.theme-stream\) \{[^}]*--mem-pastel-base: #\{color-mix\(in srgb, \$mem-paper \$mem-dark-pastel-paper, var\(--mem-ground\)\)\}/)
+        expect(readFileSync('src/assets/scss/Global/_palettes.scss', 'utf-8')).toMatch(/--mem-pastel-base: #\{color-mix\(in srgb, var\(--mem-paper\) map-get\(\$dark, "pastel-paper"\), var\(--mem-ground\)\)\}/)
+        expect(readFileSync('vite.config.ts', 'utf-8')).toContain('$mem-dark-pastel-paper: ${brandColors.memphisDark.pastelPaper}')
+        expect(readFileSync('src/components/Stats/StatItem.vue', 'utf-8')).toContain('var(--mem-tile-depth, 100%), var(--mem-pastel-base, var(--mem-paper))')
+    })
+
+    it.each(SCHEMES)('%s keeps ink ≥ 4.5:1 on every dark tint, and every tint is darker than in light', (scheme) => {
+        const p = lightRoles(scheme)
+        const { ground, paperShare } = darkScheme(scheme)
+        const dusk = mixed(rgb(p.paper), rgb(ground), paperShare)
+        for (const role of TINT_ROLES) {
+            const dark = mixed(rgb(p[role]), dusk, 0.55)
+            const light = mixed(rgb(p[role]), rgb(p.paper), 0.55)
+            const c = contrast(p.ink, toHex(dark))
+            expect(c, `${scheme}: ink on dark ${role} ${c.toFixed(2)}`).toBeGreaterThanOrEqual(4.5)
+            expect(luminance(dark), `${scheme}: dark ${role} is not darker`).toBeLessThan(luminance(light))
+        }
+    })
+
+    it.each(SCHEMES)('%s keeps ink on the dark stat tiles at least as legible as on the light ones', (scheme) => {
+        // Some scheme accents are below 4.5:1 against ink already in light mode
+        // (Lagune's coral); the dusk mix may not make them worse.
+        const p = lightRoles(scheme)
+        const { ground, paperShare } = darkScheme(scheme)
+        const dusk = mixed(rgb(p.paper), rgb(ground), paperShare)
+        for (const role of TILE_ROLES) {
+            const dark = contrast(p.ink, toHex(mixed(rgb(p[role]), dusk, tileDepth)))
+            const light = contrast(p.ink, p[role])
+            expect(dark, `${scheme}: ink on dark ${role} tile ${dark.toFixed(2)}`).toBeGreaterThanOrEqual(Math.min(4.5, light))
+        }
     })
 })
 

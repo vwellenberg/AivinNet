@@ -127,6 +127,21 @@ $mono-font: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", mo
 // looked like it started "somewhere further down" depending on the menu.
 $phone-page-start: 1.5rem;
 
+// Where the content starts on the DESKTOP (the alt layout, content > 900px):
+// every page's first element — the detail head, the Continue card, the sort
+// chips, the chart tabs, the search chips, the folder head — sits this far
+// below the content panel's inner edge. The page container gives it
+// (`.content-page` and the scrollers, app-grid.scss), and nothing above the
+// first element adds to it.
+//
+// It was one value for the detail pages and Now Playing (32px) and six others
+// elsewhere: 52 under a page title, 68 on Home, 84 on Albums and Favorites, 92
+// on Stats, 16 on a search, 0 on the idle search and 8 on Folders — the empty
+// page head added its 36px padding to the container's 2rem, and the first rows
+// added their own on top. Reported as "the content starts at a different
+// height on every screen". Census: pageStart.test.ts.
+$page-start: 2rem;
+
 // Legacy "apple human design guideline" names, remapped onto candy roles:
 // deepest-panel bg → white panel, app text ($white!) → black text, the gray
 // ramp (bg shades → hover/chip tints) → pink tints, muted grays → muted text.

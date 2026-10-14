@@ -159,12 +159,24 @@ onMounted(() => {
     gap: $small;
     padding-top: 1rem;
 
+    // The chips are the first thing on the desktop page: `$page-start`.
+    @include altLayout {
+        padding-top: $page-start;
+    }
+
     // Only the alt layout gives every scroller 2rem of top padding
     // (app-grid.scss); with the chip row above, that padding doubles the gap.
     // Scoped to has_query: with no query there is no chip row, and the page
     // should breathe like every other alt-layout page.
     &.is_alt_layout .vue-recycle-scroller {
       padding-top: 0 !important;
+    }
+  }
+
+  // No query, no chips: the idle column is the first thing, at the same line.
+  &:not(.has_query) .search-page-top-results {
+    @include altLayout {
+      padding-top: $page-start;
     }
   }
 }

@@ -20,6 +20,11 @@ import ChartItemGroup from './ChartItemGroup.vue'
         // empty and the tabs should start at $phone-page-start like every
         // other page (they sat at 49px).
         margin-top: 1.25rem;
+        // Not on the desktop: the container starts the page (`$page-start`),
+        // and the tabs are the first thing at that line.
+        @include altLayout {
+            margin-top: 0;
+        }
         display: grid;
         // `minmax(0, 1fr)`, not `1fr`: a grid item's automatic minimum is its
         // MIN-CONTENT, so the group grew to whatever its widest child needed

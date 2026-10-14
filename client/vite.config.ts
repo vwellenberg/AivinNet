@@ -160,6 +160,7 @@ export default defineConfig({
           `$mem-dark-content-text: ${brandColors.memphisDark.contentText}; ` +
           `$mem-dark-content-muted: ${brandColors.memphisDark.contentMuted}; ` +
           `$mem-dark-grid-line: ${brandColors.memphisDark.gridLine}; ` +
+          `$mem-dark-pastel-paper: ${brandColors.memphisDark.pastelPaper}; ` +
           `@import "@/assets/scss/_variables.scss", "@/assets/scss/_mixins.scss", "@/assets/scss/_candy.scss", "@/assets/scss/_motion.scss", "@/assets/scss/Global/_buttons.scss";`,
       },
     },

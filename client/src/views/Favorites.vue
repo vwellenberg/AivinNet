@@ -112,6 +112,11 @@ function handlePlay(index: number) {
         @include allPhones {
             padding-top: 0;
         }
+
+        // And on the desktop, where the container gives it (`$page-start`).
+        @include altLayout {
+            padding-top: 0;
+        }
     }
 
     .nothing h3 {

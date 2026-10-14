@@ -1,6 +1,6 @@
 <template>
     <div class="album-virtual-scroller v-scroll-page" :class="{ isSmall }" style="height: 100%; position: relative;"
-        :style="{ '--page-gradient': pageGradient(album.colors.bg) }">
+        :style="{ '--page-tint': pageTint(album.colors.bg) }">
         <DynamicScroller
             id="album-scroller"
             style="height: 100%"
@@ -36,7 +36,7 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 
 import { Track } from '@/interfaces'
 
-import { pageGradient } from '@/utils/colortools/pageGradient'
+import { pageTint } from '@/utils/colortools/pageGradient'
 import { trackBandFade } from '@/utils/songItemMethods'
 import useAlbumStore from '@/stores/pages/album'
 import useQueueStore from '@/stores/queue'

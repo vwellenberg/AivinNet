@@ -46,7 +46,7 @@ const FILES = sources('src').map(file => ({
 const OWNERS = ['src/assets/scss/_motion.scss', 'src/assets/scss/Global/motion-policy.scss']
 
 /** The values `_motion.scss` names. As a literal, each is a token someone forgot. */
-const SCALE = ['0.1s', '0.12s', '0.15s', '0.2s', '0.25s', '0.35s', '40ms', '45ms']
+const SCALE = ['0.1s', '0.12s', '0.15s', '0.2s', '0.25s', '0.35s', '0.4s', '40ms', '45ms']
 
 /** Literal durations that are deliberately NOT on the scale, per file. */
 const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
