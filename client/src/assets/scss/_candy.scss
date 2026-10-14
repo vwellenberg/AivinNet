@@ -64,6 +64,7 @@ $mem-dark-text-muted: #c9c9e8 !default;
 $mem-dark-content-text: #ffffff !default;
 $mem-dark-content-muted: #d9d9f2 !default;
 $mem-dark-grid-line: rgba(255, 255, 255, 0.14) !default;
+$mem-dark-pastel-paper: 60% !default;
 
 // Static literals preserved for the :root var definitions in
 // Global/index.scss (the role tokens below become var() references).
@@ -565,8 +566,14 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 // and it resolves at the element, so a palette switched on <html> (the :root
 // element, see THE PALETTE) repaints every tint without a rebuild.
 // ---------------------------------------------------------------------------
+//
+// DARK MODE mixes toward `--mem-pastel-base` instead of paper: a dusk tone made
+// of paper and the scheme's own ground (Global/index.scss). Mixed with paper,
+// the tints stood in the dark theme at their full light-mode brightness, the
+// loudest things on a near-black screen. The base is chosen so ink keeps 4.5:1
+// on every tint — the text on them stays ink in both themes.
 @function mem-pastel($color, $amount: 55%) {
-  @return color-mix(in srgb, #{$color} $amount, #{$mem-paper});
+  @return color-mix(in srgb, #{$color} $amount, var(--mem-pastel-base, #{$mem-paper}));
 }
 
 /// A palette role at partial opacity — the `rgba($colour, $alpha)` the var()
@@ -1056,10 +1063,15 @@ $mem-seg-reserve: 4px !default;
   @if $doodles {
     // A look replaces the doodle outright (--shape-doodles); a colour scheme
     // only recolours it (--mem-doodles, Global/_palettes.scss).
-    background-image: var(--shape-doodles, var(--mem-doodles, url("@/assets/images/memphis-doodles.svg"))),
+    //
+    // The first layer is a veil over the doodle: clear by default, the ground at
+    // part strength in Memphis dark (`--mem-doodle-veil`, Global/index.scss),
+    // so the shapes sit back on the near-black ground instead of glowing on it.
+    background-image: var(--mem-doodle-veil, linear-gradient(transparent, transparent)),
+      var(--shape-doodles, var(--mem-doodles, url("@/assets/images/memphis-doodles.svg"))),
       linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);
-    background-size: var(--shape-doodles-size, 3840px 1600px), $size $size, $size $size;
+    background-size: auto, var(--shape-doodles-size, 3840px 1600px), $size $size, $size $size;
   } @else {
     background-image: linear-gradient(var(--mem-grid-line) $w, transparent $w),
       linear-gradient(90deg, var(--mem-grid-line) $w, transparent $w);

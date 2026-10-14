@@ -55,6 +55,82 @@ zu einem Eintrag, und nach einer Verschiebung zeigte alles auf den letzten Titel
 Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer anderen Datei
 im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
 
+## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
+
+Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den Namen ab
+(`utils/parsers.py`):
+
+- **Eine Tracknummer vor dem Titel** (`strip_track_number`): „049 Saint Wenceslaus Theme" →
+  „Saint Wenceslaus Theme", „6-001 Fistcuffs" (CD-Präfix) → „Fistcuffs". Nur mit **zweitem
+  Zeugen**, denn eine Zahl allein beweist nichts („007 Theme", „7 Seconds", „24-7"): die eigene
+  Tracknummer aus den Tags (dann null-gepolstert, mit Satzzeichen „7. Intro" oder mit CD-Präfix),
+  oder — nur null-gepolstert und ohne andere Tracknummer in den Tags — ein Dateiname, der mit
+  **derselben** Zahl beginnt. Unpolstert ist der Dateiname kein Zeuge: ein Song, der nach seiner
+  eigenen Nummer heißt, liegt in einer Datei mit seinem Namen („3 Libras.mp3" ist Track 3).
+  Und die Zahl muss **vor** Wörtern stehen: „24-7", „1-Up", „1.5 Degrees" bleiben.
+  Gemeldet war: „saint" fand den Titel nicht unter den Top-Treffern, und die Nummer stand doppelt
+  in der Liste.
+- **Eine Rolle vor dem Interpreten** (`strip_artist_credit`): „Composed by Adam Sporka" → „Adam
+  Sporka" (auch „Music by", „Original Score by", „Arranged/Performed/… by", „Komponiert von").
+  Bewusst **nicht** „Written by" (es gibt die Band „Written by Wolves") und „Produced by".
+
+Weil beides in `trackhash` (Titel, Interpreten) und `artisthash` (Name) eingeht, ändern sich die
+Hashes **ohne** Scan und ohne Dateiänderung — beim ersten Start mit dem neuen Code. Jeder Track
+merkt sich deshalb, wie er vorher hieß (`Track._legacyhash`, `_legacy_artisthashes`, beide mit
+Unterstrich, also nie in einer API-Antwort), und `lib/name_cleanup.py::carry_cleaned_names()`
+zieht direkt nach `TrackStore.load_all_tracks` (beim Start in `setup.load_into_mem` und nach
+jedem Scan in `index._index_everything`, in dem auch ein Backup-Restore endet) Playlists,
+Favoriten, Scrobbles, Artist-Favoriten, Artist-Karten in Home-Sammlungen und Artist-Bilder um
+(ein Bild nur, solange der Besitzer über den **neuen** Namen nicht selbst entschieden hat). Dieselben Regeln wie beim Rescan
+(`remap_by_path`): Ein alter Hash, den noch ein anderer Track trägt, bleibt; einer, der sich auf
+zwei neue verteilt, kann keinem folgen. Es **liest erst und schreibt nur, was noch referenziert
+ist** — ab dem zweiten Start schreibt es nichts, und ein Fehler darin verhindert den Start nicht.
+
+Was daraus folgt:
+
+- **Die Datei behält das Original, alles im Client zeigt den bereinigten Namen** — auch der
+  Tag-Editor (`EditTrack.vue` füllt aus dem Track der API). Er schickt nur, was sich geändert hat;
+  wer dort einen bereinigten Titel anfasst, schreibt den bereinigten in die Datei. Wer „den echten
+  Titel" sucht (`ffprobe`, MCP-Tools), sieht die Nummer.
+- **Eine neue Tracknummer nimmt den gezeigten Titel mit** — im **Editor**, nicht im Server:
+  `EditTrack.vue` schickt den Titel, wie er dastand, sobald sich die Nummer ändert. Unter Nummer
+  50 bestätigt nichts mehr die „049", die Nummer stünde wieder im Titel — und ein Umbenennen
+  schrieb „50 - 049 Saint Wenceslaus Theme.mp3". Nur der Editor weiß, was der Mensch gesehen hat;
+  Batch-Schreiber und MCP-Tools setzen weiter genau die Felder, die sie schicken.
+- **Gespeicherte Queues im Browser tragen die alten Hashes.** Der Umzug hält dafür seine eigene
+  Zuordnung alt → neu im RAM (`name_cleanup.current_trackhash`, bei jedem Laden neu gesetzt), und
+  `/file/<hash>/legacy` wie `/logger/track/log` lösen einen alten Hash darüber auf: die Queue
+  spielt weiter, und der Scrobble zählt gleich für den **neuen** Hash. Bewusst nicht über den
+  Pfad — der kann inzwischen einen anderen Song tragen, und ein unbekannter kostete einen Lauf
+  über den ganzen Store, auf dem einzigen Request-Thread.
+- **Ein Umzug, der zweimal dasselbe Ziel hat, schreibt es einmal.** Zwei alte Artist-Hashes, die
+  auf denselben neuen fallen („Composed by X" und „Music by X"), dürfen in einer Home-Sammlung
+  nicht zu zwei gleichen Karten werden; die Liste wird nach dem Umzug entdoppelt. Und die
+  `user-set`-Markierung eines Artist-Bilds zieht erst mit, wenn **alle** Größen kopiert sind: Sie
+  lässt jeden späteren Start diesen Artist überspringen, eine fehlgeschlagene Größe würde sonst
+  nie nachgeholt.
+- **Der Album-Hash bleibt der alte.** Er kommt aus der Spalte (`album_hash` mit Ordner); bei
+  `mergeAlbums` rechnet `map_with_config` mit den **getaggten** Album-Interpreten, damit kein
+  Cover und kein Album-Favorit verwaist.
+- **Wer Hashes außerhalb des Modells nachrechnet** (Migrationen wie `album_title_from_folder`,
+  Skripte), rechnet mit den Rohnamen und bekommt den alten Hash. Das ist in Ordnung, solange der
+  Umzug danach durch `carry_cleaned_names` läuft — Migrationen laufen vor dem Laden.
+
+Ein neuer Bereinigungsschritt im Modell braucht dasselbe: den alten Hash in
+`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos. Und er darf
+nur den **Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-Hash). Tests:
+`tests/test_parsers.py` (Regeln), `tests/test_name_cleanup_mapping.py` (was umzieht, Verdrahtung),
+`tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
+`e2e/make_library.py`.
+
+**Die Suche rangiert in Stufen** (`lib/searchlib.py::_rank`): exakt (100) > die Anfrage beginnt
+ein **Wort** (90–99) > sie steckt irgendwo drin (80–89) > nur ähnlich (WRatio, unter 80). Vorher
+lagen „Saints" (91) und „Saint Wenceslaus Theme" (90) gleichauf, und die Top-Treffer haben vier
+Track-Plätze. Ein oder zwei Zeichen rangieren **nur** nach Enthaltensein (`_rank_short`): WRatio
+skaliert dort einen Teiltreffer für lange Titel auf 0,6 herunter, so verlor „Abandoned by …" für
+„ab" gegen jeden kurzen „kebab"-Titel — und der volle WRatio-Lauf war pro Tastendruck der teure
+Teil.
+
 ## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren
 
 Gleiche Tags ⇒ gleicher Hash, egal welches Format: `X.mp3` neben `X.wav` (100-Musicians/
@@ -159,7 +235,8 @@ ebenfalls Tracknummer, der Bindestrich gehört zum Titel. Ohne führende Null bl
 (`50 Cent`, `3 Doors Down`). Zweite Falle in derselben Funktion: Sie bekommt schon den **Stem**
 und schnitt trotzdem noch eine „Endung" ab — `01. Intro` wurde zu `01`.
 
-⚠️ **Eine Parser-Änderung erreicht den Bestand nicht.** Der Scan liest eine Datei nur neu, wenn
+⚠️ **Eine Parser-Änderung erreicht den Bestand nicht** (anders als eine Bereinigung im Modell,
+siehe oben — die greift bei jedem Start). Der Scan liest eine Datei nur neu, wenn
 sich ihr `last_mod` ändert — die 455 Titel, die der Doppel-Schnitt verstümmelt hatte („090",
 „H.A.M"), standen nach dem Fix weiter so da. Bestand gezielt nachziehen, und zwar per
 `/metadata/album/apply` (Dateipfad): der neue Titel ändert den trackhash, der Weg zieht

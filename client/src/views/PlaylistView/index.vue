@@ -1,6 +1,6 @@
 <template>
     <div class="folder-view v-scroll-page" style="height: 100%; position: relative;" :class="{ isSmall, isMedium }"
-        :style="{ '--page-gradient': pageGradient(playlist.colors.bg) }"
+        :style="{ '--page-tint': pageTint(playlist.colors.bg) }"
         @dragover="onScrollerDragOver"
         @dragleave="onScrollerDragLeave"
         @drop="stopAutoScroll"
@@ -73,7 +73,7 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import AlbumsFetcher from '@/components/ArtistView/AlbumsFetcher.vue'
 import { movePlaylistTrackTo } from '@/helpers/playlistTrackEdits'
 import { Track } from '@/interfaces'
-import { pageGradient } from '@/utils/colortools/pageGradient'
+import { pageTint } from '@/utils/colortools/pageGradient'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
 import { trackBandFade } from '@/utils/songItemMethods'
 import { isStoredPlaylistId } from '@/utils/storedPlaylist'

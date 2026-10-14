@@ -9,7 +9,7 @@ import useArtistPageStore from '@/stores/pages/artist'
 import useSettingsStore from '@/stores/settings'
 import { installChunkReload } from '@/utils/chunkReload'
 import { beginCoverMorph, finishCoverMorph } from '@/utils/coverMorph'
-import { groundDrifts } from '@/utils/groundDrift'
+import { pageEnters } from '@/utils/pageEnter'
 
 import HomeView from '@/views/HomeView'
 const Lyrics = () => import('@/views/LyricsView')
@@ -259,10 +259,11 @@ const router = createRouter({
 } as RouterOptions)
 
 /**
- * Ground-Parallax (#143): der Doodle-Ground driftet beim Seitenwechsel kurz
- * gegen die Laufrichtung des Inhalts.
+ * Seiteneintritt (#143): der Inhalt von `#acontent` wandert beim Seitenwechsel
+ * herein. Der Doodle-Ground dahinter steht still — er driftete früher mit und
+ * las sich als „der Hintergrund wackelt" (utils/pageEnter.ts).
  *
- * Warum das hier steht und nicht im Stylesheet: der Ground liegt auf
+ * Warum das hier steht und nicht im Stylesheet: die Animation hängt an
  * `#acontent`, und das Element ÜBERLEBT den Routenwechsel. Eine CSS-Animation
  * startet, wenn ein Knoten entsteht oder ein Selektor zu greifen beginnt —
  * beides passiert hier nie wieder nach dem ersten Laden. Ein Versuch mit
@@ -277,15 +278,15 @@ const router = createRouter({
  * der Engine nicht neu angestoßen.
  */
 router.afterEach((to, from) => {
-    if (!groundDrifts(to, from)) return
+    if (!pageEnters(to, from)) return
     const content = document.getElementById('acontent')
     if (!content) return
 
-    content.classList.remove('ground-drift')
+    content.classList.remove('page-enter')
     // Reflow erzwingen: ohne das fasst der Browser Entfernen und Setzen in
     // einem Frame zusammen, und es passiert gar nichts.
     void content.offsetWidth
-    content.classList.add('ground-drift')
+    content.classList.add('page-enter')
 })
 
 // Cover-Übergang Karte → Detailkopf (utils/coverMorph.ts). `beforeEach` friert

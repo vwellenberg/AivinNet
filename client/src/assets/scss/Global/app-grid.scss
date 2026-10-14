@@ -349,9 +349,11 @@ $g-border: solid $candy-border-w $mem-line;
         // background-color: $bars;
     }
 
+    // The desktop page start — the one value every page's first element sits
+    // below (`$page-start`, _variables.scss).
     .vue-recycle-scroller,
     .content-page {
-        padding-top: 2rem;
+        padding-top: $page-start;
     }
 
     .search-view .buttons-area {
@@ -449,13 +451,32 @@ $g-border: solid $candy-border-w $mem-line;
     border-left: none !important;
 }
 
+// The cover colour of a detail page, as a REGISTERED colour so it transitions
+// (utils/colortools/pageGradient.ts::pageTint). An unregistered custom property
+// is a token string: it would switch in one frame, and the gradient below with
+// it — the flicker between two playlists or albums this replaced. Initial value
+// transparent: every page without a cover colour paints a clear veil.
+@property --page-tint {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: transparent;
+}
+
 .v-scroll-page {
     // Memphis design: transparent — the grid-paper ground on #acontent shows
     // through wherever the cover veil is off or has faded out.
     background-color: transparent;
 
-    // THE cover veil (album / artist / playlist). Views provide the colour band
-    // via --page-gradient.
+    // THE cover veil (album / artist / playlist / now playing). Views provide
+    // the colour via --page-tint, the fade is drawn here. Its strength is a
+    // look token with the Memphis value as fallback (#200): on the paper ground
+    // the tint is a light wash, on a near-black one it can carry the whole
+    // head. The stops match the old string from pageGradient(): 0.72 at the
+    // top, 0.42 at 240px, gone at 460px.
+    //
+    // A switch between two pages of the same kind changes only the colour: it
+    // fades out (the store resets while the new cover is read) and the new one
+    // fades in. Reduced motion makes it a cut (motion-policy.scss).
     //
     // ⚠️ It lives on this static container, BEHIND the scroller, and not inside
     // it — which is where it was, as an absolutely positioned
@@ -481,7 +502,13 @@ $g-border: solid $candy-border-w $mem-line;
     // track shows up in a screenshot — so this strip measures clean headless
     // whether it is broken or not. That is how the previous attempt (#483) was
     // signed off. Verify it in a real browser.
-    background-image: var(--page-gradient, none);
+    background-image: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--page-tint) calc(var(--look-veil-top, 0.72) * 100%), transparent) 0%,
+        color-mix(in srgb, var(--page-tint) calc(var(--look-veil-mid, 0.42) * 100%), transparent) 240px,
+        color-mix(in srgb, var(--page-tint) calc(var(--look-veil-end, 0) * 100%), transparent) 460px
+    );
+    transition: --page-tint $motion-veil $motion-curve;
     background-repeat: no-repeat;
     // Matches the gradient's settle stop (see pageGradient) — below this the
     // bare grid-paper ground takes over.

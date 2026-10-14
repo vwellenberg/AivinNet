@@ -274,15 +274,18 @@ function handleFav() {
             }
         }
 
-        // Track pill, border and the white bordered thumb come from the global
-        // range styling; only the flat teal played-volume fill is painted here
-        // (clipped by the inline background-size from Volume.vue).
-        .volume-slider {
+        // The bar is Volume.vue's own (track, fill, sprinkle, preview); here it
+        // only takes the rest of the row. On the WRAPPER, which owns the
+        // slider's size — and with it the finger geometry of `.progress-wrap`
+        // below, the same knob as the seek bar right above it.
+        .volume-wrap {
             flex: 1;
+            min-width: 0;
+        }
+
+        .volume-slider {
             margin-right: 0; // neutralise the global range's 15px right margin
-            background-image: linear-gradient($mem-teal, $mem-teal);
-            background-repeat: no-repeat;
-            // background-size is set inline from the current volume (Volume.vue).
+            touch-action: none;
         }
     }
 

@@ -51,6 +51,87 @@ def split_artists(src: str, config: UserConfig):
     return result
 
 
+# A role in front of a name: "Composed by Adam Sporka". Game and film
+# soundtracks put the credit into the artist tag, and since the artist hash is
+# made of the whole string, the composer stood in the library twice: "Adam
+# Sporka" from one album, "Composed by Adam Sporka" from the next. Deliberately
+# no "written by" or "produced by": "Written by Wolves" is a band.
+_ARTIST_CREDIT = re.compile(
+    r"^\s*(?:(?:(?:original\s+)?(?:music|score)\s+)?(?:composed|arranged|orchestrated|conducted|performed)"
+    r"|(?:original\s+)?(?:music|score))\s+by\s+(?=\S)"
+    r"|^\s*(?:komponiert|musik)\s+von\s+(?=\S)",
+    re.IGNORECASE,
+)
+
+
+def strip_artist_credit(name: str) -> str:
+    """
+    `name` without a leading credit: "Composed by Adam Sporka" -> "Adam Sporka".
+
+    Applied to each name after the split, so "Composed by A; B" loses the role
+    on A and leaves B alone. A name that would be empty without it keeps it.
+    """
+    stripped = _ARTIST_CREDIT.sub("", name, count=1).strip()
+    return stripped or name
+
+
+# A number in front of a title: "049 Saint Wenceslaus Theme", "6-001 Fistcuffs",
+# "07. Intro", "1-04 - Home". The optional "6-" is the disc.
+_TITLE_NUMBER = re.compile(r"(?:(?P<disc>\d{1,2})-)?(?P<num>\d{1,4})(?P<sep>\s*[.)_-]\s*|\s+)(?P<rest>\S.*)")
+_LEADING_NUMBER = re.compile(r"(?:\d{1,2}-)?\d{1,4}(?!\d)")
+
+
+def strip_track_number(title: str, track: int, disc: int, filepath: str = "") -> str:
+    """
+    `title` without a track number in front of it, when the number is one.
+
+    Rips and game soundtracks often carry the number in the title itself
+    ("049 Saint Wenceslaus Theme"): the list shows it twice, the alphabetical
+    sort files the song under "0", and a search for "saint" ranked it below
+    every title that merely looked like the word.
+
+    A number alone proves nothing ("007 Theme", "3 Libras", "24-7"), so it goes
+    only with a second witness:
+
+    - it is the track's own number from the tags (with the disc, if the title
+      names one), and it is zero-padded, set off by punctuation ("7. Intro") or
+      carries a disc ("6-001");
+    - or it is zero-padded, the tags know no other number (a file without one
+      reads as track 1), and the file's name begins with the very same number.
+      Unpadded, the file name is no witness: a song named after its own number
+      sits in a file named after the song ("3 Libras.mp3" is track 3).
+
+    And it must be a number in FRONT of words, not part of one: the rest has to
+    contain a letter, and a separator without a space only counts after a
+    padded number and before a letter — "1-Up", "24-7" and "1.5 Degrees" stay.
+    """
+    match = _TITLE_NUMBER.fullmatch(title)
+    if not match:
+        return title
+
+    num, disc_part, sep, rest = match["num"], match["disc"], match["sep"], match["rest"]
+    padded = len(num) > 1 and num.startswith("0")
+
+    if not re.search(r"[^\W\d_]", rest):
+        return title
+    if not any(c.isspace() for c in sep) and not (padded and rest[0].isalpha()):
+        return title
+
+    punctuated = not sep.isspace()
+    same_track = int(num) == track and (disc_part is None or int(disc_part) == disc)
+
+    if same_track and (padded or punctuated or disc_part is not None):
+        return rest.strip()
+
+    if padded and track <= 1 and filepath:
+        leading = _LEADING_NUMBER.match(filepath.rsplit("/", 1)[-1])
+        token = num if disc_part is None else f"{disc_part}-{num}"
+        if leading is not None and leading.group(0) == token:
+            return rest.strip()
+
+    return title
+
+
 def remove_prod(title: str) -> str:
     """
     Removes the producer string in a track title using regex.

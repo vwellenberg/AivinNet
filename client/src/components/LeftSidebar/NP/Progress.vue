@@ -50,6 +50,7 @@
 import { maxSeekPercent } from '@/stores/player'
 import useQStore from '@/stores/queue'
 import { formatSeconds } from '@/utils'
+import { paintedFrac, previewSpan, ratioAt, spanLayer } from '@/utils/rangePreview'
 import { computed, reactive, ref } from 'vue'
 
 const q = useQStore()
@@ -79,11 +80,7 @@ const hover = reactive({
 // few seconds from the tooltip off-centre — #66 wants tooltip == seek time.)
 const ratioFromClientX = (clientX: number): number | null => {
     const el = input.value
-    if (!el) return null
-    const rect = el.getBoundingClientRect()
-    if (rect.width === 0) return null
-    const ratio = (clientX - rect.left) / rect.width
-    return ratio < 0 ? 0 : ratio > 1 ? 1 : ratio
+    return el ? ratioAt(clientX, el.getBoundingClientRect()) : null
 }
 
 const onPointerMove = (e: PointerEvent) => {
@@ -174,12 +171,7 @@ const currentPercent = computed(() => playedRatio.value * 100)
 // Derived rather than stored so the edges track the playhead while the pointer
 // holds still — the fill grows a percent a second, and a span measured once on
 // pointermove would drift away from it.
-const seekSpan = computed(() => {
-    if (!hover.active) return null
-    const from = Math.min(playedRatio.value, hover.ratio) * 100
-    const to = Math.max(playedRatio.value, hover.ratio) * 100
-    return { from, to }
-})
+const seekSpan = computed(() => previewSpan(playedRatio.value, hover.active ? hover.ratio : null))
 
 // Seek bar background, layered so the played portion reads as a solid teal
 // fill (the memphis primary-action colour) over a soft-blush track:
@@ -210,10 +202,7 @@ const BUFFERED = 'var(--look-track-buffered, var(--mem-blush))'
 const TRACK = 'var(--look-track, var(--mem-blush-soft))'
 
 const progressBg = computed(() => {
-    const span = seekSpan.value
-    const seek = span
-        ? `linear-gradient(to right, transparent ${span.from}%, ${SEEK} ${span.from}%, ${SEEK} ${span.to}%, transparent ${span.to}%) left center / 100% 100% no-repeat, `
-        : ''
+    const seek = spanLayer(seekSpan.value, SEEK)
     const played = `linear-gradient(${PLAYED}, ${PLAYED}) left center / ${currentPercent.value}% 100% no-repeat`
     const buffered = `linear-gradient(${BUFFERED}, ${BUFFERED}) left center / ${maxSeekPercent.value}% 100% no-repeat`
     return `${seek}${played}, ${buffered}, ${TRACK}`
@@ -225,9 +214,7 @@ const hoverLabel = computed(() => formatSeconds(hover.ratio * (time.full || 0)))
 // How much of the bar carries the sprinkle texture: everything painted, so the
 // yellow span is textured exactly like the teal fill instead of reading as a
 // flat patch pasted over a patterned bar.
-const textureFrac = computed(() =>
-    hover.active ? Math.max(playedRatio.value, hover.ratio) : playedRatio.value
-)
+const textureFrac = computed(() => paintedFrac(playedRatio.value, hover.active ? hover.ratio : null))
 
 // The tooltip stays on the cursor: it names the seek target, not the span.
 const tooltipLeft = computed(() => hover.barLeft + hover.ratio * hover.barWidth)

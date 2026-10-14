@@ -6,8 +6,8 @@ Every folder of the earlier test music held exactly one album, so the path that
 broke Home in 2026.10.2 — a folder holding two albums (#388) — was never taken.
 This library has that shape and the others a real collection brings: a double
 album in CD folders, a compilation, a "feat." credit, an artist shared between
-albums, non-Latin names, the same song twice, a file without tags and a deep
-folder. The files are silent MP3s of about a second, made here, so nothing
+albums, non-Latin names, the same song twice, a soundtrack with numbered titles
+and a credited composer, a file without tags and a deep folder. The files are silent MP3s of about a second, made here, so nothing
 binary lives in git.
 
 Usage: python3 e2e/make_library.py <target dir>      (needs mutagen)
@@ -74,6 +74,19 @@ album("Ünïcode/Café Tacvba/Re", "Re", "Café Tacvba", ["Las Flores"])
 # The same song twice: two files, one trackhash.
 for path in ("Duplicates/Echo.mp3", "Duplicates/again/Echo.mp3"):
     LIBRARY[path] = {"title": "Echo", "album": "Repeat", "artist": "Mirror", "albumartist": "Mirror"}
+
+# A game soundtrack as rips ship it: the number in the title and in the file
+# name, the role in the artist tag. The server shows "Saint Wenceslaus Theme"
+# by "Adam Sporka", and a search for "saint" has to find it.
+for n, title in ((49, "Saint Wenceslaus Theme"), (50, "Kuttenberg")):
+    LIBRARY[f"Soundtracks/KCD2/{n:03} {title}.mp3"] = {
+        "title": f"{n:03} {title}",
+        "album": "Kingdom Come Deliverance II",
+        "artist": "Composed by Adam Sporka",
+        "albumartist": "Composed by Adam Sporka",
+        "track": str(n),
+        "date": "2025",
+    }
 
 LIBRARY["Untagged/Just A File.mp3"] = None
 album("Deep/a/b/c/d", "Depth", "Diver", ["Bottom"])

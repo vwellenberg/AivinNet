@@ -4,7 +4,7 @@
     class="now-playing-view v-scroll-page"
     :class="{ isSmall, isMedium }"
     style="position: relative"
-    :style="{ '--page-gradient': pageGradient(colors.bg) }"
+    :style="{ '--page-tint': pageTint(colors.bg) }"
     @dragover="onScrollerDragOver"
     @dragleave="onScrollerDragLeave"
     @drop="stopAutoScroll"
@@ -55,7 +55,7 @@ import { dropSources } from "@/enums";
 import Header from "@/components/NowPlaying/Header.vue";
 import SongItem from "@/components/shared/SongItem.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
-import { pageGradient } from "@/utils/colortools/pageGradient";
+import { pageTint } from "@/utils/colortools/pageGradient";
 import { createDragAutoScroller } from "@/utils/dragAutoScroll";
 import { trackBandFade } from "@/utils/songItemMethods";
 

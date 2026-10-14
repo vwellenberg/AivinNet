@@ -271,7 +271,9 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   ein Formatwechsel ändert **keinen** Hash, eine Tag-Korrektur **jeden** betroffenen — Playlists,
   Favoriten und Scrobbles zeigen danach ins Leere und müssen mitgezogen werden. Zweite Falle: die
   Hashes **in der Datenbank** stammen teils noch aus der SHA1-Ära, der laufende Server rechnet
-  xxh3 — Hashes immer aus der API holen, nie aus `aivinnet.db`. Ableitungsregeln,
+  xxh3 — Hashes immer aus der API holen, nie aus `aivinnet.db`. Dritte: der Server nimmt beim
+  Laden Tracknummern vor Titeln und „Composed by …" vor Interpreten ab — der Hash folgt dem
+  bereinigten Namen, `lib/name_cleanup.py` zieht die Referenzen beim Start nach. Ableitungsregeln,
   Platzhalter-Fallstricke, MusicBrainz-Abgleich, Indexer-Blindstellen: `.claude/rules/track-tags.md`.
 - **⚠️ STOPPEN: `docker stop` endete bis 2026-09-19 IMMER in SIGKILL (Exit 137).** Drei Ursachen,
   jede allein reicht: (1) Im Container ist die App PID 1, und der Kernel verwirft an PID 1 jedes

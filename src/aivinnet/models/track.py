@@ -9,6 +9,8 @@ from aivinnet.utils.parsers import (
     parse_feat_from_title,
     remove_prod,
     split_artists,
+    strip_artist_credit,
+    strip_track_number,
 )
 
 
@@ -53,6 +55,15 @@ class Track:
     _score: float = 0
     explicit: bool = False
     fav_userids: list[int] = field(default_factory=list)
+
+    # What this track was called before the server cleaned its title and artist
+    # names (`strip_track_number`, `strip_artist_credit`): the trackhash it had
+    # then, and (old, new) artisthash pairs. Empty for every track the cleanup
+    # leaves alone. Read once after loading, to carry favourites, playlists and
+    # scrobbles over to the new hashes (`lib/name_cleanup.py`). Underscored, so
+    # the serializers leave them out of every response.
+    _legacyhash: str = ""
+    _legacy_artisthashes: tuple[tuple[str, str], ...] = ()
 
     @property
     def is_favorite(self):
@@ -104,8 +115,8 @@ class Track:
         #     "samplerate": self.extra.get("samplerate", -1),
         # }
 
-        self.split_artists()
-        self.map_with_config()
+        raw_names, raw_album_names = self.split_artists()
+        self.map_with_config(raw_album_names)
         self.process_genres()
 
         # Remove duplicates from artists and albumartists
@@ -122,30 +133,37 @@ class Track:
         ]
 
         self.recreate_trackhash()
+        self.remember_legacy_identity(raw_names, raw_album_names)
         self.config = None
 
-    def split_artists(self):
+    def split_artists(self) -> tuple[list[str], list[str]]:
         """
         Splits the artists and albumartists based on the given separators,
         and updates the artisthashes.
+
+        Returns the names as tagged, before `strip_artist_credit` took the role
+        off them ("Composed by Adam Sporka" -> "Adam Sporka").
         """
 
-        def split(artists: str):
-            return [
-                {"name": a, "artisthash": create_hash(a, decode=True)}
-                for a in split_artists(artists, config=self.config)
-            ]
+        def named(names: list[str]):
+            return [{"name": a, "artisthash": create_hash(a, decode=True)} for a in map(strip_artist_credit, names)]
 
-        self.artists = split(self.artists)
-        self.albumartists = split(self.albumartists)
+        raw_names = split_artists(self.artists, config=self.config)
+        raw_album_names = split_artists(self.albumartists, config=self.config)
+
+        self.artists = named(raw_names)
+        self.albumartists = named(raw_album_names)
         self.artisthashes = [a["artisthash"] for a in self.artists]
 
-    def map_with_config(self):
+        return raw_names, raw_album_names
+
+    def map_with_config(self, raw_album_names: list[str]):
         """
         Applies various transformations to the track's title and album
         based on the user's configuration settings.
         """
-        new_title = self.title
+        # Not a setting: a track number in the title is never part of the name.
+        new_title = self.title = strip_track_number(self.title, self.track, self.disc, self.filepath)
 
         # Extract featured artists
         if self.config.extractFeaturedArtists:
@@ -159,8 +177,12 @@ class Track:
             # ie. album: "Title (feat. Artist)"
             #     title: "Title (feat. Artist)"
             # becomes: album: "Title", title: "Title"
+            #
+            # From the title AS TAGGED: the number comes off the title, never
+            # off an album's name — that would move the album to a new hash
+            # under `mergeAlbums` and the legacy trackhash with it.
             if self.og_album == self.og_title:
-                self.album = new_title
+                self.album = parse_feat_from_title(self.og_title, self.config)[1]
 
         # Clean track title
         if self.config.removeProdBy:
@@ -179,7 +201,10 @@ class Track:
             self.album, _ = get_base_title_and_versions(self.album, get_versions=False)
 
         if self.config.mergeAlbums:
-            self.albumhash = create_hash(self.album, *(a["name"] for a in self.albumartists))
+            # The names as TAGGED, not as cleaned: dropping "Composed by" must not
+            # move an album to a new hash, which would orphan its cover and its
+            # favourites.
+            self.albumhash = create_hash(self.album, *raw_album_names)
 
     def process_genres(self):
         """
@@ -207,6 +232,43 @@ class Track:
             genres_list: list[str] = src_genres.split(",")
             self.genres = [{"name": g.strip(), "genrehash": create_hash(g.strip())} for g in genres_list]
             self.genrehashes = [g["genrehash"] for g in self.genres]
+
+    def remember_legacy_identity(self, raw_names: list[str], raw_album_names: list[str]):
+        """
+        Record the hashes this track had before the name cleanup, if it changed any.
+
+        The old trackhash is rebuilt the way the server built it until then: the
+        title as tagged through the same setting-driven cleanup, the performers
+        under their tagged names, featured ones added and duplicates dropped.
+        """
+        pairs = {
+            (create_hash(name, decode=True), create_hash(clean, decode=True))
+            for name in (*raw_names, *raw_album_names)
+            if (clean := strip_artist_credit(name)) != name
+        }
+        self._legacy_artisthashes = tuple(sorted(pairs))
+
+        title_changed = strip_track_number(self.og_title, self.track, self.disc, self.filepath) != self.og_title
+        if not title_changed and not pairs:
+            return
+
+        old_title = self.og_title
+        old_artists = [(name, create_hash(name, decode=True)) for name in raw_names]
+
+        if self.config.extractFeaturedArtists:
+            feat, old_title = parse_feat_from_title(old_title, self.config)
+            known = {artisthash for _name, artisthash in old_artists}
+            old_artists += [(f, h) for f in feat if (h := create_hash(f, decode=True)) not in known]
+        if self.config.removeProdBy:
+            old_title = remove_prod(old_title)
+        if self.config.removeRemasterInfo:
+            old_title = clean_title(old_title)
+
+        old_names = [name for name, _hash in dict.fromkeys(old_artists)]
+        legacy = create_hash(old_title, self.album, *old_names)
+
+        if legacy != self.trackhash:
+            self._legacyhash = legacy
 
     def recreate_trackhash(self):
         """

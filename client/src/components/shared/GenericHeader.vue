@@ -2,7 +2,7 @@
     <!-- No `name` slot, no title: the pages the left navigation already names
          (Home, Playlists, Favorites, Stats, Albums, Artists) leave it out, so
          the head carries only what else it was given (#right, #after). -->
-    <div class="generichead">
+    <div class="generichead" :class="{ 'is-empty': !painted }">
         <div class="before">
             <div class="left">
                 <h1 v-if="$slots.name" class="title" :class="entity && `ent-${entity}`"><slot name="name"></slot></h1>
@@ -21,6 +21,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed, useSlots } from 'vue'
+
 defineProps<{
     // For a page that LISTS one kind of thing (Albums, Artists, Favorite
     // Tracks …): its `$mem-entities` name. Read from the entity palette, not
@@ -28,6 +30,12 @@ defineProps<{
     // changes — the same hue as that entity's tiles and type chips.
     entity?: string
 }>()
+
+// Whether the head paints anything. `#description` does not count: it is never
+// shown (see the note at the end of the style block). An empty head on the
+// desktop takes no room at all — Home, Albums, Artists and the charts have one.
+const slots = useSlots()
+const painted = computed(() => Boolean(slots.name || slots.right || slots.after))
 </script>
 
 <style lang="scss">
@@ -56,6 +64,22 @@ defineProps<{
     // sliced the shadow off at the right edge. Ellipsing is the `.title`'s own
     // job (it has `overflow: hidden` for that), not the container's.
     max-width: 100%;
+
+    // On the desktop the page container already starts the page
+    // (`$page-start`, app-grid.scss): the title sticker or the actions are the
+    // first thing at that line, and an empty head adds nothing. Only for the
+    // head that IS the page's first element: /stats also uses one as a section
+    // heading under the charts, and that one keeps its air. The padding above
+    // stays for the narrower layouts, where the container has none.
+    @include altLayout {
+        &:first-child {
+            padding-top: 0;
+        }
+
+        &.is-empty {
+            padding-bottom: 0;
+        }
+    }
 
     .before {
         display: grid;

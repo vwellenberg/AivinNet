@@ -120,12 +120,18 @@ function getRouterParams() {
     // The screen's CHROME — the tab segments, the pager buttons — keeps it, and
     // that contrast is now the thing the texture says. See mem-row-plate.
     @include mem-row-plate($candy-radius-sm, $hatch: false);
-    // Ankunft wie die Songzeilen, nicht wie die Kacheln (#143): eine Chart-Zeile
-    // steht UNTER ihrer Vorgängerin, also fällt alles hinter dem Deckel sofort
-    // ein statt auf das Ende der Welle zu warten. Bis zu diesem PR kam auf der
-    // Stats-Seite gar nichts an — gemessen im Ankunfts-Zensus: 6 Zeilen im Bild,
-    // null Animationen.
-    @include mem-arrival($beyond: drop);
+    // Die ganze Seite baut sich auf, Zeile für Zeile, und alles danach wartet
+    // auf das Ende der Welle (`hold`). Bis 2026-10 stand hier `drop` wie bei
+    // den Songzeilen: hinter Zeile 8 fiel die Verzögerung auf 0s, also standen
+    // Zeile 9 und 10 schon fertig da, bevor Zeile 1 ankam — gemeldet als „1–8
+    // mit Aufbau-Animation, danach direkt schon da". `drop` ist richtig für eine
+    // VIRTUALISIERTE Liste, deren neunte Zeile unter der Falz steht und beim
+    // Scrollen recycelt wird. Die Charts sind eine feste Seite aus einem
+    // `v-for`, und auf einem großen Bildschirm sieht man alle zehn.
+    //
+    // `$steps` ist die kleinste Seitengröße (CHART_PAGE_SIZES[0], utils/chartPager.ts):
+    // jede Zeile der Standard-Seite bekommt ihren eigenen Schritt.
+    @include mem-arrival($steps: 10, $beyond: hold);
     // Charts keep their translucent ground plate: the grid + doodles shimmer
     // through between the rows, which is what sets this screen apart from the
     // song list's cassette inlay. `--row-fill` is the plate's own indirection.

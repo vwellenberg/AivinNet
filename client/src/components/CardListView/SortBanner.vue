@@ -90,6 +90,11 @@ const artistitems = [
     @include allPhones {
         padding-top: 0;
     }
+    // The same on the desktop: the container gives the page its start
+    // (`$page-start`), and the chips are the first thing at it.
+    @include altLayout {
+        padding-top: 0;
+    }
     position: relative;
     font-size: 14px;
     font-weight: 500;

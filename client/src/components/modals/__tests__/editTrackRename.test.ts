@@ -84,6 +84,20 @@ describe('the track editor renames the file (#144)', () => {
         await w.find('.et-rename input').setValue(false)
         await w.find('form').trigger('submit')
         await flushPromises()
-        expect(sent()).toEqual({ track: 7 })
+        expect(sent()).toEqual({ track: 7, title: 'Game Lost' })
+    })
+
+    // The server takes "049 " off a title when the tags say track 49, so the
+    // dialog shows the title without it. A new number alone would leave the
+    // number in the file with nothing confirming it — it would come back into
+    // the title, and into the file name of a rename.
+    it('sends the title as shown along with a new number', async () => {
+        const shown = { ...track(), title: 'Saint Wenceslaus Theme', track: 49, filepath: '/m/KCD2/049 Saint Wenceslaus Theme.mp3' }
+        const w = mount(EditTrack, { props: { track: shown } })
+        await w.find('#et-track').setValue(50)
+        await w.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(sent()).toEqual({ track: 50, title: 'Saint Wenceslaus Theme', rename_file: true })
     })
 })

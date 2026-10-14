@@ -103,7 +103,14 @@ function save() {
     }
 
     const payload: EditTrackTagsPayload = {}
-    if (t !== props.track.title) payload.title = t
+    // A new number takes the title as it is SHOWN along. The server takes a
+    // track number off the front of a title when the tags confirm it ("049
+    // Saint Wenceslaus Theme" as track 49 shows without it, models/track.py);
+    // sent alone, a new number left "049 …" in the file with nothing confirming
+    // it any more — the number came back into the title, and a rename wrote
+    // "50 - 049 Saint Wenceslaus Theme.mp3". Same title as shown: a no-op for
+    // every title that never had a number.
+    if (t !== props.track.title || numberChanged()) payload.title = t
     if (al !== props.track.album) payload.album = al
     if (!sameArray(ar, origArtists)) payload.artists = ar
     if (!sameArray(aa, origAlbumArtists)) payload.albumartists = aa

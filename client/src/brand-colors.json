@@ -29,7 +29,8 @@
     "textMuted": "#B9B9C0",
     "contentText": "#FFFFFF",
     "contentMuted": "#C6C6CE",
-    "gridLine": "rgba(255, 255, 255, 0.18)"
+    "gridLine": "rgba(255, 255, 255, 0.18)",
+    "pastelPaper": "60%"
   },
   "palettes": {
     "lagune": {
@@ -57,7 +58,8 @@
         "panel": "#0E131A",
         "soft": "#1B222B",
         "textMuted": "#B5BFCC",
-        "contentMuted": "#C2CBD8"
+        "contentMuted": "#C2CBD8",
+        "pastelPaper": "68%"
       },
       "doodles": {
         "#232046": "#232046",
@@ -108,7 +110,8 @@
         "panel": "#18110C",
         "soft": "#291F18",
         "textMuted": "#CABAB1",
-        "contentMuted": "#D5C7BE"
+        "contentMuted": "#D5C7BE",
+        "pastelPaper": "76%"
       },
       "doodles": {
         "#232046": "#361713",
@@ -159,7 +162,8 @@
         "panel": "#1F1C19",
         "soft": "#2E2B27",
         "textMuted": "#C1BDB7",
-        "contentMuted": "#CECAC3"
+        "contentMuted": "#CECAC3",
+        "pastelPaper": "95%"
       },
       "doodles": {
         "#232046": "#36322D",

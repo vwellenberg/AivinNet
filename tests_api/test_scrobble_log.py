@@ -155,6 +155,22 @@ def test_an_unknown_track_is_not_recorded(logger):
     assert scrobbles(logger.api) == []
 
 
+def test_a_play_from_a_queue_saved_before_the_name_cleanup_counts_for_the_track(logger, monkeypatch):
+    # The browser queue still holds the hash the track had before the server
+    # took its number or credit off (lib/name_cleanup.py). Answered 404 and
+    # dropped, the play would be lost for good — no later carry can move it.
+    import aivinnet.lib.name_cleanup as name_cleanup
+
+    monkeypatch.setattr(name_cleanup, "_current", {"0ld0ld0ld0ld0ld0": HASH})
+
+    res = log(logger.api, trackhash="0ld0ld0ld0ld0ld0")
+
+    assert res.status_code == 201
+    (entry,) = scrobbles(logger.api)
+    assert entry.trackhash == HASH
+    assert logger.track.playcount == 1
+
+
 def test_a_malformed_trackhash_never_reaches_the_handler(logger):
     # TrackHashSchema pins the length; flask_openapi3 answers 422 before the
     # handler runs, so the store is never consulted.

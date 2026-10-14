@@ -131,7 +131,8 @@ describe('arrival animations', () => {
         ['die Kacheln', 'src/assets/scss/Global/cards.scss', 'hold'],
         ['die Bibliotheks-Kacheln der Startseite', 'src/components/HomeView/Browse.vue', 'hold'],
         ['die Songzeilen', 'src/assets/scss/Global/app-grid.scss', 'drop'],
-        ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'drop'],
+        // Nicht virtualisiert: eine feste Seite aus zehn Zeilen, alle im Bild.
+        ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'hold'],
         ['die Up-next-Zeilen der Continue-Karte', 'src/components/HomeView/ContinueCard.vue', 'drop'],
         ['die Ordner-Wahl beim ersten Start', 'src/components/modals/RootDirsPrompt.vue', 'drop'],
     ])('%s nehmen die geteilte Ankunft (%s, $beyond: %s)', (_label, file, beyond) => {
@@ -148,6 +149,18 @@ describe('arrival animations', () => {
         expect(call, `${file} bindet mem-arrival nicht ein`).toBeTruthy()
         const usesDrop = /\$beyond:\s*drop/.test(call![0])
         expect(usesDrop, `${file} sollte $beyond: ${beyond} benutzen`).toBe(beyond === 'drop')
+    })
+
+    it('staggers every row of the default chart page, so none stands there before row 1', () => {
+        // „1–8 mit Aufbau-Animation, danach direkt schon da": hinter dem Deckel
+        // fielen Zeile 9 und 10 der Zehner-Seite auf 0s.
+        const source = readFileSync('src/components/Stats/ChartItem.vue', 'utf8')
+        const steps = Number(source.match(/@include mem-arrival\(\$steps:\s*(\d+)/)?.[1])
+        const pager = readFileSync('src/utils/chartPager.ts', 'utf8')
+        const smallest = Number(pager.match(/CHART_PAGE_SIZES = \[(\d+)/)?.[1])
+
+        expect(smallest, 'CHART_PAGE_SIZES nicht gefunden').toBeGreaterThan(0)
+        expect(steps).toBe(smallest)
     })
 
     it('gives the chart rows a container that holds nothing else', () => {

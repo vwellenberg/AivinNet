@@ -15,6 +15,7 @@ from aivinnet.lib.mapstuff import (
     map_favorites,
     map_scrobble_data,
 )
+from aivinnet.lib.name_cleanup import carry_cleaned_names
 from aivinnet.lib.placeholder_artists import purge_placeholder_artist_images
 from aivinnet.settings import Paths
 from aivinnet.setup.sqlite import run_migrations, setup_sqlite
@@ -58,6 +59,8 @@ def load_into_mem():
     # INFO: Load all tracks, albums, and artists data into memory
     key = str(time())
     TrackStore.load_all_tracks(get_random_str())
+    # Before the favourites and plays are mapped below, which read the references.
+    carry_cleaned_names()
     FolderStore.load_filepaths()  # reads the track store, as in lib/index.py
     AlbumStore.load_albums(key)
     ArtistStore.load_artists(key)

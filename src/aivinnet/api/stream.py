@@ -13,6 +13,7 @@ from werkzeug.exceptions import RequestedRangeNotSatisfiable
 
 from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.config import UserConfig
+from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.trackslib import get_silence_paddings
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.files import flac_audio_offset, guess_mime_type
@@ -34,7 +35,11 @@ def send_track_file_legacy(path: TrackHashSchema, query: SendTrackFileQuery):
 
     NOTE: Files are sent as they are on disk; there is no transcoding.
     """
-    requested_trackhash = path.trackhash.strip()
+    # A queue saved in the browser before the server's name cleanup asks with
+    # the hash the track had then (lib/name_cleanup.py). Resolved through the
+    # cleanup's own old -> new map, not by the path: a path can name another
+    # song by now, and an unknown one would cost a pass over the whole store.
+    requested_trackhash = current_trackhash(path.trackhash.strip())
     filepath = query.filepath.strip()
 
     msg = {"msg": "File Not Found"}

@@ -58,5 +58,8 @@ $mem-palettes: () !default;
     // The two dark-mode tokens that are made FROM the ground.
     --mem-hover-text: #{map-get($dark, "ground")};
     --mem-veil: #{mem-alpha(map-get($dark, "ground"), 0.92)};
+    // The dusk tone the dark tints mix toward (Global/index.scss), at this
+    // scheme's own share of paper.
+    --mem-pastel-base: #{color-mix(in srgb, var(--mem-paper) map-get($dark, "pastel-paper"), var(--mem-ground))};
   }
 }

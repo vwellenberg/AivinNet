@@ -173,6 +173,15 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
+// The desktop page start (`$page-start`, _variables.scss). The head's own $small
+// is the last stretch of it and travels with the plate when it sticks (below),
+// so the rest goes in front of the scroller: inside it, the stuck plate would
+// stand 32px down with rows passing above it. The scroller's clip edge moves
+// down with it, which only ever cuts rows that are already behind the plate.
+.folder-view.is_alt_layout {
+    padding-top: calc(#{$page-start} - #{$small});
+}
+
 // Every layout that renders the head INSIDE the scroller, i.e. the same
 // condition as the `#before` slot in the template. Scoping this to
 // `.is_alt_layout` alone (as it was) left the medium and phone layouts with a

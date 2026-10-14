@@ -170,7 +170,10 @@ describe("shape tokens", () => {
     // A look that puts several images in the artwork slot lists one size per
     // image; without the token they would all be stretched to 3840x1600.
     const candy = readFileSync(CANDY, "utf-8");
-    expect(candy).toMatch(/background-size: var\(--shape-doodles-size, 3840px 1600px\), \$size \$size, \$size \$size;/);
+    // `auto` first: the dark-mode veil over the doodle (`--mem-doodle-veil`)
+    // is the top layer and fills the box.
+    expect(candy).toMatch(/background-size: auto, var\(--shape-doodles-size, 3840px 1600px\), \$size \$size, \$size \$size;/);
+    expect(candy).toMatch(/background-image: var\(--mem-doodle-veil, linear-gradient\(transparent, transparent\)\),\s*var\(--shape-doodles,/);
   });
 
   it("the plate frame's colour and style are look tokens with the Memphis values as fallback", () => {
