@@ -70,19 +70,17 @@ def _rank(query: str, choices: list[str], cutoff: float, limit: int | None) -> l
     - below 80: the title only resembles it — typos keep finding it.
 
     Both `query` and `choices` arrive processed (`_choice`, `default_process`).
-    The cutoff applies to WRatio, as it always did.
+    The cutoff applies to WRatio, as it always did. One and two letters go by
+    containment alone (`_rank_short`).
     """
-    # A one- or two-letter query resembles most of a library, and ranking all
-    # of it here is a Python loop on the single request thread (measured 255 ms
-    # against 158 at 50k titles for "a"). Its order among thousands of hits
-    # says nothing yet, so it ranks only the WRatio top; from three letters on
-    # every match takes part, which is where a word has to beat a lookalike.
-    pool = max(limit * 4, 200) if limit is not None and len(query) < 3 else None
-    matches = process.extract(query, choices, score_cutoff=cutoff, limit=pool, scorer=fuzz.WRatio)
+    if len(query) < 3:
+        return _rank_short(query, choices, limit)
+
+    matches = process.extract(query, choices, score_cutoff=cutoff, limit=None, scorer=fuzz.WRatio)
     # " saint" inside " " + title: the query starts a word, without a regex. A
-    # plain loop, not a scorer per item: for a one-letter query this runs over
-    # most of the library on every keystroke. Several words match in any order
-    # ("saint theme" finds "Theme of Saint Wenceslaus").
+    # plain loop, not a scorer per item: it runs over every match, on every
+    # keystroke. Several words match in any order ("saint theme" finds "Theme
+    # of Saint Wenceslaus").
     needles = [" " + token for token in query.split()]
     single = needles[0] if len(needles) == 1 else None
     ranked: list[tuple[int, float]] = []
@@ -101,6 +99,41 @@ def _rank(query: str, choices: list[str], cutoff: float, limit: int | None) -> l
         ranked.append((index, score))
 
     # Ties keep the order process.extract gave them.
+    if limit is None:
+        return sorted(ranked, key=lambda item: -item[1])
+    return heapq.nlargest(limit, ranked, key=lambda item: item[1])
+
+
+def _rank_short(query: str, choices: list[str], limit: int | None) -> list[tuple[int, float]]:
+    """
+    `_rank` for a one- or two-letter query: by containment alone, no WRatio.
+
+    Two letters resemble most of a library, so WRatio there is noise — and it
+    is also what loses the right title: it scales a partial match down to 0.6
+    for a title eight times the query's length, so "Abandoned by the Morning
+    Light" fell below a heap of short "kebab" titles for "ab", and a two-
+    character CJK word lost to everything that merely contained it. A full
+    WRatio pass is also the slow part here (255 ms against 158 at 50k titles),
+    on the single request thread, per keystroke.
+
+    Same bands as `_rank`; within one, a title the query covers more of ranks
+    higher (the query IS more of a short title).
+    """
+    needle = " " + query
+    ranked: list[tuple[int, float]] = []
+
+    for index, choice in enumerate(choices):
+        if not query or query not in choice:
+            continue
+        share = len(query) / len(choice)
+        if choice == query:
+            score = EXACT_MATCH
+        elif needle in " " + choice:
+            score = WORD_MATCH + 8 * share + (1 if choice.startswith(query) else 0)
+        else:
+            score = 80 + 9 * share
+        ranked.append((index, score))
+
     if limit is None:
         return sorted(ranked, key=lambda item: -item[1])
     return heapq.nlargest(limit, ranked, key=lambda item: item[1])

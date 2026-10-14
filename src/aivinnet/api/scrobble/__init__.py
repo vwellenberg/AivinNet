@@ -10,6 +10,7 @@ from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.extras import get_extra_info
+from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.models.album import Album
@@ -94,14 +95,17 @@ def log_track(body: LogTrackBody):
     if not timestamp or timestamp < 0 or timestamp >= MAX_SCROBBLE_TIMESTAMP or duration < 5:
         return {"msg": "Invalid entry."}, 400
 
-    trackentry = TrackStore.trackhashmap.get(body.trackhash)
+    # A play from a queue saved before the name cleanup carries the old hash
+    # (lib/name_cleanup.py): it counts for the track under its current one.
+    trackhash = current_trackhash(body.trackhash)
+    trackentry = TrackStore.trackhashmap.get(trackhash)
     if trackentry is None:
         return {"msg": "Track not found."}, 404
 
-    scrobble_data = dict(body)
+    scrobble_data = {**dict(body), "trackhash": trackhash}
     # REVIEW: Do we need to store the extra info in the database?
     # OR .... can we just write it to the backup file on demand?
-    scrobble_data["extra"] = get_extra_info(body.trackhash, "track")
+    scrobble_data["extra"] = get_extra_info(trackhash, "track")
     ScrobbleTable.add(scrobble_data)
 
     # NOTE: Update the recently played homepage for this userid

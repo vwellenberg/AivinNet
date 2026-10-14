@@ -150,6 +150,12 @@ def test_every_reference_follows_the_cleaned_names(reference_db, tracks):
     assert refs["scrobbles"] == [fistcuffs.trackhash]
     assert report["tracks"] == 2 and report["artists"] == 1
 
+    # And a stream or scrobble that still asks with an old hash finds the track.
+    from aivinnet.lib.name_cleanup import current_trackhash
+
+    assert current_trackhash(OLD_SAINT) == saint.trackhash
+    assert current_trackhash(saint.trackhash) == saint.trackhash
+
 
 def test_the_second_start_finds_nothing_to_move(reference_db, tracks):
     from aivinnet.lib.name_cleanup import carry_cleaned_names
@@ -262,22 +268,6 @@ def test_a_single_keeps_its_album_name_and_its_old_hash():
     assert track.title == "Intro"
     assert track.album == "01 - Intro"
     assert track._legacyhash == create_hash("01 - Intro", "01 - Intro", "Adam Sporka")
-
-
-def test_a_renumber_writes_the_title_the_library_showed():
-    # "049 Saint Wenceslaus Theme" as track 49 shows without its number. The
-    # editor sends only the new number; under 50 nothing would confirm the 049,
-    # so the shown title goes into the file with it.
-    from aivinnet.lib.track_edit import keep_shown_title
-
-    saint = _track(1, "049 Saint Wenceslaus Theme", "Adam Sporka", "a.mp3", 49)
-
-    assert keep_shown_title(saint, {"track": 50}) == {"track": 50, "title": "Saint Wenceslaus Theme"}
-    # A title the user typed wins, and edits that do not renumber are left alone.
-    assert keep_shown_title(saint, {"track": 50, "title": "Other"}) == {"track": 50, "title": "Other"}
-    assert keep_shown_title(saint, {"album": "X"}) == {"album": "X"}
-    plain = _track(2, "Main Theme", "Adam Sporka", "b.mp3", 2)
-    assert keep_shown_title(plain, {"track": 3}) == {"track": 3}
 
 
 def test_a_homepage_collection_follows_the_renamed_artist(reference_db, tracks):

@@ -156,3 +156,32 @@ def test_the_exact_artist_keeps_its_own_songs_first(library):
     assert found["top_result"]["name"] == ARTIST
     # The four most played of its own, as before.
     assert {t["title"] for t in found["tracks"]} == {"Song 1", "Song 2", "Song 3", "Song 4"}
+
+
+def test_a_two_letter_query_ranks_a_word_above_titles_that_only_contain_it():
+    # WRatio scales a partial match down for a title eight times the query's
+    # length, so "Abandoned by the Morning Light" fell below every short title
+    # that merely held the two letters.
+    import aivinnet.lib.searchlib as searchlib
+
+    choices = ["kebab 1", "kebab 2", "Abandoned by the Morning Light", "kebab 3", "Slab"]
+    ranked = [choices[i] for i, _score in searchlib._rank("ab", [c.lower() for c in choices], 50, None)]
+
+    assert ranked[0] == "Abandoned by the Morning Light"
+    assert set(ranked[1:]) == {"kebab 1", "kebab 2", "kebab 3", "Slab"}
+
+
+def test_a_one_character_word_ranks_its_own_title_first():
+    import aivinnet.lib.searchlib as searchlib
+
+    choices = ["真夜中のドア", "夜に駆ける", "夜", "月夜"]
+    ranked = [choices[i] for i, _score in searchlib._rank("夜", choices, 50, None)]
+
+    assert ranked[:2] == ["夜", "夜に駆ける"]
+    assert set(ranked) == set(choices)
+
+
+def test_a_short_query_drops_titles_that_do_not_contain_it():
+    import aivinnet.lib.searchlib as searchlib
+
+    assert searchlib._rank("zq", ["quiz", "zq", "jazz"], 50, None) == [(1, searchlib.EXACT_MATCH)]

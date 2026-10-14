@@ -170,11 +170,13 @@ def _url_for(trackhash, filepath):
     return f"/file/{trackhash}/legacy?" + urlencode({"filepath": str(filepath)})
 
 
-def test_a_hash_from_before_a_rename_still_plays_by_its_path(stream):
+def test_a_hash_from_before_the_name_cleanup_still_plays(stream, monkeypatch):
     # A queue saved in the browser keeps the hash the track had when it was
-    # queued. The name cleanup (or a retag outside the app) gives the track a
-    # new one; the path still names the same, indexed file.
+    # queued; the cleanup gave it a new one and knows which (lib/name_cleanup.py).
+    import aivinnet.lib.name_cleanup as name_cleanup
+
     api, track_file = stream
+    monkeypatch.setattr(name_cleanup, "_current", {"0ld0ld0ld0ld0ld0": HASH})
 
     res = api.get(_url_for("0ld0ld0ld0ld0ld0", track_file))
 
@@ -182,11 +184,11 @@ def test_a_hash_from_before_a_rename_still_plays_by_its_path(stream):
     assert res.data == PAYLOAD
 
 
-def test_an_unknown_hash_at_a_path_the_library_does_not_index_is_404(stream, tmp_path):
-    api, _track_file = stream
-    stray = tmp_path / "music" / "not indexed.mp3"
-    stray.write_bytes(PAYLOAD)
+def test_an_unknown_hash_is_not_served_by_its_path_alone(stream):
+    # A path can name another song by now (a re-rip, a renamer reusing names):
+    # without the cleanup's own old -> new entry, an unknown hash is a 404.
+    api, track_file = stream
 
-    res = api.get(_url_for("0ld0ld0ld0ld0ld0", stray))
+    res = api.get(_url_for("0ld0ld0ld0ld0ld0", track_file))
 
     assert res.status_code == 404

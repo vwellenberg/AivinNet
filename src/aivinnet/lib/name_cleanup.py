@@ -33,6 +33,17 @@ log = logging.getLogger(__name__)
 # SQLite caps the parameters of one statement; stay well below every build's cap.
 _CHUNK = 500
 
+# old trackhash -> the one the library uses now, for every track the cleanup
+# renamed. Browsers keep their queues with the hashes the tracks had when they
+# were queued; a stream or a scrobble from such a queue asks for the old one.
+# Set whole on every load, never edited in place.
+_current: dict[str, str] = {}
+
+
+def current_trackhash(trackhash: str) -> str:
+    """The hash the library uses now for `trackhash`, or `trackhash` itself."""
+    return _current.get(trackhash, trackhash)
+
 
 def legacy_track_mapping(tracks: Iterable[Any]) -> dict[str, str]:
     """
@@ -126,12 +137,20 @@ def _collections_with_artists(session: Any, mapping: dict[str, str]) -> list[tup
 
     for collection_id, items in session.execute(select(CollectionTable.id, CollectionTable.items)).all():
         items = items or []
-        rewritten = [
-            {**item, "hash": mapping[item["hash"]]}
-            if isinstance(item, dict) and item.get("type") == "artist" and item.get("hash") in mapping
-            else item
-            for item in items
-        ]
+        rewritten: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+
+        for item in items:
+            if isinstance(item, dict) and item.get("type") == "artist" and item.get("hash") in mapping:
+                item = {**item, "hash": mapping[item["hash"]]}
+            # A collection that held both names of the artist keeps one card.
+            key = (str(item.get("type")), str(item.get("hash"))) if isinstance(item, dict) else None
+            if key is not None and key[0] == "artist":
+                if key in seen:
+                    continue
+                seen.add(key)
+            rewritten.append(item)
+
         if rewritten != items:
             out.append((collection_id, rewritten))
 
@@ -161,6 +180,7 @@ def _copy_artist_images(mapping: dict[str, str]) -> int:
         if (marker_dir / new).exists():
             continue
 
+        complete = True
         for folder in folders:
             source, target = folder / f"{old}.webp", folder / f"{new}.webp"
             if source.exists() and not target.exists():
@@ -168,9 +188,12 @@ def _copy_artist_images(mapping: dict[str, str]) -> int:
                     shutil.copy2(source, target)
                     copied += 1
                 except OSError as error:
+                    complete = False
                     log.warning("Could not copy the picture of artist %s to %s: %s", old, new, error)
 
-        if (marker_dir / old).exists() and not (marker_dir / new).exists():
+        # The marker only once every size is there: it makes later starts skip
+        # this artist, and a size that failed now must be tried again then.
+        if complete and (marker_dir / old).exists():
             try:
                 (marker_dir / new).touch()
             except OSError:
@@ -206,6 +229,9 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
     tracks = list(tracks)
     track_map = legacy_track_mapping(tracks)
     artist_map = legacy_artist_mapping(tracks)
+
+    global _current
+    _current = dict(track_map)
 
     if not track_map and not artist_map:
         return

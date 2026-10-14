@@ -59,7 +59,8 @@ def test_an_artist_old_name_that_some_track_still_carries_stays():
 def _body(path, start):
     from pathlib import Path
 
-    source = Path(path).read_text(encoding="utf-8")
+    # From the repo root, not the working directory pytest happens to run in.
+    source = (Path(__file__).parents[1] / path).read_text(encoding="utf-8")
     return source[source.index(start) :]
 
 

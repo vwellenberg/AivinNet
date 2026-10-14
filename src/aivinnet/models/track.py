@@ -163,7 +163,6 @@ class Track:
         based on the user's configuration settings.
         """
         # Not a setting: a track number in the title is never part of the name.
-        raw_title = self.title
         new_title = self.title = strip_track_number(self.title, self.track, self.disc, self.filepath)
 
         # Extract featured artists
@@ -183,7 +182,7 @@ class Track:
             # off an album's name — that would move the album to a new hash
             # under `mergeAlbums` and the legacy trackhash with it.
             if self.og_album == self.og_title:
-                self.album = new_title if raw_title == self.title else parse_feat_from_title(raw_title, self.config)[1]
+                self.album = parse_feat_from_title(self.og_title, self.config)[1]
 
         # Clean track title
         if self.config.removeProdBy:

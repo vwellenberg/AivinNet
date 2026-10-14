@@ -86,19 +86,29 @@ Favoriten, Scrobbles, Artist-Favoriten, Artist-Karten in Home-Sammlungen und Art
 zwei neue verteilt, kann keinem folgen. Es **liest erst und schreibt nur, was noch referenziert
 ist** — ab dem zweiten Start schreibt es nichts, und ein Fehler darin verhindert den Start nicht.
 
-Drei Folgen, die man kennen muss:
+Was daraus folgt:
 
 - **Die Datei behält das Original, alles im Client zeigt den bereinigten Namen** — auch der
   Tag-Editor (`EditTrack.vue` füllt aus dem Track der API). Er schickt nur, was sich geändert hat;
   wer dort einen bereinigten Titel anfasst, schreibt den bereinigten in die Datei. Wer „den echten
   Titel" sucht (`ffprobe`, MCP-Tools), sieht die Nummer.
-- **Eine neue Tracknummer nimmt den gezeigten Titel mit** (`track_edit.keep_shown_title`): Unter
-  Nummer 50 bestätigt nichts mehr die „049", die Nummer stünde wieder im Titel — und ein
-  Umbenennen schrieb „50 - 049 Saint Wenceslaus Theme.mp3".
-- **Gespeicherte Queues im Browser tragen die alten Hashes.** `/file/<hash>/legacy` spielt einen
-  unbekannten Hash deshalb über seinen Pfad, wenn die Bibliothek genau diesen Pfad kennt
-  (`api/stream.py`, nie einen unindizierten). Scrobbles aus solchen Queues landen unter dem alten
-  Hash und ziehen beim nächsten Scan oder Start mit um.
+- **Eine neue Tracknummer nimmt den gezeigten Titel mit** — im **Editor**, nicht im Server:
+  `EditTrack.vue` schickt den Titel, wie er dastand, sobald sich die Nummer ändert. Unter Nummer
+  50 bestätigt nichts mehr die „049", die Nummer stünde wieder im Titel — und ein Umbenennen
+  schrieb „50 - 049 Saint Wenceslaus Theme.mp3". Nur der Editor weiß, was der Mensch gesehen hat;
+  Batch-Schreiber und MCP-Tools setzen weiter genau die Felder, die sie schicken.
+- **Gespeicherte Queues im Browser tragen die alten Hashes.** Der Umzug hält dafür seine eigene
+  Zuordnung alt → neu im RAM (`name_cleanup.current_trackhash`, bei jedem Laden neu gesetzt), und
+  `/file/<hash>/legacy` wie `/logger/track/log` lösen einen alten Hash darüber auf: die Queue
+  spielt weiter, und der Scrobble zählt gleich für den **neuen** Hash. Bewusst nicht über den
+  Pfad — der kann inzwischen einen anderen Song tragen, und ein unbekannter kostete einen Lauf
+  über den ganzen Store, auf dem einzigen Request-Thread.
+- **Ein Umzug, der zweimal dasselbe Ziel hat, schreibt es einmal.** Zwei alte Artist-Hashes, die
+  auf denselben neuen fallen („Composed by X" und „Music by X"), dürfen in einer Home-Sammlung
+  nicht zu zwei gleichen Karten werden; die Liste wird nach dem Umzug entdoppelt. Und die
+  `user-set`-Markierung eines Artist-Bilds zieht erst mit, wenn **alle** Größen kopiert sind: Sie
+  lässt jeden späteren Start diesen Artist überspringen, eine fehlgeschlagene Größe würde sonst
+  nie nachgeholt.
 - **Der Album-Hash bleibt der alte.** Er kommt aus der Spalte (`album_hash` mit Ordner); bei
   `mergeAlbums` rechnet `map_with_config` mit den **getaggten** Album-Interpreten, damit kein
   Cover und kein Album-Favorit verwaist.
@@ -112,6 +122,14 @@ nur den **Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-
 `tests/test_parsers.py` (Regeln), `tests/test_name_cleanup_mapping.py` (was umzieht, Verdrahtung),
 `tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
 `e2e/make_library.py`.
+
+**Die Suche rangiert in Stufen** (`lib/searchlib.py::_rank`): exakt (100) > die Anfrage beginnt
+ein **Wort** (90–99) > sie steckt irgendwo drin (80–89) > nur ähnlich (WRatio, unter 80). Vorher
+lagen „Saints" (91) und „Saint Wenceslaus Theme" (90) gleichauf, und die Top-Treffer haben vier
+Track-Plätze. Ein oder zwei Zeichen rangieren **nur** nach Enthaltensein (`_rank_short`): WRatio
+skaliert dort einen Teiltreffer für lange Titel auf 0,6 herunter, so verlor „Abandoned by …" für
+„ab" gegen jeden kurzen „kebab"-Titel — und der volle WRatio-Lauf war pro Tastendruck der teure
+Teil.
 
 ## ⚠️ Ein Hash, mehrere Dateien — nie per Hash *eine* Datei adressieren
 
