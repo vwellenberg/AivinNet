@@ -55,6 +55,16 @@ zu einem Eintrag, und nach einer Verschiebung zeigte alles auf den letzten Titel
 Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer anderen Datei
 im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
 
+**Alben und Artists ziehen mit ihrer LETZTEN Datei um** (`track_edit._retired_identities`): ihre
+Favoriten (#296) und ihre Karten in den Home-Sammlungen (#481), beides in derselben Transaktion
+wie die Zeile (`reference_migration.migrate_item_favorites`, `migrate_collection_items`). Solange
+noch eine Datei den alten Namen trägt, gibt es das alte Album und es behält alles. Bis #481 zogen
+nur die Favoriten mit: Home überspringt eine Karte, die sich nicht auflösen lässt, und so
+verschwand sie nach einem Umbenennen ohne jede Meldung. **Wer eine neue Stelle baut, die Album-
+oder Artist-Hashes speichert, hängt sie dort an.** ⚠️ Ein Rescan nach einer Änderung **von
+außen** zieht nur Track-Referenzen um (`_carry_references`), keine Album- oder Artist-Favoriten
+und keine Karten.
+
 ## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
 
 Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den Namen ab
@@ -105,7 +115,7 @@ Was daraus folgt:
   über den ganzen Store, auf dem einzigen Request-Thread.
 - **Ein Umzug, der zweimal dasselbe Ziel hat, schreibt es einmal.** Zwei alte Artist-Hashes, die
   auf denselben neuen fallen („Composed by X" und „Music by X"), dürfen in einer Home-Sammlung
-  nicht zu zwei gleichen Karten werden; die Liste wird nach dem Umzug entdoppelt. Und die
+  nicht zu zwei gleichen Karten werden; `move_collection_items` behält die erste. Und die
   `user-set`-Markierung eines Artist-Bilds zieht erst mit, wenn **alle** Größen kopiert sind: Sie
   lässt jeden späteren Start diesen Artist überspringen, eine fehlgeschlagene Größe würde sonst
   nie nachgeholt.

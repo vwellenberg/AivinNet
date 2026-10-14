@@ -71,7 +71,13 @@ def album_of_two(reference_db, tmp_path, monkeypatch):  # noqa: F811
         stored = json.loads(Path(filepath).read_text())
         # The album hash follows the album name, as the indexer's does.
         albumhash = hashlib.sha1(stored["album"].encode()).hexdigest()[:16]
-        return {**_tags(filepath, stored["title"]), "album": stored["album"], "albumhash": albumhash}
+        return {
+            **_tags(filepath, stored["title"]),
+            "album": stored["album"],
+            "albumhash": albumhash,
+            "artists": stored.get("artists", "Artist"),
+            "albumartists": stored.get("albumartists", "Artist"),
+        }
 
     def write(filepath, fields):
         stored = json.loads(Path(filepath).read_text())
@@ -129,3 +135,91 @@ def test_the_album_favourite_moves_with_the_last_file(album_of_two):
         assert _favorites(session) == [(1, "album", f"album_{new}")]
     assert old not in AlbumStore.albummap
     assert AlbumStore.albummap[new].album.fav_userids == [1], "Favorites would not show it until a restart"
+
+
+# ------------------------------------------------- Home's collection cards (#481)
+
+
+def _collection(session, userid: int, items: list):
+    from aivinnet.db.userdata import CollectionTable
+
+    session.execute(insert(CollectionTable).values(name=f"Mine {userid}", userid=userid, items=items, extra={}))
+
+
+def _collections(session):
+    from aivinnet.db.userdata import CollectionTable
+
+    return dict(session.execute(select(CollectionTable.userid, CollectionTable.items)).all())
+
+
+@pytest.fixture()
+def collections_db(album_of_two):
+    from sqlalchemy import delete
+
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import CollectionTable
+
+    yield album_of_two
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(CollectionTable))
+
+
+def test_the_album_card_moves_with_the_last_file_for_every_user(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    other = {"type": "album", "hash": "f00dfeedf00dfeed"}
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [other, {"type": "album", "hash": old}])
+        _collection(session, 2, [{"type": "album", "hash": old}])
+
+    new = track_edit.edit_track_tags_by_filepath(paths[0], {"album": "Abbey Road"}).albumhash
+    with DbEngine.manager() as session:
+        # One file is still on the old album: the card still resolves, and stays.
+        assert _collections(session) == {
+            1: [other, {"type": "album", "hash": old}],
+            2: [{"type": "album", "hash": old}],
+        }
+
+    track_edit.edit_track_tags_by_filepath(paths[1], {"album": "Abbey Road"})
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {
+            1: [other, {"type": "album", "hash": new}],
+            2: [{"type": "album", "hash": new}],
+        }
+
+
+def test_the_artist_card_moves_when_its_last_file_is_renamed(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+    from aivinnet.utils.hashing import create_hash
+
+    paths, _album = collections_db
+    old, new = create_hash("Artist", decode=True), create_hash("The Artist", decode=True)
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [{"type": "artist", "hash": old}])
+
+    for path in paths:
+        track_edit.edit_track_tags_by_filepath(path, {"artists": "The Artist", "albumartists": "The Artist"})
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {1: [{"type": "artist", "hash": new}]}
+
+
+def test_a_collection_that_already_holds_the_new_album_keeps_one_card(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    new = hashlib.sha1(b"Abbey Road").hexdigest()[:16]
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [{"type": "album", "hash": new}, {"type": "album", "hash": old}])
+
+    for path in paths:
+        track_edit.edit_track_tags_by_filepath(path, {"album": "Abbey Road"})
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {1: [{"type": "album", "hash": new}]}

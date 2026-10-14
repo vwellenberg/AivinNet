@@ -25,6 +25,7 @@ from aivinnet.db.libdata import TrackTable
 from aivinnet.db.utils import track_to_dataclass
 from aivinnet.lib import tag_writer
 from aivinnet.lib.reference_migration import (
+    migrate_collection_items,
     migrate_item_favorites,
     migrate_track_references,
     migrate_track_references_many,
@@ -77,12 +78,13 @@ def _retired_identities(old_track: Track, new_track: Track, filepath: str) -> li
     ``(kind, old_hash, new_hash)`` for each album or artist this edit takes the
     LAST file away from, where it is clear what it becomes.
 
-    Album and artist favourites are keyed by a hash that a tag edit changes just
-    like a track's. Retitling an album on its tracks left every user's album
-    favourite on a hash that no longer existed: gone from Favorites, still in
-    the count (#296). They move with the last file; until then the old album
-    still exists and keeps them. An artist moves only when exactly one name went
-    and exactly one came — anything else has no single answer.
+    Album and artist favourites — and the cards in Home's collections (#481) —
+    are keyed by a hash that a tag edit changes just like a track's. Retitling
+    an album on its tracks left every user's album favourite on a hash that no
+    longer existed: gone from Favorites, still in the count (#296). They move
+    with the last file; until then the old album still exists and keeps them.
+    An artist moves only when exactly one name went and exactly one came —
+    anything else has no single answer.
     """
     moves: list[tuple[str, str, str]] = []
 
@@ -374,6 +376,8 @@ def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -
                 migrate_track_references(old_trackhash, new_trackhash, session)
             for kind, old_hash, new_hash in retired:
                 migrate_item_favorites(kind, old_hash, new_hash, session)
+                # Home's collection cards are keyed the same way (#481).
+                migrate_collection_items(kind, {old_hash: new_hash}, session)
 
         new_track.id = TrackTable.replace_by_filepath(
             tags,
