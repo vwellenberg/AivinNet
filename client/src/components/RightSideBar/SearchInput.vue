@@ -141,10 +141,24 @@ function handleButton() {
         // with a bevel can tell the two apart (#241).
         border-style: var(--shape-well-style, solid);
         color: $candy-text;
-        transition: background-color $motion-tint $motion-curve;
+        transition: background-color $motion-tint $motion-curve, color $motion-tint $motion-curve;
 
+        // Blush accent fill -> static ink, like every other blush surface
+        // (DropDown, RecentSearches, Notification). The blush is the same light
+        // pink in both themes, the text is not: in dark mode it stayed paper,
+        // and a typed query turned unreadable under the pointer.
         &:hover {
             background-color: $candy-pink;
+            color: $mem-ink;
+
+            button {
+                color: $mem-ink;
+            }
+
+            input::placeholder {
+                color: $mem-ink;
+                opacity: 0.6;
+            }
         }
 
         input::placeholder {

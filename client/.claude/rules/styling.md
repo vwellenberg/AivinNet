@@ -1481,6 +1481,14 @@ Hover-Mixin, das die Fläche tauscht ohne die Textfarbe. Beim allerersten Lauf f
 `btn-pill` — Modal- und Dialog-Buttons hoverten auf `$candy-pink-deep`, was auf **`$mem-yellow`**
 zeigt: ein Dialog-Button war für die Dauer des Zeigers ein „läuft"-Signal.
 
+⚠️ **Das Suchfeld oben ist kein Bedienelement, sondern ein Feld — es hovert auf Blush, nicht auf
+das Token** (`RightSideBar/SearchInput.vue`; der Zensus liest nur `_candy.scss` und
+`_buttons.scss`). Blush ist in **beiden** Themes dasselbe helle Rosa, `$candy-text` aber nicht:
+Im Dark-Theme blieb der Text Paper, und eine getippte Suche war unter dem Zeiger unlesbar
+(gemessen: rgb(244,242,237) auf rgb(245,198,206), ≈ 1,3:1). Deshalb pinnt der Hover Ink auf Text,
+Lupe und Platzhalter (≈ 12:1) — dieselbe Regel wie bei jeder Blush-Fläche (`DropDown .current`,
+`RecentSearches`, `Notification`): **statisches Blush → statisches Ink**, nie die Theme-Textfarbe.
+
 **Hover für Listenzeilen ist zentralisiert:** `candy-row-base` + `candy-row-hover` in
 `_candy.scss`. Die Base-Hälfte ist Pflicht (reservierter transparenter Rand in `$candy-border-w`)
 — ohne sie springt der Inhalt beim Hover, und genau deshalb hatten die Folder-Zeilen
