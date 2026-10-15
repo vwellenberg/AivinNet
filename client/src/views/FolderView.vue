@@ -1,5 +1,5 @@
 <template>
-    <div class="folder-view v-scroll-page" style="height: 100%" :class="{ isSmall, isMedium, is_alt_layout }">
+    <div class="folder-view folders-page v-scroll-page" style="height: 100%" :class="{ isSmall, isMedium, is_alt_layout }">
         <NoItems
             :flag="folder.tracks.length === 0 && folder.dirs.length === 0"
             :title="folder.query === '' ? 'Folder is empty' : 'No results found'"
@@ -178,8 +178,13 @@ onMounted(() => {
 // so the rest goes in front of the scroller: inside it, the stuck plate would
 // stand 32px down with rows passing above it. The scroller's clip edge moves
 // down with it, which only ever cuts rows that are already behind the plate.
-.folder-view.is_alt_layout {
-    padding-top: calc(#{$page-start} - #{$small});
+// Every layout above the phone, not just the alt one: between the two the
+// head sat 8px below the panel. `.folders-page`, because the playlist view
+// wears `.folder-view` too and starts through the scroller instead.
+.folders-page {
+    @include desktopPage {
+        padding-top: calc(#{$page-start} - #{$small});
+    }
 }
 
 // Every layout that renders the head INSIDE the scroller, i.e. the same
@@ -187,9 +192,12 @@ onMounted(() => {
 // `.is_alt_layout` alone (as it was) left the medium and phone layouts with a
 // head that had no surface at all — breadcrumb text straight on the doodled
 // ground, against the veil rule, and not sticky either.
-.folder-view.is_alt_layout,
-.folder-view.isMedium,
-.folder-view.isSmall {
+// `.folders-page`, not `.folder-view`: the playlist view wears that class too,
+// and this `!important` reached its scroller once the Folders chunk had loaded —
+// the playlist then started 32px higher than before the visit.
+.folders-page.is_alt_layout,
+.folders-page.isMedium,
+.folders-page.isSmall {
     .scroller {
         // The head used to bleed into the card's top edge. It is a plate now and
         // owns the air on both of its sides itself (`margin` below) — putting

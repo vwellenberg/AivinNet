@@ -127,36 +127,6 @@ def _favorited_artisthashes(session: Any, hashes: set[str]) -> set[str]:
     return found
 
 
-def _collections_with_artists(session: Any, mapping: dict[str, str]) -> list[tuple[int, list[dict[str, Any]]]]:
-    """(id, items rewritten) of every homepage collection that holds a renamed artist."""
-    from sqlalchemy import select
-
-    from aivinnet.db.userdata import CollectionTable
-
-    out: list[tuple[int, list[dict[str, Any]]]] = []
-
-    for collection_id, items in session.execute(select(CollectionTable.id, CollectionTable.items)).all():
-        items = items or []
-        rewritten: list[dict[str, Any]] = []
-        seen: set[tuple[str, str]] = set()
-
-        for item in items:
-            if isinstance(item, dict) and item.get("type") == "artist" and item.get("hash") in mapping:
-                item = {**item, "hash": mapping[item["hash"]]}
-            # A collection that held both names of the artist keeps one card.
-            key = (str(item.get("type")), str(item.get("hash"))) if isinstance(item, dict) else None
-            if key is not None and key[0] == "artist":
-                if key in seen:
-                    continue
-                seen.add(key)
-            rewritten.append(item)
-
-        if rewritten != items:
-            out.append((collection_id, rewritten))
-
-    return out
-
-
 def _copy_artist_images(mapping: dict[str, str]) -> int:
     """
     Give each renamed artist the picture of its old name, where it has none.
@@ -240,30 +210,30 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
         report["artist_images"] = _copy_artist_images(artist_map)
 
     from aivinnet.db.engine import DbEngine
-    from aivinnet.lib.reference_migration import migrate_item_favorites, migrate_track_references_many
+    from aivinnet.lib.reference_migration import (
+        collections_to_move,
+        migrate_identity_references,
+        migrate_track_references_many,
+    )
 
     # Read first, write only what is referenced: on every start after the first
     # this finds nothing, and a start should not open a write for nothing.
     with DbEngine.manager() as session:
         referenced = _referenced_trackhashes(session, set(track_map)) if track_map else set()
         favorited = _favorited_artisthashes(session, set(artist_map)) if artist_map else set()
-        collections = _collections_with_artists(session, artist_map) if artist_map else []
+        collections = collections_to_move("artist", artist_map, session)
 
     track_map = {old: new for old, new in track_map.items() if old in referenced}
     favorite_map = {old: new for old, new in artist_map.items() if old in favorited}
 
     if track_map or favorite_map or collections:
-        from sqlalchemy import update
-
-        from aivinnet.db.userdata import CollectionTable
-
         with DbEngine.manager(commit=True) as session:
             if track_map:
                 migrate_track_references_many(track_map, session=session)
-            for old, new in favorite_map.items():
-                migrate_item_favorites("artist", old, new, session)
-            for collection_id, items in collections:
-                session.execute(update(CollectionTable).where(CollectionTable.id == collection_id).values(items=items))
+            # The same function as the tag edit, so a store added there moves
+            # here too; it writes only rows that exist.
+            if favorite_map or collections:
+                migrate_identity_references("artist", artist_map, session)
 
     report["tracks"] = len(track_map)
     report["artists"] = len(favorite_map)

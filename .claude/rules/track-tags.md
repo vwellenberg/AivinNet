@@ -8,6 +8,8 @@ paths:
   - "src/aivinnet/lib/folder_index.py"
   - "src/aivinnet/utils/filesystem.py"
   - "src/aivinnet/lib/track_edit.py"
+  - "src/aivinnet/lib/reference_migration.py"
+  - "src/aivinnet/lib/name_cleanup.py"
   - "src/aivinnet/api/track.py"
   - "mcp_server/server.py"
   - "src/aivinnet/utils/stats.py"
@@ -54,6 +56,17 @@ einen Hash ab, der selbst noch umzieht: Paar für Paar verschmolz der erste Schr
 zu einem Eintrag, und nach einer Verschiebung zeigte alles auf den letzten Titel (#296). Der
 Album-Apply nutzt dafür `ReferenceBatch`: Nur Umbenennungen auf den Hash einer anderen Datei
 im Batch warten bis zum Ende, alle anderen ziehen weiter atomar mit ihrer Zeile um.
+
+**Alben und Artists ziehen mit ihrer LETZTEN Datei um** (`track_edit._retired_identities`): ihre
+Favoriten (#296), die Sidebar-Pins eines Albums (`pinned_album`) und ihre Karten in den
+Home-Sammlungen (#481), alles in derselben Transaktion wie die Zeile, über **eine** Stelle:
+`reference_migration.migrate_identity_references`. Solange noch eine Datei den alten Namen trägt,
+gibt es das alte Album und es behält alles. Bis #481 zogen nur die Favoriten mit; jeder Speicher
+war einzeln verdrahtet, und jeder vergessene verlor lautlos: Home und die Sidebar überspringen
+einen Hash, den sie nicht auflösen können. **Wer eine neue Stelle baut, die Album- oder
+Artist-Hashes speichert, hängt sie in diese Funktion.** Noch nicht drin: die Quellen `al:`/`ar:`
+der Scrobbles (Recently played, Continue listening). ⚠️ Ein Rescan nach einer Änderung **von
+außen** zieht nur Track-Referenzen um (`_carry_references`), nichts davon.
 
 ## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
 
@@ -105,7 +118,7 @@ Was daraus folgt:
   über den ganzen Store, auf dem einzigen Request-Thread.
 - **Ein Umzug, der zweimal dasselbe Ziel hat, schreibt es einmal.** Zwei alte Artist-Hashes, die
   auf denselben neuen fallen („Composed by X" und „Music by X"), dürfen in einer Home-Sammlung
-  nicht zu zwei gleichen Karten werden; die Liste wird nach dem Umzug entdoppelt. Und die
+  nicht zu zwei gleichen Karten werden; `move_collection_items` behält die erste. Und die
   `user-set`-Markierung eines Artist-Bilds zieht erst mit, wenn **alle** Größen kopiert sind: Sie
   lässt jeden späteren Start diesen Artist überspringen, eine fehlgeschlagene Größe würde sonst
   nie nachgeholt.

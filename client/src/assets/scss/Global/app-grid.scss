@@ -1,5 +1,8 @@
 $g-border: solid $candy-border-w $mem-line;
 
+// The grid's gaps; the phone's dotted nav strip reaches across the row gap.
+$app-grid-gap: 8px;
+
 #app-grid {
     display: grid;
     // grid-template-columns: min-content 1fr 29rem;
@@ -13,8 +16,8 @@ $g-border: solid $candy-border-w $mem-line;
         'l-sidebar content'
         'bottombar bottombar';
     height: 100%;
-    column-gap: 8px;
-    row-gap: 8px;
+    column-gap: $app-grid-gap;
+    row-gap: $app-grid-gap;
     margin: 0 auto;
     position: relative;
 
@@ -29,6 +32,24 @@ $g-border: solid $candy-border-w $mem-line;
             'content'
             'bottombar';
         grid-template-rows: auto 1fr auto;
+
+        // The top bar is a floating pill here, and the dots cover the whole
+        // strip AROUND it — the nav row, screen top to content, edge to edge —
+        // while the pill stays white (user, 2026-10-15; before that phones wore
+        // no dots in the top bar, 2026-10-12, and the pill's own dots stay off:
+        // NavBar.vue). Drawn by the grid, not the pill: drawn by the pill they
+        // would cover its white, and a layer behind it (z-index -1) lands under
+        // the body's background, which html and body both paint. A positioned
+        // grid child placed with `grid-area` takes that area as its box, so the
+        // strip is exactly the nav row, the pill's margins included; it comes
+        // first in the tree, so the pill (positioned too) paints over it.
+        &::before {
+            @include mem-halftone($reach: null);
+            grid-area: nav;
+            // Down to the content card: the row gap below the nav row is part
+            // of the strip, or an 8px seam of bare ground showed under it.
+            bottom: calc(-1 * #{$app-grid-gap});
+        }
     }
 
     // A landscape phone: the chrome is a fixed cost, and at 390px of height it
@@ -282,6 +303,24 @@ $g-border: solid $candy-border-w $mem-line;
     // See the note on `.content-page` — same reason, same 12px.
     scrollbar-gutter: stable both-edges;
     padding-left: $padleft;
+}
+
+// The desktop page start (`$page-start`, _variables.scss) for the layout
+// between the phone and the alt layout: a wide window whose right sidebar
+// leaves the content under 900px. The alt layout gives it below with its own
+// container; without this the pages started anywhere from 23 to 63px here.
+// Scoped to #acontent: the queue in the right sidebar is a scroller as well.
+@include desktopPage {
+    #acontent .vue-recycle-scroller,
+    #acontent .content-page {
+        padding-top: $page-start;
+    }
+
+    // The lyrics page nests a second `.content-page`; the outer one gives the
+    // start, as the alt layout's `#lyricscontent` rule below does.
+    #acontent #lyricscontent {
+        padding-top: 0;
+    }
 }
 
 .r-sidebar {

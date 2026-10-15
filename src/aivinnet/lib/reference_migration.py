@@ -281,9 +281,14 @@ def migrate_item_favorites(kind: str, old_hash: str, new_hash: str, session: Any
     ).all()
 
     for row_id, userid in rows:
+        # Of the same type: a bare legacy row holds only the hash, so without it
+        # an album favourite of the new album counted as an existing PIN of it,
+        # and the pin was deleted instead of moved.
         taken = session.execute(
             select(FavoritesTable.id).where(
-                FavoritesTable.userid == userid, FavoritesTable.hash.in_([new_key, new_hash])
+                FavoritesTable.userid == userid,
+                FavoritesTable.type == kind,
+                FavoritesTable.hash.in_([new_key, new_hash]),
             )
         ).first()
         if taken:
@@ -293,6 +298,98 @@ def migrate_item_favorites(kind: str, old_hash: str, new_hash: str, session: Any
 
     if rows:
         log.info("Tag edit: %s favourite(s) moved from %s %s to %s", len(rows), kind, old_hash, new_hash)
+
+
+def _is_card(item: Any, kind: str) -> bool:
+    return isinstance(item, dict) and item.get("type") == kind and isinstance(item.get("hash"), str)
+
+
+def move_collection_items(items: Sequence[Any], kind: str, mapping: dict[str, str]) -> list[Any] | None:
+    """
+    A homepage collection's ``items`` with each ``kind`` card in ``mapping`` on
+    its new hash, or None when no card of it is in ``mapping``.
+
+    Albums and artists in a collection are keyed by the same hash as their
+    favourites, so a tag edit that retires one left its card pointing at
+    nothing: Home skips a card it cannot resolve, and it vanished (#481). Like
+    a playlist (`replace_trackhash_in_list`), a move never adds a duplicate:
+    where two old names meet on one new hash, or the new identity is already in
+    the collection, the first card on that hash stays. Duplicates of a hash the
+    move does not land on stay as they were.
+    """
+    if not any(_is_card(item, kind) and item["hash"] in mapping for item in items):
+        return None
+
+    targets = set(mapping.values())
+    moved: list[Any] = []
+    seen: set[str] = set()
+
+    for item in items:
+        if _is_card(item, kind):
+            new_hash = mapping.get(item["hash"], item["hash"])
+            if new_hash in targets:
+                if new_hash in seen:
+                    continue
+                seen.add(new_hash)
+            if new_hash != item["hash"]:
+                item = {**item, "hash": new_hash}
+        moved.append(item)
+
+    return moved
+
+
+def collections_to_move(kind: str, mapping: dict[str, str], session: Any) -> list[tuple[int, list[Any]]]:
+    """(id, moved items) of every user's collection that holds a ``kind`` card in ``mapping``. Reads only."""
+    if not mapping:
+        return []
+
+    from sqlalchemy import select
+
+    from aivinnet.db.userdata import CollectionTable
+
+    out: list[tuple[int, list[Any]]] = []
+    for collection_id, items in session.execute(select(CollectionTable.id, CollectionTable.items)).all():
+        moved = move_collection_items(items or [], kind, mapping)
+        if moved is not None:
+            out.append((collection_id, moved))
+    return out
+
+
+def migrate_collection_items(kind: str, mapping: dict[str, str], session: Any) -> int:
+    """
+    Move the ``kind`` cards of every user's homepage collections along ``mapping``.
+
+    All users, like the favourites: a collection belongs to one user, the album
+    or artist to the library. Returns how many collections changed.
+    """
+    from sqlalchemy import update
+
+    from aivinnet.db.userdata import CollectionTable
+
+    changed = collections_to_move(kind, mapping, session)
+    for collection_id, items in changed:
+        session.execute(update(CollectionTable).where(CollectionTable.id == collection_id).values(items=items))
+
+    if changed:
+        log.info("Moved the %s cards of %d homepage collection(s)", kind, len(changed))
+    return len(changed)
+
+
+def migrate_identity_references(kind: str, mapping: dict[str, str], session: Any) -> None:
+    """
+    Every database row that keys an album or artist by its hash, moved along ``mapping``.
+
+    The one place to add a new store, called by the tag edit and by the name
+    cleanup alike: favourites (#296), the sidebar pins of an album and the cards
+    in Home's collections (#481) were each wired in on their own, and every one
+    left out vanished silently after a retag. Files keyed by the hash (a chosen
+    album cover, an artist picture) are not rows and do not move here.
+    """
+    for old_hash, new_hash in mapping.items():
+        migrate_item_favorites(kind, old_hash, new_hash, session)
+        if kind == "album":
+            migrate_item_favorites("pinned_album", old_hash, new_hash, session)
+    migrate_collection_items(kind, mapping, session)
 
 
 def migrate_track_references(old_trackhash: str, new_trackhash: str, session: Any = None) -> None:

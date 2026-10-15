@@ -160,7 +160,7 @@ onMounted(() => {
     padding-top: 1rem;
 
     // The chips are the first thing on the desktop page: `$page-start`.
-    @include altLayout {
+    @include desktopPage {
         padding-top: $page-start;
     }
 
@@ -175,7 +175,7 @@ onMounted(() => {
 
   // No query, no chips: the idle column is the first thing, at the same line.
   &:not(.has_query) .search-page-top-results {
-    @include altLayout {
+    @include desktopPage {
       padding-top: $page-start;
     }
   }

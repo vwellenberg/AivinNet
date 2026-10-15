@@ -71,7 +71,13 @@ def album_of_two(reference_db, tmp_path, monkeypatch):  # noqa: F811
         stored = json.loads(Path(filepath).read_text())
         # The album hash follows the album name, as the indexer's does.
         albumhash = hashlib.sha1(stored["album"].encode()).hexdigest()[:16]
-        return {**_tags(filepath, stored["title"]), "album": stored["album"], "albumhash": albumhash}
+        return {
+            **_tags(filepath, stored["title"]),
+            "album": stored["album"],
+            "albumhash": albumhash,
+            "artists": stored.get("artists", "Artist"),
+            "albumartists": stored.get("albumartists", "Artist"),
+        }
 
     def write(filepath, fields):
         stored = json.loads(Path(filepath).read_text())
@@ -129,3 +135,147 @@ def test_the_album_favourite_moves_with_the_last_file(album_of_two):
         assert _favorites(session) == [(1, "album", f"album_{new}")]
     assert old not in AlbumStore.albummap
     assert AlbumStore.albummap[new].album.fav_userids == [1], "Favorites would not show it until a restart"
+
+
+# ------------------------------------------------- Home's collection cards (#481)
+
+
+def _collection(session, userid: int, items: list):
+    from aivinnet.db.userdata import CollectionTable
+
+    session.execute(insert(CollectionTable).values(name=f"Mine {userid}", userid=userid, items=items, extra={}))
+
+
+def _collections(session):
+    from aivinnet.db.userdata import CollectionTable
+
+    return dict(session.execute(select(CollectionTable.userid, CollectionTable.items)).all())
+
+
+@pytest.fixture()
+def collections_db(album_of_two):
+    from sqlalchemy import delete
+
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import CollectionTable
+
+    yield album_of_two
+
+    with DbEngine.manager(commit=True) as session:
+        session.execute(delete(CollectionTable))
+
+
+def test_the_album_card_moves_with_the_last_file_for_every_user(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    other = {"type": "album", "hash": "f00dfeedf00dfeed"}
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [other, {"type": "album", "hash": old}])
+        _collection(session, 2, [{"type": "album", "hash": old}])
+
+    new = track_edit.edit_track_tags_by_filepath(paths[0], {"album": "Abbey Road"}).albumhash
+    with DbEngine.manager() as session:
+        # One file is still on the old album: the card still resolves, and stays.
+        assert _collections(session) == {
+            1: [other, {"type": "album", "hash": old}],
+            2: [{"type": "album", "hash": old}],
+        }
+
+    track_edit.edit_track_tags_by_filepath(paths[1], {"album": "Abbey Road"})
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {
+            1: [other, {"type": "album", "hash": new}],
+            2: [{"type": "album", "hash": new}],
+        }
+
+
+def test_the_artist_card_moves_when_its_last_file_is_renamed(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+    from aivinnet.utils.hashing import create_hash
+
+    paths, _album = collections_db
+    old, new = create_hash("Artist", decode=True), create_hash("The Artist", decode=True)
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [{"type": "artist", "hash": old}])
+
+    renamed = {"artists": "The Artist", "albumartists": "The Artist"}
+    track_edit.edit_track_tags_by_filepath(paths[0], renamed)
+    with DbEngine.manager() as session:
+        # The second file still carries the old name: the artist exists.
+        assert _collections(session) == {1: [{"type": "artist", "hash": old}]}
+
+    track_edit.edit_track_tags_by_filepath(paths[1], renamed)
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {1: [{"type": "artist", "hash": new}]}
+
+
+def test_a_collection_that_already_holds_the_new_album_keeps_one_card(collections_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    new = hashlib.sha1(b"Abbey Road").hexdigest()[:16]
+    with DbEngine.manager(commit=True) as session:
+        _collection(session, 1, [{"type": "album", "hash": new}, {"type": "album", "hash": old}])
+
+    for path in paths:
+        track_edit.edit_track_tags_by_filepath(path, {"album": "Abbey Road"})
+
+    with DbEngine.manager() as session:
+        assert _collections(session) == {1: [{"type": "album", "hash": new}]}
+
+
+def test_the_album_pin_moves_with_the_last_file(collections_db):
+    # Pinned to the sidebar is a favourite of its own type; it was left behind
+    # the same way and the pin vanished from the sidebar.
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib import track_edit
+
+    paths, old = collections_db
+    with DbEngine.manager(commit=True) as session:
+        session.execute(
+            insert(FavoritesTable).values(
+                hash=f"pinned_album_{old}", type="pinned_album", timestamp=1, userid=1, extra={"position": 3}
+            )
+        )
+
+    for path in paths:
+        new = track_edit.edit_track_tags_by_filepath(path, {"album": "Abbey Road"}).albumhash
+
+    with DbEngine.manager() as session:
+        pins = session.execute(
+            select(FavoritesTable.userid, FavoritesTable.hash, FavoritesTable.extra).where(
+                FavoritesTable.type == "pinned_album"
+            )
+        ).all()
+    assert pins == [(1, f"pinned_album_{new}", {"position": 3})]
+
+
+def test_a_pin_is_not_mistaken_for_an_old_album_favourite(reference_db):  # noqa: F811
+    # A legacy favourite row is the bare hash. The collision check matched
+    # the hash alone, so an album favourite of the NEW album counted as an
+    # existing pin of it, and the pin (with its sidebar position) was deleted.
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib.reference_migration import migrate_identity_references
+
+    with DbEngine.manager(commit=True) as session:
+        _favorite(session, 1, "new", "album")  # legacy bare row
+        session.execute(
+            insert(FavoritesTable).values(
+                hash="pinned_album_old", type="pinned_album", timestamp=1, userid=1, extra={"position": 3}
+            )
+        )
+
+    with DbEngine.manager(commit=True) as session:
+        migrate_identity_references("album", {"old": "new"}, session)
+
+    with DbEngine.manager() as session:
+        rows = sorted(session.execute(select(FavoritesTable.type, FavoritesTable.hash, FavoritesTable.extra)).all())
+    assert rows == [("album", "new", {}), ("pinned_album", "pinned_album_new", {"position": 3})]

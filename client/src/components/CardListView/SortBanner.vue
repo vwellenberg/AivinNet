@@ -92,7 +92,7 @@ const artistitems = [
     }
     // The same on the desktop: the container gives the page its start
     // (`$page-start`), and the chips are the first thing at it.
-    @include altLayout {
+    @include desktopPage {
         padding-top: 0;
     }
     position: relative;

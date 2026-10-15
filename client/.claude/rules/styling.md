@@ -401,6 +401,13 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 - **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
   Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
   steht.
+- **Am Handy punktet die Top-Bar UM die Pille herum, nicht in ihr** (Nutzer, 2026-10-15): Die
+  ganze Nav-Zeile von der Bildschirmkante bis zum Inhalt, ohne Maske, die Pille bleibt weiß. Die
+  Ebene malt das **Grid** (`#app-grid::before` mit `grid-area: nav`: ein positioniertes
+  Grid-Kind nimmt den Bereich als Box), nicht die Pille. ⚠️ `z-index: -1` hinter der Pille geht
+  hier **nicht**: `html` und `body` malen beide eine Hintergrundfarbe, also wird der Body-Grund
+  als normaler Block **über** jeder negativen Ebene gemalt — die Punkte waren einfach weg, ohne
+  Fehler. Zensus: `halftoneEdges.test.ts`.
 - **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
 - **Der Aufbau ist ein Pop aus der Ecke** (`mem-motif-pop`, `transform-origin: 100% 0`), gestaffelt
   über `:nth-child` auf `.statmotif`. Die `animation`-Kurzform setzt das Delay zurück — es steht
@@ -1481,6 +1488,15 @@ Hover-Mixin, das die Fläche tauscht ohne die Textfarbe. Beim allerersten Lauf f
 `btn-pill` — Modal- und Dialog-Buttons hoverten auf `$candy-pink-deep`, was auf **`$mem-yellow`**
 zeigt: ein Dialog-Button war für die Dauer des Zeigers ein „läuft"-Signal.
 
+⚠️ **Das Suchfeld oben ist kein Bedienelement, sondern ein Feld — es hovert auf Blush, nicht auf
+das Token** (`RightSideBar/SearchInput.vue`; der Zensus liest nur `_candy.scss` und
+`_buttons.scss`). Blush ist in **beiden** Themes dasselbe helle Rosa, `$candy-text` aber nicht:
+Im Dark-Theme blieb der Text Paper, und eine getippte Suche war unter dem Zeiger unlesbar
+(gemessen: rgb(244,242,237) auf rgb(245,198,206), ≈ 1,3:1). Deshalb pinnt der Hover Ink auf Text,
+Lupe und Platzhalter (≈ 12:1) — dieselbe Regel wie bei jeder Blush-Fläche (`DropDown .current`,
+`RecentSearches`, `Notification`): **statisches Blush → statisches Ink**, nie die Theme-Textfarbe.
+Und nur unter `@media (hover: hover)`: auf Touch latcht `:hover` nach dem Tippen.
+
 **Hover für Listenzeilen ist zentralisiert:** `candy-row-base` + `candy-row-hover` in
 `_candy.scss`. Die Base-Hälfte ist Pflicht (reservierter transparenter Rand in `$candy-border-w`)
 — ohne sie springt der Inhalt beim Hover, und genau deshalb hatten die Folder-Zeilen
@@ -1872,8 +1888,15 @@ Die Ursache war überall dieselbe Form: Der Seiten-Container gibt im Alt-Layout 
 darauf — der leere `GenericHeader` 36 px, die Sortier-Chips 1rem, die erste Favoriten-Reihe 1rem,
 das Chart-Raster 1,25rem + 4 px. Suche und Ordner verwalten eigene Scroller und hatten gar nichts.
 
-- **Der Container gibt `$page-start`, das erste Element gibt nichts dazu.** Erreichbar über das
-  Mixin `altLayout` (`#app-grid.is_alt_layout &` — es ist ein Store-Wert, keine Media Query).
+- **Der Container gibt `$page-start`, das erste Element gibt nichts dazu** — in **jedem** Layout
+  über dem Handy. Mixin `desktopPage` (`min-width: 901px`, das genaue Gegenstück zu `allPhones`;
+  in TypeScript `isMobile`). ⚠️ Die erste Runde hing das an `altLayout`
+  (`#app-grid.is_alt_layout`, also **Inhalt** > 900 px) und ließ damit ein drittes Layout aus: ein
+  breites Fenster, dessen rechte Sidebar den Inhalt unter 900 px drückt. Dort hatten die
+  Container gar kein Polster, und die Seiten starteten zwischen 23 (Playlists) und 63 px (Stats),
+  gemessen bei 1000 und 1100 px. Beim Nutzer sah das aus wie „Favoriten und Playlists fangen
+  verschieden an", **obwohl die Messung bei 1440 überall 35 px zeigte.** Wer einen Layout-Schalter
+  als Gate nimmt, zählt vorher die Layouts auf, die es gibt (hier drei: Handy, Mitte, Alt).
 - **Ein leerer Seitenkopf nimmt auf dem Desktop keinen Platz** (`.is-empty`, berechnet aus dem,
   was er *malt*: Titel, Aktionen, `#after` — die Beschreibung wird nie gemalt).
 - ⚠️ **Ein 0-px-Eintrag im `DynamicScroller` zählt als ungemessen.** Der leere Kopf war auf
@@ -1883,11 +1906,13 @@ das Chart-Raster 1,25rem + 4 px. Suche und Ordner verwalten eigene Scroller und 
   lassen.
 - **Ordner:** Die Klebe-Platte trägt ihre 8 px Luft selbst, und die wandern beim Kleben mit
   (siehe „sticky Kopf ist eine Platte"). Der Rest von `$page-start` steht deshalb **vor** dem
-  Scroller (`.folder-view.is_alt_layout`), nicht in ihm — sonst klebte die Platte 32 px tief, mit
-  Zeilen, die darüber durchlaufen.
-- Messung nach der Änderung: 32 px auf 18 Hauptrouten bei 1440 und 1920. Zensus:
-  `pageStart.test.ts`. **Nicht abgedeckt** ist das mittlere Layout (Fenster ~900–1150 px, Inhalt
-  ≤ 900): dort haben die Container gar kein oberes Polster und die Werte streuen weiter (0–60 px).
+  Scroller (`.folders-page`), nicht in ihm — sonst klebte die Platte 32 px tief, mit Zeilen, die
+  darüber durchlaufen. ⚠️ Die Playlist-Seite trägt **auch** `.folder-view`, darum die eigene
+  Klasse.
+- Messung nach der Änderung: 35 px (32 + Rahmen) auf allen Hauptrouten bei 1000, 1100, 1440 und
+  1920; am Handy 27 px (Stats lag dort 4 px tiefer, das Polster des Chart-Kopfs ist jetzt in jedem
+  Layout weg). Zensus: `pageStart.test.ts`. ⚠️ Beim Messen **lange genug warten** (≥ 2,5 s): der
+  Playlist-Kopf steht während des Ladens kurz auf 3 px und täuscht einen Ausreißer vor.
 
 ## Ein Regler zeigt vor dem Klick, wo er landet — Seek **und** Lautstärke
 

@@ -110,7 +110,8 @@ const mobileTitle = computed(() => {
     // and the dots fade out over the next 15%.
     &::before {
         @include mem-halftone($reach: null, $edges: 10%);
-        // Phones wear no dots in the top bar (user, 2026-10-12).
+        // Not inside the phone pill: there the dots cover the strip AROUND it,
+        // drawn by the grid (app-grid.scss, user 2026-10-15).
         @include allPhones {
             display: none;
         }
