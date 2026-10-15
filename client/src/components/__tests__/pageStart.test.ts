@@ -21,7 +21,8 @@ import { describe, expect, it } from "vitest";
 //
 // jsdom applies no stylesheet, so the census reads the source: one token, the
 // container that gives it, and every first element that must not add to it.
-// Measured after the change: 32px on all 18 main routes (PR).
+// Measured after the change: 32px on all 18 main routes (PR), and again
+// between the phone and the alt layout, which the first round left out.
 // ---------------------------------------------------------------------------
 
 const read = (rel: string) => readFileSync(join("src", rel), "utf-8");
@@ -53,20 +54,30 @@ function styleOf(source: string, selector: string): string {
 }
 
 describe("desktop page start", () => {
-  it("is one token, and the alt layout's container gives it", () => {
+  it("is one token, and the page container gives it in every desktop layout", () => {
     expect(read("assets/scss/_variables.scss")).toMatch(/^\$page-start: 2rem;/m);
     const grid = read("assets/scss/Global/app-grid.scss");
+    // The alt layout's own container…
     expect(grid).toMatch(/\.vue-recycle-scroller,\s*\.content-page \{\s*padding-top: \$page-start;/);
+    // …and the one between the phone and the alt layout (a wide window whose
+    // sidebar leaves the content under 900px): there the pages started
+    // anywhere from 23 to 63px until this rule.
+    const desktop = includeBlocks(grid, "desktopPage");
+    expect(desktop.some((b) => /#acontent \.vue-recycle-scroller,\s*#acontent \.content-page \{\s*padding-top: \$page-start;/.test(b))).toBe(true);
     expect(grid).not.toMatch(/\.content-page \{\s*padding-top: 2rem;/);
   });
 
-  it("reads the alt layout through its class", () => {
-    expect(read("assets/scss/_mixins.scss")).toMatch(/@mixin altLayout \{\s*#app-grid\.is_alt_layout & \{\s*@content;/);
+  it("covers every layout above the phone: the exact complement of allPhones", () => {
+    const mixins = read("assets/scss/_mixins.scss");
+    expect(mixins).toMatch(/@mixin allPhones \{\s*@media only screen and \(max-width: 900px\)/);
+    expect(mixins).toMatch(/@mixin desktopPage \{\s*@media only screen and \(min-width: 901px\) \{\s*@content;/);
+    // The one TypeScript reader of the same line.
+    expect(read("stores/content-width.ts")).toMatch(/isMobile = computed\(\(\) => win_width\.value <= ALL_MOBILE_WIDTH\)/);
   });
 
   it("is not topped up by the page head, and an empty head takes no room", () => {
     const head = read("components/shared/GenericHeader.vue");
-    const blocks = includeBlocks(head, "altLayout");
+    const blocks = includeBlocks(head, "desktopPage");
     expect(blocks.length).toBe(1);
     // Only the head that starts the page: /stats has a second one as a section
     // heading under the charts.
@@ -81,30 +92,37 @@ describe("desktop page start", () => {
     ["components/CardListView/SortBanner.vue", ".itemsortby", "padding-top"],
     ["views/Favorites.vue", ".recent-favs", "padding-top"],
     ["components/Stats/Charts.vue", ".chartitemgroupsgrid", "margin-top"],
-    ["components/Stats/ChartsHeader.vue", ".chartheader", "padding-top"],
   ])("is not topped up by the first element of %s", (file, selector, property) => {
     const source = read(file);
-    const blocks = includeBlocks(styleOf(source, selector), "altLayout");
-    expect(blocks.length, `${selector} has no altLayout block`).toBeGreaterThan(0);
+    const blocks = includeBlocks(styleOf(source, selector), "desktopPage");
+    expect(blocks.length, `${selector} has no desktopPage block`).toBeGreaterThan(0);
     expect(blocks[0]).toMatch(new RegExp(`^\\s*${property}: 0;`, "m"));
   });
 
-  it("drops the empty head from the album list on the desktop, where a 0px scroller item counts as 64px", () => {
+  it("is not topped up by the stats tabs in any layout", () => {
+    expect(styleOf(read("components/Stats/ChartsHeader.vue"), ".chartheader")).toMatch(
+      /^\.chartheader \{[^{}]*padding: 0 0 1rem 0;/,
+    );
+  });
+
+  it("drops the empty head from the album list above the phone, where a 0px scroller item counts as 64px", () => {
     const view = read("views/AlbumListView/main.vue");
-    expect(view).toMatch(/if \(!settings\.is_alt_layout\) \{\s*items\.push\(\{\s*id: "header",\s*component: GenericHeader,/);
+    expect(view).toMatch(/if \(isMobile\.value\) \{\s*items\.push\(\{\s*id: "header",\s*component: GenericHeader,/);
   });
 
   it("is given by the search page and the folder view, which own their scrollers", () => {
     const search = read("views/SearchView/main.vue");
-    const blocks = includeBlocks(search, "altLayout");
+    const blocks = includeBlocks(search, "desktopPage");
     expect(blocks.length).toBe(2);
     for (const block of blocks) expect(block).toMatch(/padding-top: \$page-start;/);
-    expect(search).toMatch(/&:not\(\.has_query\) \.search-page-top-results \{\s*@include altLayout/);
+    expect(search).toMatch(/&:not\(\.has_query\) \.search-page-top-results \{\s*@include desktopPage/);
 
     // The folder head keeps its own $small (it travels with the plate when it
     // sticks); the container in front of the scroller gives the rest.
     const folder = read("views/FolderView.vue");
-    expect(folder).toMatch(/\.folder-view\.is_alt_layout \{\s*padding-top: calc\(#\{\$page-start\} - #\{\$small\}\);/);
+    // `.folders-page`: the playlist view wears `.folder-view` too.
+    expect(folder).toMatch(/class="folder-view folders-page v-scroll-page"/);
+    expect(folder).toMatch(/\.folders-page \{\s*@include desktopPage \{\s*padding-top: calc\(#\{\$page-start\} - #\{\$small\}\);/);
     expect(folder).toMatch(/#folder-nav-title \{[^}]*margin: \$small 0;/);
   });
 });

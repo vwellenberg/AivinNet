@@ -22,7 +22,7 @@ import ChartItemGroup from './ChartItemGroup.vue'
         margin-top: 1.25rem;
         // Not on the desktop: the container starts the page (`$page-start`),
         // and the tabs are the first thing at that line.
-        @include altLayout {
+        @include desktopPage {
             margin-top: 0;
         }
         display: grid;

@@ -284,6 +284,18 @@ $g-border: solid $candy-border-w $mem-line;
     padding-left: $padleft;
 }
 
+// The desktop page start (`$page-start`, _variables.scss) for the layout
+// between the phone and the alt layout: a wide window whose right sidebar
+// leaves the content under 900px. The alt layout gives it below with its own
+// container; without this the pages started anywhere from 23 to 63px here.
+// Scoped to #acontent: the queue in the right sidebar is a scroller as well.
+@include desktopPage {
+    #acontent .vue-recycle-scroller,
+    #acontent .content-page {
+        padding-top: $page-start;
+    }
+}
+
 .r-sidebar {
     grid-area: r-sidebar;
     border-left: $g-border;

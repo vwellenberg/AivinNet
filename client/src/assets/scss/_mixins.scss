@@ -55,12 +55,18 @@
 
    `orientation: landscape` belongs in the query, not just the height: an
    upright tablet also lands in that width band and is not short. */
-/* The desktop layout: content wider than 900px (`settings.is_alt_layout`, the
-   class on #app-grid). It is a store value, not a media query, so it is read
-   through the class. Use it for what the alt layout's page container already
-   gives every page, e.g. `$page-start`. */
-@mixin altLayout {
-  #app-grid.is_alt_layout & {
+/* Every layout above the phone: the exact complement of `allPhones`. The
+   desktop page start (`$page-start`) lives here, given by the page container
+   (app-grid.scss) and not topped up by a page's first element.
+
+   It used to be `altLayout` — `#app-grid.is_alt_layout`, i.e. CONTENT wider
+   than 900px — and that left a third layout out: a wide window whose sidebar
+   squeezes the content under 900px. There the pages started anywhere from 23
+   (Playlists) to 63px (Stats), measured at 1000 and 1100px wide, while the alt
+   layout and the phone each had one line. The phone has its own start
+   (`$phone-page-start`), owned by the page head. */
+@mixin desktopPage {
+  @media only screen and (min-width: 901px) {
     @content;
   }
 }

@@ -114,7 +114,7 @@ function handlePlay(index: number) {
         }
 
         // And on the desktop, where the container gives it (`$page-start`).
-        @include altLayout {
+        @include desktopPage {
             padding-top: 0;
         }
     }

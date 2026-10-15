@@ -71,7 +71,7 @@ const painted = computed(() => Boolean(slots.name || slots.right || slots.after)
     // head that IS the page's first element: /stats also uses one as a section
     // heading under the charts, and that one keeps its air. The padding above
     // stays for the narrower layouts, where the container has none.
-    @include altLayout {
+    @include desktopPage {
         &:first-child {
             padding-top: 0;
         }

@@ -1880,8 +1880,15 @@ Die Ursache war überall dieselbe Form: Der Seiten-Container gibt im Alt-Layout 
 darauf — der leere `GenericHeader` 36 px, die Sortier-Chips 1rem, die erste Favoriten-Reihe 1rem,
 das Chart-Raster 1,25rem + 4 px. Suche und Ordner verwalten eigene Scroller und hatten gar nichts.
 
-- **Der Container gibt `$page-start`, das erste Element gibt nichts dazu.** Erreichbar über das
-  Mixin `altLayout` (`#app-grid.is_alt_layout &` — es ist ein Store-Wert, keine Media Query).
+- **Der Container gibt `$page-start`, das erste Element gibt nichts dazu** — in **jedem** Layout
+  über dem Handy. Mixin `desktopPage` (`min-width: 901px`, das genaue Gegenstück zu `allPhones`;
+  in TypeScript `isMobile`). ⚠️ Die erste Runde hing das an `altLayout`
+  (`#app-grid.is_alt_layout`, also **Inhalt** > 900 px) und ließ damit ein drittes Layout aus: ein
+  breites Fenster, dessen rechte Sidebar den Inhalt unter 900 px drückt. Dort hatten die
+  Container gar kein Polster, und die Seiten starteten zwischen 23 (Playlists) und 63 px (Stats),
+  gemessen bei 1000 und 1100 px. Beim Nutzer sah das aus wie „Favoriten und Playlists fangen
+  verschieden an", **obwohl die Messung bei 1440 überall 35 px zeigte.** Wer einen Layout-Schalter
+  als Gate nimmt, zählt vorher die Layouts auf, die es gibt (hier drei: Handy, Mitte, Alt).
 - **Ein leerer Seitenkopf nimmt auf dem Desktop keinen Platz** (`.is-empty`, berechnet aus dem,
   was er *malt*: Titel, Aktionen, `#after` — die Beschreibung wird nie gemalt).
 - ⚠️ **Ein 0-px-Eintrag im `DynamicScroller` zählt als ungemessen.** Der leere Kopf war auf
@@ -1891,11 +1898,13 @@ das Chart-Raster 1,25rem + 4 px. Suche und Ordner verwalten eigene Scroller und 
   lassen.
 - **Ordner:** Die Klebe-Platte trägt ihre 8 px Luft selbst, und die wandern beim Kleben mit
   (siehe „sticky Kopf ist eine Platte"). Der Rest von `$page-start` steht deshalb **vor** dem
-  Scroller (`.folder-view.is_alt_layout`), nicht in ihm — sonst klebte die Platte 32 px tief, mit
-  Zeilen, die darüber durchlaufen.
-- Messung nach der Änderung: 32 px auf 18 Hauptrouten bei 1440 und 1920. Zensus:
-  `pageStart.test.ts`. **Nicht abgedeckt** ist das mittlere Layout (Fenster ~900–1150 px, Inhalt
-  ≤ 900): dort haben die Container gar kein oberes Polster und die Werte streuen weiter (0–60 px).
+  Scroller (`.folders-page`), nicht in ihm — sonst klebte die Platte 32 px tief, mit Zeilen, die
+  darüber durchlaufen. ⚠️ Die Playlist-Seite trägt **auch** `.folder-view`, darum die eigene
+  Klasse.
+- Messung nach der Änderung: 35 px (32 + Rahmen) auf allen Hauptrouten bei 1000, 1100, 1440 und
+  1920; am Handy 27 px (Stats lag dort 4 px tiefer, das Polster des Chart-Kopfs ist jetzt in jedem
+  Layout weg). Zensus: `pageStart.test.ts`. ⚠️ Beim Messen **lange genug warten** (≥ 2,5 s): der
+  Playlist-Kopf steht während des Ladens kurz auf 3 px und täuscht einen Ausreißer vor.
 
 ## Ein Regler zeigt vor dem Klick, wo er landet — Seek **und** Lautstärke
 

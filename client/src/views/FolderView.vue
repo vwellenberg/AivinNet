@@ -1,5 +1,5 @@
 <template>
-    <div class="folder-view v-scroll-page" style="height: 100%" :class="{ isSmall, isMedium, is_alt_layout }">
+    <div class="folder-view folders-page v-scroll-page" style="height: 100%" :class="{ isSmall, isMedium, is_alt_layout }">
         <NoItems
             :flag="folder.tracks.length === 0 && folder.dirs.length === 0"
             :title="folder.query === '' ? 'Folder is empty' : 'No results found'"
@@ -178,8 +178,13 @@ onMounted(() => {
 // so the rest goes in front of the scroller: inside it, the stuck plate would
 // stand 32px down with rows passing above it. The scroller's clip edge moves
 // down with it, which only ever cuts rows that are already behind the plate.
-.folder-view.is_alt_layout {
-    padding-top: calc(#{$page-start} - #{$small});
+// Every layout above the phone, not just the alt one: between the two the
+// head sat 8px below the panel. `.folders-page`, because the playlist view
+// wears `.folder-view` too and starts through the scroller instead.
+.folders-page {
+    @include desktopPage {
+        padding-top: calc(#{$page-start} - #{$small});
+    }
 }
 
 // Every layout that renders the head INSIDE the scroller, i.e. the same

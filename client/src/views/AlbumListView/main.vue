@@ -38,8 +38,8 @@ import { computed, ref } from "vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from "vue-router";
 
 import useCardGridColumns from "@/helpers/useCardGridColumns";
+import { isMobile } from "@/stores/content-width";
 import { useAlbumList, useArtistList } from "@/stores/pages/itemlist";
-import useSettings from "@/stores/settings";
 
 import Fetcher from "@/components/ArtistView/AlbumsFetcher.vue";
 import CardRow from "@/components/shared/CardRow.vue";
@@ -48,7 +48,6 @@ import SortBanner from "@/components/CardListView/SortBanner.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
 
 const route = useRoute();
-const settings = useSettings();
 const store = route.name == Routes.AlbumList ? useAlbumList() : useArtistList();
 
 // One component, two routes — the tab has to say which one it is.
@@ -66,12 +65,13 @@ const scrollerItems = computed(() => {
   const items = [];
 
   // Empty head: the left navigation names this page; it stays for the
-  // spacing above the first row on the narrower layouts ($phone-page-start).
-  // NOT on the desktop, where the container gives the page its start
-  // ($page-start) and the head would add nothing — and an item of 0px is
-  // one the DynamicScroller never counts as measured: it kept the 64px
-  // estimate, and the chips stood 64px below every other page's first line.
-  if (!settings.is_alt_layout) {
+  // spacing above the first row on the phone ($phone-page-start). NOT on any
+  // wider layout, where the container gives the page its start ($page-start)
+  // and the head would add nothing — and an item of 0px is one the
+  // DynamicScroller never counts as measured: it kept the 64px estimate, and
+  // the chips stood 64px below every other page's first line. `isMobile` is
+  // the same 900px window line as `allPhones`/`desktopPage` in the styles.
+  if (isMobile.value) {
     items.push({
       id: "header",
       component: GenericHeader,
