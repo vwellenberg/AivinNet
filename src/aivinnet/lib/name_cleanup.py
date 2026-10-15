@@ -212,8 +212,7 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
     from aivinnet.db.engine import DbEngine
     from aivinnet.lib.reference_migration import (
         collections_to_move,
-        migrate_collection_items,
-        migrate_item_favorites,
+        migrate_identity_references,
         migrate_track_references_many,
     )
 
@@ -231,13 +230,14 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
         with DbEngine.manager(commit=True) as session:
             if track_map:
                 migrate_track_references_many(track_map, session=session)
-            for old, new in favorite_map.items():
-                migrate_item_favorites("artist", old, new, session)
-            if collections:
-                report["collections"] = migrate_collection_items("artist", artist_map, session)
+            # The same function as the tag edit, so a store added there moves
+            # here too; it writes only rows that exist.
+            if favorite_map or collections:
+                migrate_identity_references("artist", artist_map, session)
 
     report["tracks"] = len(track_map)
     report["artists"] = len(favorite_map)
+    report["collections"] = len(collections)
 
     if any(report.values()):
         log.info(

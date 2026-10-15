@@ -66,7 +66,9 @@
    layout and the phone each had one line. The phone has its own start
    (`$phone-page-start`), owned by the page head. */
 @mixin desktopPage {
-  @media only screen and (min-width: 901px) {
+  // `not … (max-width: 900px)`, not `min-width: 901px`: a zoomed or scaled
+  // window can be 900.8 CSS px wide, and that matched neither breakpoint.
+  @media not all and (max-width: 900px) {
     @content;
   }
 }

@@ -114,6 +114,11 @@ class TestMoveCollectionItems:
             {"type": "artist", "hash": "new"},
         ]
 
+    def test_duplicates_on_the_target_hash_collapse_to_one(self):
+        # The move lands on "new": every card there is the same card.
+        items = [{"type": "album", "hash": "new"}, {"type": "album", "hash": "new"}, {"type": "album", "hash": "old"}]
+        assert move_collection_items(items, "album", {"old": "new"}) == [{"type": "album", "hash": "new"}]
+
     def test_other_fields_and_foreign_entries_survive(self):
         items = [{"type": "album", "hash": "old", "extra": {"pinned": True}}, "not-a-card", {"type": "album"}]
         assert move_collection_items(items, "album", {"old": "new"}) == [

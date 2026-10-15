@@ -1495,6 +1495,7 @@ Im Dark-Theme blieb der Text Paper, und eine getippte Suche war unter dem Zeiger
 (gemessen: rgb(244,242,237) auf rgb(245,198,206), ≈ 1,3:1). Deshalb pinnt der Hover Ink auf Text,
 Lupe und Platzhalter (≈ 12:1) — dieselbe Regel wie bei jeder Blush-Fläche (`DropDown .current`,
 `RecentSearches`, `Notification`): **statisches Blush → statisches Ink**, nie die Theme-Textfarbe.
+Und nur unter `@media (hover: hover)`: auf Touch latcht `:hover` nach dem Tippen.
 
 **Hover für Listenzeilen ist zentralisiert:** `candy-row-base` + `candy-row-hover` in
 `_candy.scss`. Die Base-Hälfte ist Pflicht (reservierter transparenter Rand in `$candy-border-w`)

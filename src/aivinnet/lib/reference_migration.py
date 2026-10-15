@@ -281,9 +281,14 @@ def migrate_item_favorites(kind: str, old_hash: str, new_hash: str, session: Any
     ).all()
 
     for row_id, userid in rows:
+        # Of the same type: a bare legacy row holds only the hash, so without it
+        # an album favourite of the new album counted as an existing PIN of it,
+        # and the pin was deleted instead of moved.
         taken = session.execute(
             select(FavoritesTable.id).where(
-                FavoritesTable.userid == userid, FavoritesTable.hash.in_([new_key, new_hash])
+                FavoritesTable.userid == userid,
+                FavoritesTable.type == kind,
+                FavoritesTable.hash.in_([new_key, new_hash]),
             )
         ).first()
         if taken:
@@ -309,8 +314,8 @@ def move_collection_items(items: Sequence[Any], kind: str, mapping: dict[str, st
     nothing: Home skips a card it cannot resolve, and it vanished (#481). Like
     a playlist (`replace_trackhash_in_list`), a move never adds a duplicate:
     where two old names meet on one new hash, or the new identity is already in
-    the collection, the first card stays. Duplicates the move does not touch
-    stay as they were.
+    the collection, the first card on that hash stays. Duplicates of a hash the
+    move does not land on stay as they were.
     """
     if not any(_is_card(item, kind) and item["hash"] in mapping for item in items):
         return None
@@ -370,18 +375,21 @@ def migrate_collection_items(kind: str, mapping: dict[str, str], session: Any) -
     return len(changed)
 
 
-def migrate_identity_references(kind: str, old_hash: str, new_hash: str, session: Any) -> None:
+def migrate_identity_references(kind: str, mapping: dict[str, str], session: Any) -> None:
     """
-    Everything that stores an album's or artist's hash, moved from ``old_hash`` to ``new_hash``.
+    Every database row that keys an album or artist by its hash, moved along ``mapping``.
 
-    The one place to add a new store: favourites (#296), the sidebar pins of an
-    album and the cards in Home's collections (#481) were each wired in on
-    their own, and every one left out vanished silently after a retag.
+    The one place to add a new store, called by the tag edit and by the name
+    cleanup alike: favourites (#296), the sidebar pins of an album and the cards
+    in Home's collections (#481) were each wired in on their own, and every one
+    left out vanished silently after a retag. Files keyed by the hash (a chosen
+    album cover, an artist picture) are not rows and do not move here.
     """
-    migrate_item_favorites(kind, old_hash, new_hash, session)
-    if kind == "album":
-        migrate_item_favorites("pinned_album", old_hash, new_hash, session)
-    migrate_collection_items(kind, {old_hash: new_hash}, session)
+    for old_hash, new_hash in mapping.items():
+        migrate_item_favorites(kind, old_hash, new_hash, session)
+        if kind == "album":
+            migrate_item_favorites("pinned_album", old_hash, new_hash, session)
+    migrate_collection_items(kind, mapping, session)
 
 
 def migrate_track_references(old_trackhash: str, new_trackhash: str, session: Any = None) -> None:

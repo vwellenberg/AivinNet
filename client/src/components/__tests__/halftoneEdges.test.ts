@@ -45,7 +45,7 @@ describe('halftone at the ends', () => {
         // …but on the whole nav row around it, edge to edge (no mask: no
         // $edges, $band or $reach), drawn by the grid so the pill paints over it.
         const grid = read('src/assets/scss/Global/app-grid.scss')
-        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;/)
+        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
     })
 
     it('on phones the continue card dots both ends alike', () => {

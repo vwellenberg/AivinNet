@@ -1,5 +1,8 @@
 $g-border: solid $candy-border-w $mem-line;
 
+// The grid's gaps; the phone's dotted nav strip reaches across the row gap.
+$app-grid-gap: 8px;
+
 #app-grid {
     display: grid;
     // grid-template-columns: min-content 1fr 29rem;
@@ -13,8 +16,8 @@ $g-border: solid $candy-border-w $mem-line;
         'l-sidebar content'
         'bottombar bottombar';
     height: 100%;
-    column-gap: 8px;
-    row-gap: 8px;
+    column-gap: $app-grid-gap;
+    row-gap: $app-grid-gap;
     margin: 0 auto;
     position: relative;
 
@@ -43,6 +46,9 @@ $g-border: solid $candy-border-w $mem-line;
         &::before {
             @include mem-halftone($reach: null);
             grid-area: nav;
+            // Down to the content card: the row gap below the nav row is part
+            // of the strip, or an 8px seam of bare ground showed under it.
+            bottom: calc(-1 * #{$app-grid-gap});
         }
     }
 
@@ -308,6 +314,12 @@ $g-border: solid $candy-border-w $mem-line;
     #acontent .vue-recycle-scroller,
     #acontent .content-page {
         padding-top: $page-start;
+    }
+
+    // The lyrics page nests a second `.content-page`; the outer one gives the
+    // start, as the alt layout's `#lyricscontent` rule below does.
+    #acontent #lyricscontent {
+        padding-top: 0;
     }
 }
 

@@ -147,17 +147,21 @@ function handleButton() {
         // (DropDown, RecentSearches, Notification). The blush is the same light
         // pink in both themes, the text is not: in dark mode it stayed paper,
         // and a typed query turned unreadable under the pointer.
-        &:hover {
-            background-color: $candy-pink;
-            color: $mem-ink;
-
-            button {
+        // A real pointer only: on touch `:hover` latches after a tap, and the
+        // field (transparent on phones) stayed pink until the next tap.
+        @media (hover: hover) {
+            &:hover {
+                background-color: $candy-pink;
                 color: $mem-ink;
-            }
 
-            input::placeholder {
-                color: $mem-ink;
-                opacity: 0.6;
+                button {
+                    color: $mem-ink;
+                }
+
+                input::placeholder {
+                    color: $mem-ink;
+                    opacity: 0.6;
+                }
             }
         }
 

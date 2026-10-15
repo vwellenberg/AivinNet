@@ -192,9 +192,12 @@ onMounted(() => {
 // `.is_alt_layout` alone (as it was) left the medium and phone layouts with a
 // head that had no surface at all — breadcrumb text straight on the doodled
 // ground, against the veil rule, and not sticky either.
-.folder-view.is_alt_layout,
-.folder-view.isMedium,
-.folder-view.isSmall {
+// `.folders-page`, not `.folder-view`: the playlist view wears that class too,
+// and this `!important` reached its scroller once the Folders chunk had loaded —
+// the playlist then started 32px higher than before the visit.
+.folders-page.is_alt_layout,
+.folders-page.isMedium,
+.folders-page.isSmall {
     .scroller {
         // The head used to bleed into the card's top edge. It is a plate now and
         // owns the air on both of its sides itself (`margin` below) — putting

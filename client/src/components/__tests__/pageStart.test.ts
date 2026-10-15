@@ -70,7 +70,8 @@ describe("desktop page start", () => {
   it("covers every layout above the phone: the exact complement of allPhones", () => {
     const mixins = read("assets/scss/_mixins.scss");
     expect(mixins).toMatch(/@mixin allPhones \{\s*@media only screen and \(max-width: 900px\)/);
-    expect(mixins).toMatch(/@mixin desktopPage \{\s*@media only screen and \(min-width: 901px\) \{\s*@content;/);
+    // Negated, so no fractional width between 900 and 901 falls through both.
+    expect(mixins).toMatch(/@mixin desktopPage \{[^{}]*@media not all and \(max-width: 900px\) \{\s*@content;/);
     // The one TypeScript reader of the same line.
     expect(read("stores/content-width.ts")).toMatch(/isMobile = computed\(\(\) => win_width\.value <= ALL_MOBILE_WIDTH\)/);
   });

@@ -62,8 +62,12 @@ describe("the folder head is a plate wherever the scroller renders it", () => {
     const flags = (condition as string).split("||").map(f => f.trim());
     expect(flags.length).toBeGreaterThan(1);
 
+    // `.folders-page`, not `.folder-view`: the playlist view wears that class
+    // too, and these rules (an `!important` on the scroller's padding among
+    // them) reached it once the Folders chunk had loaded.
     for (const flag of flags) {
-      expect(STYLE, `no rules for .${flag}`).toContain(`.folder-view.${flag}`);
+      expect(STYLE, `no rules for .${flag}`).toContain(`.folders-page.${flag}`);
+      expect(STYLE, `.folder-view.${flag} would leak into the playlist view`).not.toContain(`.folder-view.${flag}`);
     }
   });
 

@@ -374,7 +374,7 @@ def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -
             if repoint and not wait:
                 migrate_track_references(old_trackhash, new_trackhash, session)
             for kind, old_hash, new_hash in retired:
-                migrate_identity_references(kind, old_hash, new_hash, session)
+                migrate_identity_references(kind, {old_hash: new_hash}, session)
 
         new_track.id = TrackTable.replace_by_filepath(
             tags,

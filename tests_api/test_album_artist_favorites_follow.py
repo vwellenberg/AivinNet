@@ -255,3 +255,27 @@ def test_the_album_pin_moves_with_the_last_file(collections_db):
             )
         ).all()
     assert pins == [(1, f"pinned_album_{new}", {"position": 3})]
+
+
+def test_a_pin_is_not_mistaken_for_an_old_album_favourite(reference_db):  # noqa: F811
+    # A legacy favourite row is the bare hash. The collision check matched
+    # the hash alone, so an album favourite of the NEW album counted as an
+    # existing pin of it, and the pin (with its sidebar position) was deleted.
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable
+    from aivinnet.lib.reference_migration import migrate_identity_references
+
+    with DbEngine.manager(commit=True) as session:
+        _favorite(session, 1, "new", "album")  # legacy bare row
+        session.execute(
+            insert(FavoritesTable).values(
+                hash="pinned_album_old", type="pinned_album", timestamp=1, userid=1, extra={"position": 3}
+            )
+        )
+
+    with DbEngine.manager(commit=True) as session:
+        migrate_identity_references("album", {"old": "new"}, session)
+
+    with DbEngine.manager() as session:
+        rows = sorted(session.execute(select(FavoritesTable.type, FavoritesTable.hash, FavoritesTable.extra)).all())
+    assert rows == [("album", "new", {}), ("pinned_album", "pinned_album_new", {"position": 3})]
