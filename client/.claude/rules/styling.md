@@ -401,6 +401,13 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 - **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
   Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
   steht.
+- **Am Handy punktet die Top-Bar UM die Pille herum, nicht in ihr** (Nutzer, 2026-10-15): Die
+  ganze Nav-Zeile von der Bildschirmkante bis zum Inhalt, ohne Maske, die Pille bleibt weiß. Die
+  Ebene malt das **Grid** (`#app-grid::before` mit `grid-area: nav`: ein positioniertes
+  Grid-Kind nimmt den Bereich als Box), nicht die Pille. ⚠️ `z-index: -1` hinter der Pille geht
+  hier **nicht**: `html` und `body` malen beide eine Hintergrundfarbe, also wird der Body-Grund
+  als normaler Block **über** jeder negativen Ebene gemalt — die Punkte waren einfach weg, ohne
+  Fehler. Zensus: `halftoneEdges.test.ts`.
 - **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
 - **Der Aufbau ist ein Pop aus der Ecke** (`mem-motif-pop`, `transform-origin: 100% 0`), gestaffelt
   über `:nth-child` auf `.statmotif`. Die `animation`-Kurzform setzt das Delay zurück — es steht

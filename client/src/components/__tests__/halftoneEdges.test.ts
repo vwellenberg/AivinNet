@@ -38,9 +38,17 @@ describe('halftone at the ends', () => {
         expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*45%/)
     })
 
-    it('on phones the top bar has no dots and the continue card dots both ends alike', () => {
+    it('on phones the pill stays white, the dots cover the strip around it', () => {
+        // Not inside the pill…
         const nav = read('src/components/nav/NavBar.vue')
         expect(nav).toMatch(/mem-halftone\([^)]*\);\s*[^}]*@include allPhones\s*\{\s*display:\s*none/)
+        // …but on the whole nav row around it, edge to edge (no mask: no
+        // $edges, $band or $reach), drawn by the grid so the pill paints over it.
+        const grid = read('src/assets/scss/Global/app-grid.scss')
+        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;/)
+    })
+
+    it('on phones the continue card dots both ends alike', () => {
         const card = read('src/components/HomeView/ContinueCard.vue')
         expect(card).toMatch(/@include allPhones\s*\{\s*@include mem-halftone\([^)]*\$edges:\s*5%,\s*\$right:\s*5%/)
     })
