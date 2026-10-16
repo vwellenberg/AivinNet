@@ -1,0 +1,12 @@
+# Asks GitHub once a minute whether the `deploy` branch moved (AivinNet#478).
+# Nothing to do is a silent, cheap run: one `git fetch` of two refs.
+[Unit]
+Description=AivinNet: poll for a deploy signal every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

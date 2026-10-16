@@ -1,0 +1,21 @@
+# One run of the pull-based deploy (AivinNet#478): scripts/auto-deploy.sh.
+# Started every minute by aivinnet-deploy.timer. A user unit — install steps in
+# scripts/systemd/README.md.
+[Unit]
+Description=AivinNet: deploy the commit the `deploy` branch points at
+# No After=network-online.target: a user manager has no such unit. The timer's
+# OnBootSec gives the network its time, and a fetch that fails just waits for
+# the next minute.
+
+[Service]
+Type=oneshot
+# The checkout this unit deploys. Adjust if it is not ~/AivinNet.
+WorkingDirectory=%h/AivinNet
+ExecStart=/usr/bin/env bash %h/AivinNet/scripts/auto-deploy.sh
+# A user unit's PATH is short: uv lives in ~/.local/bin, node/yarn wherever
+# the box installed them. Extend this line, not the script.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# A client build takes a minute or two; a hung step must not hold the lock
+# forever.
+TimeoutStartSec=20min
+Nice=10

@@ -1,0 +1,119 @@
+# The deploy button (AivinNet#478).
+#
+# This workflow never reaches the home server, which is not reachable from the
+# internet. It only moves the branch `deploy`: every run puts a new SIGNAL
+# commit on it whose parent is the commit of `master` to deploy (same tree, so
+# it is that commit's content under a fresh id). The server polls the ref every
+# minute (`scripts/auto-deploy.sh`, systemd timer in `scripts/systemd/`) and
+# deploys the parent. A fresh id per run is what makes "press it again" retry a
+# deploy that failed: pointing the ref at the same master commit twice would
+# look like nothing happened. A deploy stays a decision: nothing here runs on an
+# ordinary merge.
+#
+# Two triggers, one signal:
+#   - Actions → Deploy → "Run workflow" (also in the GitHub mobile app). With no
+#     input it deploys master's head; a commit SHA of master deploys exactly
+#     that one, a rollback included.
+#   - A pull request into master that is MERGED while it carries the label
+#     `deploy` deploys its merge commit.
+#
+# `pull_request_target`, not `pull_request`: a merged PR from a fork would get a
+# read-only token and could not move the ref. This is safe here because no
+# code from the pull request is checked out or run — the job only calls the
+# GitHub API with SHAs it validates itself.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit of master to deploy (empty: master's head)"
+        required: false
+        default: ""
+  pull_request_target:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  signal:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'deploy'))
+    runs-on: ubuntu-latest
+    # Two signals at once must not race each other; the later one wins. On the
+    # job, not the workflow: every closed PR starts a run, and at workflow level
+    # an unlabeled one (its job skipped) would cancel a deploy still waiting.
+    concurrency:
+      group: deploy-signal
+      cancel-in-progress: false
+    permissions:
+      contents: write # moves refs/heads/deploy, nothing else
+    steps:
+      - name: Point `deploy` at the commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          # Through the environment, never interpolated into the script: an
+          # input is text someone typed.
+          INPUT_SHA: ${{ inputs.sha }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          RUN: ${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          master=$(gh api "repos/$REPO/commits/master" --jq .sha)
+          if [ "$EVENT" = workflow_dispatch ]; then
+            sha="${INPUT_SHA:-$master}"
+          else
+            sha="$MERGE_SHA"
+          fi
+
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::not a commit SHA: '$sha'"
+            exit 1
+          fi
+          # The full SHA, so the ref and the server agree on one commit.
+          sha=$(gh api "repos/$REPO/commits/$sha" --jq .sha)
+
+          # Only a commit master contains — its head or one behind it. The
+          # server checks the same before it deploys.
+          status=$(gh api "repos/$REPO/compare/$sha...$master" --jq .status)
+          case "$status" in
+            identical | ahead) ;;
+            *)
+              echo "::error::$sha is not on master (compare: $status)"
+              exit 1
+              ;;
+          esac
+
+          # The signal: the target's tree under a new commit, the target as its
+          # only parent.
+          tree=$(gh api "repos/$REPO/git/commits/$sha" --jq .tree.sha)
+          signal=$(gh api -X POST "repos/$REPO/git/commits" \
+            -f message="deploy $sha (run $RUN by $ACTOR)" \
+            -f tree="$tree" -f "parents[]=$sha" --jq .sha)
+
+          # Move the ref; create it only when it does not exist yet (the first
+          # press). Any other error is the error, not "missing".
+          if ! gh api -X PATCH "repos/$REPO/git/refs/heads/deploy" \
+            -f sha="$signal" -F force=true > /dev/null 2> "$RUNNER_TEMP/patch.err"; then
+            if grep -Eq "Reference does not exist|HTTP 404" "$RUNNER_TEMP/patch.err"; then
+              gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy -f sha="$signal" > /dev/null
+            else
+              cat "$RUNNER_TEMP/patch.err" >&2
+              echo "::error::could not move refs/heads/deploy"
+              exit 1
+            fi
+          fi
+
+          {
+            echo "### deploy → \`$sha\`"
+            echo
+            echo "The server picks this up within a minute (\`journalctl --user -u aivinnet-deploy\`)."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
