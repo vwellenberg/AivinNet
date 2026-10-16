@@ -907,7 +907,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
     border-radius: 0;
     cursor: pointer;
     // "Pressable", like every other plate in the chrome — as a ring around the
-    // label, never behind it (mem-label-hatch).
+    // label, faint behind it (mem-label-hatch).
     @include mem-label-hatch(26px, $on: surface);
 
     &:last-child {
@@ -1147,6 +1147,25 @@ $mem-seg-reserve: 4px !default;
   background-size: auto, $size $size;
 }
 
+// How much of a texture the text takes away under itself — dots and hatch alike
+// (user, 2026-10-16, concept "C"): about a quarter still shows under the
+// letters, and it fades back in around them instead of stopping at a box.
+$mem-veil-strength: 0.72;
+// The same, as a mask colour: what a mask lets through under the text.
+$mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
+
+// The veil itself, shared by `mem-text-veil` and `mem-dots-veil` (they differ
+// only in how they feather): the surface's own fill — the panel when a host
+// names none, so a veil never paints nothing — under the host's content.
+@mixin mem-veil-layer($strength: $mem-veil-strength) {
+  content: "";
+  position: absolute;
+  background-color: var(--row-fill, #{$mem-panel});
+  opacity: $strength;
+  z-index: -1;
+  pointer-events: none;
+}
+
 // ---------------------------------------------------------------------------
 // KEEPING THE TEXTURE OFF THE TEXT — the second half of the ring idea.
 //
@@ -1162,30 +1181,60 @@ $mem-seg-reserve: 4px !default;
 //
 // The padding is the buffer that keeps the letters off the strokes; without it
 // the text ends exactly where the texture begins and reads as cramped.
+//
+// SOFT since 2026-10-16 (user, concept "C", first built for the dots): the
+// cover is a veil on the label's `::before`, not its background. It lets
+// `1 - $mem-veil-strength` of the strokes through under the letters and fades
+// out over the buffer on the right (and a few px at the other edges), so the
+// hatch thins toward the text instead of stopping at a box around it.
 // ---------------------------------------------------------------------------
 @mixin mem-hatch-clear($buffer: 26px) {
   flex: 0 1 auto;
   min-width: 0;
-  background-color: var(--row-fill);
   border-radius: 7px;
   padding: 2px $buffer 2px 4px;
+  @include mem-text-veil($left: 4px, $right: $buffer);
+}
+
+// The soft cover itself, for any element that holds text on a texture: a veil
+// of `--row-fill` on its `::before`, `$mem-veil-strength` strong, fading in over
+// `$left`, out over `$right` and 3px at the top and bottom. Inside the element's
+// own box (`inset: 0`): a label with a frame (the duration pill) had its ring
+// veiled where a larger layer spilled over it. It isolates the element, so the
+// veil sits above the texture and below the text. Takes the `::before`.
+@mixin mem-text-veil($left: 4px, $right: 4px) {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    @include mem-veil-layer;
+    inset: 0;
+    border-radius: inherit;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $left, #000 calc(100% - #{$right}), transparent 100%),
+      linear-gradient(transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0, #000 $left, #000 calc(100% - #{$right}), transparent 100%),
+      linear-gradient(transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%);
+    mask-composite: intersect;
+  }
 }
 
 // ---------------------------------------------------------------------------
 // HATCH ON A LABEL BUTTON — texture in the padding, the text band left clear.
 //
 // Tabs, chips, pills and text buttons used to carry NO hatch at all (#476): the
-// texture must never run behind text, and the cover the ring above needs reads
+// texture was not to run behind text then, and the cover the ring above needs reads
 // `--row-fill` — which every state of these buttons (active, hover, a call
 // site's own yellow or blush) would have had to restate, or its label sat in a
 // rectangle of the wrong colour. So they went smooth, and the user reported the
 // charts tabs as "buttons without hatch": the texture says "you can press
 // this", and the tabs were the one pressable plate on the screen without it.
 //
-// This paints the texture on a `::before` that covers the padding box and MASKS
-// OUT its own content box — so there is no cover and nothing to keep in step
-// with the fill: whatever colour the button has in whatever state shows through
-// the hole, and the strokes only ever stand in the ring around the label.
+// This paints the texture on a `::before` over the whole button and MASKS it
+// down toward the label — so there is no cover and nothing to keep in step
+// with the fill: whatever colour the button has in whatever state shows
+// through, and the strokes stand at full strength only in the ring around the
+// label (soft since 2026-10-16, see the mask).
 // The ring is `$ring-x` wide at the sides and `$ring-y` above and below. Both
 // are deliberately NARROWER than the button's own padding (12px inline on
 // every label role): the rest of the padding is the buffer that keeps the
@@ -1202,7 +1251,7 @@ $mem-seg-reserve: 4px !default;
 // Takes the `::before` of its host: `btn-primary` owns that pseudo-element for
 // its sprinkle, so the two never meet on one element.
 // ---------------------------------------------------------------------------
-@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.6rem) {
+@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.6rem, $fade: 6px) {
   --label-hatch: #{if($on == accent, var(--mem-hatch-accent), var(--mem-hatch))};
   position: relative;
 
@@ -1211,13 +1260,22 @@ $mem-seg-reserve: 4px !default;
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: $ring-y $ring-x;
     background-image: var(--label-hatch);
     background-size: $size $size;
-    // Everything but the content box: the whole box, minus the text band.
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    // SOFT since 2026-10-16 (concept "C"): full strength at the edge, fading
+    // to what the veil leaves under the label — the same rest as under any
+    // text — instead of a hard hole cut out of the content box. Three layers,
+    // added: the sides, the top and bottom, the rest everywhere.
+    //
+    // At the sides the fade runs OUTWARD from the ring into the buffer (every
+    // label role has 12px of inline padding: 6 + 6). Above and below there is
+    // no such buffer — the text band starts where the old hole did — so the
+    // fade ends AT the ring, and `max()`/`min()` keep it from crossing the
+    // middle on a low pill (2.25rem: 2 x (0.6rem + 6px) is more than its box).
+    $sides: linear-gradient(to right, #000 $ring-x, transparent calc(#{$ring-x} + #{$fade}), transparent calc(100% - #{$ring-x} - #{$fade}), #000 calc(100% - #{$ring-x}));
+    $ends: linear-gradient(#000 max(0px, #{$ring-y} - #{$fade}), transparent min(#{$ring-y}, 50%), transparent max(100% - #{$ring-y}, 50%), #000 min(100%, 100% - #{$ring-y} + #{$fade}));
+    -webkit-mask-image: $sides, $ends, linear-gradient($mem-veil-rest, $mem-veil-rest);
+    mask-image: $sides, $ends, linear-gradient($mem-veil-rest, $mem-veil-rest);
     pointer-events: none;
   }
 }
@@ -1273,21 +1331,15 @@ $mem-seg-reserve: 4px !default;
 // For any host on a dotted surface: it isolates itself, so the veil sits above
 // the surface and below its own content. `$strength` is how much of the dots it
 // takes away (0.72: about a quarter still shows under the text).
-@mixin mem-dots-veil($y: 10px, $x: 14px, $strength: 0.72) {
+@mixin mem-dots-veil($y: 10px, $x: 14px, $strength: $mem-veil-strength) {
   position: relative;
   isolation: isolate;
 
   &::before {
-    content: "";
-    position: absolute;
+    @include mem-veil-layer($strength);
     inset: (-$y) (-$x);
     border-radius: 16px;
-    // The panel when a host names no fill, so the veil never paints nothing.
-    background: var(--row-fill, #{$mem-panel});
-    opacity: $strength;
     filter: blur(8px);
-    z-index: -1;
-    pointer-events: none;
   }
 }
 

@@ -108,7 +108,7 @@ const artistitems = [
     // ($gray4/$gray5 are aliases onto blush; they predate the token system.)
     .select {
         // A sort chip is essentially its own label -> the hatch stands as a ring
-        // around it, never behind the text (mem-label-hatch, styling.md).
+        // around it, faint behind the text (mem-label-hatch, styling.md).
         @include btn-action($size: 2.75rem, $width: auto, $hatch: label);
         font-size: inherit;
         font-weight: inherit;

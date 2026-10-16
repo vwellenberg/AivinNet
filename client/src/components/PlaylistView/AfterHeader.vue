@@ -214,15 +214,11 @@ const showDateHeading = computed(
     letter-spacing: 0.02em;
 
     &.is-done {
+        // btn-primary owns `::before` for its sprinkle; its own mask, declared
+        // after the label ring's, is the one that applies. (A `mask: none`
+        // here once kept the ring from carving a hole into the sprinkle — with
+        // the soft masks it would put the sprinkle behind "Done" at full.)
         @include btn-primary($h: $bar-control, $pad: 0 1rem, $glyph: 1rem);
-
-        // btn-primary owns `::before` for its sprinkle across the whole plate;
-        // the label ring's mask and inset must not carve a hole into it.
-        &::before {
-            padding: 0;
-            -webkit-mask: none;
-            mask: none;
-        }
     }
 }
 
