@@ -1239,7 +1239,7 @@ $mem-seg-reserve: 4px !default;
 // white — the top bar and the Continue card name their own width, and the
 // bottom bar wears none.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null) {
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null, $right-fade: null) {
   content: "";
   position: absolute;
   inset: $inset;
@@ -1251,11 +1251,15 @@ $mem-seg-reserve: 4px !default;
     mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
   } @else if $edges {
     // `$right` is the right end's own width (the Continue card dots more on
-    // its right than on its left); it defaults to `$edges`.
+    // its right than on its left); it defaults to `$edges`. `$right-fade` is
+    // how far that end fades out, 15% like the left unless set: a width in px
+    // with a short fade counts dot columns (the phone's Continue card: three).
     $right-edge: $edges;
     @if $right { $right-edge: $right; }
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
+    $right-fade-w: 15%;
+    @if $right-fade { $right-fade-w: $right-fade; }
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - #{$right-fade-w}), #000 calc(100% - #{$right-edge}), #000 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - #{$right-fade-w}), #000 calc(100% - #{$right-edge}), #000 100%);
   } @else if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);

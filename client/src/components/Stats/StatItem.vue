@@ -280,6 +280,14 @@ const tileStyle = computed(() => ({
         .count {
             font-size: 1.55rem;
             font-weight: 900;
+            // Always two lines of room (the most `ellip2` lets it have), with
+            // the text at the TOP of it. The block stands at the bottom of the
+            // tile, so a one-line value ("12,671 tracks") used to start a
+            // whole line lower than its two-line neighbours (measured 116px
+            // against 85px). Now every value starts at 85px — where the motif
+            // comment above measures its 8px of air — and every caption
+            // stands on one line too.
+            min-height: 2lh;
 
             // Only for a value that fits on one line. A value that wraps anyway
             // stays in the flow: floating it would clip a line the box has no
@@ -293,12 +301,12 @@ const tileStyle = computed(() => ({
                     visibility: hidden;
                 }
 
-                // Anchored to the bottom, like the text it stands in for.
+                // Anchored to the top, like the text it stands in for.
                 .count-live {
                     position: absolute;
                     left: 0;
                     right: 0;
-                    bottom: 0;
+                    top: 0;
                     white-space: nowrap;
                 }
             }

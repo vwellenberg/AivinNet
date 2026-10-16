@@ -198,10 +198,14 @@ function resume() {
   &::before {
     // Full height, like the top bar: the dot rows reach the top and bottom
     // edges too, and the left and right ends are the only thing that is shaped.
-    @include mem-halftone($reach: null, $edges: 5%, $right: 45%);
-    // On phones both ends are equal (user, 2026-10-12): 5% right as left.
+    // The right end stops at about "Up next" (user, 2026-10-15): full over the
+    // right 30%, gone at 55% — the column starts at 55-59% of the card
+    // (measured at 773 and 1090px). It reached to 40% before, into the title.
+    @include mem-halftone($reach: null, $edges: 5%, $right: 30%);
+    // On phones the right end is about three dot columns (user, 2026-10-15):
+    // a 27px end plus a 6px fade is 33px, three times the 11px pitch.
     @include allPhones {
-      @include mem-halftone($reach: null, $edges: 5%, $right: 5%);
+      @include mem-halftone($reach: null, $edges: 5%, $right: 27px, $right-fade: 6px);
     }
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);

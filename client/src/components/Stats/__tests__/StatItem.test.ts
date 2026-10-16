@@ -128,6 +128,16 @@ describe('StatItem count box', () => {
         expect(css).toMatch(/\.count-live\s*\{[^}]*position:\s*absolute[^}]*white-space:\s*nowrap/s)
     })
 
+    // A one-line value started a line lower than a two-line one (116 vs 85px):
+    // the text block stands at the bottom of the tile. Two lines of room, text
+    // at the top of it, and the live figure anchored where that text starts.
+    it('starts every value at the same line, one line or two', () => {
+        const css = read('src/components/Stats/StatItem.vue')
+        expect(css).toMatch(/\.count \{[^{}]*min-height: 2lh;/)
+        expect(css).toMatch(/\.count-live\s*\{[^}]*top:\s*0;/)
+        expect(css).not.toMatch(/\.count-live\s*\{[^}]*bottom:\s*0;/)
+    })
+
     it('leaves a value that is not counted (top tiles) as plain text', () => {
         const w = mount(StatItem, {
             props: { icon: 'toptrack', value: 'Some Song', text: 'top track', image: 'abc.webp' },

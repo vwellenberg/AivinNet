@@ -33,9 +33,10 @@ describe('halftone at the ends', () => {
         expect(read('src/components/BottomBar/BottomBar.vue')).not.toMatch(/mem-halftone/)
     })
 
-    it('the continue card dots more on its right than on its left', () => {
+    it('the continue card dots more on its right than on its left, up to about "Up next"', () => {
+        // 30% full plus the 15% fade: gone at 55%, where the column starts.
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*45%/)
+        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*30%\)/)
     })
 
     it('on phones the pill stays white, the dots cover the strip around it', () => {
@@ -48,9 +49,12 @@ describe('halftone at the ends', () => {
         expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
     })
 
-    it('on phones the continue card dots both ends alike', () => {
+    it('on phones the continue card shows about three dot columns on its right', () => {
+        // 27px + a 6px fade = 33px = three times the 11px pitch.
         const card = read('src/components/HomeView/ContinueCard.vue')
-        expect(card).toMatch(/@include allPhones\s*\{\s*@include mem-halftone\([^)]*\$edges:\s*5%,\s*\$right:\s*5%/)
+        expect(card).toMatch(/@include allPhones\s*\{\s*@include mem-halftone\([^)]*\$edges:\s*5%,\s*\$right:\s*27px,\s*\$right-fade:\s*6px\)/)
+        const mixin = read('src/assets/scss/_candy.scss')
+        expect(mixin).toMatch(/transparent calc\(100% - #\{\$right-edge\} - #\{\$right-fade-w\}\)/)
     })
 
     it('the mixin leaves the middle clear and the ends full', () => {
