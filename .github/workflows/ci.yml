@@ -56,6 +56,8 @@ jobs:
           # The deploy scripts run against the live serve directory and one of
           # them deletes from it; they were outside this gate until 2026-09-25.
           shellcheck client/scripts/deploy-client.sh client/scripts/prune-serve-assets.sh
+          # The server half of the deploy button runs unattended every minute.
+          shellcheck scripts/auto-deploy.sh
 
   unit:
     name: Unit Tests

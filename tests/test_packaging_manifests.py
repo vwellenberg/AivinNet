@@ -383,6 +383,7 @@ WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 ALLOWED_WRITES = {
     ("build.yml", "upload-builds"): {"contents"},  # creates the release
     ("build.yml", "docker"): {"packages"},  # pushes the image to ghcr
+    ("deploy.yml", "signal"): {"contents"},  # moves refs/heads/deploy (AivinNet#478)
 }
 
 
