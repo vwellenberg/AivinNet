@@ -309,8 +309,8 @@ Frontmatter überein. Wer einen Glob ergänzt, ergänzt ihn hier — sonst wird 
 
 ### Frontend (dieser Client)
 
-**Der normale Weg ist der Knopf:** GitHub → Actions → **Deploy** → „Run workflow“. Der Server holt
-sich das Signal binnen einer Minute selbst, baut den Client nur bei Änderungen unter `client/`,
+**Der normale Weg ist der Merge:** Jeder Merge auf `master` wird deployt (Retry und Rollback:
+GitHub → Actions → **Deploy** → „Run workflow“). Der Server holt sich das Signal binnen einer Minute selbst, baut den Client nur bei Änderungen unter `client/`,
 startet das Backend nur bei Backend-Änderungen neu und prüft danach die ausgelieferte Entry-Datei.
 Aufbau und Einrichtung: `scripts/systemd/README.md` im Repo-Root. Der Handweg unten bleibt für den
 Fall, dass der Timer (noch) nicht läuft.

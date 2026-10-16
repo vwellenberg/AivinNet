@@ -14,6 +14,7 @@ stubs that write to a log, so the test sees which ones ran.
 import functools
 import http.server
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -22,6 +23,7 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).parent.parent / "scripts" / "auto-deploy.sh"
+WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "deploy.yml"
 
 pytestmark = pytest.mark.skipif(
     shutil.which("bash") is None or shutil.which("git") is None or shutil.which("flock") is None,
@@ -450,3 +452,16 @@ def test_the_client_deploy_is_told_which_folder_is_the_client(box):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert box.log.read_text().strip() == f"REPO={box.server}/client BACKEND={box.server}"
+
+
+def test_every_merge_deploys_and_no_repository_code_runs():
+    # The docs promise "every merge is deployed" (CLAUDE.md, the README), and
+    # the job holds write access, so it never runs code from the repository.
+    text = WORKFLOW.read_text(encoding="utf-8")
+    triggers = text.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+    jobs = text.split("\njobs:\n", 1)[1]
+    assert re.search(r"^  push:\n    branches: \[master\]$", triggers, re.MULTILINE), triggers
+    assert re.search(r"^  workflow_dispatch:$", triggers, re.MULTILINE), triggers
+    assert "pull_request" not in triggers
+    assert not re.search(r"^    if:", jobs, re.MULTILINE), "a job filter could skip a merge"
+    assert "actions/checkout" not in text
