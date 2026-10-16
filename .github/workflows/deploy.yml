@@ -37,11 +37,6 @@ on:
 permissions:
   contents: read
 
-# Two signals at once must not race each other; the later one wins.
-concurrency:
-  group: deploy-signal
-  cancel-in-progress: false
-
 jobs:
   signal:
     if: >-
@@ -49,6 +44,12 @@ jobs:
       (github.event.pull_request.merged == true &&
        contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
+    # Two signals at once must not race each other; the later one wins. On the
+    # job, not the workflow: every closed PR starts a run, and at workflow level
+    # an unlabeled one (its job skipped) would cancel a deploy still waiting.
+    concurrency:
+      group: deploy-signal
+      cancel-in-progress: false
     permissions:
       contents: write # moves refs/heads/deploy, nothing else
     steps:
@@ -102,7 +103,7 @@ jobs:
           # press). Any other error is the error, not "missing".
           if ! gh api -X PATCH "repos/$REPO/git/refs/heads/deploy" \
             -f sha="$signal" -F force=true > /dev/null 2> "$RUNNER_TEMP/patch.err"; then
-            if grep -q "Reference does not exist" "$RUNNER_TEMP/patch.err"; then
+            if grep -Eq "Reference does not exist|HTTP 404" "$RUNNER_TEMP/patch.err"; then
               gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy -f sha="$signal" > /dev/null
             else
               cat "$RUNNER_TEMP/patch.err" >&2

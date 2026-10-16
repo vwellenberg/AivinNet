@@ -35,6 +35,12 @@ sudo loginctl enable-linger "$USER"   # damit der Timer auch ohne Login läuft
 Prüfen: `systemctl --user list-timers aivinnet-deploy.timer`. Die Läufe stehen im Journal:
 `journalctl --user -u aivinnet-deploy -f`.
 
+`cp` kopiert den heutigen Stand: Ändern sich die Units im Repo, die zwei Dateien erneut kopieren
+und `systemctl --user daemon-reload`.
+
+Wer weiter **von Hand** deployt, nimmt dasselbe Lock, sonst arbeiten Knopf und Hand gleichzeitig
+im selben Checkout: `flock ~/.local/state/aivinnet-deploy/lock <befehl>`.
+
 ## Wenn etwas schiefgeht
 
 - **`FAILED <sha>`** im Journal: Der Server hat diesen Commit nicht fertig deployt und versucht
@@ -46,8 +52,12 @@ Prüfen: `systemctl --user list-timers aivinnet-deploy.timer`. Die Läufe stehen
   von **vor** dem Deploy-Knopf (ohne `scripts/auto-deploy.sh` würde der Timer sich selbst
   löschen; weiter zurück geht es nur von Hand) und ein `deploy`-Ref, das nicht vom Workflow kommt.
 - Schlägt ein Schritt fehl, **bevor** etwas live ist (`uv sync`, `yarn install`, der Neustart),
-  setzt der Server den Checkout auf den laufenden Stand zurück (`undoing` im Journal). Danach
-  nicht mehr: Ein Client-Build, der an seinen Gates scheitert, kann schon ausgeliefert sein.
+  setzt der Server den Checkout auf den laufenden Stand zurück (`undoing` im Journal); nach einem
+  gescheiterten Neustart startet er den alten Stand noch einmal. Danach nicht mehr: Ein
+  Client-Build, der an seinen Gates scheitert, kann schon ausgeliefert sein.
+- **`adopted, not deployed`**: Das allererste Signal einer Box zeigt auf einen Commit, der älter
+  ist als der Checkout (Knopf gedrückt, bevor der Timer lief, und danach von Hand deployt). Der
+  Server rollt dann nicht ungefragt zurück. Ein zweiter Druck auf denselben Commit deployt ihn.
 - Zustand und Lock liegen unter `~/.local/state/aivinnet-deploy/`.
 - Ausschalten: `systemctl --user disable --now aivinnet-deploy.timer`.
 

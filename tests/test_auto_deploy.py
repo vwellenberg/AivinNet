@@ -11,9 +11,12 @@ Real git against a local bare "origin"; the build, restart and health steps are
 stubs that write to a log, so the test sees which ones ran.
 """
 
+import functools
+import http.server
 import os
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 
 import pytest
@@ -108,6 +111,19 @@ class Box:
 @pytest.fixture()
 def box(tmp_path):
     return Box(tmp_path)
+
+
+@pytest.fixture()
+def served(tmp_path):
+    """What the backend hands out at `/`: a folder behind a real HTTP server."""
+    root = tmp_path / "served"
+    root.mkdir()
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    yield root, httpd.server_address[1]
+    httpd.shutdown()
+    httpd.server_close()
 
 
 def plan(box: Box, from_sha: str, to_sha: str) -> list[str]:
@@ -274,7 +290,10 @@ def test_a_rollback_deploys_the_older_commit(box):
 def test_a_commit_from_before_the_button_is_refused(box):
     # Checking it out would delete scripts/auto-deploy.sh, and the timer would
     # fail every minute from then on, on a box nobody reaches from outside.
-    box.signal(box.before_button)
+    box.signal(box.commit("README.md", "two"), "first")
+    assert box.run().returncode == 0
+    box.log.unlink()
+    box.signal(box.before_button, "rollback too far")
 
     result = box.run()
     assert result.returncode == 1
@@ -330,3 +349,104 @@ def test_dependencies_come_first_and_the_client_after_the_restart(box):
     box.signal(target, "second")
     assert box.run().returncode == 0
     assert box.steps() == ["backend-sync", "client-install", "restart", "client"]
+
+
+def test_local_commits_on_the_server_are_never_overwritten(box):
+    target = box.commit("src/aivinnet/app.py", "x = 10")
+    box.signal(target)
+    (box.server / "notes.md").write_text("mine")
+    git(box.server, "add", "notes.md")
+    git(box.server, "commit", "-q", "-m", "on the box")
+    mine = box.head()
+
+    result = box.run()
+    assert result.returncode == 1
+    assert "commits that are not on origin/master" in result.stdout
+    assert box.head() == mine
+    assert box.steps() == []
+
+
+def test_a_failed_restart_brings_back_what_ran(box):
+    # `systemctl restart` can fail after its stop half; the box is out of
+    # reach, so the old code is started again rather than left down.
+    box.signal(box.commit("README.md", "two"), "first")
+    assert box.run().returncode == 0
+    box.log.unlink()
+    before = box.head()
+
+    flag = box.state / "restarted-once"
+    restart = f"echo restart >> {box.log}; [ -e {flag} ] || {{ touch {flag}; exit 1; }}"
+    box.signal(box.commit("src/aivinnet/app.py", "x = 11"), "second")
+    result = box.run(RESTART=restart)
+    assert result.returncode == 1
+    assert box.head() == before
+    assert box.steps() == ["restart", "restart"]
+
+
+def test_a_first_signal_older_than_the_checkout_is_adopted_not_rolled_back(box):
+    # Pressed once before the timer existed, then deployed by hand: the first
+    # run of the timer must not quietly roll the box back to the old press.
+    old = box.commit("src/aivinnet/app.py", "x = 8")
+    box.signal(old, "before the timer")
+    box.commit("src/aivinnet/app.py", "x = 9")
+    git(box.server, "fetch", "-q", "origin")
+    git(box.server, "checkout", "-q", "-B", "master", "origin/master")  # by hand
+    newer = box.head()
+
+    result = box.run()
+    assert result.returncode == 0, result.stdout
+    assert "adopted, not deployed" in result.stdout
+    assert box.head() == newer
+    assert box.steps() == []
+
+    # Pressing it again for the same commit is the decision, and deploys it.
+    box.signal(old, "again")
+    assert box.run().returncode == 0
+    assert box.head() == old
+
+
+def test_the_served_entry_must_be_the_one_just_built(box, served):
+    # The deploy is checked at the bytes the server hands out, not at the
+    # build's word for it.
+    root, port = served
+    build = "mkdir -p client/dist && echo '<script src=\"/assets/index-new1.js\"></script>' > client/dist/index.html"
+    env = {"CLIENT_DEPLOY": build, "VERIFY": "1", "PORT": str(port), "NO_PROXY": "*", "no_proxy": "*"}
+
+    (root / "index.html").write_text('<script src="/assets/index-old0.js"></script>')
+    box.signal(box.commit("client/src/a.vue", "a"), "stale")
+    stale = box.run(**env)
+    assert stale.returncode == 1
+    assert "hands out 'assets/index-old0.js', the build is 'assets/index-new1.js'" in stale.stdout
+
+    (root / "index.html").write_text('<script src="/assets/index-new1.js"></script>')
+    box.signal(box.commit("client/src/b.vue", "b"), "fresh")
+    fresh = box.run(**env)
+    assert fresh.returncode == 0, fresh.stdout
+    assert "served entry: assets/index-new1.js" in fresh.stdout
+
+
+def test_the_client_deploy_is_told_which_folder_is_the_client(box):
+    # deploy-client.sh calls the CLIENT folder REPO. The REPO this script runs
+    # with (the checkout) must not leak into it, or it builds in the root.
+    record = f'echo "REPO=$REPO BACKEND=$BACKEND" >> {box.log}'
+    box.signal(box.commit("client/scripts/deploy-client.sh", record + "\n"), "real default")
+    # No CLIENT_DEPLOY in the environment: the script's own default runs.
+    result = subprocess.run(
+        ["bash", str(SCRIPT)],
+        env={
+            **{k: v for k, v in os.environ.items() if k != "CLIENT_DEPLOY"},
+            **GIT_ENV,
+            "REPO": str(box.server),
+            "STATE": str(box.state),
+            "GIT_FETCH_FLAGS": "",
+            "CLIENT_INSTALL": "true",
+            "BACKEND_SYNC": "true",
+            "RESTART": "true",
+            "HEALTH": "true",
+            "VERIFY": "0",
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert box.log.read_text().strip() == f"REPO={box.server}/client BACKEND={box.server}"

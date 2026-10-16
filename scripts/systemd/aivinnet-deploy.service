@@ -3,8 +3,9 @@
 # scripts/systemd/README.md.
 [Unit]
 Description=AivinNet: deploy the commit the `deploy` branch points at
-After=network-online.target
-Wants=network-online.target
+# No After=network-online.target: a user manager has no such unit. The timer's
+# OnBootSec gives the network its time, and a fetch that fails just waits for
+# the next minute.
 
 [Service]
 Type=oneshot

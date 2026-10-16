@@ -34,13 +34,16 @@ export NODE_OPTIONS="${NODE_OPTIONS:---dns-result-order=ipv4first}"
 
 # The steps, each a shell command run from the checkout's root.
 CLIENT_INSTALL="${CLIENT_INSTALL:-cd client && yarn install --frozen-lockfile}"
-CLIENT_DEPLOY="${CLIENT_DEPLOY:-bash client/scripts/deploy-client.sh}"
+# deploy-client.sh calls the CLIENT folder REPO and the checkout BACKEND: name
+# both, or a REPO set for this script would build in the wrong folder.
+CLIENT_DEPLOY="${CLIENT_DEPLOY:-REPO=$(printf %q "$REPO/client") BACKEND=$(printf %q "$REPO") bash client/scripts/deploy-client.sh}"
 BACKEND_SYNC="${BACKEND_SYNC:-"$UV" sync --frozen}"
 # Without `.service`: the sudoers rule names the unit exactly (client/CLAUDE.md).
 RESTART="${RESTART:-sudo systemctl restart $SERVICE}"
 # A deadline on every request: bjoern serves one request at a time, and a
-# handler that hangs would hold this run until systemd's own timeout.
-HEALTH="${HEALTH:-curl -fsS --max-time 5 -o /dev/null http://localhost:$PORT/}"
+# handler that hangs would hold this run until systemd's own timeout. Never
+# through a proxy: the question is what THIS box serves.
+HEALTH="${HEALTH:-curl -fsS --noproxy '*' --max-time 5 -o /dev/null http://localhost:$PORT/}"
 VERIFY="${VERIFY:-1}"
 
 log() { echo "[deploy] $*"; }
@@ -93,7 +96,7 @@ verify() {
 		return 0
 	fi
 	built=$(grep -oE 'assets/index[A-Za-z0-9._-]*\.js' "$REPO/client/dist/index.html" | head -1 || true)
-	served=$(curl -fsS --max-time 10 "http://localhost:$PORT/" | grep -oE 'assets/index[A-Za-z0-9._-]*\.js' | head -1 || true)
+	served=$(curl -fsS --noproxy '*' --max-time 10 "http://localhost:$PORT/" | grep -oE 'assets/index[A-Za-z0-9._-]*\.js' | head -1 || true)
 	if [[ -z "$built" || "$built" != "$served" ]]; then
 		log "the server hands out '${served:-nothing}', the build is '${built:-nothing}'"
 		return 1
@@ -158,7 +161,13 @@ deploy() {
 		run "$CLIENT_INSTALL" || { undo "$head" "$synced"; return 1; }
 	fi
 	if has backend; then
-		run "$RESTART" || { undo "$head" "$synced"; return 1; }
+		if ! run "$RESTART"; then
+			undo "$head" "$synced"
+			# A restart can fail after its stop half (a start that fails, a
+			# start limit): bring back what ran, on a box nobody reaches.
+			{ run "$RESTART" && wait_up; } || log "the backend may be down: restarting $head failed too"
+			return 1
+		fi
 		# From here on the new code is live: no undo, only a clear report.
 		wait_up || { log "the backend was restarted on $to and does not answer"; return 1; }
 	fi
@@ -233,6 +242,14 @@ main() {
 	if [[ -z "$target" ]]; then
 		log "the signal $signal names no commit (not from the Deploy workflow) — refusing"
 		return 1
+	fi
+	# The first signal a box ever sees can be older than its checkout: pressed
+	# once before the timer was set up, then deployed by hand. Rolling back to
+	# it unasked is the surprise; a second press is the decision.
+	if [[ -z "$handled" && "$target" != "$(git -C "$REPO" rev-parse HEAD)" ]] &&
+		git -C "$REPO" merge-base --is-ancestor "$target" HEAD; then
+		log "the first signal names $target, older than the checkout — adopted, not deployed (press the button again to deploy it)"
+		return 0
 	fi
 	deployed=$(cat "$STATE/deployed" 2>/dev/null || true)
 	log "deploying $target (deployed: ${deployed:-nothing yet})"
