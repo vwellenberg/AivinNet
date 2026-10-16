@@ -2,7 +2,9 @@ import { readFileSync } from 'fs'
 import { describe, expect, it } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// THE TOP BAR AND THE CONTINUE CARD WEAR THEIR DOTS AT THE ENDS (user, 2026-10-12).
+// THE TOP BAR WEARS ITS DOTS AT THE ENDS (user, 2026-10-12). THE CONTINUE CARD IS
+// DOTTED ALL OVER AND ITS TEXT DIMS THEM (`mem-dots-veil`, user 2026-10-16), ON THE
+// DESKTOP AND ON PHONES.
 // THE BOTTOM BAR WEARS NONE: its ground stays plain.
 //
 // The dots stand at the two ends of the plate and the middle stays white. The
@@ -17,10 +19,7 @@ import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(path, 'utf8')
 
-const HOSTS: [string, string][] = [
-    ['src/components/nav/NavBar.vue', '10%'],
-    ['src/components/HomeView/ContinueCard.vue', '5%'],
-]
+const HOSTS: [string, string][] = [['src/components/nav/NavBar.vue', '10%']]
 
 describe('halftone at the ends', () => {
     it.each(HOSTS)('%s asks the mixin for its edges and writes no mask of its own', (path, width) => {
@@ -33,10 +32,28 @@ describe('halftone at the ends', () => {
         expect(read('src/components/BottomBar/BottomBar.vue')).not.toMatch(/mem-halftone/)
     })
 
-    it('the continue card dots more on its right than on its left, up to about "Up next"', () => {
-        // 30% full plus the 15% fade: gone at 55%, where the column starts.
+    it('the continue card is dotted all over, and its text dims the dots (veil)', () => {
+        // The general rule for text on dots (user, 2026-10-16, mockup C): no
+        // fixed line, no box per label — a soft veil of the surface's fill.
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/\$edges:\s*5%,\s*\$right:\s*30%\)/)
+        expect(src).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null\);/)
+        expect(src).toMatch(/\.info \{[^}]*@include mem-dots-veil;/)
+        expect(src).toMatch(/\.kicker \{[^}]*@include mem-dots-veil;/)
+        // The labels on the dots no longer take a cover each (the row plates
+        // below keep theirs: that is text over hatch, a different rule).
+        const labels = src.match(/\.kicker,\s*\.meta,\s*\.name \{[^}]*\}/)?.[0] ?? ''
+        expect(labels, 'the label rule exists').not.toBe('')
+        expect(labels).not.toMatch(/mem-hatch-clear|background/)
+
+        const mixin = read('src/assets/scss/_candy.scss')
+        const veil = mixin.match(/@mixin mem-dots-veil\([^)]*\) \{[\s\S]*?\n\}/)?.[0] ?? ''
+        expect(veil, 'the veil mixin exists').not.toBe('')
+        // Isolated, so the veil sits between the surface and the host's content;
+        // painted in the surface's own fill, feathered.
+        expect(veil).toMatch(/isolation: isolate;/)
+        expect(veil).toMatch(/background: var\(--row-fill, #\{\$mem-panel\}\);/)
+        expect(veil).toMatch(/filter: blur\(/)
+        expect(veil).toMatch(/z-index: -1;/)
     })
 
     it('on phones the pill stays white, the dots cover the strip around it', () => {
@@ -49,12 +66,10 @@ describe('halftone at the ends', () => {
         expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
     })
 
-    it('on phones the continue card shows about three dot columns on its right', () => {
-        // 27px + a 6px fade = 33px = three times the 11px pitch.
-        const card = read('src/components/HomeView/ContinueCard.vue')
-        expect(card).toMatch(/@include allPhones\s*\{\s*@include mem-halftone\([^)]*\$edges:\s*5%,\s*\$right:\s*27px,\s*\$right-fade:\s*6px\)/)
-        const mixin = read('src/assets/scss/_candy.scss')
-        expect(mixin).toMatch(/transparent calc\(100% - #\{\$right-edge\} - #\{\$right-fade-w\}\)/)
+    it('the continue card has one dot layer for every width, no mask of its own', () => {
+        const src = read('src/components/HomeView/ContinueCard.vue')
+        expect(src.match(/@include mem-halftone\(/g)?.length).toBe(1)
+        expect(src).not.toMatch(/mask-image/)
     })
 
     it('the mixin leaves the middle clear and the ends full', () => {

@@ -401,10 +401,18 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 - **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
   Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
   steht.
-- **Die Enden der Continue-Karte sind gemessen, nicht geschätzt** (Nutzer, 2026-10-15): rechts voll
-  über 30 %, weg bei 55 % — dort beginnt „Up next" (55–59 % der Karte bei 773 und 1090 px); vorher
-  reichten die Punkte bis 40 %, in den Titel hinein. Am Handy rechts **drei Spalten**: 27 px plus
-  6 px Übergang = 33 px = dreimal das Raster von 11 px (`$right-fade` am Mixin, Standard 15 %).
+- **Text auf Punkten bekommt einen SCHLEIER, keine Linie und keinen Kasten** (Nutzer, 2026-10-16,
+  Mockup „C"; `mem-dots-veil` in `_candy.scss`). Die Punkte laufen über die ganze Fläche, und ein
+  Textblock dämpft sie unter und um sich herum mit einem weichgezeichneten Schleier in der
+  Flächenfarbe (`--row-fill`, Stärke 0,72: gut ein Viertel der Punkte bleibt sichtbar). Zwei
+  Vorgänger sind daran gescheitert: Eine **feste Maske** („Punkte bis 55 %") musste raten, wo der
+  Text endet — ein kurzer Titel ließ eine Lücke, ein langer lief in die Punkte. Und eine
+  **Deckfläche pro Label** (`mem-hatch-clear`) schnitt um jede Zeile einen Kasten aus dem Muster.
+  Der Schleier isoliert sich selbst (`isolation: isolate`), liegt also über der Fläche und unter
+  dem eigenen Inhalt; jede neue Punktfläche mit Text nimmt ihn. Text über **Schraffur** (drückbare
+  Platten) ist eine andere Regel und behält seine Deckflächen.
+  Erste Anwenderin: die Continue-Karte (Textblock und „Up next"-Überschrift), am Desktop **und**
+  am Handy — eine Punktebene für jede Breite, keine eigene Maske mehr.
 - **Eine Stat-Zahl hat immer zwei Zeilen Platz, der Text steht oben darin** (`min-height: 2lh`):
   Der Block steht unten in der Kachel, also begann eine einzeilige Zahl („12,671 tracks") eine
   ganze Zeile tiefer als ihre zweizeiligen Nachbarn (gemessen 116 gegen 85 px). Jetzt starten alle

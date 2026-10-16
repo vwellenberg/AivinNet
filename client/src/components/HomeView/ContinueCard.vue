@@ -191,22 +191,14 @@ function resume() {
 
   // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
   // Continue, the rows) carries its own plate, and the hatch says "pressable"
-  // (styling.md). The dots stand at the two ends of the plate and the middle
-  // stays white (user, 2026-10-12), like the top bar's ends, but fewer on the
-  // left and more on the right. The labels sit on their own
-  // covers, so no dot lands under a letter. The children sit above the dots.
+  // (styling.md). The dots cover the whole card, and the text dims them where
+  // it stands (`mem-dots-veil` on the text block and the "Up next" caption,
+  // user 2026-10-16), on the desktop and on phones alike: they fade toward the
+  // words wherever those end, instead of stopping at a fixed line that a short
+  // title left a gap before and a long one ran into. The children sit above
+  // the dots.
   &::before {
-    // Full height, like the top bar: the dot rows reach the top and bottom
-    // edges too, and the left and right ends are the only thing that is shaped.
-    // The right end stops at about "Up next" (user, 2026-10-15): full over the
-    // right 30%, gone at 55% — the column starts at 55-59% of the card
-    // (measured at 773 and 1090px). It reached to 40% before, into the title.
-    @include mem-halftone($reach: null, $edges: 5%, $right: 30%);
-    // On phones the right end is about three dot columns (user, 2026-10-15):
-    // a 27px end plus a 6px fade is 33px, three times the 11px pitch.
-    @include allPhones {
-      @include mem-halftone($reach: null, $edges: 5%, $right: 27px, $right-fade: 6px);
-    }
+    @include mem-halftone($reach: null);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }
@@ -256,15 +248,20 @@ function resume() {
     align-items: flex-start;
     gap: 0.35rem;
     min-width: 0;
+    // The whole text block dims the dots, softly (user, 2026-10-16). It
+    // replaces a cover per label, which cut a box around every line; the
+    // dots under the thick title stay faint (2026-10-11: at full strength
+    // they read as noise there).
+    @include mem-dots-veil;
   }
 
-  // Every label takes the cover, the name too (user, 2026-10-11: dots over the
-  // thick title read as noise). The cover is the card's own fill, so the only
-  // visible effect is that no dot lands under a letter.
+  // The labels keep the inset the covers gave them, so nothing moves.
   .kicker,
   .meta,
   .name {
-    @include mem-hatch-clear(6px);
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 2px 6px 2px 4px;
     max-width: 100%;
   }
 
@@ -354,6 +351,8 @@ function resume() {
 
     .kicker {
       align-self: flex-start;
+      // The caption of the list stands on the dots too.
+      @include mem-dots-veil;
     }
 
     // A small song row, in the anatomy every other track list uses: title

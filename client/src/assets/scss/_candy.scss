@@ -1239,7 +1239,7 @@ $mem-seg-reserve: 4px !default;
 // white — the top bar and the Continue card name their own width, and the
 // bottom bar wears none.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null, $right-fade: null) {
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null) {
   content: "";
   position: absolute;
   inset: $inset;
@@ -1251,18 +1251,43 @@ $mem-seg-reserve: 4px !default;
     mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);
   } @else if $edges {
     // `$right` is the right end's own width (the Continue card dots more on
-    // its right than on its left); it defaults to `$edges`. `$right-fade` is
-    // how far that end fades out, 15% like the left unless set: a width in px
-    // with a short fade counts dot columns (the phone's Continue card: three).
+    // its right than on its left); it defaults to `$edges`.
     $right-edge: $edges;
     @if $right { $right-edge: $right; }
-    $right-fade-w: 15%;
-    @if $right-fade { $right-fade-w: $right-fade; }
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - #{$right-fade-w}), #000 calc(100% - #{$right-edge}), #000 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - #{$right-fade-w}), #000 calc(100% - #{$right-edge}), #000 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 $edges, transparent calc(#{$edges} + 15%), transparent calc(100% - #{$right-edge} - 15%), #000 calc(100% - #{$right-edge}), #000 100%);
   } @else if $reach {
     -webkit-mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
     mask-image: radial-gradient(circle at 100% 0, #000 0, transparent $reach);
+  }
+}
+
+// TEXT ON DOTS: a soft veil, not a fixed line and not a hard box (user,
+// 2026-10-16, mockup "C"). The halftone runs over the whole surface; a block of
+// text dims it under and around itself with a feathered veil of the surface's
+// own fill (`--row-fill`, like the label covers), so the dots fade toward the
+// words wherever they happen to end. A fixed mask had to guess where the text
+// stops — a short title left a gap, a long one ran into the dots — and a cover
+// per label cut a box out of the pattern around every line.
+//
+// For any host on a dotted surface: it isolates itself, so the veil sits above
+// the surface and below its own content. `$strength` is how much of the dots it
+// takes away (0.72: about a quarter still shows under the text).
+@mixin mem-dots-veil($y: 10px, $x: 14px, $strength: 0.72) {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: (-$y) (-$x);
+    border-radius: 16px;
+    // The panel when a host names no fill, so the veil never paints nothing.
+    background: var(--row-fill, #{$mem-panel});
+    opacity: $strength;
+    filter: blur(8px);
+    z-index: -1;
+    pointer-events: none;
   }
 }
 
