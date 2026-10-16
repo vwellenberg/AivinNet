@@ -309,23 +309,34 @@ Drei Bedingungen, alle tragend:
    statische `--mem-hatch-accent` (immer Ink — blush, teal und gelb sind in beiden Themes
    dieselbe Farbe). **Die Verwechslung ist im Light-Theme unsichtbar** und im Dark-Theme eine
    leere Fläche; der Zensus in `rowHover.test.ts` prüft deshalb genau dieses Paar.
-3. ⚠️ **Die Schraffur läuft NIE hinter Text.** Striche zwischen Buchstaben kosten genau die
-   Lesbarkeit, für die der Rest des Designs Platten und Veils einführt — bei 2× berühren sie die
-   Glyphen sichtbar. Welche der beiden Umsetzungen gilt, entscheidet die **Fläche**:
+3. ⚠️ **Hinter Text läuft die Schraffur nur BLASS — weich ausgeblendet, kein Kasten** (Nutzer,
+   2026-10-16: das Konzept „C" der Punkte, auf die Schraffur übertragen). Bis dahin hieß die Regel
+   „nie hinter Text", und jede der drei Umsetzungen schnitt eine harte Form aus der Textur: einen
+   Kasten in der Füllfarbe hinter jedem Label, ein Loch in Content-Box-Größe, einen Kasten hinter
+   Beschriftung und Glyph des Hauptbuttons. Jetzt läuft die Textur über die ganze Platte, und unter
+   dem Text bleibt derselbe Rest wie unter Text auf Punkten (`1 - $mem-veil-strength`, ein Token
+   für beide). Welche Umsetzung gilt, entscheidet weiter die **Fläche**:
 
    - **Breites Element, dessen Text nur einen Teil einnimmt** (Sidebar-Zeile, Navigations-Zeile,
-     Browse-Kachel) → `mem-hatch-clear` auf dem **Label**, nicht auf dem Container. Es legt eine
-     Deckfläche in `--row-fill` hinter genau die Textbreite (`flex: 0 1 auto`); rundherum bleibt
-     die Textur stehen. Der Puffer im Mixin ist kein Zierrat — ohne ihn endet die Schrift genau
-     dort, wo die Striche anfangen, und wirkt gequetscht.
+     Browse-Kachel, Up-next-Zeile) → `mem-hatch-clear` auf dem **Label**, nicht auf dem Container.
+     Ein Schleier in `--row-fill` auf dem `::before` des Labels, so breit wie der Text (`flex: 0 1
+     auto`), blendet über den Puffer rechts weich aus. ⚠️ `inset: 0`, nicht größer: Ein Label mit
+     eigenem Rahmen (die Zeit-Pille) bekam sonst seinen Ring mitverschleiert (gemessen, die Pille
+     wurde grau).
    - **Kleines Element, das im Wesentlichen aus seinem Label besteht** (Tab, Chip, Pill,
-     Text-Button) → **`mem-label-hatch`: die Textur als Ring um das Label.** Ein `::before` über
-     der Padding-Box maskiert seine eigene Content-Box heraus — die Striche stehen nur im Ring
-     (`$ring-x`/`$ring-y`, bewusst schmaler als das Padding, der Rest ist Puffer zum Text), und
-     durch das Loch scheint die Füllung des Buttons, egal in welchem Zustand. Die Strichfarbe
-     reist als `--label-hatch`; ein Zustand, der die Füllung wechselt, setzt sie mit (Hover →
+     Text-Button) → **`mem-label-hatch`**: die Textur auf einem `::before` über den ganzen Button,
+     voll im Ring (`$ring-x`/`$ring-y`), über `$fade` (6 px) zum Rest abgeblendet. Durch die
+     Maske scheint die Füllung des Buttons, egal in welchem Zustand. Die Strichfarbe reist als
+     `--label-hatch`; ein Zustand, der die Füllung wechselt, setzt sie mit (Hover →
      `--mem-hatch-hover`, statischer Akzent → `--mem-hatch-accent`). In `btn-action` heißt das
      `$hatch: label`, `btn-pill` und `mem-seg-tabs` haben es eingebaut.
+   - **Der Hauptbutton** (`btn-primary`): Die Sprenkel blenden zur Mitte hin ab, wo Glyph und
+     Beschriftung stehen (`radial-gradient(closest-side, …)`). ⚠️ Die Hover-Schraffur liegt auf
+     **derselben** maskierten Ebene, nicht auf dem Hintergrund des Buttons — dort liefe sie voll
+     hinter der Beschriftung, denn die Deckflächen sind weg.
+   - Bleibt hart: die Glyph-Abdeckung von `btn-action` — ein Icon ist kein Text.
+   - Mischfarben für die Maske über `mem-alpha()`, nie `rgba($var, …)`: der Paletten-Zensus
+     (`paletteTokens.test.ts`) lässt keine Sass-Farbfunktion mit Variable durch.
 
      ⚠️ **Hier stand bis 2026-09-28 „gar keine Schraffur" (#476)** — und genau so wurde es
      gemeldet: „Buttons ohne Schraffur" auf dem Charts-Schirm. Wo jede andere drückbare Platte
@@ -347,13 +358,13 @@ Drei Bedingungen, alle tragend:
    Icon-Buttons sind davon unberührt: Ein Glyph ist eine Strichzeichnung mit eigenem Kontrast,
    kein Fließtext — sie tragen die Textur über die ganze Fläche. Zensus: `labelHatch.test.ts`.
 
-**Und wo sie bleibt, läuft sie nie durch ein Schriftband.** Trägt eine schraffierte Fläche Text,
-liegen die Striche zwischen den Buchstaben und berühren sie bei 2× sichtbar. Dafür gibt es das
-Mixin-Paar: `mem-hatch-ring($size, $on)` auf der **Fläche** (Textur über die ganze Box plus eine
-Deckschicht in der eigenen Füllung, auf die Content-Box geclippt) und `mem-hatch-clear($buffer)`
-auf dem **Inhalt** (Label, Glyph-Zeile). Sichtbar bleibt exakt das Padding — ein Ring aus Textur um
-ein glattes Schriftband. Vorbilder: `NavButtons.vue`, `LeftSidebar/index.vue`, das aktive Segment
-in `SettingsView/Components/Select.vue`.
+**Und wo sie bleibt, läuft sie unter Text nur blass** (Regel 3 oben, seit 2026-10-16; vorher „nie
+durch ein Schriftband"). Trägt eine schraffierte Fläche Text, legt `mem-hatch-clear($buffer)` auf
+dem **Inhalt** (Label, Glyph-Zeile) einen weichen Schleier in der eigenen Füllung
+(`mem-text-veil`), der über den Puffer ausblendet. Das frühere Gegenstück auf der Fläche,
+`mem-hatch-ring` (Deckschicht auf die Content-Box geclippt), wird nirgends mehr benutzt. Vorbilder:
+`NavButtons.vue`, `LeftSidebar/index.vue`, das aktive Segment in
+`SettingsView/Components/Select.vue`.
 
 Zwei Bedingungen: **Die Füllung hat EINE Quelle** — `--row-fill`; wer daneben von Hand ein
 `background-color` schreibt, malt ein sichtbares Rechteck um sein Label. Und **der Ring ist nur so
@@ -409,8 +420,8 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   Text endet — ein kurzer Titel ließ eine Lücke, ein langer lief in die Punkte. Und eine
   **Deckfläche pro Label** (`mem-hatch-clear`) schnitt um jede Zeile einen Kasten aus dem Muster.
   Der Schleier isoliert sich selbst (`isolation: isolate`), liegt also über der Fläche und unter
-  dem eigenen Inhalt; jede neue Punktfläche mit Text nimmt ihn. Text über **Schraffur** (drückbare
-  Platten) ist eine andere Regel und behält seine Deckflächen.
+  dem eigenen Inhalt; jede neue Punktfläche mit Text nimmt ihn. Seit demselben Tag gilt das
+  Konzept auch für die **Schraffur** (Regel 3 im Schraffur-Abschnitt), mit derselben Stärke.
   Erste Anwenderin: die Continue-Karte (Textblock und „Up next"-Überschrift), am Desktop **und**
   am Handy — eine Punktebene für jede Breite, keine eigene Maske mehr.
 - **Eine Stat-Zahl hat immer zwei Zeilen Platz, der Text steht oben darin** (`min-height: 2lh`):

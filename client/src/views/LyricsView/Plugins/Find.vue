@@ -27,7 +27,7 @@ const plugin = useLyricsPlugin();
   //
   // The label needs `.text`: the role's sprinkle is an absolutely positioned
   // ::before, and the mixin only lifts `svg, .text` above it. A bare <span>
-  // would sit UNDER the texture — the one thing the hatch rule forbids.
+  // would sit UNDER the texture at full strength.
   @include btn-primary($h: auto);
   min-height: 2.75rem;
   margin-top: $medium;
@@ -45,12 +45,14 @@ const plugin = useLyricsPlugin();
     &:hover,
     &:active {
       background-color: $mem-coral;
-      background-image: none;
       color: $mem-ink;
       transform: none;
       @include candy-shadow(3px, 3px);
 
+      // The role's hover puts the hatch on this layer; the message keeps its
+      // resting sprinkle instead.
       &::before {
+        @include mem-sprinkle(28px);
         opacity: 0.45;
       }
     }

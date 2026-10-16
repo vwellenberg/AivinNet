@@ -17,9 +17,10 @@ import { block, styleBlock } from "./scssBlocks";
 // pill), the folder sort opener, the chart page-size chips and the playlist
 // "Edit" button; the settings segments had it on the active one only.
 //
-// `mem-label-hatch` paints the texture on a `::before` that masks out its own
-// content box, so no fill has to be restated anywhere: the strokes only stand
-// in the ring, and whatever colour the button has shows through the hole.
+// `mem-label-hatch` paints the texture on a `::before` and masks it down toward
+// the label, so no fill has to be restated anywhere: the strokes stand at full
+// strength in the ring, thin to the veil's rest under the text (soft since
+// 2026-10-16), and whatever colour the button has shows through.
 // ---------------------------------------------------------------------------
 
 const read = (path: string) => readFileSync(path, "utf-8");
@@ -45,15 +46,60 @@ describe("mem-label-hatch", () => {
     expect(body).not.toMatch(/--row-fill/);
   });
 
-  it("cuts the text band out of the texture", () => {
-    // Both spellings: the unprefixed one for current engines, the -webkit- one
-    // for the Android WebViews that still need it.
-    expect(body).toMatch(/mask:\s*linear-gradient\([^)]*\)\s*content-box\s+exclude/);
-    expect(body).toMatch(/-webkit-mask-composite:\s*xor;/);
+  it("thins the texture toward the label instead of cutting a hole", () => {
+    // Concept "C" (user, 2026-10-16): full strength in the ring, fading to the
+    // veil's rest under the text — the same rest as under any text on a
+    // texture. Both spellings: the -webkit- one for older Android WebViews.
+    expect(body).toMatch(/-webkit-mask-image: \$sides, \$ends, linear-gradient\(\$mem-veil-rest, \$mem-veil-rest\);/);
+    expect(body).toMatch(/[^-]mask-image: \$sides, \$ends, linear-gradient\(\$mem-veil-rest, \$mem-veil-rest\);/);
+    // A low pill (2.25rem) is shorter than both vertical fades together: the
+    // stops are clamped to the middle so the band under the text never closes.
+    expect(body).toMatch(/transparent min\(#\{\$ring-y\}, 50%\), transparent max\(100% - #\{\$ring-y\}, 50%\)/);
+    expect(body).not.toMatch(/content-box|mask-composite:\s*xor/);
   });
 
   it("reads the stroke colour from --label-hatch, so a state can change it", () => {
     expect(body).toMatch(/background-image:\s*var\(--label-hatch\)/);
+  });
+});
+
+// The label cover on hatched rows (sidebar, nav, settings, Up next rows, the
+// Browse tiles): a soft veil since 2026-10-16 (concept "C"), no box of the fill.
+describe("mem-text-veil (label covers and card captions)", () => {
+  const veil = mixin(CANDY, "mem-text-veil");
+
+  it("veils on a pseudo-element, isolated, in the surface's fill at the shared strength", () => {
+    expect(veil).toMatch(/isolation: isolate;/);
+    expect(veil).toMatch(/&::before\s*\{\s*@include mem-veil-layer;/);
+    const layer = mixin(CANDY, "mem-veil-layer");
+    expect(layer).toMatch(/background-color: var\(--row-fill, #\{\$mem-panel\}\);/);
+    expect(layer).toMatch(/opacity: \$strength;/);
+    expect(layer).toMatch(/z-index: -1;/);
+  });
+
+  it("fades out at its edges and stays inside its own box", () => {
+    // `inset: 0`: a label with a frame (the duration pill) had its ring veiled
+    // where a larger layer spilled over it.
+    expect(veil).toMatch(/inset: 0;/);
+    expect(veil).toMatch(/transparent 0, #000 \$left, #000 calc\(100% - #\{\$right\}\), transparent 100%/);
+  });
+
+  it("is what the label cover and the card captions use — no box of the fill left", () => {
+    const clear = mixin(CANDY, "mem-hatch-clear");
+    expect(clear).toMatch(/@include mem-text-veil\(\$left: 4px, \$right: \$buffer\);/);
+    expect(clear).not.toMatch(/background/);
+
+    const cards = strip(read("src/assets/scss/Global/cards.scss"));
+    expect(cards.match(/@include mem-text-veil\(\$left: \$card-cover-pad, \$right: \$card-cover-pad\);/g)?.length).toBe(2);
+    expect(cards).not.toMatch(/background-color: var\(--row-fill\);\s*border-radius: 6px;/);
+  });
+
+  it("shares one strength and one layer with the dots veil", () => {
+    expect(CANDY).toMatch(/^\$mem-veil-strength: 0\.72;/m);
+    expect(CANDY).toMatch(/^\$mem-veil-rest: mem-alpha\(#000, 1 - \$mem-veil-strength\);/m);
+    const dots = mixin(CANDY, "mem-dots-veil");
+    expect(dots).toMatch(/\$strength: \$mem-veil-strength/);
+    expect(dots).toMatch(/@include mem-veil-layer\(\$strength\);/);
   });
 });
 

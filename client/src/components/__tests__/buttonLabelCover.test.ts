@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
-// A button's texture runs AROUND its label and glyph, never behind them (#237).
+// A button's texture never runs behind its label at full strength (#237).
 //
 // `btn-primary` lays a sprinkle over its fill (the hatch on hover), `btn-action`
 // a hatch. The label was only lifted above the texture with z-index — which does
@@ -47,10 +47,10 @@ function rulesFor(css: string, selector: string): string[] {
     return out;
 }
 
-describe.each([
-    ["btn-primary", ["> svg", "> .text"]],
-    ["btn-action", ["> svg"]],
-])("%s", (name, covered) => {
+// `btn-action` keeps its glyph cover: an icon is not text. `btn-primary` has no
+// cover any more — its texture thins toward the label and the glyph instead
+// (user, 2026-10-16, concept "C"), see the block below.
+describe.each([["btn-action", ["> svg"]]])("%s", (name, covered) => {
     const body = mixin(name);
 
     it("is found", () => {
@@ -63,5 +63,31 @@ describe.each([
         const rules = rulesFor(body, selector);
         expect(rules.length, `no ${selector} rule in ${name}`).toBeGreaterThan(0);
         expect(rules.some((rule) => /background-color:\s*inherit/.test(rule))).toBe(true);
+    });
+});
+
+// Concept "C" (user, 2026-10-16): the texture runs over the whole primary and
+// thins toward its middle, where glyph and label sit, to the same rest the
+// dots leave under text. The cover it replaced printed a box of the fill
+// around the label. The hover hatch runs on the same masked layer — painted
+// on the button's own background it would run behind the label at full.
+describe("btn-primary", () => {
+    const body = mixin("btn-primary");
+
+    it("thins its texture toward the content instead of covering label and glyph", () => {
+        const layer = rulesFor(body, "&::before")[0] ?? "";
+        expect(layer).toMatch(/mask-image:\s*radial-gradient\(closest-side, \$mem-veil-rest 70%, #000 100%\)/);
+        for (const selector of ["> svg", "> .text"]) {
+            expect(rulesFor(body, selector).some((rule) => /background-color/.test(rule)), selector).toBe(false);
+        }
+    });
+
+    it("hovers with the hatch on the masked layer, not on its own background", () => {
+        const hover = rulesFor(body, "&:hover")[0] ?? "";
+        expect(hover).toMatch(/&::before \{[^}]*background-image: var\(--mem-hatch-hover\)/);
+        // Its own declarations, the nested blocks taken out.
+        const own = hover.replace(/[^{};]*\{[^}]*\}/g, "");
+        expect(own).toMatch(/background-color: var\(--mem-hover\)/);
+        expect(own).not.toMatch(/background-image/);
     });
 });

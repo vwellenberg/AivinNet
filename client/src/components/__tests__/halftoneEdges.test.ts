@@ -51,9 +51,8 @@ describe('halftone at the ends', () => {
         // Isolated, so the veil sits between the surface and the host's content;
         // painted in the surface's own fill, feathered.
         expect(veil).toMatch(/isolation: isolate;/)
-        expect(veil).toMatch(/background: var\(--row-fill, #\{\$mem-panel\}\);/)
+        expect(veil).toMatch(/@include mem-veil-layer\(\$strength\);/)
         expect(veil).toMatch(/filter: blur\(/)
-        expect(veil).toMatch(/z-index: -1;/)
     })
 
     it('on phones the pill stays white, the dots cover the strip around it', () => {

@@ -334,6 +334,16 @@ $control-dense-glyph: 1rem;
     @include mem-sprinkle(28px);
     opacity: 0.45;
     pointer-events: none;
+    // The texture thins toward the middle, where glyph and label sit (user,
+    // 2026-10-16, concept "C"): full at the ends, `1 - $mem-veil-strength`
+    // under the content. It replaced a cover behind the label and the glyph
+    // (#237: lifting them above the texture alone let it show THROUGH the
+    // letters), which printed a box of the fill into the texture. The hover
+    // hatch runs on this same layer, so it thins the same way.
+    // 70%: a wide label ("Play all", "Find lyrics") reaches about that far out,
+    // and at 45% its outer letters stood in ~60% texture.
+    -webkit-mask-image: radial-gradient(closest-side, $mem-veil-rest 70%, #000 100%);
+    mask-image: radial-gradient(closest-side, $mem-veil-rest 70%, #000 100%);
   }
 
   svg,
@@ -342,23 +352,9 @@ $control-dense-glyph: 1rem;
     z-index: 1;
   }
 
-  // ⚠️ Lifting the label above the texture is not enough (#237): the texture
-  // still shows THROUGH it, between and inside the letters — "Play" read with
-  // sprinkle strokes crossing it, and on hover the hatch did the same. So the
-  // label and the glyph carry a cover: `inherit`, i.e. whatever fill the button
-  // has at this moment — resting, hovered, or a caller's own (the lyrics
-  // finder's coral error plate) — with nothing for any caller to keep in step.
-  // Direct children only: a nested svg (a spinner inside a wrapper) inherits
-  // from its own parent and stays out of it.
-  > svg,
-  > .text {
-    background-color: inherit;
-  }
-
-  // A few pixels of buffer so the strokes stop short of the letters.
+  // The inset the label's cover had, kept so no button changes its width.
   > .text {
     padding: 0 3px;
-    border-radius: 3px;
   }
 
   svg {
@@ -371,12 +367,6 @@ $control-dense-glyph: 1rem;
     flex-shrink: 0;
   }
 
-  // Round: on the play discs the glyph sits in a circle, and a square cover
-  // would print a clean square into the texture.
-  > svg {
-    border-radius: 50%;
-  }
-
   // The shared pointer signal (#422), like every other button. The v1.4.0
   // rule this replaces said "no colour flip", but it was aimed at YELLOW —
   // hover borrowing the playing/active colour. The contrast surface carries no
@@ -387,15 +377,16 @@ $control-dense-glyph: 1rem;
     background-color: var(--mem-hover);
     color: var(--mem-hover-text);
     // The hatch, not the sprinkle: on the contrast surface the texture means
-    // what it means on every other hovered plate. The sprinkle underneath is
-    // ink-stroked and would sit invisible (light) or as a second, clashing
-    // texture (dark), so it yields for the duration.
-    background-image: var(--mem-hatch-hover);
-    background-size: 28px 28px;
+    // what it means on every other hovered plate. The sprinkle is ink-stroked
+    // and would sit invisible (light) or as a second, clashing texture (dark),
+    // so the hatch takes its place — on the same masked layer, so it thins
+    // toward the label like the sprinkle does.
     transform: scale(1.06);
 
     &::before {
-      opacity: 0;
+      background-image: var(--mem-hatch-hover);
+      background-size: 28px 28px;
+      opacity: 1;
     }
   }
 
@@ -427,7 +418,7 @@ $control-dense-glyph: 1rem;
 // every small plate overrode `svg { width/height }` at its call site — which is
 // the outside-patch shape this file exists to remove.
 // `$hatch: label` — for the variants that carry a LABEL instead of a glyph.
-// The texture never runs behind text (styling.md), so it stands as a ring
+// The texture runs only faintly behind text (styling.md), so it stands as a ring
 // around the label instead (`mem-label-hatch`). These went completely smooth in
 // #476 and were reported as "buttons without hatch" — on a screen where every
 // other pressable plate has it, the smooth one reads as not pressable.
@@ -615,7 +606,7 @@ $control-dense-glyph: 1rem;
   );
   // A pill is a LABEL button by definition — every call site in the app is a
   // word: Save, Login, Cancel, Delete, Load More, New Playlist, the search
-  // tabs. The texture never runs behind text (styling.md), so it stands as a
+  // tabs. The texture runs only faintly behind text (styling.md), so it stands as a
   // ring around the label (mem-label-hatch). #476 had removed it entirely,
   // which left these the only pressable plates without it. The two
   // theme-aware fills (panel, soft) take the theme sprite, every static accent
@@ -721,9 +712,10 @@ $control-dense-glyph: 1rem;
   &:hover {
     background-color: var(--mem-hover);
     color: var(--mem-hover-text);
-    // Hatch over sprinkle, same trade as `btn-primary`'s hover: the ink-
-    // stroked sprinkle is invisible on the ink plate and a second texture on
-    // the paper one.
+    // Hatch over sprinkle: the ink-stroked sprinkle is invisible on the ink
+    // plate and a second texture on the paper one. On the plate itself here —
+    // a toggle carries a glyph, no text; `btn-primary` moves its hover hatch
+    // onto its masked layer because of its label.
     background-image: var(--mem-hatch-hover);
     background-size: 28px 28px;
     transform: scale(1.06);

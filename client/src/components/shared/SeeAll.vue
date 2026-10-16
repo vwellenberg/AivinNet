@@ -19,7 +19,7 @@ defineProps<{
 // and right next to a smooth caption is exactly where the texture has to say so
 // (styling.md: the hatch marks a control BETWEEN non-controls). It used to stay
 // smooth as "a text link, not a control surface" and read as a second caption.
-// Its face is a word, so the texture is a ring around the label, never behind it
+// Its face is a word, so the texture is a ring around the label, only faintly behind it
 // (mem-label-hatch, the #476 pattern); the ring sits inside the 0.25rem/0.7rem
 // padding like btn-pill's auto-height variant.
 .see-all {

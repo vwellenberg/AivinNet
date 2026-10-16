@@ -274,7 +274,7 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
 
     // The caption and the description are one link to the row's page, and a
     // link is pressable: it carries the hatch like every other plate that can
-    // be pressed (styling.md) — as a ring around the words, never behind them.
+    // be pressed (styling.md) — as a ring around the words, faint behind them.
     // Only with a route: without one the link points at the page it is on.
     // The sticker's own 0.3rem above and below is too thin to hold a readable
     // ring (measured: strokes only at the corners), so a linked caption pads
