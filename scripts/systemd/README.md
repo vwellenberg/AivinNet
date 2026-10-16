@@ -1,4 +1,4 @@
-# Deploy per Knopf (AivinNet#478)
+# Deploy bei jedem Merge (AivinNet#478)
 
 Der Server liegt im LAN und ist von außen nicht erreichbar. Deshalb holt er sich das Signal
 selbst: Der Workflow **Deploy** (`.github/workflows/deploy.yml`) setzt den Branch `deploy` auf
@@ -8,11 +8,12 @@ keinen Self-hosted Runner.
 
 ## Auslösen
 
+- **Jeder Merge** (jeder Push auf `master`) wird deployt. Merges innerhalb einer Minute oder
+  während eines laufenden Deploys landen in einem Deploy: Der Server sieht nur das neueste Signal.
 - **Knopf:** GitHub → Actions → Deploy → „Run workflow" (geht auch in der GitHub-App am Handy).
-  Ohne Eingabe wird der aktuelle Stand von `master` deployt, mit einer Commit-SHA von `master`
-  genau dieser Commit, auch ein älterer (Rollback).
-- **Label:** Ein PR nach `master`, der mit dem Label `deploy` gemergt wird, deployt seinen
-  Merge-Commit. Das Label muss einmal angelegt werden (Issues → Labels → New label `deploy`).
+  Ohne Eingabe deployt er den aktuellen Stand von `master` noch einmal (nach einem `FAILED`), mit
+  einer Commit-SHA von `master` genau diesen Commit, auch einen älteren (Rollback). Ein Rollback
+  hält bis zum nächsten Merge.
 
 Innerhalb einer Minute danach baut der Server den Client, wenn sich `client/` geändert hat, und
 startet das Backend neu, wenn sich `src/`, `pyproject.toml` oder `uv.lock` geändert haben.

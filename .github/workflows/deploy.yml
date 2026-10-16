@@ -1,4 +1,4 @@
-# The deploy button (AivinNet#478).
+# Deploy on every merge, and a button for retries and rollbacks (AivinNet#478).
 #
 # This workflow never reaches the home server, which is not reachable from the
 # internet. It only moves the branch `deploy`: every run puts a new SIGNAL
@@ -7,19 +7,19 @@
 # minute (`scripts/auto-deploy.sh`, systemd timer in `scripts/systemd/`) and
 # deploys the parent. A fresh id per run is what makes "press it again" retry a
 # deploy that failed: pointing the ref at the same master commit twice would
-# look like nothing happened. A deploy stays a decision: nothing here runs on an
-# ordinary merge.
+# look like nothing happened.
 #
 # Two triggers, one signal:
+#   - Every push to master, i.e. every merge, deploys it. The server restarts
+#     the backend only when backend files changed, and merges that land within
+#     a minute (or during a running deploy) end up in one deploy: the server
+#     only ever sees the newest signal.
 #   - Actions → Deploy → "Run workflow" (also in the GitHub mobile app). With no
-#     input it deploys master's head; a commit SHA of master deploys exactly
-#     that one, a rollback included.
-#   - A pull request into master that is MERGED while it carries the label
-#     `deploy` deploys its merge commit.
+#     input it deploys master's head again (a retry after FAILED); a commit SHA
+#     of master deploys exactly that one: a rollback, which holds until the
+#     next merge.
 #
-# `pull_request_target`, not `pull_request`: a merged PR from a fork would get a
-# read-only token and could not move the ref. This is safe here because no
-# code from the pull request is checked out or run — the job only calls the
+# No code from the repository is checked out or run: the job only calls the
 # GitHub API with SHAs it validates itself.
 name: Deploy
 
@@ -30,8 +30,7 @@ on:
         description: "Commit of master to deploy (empty: master's head)"
         required: false
         default: ""
-  pull_request_target:
-    types: [closed]
+  push:
     branches: [master]
 
 permissions:
@@ -39,14 +38,9 @@ permissions:
 
 jobs:
   signal:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'deploy'))
     runs-on: ubuntu-latest
-    # Two signals at once must not race each other; the later one wins. On the
-    # job, not the workflow: every closed PR starts a run, and at workflow level
-    # an unlabeled one (its job skipped) would cancel a deploy still waiting.
+    # Two signals at once must not race each other; the later one wins (a
+    # waiting run is replaced, the one in progress finishes).
     concurrency:
       group: deploy-signal
       cancel-in-progress: false
@@ -61,7 +55,7 @@ jobs:
           # Through the environment, never interpolated into the script: an
           # input is text someone typed.
           INPUT_SHA: ${{ inputs.sha }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PUSH_SHA: ${{ github.sha }}
           RUN: ${{ github.run_id }}
           ACTOR: ${{ github.actor }}
         run: |
@@ -71,7 +65,7 @@ jobs:
           if [ "$EVENT" = workflow_dispatch ]; then
             sha="${INPUT_SHA:-$master}"
           else
-            sha="$MERGE_SHA"
+            sha="$PUSH_SHA"
           fi
 
           if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{7,40}$'; then

@@ -91,7 +91,7 @@ Pro Aufgabe/Issue:
 - **PR** öffnen — **nicht als Draft** (Wunsch des Users, 2026-09-28). Manche Umgebungen legen PRs standardmäßig als Draft an; diese Zeile hat Vorrang. Ein Draft wartet nur auf ein „ready", das niemand setzt.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt **alle acht** Jobs aus `ci.yml` (`strict:false`, kein Review-Zwang, `enforce_admins:false`), seit 2026-09-19 auch `Docker Smoke Test`. Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen. ⚠️ **`--auto` wartet NUR auf Pflicht-Checks:** Ein neuer Job ist erst Gate, wenn er in der Branch Protection steht (#189 wurde gemergt, bevor der damals freiwillige Smoke-Test fertig war). Nachsehen: `gh api repos/vwellenberg/AivinNet/branches/master/protection/required_status_checks --jq .contexts`.
-- Danach **deployen und verifizieren** (Befehl: `MAINTAINER.local.md`), Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
+- Danach **deployt der Server selbst**, sobald auf ihm der Timer läuft (siehe „Deploy“ unten; sonst von Hand, Befehl: `MAINTAINER.local.md`) — **verifizieren** bleibt Pflicht. Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
 ### Branch-Hygiene — `--delete-branch` räumt nur die HÄLFTE
@@ -349,9 +349,10 @@ Zugangsdaten, nicht zwei.
 Der **Client** wird aus seinem eigenen Repo deployt und vom selben Dienst serviert; die
 Anleitung steht in der CLAUDE.md des Clients.
 
-**Deploy per Knopf (AivinNet#478):** Actions → **Deploy** → „Run workflow“ (oder PR mit Label
-`deploy` mergen); der Server holt das Signal minütlich selbst, Einrichtung: `scripts/systemd/README.md`.
-⚠️ Ein gescheiterter Deploy (`FAILED` im Journal) wird **nicht** wiederholt — Ursache beheben, Knopf erneut.
+**Deploy (AivinNet#478): jeder Merge auf `master` wird deployt**; der Server holt das Signal minütlich
+selbst und startet das Backend nur bei Backend-Änderungen neu. Einrichtung: `scripts/systemd/README.md`.
+⚠️ Ein gescheiterter Deploy (`FAILED` im Journal) wird **nicht** wiederholt — Ursache beheben, dann
+Actions → **Deploy** → „Run workflow“. Derselbe Knopf mit einer SHA ist der Rollback; er hält bis zum nächsten Merge.
 
 ## Nächste Schritte
 
