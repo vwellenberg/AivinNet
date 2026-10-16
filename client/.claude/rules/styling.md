@@ -401,6 +401,14 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 - **Form statt Textur, wo ein Teil des Inhalts groß ist.** Die Halbton-Punkte bleiben auf der
   Continue-Karte und den Leisten, wo sie ganze Flächen füllen und der Text auf eigenen Deckflächen
   steht.
+- **Die Enden der Continue-Karte sind gemessen, nicht geschätzt** (Nutzer, 2026-10-15): rechts voll
+  über 30 %, weg bei 55 % — dort beginnt „Up next" (55–59 % der Karte bei 773 und 1090 px); vorher
+  reichten die Punkte bis 40 %, in den Titel hinein. Am Handy rechts **drei Spalten**: 27 px plus
+  6 px Übergang = 33 px = dreimal das Raster von 11 px (`$right-fade` am Mixin, Standard 15 %).
+- **Eine Stat-Zahl hat immer zwei Zeilen Platz, der Text steht oben darin** (`min-height: 2lh`):
+  Der Block steht unten in der Kachel, also begann eine einzeilige Zahl („12,671 tracks") eine
+  ganze Zeile tiefer als ihre zweizeiligen Nachbarn (gemessen 116 gegen 85 px). Jetzt starten alle
+  Werte bei 85 px und alle Untertitel auf einer Linie; die laufende Zahl hängt oben (`top: 0`).
 - **Am Handy punktet die Top-Bar UM die Pille herum, nicht in ihr** (Nutzer, 2026-10-15): Die
   ganze Nav-Zeile von der Bildschirmkante bis zum Inhalt, ohne Maske, die Pille bleibt weiß. Die
   Ebene malt das **Grid** (`#app-grid::before` mit `grid-area: nav`: ein positioniertes
