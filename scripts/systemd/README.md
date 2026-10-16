@@ -2,8 +2,8 @@
 
 Der Server liegt im LAN und ist von außen nicht erreichbar. Deshalb holt er sich das Signal
 selbst: Der Workflow **Deploy** (`.github/workflows/deploy.yml`) setzt den Branch `deploy` auf
-einen Commit von `master`, und ein Timer auf dem Server fragt jede Minute nach, wohin `deploy`
-zeigt (`scripts/auto-deploy.sh`). Es braucht nur ausgehendes HTTPS: keinen Port, keinen Tunnel,
+einen neuen Signal-Commit, dessen Elternteil der Commit von `master` ist, und ein Timer auf dem
+Server fragt jede Minute nach, ob sich `deploy` bewegt hat (`scripts/auto-deploy.sh`). Es braucht nur ausgehendes HTTPS: keinen Port, keinen Tunnel,
 keinen Self-hosted Runner.
 
 ## Auslösen
@@ -42,7 +42,12 @@ Prüfen: `systemctl --user list-timers aivinnet-deploy.timer`. Die Läufe stehen
   denselben Commit: Jeder Lauf des Workflows setzt einen neuen Signal-Commit (Elternteil = der
   Commit von `master`), und jedes neue Signal wird genau einmal bearbeitet.
 - **`refusing`**: Der Checkout hat lokale Änderungen oder eigene Commits, oder der Commit liegt
-  nicht auf `master`. Der Server überschreibt nie fremde Arbeit.
+  nicht auf `master`. Der Server überschreibt nie fremde Arbeit. Ebenso verweigert: ein Commit
+  von **vor** dem Deploy-Knopf (ohne `scripts/auto-deploy.sh` würde der Timer sich selbst
+  löschen; weiter zurück geht es nur von Hand) und ein `deploy`-Ref, das nicht vom Workflow kommt.
+- Schlägt ein Schritt fehl, **bevor** etwas live ist (`uv sync`, `yarn install`, der Neustart),
+  setzt der Server den Checkout auf den laufenden Stand zurück (`undoing` im Journal). Danach
+  nicht mehr: Ein Client-Build, der an seinen Gates scheitert, kann schon ausgeliefert sein.
 - Zustand und Lock liegen unter `~/.local/state/aivinnet-deploy/`.
 - Ausschalten: `systemctl --user disable --now aivinnet-deploy.timer`.
 

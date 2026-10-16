@@ -38,7 +38,9 @@ CLIENT_DEPLOY="${CLIENT_DEPLOY:-bash client/scripts/deploy-client.sh}"
 BACKEND_SYNC="${BACKEND_SYNC:-"$UV" sync --frozen}"
 # Without `.service`: the sudoers rule names the unit exactly (client/CLAUDE.md).
 RESTART="${RESTART:-sudo systemctl restart $SERVICE}"
-HEALTH="${HEALTH:-curl -fsS -o /dev/null http://localhost:$PORT/}"
+# A deadline on every request: bjoern serves one request at a time, and a
+# handler that hangs would hold this run until systemd's own timeout.
+HEALTH="${HEALTH:-curl -fsS --max-time 5 -o /dev/null http://localhost:$PORT/}"
 VERIFY="${VERIFY:-1}"
 
 log() { echo "[deploy] $*"; }
@@ -90,8 +92,8 @@ verify() {
 		log "no client build to compare against — skipping the served-bytes check"
 		return 0
 	fi
-	built=$(grep -oE 'assets/index[A-Za-z0-9._-]*\.js' "$REPO/client/dist/index.html" | head -1)
-	served=$(curl -fsS "http://localhost:$PORT/" | grep -oE 'assets/index[A-Za-z0-9._-]*\.js' | head -1 || true)
+	built=$(grep -oE 'assets/index[A-Za-z0-9._-]*\.js' "$REPO/client/dist/index.html" | head -1 || true)
+	served=$(curl -fsS --max-time 10 "http://localhost:$PORT/" | grep -oE 'assets/index[A-Za-z0-9._-]*\.js' | head -1 || true)
 	if [[ -z "$built" || "$built" != "$served" ]]; then
 		log "the server hands out '${served:-nothing}', the build is '${built:-nothing}'"
 		return 1
@@ -99,14 +101,27 @@ verify() {
 	log "served entry: $served"
 }
 
+has() { grep -qx "$1" <<<"$steps"; }
+
+# ⚠️ `deploy` is called as an `if` condition, and bash switches `set -e` off
+# inside a function called that way: every step that can fail says so itself
+# (`|| return 1`), or a failed checkout would still end in DEPLOYED.
 deploy() {
-	local from="$1" to="$2" steps
-	cd "$REPO"
+	local from="$1" to="$2" head synced=0
+	steps=""
+	cd "$REPO" || return 1
 
 	# The workflow only ever points `deploy` at master; check it here too, the
 	# server should not trust a ref it did not set.
 	if ! git merge-base --is-ancestor "$to" "$REMOTE/master"; then
 		log "$to is not on $REMOTE/master — refusing"
+		return 1
+	fi
+	# A commit from before this script existed would delete it, and the timer
+	# would fail every minute from then on — on a box nobody can reach from
+	# outside. A rollback goes no further back than the deploy button.
+	if ! git cat-file -e "$to:scripts/auto-deploy.sh" 2>/dev/null; then
+		log "$to has no scripts/auto-deploy.sh (older than the deploy button) — refusing"
 		return 1
 	fi
 	# Local edits or local commits are somebody's work: never overwrite them.
@@ -119,24 +134,53 @@ deploy() {
 		return 1
 	fi
 
+	# The plan starts from what is on disk. A box someone deployed by hand
+	# since (HEAD is not what this script deployed last) gets everything.
+	head=$(git rev-parse HEAD) || return 1
+	if [[ "$head" != "$from" ]]; then
+		from=""
+	fi
+
 	# Exactly the commit the signal names, forward or back (a rollback is a
 	# deploy of an older commit). Local master holds nothing of its own (above).
-	git checkout -q -B master "$to"
-
-	steps=$(plan "$from" "$to")
+	git checkout -q -B master "$to" || return 1
+	steps=$(plan "$from" "$to") || { undo "$head" "$synced"; return 1; }
 	log "steps: $(tr '\n' ' ' <<<"$steps")"
 
-	if grep -qx client-deps <<<"$steps"; then run "$CLIENT_INSTALL" || return 1; fi
-	if grep -qx client <<<"$steps"; then run "$CLIENT_DEPLOY" || return 1; fi
-	if grep -qx backend-deps <<<"$steps"; then run "$BACKEND_SYNC" || return 1; fi
-	if grep -qx backend <<<"$steps"; then
-		run "$RESTART" || return 1
-		wait_up || return 1
+	# Dependencies first, then the backend, then the client: the client's
+	# post-deploy gates (deploy-client.sh) test the new bundle against the
+	# backend it is meant for, not against the process that ran before.
+	if has backend-deps; then
+		run "$BACKEND_SYNC" || { undo "$head" 1; return 1; }
+		synced=1
+	fi
+	if has client-deps; then
+		run "$CLIENT_INSTALL" || { undo "$head" "$synced"; return 1; }
+	fi
+	if has backend; then
+		run "$RESTART" || { undo "$head" "$synced"; return 1; }
+		# From here on the new code is live: no undo, only a clear report.
+		wait_up || { log "the backend was restarted on $to and does not answer"; return 1; }
+	fi
+	if has client; then
+		run "$CLIENT_DEPLOY" || { log "the client build or its gates failed; files may already be live"; return 1; }
 	fi
 	if [[ "$VERIFY" == 1 ]]; then
 		verify || return 1
 	fi
 	return 0
+}
+
+# A deploy that fails before anything went live: put the checkout (and the
+# environment, if it was synced) back to what is running, so a reboot does not
+# start code that was never deployed against an environment that does not fit.
+undo() {
+	local head="$1" synced="$2"
+	log "undoing: checkout back to $head"
+	git -C "$REPO" checkout -q -B master "$head" || log "could not restore the checkout to $head"
+	if [[ "$synced" == 1 ]]; then
+		run "$BACKEND_SYNC" || log "could not restore the environment for $head"
+	fi
 }
 
 # The commit a signal asks for: its parent (the workflow's signal commit), or
@@ -146,7 +190,8 @@ target_of() {
 	if git -C "$REPO" merge-base --is-ancestor "$signal" "$REMOTE/master"; then
 		echo "$signal"
 	else
-		git -C "$REPO" rev-parse "$signal^1"
+		# Empty for a signal without a parent (a ref pushed by hand).
+		git -C "$REPO" rev-parse -q --verify "$signal^1" || true
 	fi
 }
 
@@ -162,7 +207,9 @@ main() {
 
 	read -ra fetch_flags <<<"$GIT_FETCH_FLAGS"
 	# Quiet when there is nothing to do: this runs every minute.
-	if ! timeout 60 git -C "$REPO" fetch --quiet "${fetch_flags[@]}" "$REMOTE" \
+	# `LC_ALL=C`: the message checked below is git's English one, and a German
+	# box would translate it.
+	if ! LC_ALL=C timeout 60 git -C "$REPO" fetch --quiet "${fetch_flags[@]}" "$REMOTE" \
 		"+refs/heads/master:refs/remotes/$REMOTE/master" \
 		"+refs/heads/deploy:refs/remotes/$REMOTE/deploy" 2>"$STATE/fetch.err"; then
 		# No `deploy` branch is the normal state before the first button press.
@@ -183,6 +230,10 @@ main() {
 	echo "$signal" >"$STATE/signal"
 
 	target=$(target_of "$signal")
+	if [[ -z "$target" ]]; then
+		log "the signal $signal names no commit (not from the Deploy workflow) — refusing"
+		return 1
+	fi
 	deployed=$(cat "$STATE/deployed" 2>/dev/null || true)
 	log "deploying $target (deployed: ${deployed:-nothing yet})"
 	if deploy "$deployed" "$target"; then
@@ -200,4 +251,6 @@ if [[ "${1:-}" == --plan ]]; then
 	exit 0
 fi
 
-main
+# One line: bash reads a script as it runs, and the checkout may just have
+# replaced this file under it.
+main; exit $?

@@ -98,10 +98,17 @@ jobs:
             -f message="deploy $sha (run $RUN by $ACTOR)" \
             -f tree="$tree" -f "parents[]=$sha" --jq .sha)
 
-          if gh api "repos/$REPO/git/ref/heads/deploy" > /dev/null 2>&1; then
-            gh api -X PATCH "repos/$REPO/git/refs/heads/deploy" -f sha="$signal" -F force=true > /dev/null
-          else
-            gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy -f sha="$signal" > /dev/null
+          # Move the ref; create it only when it does not exist yet (the first
+          # press). Any other error is the error, not "missing".
+          if ! gh api -X PATCH "repos/$REPO/git/refs/heads/deploy" \
+            -f sha="$signal" -F force=true > /dev/null 2> "$RUNNER_TEMP/patch.err"; then
+            if grep -q "Reference does not exist" "$RUNNER_TEMP/patch.err"; then
+              gh api -X POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy -f sha="$signal" > /dev/null
+            else
+              cat "$RUNNER_TEMP/patch.err" >&2
+              echo "::error::could not move refs/heads/deploy"
+              exit 1
+            fi
           fi
 
           {

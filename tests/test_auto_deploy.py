@@ -53,7 +53,11 @@ class Box:
         subprocess.run(["git", "init", "-q", "--bare", "-b", "master", str(self.origin)], check=True)
         subprocess.run(["git", "init", "-q", "-b", "master", str(self.dev)], check=True)
         git(self.dev, "remote", "add", "origin", str(self.origin))
-        self.commit("README.md", "one")
+        # History starts before the button, like the real one: the server only
+        # deploys commits that still carry the script (a rollback further back
+        # would delete the timer's own command).
+        self.before_button = self.commit("README.md", "one")
+        self.commit("scripts/auto-deploy.sh", "# the script")
         subprocess.run(
             ["git", "clone", "-q", str(self.origin), str(self.server)], check=True, env={**os.environ, **GIT_ENV}
         )
@@ -203,10 +207,14 @@ def test_a_failed_deploy_is_not_retried_every_minute_but_on_the_next_signal(box)
     target = box.commit("src/aivinnet/app.py", "x = 3")
     box.signal(target, "first")
 
+    before = box.head()
     failing = box.run(RESTART="false")
     assert failing.returncode == 1
     assert "FAILED " + target in failing.stdout
     assert not (box.state / "deployed").exists()
+    # Nothing went live, so the checkout is back on what is running: a reboot
+    # must not start code that was never deployed.
+    assert box.head() == before
 
     # A minute later: the same signal is not tried again.
     quiet = box.run(RESTART="false")
@@ -261,3 +269,64 @@ def test_a_rollback_deploys_the_older_commit(box):
     assert result.returncode == 0, result.stdout
     assert box.head() == old
     assert (box.server / "src" / "aivinnet" / "app.py").read_text() == "x = 5"
+
+
+def test_a_commit_from_before_the_button_is_refused(box):
+    # Checking it out would delete scripts/auto-deploy.sh, and the timer would
+    # fail every minute from then on, on a box nobody reaches from outside.
+    box.signal(box.before_button)
+
+    result = box.run()
+    assert result.returncode == 1
+    assert "older than the deploy button" in result.stdout
+    assert box.steps() == []
+    assert (box.server / "scripts" / "auto-deploy.sh").exists()
+
+
+def test_a_ref_that_is_no_signal_is_refused(box):
+    # A commit without a parent, pushed to `deploy` by hand: there is nothing
+    # it could name.
+    tree = git(box.dev, "rev-parse", "HEAD^{tree}")
+    orphan = git(box.dev, "commit-tree", tree, "-m", "by hand")
+    git(box.dev, "push", "-q", "-f", "origin", f"{orphan}:refs/heads/deploy")
+    before = box.head()
+
+    result = box.run()
+    assert result.returncode == 1
+    assert "names no commit" in result.stdout
+    assert box.steps() == []
+    assert box.head() == before
+
+
+def test_a_box_deployed_by_hand_since_gets_everything(box):
+    # The plan starts from what is on disk, not from the last signal: after a
+    # deploy by hand nobody knows which steps it ran.
+    one = box.commit("client/src/a.vue", "a")
+    box.signal(one, "first")
+    assert box.run().returncode == 0
+    box.log.unlink()
+
+    box.commit("src/aivinnet/app.py", "x = 7")
+    git(box.server, "fetch", "-q", "origin")
+    git(box.server, "checkout", "-q", "-B", "master", "origin/master")  # by hand
+
+    docs = box.commit("docs/x.md", "words")
+    box.signal(docs, "after the hand deploy")
+    result = box.run()
+    assert result.returncode == 0, result.stdout
+    assert box.steps() == ["backend-sync", "client-install", "restart", "client"]
+
+
+def test_dependencies_come_first_and_the_client_after_the_restart(box):
+    # The client's post-deploy gates test the new bundle against the backend it
+    # is meant for, not against the process that ran before.
+    box.signal(box.commit("README.md", "two"), "first")
+    assert box.run().returncode == 0
+    box.log.unlink()
+
+    box.commit("uv.lock", "# lock")
+    box.commit("client/yarn.lock", "# lock")
+    target = box.commit("client/src/c.vue", "c")
+    box.signal(target, "second")
+    assert box.run().returncode == 0
+    assert box.steps() == ["backend-sync", "client-install", "restart", "client"]

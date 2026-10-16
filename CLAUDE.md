@@ -349,6 +349,10 @@ Zugangsdaten, nicht zwei.
 Der **Client** wird aus seinem eigenen Repo deployt und vom selben Dienst serviert; die
 Anleitung steht in der CLAUDE.md des Clients.
 
+**Deploy per Knopf (AivinNet#478):** Actions → **Deploy** → „Run workflow“ (oder PR mit Label
+`deploy` mergen); der Server holt das Signal minütlich selbst, Einrichtung: `scripts/systemd/README.md`.
+⚠️ Ein gescheiterter Deploy (`FAILED` im Journal) wird **nicht** wiederholt — Ursache beheben, Knopf erneut.
+
 ## Nächste Schritte
 
 Der Backlog lebt **ausschließlich** in den GitHub-Issues dieses Repos:
