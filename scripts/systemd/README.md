@@ -63,3 +63,17 @@ im selben Checkout: `flock ~/.local/state/aivinnet-deploy/lock <befehl>`.
 - Ausschalten: `systemctl --user disable --now aivinnet-deploy.timer`.
 
 Servereigenes (Host, Account, Pfade) gehört in `MAINTAINER.local.md`, nicht hierher.
+
+## Stolpersteine (erster Lauf, 2026-10-17)
+
+- **Anführungszeichen bei `Environment=` mit Leerzeichen.** systemd zerlegt eine unquotierte Zeile
+  wie `Environment=CLIENT_INSTALL=cd client && yarn install …` an jedem Leerzeichen. Die Variable
+  wird dann nur `cd`, und der Lauf meldet trotzdem `DEPLOYED`. Richtig:
+  `Environment="CLIENT_INSTALL=cd client && yarn install --frozen-lockfile"`.
+- **Prüfen, was tatsächlich läuft.** Nach dem ersten Lauf zeigt das Journal die Befehlszeile
+  `[deploy] + …`. Sie muss die ganze Kette enthalten, nicht nur das erste Wort.
+- **Node-Version.** Die Lockdatei verlangt für `sharp` Node ≥ 20.9. Auf älterem Node schlägt
+  `yarn install --frozen-lockfile` fehl, bevor etwas installiert wird. Dort in der Unit-Kopie
+  `CLIENT_INSTALL` mit `--ignore-engines` überschreiben (ebenfalls in Anführungszeichen).
+- **Der erste Lauf macht alles:** Abhängigkeiten, Backend-Neustart und Client-Build (einige
+  Minuten). Ein Merge während dieses Laufs landet im nächsten Lauf, nicht verloren.
