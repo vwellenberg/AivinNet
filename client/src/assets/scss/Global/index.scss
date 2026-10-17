@@ -87,6 +87,11 @@
     // has to be a background layer rather than a ::before.
     --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.30" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
     --mem-hatch-accent: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.42" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    // The seek and volume bars' own ground, behind the played and buffered
+    // spans (LeftSidebar/NP/Progress.vue, BottomBar/Volume.vue). The Memphis dark
+    // block below takes both down; a look still overrides them with --look-track*.
+    --mem-track: var(--mem-blush-soft);
+    --mem-track-strong: var(--mem-blush);
     // The printed dots of a read-only surface (`mem-halftone`), the same pair
     // as the hatch: ink on the light ground and panels, paper on the dark ones.
     // A dot on an accent fill reads the static ink in the mixin instead.
@@ -104,7 +109,11 @@ body.theme-dark {
     --mem-content-faint: rgba(255, 255, 255, 0.55);
     --mem-panel: #{$mem-dark-panel};
     --mem-soft: #{$mem-dark-soft};
-    --mem-line: #{$mem-dark-line};
+    // The frames step back to a grey (user, 2026-10-17: darker, the white
+    // away): paper at $mem-dark-line-share over the scheme's ground, still
+    // ≥ 3:1 against it (WCAG 1.4.11, paletteSchemes.test.ts). The contrast
+    // surface below keeps full paper: it is a state, not a line.
+    --mem-line: #{color-mix(in srgb, $mem-dark-line $mem-dark-line-share, var(--mem-ground))};
     --mem-text: #{$mem-dark-text};
     --mem-text-muted: #{$mem-dark-text-muted};
     // The contrast surface flips with the theme: paper on the near-black
@@ -115,18 +124,19 @@ body.theme-dark {
     --mem-veil: #{rgba($mem-dark-ground, 0.92)};
     // Ink is invisible on the indigo ground — the offset becomes a soft paper
     // edge instead, matching the paper borders of this theme.
-    --mem-shadow: rgba(244, 242, 237, 0.42);
+    // Quiet (0.14, was 0.42): a bright offset under every plate was the other
+    // half of "the white" on the dark screen.
+    --mem-shadow: rgba(244, 242, 237, 0.14);
     --mem-scrollbar-thumb: rgba(255, 255, 255, 0.45);
     --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.65);
     // Paper strokes on the near-black panel. `--mem-hatch-accent` is NOT
     // overridden here on purpose: blush, teal and yellow are the same colour in
     // both themes, so their texture stays ink — exactly like the glyphs on them.
     --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.26" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
-    // No dots on the dark ground and panels. Ink ones vanished there anyway;
-    // paper ones were tried and dropped the same day — the dark theme is to get
-    // darker and quieter, not busier (user, 2026-10-17). Said here, not left to
-    // ink happening to be invisible: a dot on an accent keeps its static ink.
-    --mem-halftone-dot: transparent;
+    // Paper dots on the dark ground and panels, quiet (22%). Ink ones vanished
+    // there; paper ones went once and came back the same day, with the darker
+    // dark theme (user, 2026-10-17). A dot on an accent keeps its static ink.
+    --mem-halftone-dot: #{mem-alpha($mem-dark-line, 0.22)};
 }
 
 // DARKER TONES in Memphis dark. The ground and the panels were dark, but
@@ -142,15 +152,21 @@ body.theme-dark {
 //                      measured in paletteSchemes.test.ts).
 //   --mem-doodle-veil  the ground at part strength over the doodle (mem-grid).
 //   --mem-tile-depth   how much of the accent a stat tile keeps (StatItem.vue).
+//   --mem-track*       the seek and volume bars' ground (index.scss :root).
 //
 // Not Boring: it has its own ground and tints and is outranked by nothing here.
 body.theme-dark:not(.theme-stream) {
     --mem-pastel-base: #{color-mix(in srgb, $mem-paper $mem-dark-pastel-paper, var(--mem-ground))};
     --mem-doodle-veil: linear-gradient(
-        #{mem-alpha(var(--mem-ground), 0.5)},
-        #{mem-alpha(var(--mem-ground), 0.5)}
+        #{mem-alpha(var(--mem-ground), 0.72)},
+        #{mem-alpha(var(--mem-ground), 0.72)}
     );
     --mem-tile-depth: 82%;
+    // The seek and volume bars: a deep blush instead of the bright pastel strip
+    // across the dark player bar (user, 2026-10-17). Played teal and the yellow
+    // seek span stay, they are states.
+    --mem-track: #{color-mix(in srgb, var(--mem-blush) 22%, var(--mem-ground))};
+    --mem-track-strong: #{color-mix(in srgb, var(--mem-blush) 42%, var(--mem-ground))};
 }
 
 body.use-figtree-font {

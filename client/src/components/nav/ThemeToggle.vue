@@ -60,9 +60,14 @@ const title = computed(() => {
     // pointer (this copy was still blush, the colour #422 retired). The hatch
     // arrives from the role unopposed; the text token stands beside the fill
     // because the two only ever move together.
-    &:hover {
-        background-color: var(--mem-hover);
-        color: var(--mem-hover-text);
+    // Only where there is a pointer: on touch `:hover` latches after the tap,
+    // and the toggle just tapped stood as a paper-white plate in the dark
+    // theme until the next tap elsewhere (user, 2026-10-17).
+    @media (hover: hover) {
+        &:hover {
+            background-color: var(--mem-hover);
+            color: var(--mem-hover-text);
+        }
     }
 }
 </style>

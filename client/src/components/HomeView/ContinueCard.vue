@@ -214,6 +214,20 @@ function resume() {
     }
   }
 
+  // What sits ON the card — the Up next rows and the progress track — was a
+  // static white plate in both themes, the brightest thing on a dark screen
+  // (user, 2026-10-17: "why not white text on black there?"). In Memphis dark
+  // they take the ground and paper text; the card keeps its tint and ink text.
+  // Read through custom properties, not set on the rows: the rows' hover sets
+  // `--row-fill` and `color` itself and must keep winning.
+  --card-inlay-fill: #{$mem-panel-static};
+  --card-inlay-text: #{$mem-ink};
+
+  body.theme-dark:not(.theme-stream) & {
+    --card-inlay-fill: #{$mem-ground};
+    --card-inlay-text: #{$mem-text};
+  }
+
   .cover {
     width: 8.5rem;
     aspect-ratio: 1;
@@ -288,14 +302,14 @@ function resume() {
     height: 0.6rem;
     border: $mem-ring-w solid $mem-ink;
     border-radius: $candy-radius-pill;
-    background-color: $mem-panel-static;
+    background-color: var(--card-inlay-fill, #{$mem-panel-static});
     overflow: hidden;
     margin: 0.25rem 0 0.4rem;
 
     span {
       display: block;
       height: 100%;
-      background-color: $mem-ink;
+      background-color: var(--card-inlay-text, #{$mem-ink});
       // Runs from the left to where they are, once the plate is up.
       transform-origin: left;
       animation: mem-fill-grow $motion-settle $motion-curve-settle $motion-after-plate backwards;
@@ -365,8 +379,8 @@ function resume() {
     // The fill stays the static panel: the card under it is a static pastel.
     .next-row {
       @include mem-row-plate($hatch: true);
-      --row-fill: #{$mem-panel-static};
-      color: $mem-ink;
+      --row-fill: var(--card-inlay-fill, #{$mem-panel-static});
+      color: var(--card-inlay-text, #{$mem-ink});
       width: 100%;
       display: flex;
       align-items: center;
