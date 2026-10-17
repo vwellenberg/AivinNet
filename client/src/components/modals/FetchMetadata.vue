@@ -67,6 +67,19 @@
                 names. Check it before you apply.
             </p>
 
+            <!-- What the last write could not do, file by file. The dialog stays
+                 open on it: a count in a toast says THAT files failed, never
+                 which ones or why. -->
+            <div v-if="failures.length" class="failures rounded-sm" role="alert">
+                <p class="failures-lead">{{ failuresLead }}</p>
+                <ul>
+                    <li v-for="(failure, index) in failures" :key="index">
+                        <span v-if="failure.filepath" class="file ellip">{{ fileName(failure.filepath) }}</span>
+                        <span class="why">{{ failure.error }}</span>
+                    </li>
+                </ul>
+            </div>
+
             <p class="lead">
                 {{ checkedCount }} of {{ changeableRows.length }} rows selected.
                 <span v-if="summary && summary.unmatched_remote">
@@ -154,6 +167,7 @@ import { computed, onUnmounted, ref } from 'vue'
 
 import {
     applyChanges,
+    ApplyResult,
     fetchPreview,
     fetchReleaseCandidates,
     MetadataSource,
@@ -218,6 +232,25 @@ const renameOnly = computed(() => cameFrom.value === 'tags')
 /** The "rename the files too" box. On by default: it is what people asked for. */
 const renameFiles = ref(true)
 
+/** What the last write reported as failed. Shown until the next preview. */
+const failures = ref<ApplyResult['failed']>([])
+/** What that same write did get done, for the line above its failures. */
+const lastWrite = ref({ written: 0, lyricsNote: '' })
+const failuresLead = computed(() => {
+    const { written, lyricsNote } = lastWrite.value
+    // "Everything else" can be nothing: say how much, not that the rest went through.
+    const rest = written ? `${written} file(s) were written` : 'Nothing was written'
+    return `${failures.value.length} change(s) could not be made. ${rest}${lyricsNote}.`
+})
+/**
+ * Files the last write finished. Their rows describe each file as it WAS — a
+ * renamed one is not even at that path any more — so they are done, not
+ * writable again. A file whose tags went through but whose rename failed is
+ * not in here: writing it again is how the rename is retried.
+ */
+const written = ref(new Set<string>())
+const isWritten = (row: PreviewRow) => !!row.current?.filepath && written.value.has(row.current.filepath)
+
 const renames = (row: PreviewRow) => row.filename?.status === 'rename'
 const anyRenames = computed(() => rows.value.some(renames))
 
@@ -225,7 +258,10 @@ const anyRenames = computed(() => rows.value.some(renames))
  * A row is writable when it has a file behind it and something to write:
  * new tags, or — renaming only — a new name.
  */
-const isWritable = (row: PreviewRow) => !!row.current && (renameOnly.value ? renames(row) : !!row.proposed)
+const isWritable = (row: PreviewRow) =>
+    !!row.current && !isWritten(row) && (renameOnly.value ? renames(row) : !!row.proposed)
+
+const fileName = (filepath: string) => filepath.split(/[\\/]/).pop() || filepath
 const labelFor = (row: PreviewRow, index: number) => (isWritable(row) ? `meta-row-${index}` : undefined)
 
 /** Whether the file name belongs on this row: only when renaming is on. */
@@ -297,6 +333,9 @@ function intoPreview(result: { rows: PreviewRow[]; summary?: PreviewSummary; err
 
     rows.value = result.rows
     summary.value = result.summary ?? null
+    failures.value = []
+    lastWrite.value = { written: 0, lyricsNote: '' }
+    written.value = new Set()
     cameFrom.value = source
     emit('setTitle', titleFor(source))
     // Pre-tick only what the server is sure about. A row that is 40 seconds off
@@ -376,7 +415,14 @@ async function apply() {
     // added nothing and only file names are sent.
 
     const result = await guard(() => applyChanges(changes), true)
-    if (!result) return
+    if (!result) {
+        // Lost contact or out of time: the server may have rewritten some of
+        // the files, and may still be at it. The page must not go on showing
+        // titles that are gone. (The queue cannot follow: without the answer
+        // there is no list of new hashes and paths.)
+        await albumStore.fetchTracksAndArtists(props.albumhash)
+        return
+    }
 
     const verb = renameOnly.value ? 'renamed' : 'updated'
     // A renamed track whose lyrics file could not follow it (the new name was
@@ -384,12 +430,9 @@ async function apply() {
     // a second notification would replace the first.
     const stayed = result.applied.filter(entry => entry.warning).length
     const lyricsNote = stayed ? ` — ${stayed} lyrics file(s) kept the old name` : ''
-    if (result.failed.length) {
-        new Notification(
-            `${result.applied.length} ${verb}, ${result.failed.length} failed${lyricsNote}`,
-            NotifType.Error
-        )
-    } else {
+    // A partly failed write keeps the dialog open and says it there (below),
+    // so it gets no toast: it would only cover the dialog's own buttons.
+    if (!result.failed.length) {
         new Notification(
             `${result.applied.length} track(s) ${verb}${lyricsNote}`,
             stayed ? NotifType.Info : NotifType.Success
@@ -412,10 +455,28 @@ async function apply() {
         })
     )
 
+    // Some files failed: stay on the preview and say which, and why. What went
+    // through is done; what failed stays ticked, so fixing the cause and
+    // writing again is one click.
+    if (result.failed.length) {
+        const failedPaths = new Set(result.failed.map(failure => failure.filepath))
+        // Added to, not replaced: a retry sends only what failed, and the rows
+        // an earlier write finished must stay finished.
+        written.value = new Set([
+            ...written.value,
+            ...result.applied.map(entry => entry.filepath).filter(filepath => !failedPaths.has(filepath)),
+        ])
+        failures.value = result.failed
+        lastWrite.value = { written: result.applied.length, lyricsNote }
+        rows.value.forEach((row, index) => {
+            if (isWritten(row)) checked.value[index] = false
+        })
+    }
+
     // The titles (and the file paths) just changed, so the page is showing the
     // old ones.
     await albumStore.fetchTracksAndArtists(props.albumhash)
-    emit('hideModal')
+    if (!result.failed.length) emit('hideModal')
 }
 </script>
 
@@ -449,8 +510,49 @@ async function apply() {
 
     .error {
         margin: 0;
-        color: $red;
+        color: $candy-text;
         font-weight: 600;
+    }
+
+    // The files a write could not change. A plate of its own, above the table
+    // where the eye goes after writing — not the one red line under the
+    // buttons: a list of names needs room, and 94 of them need a scroll.
+    .failures {
+        display: grid;
+        gap: $smaller;
+        padding: $small;
+        @include candy-box($mem-panel, $candy-radius-sm);
+        font-size: $medium;
+
+        .failures-lead {
+            margin: 0;
+            color: $candy-text;
+            font-weight: 600;
+        }
+
+        ul {
+            display: grid;
+            gap: $smaller;
+            max-height: 8rem;
+            overflow-y: auto;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        li {
+            display: grid;
+            min-width: 0;
+        }
+
+        .file {
+            font-weight: 600;
+        }
+
+        .why {
+            color: $candy-text-muted;
+            font-size: 0.8rem;
+        }
     }
 
     .sources {
@@ -575,7 +677,7 @@ async function apply() {
 
                 &.conflict,
                 &.no-name {
-                    color: $red;
+                    color: $candy-text;
                     font-weight: 600;
                 }
             }
@@ -585,7 +687,7 @@ async function apply() {
                 font-variant-numeric: tabular-nums;
 
                 &.off {
-                    color: $red;
+                    color: $candy-text;
                     font-weight: 700;
                 }
             }

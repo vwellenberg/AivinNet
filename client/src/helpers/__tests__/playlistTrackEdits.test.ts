@@ -129,7 +129,7 @@ describe("removing a track", () => {
     remove.mockResolvedValue(true);
 
     expect(await removePlaylistTrack(1)).toBe(true);
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], true);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], true, { keepalive: false });
     expect(order()).toEqual(["a", "c", "d"]);
     expect(playlist.info.count).toBe(4);
     expect(playlist.info.duration).toBe(800);
@@ -152,7 +152,7 @@ describe("removing a track", () => {
     remove.mockReturnValue(new Promise(resolve => (answer = resolve)));
 
     const pending = removePlaylistTrack(1, false); // "b"
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], false);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], false, { keepalive: false });
 
     // Meanwhile "d" moves to the top: "b" is now at index 2, and index 1 is "a".
     playlist.moveTrack(3, 0);

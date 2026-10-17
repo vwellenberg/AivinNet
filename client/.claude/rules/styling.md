@@ -463,6 +463,17 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   (`getPointAtLength` über `getScreenCTM`), nicht an `getBoundingClientRect()`: Das ist bei einem
   gedrehten Pfad die Box der gedrehten Box und meldete bei der Welle 85 statt 76 px (= „zu nah").
 
+## ⚠️ `$red` ist kein Rot, sondern statische Tinte — als TEXTFARBE im Dunkelmodus unsichtbar
+
+`_variables.scss` setzt `$red: $candy-black` („alarm accents are black in candy"), und
+`$candy-black` ist Ink in **beiden** Themes. Als Füllung einer Akzentplatte ist das richtig, als
+**Textfarbe** auf einer Fläche, die mit dem Theme dunkel wird (Modal, Panel), steht damit Ink auf
+fast Schwarz. Kein Build-, Lint- oder Testfehler, im hellen Theme sieht es einfach nach fetter
+schwarzer Schrift aus. Aufgefallen ist es erst in der Vorschau zu #299: Die Fehlerzeilen des
+Metadaten-Dialogs und des Library-Checks waren im Dunkelmodus seit jeher leer. Alarm-Text nimmt
+`$candy-text` (Theme-Tinte/-Papier) und spricht über das Gewicht. Zensus:
+`alarmTextColour.test.ts`.
+
 ## ⚠️ Text auf dem Grund braucht eine Platte — `--mem-veil`
 
 Der Seitengrund ist Rasterpapier **mit** den Memphis-Doodles. Jede Textfläche, die direkt darauf

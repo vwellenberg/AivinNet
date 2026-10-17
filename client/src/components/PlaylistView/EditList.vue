@@ -74,7 +74,7 @@ import { movePlaylistTrackTo, removePlaylistTrack } from '@/helpers/playlistTrac
 import { Track } from '@/interfaces'
 import { removeTracks } from '@/requests/playlists'
 import usePlaylistStore from '@/stores/pages/playlist'
-import { Notification } from '@/stores/notification'
+import { Notification, useToast } from '@/stores/notification'
 import { clampTravel, landingGap, landingIndex, makeRoomShift } from '@/utils/dragReorder'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
 import { trackBandClass, trackBandFade } from '@/utils/songItemMethods'
@@ -82,6 +82,7 @@ import { trackBandClass, trackBandFade } from '@/utils/songItemMethods'
 import AfterHeader from './AfterHeader.vue'
 
 const playlist = usePlaylistStore()
+const toasts = useToast()
 const imguri = paths.images.thumb.small
 
 // ---------------------------------------------------------------------------
@@ -336,6 +337,8 @@ interface Pending {
     pid: number
     trackhash: string
     index: number
+    // The toast offering the undo: it goes when the undo does.
+    toast: number
 }
 
 let pending: Pending | null = null
@@ -345,19 +348,19 @@ function remove(track: Track) {
     commitPending()
 
     hidden.add(track)
-    pending = {
-        track,
-        timer: setTimeout(commitPending, UNDO_MS),
-        pid: playlist.info.id,
-        trackhash: track.trackhash,
-        index: playlist.allTracks.indexOf(track),
-    }
-
     announcement.value = `Removed ${track.title}`
-    new Notification(`Removed “${track.title}”`, NotifType.Info, {
+    const toast = new Notification(`Removed “${track.title}”`, NotifType.Info, {
         label: 'Undo',
         handler: () => undo(track),
     })
+    pending = {
+        track,
+        timer: setTimeout(() => commitPending(), UNDO_MS),
+        pid: playlist.info.id,
+        trackhash: track.trackhash,
+        index: playlist.allTracks.indexOf(track),
+        toast: toast.id,
+    }
 }
 
 function undo(track: Track) {
@@ -370,24 +373,42 @@ function undo(track: Track) {
     announcement.value = `Restored ${track.title}`
 }
 
-function commitPending() {
+/**
+ * Send the removal that waits for its undo. `keepalive` when the page is going
+ * away: the request has to arrive although nothing may be left to hear the answer.
+ */
+function commitPending(keepalive = false) {
     if (!pending) return
-    const { track, timer, pid, trackhash, index } = pending
+    const { track, timer, pid, trackhash, index, toast } = pending
     clearTimeout(timer)
     pending = null
+    // Its "Undo" would do nothing from here on.
+    toasts.dismiss(toast)
 
     const now = playlist.allTracks.indexOf(track)
     if (playlist.info.id === pid && now !== -1) {
         // The row stays hidden while the request runs; if the server refuses,
         // it comes back (the request reports the failure itself).
-        removePlaylistTrack(now, false).then(() => hidden.delete(track))
+        removePlaylistTrack(now, false, { keepalive }).then(() => hidden.delete(track))
         return
     }
 
     // The page has moved on (another playlist, or the list was reloaded): there
     // is no row left to update, but the removal was asked for.
     hidden.delete(track)
-    removeTracks(pid, [{ trackhash, index }], false)
+    removeTracks(pid, [{ trackhash, index }], false, { keepalive })
+}
+
+// The undo cannot outlast the page. A closed tab — or a phone browser killed
+// after the screen locks — drops its timers, and the removal the person saw
+// happen never reached the server: the track was back on the next visit. So a
+// page that is hidden or going away settles at once. A tab that is only
+// switched away loses its undo too; the alternative was losing the removal.
+function settleWhenHidden() {
+    if (document.visibilityState === 'hidden') commitPending(true)
+}
+function settleOnPageHide() {
+    commitPending(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -400,6 +421,9 @@ function done() {
 }
 
 onMounted(async () => {
+    document.addEventListener('visibilitychange', settleWhenHidden)
+    window.addEventListener('pagehide', settleOnPageHide)
+
     if (!playlist.editFocus) return
     await nextTick()
     // Opened from a track's menu: start where that track is.
@@ -411,6 +435,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', settleWhenHidden)
+    window.removeEventListener('pagehide', settleOnPageHide)
+
     // Leaving — "Done", another page, another playlist — settles what is
     // still waiting for its undo; the removal was asked for.
     if (drag) endDrag(false)

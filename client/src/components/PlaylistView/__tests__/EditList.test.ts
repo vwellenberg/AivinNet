@@ -1,4 +1,4 @@
-import { flushPromises, mount } from "@vue/test-utils";
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,6 +35,10 @@ vi.mock("@/utils/songItemMethods", async () => {
     },
   };
 });
+
+// A mounted list listens on `document` and `window`: one left over from an
+// earlier test would answer this test's events with its own removal.
+enableAutoUnmount(afterEach);
 
 const move = vi.mocked(movePlaylistTrack);
 const remove = vi.mocked(removeTracks);
@@ -171,7 +175,7 @@ describe("the edit list", () => {
     vi.advanceTimersByTime(8000);
     await flushPromises();
 
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], false);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], false, { keepalive: false });
     expect(order()).toEqual(["a", "c", "d"]);
   });
 
@@ -214,7 +218,7 @@ describe("the edit list", () => {
     wrapper.unmount();
     await flushPromises();
 
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false, { keepalive: false });
   });
 
   it("brings the row back when the server refuses the removal", async () => {
@@ -240,7 +244,7 @@ describe("the edit list", () => {
     wrapper.unmount();
     await flushPromises();
 
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "c", index: 2 }], false);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "c", index: 2 }], false, { keepalive: false });
   });
 
   it("counts the rows on screen, and Done settles the removal and closes the mode", async () => {
@@ -253,8 +257,83 @@ describe("the edit list", () => {
 
     await wrapper.find("button.ah-edit").trigger("click");
     await flushPromises();
-    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false);
+    expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false, { keepalive: false });
     expect(playlist.editing).toBe(false);
+  });
+
+  // #299: a removal waits 8 s for its undo. A phone that locks, or a tab that
+  // is closed, never let the timer run out — the track the person saw vanish
+  // was back in the playlist on the next visit.
+  describe("when the page goes away while a removal waits for its undo", () => {
+    function setVisibility(state: "visible" | "hidden") {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+      document.dispatchEvent(new Event("visibilitychange"));
+    }
+
+    afterEach(() => {
+      delete (document as { visibilityState?: unknown }).visibilityState;
+    });
+
+    it("sends it at once when the page is hidden, on a request that outlives the page", async () => {
+      vi.useFakeTimers();
+      const { wrapper } = setup();
+      await wrapper.findAll(".edit-remove")[1].trigger("click"); // "b"
+
+      setVisibility("hidden");
+      await flushPromises();
+
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "b", index: 1 }], false, { keepalive: true });
+      expect(order()).toEqual(["a", "c", "d"]);
+
+      // The undo has lapsed, so its toast goes, and the timer sends nothing more.
+      expect(useToast().notifs.some(n => n.action)).toBe(false);
+      vi.advanceTimersByTime(8000);
+      await flushPromises();
+      expect(remove).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends it when the page is unloaded (pagehide)", async () => {
+      const { wrapper } = setup();
+      await wrapper.findAll(".edit-remove")[0].trigger("click"); // "a"
+
+      window.dispatchEvent(new Event("pagehide"));
+      await flushPromises();
+
+      expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "a", index: 0 }], false, { keepalive: true });
+    });
+
+    it("sends it to the playlist it was made in when the page had switched away", async () => {
+      const { playlist, wrapper } = setup();
+      await wrapper.findAll(".edit-remove")[2].trigger("click"); // "c"
+      playlist.resetTracks();
+      playlist.info = { id: 8, name: "Other" } as never;
+
+      setVisibility("hidden");
+      await flushPromises();
+
+      expect(remove).toHaveBeenCalledWith(7, [{ trackhash: "c", index: 2 }], false, { keepalive: true });
+    });
+
+    it("leaves the undo alone when the page becomes visible again", async () => {
+      const { wrapper } = setup();
+      await wrapper.findAll(".edit-remove")[0].trigger("click");
+
+      setVisibility("visible");
+      await flushPromises();
+
+      expect(remove).not.toHaveBeenCalled();
+      expect(useToast().notifs.at(-1)?.action?.label).toBe("Undo");
+    });
+  });
+
+  it("takes the first undo off the screen when a second removal settles it", async () => {
+    const { wrapper } = setup();
+    await wrapper.findAll(".edit-remove")[0].trigger("click"); // "a"
+    await wrapper.findAll(".edit-remove")[0].trigger("click"); // "b" — settles "a"
+
+    const offers = useToast().notifs.filter(n => n.action);
+    expect(offers.map(n => n.text)).toEqual(["Removed “Title b”"]);
   });
 
   it("moves the rows by writing their transforms, not by re-rendering the list", async () => {

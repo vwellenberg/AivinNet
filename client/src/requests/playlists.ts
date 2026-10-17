@@ -1,4 +1,4 @@
-import { paths } from '@/config'
+import { getBaseUrl, paths } from '@/config'
 import { Playlist, Track } from '@/interfaces'
 import { NotifType, Notification, useToast } from '@/stores/notification'
 import useAxios from './useAxios'
@@ -239,18 +239,41 @@ export async function deletePlaylist(pid: number) {
     }
 }
 
+/** A POST that may outlive the page. Resolves to the status, or undefined when no answer came. */
+async function postKeepalive(url: string, body: object): Promise<number | undefined> {
+    try {
+        const res = await fetch(getBaseUrl() + url, {
+            method: 'POST',
+            keepalive: true,
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        })
+        return res.status
+    } catch {
+        return undefined
+    }
+}
+
 /**
  * Resolves to whether the server removed them. `notify: false` drops the
  * success toast for a caller that has already told the user (the edit mode's
  * own "Removed … / Undo"); a failure is always reported.
+ *
+ * `keepalive` is for a removal sent while the page goes away (the tab closes,
+ * the phone locks). axios sends over XHR, which the browser cancels with the
+ * document; a `keepalive` fetch is allowed to finish after it. Same URL, same
+ * body — only the transport differs.
  */
-export async function removeTracks(pid: number, tracks: { trackhash: string; index: number }[], notify = true) {
-    const { status } = await useAxios({
-        url: paths.api.playlist.base + `/${pid}/remove-tracks`,
-        props: {
-            tracks,
-        },
-    })
+export async function removeTracks(
+    pid: number,
+    tracks: { trackhash: string; index: number }[],
+    notify = true,
+    { keepalive = false } = {}
+) {
+    const url = paths.api.playlist.base + `/${pid}/remove-tracks`
+    const props = { tracks }
+    const status = keepalive ? await postKeepalive(url, props) : (await useAxios({ url, props })).status
 
     if (status === 200) {
         if (notify) new Notification('Tracks removed')
