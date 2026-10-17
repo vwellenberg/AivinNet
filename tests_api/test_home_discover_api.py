@@ -480,3 +480,40 @@ def test_on_this_day_plays_the_newest_year_still_in_the_library(home, monkeypatc
     assert data["on_this_day"]["description"].startswith(two_years + " · ")
     tracks = home.get("/playlists/onthisday").get_json()["tracks"]
     assert [t["trackhash"] for t in tracks] == [th(PRIMUS, 1), th(PRIMUS, 2)]
+
+
+def on_this_day_logs(caplog, userid: int) -> list[str]:
+    """What the routine logs for one user. Other tests leave more users behind."""
+    import logging
+
+    from aivinnet.lib.recipes.homerows import OnThisDay
+
+    with caplog.at_level(logging.INFO, logger="aivinnet.lib.recipes.homerows"):
+        OnThisDay()
+
+    return [
+        m for r in caplog.records if (m := r.getMessage()).startswith("on-this-day:") and m.endswith(f" user {userid}")
+    ]
+
+
+def test_on_this_day_logs_a_day_without_plays(home, caplog):
+    """An empty row must not look like one that never ran (`recommendations.md`)."""
+    from aivinnet.lib.home.discover import ON_THIS_DAY_YEARS
+
+    assert on_this_day_logs(caplog, userid=1) == [
+        f"on-this-day: no plays on this day in the last {ON_THIS_DAY_YEARS} years for user 1"
+    ]
+    _, order = rows(home)
+    assert "on_this_day" not in order
+
+
+def test_on_this_day_logs_plays_that_left_the_library(home, caplog):
+    """Plays on this day, but a retag took every one of their tracks away."""
+    gone = int(pendulum.now().subtract(years=1).start_of("day").add(hours=20).timestamp())
+    scrobble("0" * 16, gone)
+
+    assert on_this_day_logs(caplog, userid=1) == [
+        "on-this-day: plays on this day, but none still in the library for user 1"
+    ]
+    _, order = rows(home)
+    assert "on_this_day" not in order
