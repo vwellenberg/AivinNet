@@ -105,6 +105,16 @@ function templateFor(sampleRate: number): Float32Array {
     return template
 }
 
+/**
+ * True when a recording holds nothing but zeros: a microphone muted by a
+ * hardware key or an OS privacy switch still opens and delivers digital
+ * silence (#298). There is nothing to measure in it.
+ */
+export function isDigitalSilence(samples: Float32Array): boolean {
+    for (let i = 0; i < samples.length; i++) if (samples[i] !== 0) return false
+    return true
+}
+
 export interface ClickMeasurement {
     /** Arrival behind the reported sound time, per click (ms); null where nothing clear was heard. */
     offsetsMs: (number | null)[]

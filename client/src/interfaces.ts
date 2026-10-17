@@ -236,6 +236,10 @@ export interface FetchProps {
     props?: {}
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
     headers?: {}
+    /** Give up after this long (ms); the result then carries an `error` and no status. */
+    timeout?: number
+    /** A background request: no busy cursor (`html.loading`) while it runs. */
+    silent?: boolean
 }
 
 export interface FuseResult {

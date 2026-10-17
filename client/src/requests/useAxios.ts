@@ -27,7 +27,11 @@ export default async (args: FetchProps, withCredentials: boolean = true) => {
         'ngrok-skip-browser-warning': 'stupid-SOAB!',
     }
 
-    const { startLoading, stopLoading } = useLoaderStore()
+    // A background request (the device-sync poll, once a second) must not
+    // flip the busy cursor: it looked like a page load in progress (#298).
+    const loader = args.silent ? null : useLoaderStore()
+    const startLoading = () => loader?.startLoading()
+    const stopLoading = () => loader?.stopLoading()
     startLoading()
 
     try {
@@ -39,6 +43,7 @@ export default async (args: FetchProps, withCredentials: boolean = true) => {
             // INFO: Add ngrok header and provided headers
             headers: { ...args.headers, ...(on_ngrok ? ngrok_config : {}) },
             withCredentials: withCredentials,
+            timeout: args.timeout,
         })
 
         stopLoading()

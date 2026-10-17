@@ -109,6 +109,7 @@ const mkPoll = (over: Partial<any> = {}): any => ({
 // collection, which has no timeout.
 import useDeviceSyncStore, {
     __latencyForTest,
+    BOOKED_END_GRACE_MS,
     __resetDeviceSyncTestState,
     CALIBRATION_DUCK,
     onCalibrationReport,
@@ -370,6 +371,29 @@ describe('devicesync store', () => {
         expect(requestsMock.setQueue).toHaveBeenCalledWith(
             expect.objectContaining({ device_id: 'devA', trackhashes: ['h3'], currentindex: 0 })
         )
+    })
+
+    it('dropping to solo takes the "Join group playback?" card with it (#298)', async () => {
+        const { useDeviceSync } = await setup()
+        const ds = useDeviceSync()
+        ds.joined = true
+        ds.needsGesture = true
+
+        ds.toSolo()
+        expect(ds.needsGesture).toBe(false)
+
+        // A tap that still arrives (the card was already up) aligns nothing:
+        // there is no group whose anchor solo audio could follow.
+        const align = vi.fn()
+        ds.alignTransport = align as any
+        ds.needsGesture = true
+        ds.completeGestureJoin()
+        expect(ds.needsGesture).toBe(false)
+        expect(align).not.toHaveBeenCalled()
+
+        ds.joined = true
+        ds.completeGestureJoin()
+        expect(align).toHaveBeenCalledTimes(1)
     })
 
     it('onTrackEnded: leader advances (all wraps / none pauses at last), non-leader is silent', async () => {
@@ -1856,6 +1880,73 @@ describe('devicesync store', () => {
             expect.objectContaining({ type: 'track_change', payload: { index: 1, position_ms: 0, playing: true } })
         )
         expect((requestsMock.sendCommand.mock.calls[1] as any[])[0].execute_at_ms).toBeUndefined()
+    })
+
+    it('a booking lost on the network leaves the advance to `ended` (#298)', async () => {
+        const { ds } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        playerMock.durationMs.mockReturnValue(4500)
+        // What useAxios returns when the request never got an answer.
+        requestsMock.sendCommand.mockResolvedValueOnce({ error: 'Network Error', data: undefined, status: undefined } as any)
+
+        vi.advanceTimersByTime(250)
+        await settleMicrotasks()
+        ds.onTrackEnded()
+
+        // It used to count as sent: `ended` stood down and the group went silent.
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(2)
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0]).toMatchObject({
+            type: 'track_change',
+            payload: { index: 1, position_ms: 0, playing: true },
+        })
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0].execute_at_ms).toBeUndefined()
+    })
+
+    it('a booked state that never arrives: the leader advances the group after a grace (#298)', async () => {
+        const { ds } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        playerMock.durationMs.mockReturnValue(4500)
+        requestsMock.pollSession.mockResolvedValue(null)
+
+        vi.advanceTimersByTime(250)
+        await settleMicrotasks()
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
+
+        // `ended` on the booked anchor asks for the state first and waits…
+        ds.onTrackEnded()
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
+        vi.advanceTimersByTime(BOOKED_END_GRACE_MS - 100)
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
+
+        // …and when nothing came, it advances instead of leaving every device silent.
+        vi.advanceTimersByTime(200)
+        expect(requestsMock.sendCommand).toHaveBeenCalledTimes(2)
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0]).toMatchObject({
+            type: 'track_change',
+            payload: { index: 1, position_ms: 0, playing: true },
+        })
+        expect((requestsMock.sendCommand.mock.calls[1] as any[])[0].execute_at_ms).toBeUndefined()
+    })
+
+    it('a booked state that does arrive within the grace is not advanced twice', async () => {
+        const { ds } = await playingGroup()
+        ds.scrobbleLeader = 'devA'
+        playerMock.durationMs.mockReturnValue(4500)
+
+        vi.advanceTimersByTime(250)
+        await settleMicrotasks()
+        ds.onTrackEnded()
+
+        // The booked state lands: the anchor moves on, the watch stands down.
+        requestsMock.pollSession.mockResolvedValueOnce(
+            at(mkState({ trackhashes: THREE, currentindex: 1, playing: true, anchor: { position_ms: 0, at_server_ms: Date.now() } }))
+        )
+        await ds.poll()
+        vi.advanceTimersByTime(BOOKED_END_GRACE_MS + 500)
+        await settleMicrotasks()
+
+        const changes = (requestsMock.sendCommand.mock.calls as any[]).filter(([body]) => body.type === 'track_change')
+        expect(changes).toHaveLength(1)
     })
 
     it('a second Next during the lead counts from the track the group is heading to', async () => {

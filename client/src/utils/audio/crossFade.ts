@@ -18,6 +18,11 @@ export function releaseSource(audio: HTMLAudioElement) {
 /** The fade still running on an element, so a new one can stop it first. */
 const runningFades = new WeakMap<HTMLAudioElement, () => void>();
 
+/** Whether a fade is still running on `audio` (it owns the volume until it ends). */
+export function isFading(audio: HTMLAudioElement) {
+  return runningFades.has(audio);
+}
+
 /**
  * Stops a fade still running on `audio` — and the release a fade-out would do
  * at its end. Returns whether there was one.

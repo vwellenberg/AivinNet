@@ -11,7 +11,7 @@ const { ds, mic, micModule, measure, reports, requests } = vi.hoisted(() => {
     const mic = {
         sampleRate: 48000,
         startLocalMs: vi.fn(() => 0 as number | null),
-        samples: vi.fn(() => new Float32Array(10)),
+        samples: vi.fn(() => Float32Array.from([0, 0.01, -0.02, 0.005])),
         level: vi.fn(() => 0.1),
         details: vi.fn(() => ({ sample_rate: 48000, input_latency_ms: 12.5, echo_cancellation: false })),
         stop: vi.fn(),
@@ -284,6 +284,22 @@ describe('sync calibration — with the microphone', () => {
         expect(cal.phase).toBe('insecure')
         expect(micModule.startMicCapture).not.toHaveBeenCalled()
         expect(ds.sendCmd).not.toHaveBeenCalled()
+    })
+
+    it('a muted microphone (digital silence) fails the run — no rows heard, nothing to apply', async () => {
+        // Muted by a hardware key or an OS switch: the capture opens and
+        // records zeros. Before #298 every click came out "heard" at +0 ms and
+        // Apply reset the good trims to 0 on every device.
+        mic.samples.mockReturnValueOnce(new Float32Array(48000))
+        const { cal, plan, run } = await listening()
+        reports.handler?.({ run, device: 'pc', sounded_ms: plan.pc })
+        await flushPromises()
+        afterThePlan(plan)
+
+        expect(cal.phase).toBe('error')
+        expect(cal.error).toBe('The microphone delivered no sound.')
+        expect(measure).not.toHaveBeenCalled()
+        expect(sent('set_audio_offset', 'pc')).toBeUndefined()
     })
 
     it('says so when the microphone is refused — and sends nothing', async () => {

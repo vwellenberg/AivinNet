@@ -5,6 +5,17 @@ import useAxios from './useAxios'
 
 const api = paths.api.devicesync
 
+/**
+ * A transport command gives up after this long (ms). Without a deadline a hung
+ * booking held the leader indefinitely, waiting for a track change that would
+ * not come (#298). Only commands: the server answers one request at a time,
+ * so a poll timing out during a long request elsewhere would count as a lost
+ * connection and dissolve the group — a slow poll is better than none.
+ */
+export const SYNC_TIMEOUT_MS = 5000
+/** The calls that run on their own, without a tap: no busy cursor for them. */
+const background = { silent: true }
+
 /** A joined device's own view of its sync — the server keeps it for `/devicesync/diag`. */
 export interface SyncDiag {
     build: string
@@ -74,7 +85,7 @@ export interface CalibrationLog {
 
 /** Keep one calibration run's raw numbers on the server (RAM, shown by `/devicesync/diag`). */
 export async function logCalibration(body: CalibrationLog) {
-    return await useAxios({ url: api.calibrationLog, method: 'POST', props: body })
+    return await useAxios({ url: api.calibrationLog, method: 'POST', props: body, ...background })
 }
 
 /** Register (or refresh) this device in the persistent device registry. */
@@ -83,18 +94,19 @@ export async function registerDevice(deviceId: string, name: string, type: strin
         url: api.register,
         method: 'POST',
         props: { device_id: deviceId, name, type },
+        ...background,
     })
 }
 
 /** Short-poll the group session; returns the parsed response or null on failure. */
 export async function pollSession(body: PollBody): Promise<PollResponse | null> {
-    const { data, status } = await useAxios({ url: api.poll, method: 'POST', props: body })
+    const { data, status } = await useAxios({ url: api.poll, method: 'POST', props: body, ...background })
     return status === 200 ? (data as PollResponse) : null
 }
 
 /** Enqueue a transport or targeted command. */
 export async function sendCommand(body: CommandBody) {
-    return await useAxios({ url: api.command, method: 'POST', props: body })
+    return await useAxios({ url: api.command, method: 'POST', props: body, ...background, timeout: SYNC_TIMEOUT_MS })
 }
 
 /** Replace the group queue (seeds a fresh session on first join). */
