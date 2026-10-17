@@ -341,15 +341,14 @@ einen Schleifendurchlauf.
   Danach **am gebauten Artefakt** prüfen, dass die eigene Änderung drin ist (Bundle-Hash oder
   `grep` im `dist`), und den Checkout mit `rm -rf ~/preview-<thema>` wieder entfernen.
 
-  ⚠️ **Der Symlink auf fremde `node_modules` ist nicht nur Bequemlichkeit — ein frisches
-  `yarn install` bricht auf `ryukyu` ab.** Der Server hat Node **18.19.1**, und `js-cookie@3.0.7`
-  (transitiv) deklariert `engines: node >=20`: `error Found incompatible module`, und zwar in der
-  Fetch-Phase, also ohne dass irgendetwas installiert wurde. Wer wirklich frisch installieren muss
-  (eigener Klon des Monorepos statt `--shared`), nimmt `yarn install --frozen-lockfile
-  --ignore-engines` — `engines` ist hier eine Behauptung über die Laufzeit, und Build wie
-  Testlauf sind damit nachweislich durchgelaufen (1324 Tests grün, Build sauber). Der Deploy
-  stolpert nie darüber: `scripts/deploy-client.sh` installiert gar nicht, es baut gegen die
-  vorhandenen `node_modules` in `~/AivinNet/client`.
+  Der Symlink auf die `node_modules` des Deploy-Checkouts spart den Download. Ein frisches
+  `yarn install --frozen-lockfile` geht seit 2026-10-17 auch: `ryukyu` läuft auf **Node 22**,
+  derselben Version wie die CI (#489). Vorher lief dort Node 18.19.1, und die Installation brach
+  in der Fetch-Phase ab, ohne etwas zu installieren: `engines: node >=20` (`js-cookie`) bzw.
+  `>=20.9.0` (`sharp`), Meldung `error Found incompatible module`. Auf einem Host mit altem Node
+  hilft `--ignore-engines`. Der Auto-Deploy installiert selbst, sobald sich `client/package.json`
+  oder `client/yarn.lock` ändern (`scripts/auto-deploy.sh`); `scripts/deploy-client.sh` baut
+  dagegen nur gegen die vorhandenen `node_modules`.
 
   Danach **am gebauten Artefakt** prüfen, dass die eigene Änderung wirklich drin ist:
   `grep -o "<selektor>{[^}]*}" dist/assets/index.*.css` — und zwar gegen die CSS-Datei, die
