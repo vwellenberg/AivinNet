@@ -19,6 +19,7 @@ from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
 from aivinnet.lib.sortlib import folder_order, sort_folders
 from aivinnet.serializers.track import serialize_track
 from aivinnet.store.tracks import TrackStore
+from aivinnet.utils.filesystem import dir_prefix
 from aivinnet.utils.wintools import is_windows
 
 tag = Tag(name="Folders", description="Get folders and tracks in a directory")
@@ -286,9 +287,10 @@ def get_tracks_in_path(query: GetTracksInPathQuery):
     # "Play" on a root folder card used to load the whole track table and
     # stat every file of the library on the single request thread (#295).
     # The prefix ends in a separator, so /music/Rock no longer takes
-    # /music/Rock and Roll along (the SQL matched any substring).
-    base = str(resolved_path).rstrip("/\\")
-    inside = (base + "/", base + "\\")
+    # /music/Rock and Roll along (the SQL matched any substring). And it is
+    # the scanner's POSIX form: on Windows `str()` gives `C:\Music\Album`, no
+    # stored `C:/Music/Album/...` started with it, and "Play" queued nothing.
+    inside = dir_prefix(resolved_path)
     # In the folder view's own order (`folder_order`).
     tracks = sorted(
         (t for t in TrackStore.get_flat_list() if t.filepath.startswith(inside)),

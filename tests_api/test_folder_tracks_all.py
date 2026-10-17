@@ -45,12 +45,13 @@ def _paths(res):
 
 
 def test_a_folder_plays_only_itself_and_what_is_below_it(folder_api, tmp_path):
-    # Native paths, as the indexer stores them.
-    a = str(tmp_path / "Rock" / "a.mp3")
-    b = str(tmp_path / "Rock" / "Live" / "b.mp3")
+    # POSIX paths, as the indexer stores them (`taglib`: `filepath.as_posix()`).
+    # The request keeps the native form: on Windows that is the backslash one.
+    a = (tmp_path / "Rock" / "a.mp3").as_posix()
+    b = (tmp_path / "Rock" / "Live" / "b.mp3").as_posix()
     folder_api.add(a, 1)
     folder_api.add(b, 2)
-    folder_api.add(str(tmp_path / "Rock and Roll" / "c.mp3"), 3)
+    folder_api.add((tmp_path / "Rock and Roll" / "c.mp3").as_posix(), 3)
 
     paths = _paths(folder_api.api.get("/folder/tracks/all", query_string={"path": str(tmp_path / "Rock")}))
 
@@ -58,7 +59,7 @@ def test_a_folder_plays_only_itself_and_what_is_below_it(folder_api, tmp_path):
 
 
 def test_the_order_is_the_folder_views_modification_time(folder_api, tmp_path):
-    newest, oldest, middle = (str(tmp_path / f"{n}.mp3") for n in ("newest", "oldest", "middle"))
+    newest, oldest, middle = ((tmp_path / f"{n}.mp3").as_posix() for n in ("newest", "oldest", "middle"))
     folder_api.add(newest, 300)
     folder_api.add(oldest, 100)
     folder_api.add(middle, 200)
@@ -70,11 +71,11 @@ def test_the_order_is_the_folder_views_modification_time(folder_api, tmp_path):
 
 def test_a_huge_folder_is_capped_before_any_file_is_touched(folder_api, tmp_path):
     for i in range(1000):
-        folder_api.add(str(tmp_path / f"{i:04}.mp3"), i)
+        folder_api.add((tmp_path / f"{i:04}.mp3").as_posix(), i)
 
     paths = _paths(folder_api.api.get("/folder/tracks/all", query_string={"path": str(tmp_path)}))
 
     assert len(paths) == 300
-    assert paths[0] == str(tmp_path / "0000.mp3")
+    assert paths[0] == (tmp_path / "0000.mp3").as_posix()
     # One stat per returned track — not one per track below the folder.
     assert len([s for s in folder_api.stats if s.endswith(".mp3")]) == 300

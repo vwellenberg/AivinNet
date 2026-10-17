@@ -16,14 +16,33 @@ Zwei Lanes, bewusst getrennt:
 `bjoern` braucht `libev-dev` + `python3-dev` zum Bauen und fehlt in vielen Umgebungen — deshalb
 läuft die schnelle Lane über `uvx` statt über eine volle Installation.
 
-**Die API-Lane läuft auch auf Windows** — `pyproject.toml` nimmt dort waitress statt bjoern, also
-braucht es kein libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (am 2026-09-29
-gemessen: 453 grün). Plattformbedingt rot, **kein** Befund: die POSIX-Rechte-Tests in
-`test_hardening_basics.py` (`TestFilePermissions`, `TestExistingInstallsAreFixedToo`; Windows hat
-kein `chmod 600`). Der fünfte Fall (eine Temp-Datei, die Windows offen nicht löschen ließ) ist
-mit dem gestreamten ZIP-Download (#295) samt Temp-Datei verschwunden. Die Behauptung „läuft auf Windows nicht" stand hier monatelang,
-ohne dass es jemand probiert hatte. Wer die Plattform-Fälle oder bjoern selbst prüfen will, nimmt
-den Server und dessen venv:
+**Beide Lanes laufen auf Windows grün** — die API-Lane mit waitress statt bjoern (`pyproject.toml`),
+also ohne libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (2026-10-17: 808 grün,
+11 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1186 grün, 31 übersprungen).
+**Ein roter Test auf Windows ist deshalb ein Befund**, keine Plattformfolge: Plattformgrenzen
+sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Bericht —
+
+- **Symlinks** (`symlink_to`): brauchen unter Windows Admin oder Entwicklermodus (WinError 1314).
+- **POSIX-Rechte** (`TestFilePermissions`, `…tightens_a_config_file…` in `test_hardening_basics.py`):
+  `os.chmod` setzt unter Windows nur Read-only; `restrict_to_owner` ist dort bewusst best-effort.
+- `time.tzset`, bjoern und POSIX-Signale.
+
+Die CI läuft nur auf Linux und sieht Windows-Bugs nicht. Der erste vollständige Windows-Lauf fand
+einen: „Play“ auf einer Ordnerkarte (`/folder/tracks/all`) spielte dort **nichts**, weil der
+Endpoint `str(resolved)` (`C:\Music\Album`) mit den gespeicherten `C:/Music/Album/…` verglich. Die
+Tests dazu waren grün — ihre Fixture machte denselben Fehler.
+
+⚠️ **Gespeicherte Pfade sind POSIX, auf jeder Plattform** (`taglib`: `filepath.as_posix()`,
+Scanner: `entry.as_posix()`). Daraus:
+
+- Fixture-Pfade und Vergleiche mit `.as_posix()`, nie `str(path)` — `str()` trägt auf Windows
+  Backslashes. Im App-Code Präfixe über `utils/filesystem.dir_prefix`, nie über `str(resolved)`.
+- Ausgedachte Pfade wie `/music/Rock` sind auf Windows nicht absolut: Was sie `resolve()`t, landet
+  bei `C:/music/Rock`. Wo der getestete Code resolved, die Basis aus
+  `Path("/music").resolve().as_posix()` bauen.
+- `expanduser` liest unter Windows `USERPROFILE`, nicht `HOME` — im Test beide setzen.
+
+Wer bjoern oder die übersprungenen POSIX-Fälle selbst prüfen will, nimmt den Server und dessen venv:
 
 ```bash
 # Host, Account und Key stehen in der globalen ~/.claude/CLAUDE.md (nicht im Repo).

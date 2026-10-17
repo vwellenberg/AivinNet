@@ -98,6 +98,7 @@ class TestSecurityHeaders:
         assert res.headers.get("X-Frame-Options") == "DENY"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits; os.chmod on Windows only sets read-only")
 class TestFilePermissions:
     def test_the_config_file_is_owner_only(self):
         """
@@ -150,6 +151,7 @@ class TestExistingInstallsAreFixedToo:
     the day it was created, months earlier.
     """
 
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX mode bits; os.chmod on Windows only sets read-only")
     def test_setup_tightens_a_config_file_that_already_exists(self, tmp_path, monkeypatch):
         import json
 

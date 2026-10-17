@@ -72,9 +72,10 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
 uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py --config-file pyproject.toml
 ```
 
-**Die API-Tests (`tests_api/`) laufen auch auf Windows:** `uv run --frozen pytest tests_api/`
-(waitress statt bjoern, kein libev nötig). Nur 4 Plattform-Fälle (POSIX-Dateirechte) sind
-dort rot. Welche das sind, die Server-Variante und die Test-Konventionen
+**Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`
+(waitress statt bjoern, kein libev nötig). Plattformgrenzen sind übersprungen — ein roter Test
+ist dort ein Befund, den die Linux-CI nicht sieht. Welche übersprungen sind, die Pfad-Falle
+(gespeichert wird POSIX, `str(path)` ist auf Windows keins), die Server-Variante und die Test-Konventionen
 (was in welchen PR gehört, die `sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt
 automatisch, sobald eine Testdatei gelesen wird.
 
