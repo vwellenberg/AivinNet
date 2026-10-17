@@ -267,7 +267,7 @@ Seitdem baut das `Dockerfile` den Client in einer **Node-Stage** aus `client/` u
   Client endet der Start wie bisher.
 
 Die Node-Stage läuft mit `--platform=$BUILDPLATFORM` (statische Dateien, einmal nativ statt unter
-QEMU pro Architektur) auf dem **vollen** `node:20`-Image: `sharp` (Dev-Dep über
+QEMU pro Architektur) auf dem **vollen** `node:22`-Image: `sharp` (Dev-Dep über
 `@vite-pwa/assets-generator`) fällt ohne Prebuilt auf node-gyp zurück und braucht dann
 python/make/g++. `.dockerignore` hält `node_modules`, `.git` und `.claude` (Worktrees!) aus dem
 Kontext, `client/` muss drin bleiben (`TestDockerfile` prüft beides). Der `Docker Smoke Test`
