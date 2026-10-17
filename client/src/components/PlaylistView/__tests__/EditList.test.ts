@@ -265,7 +265,7 @@ describe("the edit list", () => {
   // is closed, never let the timer run out — the track the person saw vanish
   // was back in the playlist on the next visit.
   describe("when the page goes away while a removal waits for its undo", () => {
-    function setVisibility(state: DocumentVisibilityState) {
+    function setVisibility(state: "visible" | "hidden") {
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
       document.dispatchEvent(new Event("visibilitychange"));
     }

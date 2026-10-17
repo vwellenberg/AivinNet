@@ -243,6 +243,7 @@ const failures = ref<ApplyResult['failed']>([])
  * not in here: writing it again is how the rename is retried.
  */
 const written = ref(new Set<string>())
+const isWritten = (row: PreviewRow) => !!row.current?.filepath && written.value.has(row.current.filepath)
 
 const renames = (row: PreviewRow) => row.filename?.status === 'rename'
 const anyRenames = computed(() => rows.value.some(renames))
@@ -252,7 +253,7 @@ const anyRenames = computed(() => rows.value.some(renames))
  * new tags, or — renaming only — a new name.
  */
 const isWritable = (row: PreviewRow) =>
-    !!row.current && !written.value.has(row.current.filepath) && (renameOnly.value ? renames(row) : !!row.proposed)
+    !!row.current && !isWritten(row) && (renameOnly.value ? renames(row) : !!row.proposed)
 
 const fileName = (filepath: string) => filepath.split(/[\\/]/).pop() || filepath
 const labelFor = (row: PreviewRow, index: number) => (isWritable(row) ? `meta-row-${index}` : undefined)
@@ -460,7 +461,7 @@ async function apply() {
         )
         failures.value = result.failed
         rows.value.forEach((row, index) => {
-            if (row.current && written.value.has(row.current.filepath)) checked.value[index] = false
+            if (isWritten(row)) checked.value[index] = false
         })
     }
 

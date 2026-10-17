@@ -54,8 +54,11 @@ gekostet hat.
   und ein zweiter Move dazwischen ließe sie auf falsche Zeilen zeigen.
 - **Entfernen im Bearbeiten-Modus wartet auf das Undo** (8 s, so lang wie der Aktions-Toast): Die
   Zeile verschwindet sofort vom Schirm, der Server hört erst nach Ablauf davon — oder beim
-  Verlassen des Modus. Ein Undo braucht so keinen zweiten Schreibpfad (Wiedereinfügen würde
-  `added_at` neu setzen). ⚠️ Die wartende Löschung merkt sich **Playlist-ID, Trackhash und
+  Verlassen des Modus, **oder sobald die Seite verborgen bzw. entladen wird** (`visibilitychange`
+  → hidden, `pagehide`; #299). Ein geschlossener Tab oder ein nach dem Sperren beendeter
+  Handy-Browser lässt den Timer nie ablaufen, und der Track stand beim nächsten Besuch wieder in
+  der Playlist. Dieser eine Request geht als `keepalive`-`fetch` (siehe „Requests" unten).
+  Ein Undo braucht so keinen zweiten Schreibpfad (Wiedereinfügen würde `added_at` neu setzen). ⚠️ Die wartende Löschung merkt sich **Playlist-ID, Trackhash und
   Index beim Auslösen**: Ein Wechsel zu einer anderen Playlist in derselben View leert den Store
   (`resetTracks()`), **bevor** die Liste abgebaut wird — die erste Fassung suchte die Zeile dann
   im leeren Store, fand sie nicht und verwarf die Löschung still. Moves um eine noch versteckte Zeile herum übersetzt `landingGap()`
@@ -238,3 +241,11 @@ Alles läuft über `requests/useAxios.ts` — es schaltet den Ladebalken, öffne
 Login-Modal (außer auf `#/pair`), meldet bei 422 + „Signature verification failed" ab und wieder
 an, und gibt Fehler als Wert zurück statt zu werfen. **Pfade kommen aus `config.ts::paths`**,
 nicht aus Aufrufstellen.
+
+⚠️ **Ein Request, der das Schließen der Seite überleben muss, geht NICHT über `useAxios`.**
+axios 0.x sendet per XHR, und den bricht der Browser mit dem Dokument ab. Dafür hat
+`removeTracks(…, { keepalive: true })` einen zweiten Transport (`fetch` mit `keepalive`,
+`credentials: 'include'`) mit **derselben** URL und demselben Body — der Vertrags-Test sieht nur
+den axios-Weg, `removeTracksKeepalive.test.ts` hält die beiden aneinander. Wer einen weiteren
+„beim Verlassen senden"-Request baut, folgt diesem Muster statt `sendBeacon` (kein Status, also
+kein Rollback).

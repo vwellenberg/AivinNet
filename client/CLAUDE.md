@@ -416,6 +416,11 @@ GitHub nichts.)
   `installChunkReload`): lädt auf die angefragte Seite neu, offline erst beim `online`-Event,
   mit 10-s-Sperre gegen Reload-Schleifen. Neue `import()`-Stellen außerhalb des Routers brauchen
   denselben Schutz.
+  ⚠️ **`navigator.onLine` kennt nur den Netzadapter, nicht den Server** (#299): Ein Handy, dessen
+  Verbindung zum Server kurz weg ist, meldet weiter `true`, und ein Reload ersetzte dann den
+  laufenden Player durch die Fehlerseite des Browsers. Deshalb fragt der Reload vorher den
+  Server (`fetch` der Seite, `no-store`, 5 s), und die Sperre steht zusätzlich im
+  `history.state` — mit blockiertem `sessionStorage` lief sie sonst ins Leere.
 - **UI-Änderungen selbst ansehen, nicht behaupten.** Auf dem Server liegt unter `~/uitest` eine
   fertige Playwright-Kiste (Chromium **und** Firefox): Screenshots pro Route × Theme × Gerät,
   Computed-Style-Audits, Regler-Vermessung, E2E für Queue und Group-Sync. **Vor dem Bauen eines

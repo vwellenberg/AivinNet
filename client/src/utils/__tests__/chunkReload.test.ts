@@ -209,7 +209,7 @@ describe('a reload only goes ahead when the server answers', () => {
     it('gives a server that hangs PROBE_TIMEOUT_MS, then stays put', async () => {
         vi.useFakeTimers()
         probe.mockImplementation(
-            (_url: string, init: RequestInit) =>
+            (_url: string, init: { signal?: AbortSignal }) =>
                 new Promise((_resolve, reject) =>
                     init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
                 )
