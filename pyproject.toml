@@ -111,7 +111,7 @@ show_missing = true
 target-version = "py311"
 line-length = 120
 src = ["src"]
-extend-exclude = ["src/aivinnet/lib"]
+extend-exclude = ["src/aivinnet/lib/pydub"]  # vendored third-party code
 
 [tool.ruff.lint]
 select = [
