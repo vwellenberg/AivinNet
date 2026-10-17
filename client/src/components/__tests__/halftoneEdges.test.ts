@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { readdirSync, readFileSync, statSync } from 'fs'
 import { describe, expect, it } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -62,17 +62,25 @@ describe('halftone at the ends', () => {
         // …but on the whole nav row around it, edge to edge (no mask: no
         // $edges, $band or $reach), drawn by the grid so the pill paints over it.
         const grid = read('src/assets/scss/Global/app-grid.scss')
-        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
+        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null(?:, \$on: surface)?\);\s*grid-area: nav;/)
     })
 
     it('on phones the strip is symmetric: one row above the pill, one below', () => {
         const grid = read('src/assets/scss/Global/app-grid.scss')
         // Whole tiles, so the first and the last row sit the same distance
         // from their edge, whatever the pill's height.
-        expect(grid).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;(?:[^{}]|#\{[^}]*\})*background-repeat: round;/)
-        // The strip reaches across the row gap, so the pill's bottom margin
-        // gives the gap back: the same $medium of dots on both sides.
-        expect(grid).toMatch(/\.topnav \{[\s\S]*?@include allPhones \{[^}]*margin: \$medium 1rem calc\(#\{\$medium\} - #\{\$app-grid-gap\}\);/)
+        const strip = grid.match(/&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;([^{}]*)\}/)
+        expect(strip, 'the phone strip').not.toBeNull()
+        expect(strip![1]).toMatch(/background-repeat: round;/)
+        // The strip is the nav row and nothing else: no row gap on phones for
+        // it to reach across (that gap put two rows below the pill, one above).
+        expect(strip![1]).not.toMatch(/\b(top|bottom|inset):/)
+        expect(grid).toMatch(/#app-grid \{[\s\S]*?@include allPhones \{[^}]*grid-template-rows: auto 1fr auto;[^}]*row-gap: 0;/)
+        // The pill sits with the same space above and below: $medium in the
+        // portrait's auto row, centred (auto margins) in the landscape's fixed one.
+        const topnav = grid.slice(grid.indexOf('\n.topnav {'))
+        expect(topnav).toMatch(/^\n\.topnav \{[\s\S]*?@include allPhones \{[^}]*margin: \$medium 1rem;/)
+        expect(topnav).toMatch(/@include shortViewport \{[\s\S]*?@include allPhones \{[^}]*margin: auto 1rem;/)
     })
 
     it('the continue card has one dot layer for every width, no mask of its own', () => {
@@ -102,15 +110,39 @@ describe('halftone at the ends', () => {
 
         const mixin = read('src/assets/scss/_candy.scss')
         expect(mixin).toMatch(/@mixin mem-halftone\([^)]*\$on: surface\)/)
-        expect(mixin).toMatch(/@if \$on == surface \{ \$dot-color: var\(--mem-halftone-dot, #\{\$dot-color\}\); \}/)
+        // Anything but `accent` reads the themed colour, as in mem-hatch: a typo
+        // must not bring back the invisible ink dots on the dark ground.
+        expect(mixin).toMatch(/@if \$on != accent \{ \$dot-color: var\(--mem-halftone-dot, #\{\$dot-color\}\); \}/)
+    })
 
-        // The Continue card is a pastel that stays light in both themes.
-        expect(read('src/components/HomeView/ContinueCard.vue')).toMatch(/@include mem-halftone\([^)]*\$on: accent\)/)
-        // Ground and panels: the phone strip, the desktop bar, the sidebar plate.
-        for (const f of ['src/assets/scss/Global/app-grid.scss', 'src/components/nav/NavBar.vue', 'src/components/LeftSidebar/index.vue']) {
-            const calls = read(f).match(/@include mem-halftone\([^)]*\)/g) ?? []
-            expect(calls.length, f).toBeGreaterThan(0)
-            for (const c of calls) expect(c, f).not.toMatch(/\$on: accent/)
+    // Collected, not listed: a new host has to say what it sits on. On a
+    // pastel that stays light in the dark theme, the default (paper dots) would
+    // all but vanish; on the ground or a panel, `accent` would bring back the
+    // invisible ink dots.
+    it('every dotted surface is named, with the fill it sits on', () => {
+        const SITS_ON: Record<string, 'surface' | 'accent'> = {
+            'src/assets/scss/Global/app-grid.scss': 'surface', // the phone strip, on the ground
+            'src/components/nav/NavBar.vue': 'surface', // the desktop top bar, a panel
+            'src/components/LeftSidebar/index.vue': 'surface', // the sidebar plate, a panel
+            'src/components/HomeView/ContinueCard.vue': 'accent', // a pastel, light in both themes
+        }
+        const walk = (dir: string): string[] =>
+            readdirSync(dir).flatMap((e) => {
+                const p = `${dir}/${e}`
+                if (statSync(p).isDirectory()) return walk(p)
+                return /\.(vue|scss)$/.test(e) ? [p] : []
+            })
+        const hosts: Record<string, string[]> = {}
+        for (const f of walk('src')) {
+            const calls = read(f).match(/@include mem-halftone\([^)]*\)/g)
+            if (calls) hosts[f] = calls
+        }
+        expect(Object.keys(hosts).sort()).toEqual(Object.keys(SITS_ON).sort())
+        for (const [f, calls] of Object.entries(hosts)) {
+            for (const c of calls) {
+                if (SITS_ON[f] === 'accent') expect(c, f).toMatch(/\$on: accent/)
+                else expect(c, f).not.toMatch(/\$on: accent/)
+            }
         }
     })
 })

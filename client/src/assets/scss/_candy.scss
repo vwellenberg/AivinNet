@@ -1302,7 +1302,7 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 // dark; `accent` (a pastel that stays light in both themes) keeps static ink.
 @mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null, $on: surface) {
   $dot-color: mem-alpha($mem-ink, 0.34);
-  @if $on == surface { $dot-color: var(--mem-halftone-dot, #{$dot-color}); }
+  @if $on != accent { $dot-color: var(--mem-halftone-dot, #{$dot-color}); }
   content: "";
   position: absolute;
   inset: $inset;
