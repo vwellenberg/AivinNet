@@ -80,11 +80,9 @@ fallback_version = "v0.0.0"
 
 [dependency-groups]
 dev = [
-    "mypy",
     "pre-commit",
     "pytest",
     "pytest-cov",
-    "ruff",
     "twine>=6.1.0",
 ]
 

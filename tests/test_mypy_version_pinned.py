@@ -9,10 +9,19 @@ bumps), and every `uvx` call carries the same version as `mypy@X`.
 
 The checked files drifted the same way: the command in CLAUDE.md still listed
 six of the eight modules CI and pre-commit check.
+
+uv was a third source: the dev group listed a bare `mypy`, which uv.lock
+resolved to 2.3.1, so `uv sync` + `uv run mypy` checked with another mypy.
+Nothing called it that way, so the group dropped it; whoever adds it back pins
+it to the rev.
 """
 
 import re
+import tomllib
 from pathlib import Path
+
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MYPY_HOOK = "repo: https://github.com/pre-commit/mirrors-mypy"
@@ -48,10 +57,42 @@ def _calls():
             yield name, match.group(1), set(MODULE.findall(match.group(2)))
 
 
+def _uv_requirements(tool: str) -> list[Requirement]:
+    # Everything `uv sync` can be told to install: dependencies, extras, the
+    # dependency groups and uv's older `dev-dependencies`.
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project = pyproject.get("project", {})
+    lists = [
+        project.get("dependencies", []),
+        *project.get("optional-dependencies", {}).values(),
+        *pyproject.get("dependency-groups", {}).values(),
+        pyproject.get("tool", {}).get("uv", {}).get("dev-dependencies", []),
+    ]
+    parsed = [Requirement(req) for reqs in lists for req in reqs if isinstance(req, str)]
+    return [req for req in parsed if canonicalize_name(req.name) == tool]
+
+
+def _locked_versions(tool: str) -> list[str]:
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    return [package["version"] for package in lock["package"] if package["name"] == tool]
+
+
 def test_every_uvx_mypy_call_uses_the_pre_commit_version():
     version = _pinned_version()
     off = [f"{name}: mypy@{found}" for name, found, _ in _calls() if found != version]
     assert not off, f"pin these to mypy@{version} (the rev in .pre-commit-config.yaml): {off}"
+
+
+def test_uv_installs_no_other_mypy():
+    # Checking uv.lock alone would pass a bare `mypy` while the lock happens to
+    # match, until the next `uv lock --upgrade`; so the requirement itself must
+    # be pinned (a marker is fine, a range is not).
+    version = _pinned_version()
+    pins = _uv_requirements("mypy")
+    off = [f"pyproject.toml: {req}" for req in pins if req.url or str(req.specifier) != f"=={version}"]
+    off += [f"uv.lock: mypy {found}" for found in _locked_versions("mypy") if found != version]
+    rev = f"{version} (the rev in .pre-commit-config.yaml)"
+    assert not off, f"uv would install another mypy than {rev}; pin it with mypy=={version} or drop it: {off}"
 
 
 def test_every_mypy_checks_the_same_modules():

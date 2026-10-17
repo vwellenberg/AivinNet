@@ -161,6 +161,8 @@ git fetch --prune && git branch -D <branch>
   und im Befehl oben, alle gleich halten. Neue Module bei Bearbeitung dort aufnehmen. **Version wie bei Ruff:** maßgeblich ist
   `rev:` von `mirrors-mypy`, alle uvx-Aufrufe tragen `mypy@…` (vorher Pre-commit 1.15.0, CI das jeweils neueste Release).
   `tests/test_mypy_version_pinned.py` nennt abweichende Versionen und Modullisten.
+- **Beide nicht in der uv-Dev-Gruppe:** `uv run ruff`/`uv run mypy` nähme sonst die Version aus `uv.lock`
+  statt des `rev:`. Wer sie dort braucht, pinnt `==<rev>`; beide Wächter prüfen `pyproject.toml` und `uv.lock` mit.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module). Ruff dort nur auf
   `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
   in Markdown-Doku um.
