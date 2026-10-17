@@ -74,8 +74,9 @@ class AudioSource {
      * The user's mute and volume, on BOTH elements. The standby is prepared
      * seconds before a group cut-over and then becomes the playing element: a
      * mute tapped in between used to stay on the old element only, and the next
-     * song played out loud while the UI showed muted (#298). An element still
-     * fading out keeps its fade — it is on its way out.
+     * song played out loud while the UI showed muted (#298). The standby keeps
+     * a fade it is in (a solo crossfade's outgoing track, on its way out); the
+     * playing element always takes the new volume, as it did before.
      */
     setMute(muted: boolean) {
         this.sources.forEach(audio => (audio.muted = muted))
@@ -84,7 +85,7 @@ class AudioSource {
     /** `volume` is the new setting, applied before the setting changes (so not musicVolume()). */
     setVolume(volume: number) {
         this.sources.forEach(audio => {
-            if (!isFading(audio)) audio.volume = volume * this.duck
+            if (audio === this.playingSource || !isFading(audio)) audio.volume = volume * this.duck
         })
     }
 

@@ -130,8 +130,10 @@ neben der App laufen.
 - **„Keine Antwort“ ist ein Fehlschlag, kein Erfolg.** `useAxios` liefert bei Netzfehler oder
   Timeout `{ error, status: undefined }`; `reportSyncFailure` wertete das als Erfolg. Eine so
   verlorene Buchung ließ `bookedFor` stehen, `ended` trat zurück — die ganze Gruppe schwieg bis
-  zum nächsten Tipp. Jetzt: Fehler mit Toast, und jeder Sync-Call hat eine Deadline
-  (`SYNC_TIMEOUT_MS`).
+  zum nächsten Tipp. Jetzt: Fehler mit Toast, und Transport-Befehle haben eine Deadline
+  (`SYNC_TIMEOUT_MS`). ⚠️ **Der Poll bewusst nicht:** der Server beantwortet einen Request
+  nach dem anderen, ein Poll-Timeout hinter einem langen Request (#376) zählte als verlorene
+  Verbindung und löste die Gruppe auf.
 - **`ended` auf einer gebuchten Ankerzeit vertraut der Buchung nicht blind.** Ist der gebuchte
   Zustand bis zum Ende nicht angekommen (`pending` leer), fragt der Leader nach und rückt nach
   `BOOKED_END_GRACE_MS` selbst vor. Der Index ist absolut — eine Buchung, die doch gelandet
