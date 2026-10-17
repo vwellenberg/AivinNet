@@ -99,14 +99,14 @@ describe('halftone at the ends', () => {
         expect(gradient.endsWith('#000 calc(100% - #{$right-edge}), #000 100%)')).toBe(true)
     })
 
-    // The dot colour answers the fill underneath, like the hatch: ink dots on
-    // the dark ground were invisible, so in the dark theme the phone strip and
-    // the sidebar plate wore no dots at all (user, 2026-10-17).
+    // The dot colour answers the fill underneath, like the hatch: ink on the
+    // light ground and panels, none on the dark ones (user, 2026-10-17: the
+    // dark theme quieter, not busier), static ink on an accent.
     it('dots on the ground and panels follow the theme, dots on an accent stay ink', () => {
         const root = read('src/assets/scss/Global/index.scss')
         expect(root).toMatch(/--mem-halftone-dot: #\{mem-alpha\(\$mem-ink, [\d.]+\)\};/)
         const dark = root.slice(root.indexOf('body.theme-dark {'))
-        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: #\{mem-alpha\(\$mem-dark-line, [\d.]+\)\};/)
+        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: transparent;/)
 
         const mixin = read('src/assets/scss/_candy.scss')
         expect(mixin).toMatch(/@mixin mem-halftone\([^)]*\$on: surface\)/)

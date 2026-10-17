@@ -445,10 +445,11 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   `background-repeat: round`: ganze Kacheln, minimal gestreckt — die erste und die letzte Reihe
   stehen gleich weit von ihrer Kante, egal wie hoch die Pille ist.
 - ⚠️ **Die Punktfarbe antwortet auf die Fläche darunter, wie die Schraffur** (`$on` in
-  `mem-halftone`): Auf Grund und Panels liest sie `--mem-halftone-dot` (Ink hell, Paper dunkel),
-  auf einer Akzent-Pastellfläche (Continue-Karte) bleibt sie statisches Ink. Bis 2026-10-17 war
-  sie überall Ink — im Dunkelmodus trugen Handy-Streifen, Desktop-Leiste und Sidebar-Platte
-  deshalb **gar keine** sichtbaren Punkte, ohne dass es auffiel: hell sah alles richtig aus.
+  `mem-halftone`): Auf Grund und Panels liest sie `--mem-halftone-dot` (Ink hell, im Dunkelmodus
+  `transparent` — **keine** Punkte), auf einer Akzent-Pastellfläche (Continue-Karte) bleibt sie
+  statisches Ink. Bis 2026-10-17 war sie überall Ink, also waren die Punkte im Dunkelmodus nur
+  *zufällig* unsichtbar. Paper-Punkte wurden am selben Tag probiert und verworfen (Nutzer: der
+  Dunkelmodus soll dunkler und ruhiger werden). Jetzt ist „keine Punkte" eine Aussage im Token.
   Jeder Wirt steht mit seiner Fläche in `halftoneEdges.test.ts` (eingesammelt, nicht
   aufgelistet): ein neuer muss sagen, worauf er sitzt.
 - **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
