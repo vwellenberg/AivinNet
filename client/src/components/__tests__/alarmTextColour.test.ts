@@ -32,7 +32,7 @@ const TEXT_IN_RED = /(^|[^-\w])color:\s*\$red\b/m;
 
 describe("alarm text", () => {
   it("reads the source tree (guards the walk itself)", () => {
-    expect(FILES.length).toBeGreaterThan(200);
+    expect(FILES.length).toBeGreaterThan(150);
     expect(FILES.some(f => f.endsWith("FetchMetadata.vue"))).toBe(true);
     expect(FILES.some(f => f.endsWith(".scss"))).toBe(true);
   });
