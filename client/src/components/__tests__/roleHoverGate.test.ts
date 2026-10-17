@@ -275,15 +275,36 @@ function styles(file: string, source: string): string {
   return [...source.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join("\n");
 }
 
-/** Elements that wear a role through the global class (`class="save btn-pill"`). */
-function templateWearers(source: string): Subject[] {
+/** The class names of every element in a template: static `class` and the literals in `:class`. */
+function templateClassLists(source: string): string[][] {
   const template = source.match(/<template>([\s\S]*)<\/template>/)?.[1] ?? "";
+  // Attribute values are double-quoted in this codebase and may hold a `>`
+  // (`@click="() => …"`), so the tag is matched attribute by attribute.
+  const tag = /<[a-zA-Z][\w-]*((?:\s+[^\s=>"'/]+(?:\s*=\s*"[^"]*")?)*)\s*\/?>/g;
+  const lists: string[][] = [];
+  for (const [, attrs] of template.matchAll(tag)) {
+    const names = (attrs.match(/(?:^|\s)class="([^"]*)"/)?.[1] ?? "").split(/\s+/).filter(Boolean);
+    const bound = attrs.match(/\s:class="([^"]*)"/)?.[1] ?? "";
+    names.push(...[...bound.matchAll(/'([\w-]+)'/g)].map(m => m[1]));
+    if (names.length) lists.push(names);
+  }
+  return lists;
+}
+
+/**
+ * Every class of an element that wears a role — through the global class
+ * (`class="save btn-pill"`) or a selector of its own file (`.aux` takes
+ * `btn-action`, so its `aux-off` state class is the same button). Without the
+ * second half the dimmed shuffle glyph in HotKeys.vue (`.aux-off:hover`) was
+ * invisible to this census: its selector never names `.aux`.
+ */
+function templateWearers(source: string, styleWearers: Subject[]): Subject[] {
   const found: Subject[] = [];
-  for (const [, list] of template.matchAll(/\sclass="([^"]*)"/g)) {
-    const names = list.split(/\s+/).filter(Boolean);
-    if (names.some(name => ROLE_CLASS.test(name))) {
-      for (const name of names) found.push({ tag: "", classes: [name] });
-    }
+  for (const names of templateClassLists(source)) {
+    const wearsRole =
+      names.some(name => ROLE_CLASS.test(name)) ||
+      styleWearers.some(w => !w.tag && w.classes.length > 0 && w.classes.every(c => names.includes(c)));
+    if (wearsRole) for (const name of names) found.push({ tag: "", classes: [name] });
   }
   return found;
 }
@@ -307,17 +328,15 @@ function wearerHovers(): { files: number; wearers: number; found: Found[] } {
     const source = readFileSync(file, "utf8");
     const rules = flatten(code(styles(file, source)));
 
-    const wearers: Subject[] = [
-      ...rules
-        .filter(rule => WEARS_ROLE.test(rule.own))
-        .flatMap(rule =>
-          rule.selectors.map(selector => {
-            const parts = compounds(selector);
-            return subject(parts[parts.length - 1] ?? "");
-          })
-        ),
-      ...(file.endsWith(".vue") ? templateWearers(source) : []),
-    ];
+    const styleWearers: Subject[] = rules
+      .filter(rule => WEARS_ROLE.test(rule.own))
+      .flatMap(rule =>
+        rule.selectors.map(selector => {
+          const parts = compounds(selector);
+          return subject(parts[parts.length - 1] ?? "");
+        })
+      );
+    const wearers = [...styleWearers, ...(file.endsWith(".vue") ? templateWearers(source, styleWearers) : [])];
     wearerCount += wearers.length;
     if (wearers.length === 0) continue;
 
@@ -355,6 +374,8 @@ describe("role wearers gate their own hovers too", () => {
     expect(has("src/components/BottomBar/Right.vue", /button\.aux\.aux-off:hover$/)?.gated).toBe(true);
     // …one on a template-class wearer…
     expect(has("src/components/modals/ConfirmModal.vue", /\.cancel:hover$/)?.gated).toBe(true);
+    // …one on a state class that only the template ties to the wearer…
+    expect(has("src/components/LeftSidebar/NP/HotKeys.vue", /\.aux-off:hover$/)?.gated).toBe(true);
     // …and an exempt pair.
     expect(has("src/components/CardListView/SortBanner.vue", /\.select\.active:hover$/)?.pair).toBe(true);
   });
