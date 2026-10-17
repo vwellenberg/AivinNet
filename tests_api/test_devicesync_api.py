@@ -951,9 +951,12 @@ def test_the_largest_things_a_client_passes_on_still_go_through(ds):
 )
 def test_a_device_id_is_bounded_everywhere(ds, path, body):
     """`join` keeps it as a member key, and the leader's id goes out with every poll."""
-    _session_with_queue(ds)
+    before = _session_with_queue(ds)
 
     assert ds.client.post(path, json=body).status_code == 422
+    # Nothing reached the core or the registry: no new member, no leave.
+    assert ds.manager._sessions[USERID].members.keys() == {"dev-a"}
+    assert _poll(ds, "dev-a", known_version=-1)["state"] == before
     assert ds.calls["touch"] == []
 
 

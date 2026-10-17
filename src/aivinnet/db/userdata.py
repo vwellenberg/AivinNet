@@ -943,7 +943,8 @@ class DeviceTable(Base):
     def upsert(cls, device_id: str, userid: int, name: str, type: str):
         """
         Insert a new device row or, when one already exists for this
-        (device_id, userid), refresh its name/type/last_seen.
+        (device_id, userid), refresh its name/type/last_seen. An insert trims
+        the user's rows to the ``MAX_DEVICES_PER_USER`` most recently seen.
 
         NOTE: the lookup selects the ID COLUMN, never the mapped entity.
         `Base.execute` yields its result out of a closed session scope, so
