@@ -1627,6 +1627,12 @@ Drei Dinge, die daran hängen:
   `<body>`, aus `main.ts`) zeigte es nach dem Gate gar keins.
 - **Ein `btn-action($rest: bare)` bekommt am Touch nie seine Platte** — er ist dort ein Glyph,
   der drückt, wie `btn-quiet`. Gewollt: Die Platte war die Zeiger-Antwort.
+- **Wer im Hover die Fläche einer Rolle neu malt, nennt auch die Textfarbe.** Jede Rolle setzt
+  im Hover `color: var(--mem-hover-text)` — das Label für die *Kontrast*platte. „Cancel“ im
+  Bestätigungsdialog hoverte auf eigenem Soft-Rosa, und die Rolle (später im Bundle, gleiche
+  Spezifität) drehte die Schrift trotzdem um: gemessen weiß auf `rgb(251,227,231)` hell,
+  `rgb(16,16,18)` auf `rgb(34,34,38)` dunkel. Der Hover-Zensus in `hoverToken.test.ts` sah es
+  nicht, weil er nur Token-Flächen prüft; `roleHoverGate.test.ts` prüft jetzt jede.
 
 Beweis am gebauten CSS (alle 25 Dateien, master gegen Branch): 81 Hover-Regeln wandern ins Gate,
 keine verschwindet, keine neue ungegatete, alle übrigen Regeln byte-gleich — mit Maus ändert sich
