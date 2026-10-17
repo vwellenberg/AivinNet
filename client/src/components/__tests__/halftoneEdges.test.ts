@@ -36,7 +36,7 @@ describe('halftone at the ends', () => {
         // The general rule for text on dots (user, 2026-10-16, mockup C): no
         // fixed line, no box per label — a soft veil of the surface's fill.
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null\);/)
+        expect(src).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null, \$on: accent\);/)
         expect(src).toMatch(/\.info \{[^}]*@include mem-dots-veil;/)
         expect(src).toMatch(/\.kicker \{[^}]*@include mem-dots-veil;/)
         // The labels on the dots no longer take a cover each (the row plates
