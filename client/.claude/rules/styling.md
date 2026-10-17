@@ -20,7 +20,7 @@ nicht pro View kopieren.
 
 Jedes drückbare Element in Memphis hat **fünf** Merkmale, und eine Rolle bringt alle fünf mit:
 Offset-Schatten (3 px, Hover 4 px), Press in den Schatten bzw. Skalierung, Schraffur (bei
-Wort-Buttons als Ring ums Label), Hover über `--mem-hover` + `--mem-hover-text`, 44-px-Ziel.
+Wort-Buttons als Ring ums Label), Hover über `--mem-hover` + `--mem-hover-text` (nur mit Zeiger), 44-px-Ziel.
 Wer Rahmen und Fläche **von Hand** schreibt, bekommt genau die Hälfte, die man im Kopf hatte —
 der Schatten ist dabei am unauffälligsten, weil er beim Schreiben nirgends fehlt.
 
@@ -1599,6 +1599,39 @@ also, sobald man ihn anfasste. Für Drag-Controls gilt: sichtbarer Knopf, Touch-
 (`range-geometry` auf dem Wrapper) und **`touch-action: none`** auf dem Input, sonst frisst der
 Page-Scroll die horizontale Geste.
 
+### ⚠️ Die Button-Rollen hovern nur mit Zeiger — gegatet an der Quelle
+
+Alle fünf Rollen in `_buttons.scss` und `candy-raised` (der Hover-Schatten von drei davon)
+schreiben ihr `:hover` in `@media (hover: hover)`, ihr `:active` **außerhalb**. Vorher stand
+jeder getippte Button am Handy bis zum nächsten Tipp als Kontrastplatte da: Tinte im hellen,
+Papier im dunklen Theme, Hover-Schraffur, 1.06-Skalierung — der Play-Knopf schwarz statt teal,
+ein eben eingeschaltetes Shuffle ohne sein Gelb. Gemessen an beiden Builds per Tap im
+Touch-Profil (`~/uitest/rolelatch.js`): master `rgb(23,23,26)` + `scale(1.06)`, Branch die
+Ruhefläche.
+
+Drei Dinge, die daran hängen:
+
+- **Wer den Hover einer Rolle am Aufrufort nachschreibt, gatet ihn genauso.** Ungegatet latcht
+  dann nur noch die Hälfte des Aufruforts, und das ist schlimmer als vorher: Das gedimmte
+  Shuffle-Glyph (`.aux-off:hover`) setzt nur die Hover-**Textfarbe** — getippt stand Papier auf
+  der weißen Ruheplatte, das Glyph war weg. Gefunden über das gemeinsame Merkmal „Element trägt
+  eine Rolle“ (per `@include` oder per globaler `btn-*`-Klasse im Template, samt den
+  Zustandsklassen aus `:class`), nicht über eine Liste: fünf Stellen.
+  Erlaubt bleiben `X, X:hover { … }` (der Hover wiederholt den Ruhezustand, latchen ändert
+  nichts) und zwei Rücknahmen auf nicht drückbaren Zuständen (`ALLOWED`, mit Grund — sie halten
+  am Touch auch den Press fern).
+- **Touch bekommt den Press, und iOS zeigt ihn nur mit Zuhörer.** Safari auf iOS setzt
+  `:active` an einem Nicht-Link nur, wenn Element oder `<body>` einen `touchstart`-Handler hat
+  (MDN-Kompatdaten, `css/selectors/active`). Bis zum Gate war der gelatchte Hover das einzige
+  Feedback, das ein iPhone je zeigte — ohne `utils/touchActive.ts` (passiver Leer-Handler auf
+  `<body>`, aus `main.ts`) zeigte es nach dem Gate gar keins.
+- **Ein `btn-action($rest: bare)` bekommt am Touch nie seine Platte** — er ist dort ein Glyph,
+  der drückt, wie `btn-quiet`. Gewollt: Die Platte war die Zeiger-Antwort.
+
+Beweis am gebauten CSS (alle 25 Dateien, master gegen Branch): 81 Hover-Regeln wandern ins Gate,
+keine verschwindet, keine neue ungegatete, alle übrigen Regeln byte-gleich — mit Maus ändert sich
+also nichts. Zensus: `roleHoverGate.test.ts`.
+
 ### ⚠️ Ein Zeilen-Hover wird an der QUELLE gegatet, nicht per Breite neutralisiert (#457)
 
 Die Track-Zeile trug beides gleichzeitig: in `app-grid.scss` eine breiten-gekoppelte
@@ -1933,9 +1966,9 @@ Eindruck kommt deshalb vor allem vom **Weiß, das wegging**:
   weiter mit `--look-track*`.
 - **Der Theme-Knopf hovert nur mit Zeiger** (`@media (hover: hover)`): Auf Touch latcht `:hover`
   nach dem Tippen, und der gerade getippte Knopf stand im Dunkelmodus als papierweiße Platte da.
-  ⚠️ Die Rollen in `_buttons.scss` gaten ihren Hover (noch) nicht — dasselbe Latchen trifft jeden
-  Button nach einem Tipp; der Theme-Knopf fiel nur auf, weil er das Theme wechselt und die
-  Hover-Fläche damit im Dunkeln die hellste Fläche ist.
+  Er fiel nur zuerst auf, weil die Hover-Fläche im Dunkeln die hellste ist — dasselbe Latchen
+  traf jeden Button. Seitdem gaten die Rollen selbst (siehe „Die Button-Rollen hovern nur mit
+  Zeiger“).
 - Zensus: `darkModeQuiet.test.ts`.
 
 ## ⚠️ Ein Verlauf lässt sich nicht überblenden — eine registrierte Farbe schon
