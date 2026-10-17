@@ -12,15 +12,21 @@
         <div v-if="settings.is_alt_layout || !settings.use_sidebar || !xl" class="right">
             <span v-if="isMobile && !onSearchRoute" class="mobile-nav-title">
                 <!-- Phones show the app icon nowhere else; Home is its place. -->
-                <img
+                <button
                     v-if="route.name === Routes.Home"
-                    class="mobile-nav-logo"
-                    :class="{ 'logo-spin-once': logoSpinning }"
-                    src="@/assets/icons/logos/logo-subspaceradio.png"
-                    alt=""
+                    type="button"
+                    class="mobile-nav-logo-btn"
+                    aria-label="App icon"
                     @click="logoSpinning = true"
-                    @animationend="logoSpinning = false"
-                />
+                >
+                    <img
+                        class="mobile-nav-logo"
+                        :class="{ 'logo-spin-once': logoSpinning }"
+                        src="@/assets/icons/logos/logo-subspaceradio.png"
+                        alt=""
+                        @animationend="logoSpinning = false"
+                    />
+                </button>
                 {{ mobileTitle }}
             </span>
             <RouterLink v-if="!isMobile" :to="{ name: Routes.Home }" class="nav-home" title="Home">
@@ -282,6 +288,17 @@ const mobileTitle = computed(() => {
             gap: $small;
         }
 
+        // The tap target for the spin: a bare wrapper, the planet is its own look.
+        .mobile-nav-logo-btn {
+            display: flex;
+            flex-shrink: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         // Same hard ink contour the desktop logo wears (Logo.vue), no box.
         .mobile-nav-logo {
             width: 2rem;
@@ -290,7 +307,6 @@ const mobileTitle = computed(() => {
             object-fit: contain;
             filter: drop-shadow(1.5px 0 0 $mem-line) drop-shadow(-1.5px 0 0 $mem-line)
                 drop-shadow(0 1.5px 0 $mem-line) drop-shadow(0 -1.5px 0 $mem-line);
-            -webkit-tap-highlight-color: transparent;
         }
     }
 
