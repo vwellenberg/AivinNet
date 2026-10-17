@@ -147,6 +147,54 @@ describe('a write that partly fails', () => {
         expect(w.find('button.apply').attributes('disabled')).toBeDefined()
     })
 
+    it('does not claim the rest was written when every change failed', async () => {
+        const w = await openAndWrite({
+            result: {
+                applied: [],
+                failed: [
+                    { filepath: NIGHT, error: 'read-only' },
+                    { filepath: GAME_WON, error: 'read-only' },
+                ],
+            },
+            error: null,
+        })
+
+        expect(w.find('.failures-lead').text()).toContain('Nothing was written.')
+        expect(w.find('.failures-lead').text()).not.toContain('Everything else')
+        expect(writableRows(w)).toHaveLength(2)
+    })
+
+    it('says the rest was written when only some failed', async () => {
+        const w = await openAndWrite({
+            result: { applied: [{ filepath: NIGHT, new_trackhash: 'c1' }], failed: [{ filepath: GAME_WON, error: 'read-only' }] },
+            error: null,
+        })
+
+        expect(w.find('.failures-lead').text()).toContain('Everything else was written.')
+    })
+
+    it('keeps the rows of an earlier write done when a retry fails again', async () => {
+        const w = await openAndWrite({
+            result: {
+                applied: [{ filepath: NIGHT, new_trackhash: 'c1', new_filepath: '/music/Game OST/68 - Night Woods1.mp3' }],
+                failed: [{ filepath: GAME_WON, error: 'read-only' }],
+            },
+            error: null,
+        })
+
+        requests.applyChanges.mockResolvedValueOnce({
+            result: { applied: [], failed: [{ filepath: GAME_WON, error: 'still read-only' }] },
+            error: null,
+        })
+        await w.find('button.apply').trigger('click')
+        await flushPromises()
+
+        // NIGHT is renamed: its row names a path that is gone and must not come back.
+        expect(writableRows(w)).toHaveLength(1)
+        expect(writableRows(w)[0].text()).toContain('Game Won')
+        expect(w.find('.failures').text()).toContain('still read-only')
+    })
+
     it('still closes when everything went through', async () => {
         const w = await openAndWrite({
             result: { applied: [{ filepath: NIGHT, new_trackhash: 'c1' }, { filepath: GAME_WON, new_trackhash: 'c2' }], failed: [] },

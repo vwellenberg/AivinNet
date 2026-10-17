@@ -72,7 +72,8 @@
                  which ones or why. -->
             <div v-if="failures.length" class="failures rounded-sm" role="alert">
                 <p class="failures-lead">
-                    {{ failures.length }} change(s) could not be made. Everything else was written.
+                    {{ failures.length }} change(s) could not be made.
+                    {{ wroteSome ? 'Everything else was written.' : 'Nothing was written.' }}
                 </p>
                 <ul>
                     <li v-for="(failure, index) in failures" :key="index">
@@ -236,6 +237,8 @@ const renameFiles = ref(true)
 
 /** What the last write reported as failed. Shown until the next preview. */
 const failures = ref<ApplyResult['failed']>([])
+/** Whether that write changed anything at all — "everything else" can be nothing. */
+const wroteSome = ref(false)
 /**
  * Files the last write finished. Their rows describe each file as it WAS — a
  * renamed one is not even at that path any more — so they are done, not
@@ -328,6 +331,7 @@ function intoPreview(result: { rows: PreviewRow[]; summary?: PreviewSummary; err
     rows.value = result.rows
     summary.value = result.summary ?? null
     failures.value = []
+    wroteSome.value = false
     written.value = new Set()
     cameFrom.value = source
     emit('setTitle', titleFor(source))
@@ -463,6 +467,7 @@ async function apply() {
             ...result.applied.map(entry => entry.filepath).filter(filepath => !failedPaths.has(filepath)),
         ])
         failures.value = result.failed
+        wroteSome.value = result.applied.length > 0
         rows.value.forEach((row, index) => {
             if (isWritten(row)) checked.value[index] = false
         })
