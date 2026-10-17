@@ -8,6 +8,9 @@
 // ("the block was found", "the token list is not empty"), and these helpers
 // are deliberately dumb enough to be read in one sitting.
 
+import { readdirSync, statSync } from "fs";
+import { join } from "path";
+
 /** A component's <style> content with comments removed. */
 export function styleBlock(source: string): string {
   return source
@@ -217,4 +220,50 @@ export function namedRules(css: string, parents: string[] = []): NamedRule[] {
   }
 
   return out;
+}
+
+/**
+ * The source with every `@media (hover: hover) { … }` block removed — what is
+ * left is what a touch device applies. A combined query (`… and (hover:
+ * hover)`) counts as a gate too. Shared by the pointer-gate censuses
+ * (`rowHover`, `roleHoverGate`), which had grown a copy each.
+ */
+export function stripPointerGates(clean: string): string {
+  const opener = /@media[^{]*\(\s*hover\s*:\s*hover\s*\)[^{]*\{/;
+  let out = clean;
+  for (let match = opener.exec(out); match; match = opener.exec(out)) {
+    let depth = 0;
+    let end = -1;
+    for (let i = match.index + match[0].length - 1; i < out.length; i++) {
+      if (out[i] === "{") depth++;
+      else if (out[i] === "}" && --depth === 0) {
+        end = i;
+        break;
+      }
+    }
+    // An unclosed block means the brace matcher is broken — bail out and let
+    // the caller's leak check fail loudly rather than silently stripping to EOF.
+    if (end < 0) return out;
+    out = out.slice(0, match.index) + out.slice(end + 1);
+  }
+  return out;
+}
+
+/**
+ * Every `.scss` and `.vue` file under `dir`, `__tests__` and `node_modules`
+ * skipped, with forward slashes on every platform. Hand-rolled instead of
+ * `readdirSync(…, { recursive: true })`, which needs a newer Node than this
+ * repo pins.
+ */
+export function sourceFiles(dir: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      if (entry !== "node_modules" && entry !== "__tests__") found.push(...sourceFiles(path));
+    } else if (/\.(scss|vue)$/.test(entry)) {
+      found.push(path.replace(/\\/g, "/"));
+    }
+  }
+  return found;
 }

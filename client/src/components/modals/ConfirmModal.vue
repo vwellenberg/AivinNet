@@ -34,10 +34,11 @@ defineProps<{
         // Panel-var fill (dark in dark) -> adaptive label, not the ink
         // default from the button base.
         color: $candy-text;
-
-        &:hover {
-            background-color: $candy-pink-soft;
-        }
+        // No hover of its own: the pill role's is the hover (the shared token,
+        // pointer-gated). The soft-pink fill that stood here kept only half of
+        // it — the role, later in the bundle at the same specificity, still
+        // flipped the label to `--mem-hover-text`: paper on the light fill in
+        // the light theme, ink on #242424 in the dark one.
     }
 
     .confirm {
@@ -46,9 +47,16 @@ defineProps<{
         // Static light label on coral (the panel var would go dark in dark).
         color: $mem-panel-static;
 
-        &:hover {
-            background-color: $mem-coral;
-            opacity: 0.9;
+        // Destructive keeps its coral under the pointer — and its label with
+        // it: the role flips the text to `--mem-hover-text` (ink in the dark
+        // theme). Gated like the role it overrides (Global/_buttons.scss,
+        // HOVER IS POINTER-ONLY).
+        @media (hover: hover) {
+            &:hover {
+                background-color: $mem-coral;
+                color: $mem-panel-static;
+                opacity: 0.9;
+            }
         }
     }
 }

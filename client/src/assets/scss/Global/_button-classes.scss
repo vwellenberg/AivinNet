@@ -107,9 +107,13 @@
   @include mem-label-hatch(26px, $on: surface);
 }
 
-.btn-action.btn-action-label:hover {
-  background-image: none;
-  --label-hatch: var(--mem-hatch-hover);
+// Gated like the role's own hover (Global/_buttons.scss), or a tap latches the
+// hover sprite onto the resting plate.
+@media (hover: hover) {
+  .btn-action.btn-action-label:hover {
+    background-image: none;
+    --label-hatch: var(--mem-hatch-hover);
+  }
 }
 
 .btn-quiet {

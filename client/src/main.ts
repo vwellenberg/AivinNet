@@ -18,6 +18,7 @@ import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
 import vContextMenu from "./directives/vContextMenu";
 import { installArrivalLatch } from "./utils/arrivalLatch";
+import { installTouchActive } from "./utils/touchActive";
 
 import "./assets/scss/index.scss";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
@@ -54,6 +55,10 @@ app.directive("context-menu", vContextMenu);
 // Song rows and tiles make their entrance once, not on every move the virtual
 // scroller makes with them. See utils/arrivalLatch.ts.
 installArrivalLatch();
+
+// The press is the touch feedback of every button role, and iOS Safari only
+// shows `:active` when <body> listens for touches. See utils/touchActive.ts.
+installTouchActive();
 
 app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);

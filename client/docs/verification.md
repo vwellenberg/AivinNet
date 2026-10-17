@@ -60,6 +60,9 @@ pyjwt.encode({"sub": {"id": 1}, "iat": …, "nbf": …, "exp": …,
 | `scripts/edge-audit.js` (**im Repo**) | **Kanten-Gate**: misst jede Sticker-Überschrift gegen den Block, den sie beschriftet, und meldet Versatz sowie schiefes Chip-Padding. Zweites Gate am Ende von `scripts/deploy-client.sh`. `TOKEN=`, `BASE=`, `WIDTH=`, `ROUTES=`, `MIN_COMPARED=`. ⚠️ Beide Gates teilen einen Vertrag: **0 sauber · 1 Fund · 2 Harness kaputt** — „nicht gelaufen" darf nie wie „sauber" aussehen, und ein Fund nie wie ein Harness-Fehler |
 | `scripts/menu-label-fit.js` (**im Repo**) | **Label-Gate**: öffnet alle acht Kontextmenüs und misst jedes Label mit Canvas-`measureText` gegen die Box, die es tatsächlich bekommen hat. Drittes Gate am Ende von `scripts/deploy-client.sh`, gleicher Vertrag. `TOKEN=`, `BASE=`. ⚠️ **Nicht** `scrollWidth` — an einem bereits gekappten Element meldet der die gekappte Breite, ein abgeschnittenes Label misst sich also als passend. Ein Menü, das nicht aufgeht, druckt `HARNESS:` und zählt als nichts gemessen, nie als bestanden |
 | `pixelprobe.js` | **welche Farbe steht wirklich an dieser Stelle?** Tastet eine waagerechte Linie im Bild ab (Clip → Canvas), statt Element-Rechtecken zu glauben. `ROUTE=`, `BASE=`, `ENGINE=` |
+| `rolelatch.js` + `runrolelatch.sh` | **bleibt ein getippter Button im Hover stehen?** Tippt Rollen-Buttons im Touch-Profil (Handy, Tablet) und liest Fläche, Textfarbe und Transform zurück, dazu Maus-Hover am Desktop als Gegenprobe. Das Shell-Skript fährt master- und Branch-`dist` hinter zwei Proxys. `BASE=`, `TAG=` |
+| `pressforce.js` | **greift der Press unter Touch?** Erzwingt `:active` bzw. `:hover` per CDP (`CSS.forcePseudoState`) im Touch-Profil und liest den Transform — siehe die Falle unten |
+| `latchshots.js` | fotografiert den gelatchten Zustand (Hover per CDP erzwungen) von Player-Leiste und Top-Bar am Handy, hell und dunkel |
 | `auxvariants.js` | **Layout-Varianten vergleichen, ohne eine zu bauen**: schiebt der laufenden App nacheinander CSS-Overrides unter und schießt zu jeder Variante Bild **und** Maße — siehe unten |
 | `previewproxy.js` + `run*.sh` | Branch-`dist` über einen Proxy servieren und messen |
 | `queueseams.js`, `verify3.js` | E2E für Queue-Seams und Group-Sync |
@@ -311,6 +314,13 @@ einen Schleifendurchlauf.
   Effekt", der Code ist in Ordnung (real passiert: Ordner-Kopf bei y≈1044 in einem 900-px-
   Viewport). Vor jeder Zeiger-Interaktion `scrollIntoViewIfNeeded()`, danach mit
   `elementFromPoint` prüfen, dass die Mitte wirklich das Ziel trifft.
+- **Ein per CDP gehaltener Finger setzt kein `:active`.** `Input.dispatchTouchEvent`
+  (`touchStart`, dann warten) ließ `:active` in Headless-Chromium über 600 ms aus — der Press
+  misst sich als `transform: none`, egal was die Regel sagt. Ein Tap (`locator.tap()`) setzt
+  dagegen zuverlässig das gelatchte `:hover`. Für die Frage „greift die Press-Regel unter
+  Touch?“ den Zustand per `CSS.forcePseudoState` erzwingen (`pressforce.js`); ob ein echtes
+  Gerät `:active` setzt (iOS nur mit `touchstart`-Handler, siehe `utils/touchActive.ts`), bleibt
+  eine Frage ans Gerät.
 - **⚠️ Wer eine Reihe der Reihe nach DRÜCKT, ändert dabei den Zustand.** Ein Messlauf, der jedes
   Element hovert und presst, klickt in der Top-Bar irgendwann den **Theme-Toggle** — alles danach
   Gemessene steht im anderen Theme. Der Befund sieht dabei nicht falsch aus, sondern nur
