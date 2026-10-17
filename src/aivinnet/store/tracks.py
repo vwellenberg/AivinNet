@@ -8,6 +8,7 @@ from aivinnet.db.libdata import TrackTable
 from aivinnet.models import Track
 from aivinnet.utils import classproperty
 from aivinnet.utils.auth import get_current_userid
+from aivinnet.utils.filesystem import safe_dir_prefix
 from aivinnet.utils.remove_duplicates import remove_duplicates
 
 TRACKS_LOAD_KEY = ""
@@ -335,17 +336,16 @@ class TrackStore:
         """
         Returns all tracks in the given path.
         """
-        # The folder itself or one below it: a bare `startswith` also took
-        # /music/Rock and Roll along with /music/Rock.
-        base = path.rstrip("/\\")
-        predicate: Callable[[str, str], bool] = lambda track_folder, _: (
-            track_folder.rstrip("/\\") == base or (track_folder.startswith((base + "/", base + "\\")))
-        )
+        # Under the prefix "Play" on the folder (`/folder/tracks/all`) asks
+        # for: resolved like the scanner resolves, so the root card of a
+        # library behind a symlink no longer saved an empty playlist, and
+        # ending in `/`, so /music/Rock does not take /music/Rock and Roll.
+        prefix = safe_dir_prefix(path)
 
         return cls.find_tracks_by(
-            key="folder",
-            value=path,
-            predicate=predicate,
+            key="filepath",
+            value=prefix,
+            predicate=lambda filepath, prefix: filepath.startswith(prefix),
             including_duplicates=True,
         )
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from aivinnet.utils.filesystem import ScanScope, dir_prefix
+from aivinnet.utils.filesystem import ScanScope, dir_prefix, safe_dir_prefix
 
 
 def test_a_prefix_ends_in_exactly_one_slash(tmp_path):
@@ -29,6 +29,15 @@ def test_a_root_behind_a_symlink_becomes_its_target(tmp_path):
     (tmp_path / "link").symlink_to(real, target_is_directory=True)
 
     assert dir_prefix(tmp_path / "link") == real.resolve().as_posix() + "/"
+
+
+def test_a_folder_from_a_request_gets_the_same_prefix(tmp_path):
+    assert safe_dir_prefix(tmp_path) == dir_prefix(tmp_path)
+
+
+def test_a_folder_that_cannot_be_resolved_keeps_the_form_it_came_in():
+    # A request can carry anything, and a NUL byte makes `resolve()` raise.
+    assert safe_dir_prefix("/music/bad\x00name/") == "/music/bad\x00name/"
 
 
 def test_a_row_under_a_root_that_answered_is_checked():

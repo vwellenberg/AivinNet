@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from pathlib import PurePath
 
 # Characters no file name may carry on at least one of the systems these files
 # end up on (Linux forbids only "/" and NUL; Windows, macOS and SMB shares the
@@ -132,7 +133,10 @@ class Planned:
 
     @property
     def target_path(self) -> str | None:
-        return os.path.join(os.path.dirname(self.filepath), self.target) if self.target else None
+        # `as_posix()`: the library stores POSIX paths on every platform, and
+        # this one goes straight into it. `os.path.join` gave
+        # `C:/Music/Album\b.mp3` on Windows, which no folder prefix matches.
+        return (PurePath(self.filepath).parent / self.target).as_posix() if self.target else None
 
 
 def plan(wanted: list[tuple[str, str | None]], occupied: dict[str, set[str]]) -> list[Planned]:

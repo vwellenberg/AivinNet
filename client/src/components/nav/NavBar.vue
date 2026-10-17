@@ -12,12 +12,21 @@
         <div v-if="settings.is_alt_layout || !settings.use_sidebar || !xl" class="right">
             <span v-if="isMobile && !onSearchRoute" class="mobile-nav-title">
                 <!-- Phones show the app icon nowhere else; Home is its place. -->
-                <img
+                <button
                     v-if="route.name === Routes.Home"
-                    class="mobile-nav-logo"
-                    src="@/assets/icons/logos/logo-subspaceradio.png"
-                    alt=""
-                />
+                    type="button"
+                    class="mobile-nav-logo-btn"
+                    aria-label="App icon"
+                    @click="logoSpinning = true"
+                >
+                    <img
+                        class="mobile-nav-logo"
+                        :class="{ 'logo-spin-once': logoSpinning }"
+                        src="@/assets/icons/logos/logo-subspaceradio.png"
+                        alt=""
+                        @animationend="logoSpinning = false"
+                    />
+                </button>
                 {{ mobileTitle }}
             </span>
             <RouterLink v-if="!isMobile" :to="{ name: Routes.Home }" class="nav-home" title="Home">
@@ -41,7 +50,7 @@
 
 <script setup lang="ts">
 import { Routes } from '@/router'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import useAuth from '@/stores/auth'
@@ -63,6 +72,11 @@ const settings = useSettings()
 const modal = useModal()
 const isSmall = computed(() => content_width.value < 800)
 const route = useRoute()
+
+// A tap on the phone's app icon plays the desktop logo's planet spin once
+// (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
+// when the animation ends, so every tap can play it again.
+const logoSpinning = ref(false)
 
 /**
  * On phones the top bar shows the page title, and swaps it for the search
@@ -272,6 +286,17 @@ const mobileTitle = computed(() => {
             display: flex;
             align-items: center;
             gap: $small;
+        }
+
+        // The tap target for the spin: a bare wrapper, the planet is its own look.
+        .mobile-nav-logo-btn {
+            display: flex;
+            flex-shrink: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
 
         // Same hard ink contour the desktop logo wears (Logo.vue), no box.

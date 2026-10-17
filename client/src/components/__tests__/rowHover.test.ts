@@ -1,6 +1,8 @@
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
+import { stripPointerGates } from "./scssBlocks";
+
 // ---------------------------------------------------------------------------
 // Hover on a list row is ONE decision: `candy-row-base` + `candy-row-hover` in
 // src/assets/scss/_candy.scss (light fill inside the ink frame, with the frame
@@ -398,28 +400,6 @@ const POINTER_GATED = [
   "/src/components/shared/SongItem.vue",
   "/src/components/shared/SongItem/TrackTitle.vue",
 ];
-
-/** The source with every `@media (hover: hover) { … }` block removed. */
-function stripPointerGates(clean: string): string {
-  const opener = /@media\s*\(\s*hover\s*:\s*hover\s*\)\s*\{/;
-  let out = clean;
-  for (let match = opener.exec(out); match; match = opener.exec(out)) {
-    let depth = 0;
-    let end = -1;
-    for (let i = match.index + match[0].length - 1; i < out.length; i++) {
-      if (out[i] === "{") depth++;
-      else if (out[i] === "}" && --depth === 0) {
-        end = i;
-        break;
-      }
-    }
-    // An unclosed block means the brace matcher is broken — bail out and let
-    // the leak check below fail loudly rather than silently stripping to EOF.
-    if (end < 0) return out;
-    out = out.slice(0, match.index) + out.slice(end + 1);
-  }
-  return out;
-}
 
 // A playlist inside a folder is the same object as a playlist one line above
 // it, so under the pointer it has to look the same. It did not: the folder's

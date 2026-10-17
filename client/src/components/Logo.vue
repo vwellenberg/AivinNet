@@ -162,6 +162,12 @@
   }
 }
 
+// The same spin on demand, for the phone's top bar: there is no hover on touch,
+// so a tap plays it once (NavBar.vue adds the class and drops it on animationend).
+.logo-spin-once {
+  animation: logo-planet-spin 0.7s $motion-curve-settle;
+}
+
 @keyframes logo-orbit-turn {
   to {
     transform: rotate(360deg);
