@@ -78,9 +78,7 @@ def find_folder_cover(folder: str) -> bytes | None:
     try:
         with os.scandir(folder) as it:
             images = [
-                entry
-                for entry in it
-                if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
+                entry for entry in it if entry.is_file() and os.path.splitext(entry.name)[1].lower() in _IMAGE_EXTS
             ]
     except OSError:
         return None
@@ -426,9 +424,7 @@ def get_tags(filepath: str, config: UserConfig) -> dict:
     # The rule lives in lib/albumhash.py, not here: the repair migration has to
     # recognise rows written by the OLD rule, and the two only stay in step if
     # they sit next to each other.
-    metadata["albumhash"] = album_hash(
-        tags.album, metadata["folder"], metadata.get("albumartists", "")
-    )
+    metadata["albumhash"] = album_hash(tags.album, metadata["folder"], metadata.get("albumartists", ""))
 
     metadata["trackhash"] = create_hash(
         metadata.get("artists", ""),

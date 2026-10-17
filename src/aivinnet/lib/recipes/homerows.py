@@ -154,10 +154,15 @@ class OnThisDay(HomepageRoutine):
             # "Play that day" plays and the summary describes; older years only
             # add their albums. Not simply the newest year with plays: after a
             # retag its tracks may all be gone, and the button would play nothing.
-            playable = next(((label, plays, tracks) for _, label, plays in days if (tracks := day_playlist(plays, track_facts))), None)
+            playable = next(
+                ((label, plays, tracks) for _, label, plays in days if (tracks := day_playlist(plays, track_facts))),
+                None,
+            )
 
             if not days:
-                log.info("on-this-day: no plays on this day in the last %d years for user %s", ON_THIS_DAY_YEARS, userid)
+                log.info(
+                    "on-this-day: no plays on this day in the last %d years for user %s", ON_THIS_DAY_YEARS, userid
+                )
             elif playable is None:
                 log.info("on-this-day: plays on this day, but none still in the library for user %s", userid)
 
