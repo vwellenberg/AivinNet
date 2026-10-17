@@ -59,9 +59,29 @@ jobs:
           # The server half of the deploy button runs unattended every minute.
           shellcheck scripts/auto-deploy.sh
 
+  # Both Python lanes also run on Windows. Linux alone never sees the bugs that
+  # only exist there: `str(path)` carries backslashes while stored paths are
+  # POSIX, and "Play" on a folder card queued nothing (#505) with every check
+  # green, because the test fixture made the same mistake. A matrix instead of
+  # a copied job, so the Windows run executes exactly the command it mirrors.
+  #
+  # ⚠️ The Linux names are required checks in branch protection. Renamed (or
+  # given the automatic "(ubuntu-latest)" suffix), they never report, and every
+  # pull request waits for them for ever. `fail-fast: false` keeps a red
+  # Windows run from cancelling the Linux one.
   unit:
-    name: Unit Tests
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Unit Tests, os: ubuntu-latest }
+          - { name: Unit Tests (Windows), os: windows-latest }
+    # bash on Windows too (Git Bash), so the same command line parses the same.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -88,8 +108,17 @@ jobs:
           --cov --cov-report=term-missing --cov-fail-under=10
 
   api:
-    name: API Tests
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: API Tests, os: ubuntu-latest }
+          - { name: API Tests (Windows), os: windows-latest }
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -101,8 +130,10 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      # bjoern (WSGI server) is a hard dependency and needs libev to build.
+      # bjoern (WSGI server) is a hard dependency on Linux and needs libev to
+      # build. Windows installs waitress instead (pyproject.toml), no libev.
       - name: Install libev
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libev-dev
 
       # `--locked`: a uv.lock that no longer matches pyproject.toml fails here.
