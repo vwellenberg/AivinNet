@@ -11,6 +11,13 @@
         </div>
         <div v-if="settings.is_alt_layout || !settings.use_sidebar || !xl" class="right">
             <span v-if="isMobile && !onSearchRoute" class="mobile-nav-title">
+                <!-- Phones show the app icon nowhere else; Home is its place. -->
+                <img
+                    v-if="route.name === Routes.Home"
+                    class="mobile-nav-logo"
+                    src="@/assets/icons/logos/logo-subspaceradio.png"
+                    alt=""
+                />
                 {{ mobileTitle }}
             </span>
             <RouterLink v-if="!isMobile" :to="{ name: Routes.Home }" class="nav-home" title="Home">
@@ -262,6 +269,19 @@ const mobileTitle = computed(() => {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: $small;
+        }
+
+        // Same hard ink contour the desktop logo wears (Logo.vue), no box.
+        .mobile-nav-logo {
+            width: 2rem;
+            height: 2rem;
+            flex-shrink: 0;
+            object-fit: contain;
+            filter: drop-shadow(1.5px 0 0 $mem-line) drop-shadow(-1.5px 0 0 $mem-line)
+                drop-shadow(0 1.5px 0 $mem-line) drop-shadow(0 -1.5px 0 $mem-line);
         }
     }
 
