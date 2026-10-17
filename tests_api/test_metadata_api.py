@@ -629,21 +629,22 @@ class TestFileNames:
         audio.write_bytes(b"ID3")
         (tmp_path / "68. Night Woods1.lrc").write_text("[00:01.00] la")
 
-        track = type("T", (), {"filepath": str(audio), "trackhash": "h"})()
+        # POSIX, as the library stores it on every platform.
+        track = type("T", (), {"filepath": audio.as_posix(), "trackhash": "h"})()
         monkeypatch.setattr(track_rename.TrackStore, "get_flat_list", staticmethod(lambda: [track]))
         monkeypatch.setattr(track_rename.TrackTable, "update_filepath", staticmethod(lambda old, new: 1))
         monkeypatch.setattr(track_rename.FolderStore, "move_filepath", staticmethod(lambda *a: None))
 
         res = api.post(
             "/metadata/album/apply",
-            json={"changes": [{"filepath": str(audio), "filename": "68 - Night Woods1.mp3"}]},
+            json={"changes": [{"filepath": audio.as_posix(), "filename": "68 - Night Woods1.mp3"}]},
         )
         done = await_job(api, res.json["job"])
 
         assert done["result"]["failed"] == []
         assert sorted(p.name for p in tmp_path.iterdir()) == ["68 - Night Woods1.lrc", "68 - Night Woods1.mp3"]
         # The Track object itself follows the file.
-        assert track.filepath == str(tmp_path / "68 - Night Woods1.mp3")
+        assert track.filepath == (tmp_path / "68 - Night Woods1.mp3").as_posix()
 
     def test_the_whole_album_decides_the_disc_prefix_and_the_number_width(self, metadata_api, monkeypatch):
         """Decided over the album's FINAL values, not per row and not from the old tags."""

@@ -17,8 +17,8 @@ Zwei Lanes, bewusst getrennt:
 läuft die schnelle Lane über `uvx` statt über eine volle Installation.
 
 **Beide Lanes laufen auf Windows grün** — die API-Lane mit waitress statt bjoern (`pyproject.toml`),
-also ohne libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (2026-10-17: 808 grün,
-11 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1186 grün, 31 übersprungen).
+also ohne libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (2026-10-17: 809 grün,
+12 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1191 grün, 31 übersprungen).
 **Ein roter Test auf Windows ist deshalb ein Befund**, keine Plattformfolge: Plattformgrenzen
 sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Bericht —
 
@@ -36,7 +36,11 @@ Tests dazu waren grün — ihre Fixture machte denselben Fehler.
 Scanner: `entry.as_posix()`). Daraus:
 
 - Fixture-Pfade und Vergleiche mit `.as_posix()`, nie `str(path)` — `str()` trägt auf Windows
-  Backslashes. Im App-Code Präfixe über `utils/filesystem.dir_prefix`, nie über `str(resolved)`.
+  Backslashes. Im App-Code Präfixe über `utils/filesystem.dir_prefix`, nie über `str(resolved)`;
+  für einen Ordner aus einem Request `safe_dir_prefix` (wirft nicht bei einem NUL-Byte o. Ä.).
+- Ein Pfad, der gespeichert wird, entsteht über `PurePath(...).as_posix()`, nie über
+  `os.path.join`: Das Umbenennen speicherte auf Windows `C:/Music/Album\b.mp3`, kein
+  Ordnerpräfix fand die Datei, und der nächste Scan nahm sie ein zweites Mal auf.
 - Ausgedachte Pfade wie `/music/Rock` sind auf Windows nicht absolut: Was sie `resolve()`t, landet
   bei `C:/music/Rock`. Wo der getestete Code resolved, die Basis aus
   `Path("/music").resolve().as_posix()` bauen.
