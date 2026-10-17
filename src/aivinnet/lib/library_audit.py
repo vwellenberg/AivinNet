@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Protocol
+from typing import Protocol
 
 # Reasons, in the order they are shown. Strings, because they go to the client.
 SPLIT = "split"  # one album in one folder, filed as several

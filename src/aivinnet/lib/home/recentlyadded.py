@@ -103,7 +103,7 @@ def check_folder_type(group_: dict):
             "help_text": ("NEW ALBUM" if entry.album.created_date >= new_since else "NEW TRACKS"),
         }
 
-    is_artist, artisthash, trackcount = check_is_artist_folder(tracks)
+    is_artist, artisthash, _trackcount = check_is_artist_folder(tracks)
     if is_artist:
         entry = ArtistStore.artistmap.get(artisthash)
 
@@ -179,7 +179,7 @@ def get_recently_added_items(limit: int = 7):
             if not item:
                 continue
 
-            (recent_items.append(item) if type(item) == dict else recent_items.extend(item))
+            (recent_items.append(item) if isinstance(item, dict) else recent_items.extend(item))
 
         if len(recent_items) >= limit:
             break

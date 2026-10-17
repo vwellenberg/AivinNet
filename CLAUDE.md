@@ -156,7 +156,11 @@ git fetch --prune && git branch -D <branch>
 - **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`) und in `.pre-commit-config.yaml`, beide gleich halten. Neue Module bei Bearbeitung dort aufnehmen.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs.
-- **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
+- **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen — und
+  sonst **nichts**. ⚠️ Ein Pfad in `[tool.ruff] extend-exclude` fällt lautlos aus CI, Pre-commit und
+  Hook (alle laufen mit `--force-exclude`): Bis 2026-10-17 stand dort ganz `src/aivinnet/lib`
+  (Upstream-Erbe), 29 Funde sammelten sich ungesehen, und ein `ruff format --check` auf einer
+  einzelnen Lib-Datei widersprach der CI. Excludes nur für Fremdcode.
 
 ## Dokumentation & Learnings (verbindlich)
 

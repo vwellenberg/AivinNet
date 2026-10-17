@@ -29,9 +29,9 @@ from PIL import Image, UnidentifiedImageError
 
 from aivinnet.lib.musicbrainz import (
     USER_AGENT,
-    simplify_title,
     album_matches,
     is_usable_albumartist,
+    simplify_title,
 )
 from aivinnet.utils.thumbs import crop_box, thumb_size
 

@@ -339,7 +339,7 @@ class TopResults:
         albums: list[Album] = []
 
         # INFO: If the item is a track or album, search for albums
-        if isinstance(item, Track) or isinstance(item, Album):
+        if isinstance(item, (Track, Album)):
             return albums
 
         # INFO: If the item is an artist, get the albums from the artist
@@ -351,7 +351,7 @@ class TopResults:
     @staticmethod
     def search(
         query: str,
-        limit: int = None,
+        limit: int | None = None,
         albums_only=False,
         tracks_only=False,
     ):

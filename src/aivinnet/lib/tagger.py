@@ -11,7 +11,6 @@ from aivinnet.models.album import Album
 from aivinnet.models.artist import Artist
 from aivinnet.models.track import Track
 from aivinnet.store.tracks import TrackStore
-from aivinnet.utils import flatten
 from aivinnet.utils.filesystem import ScanScope, is_hidden_path, run_fast_scandir
 from aivinnet.utils.parsers import get_base_album_title
 from aivinnet.utils.progressbar import tqdm
@@ -171,7 +170,7 @@ class IndexTracks:
 #
 
 
-def create_albums(_trackhashes: list[str] = []) -> list[tuple[Album, set[str]]]:
+def create_albums(_trackhashes: list[str] | None = None) -> list[tuple[Album, set[str]]]:
     """
     Creates album objects using the indexed tracks. Takes in an optional
     list of trackhashes to create the albums from. If no list is provided,

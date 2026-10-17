@@ -81,7 +81,7 @@ def animation_too_large(img) -> bool:
     return getattr(img, "n_frames", 1) * img.width * img.height > MAX_ANIMATION_PIXELS
 
 
-def save_p_image(img: Image, pid: int, content_type: str = None, filename: str = None) -> str:
+def save_p_image(img: Image, pid: int, content_type: str | None = None, filename: str | None = None) -> str:
     """
     Saves a playlist banner image and returns the filepath.
     """
@@ -179,8 +179,9 @@ def _albumhashes_in_order(tracks: list[Track], trackhashes: list[str]):
             yield track.albumhash
 
 
-# TODO: mutable var in param.
-def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) -> list[dict["str", str]]:
+def get_first_4_images(
+    tracks: list[Track] | None = None, trackhashes: list[str] | None = None
+) -> list[dict["str", str]]:
     """
     Returns images of the first 4 albums with distinct covers that appear
     in the track list, in track-list order.
@@ -203,7 +204,9 @@ def get_first_4_images(tracks: list[Track] = [], trackhashes: list[str] = []) ->
     seen_covers = set()
     coverless_fallback = None
 
-    for album in (a for h in _albumhashes_in_order(tracks, trackhashes) for a in AlbumStore.get_albums_by_hashes([h])):
+    for album in (
+        a for h in _albumhashes_in_order(tracks or [], trackhashes or []) for a in AlbumStore.get_albums_by_hashes([h])
+    ):
         key = get_cover_content_key(album.image)
 
         if key is None:
