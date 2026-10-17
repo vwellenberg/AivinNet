@@ -12,6 +12,7 @@ from aivinnet.lib.groupsession import (
     COMMAND_GRACE_MS,
     DIAG_SAMPLES,
     LEAD_MS,
+    MAX_DEVICES_PER_USER,
     MAX_SCHEDULE_AHEAD_MS,
     OFFLINE_MS,
     REAP_MS,
@@ -657,3 +658,25 @@ def test_calibration_runs_are_kept_per_user_and_bounded():
     assert [r["run"] for r in runs] == [f"r{i}" for i in range(3, CALIBRATION_LOGS + 3)]
     assert runs[-1]["server_ms"] == clock["t"]
     assert mgr.calibrations(USER + 1) == []
+
+
+def test_a_group_takes_a_bounded_number_of_members():
+    """A join per fresh id grew the group, and the leader pick of every poll, until the reaper (#297)."""
+    mgr, clock = make_manager()
+    for n in range(MAX_DEVICES_PER_USER + 8):
+        clock["t"] += 1
+        mgr.join(USER, f"dev-{n}")
+
+    assert len(mgr._sessions[USER].members) == MAX_DEVICES_PER_USER
+    assert mgr.snapshot(USER, f"dev-{MAX_DEVICES_PER_USER}", known_version=0)["joined"] is False
+
+    # A member already in the group is not a newcomer.
+    version = current_version(mgr)
+    mgr.join(USER, "dev-0")
+    assert mgr.snapshot(USER, "dev-0", known_version=0)["joined"] is True
+    assert current_version(mgr) == version
+
+    # Once one leaves, the next device gets in.
+    mgr.leave(USER, "dev-1")
+    mgr.join(USER, "late")
+    assert mgr.snapshot(USER, "late", known_version=0)["joined"] is True

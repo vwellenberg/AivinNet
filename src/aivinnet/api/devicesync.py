@@ -18,9 +18,10 @@ module are the device-registry upsert on ``/register`` and the ``last_seen``
 touch on ``/leave``.
 """
 
+import json
 import math
 import time
-from typing import Any
+from typing import Annotated, Any
 
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -55,16 +56,46 @@ MAX_POSITION_MS = 24 * 3600 * 1000
 # What the client's settings store holds (`'all' | 'one' | 'none'`).
 REPEAT_MODES = frozenset({"all", "one", "none"})
 
+# Client ids are UUIDs (36). A member id is a dict key in RAM, and the
+# leader's id goes out with every poll of every device of the user (#297).
+DEVICE_ID_MAX_LENGTH = 64
+# A trackhash is a few characters; the queue goes out with every state.
+TrackHash = Annotated[str, Field(max_length=64)]
+
+# A command payload and a queue's `from` are passed on as they came, with the
+# polls of other devices. The largest a client sends (a calibration report, a
+# folder path) is a few KB; measured as the polls carry it (#297).
+MAX_FORWARDED_BYTES = 16 * 1024
+
 
 def _clamp_position(position_ms: float) -> int:
     """Whole milliseconds within a day: positions come from `currentTime * 1000`."""
     return max(0, min(round(position_ms), MAX_POSITION_MS))
 
 
+def _check_forwarded(value: dict[str, Any], what: str) -> str | None:
+    """
+    The reason when a value the server passes on to other devices is unfit; else None.
+
+    Python's JSON parser takes `NaN` and `Infinity` (and `1e999`), and Flask
+    writes them back out unchanged — which the browser's `JSON.parse` refuses.
+    `allow_inf_nan=False` on a model does not reach into a `dict[str, Any]`, so
+    a `{"volume": NaN}` broke every poll of its target until the command
+    expired, and an infinite track index raised OverflowError (500).
+    """
+    try:
+        encoded = json.dumps(value, allow_nan=False)
+    except ValueError:
+        return f"{what} must not contain NaN or Infinity."
+    if len(encoded) > MAX_FORWARDED_BYTES:
+        return f"{what} is too large (max {MAX_FORWARDED_BYTES} bytes)."
+    return None
+
+
 class RegisterBody(BaseModel):
     # Bounded: kept in RAM, written to the database and sent with every poll
     # of every device of the user; any account may register (#297).
-    device_id: str = Field(max_length=64, description="Client-generated stable device UUID")
+    device_id: str = Field(max_length=DEVICE_ID_MAX_LENGTH, description="Client-generated stable device UUID")
     name: str = Field(max_length=120, description="Human-friendly device name, e.g. 'Chrome on Windows'")
     type: str = Field(max_length=32, description="Device type, e.g. 'desktop', 'phone', 'tablet'")
 
@@ -75,7 +106,7 @@ class SyncDiag(BaseModel):
     # inf/NaN would come back out of /devicesync/diag as non-JSON `Infinity`.
     model_config = ConfigDict(allow_inf_nan=False)
 
-    build: str = Field("", description="Web client build (stale bundles are a sync suspect)")
+    build: str = Field("", max_length=64, description="Web client build (stale bundles are a sync suspect)")
     error_ms: float | None = Field(None, description="Audio position minus expected position; None while unknown")
     rtt_ms: float | None = Field(None, description="Round trip of the clock sample the offset rests on")
     rate: float = Field(1.0, description="playbackRate the steerer has set")
@@ -151,7 +182,7 @@ class PollBody(BaseModel):
     # A NaN volume went out to every device of the user as invalid JSON (#297).
     model_config = ConfigDict(allow_inf_nan=False)
 
-    device_id: str = Field(description="This device's id")
+    device_id: str = Field(max_length=DEVICE_ID_MAX_LENGTH, description="This device's id")
     known_version: int = Field(0, description="Highest session version the client has already applied")
     client_sent_ms: int = Field(0, description="Client clock at send time (for Cristian offset estimation)")
     volume: float | None = Field(None, description="This device's local volume 0..1, if it changed")
@@ -162,10 +193,12 @@ class PollBody(BaseModel):
 class CommandBody(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False)
 
-    device_id: str = Field(description="Originating device id")
+    device_id: str = Field(max_length=DEVICE_ID_MAX_LENGTH, description="Originating device id")
     type: str = Field(description="Command type (transport or targeted)")
     payload: dict[str, Any] = Field(default_factory=dict, description="Command-specific payload")
-    target_device: str | None = Field(None, description="Target device id (required for targeted commands)")
+    target_device: str | None = Field(
+        None, max_length=DEVICE_ID_MAX_LENGTH, description="Target device id (required for targeted commands)"
+    )
     # float for the same reason as the positions: it is computed from clock
     # arithmetic in the browser and may carry a fraction. Rounded server-side.
     execute_at_ms: float | None = Field(
@@ -177,8 +210,8 @@ class CommandBody(BaseModel):
 class QueueSetBody(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False)
 
-    device_id: str = Field(description="Sending device id (must be a session member)")
-    trackhashes: list[str] = Field(description="Full ordered queue of track hashes")
+    device_id: str = Field(max_length=DEVICE_ID_MAX_LENGTH, description="Sending device id (must be a session member)")
+    trackhashes: list[TrackHash] = Field(description="Full ordered queue of track hashes")
     from_: dict[str, Any] = Field(alias="from", description="The client's 'from' descriptor for the queue")
     currentindex: int = Field(description="Index of the current track within the queue")
     playing: bool = Field(description="Whether playback should be playing after the swap")
@@ -200,7 +233,7 @@ class ResolveBody(BaseModel):
 
 
 class DeviceIdBody(BaseModel):
-    device_id: str = Field(description="This device's id")
+    device_id: str = Field(max_length=DEVICE_ID_MAX_LENGTH, description="This device's id")
 
 
 @api.post("/register")
@@ -298,6 +331,10 @@ def command(body: CommandBody):
     if body.execute_at_ms is not None and ctype != "track_change":
         return {"msg": "execute_at_ms is only valid for track_change."}, 400
 
+    refused = _check_forwarded(body.payload, "payload")
+    if refused:
+        return {"msg": refused}, 400
+
     if ctype in TRANSPORT_TYPES:
         payload = dict(body.payload)
 
@@ -345,6 +382,9 @@ def queue_set(body: QueueSetBody):
         return {"msg": f"Too many trackhashes (max {MAX_QUEUE_TRACKS})."}, 400
     if body.repeat not in REPEAT_MODES:
         return {"msg": "repeat must be one of: all, one, none."}, 400
+    refused = _check_forwarded(body.from_, "from")
+    if refused:
+        return {"msg": refused}, 400
 
     currentindex = max(0, min(body.currentindex, len(trackhashes) - 1)) if trackhashes else 0
 

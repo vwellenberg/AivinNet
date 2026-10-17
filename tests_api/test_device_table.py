@@ -71,3 +71,24 @@ def test_touch_updates_last_seen(device_table, user_ids):
 
     row = next(d for d in device_table.get_all_for_user(uid) if d["device_id"] == "dev-touch")
     assert row["last_seen"] == 1_700_000_000
+
+
+def test_the_registry_keeps_a_bounded_number_of_devices_per_user(device_table, user_ids):
+    """A client minting a fresh id per page load left a row behind for each, for ever (#297)."""
+    from aivinnet.db.userdata import UserTable
+    from aivinnet.lib.groupsession import MAX_DEVICES_PER_USER
+
+    if UserTable.get_by_username("devicetest-cap") is None:
+        UserTable.insert_one({"username": "devicetest-cap", "password": "x", "roles": []})
+    uid = UserTable.get_by_username("devicetest-cap").id
+    _, other = user_ids
+    device_table.upsert("dev-other-user", other, "Phone", "mobile")
+
+    for n in range(MAX_DEVICES_PER_USER + 5):
+        device_table.upsert(f"dev-cap-{n}", uid, "Chrome", "desktop")
+    # Re-registering a known device is no new row and pushes nothing out.
+    device_table.upsert(f"dev-cap-{MAX_DEVICES_PER_USER + 4}", uid, "Chrome", "desktop")
+
+    ids = {d["device_id"] for d in device_table.get_all_for_user(uid)}
+    assert ids == {f"dev-cap-{n}" for n in range(5, MAX_DEVICES_PER_USER + 5)}
+    assert "dev-other-user" in {d["device_id"] for d in device_table.get_all_for_user(other)}

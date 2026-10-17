@@ -309,7 +309,8 @@ class GroupSessionManager:
         """
         Add ``device_id`` to the user's session, creating the session (version 1,
         empty queue, paused) if none exists. Session creation counts as version 1;
-        adding a member to an already-existing session bumps the version.
+        adding a member to an already-existing session bumps the version. A group
+        holds at most ``MAX_DEVICES_PER_USER`` members; past that a newcomer stays out.
         """
         with self._lock:
             now = self._now()
@@ -328,6 +329,10 @@ class GroupSessionManager:
                 session.members[device_id] = {"joined_at": now, "last_seen": now}
                 self._sessions[userid] = session
             elif device_id not in session.members:
+                # Bounded like presence: a join per fresh id grew the group,
+                # and the leader pick of every poll, until the reaper (#297).
+                if len(session.members) >= MAX_DEVICES_PER_USER:
+                    return None
                 session.members[device_id] = {"joined_at": now, "last_seen": now}
                 session.version += 1
             else:
