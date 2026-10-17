@@ -103,25 +103,24 @@ def test_an_ambiguous_hash_without_a_path_is_refused_and_writes_nothing(pair):
     assert _content(paths) == {".mp3": b"ORIGINAL", ".wav": b"ORIGINAL"}
 
 
-def test_one_put_per_file_edits_each_file_once(pair):
+def test_one_put_per_file_edits_each_file_once(pair, finish_job):
     """The live batch: one PUT per file, the same hash twice. Both files must change."""
     api, trackhash, paths = pair
 
     for path in paths.values():
         res = api.put(f"/track/{trackhash}/tags", json={"albumartists": ["Dream.Corp"], "filepath": path})
-        assert res.status_code == 200
-        # The response names the file that was written, not one that merely shares the hash.
-        assert res.json["track"]["filepath"] == path
+        # The result names the file that was written, not one that merely shares the hash.
+        assert finish_job(res)["result"]["track"]["filepath"] == path
 
     assert _content(paths) == {".mp3": b"EDITED", ".wav": b"EDITED"}
 
 
-def test_the_path_picks_the_file_even_when_the_other_has_the_higher_bitrate(pair):
+def test_the_path_picks_the_file_even_when_the_other_has_the_higher_bitrate(pair, finish_job):
     api, trackhash, paths = pair
 
     res = api.put(f"/track/{trackhash}/tags", json={"title": "Blue Moon (Edit)", "filepath": paths[".mp3"]})
 
-    assert res.status_code == 200
+    assert finish_job(res)["state"] == "done"
     assert _content(paths) == {".mp3": b"EDITED", ".wav": b"ORIGINAL"}
 
 
@@ -135,14 +134,13 @@ def test_a_path_that_does_not_carry_the_hash_is_not_edited(pair, tmp_path):
     assert _content(paths) == {".mp3": b"ORIGINAL", ".wav": b"ORIGINAL"}
 
 
-def test_a_unique_hash_still_needs_no_path(pair):
+def test_a_unique_hash_still_needs_no_path(pair, finish_job):
     """The single-track editor of older clients sends no path; one file is unambiguous."""
     api, trackhash, paths = pair
     first = api.put(f"/track/{trackhash}/tags", json={"title": "Blue Moon (Edit)", "filepath": paths[".mp3"]})
-    new_hash = first.json["track"]["trackhash"]
+    new_hash = finish_job(first)["result"]["track"]["trackhash"]
     assert new_hash != trackhash
 
     res = api.put(f"/track/{new_hash}/tags", json={"track": 2})
 
-    assert res.status_code == 200
-    assert res.json["track"]["filepath"] == paths[".mp3"]
+    assert finish_job(res)["result"]["track"]["filepath"] == paths[".mp3"]

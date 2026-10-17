@@ -1,6 +1,7 @@
 import { paths } from '@/config'
 import { Track } from '@/interfaces'
 import { NotifType, Notification } from '@/stores/notification'
+import { pollJob, WRITE_TIMEOUT_MS } from './metadata'
 import useAxios from './useAxios'
 
 export interface EditTrackTagsPayload {
@@ -45,6 +46,10 @@ function savedMessage(rename?: RenameOutcome): { text: string; type: NotifType }
  * PUT /track/<trackhash>/tags. The backend re-indexes the file, so the track's
  * trackhash may change; the re-indexed track is returned on success. Returns
  * null on any failure (a toast is shown).
+ *
+ * The write runs as a job on the server (#376): it backs the whole audio file
+ * up first, and in the request that copy held every listener. The PUT answers
+ * with a job id; the outcome comes from polling it.
  */
 export async function editTrackTags(trackhash: string, tags: EditTrackTagsPayload): Promise<Track | null> {
     const { data, status } = await useAxios({
@@ -53,10 +58,18 @@ export async function editTrackTags(trackhash: string, tags: EditTrackTagsPayloa
         props: tags,
     })
 
-    if (status === 200 && data?.track) {
-        const { text, type } = savedMessage(data.rename as RenameOutcome | undefined)
-        new Notification(text, type)
-        return data.track as Track
+    if (status === 200 && data?.job) {
+        const { result, error } = await pollJob<{ track: Track; rename?: RenameOutcome }>(data.job as string, {
+            timeout: WRITE_TIMEOUT_MS,
+            what: 'edit',
+        })
+        if (result?.track) {
+            const { text, type } = savedMessage(result.rename)
+            new Notification(text, type)
+            return result.track
+        }
+        new Notification(error || 'Failed to update track tags', NotifType.Error)
+        return null
     }
 
     if (status === 401) {

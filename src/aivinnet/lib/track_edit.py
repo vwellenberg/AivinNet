@@ -246,6 +246,19 @@ def edit_track_tags(old_trackhash: str, fields: dict, filepath: str | None = Non
     :raises TrackEditError: If writing/reindexing fails (the original file is
         restored before re-raising).
     """
+    return _edit(resolve_track(old_trackhash, filepath), fields)
+
+
+def resolve_track(old_trackhash: str, filepath: str | None = None) -> Track:
+    """
+    The one track an edit by hash (and optional path) is about — RAM only.
+
+    Split out of ``edit_track_tags`` so a route can answer "not found" and
+    "which of these files?" at once and leave only the write to a job (#376).
+
+    :raises TrackNotFoundError: No track with that hash, or none at that path.
+    :raises AmbiguousTrackError: Several files share the hash and no path was given.
+    """
     group = TrackStore.trackhashmap.get(old_trackhash)
     if not group or len(group) == 0:
         raise TrackNotFoundError("Track not found")
@@ -254,12 +267,12 @@ def edit_track_tags(old_trackhash: str, fields: dict, filepath: str | None = Non
         track = next((t for t in group.tracks if t.filepath == filepath), None)
         if track is None:
             raise TrackNotFoundError("No file with this trackhash at that path")
-        return _edit(track, fields)
+        return track
 
     if len(group) > 1:
         raise AmbiguousTrackError([t.filepath for t in group.tracks])
 
-    return _edit(group.tracks[0], fields)
+    return group.tracks[0]
 
 
 class ReferenceBatch:

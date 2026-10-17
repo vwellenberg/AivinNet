@@ -17,6 +17,7 @@ Run (stdio): python server.py
 from __future__ import annotations
 
 import os
+import time
 
 import requests
 from mcp.server.fastmcp import FastMCP
@@ -44,6 +45,23 @@ def _login() -> bool:
         _token = r.json().get("accesstoken", "") or ""
         return bool(_token)
     return False
+
+
+def _wait_for_job(job_id: str, deadline_s: float = 600.0) -> dict:
+    """Poll `/metadata/job/<id>` until it is done; `{"result": …}` or `{"error": …}`."""
+    end = time.monotonic() + deadline_s
+    while time.monotonic() < end:
+        r = _api("GET", f"/metadata/job/{job_id}")
+        if r.status_code == 404:
+            return {"error": "The edit was lost (server restarted?)"}
+        if r.ok:
+            slot = r.json()
+            if slot.get("state") == "done":
+                return {"result": slot.get("result")}
+            if slot.get("state") == "error":
+                return {"error": slot.get("error") or "The edit failed"}
+        time.sleep(0.4)
+    return {"error": "The edit took too long"}
 
 
 def _api(method: str, path: str, **kw) -> requests.Response:
@@ -282,7 +300,15 @@ def set_track_tags(
             result["filepaths"] = body["filepaths"]
         return result
 
-    edited = r.json().get("track") or {}
+    # The server writes in a job (AivinNet#376): the PUT answers with its id.
+    job = r.json().get("job")
+    if job:
+        outcome = _wait_for_job(job)
+        if "error" in outcome:
+            return {"ok": False, "error": outcome["error"]}
+        edited = (outcome.get("result") or {}).get("track") or {}
+    else:
+        edited = r.json().get("track") or {}
     return {
         "ok": True,
         "old_trackhash": trackhash,

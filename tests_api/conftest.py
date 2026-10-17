@@ -15,6 +15,7 @@ import importlib
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -297,3 +298,28 @@ def built_app():
     app.config["TESTING"] = True
 
     return app
+
+
+@pytest.fixture()
+def finish_job():
+    """
+    Wait for the job a route answered with (`{"job": id}`) and return its slot:
+    `state` ("done" / "error"), `result`, `error`.
+
+    Reads `mbjobs` directly: the job route lives in the metadata blueprint, and
+    a test of another blueprint should not have to mount it.
+    """
+    from aivinnet.lib import mbjobs
+
+    def wait(res, timeout: float = 5.0) -> dict:
+        assert res.status_code == 200, res.json
+        job = res.json["job"]
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            slot = mbjobs.snapshot(job)
+            if slot and slot["state"] != mbjobs.RUNNING:
+                return slot
+            time.sleep(0.01)
+        raise AssertionError(f"job {job} still running after {timeout}s")
+
+    return wait
