@@ -36,13 +36,13 @@ def test_the_request_returns_before_the_file_is_written(track_api, monkeypatch, 
     release = threading.Event()
     written = []
 
-    def slow_edit(trackhash, fields, filepath=None):
+    def slow_edit(filepath, fields, batch=None):
         # The backup copy of a large file on a slow disk.
         assert release.wait(5), "the test never released the write"
         written.append(filepath)
         return FakeTrack()
 
-    monkeypatch.setattr(module, "edit_track_tags", slow_edit)
+    monkeypatch.setattr(module, "edit_track_tags_by_filepath", slow_edit)
     monkeypatch.setattr(module, "serialize_track", lambda track, **kw: {"filepath": track.filepath})
 
     res = api.put("/track/old-hash/tags", json={"title": "New"})
@@ -65,7 +65,7 @@ def test_the_favourite_flag_is_the_requesting_users(track_api, monkeypatch, fini
     track = FakeTrack()
     track.fav_userids = {7}
     seen = []
-    monkeypatch.setattr(module, "edit_track_tags", lambda trackhash, fields, filepath=None: track)
+    monkeypatch.setattr(module, "edit_track_tags_by_filepath", lambda filepath, fields, batch=None: track)
     monkeypatch.setattr(module, "serialize_track", lambda t, **kw: seen.append(kw) or {"filepath": t.filepath})
 
     finish_job(api.put("/track/old-hash/tags", json={"title": "New"}))
@@ -77,7 +77,7 @@ def test_what_ram_can_answer_is_answered_in_the_request(track_api, monkeypatch):
     api, module = track_api
     from aivinnet.lib.track_edit import AmbiguousTrackError, TrackNotFoundError
 
-    monkeypatch.setattr(module, "edit_track_tags", lambda *a, **k: pytest.fail("no job for a refused edit"))
+    monkeypatch.setattr(module, "edit_track_tags_by_filepath", lambda *a, **k: pytest.fail("no job for a refused edit"))
 
     def missing(trackhash, filepath=None):
         raise TrackNotFoundError("Track not found")

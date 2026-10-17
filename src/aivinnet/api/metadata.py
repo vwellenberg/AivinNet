@@ -488,7 +488,7 @@ def album_apply(body: AlbumApplyBody):
     """
     Write the confirmed changes to the audio files.
 
-    Each track goes through `edit_track_tags`, which backs the file up, writes,
+    Each track goes through `edit_track_tags_by_filepath`, which backs the file up, writes,
     reindexes and repoints playlist/favourite/history references — and restores
     the backup if any of that fails. One track failing does not stop the rest;
     the response lists both outcomes.

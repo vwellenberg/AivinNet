@@ -14,7 +14,7 @@ odd file must not block the other twelve.
 ``lib/albumhash.py`` for the album-side rule, which is equally text-only).
 Embedding a picture touches none of them, so every playlist entry, favourite,
 scrobble and queue reference survives untouched and no reindex or reference
-migration is needed here. This is the opposite of ``track_edit.edit_track_tags``,
+migration is needed here. This is the opposite of ``track_edit.edit_track_tags_by_filepath``,
 which has to migrate references precisely because it rewrites those fields — do
 not copy its reindex machinery over here looking for symmetry.
 """

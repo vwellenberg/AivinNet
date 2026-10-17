@@ -29,8 +29,8 @@ def track_api(api_client, monkeypatch):
     edited = FakeTrack()
     calls = {"edit": [], "rename": []}
 
-    def fake_edit(trackhash, fields, filepath=None):
-        calls["edit"].append((trackhash, dict(fields)))
+    def fake_edit(filepath, fields, batch=None):
+        calls["edit"].append((filepath, dict(fields)))
         return edited
 
     def fake_rename(moves):
@@ -40,7 +40,7 @@ def track_api(api_client, monkeypatch):
         return [{"filepath": OLD, "new_filepath": NEW}], []
 
     monkeypatch.setattr(module, "resolve_track", lambda trackhash, filepath=None: FakeTrack())
-    monkeypatch.setattr(module, "edit_track_tags", fake_edit)
+    monkeypatch.setattr(module, "edit_track_tags_by_filepath", fake_edit)
     monkeypatch.setattr(module, "rename_files", fake_rename)
     monkeypatch.setattr(module, "name_after_tags", lambda track: "03 - Game Lost.mp3")
     monkeypatch.setattr(module, "serialize_track", lambda track, **kw: {"filepath": track.filepath})
@@ -66,7 +66,7 @@ def test_the_flag_renames_after_the_tags_and_is_not_a_tag(track_api, finish_job)
     out = finish_job(res)["result"]
 
     # Not passed on as a tag field.
-    assert calls["edit"] == [("old-hash", {"title": "Game Lost", "track": 3})]
+    assert calls["edit"] == [(OLD, {"title": "Game Lost", "track": 3})]
     assert calls["rename"] == [[(OLD, "03 - Game Lost.mp3")]]
     assert out["rename"] == {"name": "03 - Game Lost.mp3"}
     # Serialised AFTER the rename: the client gets the path the file has now.
@@ -123,10 +123,10 @@ def test_a_failed_edit_renames_nothing(track_api, monkeypatch, finish_job):
     api, module, calls = track_api
     from aivinnet.lib.track_edit import TrackEditError
 
-    def boom(trackhash, fields, filepath=None):
+    def boom(filepath, fields, batch=None):
         raise TrackEditError("file is read-only")
 
-    monkeypatch.setattr(module, "edit_track_tags", boom)
+    monkeypatch.setattr(module, "edit_track_tags_by_filepath", boom)
 
     res = api.put("/track/old-hash/tags", json={"title": "Game Lost", "rename_file": True})
     slot = finish_job(res)

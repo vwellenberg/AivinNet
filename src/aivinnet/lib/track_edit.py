@@ -222,39 +222,20 @@ def _store_track(filepath: str, track: Track, carry_references: bool = True) -> 
     FolderStore.index_file(filepath, track.trackhash)
 
 
-def edit_track_tags(old_trackhash: str, fields: dict, filepath: str | None = None) -> Track:
-    """
-    Edit the tags of the track identified by ``old_trackhash``.
-
-    ⚠️ A trackhash is **not unique**: it is derived from title/album/artists, so
-    ``X.mp3`` next to ``X.wav`` with the same tags share one, and so does every
-    file of an album whose tags all say "Track 1". This used to edit whichever
-    of them ``get_best()`` (highest bitrate) returned — live on 2026-10-02 a
-    batch of one PUT per file rewrote every WAV twice and never touched an MP3,
-    and each of those requests reported success. So it no longer guesses: when
-    the hash names several files, ``filepath`` must say which one.
-
-    :param old_trackhash: The current trackhash (as known by clients/references).
-    :param fields: Mapping of field name -> new value (see ``tag_writer.write_tags``).
-    :param filepath: The file to edit. Required when several files share the hash;
-        must be one of them.
-    :returns: The reindexed :class:`Track` with its new identity.
-    :raises TrackNotFoundError: If no track matches ``old_trackhash`` (and
-        ``filepath``) or the file is missing on disk.
-    :raises AmbiguousTrackError: If several files share the hash and no
-        ``filepath`` was given.
-    :raises TrackEditError: If writing/reindexing fails (the original file is
-        restored before re-raising).
-    """
-    return _edit(resolve_track(old_trackhash, filepath), fields)
-
-
 def resolve_track(old_trackhash: str, filepath: str | None = None) -> Track:
     """
     The one track an edit by hash (and optional path) is about — RAM only.
 
-    Split out of ``edit_track_tags`` so a route can answer "not found" and
-    "which of these files?" at once and leave only the write to a job (#376).
+    ⚠️ A trackhash is **not unique**: it is derived from title/album/artists, so
+    ``X.mp3`` next to ``X.wav`` with the same tags share one, and so does every
+    file of an album whose tags all say "Track 1". An edit used to take whichever
+    of them ``get_best()`` (highest bitrate) returned — live on 2026-10-02 a
+    batch of one PUT per file rewrote every WAV twice and never touched an MP3,
+    and each of those requests reported success. So it does not guess: when the
+    hash names several files, ``filepath`` must say which one.
+
+    The route resolves here, in the request, and hands the write to a job by
+    PATH (#376): ``edit_track_tags_by_filepath``.
 
     :raises TrackNotFoundError: No track with that hash, or none at that path.
     :raises AmbiguousTrackError: Several files share the hash and no path was given.

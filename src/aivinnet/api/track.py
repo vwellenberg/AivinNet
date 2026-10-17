@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
 from aivinnet.lib import library_lock, mbjobs
-from aivinnet.lib.track_edit import AmbiguousTrackError, TrackNotFoundError, edit_track_tags, resolve_track
+from aivinnet.lib.track_edit import AmbiguousTrackError, TrackNotFoundError, edit_track_tags_by_filepath, resolve_track
 from aivinnet.lib.track_rename import name_after_tags, rename_files
 from aivinnet.serializers.track import serialize_track
 from aivinnet.utils.auth import get_current_userid
@@ -112,18 +112,24 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     except TrackNotFoundError:
         return {"error": "Track not found"}, 404
 
-    trackhash, filepath, rename = path.trackhash, target.filepath, body.rename_file
+    filepath, rename = target.filepath, body.rename_file
     # The favourite flag is per user, and the job has no current user.
     userid = get_current_userid()
     job_id = mbjobs.create()
-    mbjobs.spawn(job_id, lambda: _run_edit(trackhash, fields, filepath, rename, userid), writes=True)
+    mbjobs.spawn(job_id, lambda: _run_edit(filepath, fields, rename, userid), writes=True)
     return {"job": job_id}
 
 
-def _run_edit(trackhash: str, fields: dict, filepath: str, rename: bool, userid: int) -> dict:
-    """The worker. An error (`TrackEditError` …) ends the job with its message."""
+def _run_edit(filepath: str, fields: dict, rename: bool, userid: int) -> dict:
+    """
+    The worker. An error (`TrackEditError` …) ends the job with its message.
+
+    By PATH, resolved in the request: edits queue behind the library lock, and
+    an earlier one may have re-hashed this file by now — the old hash would no
+    longer find it (two quick saves of the same track).
+    """
     with library_lock.hold(), WRITERS.active():
-        track = edit_track_tags(trackhash, fields, filepath)
+        track = edit_track_tags_by_filepath(filepath, fields)
         result: dict = {}
         if rename:
             # Before serialising: a successful rename moves `track.filepath`.
