@@ -45,7 +45,8 @@ def _retitle_from_outside(path, title: str) -> None:
 def _hash_of(path) -> str:
     from aivinnet.store.tracks import TrackStore
 
-    (track,) = [t for t in TrackStore.get_flat_list() if t.filepath == str(path)]
+    # The scanner stores the POSIX form; `str()` has backslashes on Windows.
+    (track,) = [t for t in TrackStore.get_flat_list() if t.filepath == path.as_posix()]
     return track.trackhash
 
 

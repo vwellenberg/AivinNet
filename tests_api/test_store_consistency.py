@@ -5,6 +5,7 @@ took, every request saw part of the library — and "Remove missing tracks" on a
 playlist took every not-yet-loaded track for an orphan and deleted it.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -88,22 +89,25 @@ def test_the_swapped_folder_index_can_still_be_counted(monkeypatch):
     import aivinnet.store.folder as folder_module
     from aivinnet.store.folder import FolderStore
 
+    # The count resolves the folder, and on Windows `/music` resolves onto
+    # the current drive: the stored paths must be in that form too.
+    music = Path("/music").resolve().as_posix()
     monkeypatch.setattr(FolderStore, "filepaths", folder_module.SortedSet())
     monkeypatch.setattr(FolderStore, "map", {})
     monkeypatch.setattr(
         folder_module.TrackStore,
         "get_flat_list",
         lambda: iter(
-            [_track("b", "/music/Rock/b.mp3"), _track("a", "/music/Rock/a.mp3"), _track("c", "/music/Pop/c.mp3")]
+            [_track("b", f"{music}/Rock/b.mp3"), _track("a", f"{music}/Rock/a.mp3"), _track("c", f"{music}/Pop/c.mp3")]
         ),
     )
 
     FolderStore.load_filepaths()
 
-    assert FolderStore.count_tracks_containing_paths(["/music/Rock", "/music/Pop", "/music"]) == [
-        {"path": "/music/Rock", "trackcount": 2},
-        {"path": "/music/Pop", "trackcount": 1},
-        {"path": "/music", "trackcount": 3},
+    assert FolderStore.count_tracks_containing_paths([f"{music}/Rock", f"{music}/Pop", music]) == [
+        {"path": f"{music}/Rock", "trackcount": 2},
+        {"path": f"{music}/Pop", "trackcount": 1},
+        {"path": music, "trackcount": 3},
     ]
 
 

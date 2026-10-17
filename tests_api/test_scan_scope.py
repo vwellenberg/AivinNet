@@ -192,6 +192,7 @@ def test_rows_outside_every_root_wait_while_a_root_is_offline(library, tmp_path)
     assert library.paths() == {kept, elsewhere}
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlinks need privileges on Windows")
 def test_a_root_reached_through_a_symlink_keeps_its_tracks(library, tmp_path):
     """The scanner stores resolved paths; the root is compared in the same form."""
     real = tmp_path / "data" / "Music"
@@ -243,6 +244,7 @@ def test_more_paths_than_sqlite_binds_in_one_statement(library, sqlite_default_b
         assert session.execute(select(func.count()).select_from(TrackTable)).scalar() == 0
 
 
+@pytest.mark.skipif(os.name == "nt", reason="symlinks need privileges on Windows")
 def test_a_symlinked_folder_outside_the_root_is_not_reindexed(library, tmp_path):
     """
     The scan stores the resolved path, which no root prefix matches. Judged by

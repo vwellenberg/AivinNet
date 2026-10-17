@@ -5,6 +5,7 @@ The end-to-end cases against a real database are in
 """
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -17,7 +18,8 @@ def test_a_prefix_ends_in_exactly_one_slash(tmp_path):
 
 
 def test_the_filesystem_root_is_a_prefix_too():
-    assert dir_prefix("/") == "/"
+    # `/` on POSIX; on Windows the root of the current drive, `C:/`.
+    assert dir_prefix("/") == Path("/").resolve().as_posix()
 
 
 @pytest.mark.skipif(os.name == "nt", reason="symlinks need privileges on Windows")
@@ -90,6 +92,7 @@ def test_from_scan_marks_roots_that_found_nothing(tmp_path):
 
 def test_from_scan_expands_a_home_relative_exclusion(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # what `expanduser` reads on Windows
 
     scope = ScanScope.from_scan({}, exclude=["~/Podcasts"])
 
