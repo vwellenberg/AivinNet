@@ -95,14 +95,20 @@ export async function movePlaylistTrackTo(from: number, gap: number): Promise<bo
  * it had when the request left: in the edit mode a move can land while the
  * removal is in flight, and the old index then points at a neighbour — the
  * list would drop the wrong row while the server dropped the right one.
+ *
+ * `keepalive` sends it on a request that outlives the page (see `removeTracks`).
  */
-export async function removePlaylistTrack(index: number, notify = true): Promise<boolean> {
+export async function removePlaylistTrack(
+    index: number,
+    notify = true,
+    { keepalive = false } = {}
+): Promise<boolean> {
     const playlist = usePlaylistStore()
     const track = playlist.allTracks[index]
     if (!track) return false
 
     const pid = playlist.info.id
-    const ok = await removeTracks(pid, [{ trackhash: track.trackhash, index }], notify)
+    const ok = await removeTracks(pid, [{ trackhash: track.trackhash, index }], notify, { keepalive })
     if (!ok) return false
 
     const now = playlist.allTracks.indexOf(track)

@@ -26,6 +26,8 @@ const useToast = defineStore("notification", {
         },
         action ? 8000 : 3000
       );
+
+      return id;
     },
     dismiss(id: number) {
       this.notifs = this.notifs.filter((n) => n.id !== id);
@@ -43,8 +45,11 @@ const useToast = defineStore("notification", {
 });
 
 class Notification {
+  /** For `useToast().dismiss()`: an action toast whose action has lapsed must not keep offering it. */
+  readonly id: number;
+
   constructor(text: string, type: NotifType = NotifType.Info, action?: NotifAction) {
-    useToast().showNotification(text, type, action);
+    this.id = useToast().showNotification(text, type, action);
   }
 }
 

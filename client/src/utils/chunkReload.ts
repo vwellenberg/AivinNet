@@ -8,20 +8,32 @@
 // rejection and stays where it is, so the nav buttons simply did nothing, even
 // after the connection was back. The only cure is a fresh document.
 //
-// So: reload onto the page that was asked for. Guarded twice —
-//   - offline, a reload would swap the running player for the browser's error
-//     page; wait for the `online` event instead.
+// So: reload onto the page that was asked for. Guarded three times —
+//   - a reload swaps the running player for whatever the server answers, and
+//     with no server that is the browser's error page: playback gone, queue
+//     gone. Offline, wait for the `online` event; and either way, ask the
+//     server first. `navigator.onLine` only knows about the network adapter —
+//     a phone whose connection to the server dropped for a few seconds still
+//     says `true`.
 //   - a chunk that fails again right after a reload is a real server problem,
 //     not a stale tab; reloading again would loop forever.
+//   - that guard has to survive the reload, so it lives where a reload cannot
+//     wipe it: sessionStorage, and the history entry as well, for when storage
+//     is blocked (site data off, a sandboxed frame) and the loop would
+//     otherwise be unguarded.
 // ---------------------------------------------------------------------------
 
 import type { Router } from 'vue-router'
+
+import { Notification, NotifType } from '@/stores/notification'
 
 const CHUNK_ERROR =
     /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading (CSS )?chunk .* failed/i
 
 /** Within this window after a reload, a second chunk failure does not reload again. */
 export const RELOAD_GUARD_MS = 10_000
+/** How long the server gets to answer before a reload counts as a jump into nothing. */
+export const PROBE_TIMEOUT_MS = 5_000
 const GUARD_KEY = 'aivinnet:chunk-reload-at'
 
 export function isChunkLoadError(err: unknown): boolean {
@@ -30,29 +42,73 @@ export function isChunkLoadError(err: unknown): boolean {
 }
 
 function readGuard(): number {
+    let at = 0
     try {
-        return Number(sessionStorage.getItem(GUARD_KEY)) || 0
+        at = Number(sessionStorage.getItem(GUARD_KEY)) || 0
     } catch {
-        return 0
+        // No storage: the history entry below still knows.
     }
+    return Math.max(at, Number(history.state?.[GUARD_KEY]) || 0)
 }
 
 function writeGuard(at: number) {
     try {
         sessionStorage.setItem(GUARD_KEY, String(at))
     } catch {
-        // No storage (private mode): reload anyway — a loop needs a second
-        // failure within seconds, which a missing guard only makes possible.
+        // No storage (blocked site data, a sandboxed frame): the history entry
+        // carries the guard on its own — see reload().
     }
 }
 
-let waitingForOnline = false
-/** The latest page asked for while offline — the one to land on once back. */
+/**
+ * Whether the server answers right now. Asks for the document a reload would
+ * fetch, past every cache, and gives up after PROBE_TIMEOUT_MS: a connection
+ * that hangs is as dead as one that fails.
+ */
+async function serverAnswers(): Promise<boolean> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
+    try {
+        const res = await fetch(location.pathname + location.search, {
+            cache: 'no-store',
+            signal: controller.signal,
+        })
+        return res.ok
+    } catch {
+        return false
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
+/** A probe is out, or the tab waits for `online`: later failures only update the target. */
+let waiting = false
+/** The latest page asked for while waiting — the one to land on. */
 let pendingHash = ''
+
+async function reloadIfServerAnswers() {
+    const answers = await serverAnswers()
+    waiting = false
+
+    if (!answers) {
+        // Stay on the page that plays. The failed chunk stays cached, so the
+        // next tap lands here again and asks the server again.
+        new Notification('Can’t reach the server — try again in a moment', NotifType.Error)
+        return
+    }
+
+    const at = Date.now()
+    writeGuard(at)
+    // replaceState, not `location.hash = …`: that would fire the router,
+    // which would try the dead chunk once more before the reload. The router
+    // keeps foreign keys in the entry's state, so the guard survives it.
+    history.replaceState({ ...history.state, [GUARD_KEY]: at }, '', pendingHash)
+    location.reload()
+}
 
 /**
  * Reloads the tab onto `hash` (the router's `#/…` target) when `err` is a failed
- * chunk load. Returns whether it handled the error.
+ * chunk load and the server answers. Returns whether it handled the error.
  */
 export function reloadOnChunkError(err: unknown, hash: string, now = Date.now()): boolean {
     if (!isChunkLoadError(err)) return false
@@ -63,30 +119,15 @@ export function reloadOnChunkError(err: unknown, hash: string, now = Date.now())
     }
 
     pendingHash = hash
-    const reload = () => {
-        writeGuard(Date.now())
-        // replaceState, not `location.hash = …`: that would fire the router,
-        // which would try the dead chunk once more before the reload.
-        history.replaceState(history.state, '', pendingHash)
-        location.reload()
-    }
+    if (waiting) return true
+    waiting = true
 
     if (navigator.onLine === false) {
-        if (!waitingForOnline) {
-            waitingForOnline = true
-            window.addEventListener(
-                'online',
-                () => {
-                    waitingForOnline = false
-                    reload()
-                },
-                { once: true }
-            )
-        }
+        window.addEventListener('online', () => void reloadIfServerAnswers(), { once: true })
         return true
     }
 
-    reload()
+    void reloadIfServerAnswers()
     return true
 }
 
@@ -98,11 +139,12 @@ export function installChunkReload(router: Router) {
 }
 
 export function __resetChunkReloadTestState() {
-    waitingForOnline = false
+    waiting = false
     pendingHash = ''
     try {
         sessionStorage.removeItem(GUARD_KEY)
     } catch {
         // no storage
     }
+    history.replaceState(null, '')
 }
