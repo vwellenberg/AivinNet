@@ -866,8 +866,14 @@ $sidebar-label-opacity: 0.85;
   // — the size was already right, it just had no name, and the glyph came
   // from a hand-written override because `btn-action` had no `$glyph` knob.
   // It does now, so both numbers come from the tier.
+  // Pink, the fill the Playlists row and the phone's [+] wear (NavBar.vue) — the
+  // button creates a playlist, so it takes the playlist's colour. Ink glyph on
+  // it, accent hatch, as on the phone.
   .sidebar-newplaylist {
     @include btn-action($size: $control-dense, $glyph: $control-dense-glyph, $radius: 50%);
+    @include mem-hatch(28px, $on: accent);
+    background-color: var(--look-tint, #{mem-pastel($mem-pink)});
+    color: var(--look-tint-text, #{$candy-black});
   }
 }
 
