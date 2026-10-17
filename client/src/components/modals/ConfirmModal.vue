@@ -35,8 +35,12 @@ defineProps<{
         // default from the button base.
         color: $candy-text;
 
-        &:hover {
-            background-color: $candy-pink-soft;
+        // Gated like the role it restates (Global/_buttons.scss, HOVER IS
+        // POINTER-ONLY): on touch `:hover` latches after a tap.
+        @media (hover: hover) {
+            &:hover {
+                background-color: $candy-pink-soft;
+            }
         }
     }
 
@@ -46,9 +50,11 @@ defineProps<{
         // Static light label on coral (the panel var would go dark in dark).
         color: $mem-panel-static;
 
-        &:hover {
-            background-color: $mem-coral;
-            opacity: 0.9;
+        @media (hover: hover) {
+            &:hover {
+                background-color: $mem-coral;
+                opacity: 0.9;
+            }
         }
     }
 }

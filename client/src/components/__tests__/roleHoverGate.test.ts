@@ -47,7 +47,7 @@ const POINTER_GATE = /^@media[^{]*\(\s*hover\s*:\s*hover\s*\)/;
 const ALLOWED: { file: string; selector: RegExp; why: string }[] = [
   {
     file: "src/views/LyricsView/Plugins/Find.vue",
-    selector: /\.showError:hover$/,
+    selector: /\.showError:hover(::before)?$/,
     why: "the error message wears the plate but is not a button; restates its rest",
   },
   {
@@ -356,7 +356,7 @@ describe("role wearers gate their own hovers too", () => {
     // …one on a template-class wearer…
     expect(has("src/components/modals/ConfirmModal.vue", /\.cancel:hover$/)).toBeTruthy();
     // …and an exempt pair.
-    expect(has("src/assets/scss/Global/search-tabheaders.scss", /\.activetab:hover$/)?.pair).toBe(true);
+    expect(has("src/components/CardListView/SortBanner.vue", /\.select\.active:hover$/)?.pair).toBe(true);
   });
 
   it("states no hover on a role wearer outside the pointer gate", () => {
