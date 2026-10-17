@@ -1,10 +1,16 @@
 repos:
+  # The ruff version for the whole repo: CI, the Claude hook and the docs call
+  # the same one via `uvx ruff@<version>` (tests/test_ruff_version_pinned.py).
+  # `files` keeps the hooks on what CI checks (`src/ tests/`); ruff-format
+  # would otherwise also rewrite the Python examples in Markdown docs.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.4
+    rev: v0.17.1
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
+        files: ^(src|tests)/
       - id: ruff-format
+        files: ^(src|tests)/
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:

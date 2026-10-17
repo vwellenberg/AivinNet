@@ -60,8 +60,8 @@ Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
 uv sync
 
 # Linting
-uvx ruff check src/ tests/
-uvx ruff format src/ tests/
+uvx ruff@0.17.1 check src/ tests/
+uvx ruff@0.17.1 format src/ tests/
 
 # Unit-Tests (schnelle Lane; läuft lokal, uv liegt unter ~/.local/bin/uv.exe)
 uvx --with xxhash --with unidecode --with pendulum --with requests \
@@ -152,9 +152,15 @@ git fetch --prune && git branch -D <branch>
 
 ## Code-Qualität
 
-- **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`
+- **Ruff:** Linting + Formatting, konfiguriert in `pyproject.toml`. **Version festgelegt:** maßgeblich
+  ist `rev:` in `.pre-commit-config.yaml`; CI, Hook, README und die Befehle oben rufen über uvx
+  genau diese Version auf (`ruff@…`). Vorher lief Pre-commit mit 0.11.4 und CI mit dem jeweils neuesten Release —
+  zwei Formatter, die sich widersprechen können. Bump = alle Stellen auf einmal;
+  `tests/test_ruff_version_pinned.py` nennt die vergessenen.
 - **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`) und in `.pre-commit-config.yaml`, beide gleich halten. Neue Module bei Bearbeitung dort aufnehmen.
-- **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module)
+- **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module). Ruff dort nur auf
+  `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
+  in Markdown-Doku um.
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs.
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen
 
