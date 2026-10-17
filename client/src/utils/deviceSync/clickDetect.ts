@@ -128,7 +128,10 @@ export function findArrival(envelope: Float64Array, sampleRate: number, lastInde
         count++
     }
     const rms = Math.sqrt(sum / Math.max(1, count))
-    const strength = rms > 0 ? envelope[peak] / rms : Infinity
+    // Digital silence (a muted or permission-less microphone delivers zeros)
+    // has no peak at all. `0 / 0` used to come out as Infinity — every click
+    // "heard", every offset +0 ms, and Apply reset good trims to 0 (#298).
+    const strength = envelope[peak] <= 0 ? 0 : rms > 0 ? envelope[peak] / rms : Infinity
 
     let first = peak
     const from = Math.max(1, peak - Math.round((DIRECT_LOOKBACK_MS / 1000) * sampleRate))

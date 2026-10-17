@@ -83,6 +83,14 @@ describe('findArrival', () => {
         expect(Math.abs(findArrival(envelope, SR, recording.length)!.index - at)).toBeLessThanOrEqual(1)
     })
 
+    it('hears nothing in digital silence (a muted microphone delivers zeros)', () => {
+        const silence = new Float32Array(57600)
+        const envelope = correlationEnvelope(silence, template, SR, CHIRP_BAND_HZ)
+        const arrival = findArrival(envelope, SR, silence.length - template.length)
+        // 0 / 0 came out as Infinity: every click "heard" at +0 ms (#298).
+        expect(arrival!.strength).toBe(0)
+    })
+
     it('stays well below the "heard" bar on noise alone', () => {
         const rand = prng(42)
         for (let round = 0; round < 5; round++) {

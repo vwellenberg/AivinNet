@@ -124,3 +124,28 @@ neben der App laufen.
 - **Mocks verstecken echte DB-Bugs.** `tests_api/test_devicesync_api.py` mockt `DeviceTable` weg,
   deshalb blieb der 500er grün. Für Tabellen-Logik gehört ein Test gegen die **echten**
   SQLite-Tabellen dazu (`tests_api/test_device_table.py`), inklusive FK-Usern im Fixture.
+
+## Randfälle aus dem Audit (#298, behoben — nicht zurückbauen)
+
+- **„Keine Antwort“ ist ein Fehlschlag, kein Erfolg.** `useAxios` liefert bei Netzfehler oder
+  Timeout `{ error, status: undefined }`; `reportSyncFailure` wertete das als Erfolg. Eine so
+  verlorene Buchung ließ `bookedFor` stehen, `ended` trat zurück — die ganze Gruppe schwieg bis
+  zum nächsten Tipp. Jetzt: Fehler mit Toast, und jeder Sync-Call hat eine Deadline
+  (`SYNC_TIMEOUT_MS`).
+- **`ended` auf einer gebuchten Ankerzeit vertraut der Buchung nicht blind.** Ist der gebuchte
+  Zustand bis zum Ende nicht angekommen (`pending` leer), fragt der Leader nach und rückt nach
+  `BOOKED_END_GRACE_MS` selbst vor. Der Index ist absolut — eine Buchung, die doch gelandet
+  ist, startet den nächsten Song höchstens neu, sie überspringt nichts.
+- **Mute und Lautstärke gehören auf BEIDE Elemente** (`AudioSource.setMute/setVolume`, wie
+  `setDuck`). Der Standby wird Sekunden vor dem Schnitt vorbereitet und dann zum spielenden
+  Element; ein Mute dazwischen blieb sonst am alten hängen. Ein Element im Fade-out behält
+  seinen Fade.
+- **Digitale Stille ist „kein Ton“, nicht „alles gehört“.** Ein per Taste/OS stummes Mikrofon
+  öffnet und liefert Nullen; `0 / 0` ergab Stärke ∞, jeder Klick „heard“ bei +0 ms, und
+  Apply setzte gute Trims auf 0. `findArrival` gibt dort 0, `finish()` bricht mit „The
+  microphone delivered no sound.“ ab.
+- **Die Beitritts-Karte gehört zur Gruppe.** `toSolo()` räumt `needsGesture` ab, und
+  `completeGestureJoin()` richtet ohne Gruppe nichts aus — sonst startete ein Tipp lokale
+  Wiedergabe an der veralteten Ankerzeit einer toten Gruppe.
+- **Hintergrund-Calls ohne Lade-Cursor** (`silent` in `FetchProps`): der Poll lief 1×/s und
+  zeigte den Fortschritts-Cursor ~25 % der Zeit. Join und Leave sind Tipps und behalten ihn.

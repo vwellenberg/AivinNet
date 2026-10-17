@@ -33,6 +33,7 @@ import {
     settlingDevices,
     suggestTrims,
     type Recording,
+    isDigitalSilence,
 } from '@/utils/deviceSync/calibration'
 import { logCalibration, type CalibrationDetail } from '@/requests/devicesync'
 import { micAvailable, startMicCapture, type MicCapture } from '@/utils/deviceSync/micCapture'
@@ -315,7 +316,10 @@ export default defineStore('syncCalibration', {
                       }
                     : null
             this.stopRun()
-            if (!recording) {
+            // Digital silence too: a muted microphone opens fine and records
+            // zeros, and nothing measured in it may reach Apply (#298).
+            if (!recording || isDigitalSilence(recording.samples)) {
+                reports = {}
                 this.fail('The microphone delivered no sound.')
                 return
             }

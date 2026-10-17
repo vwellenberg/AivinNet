@@ -69,6 +69,25 @@ describe('player: the music ducks under a calibration', () => {
         expect(audioSource.playingSource.volume).toBeCloseTo(0.5, 6)
     })
 
+    it('mute and volume reach the prepared standby: the cut-over keeps them (#298)', () => {
+        const player = usePlayer()
+        player.prepareGroupStandby(track, 0, 'k1')
+        // Tapped two seconds before the end, after the standby was prepared.
+        player.setMute(true)
+        player.setVolume(0.3)
+        settings.mute = true
+        settings.volume = 0.3
+        expect(audioSource.standbySource.muted).toBe(true)
+        expect(audioSource.standbySource.volume).toBeCloseTo(0.3, 6)
+
+        player.switchToGroupStandby(track, false, true)
+        expect(audioSource.playingSource.muted).toBe(true)
+        expect(audioSource.playingSource.volume).toBeCloseTo(0.3, 6)
+
+        player.setMute(false)
+        settings.mute = false
+    })
+
     it('the next track of the group comes in ducked while the duck lasts', () => {
         const player = usePlayer()
         player.setDuck(0.1)

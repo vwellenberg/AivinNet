@@ -123,6 +123,12 @@ const RESYNC_SEEK_MS = 100
 const BOOK_AHEAD_MS = 4000
 /** ...but no later than this before the end; `ended` handles anything shorter. */
 const BOOK_MIN_MS = 400
+/**
+ * After `ended`, how long the leader waits for the booked state before it
+ * advances the group itself (ms). A booked state normally arrives seconds
+ * before the end; one that has not shows up after a poll or never will (#298).
+ */
+export const BOOKED_END_GRACE_MS = 2500
 
 // --- non-reactive module singletons -----------------------------------------
 
@@ -186,6 +192,12 @@ let latency = loadLatency()
 
 /** The anchor the leader already booked the next track for — one booking per anchor. */
 let bookedFor = ''
+/** `ended` on a booked anchor: the check that the booked state really arrives. */
+let bookedEndWatch: ReturnType<typeof setTimeout> | null = null
+function clearBookedEndWatch() {
+    if (bookedEndWatch) clearTimeout(bookedEndWatch)
+    bookedEndWatch = null
+}
 
 // --- sync calibration, the part every device plays ----------------------------
 //
@@ -331,6 +343,7 @@ export function __resetDeviceSyncTestState() {
     recentSeeks = []
     latency = loadLatency()
     bookedFor = ''
+    clearBookedEndWatch()
     tickPlayer.stop()
     measuring?.abort()
     measuring = null
@@ -1367,6 +1380,10 @@ export default defineStore('devicesync', {
         /** Retry the blocked play() from a real user gesture and clear the flag. */
         completeGestureJoin() {
             this.needsGesture = false
+            // The group may be gone by the time the card is tapped (reaped,
+            // server restart): aligning then would start local audio at a dead
+            // group's stale anchor (#298).
+            if (!this.joined) return
             this.withApplying(() => this.alignTransport())
         },
 
@@ -1443,7 +1460,11 @@ export default defineStore('devicesync', {
             clearPending()
             settle = null
             bookedFor = ''
+            clearBookedEndWatch()
             recentSeeks = []
+            // The "Join group playback?" card belongs to the group: out of it,
+            // tapping the card would align solo audio to a dead anchor (#298).
+            this.needsGesture = false
             // Out of the group: no more clicks or ticks for it either.
             this.stopCalibrationAudio()
             // Solo playback: rate 1.0 and pitch preservation back to the default.
@@ -1500,12 +1521,18 @@ export default defineStore('devicesync', {
          * what made group playback look "connected but dead": the UI showed the
          * group as joined while the server had no queue at all.
          */
-        reportSyncFailure(res: { status?: number } | undefined, what: string): boolean {
+        reportSyncFailure(res: { status?: number; error?: string } | undefined, what: string): boolean {
             const status = res?.status
-            if (status === undefined || (status >= 200 && status < 300)) return false
+            if (status !== undefined && status >= 200 && status < 300) return false
+            // No status but an error is a failure too: the request never got an
+            // answer (network down, timeout). It used to count as success, so a
+            // lost booking kept `bookedFor` set and the group halted at the end
+            // of the track (#298).
+            if (status === undefined && !res?.error) return false
 
-            console.error(`[devicesync] ${what} (HTTP ${status})`, res)
-            useToast().showNotification(`${what} (HTTP ${status})`, NotifType.Error)
+            const why = status === undefined ? 'no connection' : `HTTP ${status}`
+            console.error(`[devicesync] ${what} (${why})`, res)
+            useToast().showNotification(`${what} (${why})`, NotifType.Error)
             return true
         },
 
@@ -1812,9 +1839,27 @@ export default defineStore('devicesync', {
         onTrackEnded() {
             if (!this.isScrobbleLeader) return
 
-            // Already booked, or another transition is on its way: the group
-            // switches on its own.
-            if (pending || (bookedFor !== '' && bookedFor === this.anchorKey())) return
+            // Another transition is on its way: the group switches on its own.
+            if (pending) return
+
+            // Booked, but the booked state has not arrived (it normally comes
+            // seconds before the end and waits as `pending`). Ask for it, and
+            // if it still has not come after a grace, the booking is lost:
+            // advance the group from here instead of leaving every device
+            // silent (#298). The index is absolute, so a booking that did land
+            // only restarts the next track from 0, it skips nothing.
+            const key = this.anchorKey()
+            if (bookedFor !== '' && bookedFor === key) {
+                this.pollSoon()
+                clearBookedEndWatch()
+                bookedEndWatch = setTimeout(() => {
+                    bookedEndWatch = null
+                    if (!this.joined || pending || bookedFor !== key || this.anchorKey() !== key) return
+                    bookedFor = ''
+                    this.onTrackEnded()
+                }, BOOKED_END_GRACE_MS)
+                return
+            }
 
             // Nothing left to advance to (the queue was cleared mid-track): a
             // track_change into an empty session is refused with 400 and would

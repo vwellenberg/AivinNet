@@ -18,7 +18,7 @@ import type { Track } from '@/interfaces'
 import { getUrl } from '@/utils/streamUrl'
 export { getUrl }
 import updateMediaNotif from '@/helpers/mediaNotification'
-import { cancelFade, crossFade } from '@/utils/audio/crossFade'
+import { cancelFade, crossFade, isFading } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
 import { createSkipGuard, MAX_FAILED_IN_A_ROW } from '@/utils/skipGuard'
 
@@ -68,6 +68,24 @@ class AudioSource {
     /** The volume the music plays at: the setting, turned down while ducked. */
     musicVolume() {
         return (this.settings?.volume ?? 1) * this.duck
+    }
+
+    /**
+     * The user's mute and volume, on BOTH elements. The standby is prepared
+     * seconds before a group cut-over and then becomes the playing element: a
+     * mute tapped in between used to stay on the old element only, and the next
+     * song played out loud while the UI showed muted (#298). An element still
+     * fading out keeps its fade — it is on its way out.
+     */
+    setMute(muted: boolean) {
+        this.sources.forEach(audio => (audio.muted = muted))
+    }
+
+    /** `volume` is the new setting, applied before the setting changes (so not musicVolume()). */
+    setVolume(volume: number) {
+        this.sources.forEach(audio => {
+            if (!isFading(audio)) audio.volume = volume * this.duck
+        })
     }
 
     /** Turn the music down to `gain` of its volume (1 = back up) — both elements. */
@@ -236,7 +254,7 @@ export const usePlayer = defineStore('player', () => {
 
     function setVolume(new_value: number) {
         // Called before the setting changes (settings.setVolume), so not musicVolume().
-        audio.volume = new_value * audioSource.duck
+        audioSource.setVolume(new_value)
     }
 
     /** Turn the music down while a sync calibration plays over it (1 = back up). */
@@ -245,7 +263,7 @@ export const usePlayer = defineStore('player', () => {
     }
 
     function setMute(new_value: boolean) {
-        audio.muted = new_value
+        audioSource.setMute(new_value)
     }
 
     // --- imperative helpers for the device-sync store -----------------------

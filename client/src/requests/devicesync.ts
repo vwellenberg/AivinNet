@@ -5,6 +5,16 @@ import useAxios from './useAxios'
 
 const api = paths.api.devicesync
 
+/**
+ * Every sync call gives up after this long (ms). Without a deadline a hung
+ * request held its caller indefinitely — a booking that never answered left
+ * the leader waiting for a track change that would not come (#298).
+ */
+export const SYNC_TIMEOUT_MS = 5000
+/** The calls that run on their own, without a tap: no busy cursor for them. */
+const background = { timeout: SYNC_TIMEOUT_MS, silent: true }
+const foreground = { timeout: SYNC_TIMEOUT_MS }
+
 /** A joined device's own view of its sync — the server keeps it for `/devicesync/diag`. */
 export interface SyncDiag {
     build: string
@@ -74,7 +84,7 @@ export interface CalibrationLog {
 
 /** Keep one calibration run's raw numbers on the server (RAM, shown by `/devicesync/diag`). */
 export async function logCalibration(body: CalibrationLog) {
-    return await useAxios({ url: api.calibrationLog, method: 'POST', props: body })
+    return await useAxios({ url: api.calibrationLog, method: 'POST', props: body, ...background })
 }
 
 /** Register (or refresh) this device in the persistent device registry. */
@@ -83,23 +93,24 @@ export async function registerDevice(deviceId: string, name: string, type: strin
         url: api.register,
         method: 'POST',
         props: { device_id: deviceId, name, type },
+        ...background,
     })
 }
 
 /** Short-poll the group session; returns the parsed response or null on failure. */
 export async function pollSession(body: PollBody): Promise<PollResponse | null> {
-    const { data, status } = await useAxios({ url: api.poll, method: 'POST', props: body })
+    const { data, status } = await useAxios({ url: api.poll, method: 'POST', props: body, ...background })
     return status === 200 ? (data as PollResponse) : null
 }
 
 /** Enqueue a transport or targeted command. */
 export async function sendCommand(body: CommandBody) {
-    return await useAxios({ url: api.command, method: 'POST', props: body })
+    return await useAxios({ url: api.command, method: 'POST', props: body, ...background })
 }
 
 /** Replace the group queue (seeds a fresh session on first join). */
 export async function setQueue(body: SetQueueBody) {
-    return await useAxios({ url: api.queueSet, method: 'POST', props: body })
+    return await useAxios({ url: api.queueSet, method: 'POST', props: body, ...foreground })
 }
 
 /** Resolve trackhashes to full serialized tracks; returns [] on failure. */
@@ -123,12 +134,12 @@ export async function resolveTracks(trackhashes: string[]): Promise<Track[]> {
 
 /** Join the current user's group session. */
 export async function joinGroup(deviceId: string) {
-    return await useAxios({ url: api.join, method: 'POST', props: { device_id: deviceId } })
+    return await useAxios({ url: api.join, method: 'POST', props: { device_id: deviceId }, ...foreground })
 }
 
 /** Leave the group session (falls back to solo playback). */
 export async function leaveGroup(deviceId: string) {
-    return await useAxios({ url: api.leave, method: 'POST', props: { device_id: deviceId } })
+    return await useAxios({ url: api.leave, method: 'POST', props: { device_id: deviceId }, ...foreground })
 }
 
 // Re-exported for convenience so callers can name the device-list type without
