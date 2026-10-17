@@ -354,7 +354,7 @@ describe("role wearers gate their own hovers too", () => {
     // …one on a wearer inside a selector list with `:not()`…
     expect(has("src/components/BottomBar/Right.vue", /button\.aux\.aux-off:hover$/)?.gated).toBe(true);
     // …one on a template-class wearer…
-    expect(has("src/components/modals/ConfirmModal.vue", /\.cancel:hover$/)).toBeTruthy();
+    expect(has("src/components/modals/ConfirmModal.vue", /\.cancel:hover$/)?.gated).toBe(true);
     // …and an exempt pair.
     expect(has("src/components/CardListView/SortBanner.vue", /\.select\.active:hover$/)?.pair).toBe(true);
   });
