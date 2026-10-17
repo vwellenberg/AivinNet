@@ -57,8 +57,8 @@ import { useToast } from '@/stores/notification'
 import DeleteSvg from '@/assets/icons/delete.svg'
 
 defineProps<{
-    title: string
-    desc: string
+    title?: string
+    desc?: string
 }>()
 
 const toast = useToast()
