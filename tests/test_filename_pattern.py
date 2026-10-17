@@ -6,7 +6,8 @@ nothing may be overwritten, nothing may become a hidden dot-file (the indexer
 would drop it), and an album that is only renumbered must still be renameable.
 """
 
-import os
+import ntpath
+from types import SimpleNamespace
 
 from aivinnet.lib import filename_pattern as fp
 
@@ -88,7 +89,17 @@ class TestPlan:
     def test_a_free_name_is_a_rename(self):
         result = fp.plan([(f"{D}/01.mp3", "01 - A.mp3")], {D: {"01.mp3"}})
         assert statuses(result) == {"01.mp3": (fp.RENAME, "01 - A.mp3")}
-        assert result[0].target_path == os.path.join(D, "01 - A.mp3")
+        assert result[0].target_path == f"{D}/01 - A.mp3"
+
+    def test_the_new_path_is_posix_on_windows_too(self, monkeypatch):
+        # The library stores POSIX paths on every platform, and `track_rename`
+        # writes this one straight into it. `os.path.join` gave
+        # `C:/Music/Album\01 - A.mp3` on Windows: no folder prefix found the
+        # renamed file, and the next scan indexed it again as a new one.
+        monkeypatch.setattr(fp, "os", SimpleNamespace(path=ntpath))
+        result = fp.plan([("C:/Music/Album/01.mp3", "01 - A.mp3")], {"C:/Music/Album": {"01.mp3"}})
+        assert result[0].status == fp.RENAME
+        assert result[0].target_path == "C:/Music/Album/01 - A.mp3"
 
     def test_a_name_that_is_already_right_is_left_alone(self):
         result = fp.plan([(f"{D}/01 - A.mp3", "01 - A.mp3")], {D: {"01 - A.mp3"}})

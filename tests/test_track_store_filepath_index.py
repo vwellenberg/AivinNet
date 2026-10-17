@@ -7,6 +7,7 @@ places that mutate the store (indexer, renames, removals) need not know it.
 """
 
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 for _mod in [
@@ -125,10 +126,12 @@ def test_several_paths_at_once():
 
 
 def test_a_folder_does_not_take_its_longer_named_sibling_along():
-    rock = _add(_Track("h1", "/music/Rock/a.mp3", folder="/music/Rock"))
-    deeper = _add(_Track("h2", "/music/Rock/Live/b.mp3", folder="/music/Rock/Live"))
-    _add(_Track("h3", "/music/Rock and Roll/c.mp3", folder="/music/Rock and Roll"))
+    # The store resolves the folder, and `/music` resolves to `C:/music` on Windows.
+    music = Path("/music").resolve().as_posix()
+    rock = _add(_Track("h1", f"{music}/Rock/a.mp3", folder=f"{music}/Rock"))
+    deeper = _add(_Track("h2", f"{music}/Rock/Live/b.mp3", folder=f"{music}/Rock/Live"))
+    _add(_Track("h3", f"{music}/Rock and Roll/c.mp3", folder=f"{music}/Rock and Roll"))
 
-    found = TrackStore.get_tracks_in_path("/music/Rock")
+    found = TrackStore.get_tracks_in_path(f"{music}/Rock")
 
     assert sorted(found, key=lambda t: t.filepath) == [deeper, rock]

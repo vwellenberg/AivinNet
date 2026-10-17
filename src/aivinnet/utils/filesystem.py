@@ -179,6 +179,18 @@ def dir_prefix(path: str | Path) -> str:
     return Path(path).resolve().as_posix().rstrip("/") + "/"
 
 
+def safe_dir_prefix(path: str | Path) -> str:
+    """
+    `dir_prefix` for a folder that may not resolve (a symlink loop in a root,
+    a NUL byte in a request): that one falls back to its POSIX form as given
+    instead of raising.
+    """
+    try:
+        return dir_prefix(path)
+    except (OSError, RuntimeError, ValueError):
+        return Path(path).as_posix().rstrip("/") + "/"
+
+
 @dataclass(frozen=True)
 class ScanScope:
     """

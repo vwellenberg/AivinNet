@@ -5,7 +5,7 @@ from sortedcontainers import SortedSet
 
 from aivinnet.lib.folder_index import derive_folder_paths
 from aivinnet.store.tracks import TrackStore
-from aivinnet.utils.filesystem import dir_prefix
+from aivinnet.utils.filesystem import safe_dir_prefix
 
 
 class FolderStore:
@@ -112,7 +112,7 @@ class FolderStore:
         # Counted under the prefix the scanner stores beneath a folder:
         # resolved (a root behind a symlink counted 0) and with its trailing
         # `/` (`/music/Rock` counted `/music/Rock and Roll/` too) (#391).
-        prefixes = [_folder_prefix(path) for path in paths]
+        prefixes = [safe_dir_prefix(path) for path in paths]
         with ThreadPoolExecutor() as executor:
             res = executor.map(count_filepaths_in_dir, ((prefix, FolderStore.filepaths) for prefix in prefixes))
             results = [{"path": path, "trackcount": count} for path, count in zip(paths, res, strict=False)]
@@ -195,13 +195,6 @@ def get_index_of_first_match(paths: list[str], prefix: str) -> int:
             right = mid - 1
 
     return -1
-
-
-def _folder_prefix(path: str) -> str:
-    try:
-        return dir_prefix(path)
-    except (OSError, RuntimeError, ValueError):
-        return pathlib.Path(path).as_posix().rstrip("/") + "/"
 
 
 def count_filepaths_in_dir(_map: tuple[str, SortedSet]):
