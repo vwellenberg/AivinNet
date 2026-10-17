@@ -170,7 +170,7 @@ onMounted(load)
 
     .error {
         margin: 0;
-        color: $red;
+        color: $candy-text;
     }
 
     .state-box {

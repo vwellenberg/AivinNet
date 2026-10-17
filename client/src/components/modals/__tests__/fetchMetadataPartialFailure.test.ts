@@ -21,7 +21,8 @@ const { requests, fetchTracksAndArtists } = vi.hoisted(() => ({
 vi.mock('@/requests/metadata', () => requests)
 vi.mock('@/stores/pages/album', () => ({ default: () => ({ fetchTracksAndArtists }) }))
 vi.mock('@/stores/queue/tracklist', () => ({ default: () => ({ followFileChanges: vi.fn() }) }))
-vi.mock('@/stores/notification', () => ({ Notification: vi.fn(), NotifType: {} }))
+const { Notification } = vi.hoisted(() => ({ Notification: vi.fn() }))
+vi.mock('@/stores/notification', () => ({ Notification, NotifType: {} }))
 
 import FetchMetadata from '@/components/modals/FetchMetadata.vue'
 
@@ -93,6 +94,8 @@ describe('a write that partly fails', () => {
         expect(box.text()).toContain('Permission denied')
         // The name, not the whole path: the folder is the album's own.
         expect(box.text()).not.toContain('/music/')
+        // The dialog says it; a toast on top would only cover its buttons.
+        expect(Notification).not.toHaveBeenCalled()
         // The page refreshes regardless — one file did change.
         expect(fetchTracksAndArtists).toHaveBeenCalledWith('a')
     })
@@ -159,18 +162,17 @@ describe('a write that partly fails', () => {
             error: null,
         })
 
-        expect(w.find('.failures-lead').text()).toContain('Nothing was written.')
-        expect(w.find('.failures-lead').text()).not.toContain('Everything else')
+        expect(w.find('.failures-lead').text()).toBe('2 change(s) could not be made. Nothing was written.')
         expect(writableRows(w)).toHaveLength(2)
     })
 
-    it('says the rest was written when only some failed', async () => {
+    it('says how much was written when only some failed', async () => {
         const w = await openAndWrite({
             result: { applied: [{ filepath: NIGHT, new_trackhash: 'c1' }], failed: [{ filepath: GAME_WON, error: 'read-only' }] },
             error: null,
         })
 
-        expect(w.find('.failures-lead').text()).toContain('Everything else was written.')
+        expect(w.find('.failures-lead').text()).toBe('1 change(s) could not be made. 1 file(s) were written.')
     })
 
     it('keeps the rows of an earlier write done when a retry fails again', async () => {
@@ -195,6 +197,20 @@ describe('a write that partly fails', () => {
         expect(w.find('.failures').text()).toContain('still read-only')
     })
 
+    it('keeps the lyrics note the toast used to carry', async () => {
+        const w = await openAndWrite({
+            result: {
+                applied: [{ filepath: NIGHT, new_filepath: '/music/Game OST/68 - Night Woods1.mp3', warning: 'taken' }],
+                failed: [{ filepath: GAME_WON, error: 'read-only' }],
+            },
+            error: null,
+        })
+
+        expect(w.find('.failures-lead').text()).toBe(
+            '1 change(s) could not be made. 1 file(s) were written — 1 lyrics file(s) kept the old name.'
+        )
+    })
+
     it('still closes when everything went through', async () => {
         const w = await openAndWrite({
             result: { applied: [{ filepath: NIGHT, new_trackhash: 'c1' }, { filepath: GAME_WON, new_trackhash: 'c2' }], failed: [] },
@@ -203,6 +219,7 @@ describe('a write that partly fails', () => {
 
         expect(w.emitted('hideModal')).toHaveLength(1)
         expect(w.find('.failures').exists()).toBe(false)
+        expect(Notification).toHaveBeenCalledTimes(1)
     })
 
     // The other half of the poll fix (#305): a write that was lost or ran out

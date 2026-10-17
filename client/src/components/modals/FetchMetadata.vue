@@ -71,10 +71,7 @@
                  open on it: a count in a toast says THAT files failed, never
                  which ones or why. -->
             <div v-if="failures.length" class="failures rounded-sm" role="alert">
-                <p class="failures-lead">
-                    {{ failures.length }} change(s) could not be made.
-                    {{ wroteSome ? 'Everything else was written.' : 'Nothing was written.' }}
-                </p>
+                <p class="failures-lead">{{ failuresLead }}</p>
                 <ul>
                     <li v-for="(failure, index) in failures" :key="index">
                         <span v-if="failure.filepath" class="file ellip">{{ fileName(failure.filepath) }}</span>
@@ -237,8 +234,14 @@ const renameFiles = ref(true)
 
 /** What the last write reported as failed. Shown until the next preview. */
 const failures = ref<ApplyResult['failed']>([])
-/** Whether that write changed anything at all — "everything else" can be nothing. */
-const wroteSome = ref(false)
+/** What that same write did get done, for the line above its failures. */
+const lastWrite = ref({ written: 0, lyricsNote: '' })
+const failuresLead = computed(() => {
+    const { written, lyricsNote } = lastWrite.value
+    // "Everything else" can be nothing: say how much, not that the rest went through.
+    const rest = written ? `${written} file(s) were written` : 'Nothing was written'
+    return `${failures.value.length} change(s) could not be made. ${rest}${lyricsNote}.`
+})
 /**
  * Files the last write finished. Their rows describe each file as it WAS — a
  * renamed one is not even at that path any more — so they are done, not
@@ -331,7 +334,7 @@ function intoPreview(result: { rows: PreviewRow[]; summary?: PreviewSummary; err
     rows.value = result.rows
     summary.value = result.summary ?? null
     failures.value = []
-    wroteSome.value = false
+    lastWrite.value = { written: 0, lyricsNote: '' }
     written.value = new Set()
     cameFrom.value = source
     emit('setTitle', titleFor(source))
@@ -427,12 +430,9 @@ async function apply() {
     // a second notification would replace the first.
     const stayed = result.applied.filter(entry => entry.warning).length
     const lyricsNote = stayed ? ` — ${stayed} lyrics file(s) kept the old name` : ''
-    if (result.failed.length) {
-        new Notification(
-            `${result.applied.length} ${verb}, ${result.failed.length} failed${lyricsNote}`,
-            NotifType.Error
-        )
-    } else {
+    // A partly failed write keeps the dialog open and says it there (below),
+    // so it gets no toast: it would only cover the dialog's own buttons.
+    if (!result.failed.length) {
         new Notification(
             `${result.applied.length} track(s) ${verb}${lyricsNote}`,
             stayed ? NotifType.Info : NotifType.Success
@@ -467,7 +467,7 @@ async function apply() {
             ...result.applied.map(entry => entry.filepath).filter(filepath => !failedPaths.has(filepath)),
         ])
         failures.value = result.failed
-        wroteSome.value = result.applied.length > 0
+        lastWrite.value = { written: result.applied.length, lyricsNote }
         rows.value.forEach((row, index) => {
             if (isWritten(row)) checked.value[index] = false
         })
@@ -510,7 +510,7 @@ async function apply() {
 
     .error {
         margin: 0;
-        color: $red;
+        color: $candy-text;
         font-weight: 600;
     }
 
@@ -526,7 +526,7 @@ async function apply() {
 
         .failures-lead {
             margin: 0;
-            color: $red;
+            color: $candy-text;
             font-weight: 600;
         }
 
@@ -677,7 +677,7 @@ async function apply() {
 
                 &.conflict,
                 &.no-name {
-                    color: $red;
+                    color: $candy-text;
                     font-weight: 600;
                 }
             }
@@ -687,7 +687,7 @@ async function apply() {
                 font-variant-numeric: tabular-nums;
 
                 &.off {
-                    color: $red;
+                    color: $candy-text;
                     font-weight: 700;
                 }
             }
