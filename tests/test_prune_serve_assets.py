@@ -19,7 +19,12 @@ import pytest
 
 SCRIPT = Path(__file__).parent.parent / "client" / "scripts" / "prune-serve-assets.sh"
 
-pytestmark = pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash (the CI lane has it)")
+# The path the check found, not the bare name: on Windows, CreateProcess looks
+# in System32 before PATH, and `bash` there is the WSL launcher (on the CI
+# runner, with no distribution installed).
+BASH = shutil.which("bash")
+
+pytestmark = pytest.mark.skipif(BASH is None, reason="needs bash (the CI lane has it)")
 
 
 def age(path: Path, minutes: int):
@@ -39,7 +44,7 @@ def dirs(tmp_path):
 
 def prune(serve: Path, dist: Path, grace: int = 1440):
     result = subprocess.run(
-        ["bash", str(SCRIPT), str(serve), str(dist), str(grace)],
+        [BASH, str(SCRIPT), str(serve), str(dist), str(grace)],
         capture_output=True,
         text=True,
     )

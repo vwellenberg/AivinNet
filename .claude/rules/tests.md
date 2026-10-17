@@ -21,7 +21,9 @@ läuft die schnelle Lane über `uvx` statt über eine volle Installation.
 
 **Beide Lanes laufen auf Windows grün** — die API-Lane mit waitress statt bjoern (`pyproject.toml`),
 also ohne libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (2026-10-17: 808 grün,
-11 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1186 grün, 31 übersprungen).
+11 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1188 grün, 31 übersprungen).
+Auf dem GitHub-Runner dauern die Windows-Jobs etwa 1 bzw. 1,5 Minuten, kaum länger als die
+Linux-Jobs.
 **Ein roter Test auf Windows ist deshalb ein Befund**, keine Plattformfolge: Plattformgrenzen
 sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Bericht —
 
@@ -45,6 +47,14 @@ Scanner: `entry.as_posix()`). Daraus:
   bei `C:/music/Rock`. Wo der getestete Code resolved, die Basis aus
   `Path("/music").resolve().as_posix()` bauen.
 - `expanduser` liest unter Windows `USERPROFILE`, nicht `HOME` — im Test beide setzen.
+
+⚠️ **Shell-Skripte im Test über `BASH = shutil.which("bash")` starten, nie über den nackten
+Namen `"bash"`.** `shutil.which` sucht im `PATH` (Git Bash), `subprocess` unter Windows dagegen
+per CreateProcess **zuerst in System32**, und `bash.exe` dort ist der WSL-Starter. Die Prüfung
+fand also ein anderes Programm als der Aufruf. Lokal ist das unsichtbar, solange WSL aus dem Store
+kommt (kein System32-Stub). Auf dem GitHub-Runner liegt der Stub, aber ohne Distribution: sechs
+Tests in `test_prune_serve_assets.py` waren rot mit „Windows Subsystem for Linux has no installed
+distributions“ (#508).
 
 Wer bjoern oder die übersprungenen POSIX-Fälle selbst prüfen will, nimmt den Server und dessen venv:
 

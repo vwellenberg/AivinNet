@@ -24,8 +24,11 @@ import pytest
 
 ENTRYPOINT = Path(__file__).resolve().parents[1] / "appimage" / "entrypoint.sh"
 
+# The path the check found, not the bare name (see test_prune_serve_assets.py).
+BASH = shutil.which("bash")
+
 pytestmark = pytest.mark.skipif(
-    not Path("/proc/self/comm").exists() or shutil.which("bash") is None or shutil.which("sleep") is None,
+    not Path("/proc/self/comm").exists() or BASH is None or shutil.which("sleep") is None,
     reason="needs bash and /proc (Linux)",
 )
 
@@ -65,7 +68,7 @@ def _start(appdir: Path, *args: str) -> subprocess.Popen:
     # Its own process group, so cleanup also reaches an orphaned child: that
     # orphan is exactly what this file is about.
     return subprocess.Popen(
-        ["bash", str(ENTRYPOINT), *args], env={**os.environ, "APPDIR": str(appdir)}, start_new_session=True
+        [BASH, str(ENTRYPOINT), *args], env={**os.environ, "APPDIR": str(appdir)}, start_new_session=True
     )
 
 
