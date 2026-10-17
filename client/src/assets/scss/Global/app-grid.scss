@@ -49,6 +49,12 @@ $app-grid-gap: 8px;
             // Down to the content card: the row gap below the nav row is part
             // of the strip, or an 8px seam of bare ground showed under it.
             bottom: calc(-1 * #{$app-grid-gap});
+            // Whole tiles, stretched a hair to fit: the first and the last row
+            // then sit the same distance from their edge, so above and below
+            // the pill shows the same single row (user, 2026-10-17: one row on
+            // top, two below). With the plain repeat the rows start at the top
+            // and land wherever the pill's height leaves them at the bottom.
+            background-repeat: round;
         }
     }
 
@@ -93,7 +99,9 @@ $app-grid-gap: 8px;
         gap: $smaller;
         height: unset;
         padding: 6px 8px;
-        margin: $medium 1rem;
+        // The row gap below is part of the dotted strip (see #app-grid), so the
+        // bottom margin gives it back: $medium of dots above the pill and below.
+        margin: $medium 1rem calc(#{$medium} - #{$app-grid-gap});
         border-radius: $candy-radius-pill;
         background-color: $candy-white;
         border: $candy-border;

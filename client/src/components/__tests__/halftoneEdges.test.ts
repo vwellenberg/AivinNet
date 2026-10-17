@@ -65,6 +65,16 @@ describe('halftone at the ends', () => {
         expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
     })
 
+    it('on phones the strip is symmetric: one row above the pill, one below', () => {
+        const grid = read('src/assets/scss/Global/app-grid.scss')
+        // Whole tiles, so the first and the last row sit the same distance
+        // from their edge, whatever the pill's height.
+        expect(grid).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;(?:[^{}]|#\{[^}]*\})*background-repeat: round;/)
+        // The strip reaches across the row gap, so the pill's bottom margin
+        // gives the gap back: the same $medium of dots on both sides.
+        expect(grid).toMatch(/\.topnav \{[\s\S]*?@include allPhones \{[^}]*margin: \$medium 1rem calc\(#\{\$medium\} - #\{\$app-grid-gap\}\);/)
+    })
+
     it('the continue card has one dot layer for every width, no mask of its own', () => {
         const src = read('src/components/HomeView/ContinueCard.vue')
         expect(src.match(/@include mem-halftone\(/g)?.length).toBe(1)
