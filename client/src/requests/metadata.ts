@@ -99,7 +99,7 @@ interface Job<T> {
 // server was still rewriting the library, and the natural retry hit the
 // server's "an apply is already running" guard and read as a second failure.
 const LOOKUP_TIMEOUT_MS = 30_000
-const WRITE_TIMEOUT_MS = 15 * 60_000
+export const WRITE_TIMEOUT_MS = 15 * 60_000
 const POLL_INTERVAL_MS = 400
 /**
  * Polls in a row that may fail before the job counts as lost. One failed poll

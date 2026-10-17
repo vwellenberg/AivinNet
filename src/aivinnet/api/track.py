@@ -8,10 +8,12 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
-from aivinnet.lib import library_lock
-from aivinnet.lib.track_edit import AmbiguousTrackError, TrackEditError, TrackNotFoundError, edit_track_tags
+from aivinnet.lib import library_lock, mbjobs
+from aivinnet.lib.track_edit import AmbiguousTrackError, TrackNotFoundError, edit_track_tags_by_filepath, resolve_track
 from aivinnet.lib.track_rename import name_after_tags, rename_files
 from aivinnet.serializers.track import serialize_track
+from aivinnet.utils.auth import get_current_userid
+from aivinnet.utils.shutdown import WRITERS
 
 # NOTE: blueprint name must be unique — stream.py already registers one named "track".
 tag = Tag(name="Track", description="Edit track metadata")
@@ -80,6 +82,14 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     With `rename_file`, the file is then named after the new tags; how that went
     is in `rename` (a rename that could not happen does not undo the tags).
 
+    ⚠️ The write runs as a JOB (#376): it backs the whole audio file up first,
+    and in the request that copy held every listener (the server answers one
+    request at a time) — seconds for a large WAV on a slow disk. What can be
+    answered from RAM is answered here: no fields (400), a busy library (409
+    `busy`), an unknown hash (404), several files and no path (409
+    `filepaths`). Otherwise the answer is `{"job": id}`; poll
+    `/metadata/job/<id>` for `{"track", "rename"?}` or the error.
+
     Admin only — this rewrites files on disk and migrates references for all users.
     """
     fields = body.model_dump(exclude_none=True, exclude={"rename_file", "filepath"})
@@ -87,24 +97,43 @@ def edit_tags(path: TrackHashPath, body: EditTagsBody):
     if not fields:
         return {"error": "No fields to update"}, 400
 
-    # Never waits: a request that sat out a rescan would stop every listener.
+    # Refused at once while a rescan runs, as before; the job itself then waits
+    # for one that starts in between instead of failing.
     try:
         with library_lock.try_hold():
-            try:
-                track = edit_track_tags(path.trackhash, fields, body.filepath)
-            except AmbiguousTrackError as e:
-                return {"error": str(e), "filepaths": e.filepaths}, 409
-            except TrackNotFoundError:
-                return {"error": "Track not found"}, 404
-            except TrackEditError as e:
-                return {"error": str(e)}, 400
-
-            result: dict = {}
-            if body.rename_file:
-                # Before serialising: a successful rename moves `track.filepath`.
-                result["rename"] = _rename_after_edit(track)
+            pass
     except library_lock.LibraryBusy as e:
         return {"error": str(e), "busy": True}, 409
 
-    result["track"] = serialize_track(track)
+    try:
+        target = resolve_track(path.trackhash, body.filepath)
+    except AmbiguousTrackError as e:
+        return {"error": str(e), "filepaths": e.filepaths}, 409
+    except TrackNotFoundError:
+        return {"error": "Track not found"}, 404
+
+    filepath, rename = target.filepath, body.rename_file
+    # The favourite flag is per user, and the job has no current user.
+    userid = get_current_userid()
+    job_id = mbjobs.create()
+    mbjobs.spawn(job_id, lambda: _run_edit(filepath, fields, rename, userid), writes=True)
+    return {"job": job_id}
+
+
+def _run_edit(filepath: str, fields: dict, rename: bool, userid: int) -> dict:
+    """
+    The worker. An error (`TrackEditError` …) ends the job with its message.
+
+    By PATH, resolved in the request: edits queue behind the library lock, and
+    an earlier one may have re-hashed this file by now — the old hash would no
+    longer find it (two quick saves of the same track).
+    """
+    with library_lock.hold(), WRITERS.active():
+        track = edit_track_tags_by_filepath(filepath, fields)
+        result: dict = {}
+        if rename:
+            # Before serialising: a successful rename moves `track.filepath`.
+            result["rename"] = _rename_after_edit(track)
+
+    result["track"] = serialize_track(track, userid=userid)
     return result

@@ -160,6 +160,13 @@ Live 2026-10-02: ein Batch schickte 149 × `PUT /track/<hash>/tags` (eine pro Da
   in `track.filepath` immer die Datei, die tatsächlich geschrieben wurde.
 - Der Client-Editor und das MCP-Tool `set_track_tags` schicken den Pfad mit; `get_playlist`
   liefert ihn dafür. Batches über einen Ordner: **immer** mit `filepath`.
+- ⚠️ **Geschrieben wird in einem Job, nicht im Request (#376).** Der Edit kopiert die ganze
+  Audiodatei als `.bak`, bevor er schreibt — im Request hielt das bei einer großen WAV auf
+  langsamer Platte **jeden** Hörer an (ein Request zur Zeit). Was der RAM beantworten kann,
+  kommt sofort (400 keine Felder, 409 `busy`, 404, 409 `filepaths`, über `resolve_track`),
+  sonst `{"job": id}`; Ergebnis `{track, rename?}` über `/metadata/job/<id>`. Der Job hat
+  keinen „aktuellen User“: `serialize_track(…, userid=…)` mit der ID aus dem Request, sonst
+  meldet `is_favorite` den Favoriten von User 1. Client (`editTrackTags`) und MCP pollen.
 - Dieselbe Falle im Browser: die Queue zog einen Einzeledit per Hash nach und gab so dem
   unberührten Zwilling Pfad und Tags der editierten Datei. `retagTrack` gleicht deshalb per
   **altem Pfad** ab, wie schon `followFileChanges`.

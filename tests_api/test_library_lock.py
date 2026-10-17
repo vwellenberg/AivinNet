@@ -54,7 +54,9 @@ def test_a_tag_edit_during_a_scan_is_refused_without_writing(held, api_client, m
     import aivinnet.api.track as track_api
 
     monkeypatch.setattr("aivinnet.api.auth.current_user", {"roles": ["admin"]})
-    monkeypatch.setattr(track_api, "edit_track_tags", lambda *a, **k: pytest.fail("wrote while the library was busy"))
+    monkeypatch.setattr(
+        track_api, "edit_track_tags_by_filepath", lambda *a, **k: pytest.fail("wrote while the library was busy")
+    )
 
     res = api_client("aivinnet.api.track").put(f"/track/{HASH}/tags", json={"title": "New"})
 

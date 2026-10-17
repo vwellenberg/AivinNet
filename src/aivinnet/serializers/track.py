@@ -3,13 +3,18 @@ from dataclasses import asdict
 from aivinnet.models.track import Track
 
 
-def serialize_track(track: Track, to_remove: set | None = None, remove_disc: bool = True) -> dict:
+def serialize_track(
+    track: Track, to_remove: set | None = None, remove_disc: bool = True, userid: int | None = None
+) -> dict:
     """
     Convert `Track` to dict
 
     :params track: Track to convert
     :params to_remove: custom tags which should also be removed from Track.
     :params remove_disc:
+    :params userid: whose favourite flag to report. Only needed off the request
+        thread (a job): there is no current user there, and the lookup falls
+        back to user 1.
     """
     if to_remove is None:
         to_remove = set()
@@ -53,7 +58,7 @@ def serialize_track(track: Track, to_remove: set | None = None, remove_disc: boo
             artist.pop("image", None)
 
     # is_favorite @property is not included in `asdict`
-    album_dict["is_favorite"] = track.is_favorite
+    album_dict["is_favorite"] = track.is_favorite if userid is None else userid in track.fav_userids
 
     return album_dict
 
