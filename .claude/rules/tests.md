@@ -11,7 +11,10 @@ Zwei Lanes, bewusst getrennt:
 | Lane | Verzeichnis | Wie sie läuft |
 |---|---|---|
 | **Unit (schnell)** | `tests/` | `uvx` mit minimalen Deps — schwere Abhängigkeiten (Flask, SQLAlchemy, Pillow) werden gemockt |
-| **API (voller Stack)** | `tests_api/` | eigener CI-Job, `uv sync` + libev, echter `flask_openapi3`-Request-Zyklus |
+| **API (voller Stack)** | `tests_api/` | eigener CI-Job, `uv sync` (+ libev auf Linux), echter `flask_openapi3`-Request-Zyklus |
+
+Beide laufen in der CI auf Linux **und** Windows (Matrix in `ci.yml`, seit #508), mit demselben
+Befehl.
 
 `bjoern` braucht `libev-dev` + `python3-dev` zum Bauen und fehlt in vielen Umgebungen — deshalb
 läuft die schnelle Lane über `uvx` statt über eine volle Installation.
@@ -27,10 +30,11 @@ sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Beri
   `os.chmod` setzt unter Windows nur Read-only; `restrict_to_owner` ist dort bewusst best-effort.
 - `time.tzset`, bjoern und POSIX-Signale.
 
-Die CI läuft nur auf Linux und sieht Windows-Bugs nicht. Der erste vollständige Windows-Lauf fand
-einen: „Play“ auf einer Ordnerkarte (`/folder/tracks/all`) spielte dort **nichts**, weil der
+Bis #508 lief die CI nur auf Linux und sah Windows-Bugs nicht. Der erste vollständige Windows-Lauf
+fand einen: „Play“ auf einer Ordnerkarte (`/folder/tracks/all`) spielte dort **nichts**, weil der
 Endpoint `str(resolved)` (`C:\Music\Album`) mit den gespeicherten `C:/Music/Album/…` verglich. Die
-Tests dazu waren grün — ihre Fixture machte denselben Fehler.
+Tests dazu waren grün — ihre Fixture machte denselben Fehler. Seitdem laufen beide Lanes auch auf
+`windows-latest` (`Unit Tests (Windows)`, `API Tests (Windows)`).
 
 ⚠️ **Gespeicherte Pfade sind POSIX, auf jeder Plattform** (`taglib`: `filepath.as_posix()`,
 Scanner: `entry.as_posix()`). Daraus:
