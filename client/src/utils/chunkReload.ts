@@ -56,7 +56,7 @@ function writeGuard(at: number) {
         sessionStorage.setItem(GUARD_KEY, String(at))
     } catch {
         // No storage (blocked site data, a sandboxed frame): the history entry
-        // carries the guard on its own — see reload().
+        // carries the guard on its own — see reloadIfServerAnswers().
     }
 }
 

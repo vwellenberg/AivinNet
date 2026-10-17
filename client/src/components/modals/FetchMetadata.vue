@@ -456,9 +456,12 @@ async function apply() {
     // writing again is one click.
     if (result.failed.length) {
         const failedPaths = new Set(result.failed.map(failure => failure.filepath))
-        written.value = new Set(
-            result.applied.map(entry => entry.filepath).filter(filepath => !failedPaths.has(filepath))
-        )
+        // Added to, not replaced: a retry sends only what failed, and the rows
+        // an earlier write finished must stay finished.
+        written.value = new Set([
+            ...written.value,
+            ...result.applied.map(entry => entry.filepath).filter(filepath => !failedPaths.has(filepath)),
+        ])
         failures.value = result.failed
         rows.value.forEach((row, index) => {
             if (isWritten(row)) checked.value[index] = false
