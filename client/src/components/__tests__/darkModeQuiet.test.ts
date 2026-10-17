@@ -69,4 +69,14 @@ describe('dark mode: darker and quieter', () => {
         expect(toggle).toMatch(/@media \(hover: hover\) \{\s*&:hover \{\s*background-color: var\(--mem-hover\);/)
         expect(toggle).not.toMatch(/^ {4}&:hover/m)
     })
+
+    it('the frames grey out, the keyboard focus ring does not', () => {
+        expect(block('body.theme-dark')).toMatch(/--mem-focus: #\{\$mem-dark-line\};/)
+        const files = ['src/assets/scss/Global/_buttons.scss', 'src/components/Contextmenu/ContextItem.vue', 'src/components/modals/settings/Profile.vue', 'src/components/shared/Input.vue']
+        for (const f of files) {
+            const src = read(f)
+            expect(src, f).toMatch(/outline: (\$focus-ring-w solid|solid \$focus-ring-w) \$mem-focus;/)
+            expect(src, f).not.toMatch(/outline: [^;]*\$focus-ring-w[^;]*\$mem-line;/)
+        }
+    })
 })

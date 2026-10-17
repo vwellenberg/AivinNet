@@ -269,7 +269,7 @@ describe('colour schemes: the stylesheet and the doodles', () => {
 // The frames in the dark theme were full paper, the brightest line on the
 // screen; they step back to a grey (user, 2026-10-17). A frame is what tells a
 // plate from the ground, so the grey still has to pass 3:1 against every
-// scheme's dark ground (WCAG 1.4.11) — and the focus ring is the same line.
+// scheme's dark ground (WCAG 1.4.11). The focus ring keeps paper ($mem-focus).
 describe('dark mode: the frames step back, and stay visible', () => {
     const share = parseFloat(CANDY.match(/\$mem-dark-line-share:\s*([\d.]+)%/)?.[1] ?? 'NaN') / 100
 

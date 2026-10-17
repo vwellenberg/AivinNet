@@ -1908,8 +1908,10 @@ die trägt nur bis zur 4,5:1-Grenze. Gemessen am schwächsten Feld (Suche, Coral
 Eindruck kommt deshalb vor allem vom **Weiß, das wegging**:
 
 - **Rahmen grau statt Paper:** `--mem-line` ist Paper zu `$mem-dark-line-share` (42 %) über dem
-  Grund des Schemas, ≥ 3:1 gegen ihn (1.4.11, getestet für jedes Schema — der Fokus-Ring ist
-  dieselbe Linie). Die Kontrastfläche `--mem-hover` bleibt volles Paper: sie ist ein Zustand.
+  Grund des Schemas, ≥ 3:1 gegen ihn (1.4.11, getestet für jedes Schema). Volles Paper behalten
+  die Kontrastfläche `--mem-hover` (ein Zustand) und der **Tastatur-Fokusring**: Der las bis
+  dahin `$mem-line` und wäre mit grau geworden — er nimmt jetzt `$mem-focus`
+  (`var(--mem-focus, $mem-line)`), das nur der Dunkelmodus auf Paper setzt.
 - **Schatten leise:** `--mem-shadow` 0,14 statt 0,42.
 - **Was AUF der Continue-Karte sitzt** (Up-next-Zeilen, Fortschrittsspur) war statisches Weiß in
   beiden Themes. Es liest `--card-inlay-fill`/`-text` und wird im Memphis-Dunkel Grund + Paper;

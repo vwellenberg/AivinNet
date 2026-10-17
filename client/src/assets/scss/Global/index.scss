@@ -114,6 +114,8 @@ body.theme-dark {
     // ≥ 3:1 against it (WCAG 1.4.11, paletteSchemes.test.ts). The contrast
     // surface below keeps full paper: it is a state, not a line.
     --mem-line: #{color-mix(in srgb, $mem-dark-line $mem-dark-line-share, var(--mem-ground))};
+    // …but not the keyboard focus ring: it keeps full paper ($mem-focus).
+    --mem-focus: #{$mem-dark-line};
     --mem-text: #{$mem-dark-text};
     --mem-text-muted: #{$mem-dark-text-muted};
     // The contrast surface flips with the theme: paper on the near-black

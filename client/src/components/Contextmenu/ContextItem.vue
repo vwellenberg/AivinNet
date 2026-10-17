@@ -358,7 +358,7 @@ function runChildAction(action: () => void) {
         // navy menu highlight of its era.
         background: var(--look-menu-hover, #{$candy-pink-soft});
         color: var(--look-menu-hover-text, inherit);
-        outline: $focus-ring-w solid $mem-line;
+        outline: $focus-ring-w solid $mem-focus;
         outline-offset: -$focus-ring-w;
     }
 

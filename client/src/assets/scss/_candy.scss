@@ -160,6 +160,9 @@ $mem-content-faint: var(--mem-content-faint);
 $mem-panel: var(--mem-panel);
 $mem-soft: var(--mem-soft);
 $mem-line: var(--mem-line);
+// The keyboard focus ring: the line, except where the line steps back (Memphis
+// dark greys its frames; the ring a keyboard user follows keeps full paper).
+$mem-focus: var(--mem-focus, #{$mem-line});
 $mem-text: var(--mem-text);
 $mem-text-muted: var(--mem-text-muted);
 $mem-hover: var(--mem-hover); // hover fill (blush / calm dark tint)
