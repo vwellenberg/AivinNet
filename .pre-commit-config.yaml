@@ -11,8 +11,10 @@ repos:
         files: ^(src|tests)/
       - id: ruff-format
         files: ^(src|tests)/
+  # The mypy version and the checked modules, likewise one source for CI and
+  # the docs (`uvx … mypy@<version>`; tests/test_mypy_version_pinned.py).
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v2.4.0
     hooks:
       - id: mypy
         pass_filenames: false

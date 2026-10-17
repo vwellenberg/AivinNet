@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py --config-file pyproject.toml
 ```
 
 **Die API-Tests (`tests_api/`) laufen auch auf Windows:** `uv run --frozen pytest tests_api/`
@@ -157,7 +157,10 @@ git fetch --prune && git branch -D <branch>
   genau diese Version auf (`ruff@…`). Vorher lief Pre-commit mit 0.11.4 und CI mit dem jeweils neuesten Release —
   zwei Formatter, die sich widersprechen können. Bump = alle Stellen auf einmal;
   `tests/test_ruff_version_pinned.py` nennt die vergessenen.
-- **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`) und in `.pre-commit-config.yaml`, beide gleich halten. Neue Module bei Bearbeitung dort aufnehmen.
+- **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`), in `.pre-commit-config.yaml`
+  und im Befehl oben, alle gleich halten. Neue Module bei Bearbeitung dort aufnehmen. **Version wie bei Ruff:** maßgeblich ist
+  `rev:` von `mirrors-mypy`, alle uvx-Aufrufe tragen `mypy@…` (vorher Pre-commit 1.15.0, CI das jeweils neueste Release).
+  `tests/test_mypy_version_pinned.py` nennt abweichende Versionen und Modullisten.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module). Ruff dort nur auf
   `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
   in Markdown-Doku um.

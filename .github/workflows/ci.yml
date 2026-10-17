@@ -34,7 +34,7 @@ jobs:
 
       - name: Mypy type check (strict modules)
         run: >-
-          uvx --with xxhash --with unidecode --with pendulum mypy
+          uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0
           src/aivinnet/utils/hashing.py
           src/aivinnet/utils/dates.py
           src/aivinnet/utils/parsers.py
