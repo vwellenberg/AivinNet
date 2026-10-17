@@ -205,8 +205,8 @@ See [CLAUDE.md](CLAUDE.md) for the working agreements (branch workflow, test
 lanes, known gotchas).
 
 ```sh
-uv sync                       # dependencies
-uvx ruff check src/ tests/    # lint
+uv sync                            # dependencies
+uvx ruff@0.17.1 check src/ tests/  # lint
 ```
 
 The web client lives in `client/` — Vue 3 and Vite, with its own `yarn` scripts:

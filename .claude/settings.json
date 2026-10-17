@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sed -n 's/.*\"file_path\":\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.py) \"$HOME/.local/bin/uvx.exe\" ruff check --fix --force-exclude \"$f\" >/dev/null 2>&1; \"$HOME/.local/bin/uvx.exe\" ruff format --force-exclude \"$f\" >/dev/null 2>&1 ;; esac; } 2>/dev/null || true",
+            "command": "sed -n 's/.*\"file_path\":\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.py) \"$HOME/.local/bin/uvx.exe\" ruff@0.17.1 check --fix --force-exclude \"$f\" >/dev/null 2>&1; \"$HOME/.local/bin/uvx.exe\" ruff@0.17.1 format --force-exclude \"$f\" >/dev/null 2>&1 ;; esac; } 2>/dev/null || true",
             "statusMessage": "ruff",
             "timeout": 30
           }
