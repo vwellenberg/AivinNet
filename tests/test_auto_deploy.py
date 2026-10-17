@@ -25,8 +25,11 @@ import pytest
 SCRIPT = Path(__file__).parent.parent / "scripts" / "auto-deploy.sh"
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "deploy.yml"
 
+# The path the check found, not the bare name (see test_prune_serve_assets.py).
+BASH = shutil.which("bash")
+
 pytestmark = pytest.mark.skipif(
-    shutil.which("bash") is None or shutil.which("git") is None or shutil.which("flock") is None,
+    BASH is None or shutil.which("git") is None or shutil.which("flock") is None,
     reason="needs bash, git and flock (the CI lane has them)",
 )
 
@@ -97,7 +100,7 @@ class Box:
             "VERIFY": "0",
         }
         return subprocess.run(
-            ["bash", str(SCRIPT)],
+            [BASH, str(SCRIPT)],
             env={**os.environ, **GIT_ENV, **stubs, **env},
             capture_output=True,
             text=True,
@@ -130,7 +133,7 @@ def served(tmp_path):
 
 def plan(box: Box, from_sha: str, to_sha: str) -> list[str]:
     result = subprocess.run(
-        ["bash", str(SCRIPT), "--plan", from_sha, to_sha],
+        [BASH, str(SCRIPT), "--plan", from_sha, to_sha],
         env={**os.environ, **GIT_ENV, "REPO": str(box.dev)},
         capture_output=True,
         text=True,
@@ -434,7 +437,7 @@ def test_the_client_deploy_is_told_which_folder_is_the_client(box):
     box.signal(box.commit("client/scripts/deploy-client.sh", record + "\n"), "real default")
     # No CLIENT_DEPLOY in the environment: the script's own default runs.
     result = subprocess.run(
-        ["bash", str(SCRIPT)],
+        [BASH, str(SCRIPT)],
         env={
             **{k: v for k, v in os.environ.items() if k != "CLIENT_DEPLOY"},
             **GIT_ENV,

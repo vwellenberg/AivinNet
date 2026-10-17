@@ -74,7 +74,8 @@ uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils
 
 **Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`
 (waitress statt bjoern, kein libev nötig). Plattformgrenzen sind übersprungen — ein roter Test
-ist dort ein Befund, den die Linux-CI nicht sieht. Welche übersprungen sind, die Pfad-Falle
+ist dort ein Befund, und seit #508 sieht ihn auch die CI (`Unit Tests (Windows)`, `API Tests
+(Windows)`). Welche übersprungen sind, die Pfad-Falle
 (gespeichert wird POSIX, `str(path)` ist auf Windows keins), die Server-Variante und die Test-Konventionen
 (was in welchen PR gehört, die `sys.modules`-Mock-Falle) stehen in `.claude/rules/tests.md` — lädt
 automatisch, sobald eine Testdatei gelesen wird.
@@ -91,7 +92,7 @@ Pro Aufgabe/Issue:
 - **Self-Review — VOR dem PR, nicht danach.** `/code-review` auf den Arbeits-Diff laufen lassen, Findings fixen, erneut prüfen — erst dann den PR öffnen. Die Reihenfolge ist der Punkt: Steht der Schritt hinter „PR öffnen", entfällt er in der Praxis (sobald der PR offen ist und die CI grün läuft, sieht das Paket fertig aus — so sind im Client 5 PRs ohne Review durchgerutscht). **Grüne CI ist kein Review.** Fallback ohne `/code-review`: den eigenen Diff `git diff origin/master...HEAD` vollständig lesen und im PR-Text vermerken, dass das Tool-Review nicht lief.
 - **PR** öffnen — **nicht als Draft** (Wunsch des Users, 2026-09-28). Manche Umgebungen legen PRs standardmäßig als Draft an; diese Zeile hat Vorrang. Ein Draft wartet nur auf ein „ready", das niemand setzt.
 - **Autonom (squash) mergen, sobald Review sauber:** `gh pr merge --repo vwellenberg/AivinNet --squash --delete-branch --auto` — `--auto` merged automatisch, sobald die Required Checks grün sind (kein manuelles Warten). Kein Review-Zwang.
-- **CI gatet jetzt:** Branch Protection auf `master` erzwingt **alle acht** Jobs aus `ci.yml` (`strict:false`, kein Review-Zwang, `enforce_admins:false`), seit 2026-09-19 auch `Docker Smoke Test`. Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen. ⚠️ **`--auto` wartet NUR auf Pflicht-Checks:** Ein neuer Job ist erst Gate, wenn er in der Branch Protection steht (#189 wurde gemergt, bevor der damals freiwillige Smoke-Test fertig war). Nachsehen: `gh api repos/vwellenberg/AivinNet/branches/master/protection/required_status_checks --jq .contexts`.
+- **CI gatet jetzt:** Branch Protection auf `master` erzwingt die **acht Linux-Checks** aus `ci.yml` (`strict:false`, kein Review-Zwang, `enforce_admins:false`), seit 2026-09-19 auch `Docker Smoke Test`. Die zwei Windows-Checks (#508) laufen mit, sind aber **kein** Gate. Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen. ⚠️ **`--auto` wartet NUR auf Pflicht-Checks:** Ein neuer Job ist erst Gate, wenn er in der Branch Protection steht (#189 wurde gemergt, bevor der damals freiwillige Smoke-Test fertig war). Nachsehen: `gh api repos/vwellenberg/AivinNet/branches/master/protection/required_status_checks --jq .contexts`.
 - Danach **deployt der Server selbst**, sobald auf ihm der Timer läuft (siehe „Deploy“ unten; sonst von Hand, Befehl: `MAINTAINER.local.md`) — **verifizieren** bleibt Pflicht. Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
 
@@ -167,7 +168,7 @@ git fetch --prune && git branch -D <branch>
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module). Ruff dort nur auf
   `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
   in Markdown-Doku um.
-- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs.
+- **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs. `Unit Tests` und `API Tests` sind eine Matrix und laufen mit demselben Befehl auch auf `windows-latest` (`… (Windows)`, waitress statt bjoern). ⚠️ Die Linux-Namen sind Pflicht-Checks: Ein Matrix-Job ohne festes `name` meldet sich als `Unit Tests (ubuntu-latest)`, und jeder PR wartet dann ewig auf einen Check, der nie kommt.
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen — und
   sonst **nichts**. ⚠️ Ein Pfad in `[tool.ruff] extend-exclude` fällt lautlos aus CI, Pre-commit und
   Hook (alle laufen mit `--force-exclude`): Bis 2026-10-17 stand dort ganz `src/aivinnet/lib`

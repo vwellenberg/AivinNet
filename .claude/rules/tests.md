@@ -11,7 +11,10 @@ Zwei Lanes, bewusst getrennt:
 | Lane | Verzeichnis | Wie sie läuft |
 |---|---|---|
 | **Unit (schnell)** | `tests/` | `uvx` mit minimalen Deps — schwere Abhängigkeiten (Flask, SQLAlchemy, Pillow) werden gemockt |
-| **API (voller Stack)** | `tests_api/` | eigener CI-Job, `uv sync` + libev, echter `flask_openapi3`-Request-Zyklus |
+| **API (voller Stack)** | `tests_api/` | eigener CI-Job, `uv sync` (+ libev auf Linux), echter `flask_openapi3`-Request-Zyklus |
+
+Beide laufen in der CI auf Linux **und** Windows (Matrix in `ci.yml`, seit #508), mit demselben
+Befehl.
 
 `bjoern` braucht `libev-dev` + `python3-dev` zum Bauen und fehlt in vielen Umgebungen — deshalb
 läuft die schnelle Lane über `uvx` statt über eine volle Installation.
@@ -19,6 +22,8 @@ läuft die schnelle Lane über `uvx` statt über eine volle Installation.
 **Beide Lanes laufen auf Windows grün** — die API-Lane mit waitress statt bjoern (`pyproject.toml`),
 also ohne libev: `uv run --frozen pytest -p no:cacheprovider tests_api/` (2026-10-17: 809 grün,
 12 übersprungen); die schnelle Lane mit dem Befehl aus `CLAUDE.md` (1191 grün, 31 übersprungen).
+Auf dem GitHub-Runner dauern die Windows-Jobs etwa 1 bzw. 1,5 Minuten, kaum länger als die
+Linux-Jobs.
 **Ein roter Test auf Windows ist deshalb ein Befund**, keine Plattformfolge: Plattformgrenzen
 sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Bericht —
 
@@ -27,10 +32,11 @@ sind als `skipif(os.name == "nt", reason=…)` markiert und stehen im `-rs`-Beri
   `os.chmod` setzt unter Windows nur Read-only; `restrict_to_owner` ist dort bewusst best-effort.
 - `time.tzset`, bjoern und POSIX-Signale.
 
-Die CI läuft nur auf Linux und sieht Windows-Bugs nicht. Der erste vollständige Windows-Lauf fand
-einen: „Play“ auf einer Ordnerkarte (`/folder/tracks/all`) spielte dort **nichts**, weil der
+Bis #508 lief die CI nur auf Linux und sah Windows-Bugs nicht. Der erste vollständige Windows-Lauf
+fand einen: „Play“ auf einer Ordnerkarte (`/folder/tracks/all`) spielte dort **nichts**, weil der
 Endpoint `str(resolved)` (`C:\Music\Album`) mit den gespeicherten `C:/Music/Album/…` verglich. Die
-Tests dazu waren grün — ihre Fixture machte denselben Fehler.
+Tests dazu waren grün — ihre Fixture machte denselben Fehler. Seitdem laufen beide Lanes auch auf
+`windows-latest` (`Unit Tests (Windows)`, `API Tests (Windows)`).
 
 ⚠️ **Gespeicherte Pfade sind POSIX, auf jeder Plattform** (`taglib`: `filepath.as_posix()`,
 Scanner: `entry.as_posix()`). Daraus:
@@ -45,6 +51,14 @@ Scanner: `entry.as_posix()`). Daraus:
   bei `C:/music/Rock`. Wo der getestete Code resolved, die Basis aus
   `Path("/music").resolve().as_posix()` bauen.
 - `expanduser` liest unter Windows `USERPROFILE`, nicht `HOME` — im Test beide setzen.
+
+⚠️ **Shell-Skripte im Test über `BASH = shutil.which("bash")` starten, nie über den nackten
+Namen `"bash"`.** `shutil.which` sucht im `PATH` (Git Bash), `subprocess` unter Windows dagegen
+per CreateProcess **zuerst in System32**, und `bash.exe` dort ist der WSL-Starter. Die Prüfung
+fand also ein anderes Programm als der Aufruf. Lokal ist das unsichtbar, solange WSL aus dem Store
+kommt (kein System32-Stub). Auf dem GitHub-Runner liegt der Stub, aber ohne Distribution: sechs
+Tests in `test_prune_serve_assets.py` waren rot mit „Windows Subsystem for Linux has no installed
+distributions“ (#508).
 
 Wer bjoern oder die übersprungenen POSIX-Fälle selbst prüfen will, nimmt den Server und dessen venv:
 
