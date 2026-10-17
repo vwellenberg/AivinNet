@@ -114,12 +114,12 @@ def favorite_migration_action(old_userid: int | None, new_userid: int | None) ->
     :param new_userid: Owner of an existing favorite on the NEW hash, or ``None``
         if the new identity is not favorited yet.
     :returns:
-        - ``"noop"``   – the old identity is not favorited; nothing to do.
-        - ``"rename"`` – no favorite on the new hash; repoint the old row to it.
-        - ``"drop"``   – the SAME user already favorited the new identity, so the
+        - ``"noop"``   — the old identity is not favorited; nothing to do.
+        - ``"rename"`` — no favorite on the new hash; repoint the old row to it.
+        - ``"drop"``   — the SAME user already favorited the new identity, so the
           old row is redundant and is removed (renaming would hit the unique
           constraint).
-        - ``"keep"``   – the two rows belong to DIFFERENT users. The caller below
+        - ``"keep"``   — the two rows belong to DIFFERENT users. The caller below
           never asks that question anymore (it groups by user first), but the
           branch stays: it is the answer that must never turn into a delete, and
           keeping it here means an unscoped caller cannot destroy another user's

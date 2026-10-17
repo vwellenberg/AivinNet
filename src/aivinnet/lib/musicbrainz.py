@@ -203,8 +203,9 @@ _DECORATION_RE = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
 # "CD3: The Red Shoes" returns zero results while "The Red Shoes" is right
 # there. Measured on this library: the Kate Bush disc that has a cover today is
 # the only one of five sampled control albums the gate could not re-find, and
-# this prefix was the whole reason.
-_DISC_PREFIX_RE = re.compile(r"^\s*(?:cd|disc|disk)\s*\d+\s*[:\-–—.]?\s*", re.IGNORECASE)
+# this prefix was the whole reason. The separator may also be an en dash
+# (U+2013) or an em dash (U+2014).
+_DISC_PREFIX_RE = re.compile(r"^\s*(?:cd|disc|disk)\s*\d+\s*[:\-\u2013\u2014.]?\s*", re.IGNORECASE)
 
 
 def simplify_title(title: str) -> str:
@@ -220,7 +221,7 @@ def simplify_title(title: str) -> str:
     cleaned = _DECORATION_RE.sub("", title)
     cleaned = _DISC_PREFIX_RE.sub("", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
-    return cleaned.strip(" -–—:·,")
+    return cleaned.strip(" -\u2013\u2014:·,")
 
 
 # INFO: Confidence gate. Before this, the search took the FIRST result and ran
@@ -271,9 +272,10 @@ _FEATURED_RE = re.compile(r"\s(?:(?:feat|feats|featuring|ft)\b\.?|w/).*$", re.IG
 # reduce those names to the empty string and reject every one of them.
 _NON_WORD_RE = re.compile(r"[\W_]+", re.UNICODE)
 
-# Straight and typographic apostrophes, plus the modifier letter Apple and
-# several stores use. See where it is applied for why it is not a separator.
-_APOSTROPHE_RE = re.compile(r"['‘’ʼ]")
+# Straight and typographic apostrophes (U+2018, U+2019), plus the modifier
+# letter (U+02BC) Apple and several stores use. See where it is applied for why
+# it is not a separator.
+_APOSTROPHE_RE = re.compile(r"['\u2018\u2019\u02bc]")
 
 
 def _normalise_artist(name: str) -> str:

@@ -1,13 +1,12 @@
 import os
 from collections.abc import Callable
-from typing import Any
 from itertools import groupby
+from typing import Any
 
 from aivinnet.lib.albumslib import sort_by_track_no
 from aivinnet.models.folder import Folder
 from aivinnet.models.track import Track
 from aivinnet.utils import flatten
-
 
 
 def folder_order(track: Track) -> tuple[int, str]:

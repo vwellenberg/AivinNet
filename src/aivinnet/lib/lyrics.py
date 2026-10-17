@@ -78,7 +78,9 @@ def filter_parse_lyrics_lines(lines: list[dict], tag_types: list | str) -> list[
     # line = {"tags", "body", "tag_types"}
     for line in lines:
         group = {"tag_types": [], "tags": []}
-        for tag, tag_type in zip(line["tags"], line["tag_types"]):
+        # Not strict: comment and unknown lines carry a string in "tags", and a
+        # bracket tag that is neither time nor meta gets no tag type.
+        for tag, tag_type in zip(line["tags"], line["tag_types"], strict=False):
             if tag_type in tag_types:
                 group["tag_types"].append(tag_type)
                 group["tags"].append(tag)
@@ -104,7 +106,7 @@ def parse_time_tag(lines: list[dict]) -> list[dict]:
 
     # line = {"tags", "body", "tag_types"}
     for line in time_tags:
-        for tag, tag_type in zip(line["tags"], line["tag_types"]):
+        for tag in line["tags"]:
             minute, seconds = tag.split(":", 1)
 
             parsed_times.append(

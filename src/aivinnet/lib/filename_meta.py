@@ -24,8 +24,9 @@ import re
 _LEADING_NUMBER = re.compile(r"^\s*(\d{1,3})\s*[.\-_)\]]\s*")
 
 # "Artist - 01 - Title": the number is in the middle, and everything before it
-# is the artist rather than part of the title.
-_ARTIST_THEN_NUMBER = re.compile(r"^\s*(?P<artist>.+?)\s+[-–—]\s+(?P<num>\d{1,3})\s*[.\-_]?\s+(?P<rest>.+)$")
+# is the artist rather than part of the title. The dash may be a hyphen, an en
+# dash (U+2013) or an em dash (U+2014).
+_ARTIST_THEN_NUMBER = re.compile(r"^\s*(?P<artist>.+?)\s+[-\u2013\u2014]\s+(?P<num>\d{1,3})\s*[.\-_]?\s+(?P<rest>.+)$")
 
 # ⚠️ A placeholder can be IN the file name too ("Genesis - 03 - Track 3.ogg").
 # Checking only the start of the string misses the common case: the rule in
@@ -41,7 +42,7 @@ _SPACES = re.compile(r"\s{2,}")
 def _clean(title: str) -> str:
     title = _UNDERSCORES.sub(" ", title)
     title = _SPACES.sub(" ", title)
-    return title.strip(" -–—_.")
+    return title.strip(" -\u2013\u2014_.")
 
 
 def looks_like_placeholder(title: str) -> bool:
