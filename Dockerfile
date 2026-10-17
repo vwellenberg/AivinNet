@@ -15,7 +15,7 @@
 # cannot be fetched, and that needs python/make/g++ — the same toolchain the
 # GitHub runners that build the release client have.
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:20 AS client
+FROM --platform=$BUILDPLATFORM node:22 AS client
 WORKDIR /client
 # Manifests first, so a source-only change keeps the dependency layer cached.
 COPY client/package.json client/yarn.lock ./
