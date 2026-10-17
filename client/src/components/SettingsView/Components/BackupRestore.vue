@@ -1,6 +1,14 @@
 <template>
     <div class="backup-restore">
-        <button class="backupnow btn-pill" @click="doBackup">Backup</button>
+        <!-- Header row: the text and the button share one flex line, so the
+             description wraps before the button instead of running under it. -->
+        <div class="backup-head">
+            <div class="backup-head__text">
+                <div class="backup-head__title">{{ title }}</div>
+                <div class="desc">{{ desc }}</div>
+            </div>
+            <button class="backupnow btn-pill" @click="doBackup">Backup</button>
+        </div>
         <div class="separator"></div>
         <h4>Restore backup</h4>
         <div class="helptext">
@@ -47,6 +55,11 @@ import { backupNow, getBackups, restoreBackup, deleteBackup as deleteBackupReq }
 import { onMounted, ref } from 'vue'
 import { useToast } from '@/stores/notification'
 import DeleteSvg from '@/assets/icons/delete.svg'
+
+defineProps<{
+    title: string
+    desc: string
+}>()
 
 const toast = useToast()
 
@@ -144,10 +157,30 @@ async function deleteBackup(backup_dir: string) {
         margin-top: 2rem;
     }
 
+    .backup-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: $small;
+
+        &__text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        &__title {
+            font-weight: 700;
+        }
+
+        .desc {
+            margin-top: $smaller;
+            overflow-wrap: anywhere;
+        }
+    }
+
     .backupnow {
-        position: absolute;
-        right: -0.5rem;
-        top: -2.75rem;
+        flex-shrink: 0;
     }
 
     .separator {

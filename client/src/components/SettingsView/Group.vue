@@ -12,7 +12,11 @@
                     panel: PANEL_TYPES.includes(setting.type),
                 }"
             >
-                <div class="text" @click="setting.defaultAction ? setting.defaultAction() : setting.action()">
+                <div
+                    v-if="setting.type !== SettingType.backup"
+                    class="text"
+                    @click="setting.defaultAction ? setting.defaultAction() : setting.action()"
+                >
                     <div class="title">
                         <span class="ellip">
                             {{ setting.title }}
@@ -31,7 +35,7 @@
                         {{ setting.desc }}
                     </div>
                 </div>
-                <div class="options">
+                <div v-if="setting.type !== SettingType.backup" class="options">
                     <Switch
                         v-if="setting.type == SettingType.binary"
                         :state="setting.state && setting.state()"
@@ -84,7 +88,11 @@
                 <Accounts v-if="setting.type === SettingType.accounts" />
                 <About v-if="setting.type === SettingType.about" />
                 <Pairing v-if="setting.type === SettingType.pairing" />
-                <BackupRestore v-if="setting.type === SettingType.backup" />
+                <BackupRestore
+                    v-if="setting.type === SettingType.backup"
+                    :title="setting.title"
+                    :desc="setting.desc"
+                />
                 <SecretInput
                     v-if="setting.type === SettingType.secretinput"
                     :text="setting.state ? setting.state() : ''"
