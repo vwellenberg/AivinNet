@@ -15,8 +15,11 @@
                 <img
                     v-if="route.name === Routes.Home"
                     class="mobile-nav-logo"
+                    :class="{ 'logo-spin-once': logoSpinning }"
                     src="@/assets/icons/logos/logo-subspaceradio.png"
                     alt=""
+                    @click="logoSpinning = true"
+                    @animationend="logoSpinning = false"
                 />
                 {{ mobileTitle }}
             </span>
@@ -41,7 +44,7 @@
 
 <script setup lang="ts">
 import { Routes } from '@/router'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import useAuth from '@/stores/auth'
@@ -63,6 +66,11 @@ const settings = useSettings()
 const modal = useModal()
 const isSmall = computed(() => content_width.value < 800)
 const route = useRoute()
+
+// A tap on the phone's app icon plays the desktop logo's planet spin once
+// (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
+// when the animation ends, so every tap can play it again.
+const logoSpinning = ref(false)
 
 /**
  * On phones the top bar shows the page title, and swaps it for the search
@@ -282,6 +290,7 @@ const mobileTitle = computed(() => {
             object-fit: contain;
             filter: drop-shadow(1.5px 0 0 $mem-line) drop-shadow(-1.5px 0 0 $mem-line)
                 drop-shadow(0 1.5px 0 $mem-line) drop-shadow(0 -1.5px 0 $mem-line);
+            -webkit-tap-highlight-color: transparent;
         }
     }
 
