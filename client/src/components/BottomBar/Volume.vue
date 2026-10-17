@@ -142,7 +142,7 @@ const tooltipLeft = computed(() => hover.barLeft + hover.ratio * hover.barWidth)
 // span, then the level, over the track.
 const SPAN = 'var(--look-track-seek, var(--mem-yellow))'
 const FILL = 'var(--look-track-played, var(--mem-teal))'
-const TRACK = 'var(--look-track, var(--mem-blush))'
+const TRACK = 'var(--look-track, var(--mem-track-strong))'
 const volumeBg = computed(
     () =>
         `${spanLayer(span.value, SPAN)}linear-gradient(${FILL}, ${FILL}) left center / ${level01.value * 100}% 100% no-repeat, ${TRACK}`

@@ -446,10 +446,10 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   stehen gleich weit von ihrer Kante, egal wie hoch die Pille ist.
 - ⚠️ **Die Punktfarbe antwortet auf die Fläche darunter, wie die Schraffur** (`$on` in
   `mem-halftone`): Auf Grund und Panels liest sie `--mem-halftone-dot` (Ink hell, im Dunkelmodus
-  `transparent` — **keine** Punkte), auf einer Akzent-Pastellfläche (Continue-Karte) bleibt sie
-  statisches Ink. Bis 2026-10-17 war sie überall Ink, also waren die Punkte im Dunkelmodus nur
-  *zufällig* unsichtbar. Paper-Punkte wurden am selben Tag probiert und verworfen (Nutzer: der
-  Dunkelmodus soll dunkler und ruhiger werden). Jetzt ist „keine Punkte" eine Aussage im Token.
+  leises Paper bei 22 %), auf einer Akzent-Pastellfläche (Continue-Karte) bleibt sie statisches
+  Ink. Bis 2026-10-17 war sie überall Ink, also waren die Punkte im Dunkelmodus nur *zufällig*
+  unsichtbar. Am selben Tag einmal auf `transparent` gestellt und mit dem dunkleren Dunkelmodus
+  zurückgeholt (Nutzer: „doch Punkte").
   Jeder Wirt steht mit seiner Fläche in `halftoneEdges.test.ts` (eingesammelt, nicht
   aufgelistet): ein neuer muss sagen, worauf er sitzt.
 - **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
@@ -1889,17 +1889,43 @@ Artwork. Gemeldet als „Dark Mode: dunklere Farben verwenden". Drei Tokens, all
 
 - `--mem-pastel-base` — wogegen `mem-pastel()` mischt: ein Dämmerton aus Papier und **dem
   Grund des Schemas** (Lagune bleibt blau, Terrakotta braun). Der Papier-Anteil steht pro Schema
-  in `brand-colors.json` (`pastelPaper`, Memphis 60 %, Lagune 68, Terrakotta 76, Eierschale 95):
+  in `brand-colors.json` (`pastelPaper`, Memphis 52 %, Lagune 68, Terrakotta 76, Eierschale 95):
   so dunkel, wie Ink es auf **jeder** Tönung bei ≥ 4,5:1 zulässt. Eierschale kann kaum dunkler,
   weil ihr Kraft (#5B4329) schon im hellen Modus fast an der Grenze liegt — ein einziger globaler
   Wert hätte sie unter 3:1 gedrückt.
 - `--mem-tile-depth` (82 %) — wie viel Akzent eine Stat-Kachel behält (`StatItem.vue`, inline).
-- `--mem-doodle-veil` — eine halbdeckende Schicht in Grundfarbe über dem Doodle, als **erste**
+- `--mem-doodle-veil` — eine Schicht in Grundfarbe (72 %) über dem Doodle, als **erste**
   Ebene in `mem-grid` (dämpft das Raster mit; dessen Größe dort deshalb `auto, …`).
 
 Der Text auf allen Tönungen bleibt Ink — das ist die Bedingung, unter der die Anteile gewählt
 sind. Wer ein Schema umfärbt oder einen Anteil ändert: `paletteSchemes.test.ts` rechnet Kontrast
 **und** „dunkler als hell" für jede Rolle jedes Schemas nach.
+
+**Zweite Runde, 2026-10-17 („dunkler, das Weiß weg", Mockups C/D am laufenden Home).** Der
+dunkelste Wurf (Tönungen fast schwarz, Text Paper) gefiel, aber mit **schwarzer** Schrift — und
+die trägt nur bis zur 4,5:1-Grenze. Gemessen am schwächsten Feld (Suche, Coral): 8 % Papier
+2,5:1, 30 % 3,4:1, **52 % 4,6:1** → Memphis steht jetzt auf 52 % (vorher 60). Der dunklere
+Eindruck kommt deshalb vor allem vom **Weiß, das wegging**:
+
+- **Rahmen grau statt Paper:** `--mem-line` ist Paper zu `$mem-dark-line-share` (42 %) über dem
+  Grund des Schemas, ≥ 3:1 gegen ihn (1.4.11, getestet für jedes Schema). Volles Paper behalten
+  die Kontrastfläche `--mem-hover` (ein Zustand) und der **Tastatur-Fokusring**: Der las bis
+  dahin `$mem-line` und wäre mit grau geworden — er nimmt jetzt `$mem-focus`
+  (`var(--mem-focus, $mem-line)`), das nur der Dunkelmodus auf Paper setzt.
+- **Schatten leise:** `--mem-shadow` 0,14 statt 0,42.
+- **Was AUF der Continue-Karte sitzt** (Up-next-Zeilen, Fortschrittsspur) war statisches Weiß in
+  beiden Themes. Es liest `--card-inlay-fill`/`-text` und wird im Memphis-Dunkel Grund + Paper;
+  die Karte selbst behält Tönung und Ink. Über Custom Properties, nicht als Regel auf der Zeile:
+  der Hover der Zeile setzt `--row-fill` und `color` selbst und muss weiter gewinnen.
+- **Abspiel- und Lautstärkeleiste:** der Grund der Leiste liest `--mem-track`/`-strong`
+  (hell: blush-soft/blush wie bisher, dunkel: Blush tief über dem Grund). Ein Look überschreibt
+  weiter mit `--look-track*`.
+- **Der Theme-Knopf hovert nur mit Zeiger** (`@media (hover: hover)`): Auf Touch latcht `:hover`
+  nach dem Tippen, und der gerade getippte Knopf stand im Dunkelmodus als papierweiße Platte da.
+  ⚠️ Die Rollen in `_buttons.scss` gaten ihren Hover (noch) nicht — dasselbe Latchen trifft jeden
+  Button nach einem Tipp; der Theme-Knopf fiel nur auf, weil er das Theme wechselt und die
+  Hover-Fläche damit im Dunkeln die hellste Fläche ist.
+- Zensus: `darkModeQuiet.test.ts`.
 
 ## ⚠️ Ein Verlauf lässt sich nicht überblenden — eine registrierte Farbe schon
 

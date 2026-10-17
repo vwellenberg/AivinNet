@@ -265,3 +265,24 @@ describe('colour schemes: the stylesheet and the doodles', () => {
         expect(recolorDoodle('url(%23aaaaaa)', { '#AAAAAA': '#BBBBBB' })).toBe('url(%23BBBBBB)')
     })
 })
+
+// The frames in the dark theme were full paper, the brightest line on the
+// screen; they step back to a grey (user, 2026-10-17). A frame is what tells a
+// plate from the ground, so the grey still has to pass 3:1 against every
+// scheme's dark ground (WCAG 1.4.11). The focus ring keeps paper ($mem-focus).
+describe('dark mode: the frames step back, and stay visible', () => {
+    const share = parseFloat(CANDY.match(/\$mem-dark-line-share:\s*([\d.]+)%/)?.[1] ?? 'NaN') / 100
+
+    it('the frame is a grey mixed from paper and the ground', () => {
+        expect(share).toBeGreaterThan(0.2)
+        expect(share).toBeLessThan(1)
+        expect(INDEX).toMatch(/--mem-line: #\{color-mix\(in srgb, \$mem-dark-line \$mem-dark-line-share, var\(--mem-ground\)\)\};/)
+    })
+
+    it.each(SCHEMES)('%s: the grey frame keeps 3:1 against the dark ground', (scheme) => {
+        const { ground } = darkScheme(scheme)
+        const frame = toHex(mixed(rgb((brandColors.memphisDark as Roles).line), rgb(ground), share))
+        const c = contrast(frame, ground)
+        expect(c, `${scheme}: frame ${frame} on ${ground} ${c.toFixed(2)}`).toBeGreaterThanOrEqual(3)
+    })
+})

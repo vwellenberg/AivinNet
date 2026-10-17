@@ -100,13 +100,13 @@ describe('halftone at the ends', () => {
     })
 
     // The dot colour answers the fill underneath, like the hatch: ink on the
-    // light ground and panels, none on the dark ones (user, 2026-10-17: the
-    // dark theme quieter, not busier), static ink on an accent.
+    // light ground and panels, quiet paper on the dark ones (user, 2026-10-17),
+    // static ink on an accent.
     it('dots on the ground and panels follow the theme, dots on an accent stay ink', () => {
         const root = read('src/assets/scss/Global/index.scss')
         expect(root).toMatch(/--mem-halftone-dot: #\{mem-alpha\(\$mem-ink, [\d.]+\)\};/)
         const dark = root.slice(root.indexOf('body.theme-dark {'))
-        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: transparent;/)
+        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: #\{mem-alpha\(\$mem-dark-line, 0\.[12]\d*\)\};/)
 
         const mixin = read('src/assets/scss/_candy.scss')
         expect(mixin).toMatch(/@mixin mem-halftone\([^)]*\$on: surface\)/)

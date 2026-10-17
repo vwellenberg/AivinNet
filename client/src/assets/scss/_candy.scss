@@ -65,6 +65,8 @@ $mem-dark-content-text: #ffffff !default;
 $mem-dark-content-muted: #d9d9f2 !default;
 $mem-dark-grid-line: rgba(255, 255, 255, 0.14) !default;
 $mem-dark-pastel-paper: 60% !default;
+// How much paper the dark theme's frames keep over the ground (Global/index.scss).
+$mem-dark-line-share: 42% !default;
 
 // Static literals preserved for the :root var definitions in
 // Global/index.scss (the role tokens below become var() references).
@@ -158,6 +160,9 @@ $mem-content-faint: var(--mem-content-faint);
 $mem-panel: var(--mem-panel);
 $mem-soft: var(--mem-soft);
 $mem-line: var(--mem-line);
+// The keyboard focus ring: the line, except where the line steps back (Memphis
+// dark greys its frames; the ring a keyboard user follows keeps full paper).
+$mem-focus: var(--mem-focus, #{$mem-line});
 $mem-text: var(--mem-text);
 $mem-text-muted: var(--mem-text-muted);
 $mem-hover: var(--mem-hover); // hover fill (blush / calm dark tint)

@@ -198,8 +198,8 @@ const seekSpan = computed(() => previewSpan(playedRatio.value, hover.active ? ho
 // bar follows the colour scheme like every stylesheet colour does.
 const SEEK = 'var(--look-track-seek, var(--mem-yellow))'
 const PLAYED = 'var(--look-track-played, var(--mem-teal))'
-const BUFFERED = 'var(--look-track-buffered, var(--mem-blush))'
-const TRACK = 'var(--look-track, var(--mem-blush-soft))'
+const BUFFERED = 'var(--look-track-buffered, var(--mem-track-strong))'
+const TRACK = 'var(--look-track, var(--mem-track))'
 
 const progressBg = computed(() => {
     const seek = spanLayer(seekSpan.value, SEEK)
