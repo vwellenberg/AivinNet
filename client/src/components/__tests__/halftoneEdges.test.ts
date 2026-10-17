@@ -90,4 +90,27 @@ describe('halftone at the ends', () => {
         expect(gradient.startsWith('linear-gradient(to right, #000 0, #000 $edges, transparent')).toBe(true)
         expect(gradient.endsWith('#000 calc(100% - #{$right-edge}), #000 100%)')).toBe(true)
     })
+
+    // The dot colour answers the fill underneath, like the hatch: ink dots on
+    // the dark ground were invisible, so in the dark theme the phone strip and
+    // the sidebar plate wore no dots at all (user, 2026-10-17).
+    it('dots on the ground and panels follow the theme, dots on an accent stay ink', () => {
+        const root = read('src/assets/scss/Global/index.scss')
+        expect(root).toMatch(/--mem-halftone-dot: #\{mem-alpha\(\$mem-ink, [\d.]+\)\};/)
+        const dark = root.slice(root.indexOf('body.theme-dark {'))
+        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: #\{mem-alpha\(\$mem-dark-line, [\d.]+\)\};/)
+
+        const mixin = read('src/assets/scss/_candy.scss')
+        expect(mixin).toMatch(/@mixin mem-halftone\([^)]*\$on: surface\)/)
+        expect(mixin).toMatch(/@if \$on == surface \{ \$dot-color: var\(--mem-halftone-dot, #\{\$dot-color\}\); \}/)
+
+        // The Continue card is a pastel that stays light in both themes.
+        expect(read('src/components/HomeView/ContinueCard.vue')).toMatch(/@include mem-halftone\([^)]*\$on: accent\)/)
+        // Ground and panels: the phone strip, the desktop bar, the sidebar plate.
+        for (const f of ['src/assets/scss/Global/app-grid.scss', 'src/components/nav/NavBar.vue', 'src/components/LeftSidebar/index.vue']) {
+            const calls = read(f).match(/@include mem-halftone\([^)]*\)/g) ?? []
+            expect(calls.length, f).toBeGreaterThan(0)
+            for (const c of calls) expect(c, f).not.toMatch(/\$on: accent/)
+        }
+    })
 })
