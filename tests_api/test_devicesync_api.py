@@ -12,6 +12,8 @@ two DB-writing ``DeviceTable`` methods so the fast request cycle never needs a
 real database.
 """
 
+import json
+
 import pytest
 from flask_openapi3 import OpenAPI
 
@@ -804,3 +806,176 @@ def test_capping_the_list_keeps_the_devices_in_the_group(ds):
         _register(ds, f"tab-{n}")
 
     assert "phone" in {d["device_id"] for d in _poll(ds, "phone")["devices"]}
+
+
+# --- #297: what the server passes on to other devices ---------------------------
+
+
+def _strict_json(res):
+    """The body as the client's `JSON.parse` reads it: no NaN, no Infinity."""
+
+    def refuse(constant):
+        raise ValueError(f"not JSON: {constant}")
+
+    return json.loads(res.get_data(as_text=True), parse_constant=refuse)
+
+
+def _strict_poll(ds, device_id):
+    return _strict_json(ds.client.post("/devicesync/poll", json={"device_id": device_id, "known_version": -1}))
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e999"])
+def test_a_targeted_command_that_is_not_json_is_refused(ds, literal):
+    """It went out with every poll of its target, whose JSON.parse then failed for 15 s."""
+    _session_with_queue(ds)
+    _register(ds, "dev-b")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-b"})
+
+    res = ds.client.post(
+        "/devicesync/command",
+        data='{"device_id": "dev-a", "type": "set_volume", "target_device": "dev-b", "payload": {"volume": '
+        + literal
+        + "}}",
+        content_type="application/json",
+    )
+
+    assert res.status_code == 400
+    assert all(c["type"] != "set_volume" for c in _strict_poll(ds, "dev-b")["commands"])
+
+
+def test_a_transport_payload_that_is_not_json_is_refused(ds):
+    """Not only position_ms is passed on: every member gets the whole payload."""
+    before = _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command",
+        data='{"device_id": "dev-a", "type": "play", "payload": {"note": NaN}}',
+        content_type="application/json",
+    )
+
+    assert res.status_code == 400
+    assert _strict_poll(ds, "dev-a")["state"] == before
+
+
+def test_a_track_change_to_an_infinite_index_is_refused(ds):
+    """int(inf) raised OverflowError, which answered 500."""
+    before = _session_with_queue(ds)
+
+    res = ds.client.post(
+        "/devicesync/command",
+        data='{"device_id": "dev-a", "type": "track_change", "payload": {"index": Infinity}}',
+        content_type="application/json",
+    )
+
+    assert res.status_code == 400
+    assert _poll(ds, "dev-a", known_version=-1)["state"] == before
+
+
+def test_a_queue_whose_from_is_not_json_is_refused(ds):
+    """`from` goes out with the state to every member."""
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        data='{"device_id": "dev-a", "trackhashes": ["h1"], "from": {"type": "album", "id": NaN},'
+        ' "currentindex": 0, "playing": true}',
+        content_type="application/json",
+    )
+
+    assert res.status_code == 400
+    assert _strict_poll(ds, "dev-a")["state"]["trackhashes"] == []
+
+
+@pytest.mark.parametrize("where", ["payload", "from"])
+def test_what_is_passed_on_to_other_devices_is_bounded(ds, where):
+    """Kept in RAM and serialised into the polls of every device of the user."""
+    from aivinnet.api.devicesync import MAX_FORWARDED_BYTES
+
+    before = _session_with_queue(ds)
+    bulky = {"note": "x" * MAX_FORWARDED_BYTES}
+
+    if where == "payload":
+        res = ds.client.post("/devicesync/command", json={"device_id": "dev-a", "type": "play", "payload": bulky})
+    else:
+        res = ds.client.post(
+            "/devicesync/queue-set",
+            json={"device_id": "dev-a", "trackhashes": ["h3"], "from": bulky, "currentindex": 0, "playing": True},
+        )
+
+    assert res.status_code == 400
+    assert _poll(ds, "dev-a", known_version=-1)["state"] == before
+
+
+def test_the_largest_things_a_client_passes_on_still_go_through(ds):
+    """A calibration report and a folder deep in a non-Latin tree are far below the bound."""
+    _session_with_queue(ds)
+    _register(ds, "dev-b")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-b"})
+
+    report = {
+        "run": "r1",
+        "device": "dev-b",
+        "sounded_ms": [1_003_004.25] * 16,
+        "strengths": [40.5] * 16,
+        "details": {f"detail_{i}": "x" * 300 for i in range(32)},
+    }
+    res = ds.client.post(
+        "/devicesync/command",
+        json={"device_id": "dev-b", "type": "sync_click_report", "payload": report, "target_device": "dev-a"},
+    )
+    assert res.status_code == 200
+
+    folder = {"type": "folder", "path": "/mnt/data/" + "音楽フォルダ/" * 150, "name": "音楽フォルダ"}
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        json={"device_id": "dev-a", "trackhashes": ["h1"], "from": folder, "currentindex": 0, "playing": True},
+    )
+    assert res.status_code == 200
+    assert _poll(ds, "dev-a", known_version=-1)["state"]["from"] == folder
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        ("/devicesync/join", {"device_id": "d" * 65}),
+        ("/devicesync/leave", {"device_id": "d" * 65}),
+        ("/devicesync/poll", {"device_id": "d" * 65}),
+        ("/devicesync/command", {"device_id": "d" * 65, "type": "play"}),
+        ("/devicesync/command", {"device_id": "dev-a", "type": "set_volume", "target_device": "d" * 65}),
+        (
+            "/devicesync/queue-set",
+            {"device_id": "d" * 65, "trackhashes": [], "from": {}, "currentindex": 0, "playing": False},
+        ),
+    ],
+)
+def test_a_device_id_is_bounded_everywhere(ds, path, body):
+    """`join` keeps it as a member key, and the leader's id goes out with every poll."""
+    _session_with_queue(ds)
+
+    assert ds.client.post(path, json=body).status_code == 422
+    assert ds.calls["touch"] == []
+
+
+def test_a_queue_with_an_oversized_trackhash_is_refused(ds):
+    """Every member gets the queue with the state; a trackhash is a few characters."""
+    _register(ds, "dev-a")
+    ds.client.post("/devicesync/join", json={"device_id": "dev-a"})
+
+    res = ds.client.post(
+        "/devicesync/queue-set",
+        json={"device_id": "dev-a", "trackhashes": ["h" * 65], "from": {}, "currentindex": 0, "playing": True},
+    )
+
+    assert res.status_code == 422
+    assert _poll(ds, "dev-a", known_version=-1)["state"]["trackhashes"] == []
+
+
+def test_a_sync_report_with_an_oversized_build_is_refused(ds):
+    """The build is kept per device and answered by /devicesync/diag."""
+    _register(ds, "dev-a")
+
+    res = ds.client.post("/devicesync/poll", json={"device_id": "dev-a", "diag": {"build": "b" * 65}})
+
+    assert res.status_code == 422
+    assert ds.client.get("/devicesync/diag").get_json()["devices"][0]["build"] == ""

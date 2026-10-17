@@ -30,6 +30,7 @@ from aivinnet.db.utils import (
     tracklog_to_dataclass,
     user_to_dataclass,
 )
+from aivinnet.lib.groupsession import MAX_DEVICES_PER_USER
 from aivinnet.lib.playlist_maintenance import (
     TrackhashNotInPlaylist,
     merge_trackhashes,
@@ -962,16 +963,21 @@ class DeviceTable(Base):
                 )
             )
 
-        return cls.insert_one(
-            {
-                "device_id": device_id,
-                "userid": userid,
-                "name": name,
-                "type": type,
-                "last_seen": now,
-                "created": now,
-            }
+        # Bounded like presence: a client minting a fresh id per page load
+        # (cleared storage, private windows) left a row behind for each, for
+        # ever (#297). The most recently seen stay, and the trim is part of the
+        # insert's transaction.
+        newest = (
+            select(cls.id)
+            .where(cls.userid == userid)
+            .order_by(cls.last_seen.desc(), cls.id.desc())
+            .limit(MAX_DEVICES_PER_USER)
         )
+        with DbEngine.manager(commit=True) as session:
+            session.execute(
+                insert(cls).values(device_id=device_id, userid=userid, name=name, type=type, last_seen=now, created=now)
+            )
+            session.execute(delete(cls).where(and_(cls.userid == userid, cls.id.not_in(newest))))
 
     @classmethod
     def get_all_for_user(cls, userid: int) -> list[dict[str, Any]]:

@@ -74,6 +74,17 @@ also so setzen, wie er zur Anker-Zeit gelten soll — nicht so, wie es „jetzt"
   Und ein Seek ohne Position warf `KeyError`, **nachdem** der Kern die gebuchte Track-Änderung
   schon zurückgezogen hatte. Register-Felder sind längenbegrenzt, die Presence hält höchstens
   `MAX_DEVICES_PER_USER` Geräte pro User (das älteste fliegt).
+- ⚠️ **`allow_inf_nan=False` reicht nicht in ein `dict[str, Any]` hinein.** Pythons JSON-Parser
+  nimmt `NaN`, `Infinity` und `1e999`, und Flask schreibt sie unverändert zurück — als JSON, das
+  `JSON.parse` im Browser verweigert. Command-`payload` und Queue-`from` reicht der Server an
+  andere Geräte weiter: Ein `{"volume": NaN}` brach jeden Poll des Zielgeräts, bis der Command
+  ablief, und ein `index: Infinity` warf `OverflowError` (500). Deshalb prüft
+  `_check_forwarded` beides per `json.dumps(allow_nan=False)` und deckelt es auf
+  `MAX_FORWARDED_BYTES` (16 KB, gemessen wie der Poll es trägt). Wer ein neues Feld anlegt, das
+  der Server weiterreicht, schickt es durch denselben Helfer. Geräte-IDs sind überall auf
+  `DEVICE_ID_MAX_LENGTH` begrenzt, Trackhashes in der Queue auf 64 Zeichen, eine Gruppe nimmt
+  höchstens `MAX_DEVICES_PER_USER` Member auf, und die Registry (`DeviceTable`) behält pro User
+  ebenso viele Zeilen — die zuletzt gesehenen, gekürzt in der Transaktion des Inserts.
 - Reaper-Cron alle 2 s räumt stale Member und leere Sessions.
 - Serverneustart ⇒ Sessions weg ⇒ Clients fallen nahtlos auf Solo zurück.
 - ⚠️ **Ein Neustart leert auch die Presence — und nur `register` füllt sie.** `touch()` lässt
