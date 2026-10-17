@@ -87,6 +87,10 @@
     // has to be a background layer rather than a ::before.
     --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.30" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
     --mem-hatch-accent: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-opacity="0.42" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    // The printed dots of a read-only surface (`mem-halftone`), the same pair
+    // as the hatch: ink on the light ground and panels, paper on the dark ones.
+    // A dot on an accent fill reads the static ink in the mixin instead.
+    --mem-halftone-dot: #{mem-alpha($mem-ink, 0.34)};
 }
 
 body.theme-dark {
@@ -118,6 +122,11 @@ body.theme-dark {
     // overridden here on purpose: blush, teal and yellow are the same colour in
     // both themes, so their texture stays ink — exactly like the glyphs on them.
     --mem-hatch: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%23F4F2ED" stroke-opacity="0.26" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>');
+    // No dots on the dark ground and panels. Ink ones vanished there anyway;
+    // paper ones were tried and dropped the same day — the dark theme is to get
+    // darker and quieter, not busier (user, 2026-10-17). Said here, not left to
+    // ink happening to be invisible: a dot on an accent keeps its static ink.
+    --mem-halftone-dot: transparent;
 }
 
 // DARKER TONES in Memphis dark. The ground and the panels were dark, but

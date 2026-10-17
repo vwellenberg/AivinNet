@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { readdirSync, readFileSync, statSync } from 'fs'
 import { describe, expect, it } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ describe('halftone at the ends', () => {
         // The general rule for text on dots (user, 2026-10-16, mockup C): no
         // fixed line, no box per label — a soft veil of the surface's fill.
         const src = read('src/components/HomeView/ContinueCard.vue')
-        expect(src).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null\);/)
+        expect(src).toMatch(/&::before \{\s*@include mem-halftone\(\$reach: null, \$on: accent\);/)
         expect(src).toMatch(/\.info \{[^}]*@include mem-dots-veil;/)
         expect(src).toMatch(/\.kicker \{[^}]*@include mem-dots-veil;/)
         // The labels on the dots no longer take a cover each (the row plates
@@ -62,7 +62,25 @@ describe('halftone at the ends', () => {
         // …but on the whole nav row around it, edge to edge (no mask: no
         // $edges, $band or $reach), drawn by the grid so the pill paints over it.
         const grid = read('src/assets/scss/Global/app-grid.scss')
-        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;[^}]*bottom: calc\(-1 \* #\{\$app-grid-gap\}\);/)
+        expect(grid).toMatch(/@include allPhones \{[^}]*&::before \{\s*@include mem-halftone\(\$reach: null(?:, \$on: surface)?\);\s*grid-area: nav;/)
+    })
+
+    it('on phones the strip is symmetric: one row above the pill, one below', () => {
+        const grid = read('src/assets/scss/Global/app-grid.scss')
+        // Whole tiles, so the first and the last row sit the same distance
+        // from their edge, whatever the pill's height.
+        const strip = grid.match(/&::before \{\s*@include mem-halftone\(\$reach: null\);\s*grid-area: nav;([^{}]*)\}/)
+        expect(strip, 'the phone strip').not.toBeNull()
+        expect(strip![1]).toMatch(/background-repeat: round;/)
+        // The strip is the nav row and nothing else: no row gap on phones for
+        // it to reach across (that gap put two rows below the pill, one above).
+        expect(strip![1]).not.toMatch(/\b(top|bottom|inset):/)
+        expect(grid).toMatch(/#app-grid \{[\s\S]*?@include allPhones \{[^}]*grid-template-rows: auto 1fr auto;[^}]*row-gap: 0;/)
+        // The pill sits with the same space above and below: $medium in the
+        // portrait's auto row, centred (auto margins) in the landscape's fixed one.
+        const topnav = grid.slice(grid.indexOf('\n.topnav {'))
+        expect(topnav).toMatch(/^\n\.topnav \{[\s\S]*?@include allPhones \{[^}]*margin: \$medium 1rem;/)
+        expect(topnav).toMatch(/@include shortViewport \{[\s\S]*?@include allPhones \{[^}]*margin: auto 1rem;/)
     })
 
     it('the continue card has one dot layer for every width, no mask of its own', () => {
@@ -79,5 +97,52 @@ describe('halftone at the ends', () => {
         // full at both outer edges, transparent through the middle
         expect(gradient.startsWith('linear-gradient(to right, #000 0, #000 $edges, transparent')).toBe(true)
         expect(gradient.endsWith('#000 calc(100% - #{$right-edge}), #000 100%)')).toBe(true)
+    })
+
+    // The dot colour answers the fill underneath, like the hatch: ink on the
+    // light ground and panels, none on the dark ones (user, 2026-10-17: the
+    // dark theme quieter, not busier), static ink on an accent.
+    it('dots on the ground and panels follow the theme, dots on an accent stay ink', () => {
+        const root = read('src/assets/scss/Global/index.scss')
+        expect(root).toMatch(/--mem-halftone-dot: #\{mem-alpha\(\$mem-ink, [\d.]+\)\};/)
+        const dark = root.slice(root.indexOf('body.theme-dark {'))
+        expect(dark).toMatch(/^body\.theme-dark \{(?:[^{}]|#\{[^}]*\})*?--mem-halftone-dot: transparent;/)
+
+        const mixin = read('src/assets/scss/_candy.scss')
+        expect(mixin).toMatch(/@mixin mem-halftone\([^)]*\$on: surface\)/)
+        // Anything but `accent` reads the themed colour, as in mem-hatch: a typo
+        // must not bring back the invisible ink dots on the dark ground.
+        expect(mixin).toMatch(/@if \$on != accent \{ \$dot-color: var\(--mem-halftone-dot, #\{\$dot-color\}\); \}/)
+    })
+
+    // Collected, not listed: a new host has to say what it sits on. On a
+    // pastel that stays light in the dark theme, the default (paper dots) would
+    // all but vanish; on the ground or a panel, `accent` would bring back the
+    // invisible ink dots.
+    it('every dotted surface is named, with the fill it sits on', () => {
+        const SITS_ON: Record<string, 'surface' | 'accent'> = {
+            'src/assets/scss/Global/app-grid.scss': 'surface', // the phone strip, on the ground
+            'src/components/nav/NavBar.vue': 'surface', // the desktop top bar, a panel
+            'src/components/LeftSidebar/index.vue': 'surface', // the sidebar plate, a panel
+            'src/components/HomeView/ContinueCard.vue': 'accent', // a pastel, light in both themes
+        }
+        const walk = (dir: string): string[] =>
+            readdirSync(dir).flatMap((e) => {
+                const p = `${dir}/${e}`
+                if (statSync(p).isDirectory()) return walk(p)
+                return /\.(vue|scss)$/.test(e) ? [p] : []
+            })
+        const hosts: Record<string, string[]> = {}
+        for (const f of walk('src')) {
+            const calls = read(f).match(/@include mem-halftone\([^)]*\)/g)
+            if (calls) hosts[f] = calls
+        }
+        expect(Object.keys(hosts).sort()).toEqual(Object.keys(SITS_ON).sort())
+        for (const [f, calls] of Object.entries(hosts)) {
+            for (const c of calls) {
+                if (SITS_ON[f] === 'accent') expect(c, f).toMatch(/\$on: accent/)
+                else expect(c, f).not.toMatch(/\$on: accent/)
+            }
+        }
     })
 })

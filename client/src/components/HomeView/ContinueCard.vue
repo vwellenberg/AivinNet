@@ -198,7 +198,7 @@ function resume() {
   // title left a gap before and a long one ran into. The children sit above
   // the dots.
   &::before {
-    @include mem-halftone($reach: null);
+    @include mem-halftone($reach: null, $on: accent);
     // The wave starts when the plate has risen (its own arrival above).
     @include mem-dots-wave($motion-settle);
   }

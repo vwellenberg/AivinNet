@@ -1,6 +1,7 @@
 $g-border: solid $candy-border-w $mem-line;
 
-// The grid's gaps; the phone's dotted nav strip reaches across the row gap.
+// The grid's gaps (phones drop the row gap: the dotted nav strip is the space
+// between the screen top and the content there).
 $app-grid-gap: 8px;
 
 #app-grid {
@@ -32,6 +33,12 @@ $app-grid-gap: 8px;
             'content'
             'bottombar';
         grid-template-rows: auto 1fr auto;
+        // No row gap: the content runs behind the player bar anyway, so the
+        // only gap a phone showed was the one under the nav row — bare ground
+        // under the dotted strip, or two dot rows below the pill against one
+        // above once the strip reached across it (user, 2026-10-17). The
+        // pill's own margins are the space now, the same above and below.
+        row-gap: 0;
 
         // The top bar is a floating pill here, and the dots cover the whole
         // strip AROUND it — the nav row, screen top to content, edge to edge —
@@ -46,9 +53,12 @@ $app-grid-gap: 8px;
         &::before {
             @include mem-halftone($reach: null);
             grid-area: nav;
-            // Down to the content card: the row gap below the nav row is part
-            // of the strip, or an 8px seam of bare ground showed under it.
-            bottom: calc(-1 * #{$app-grid-gap});
+            // Whole tiles, stretched a hair to fit: the first and the last row
+            // sit the same distance from their edge, so the pill, centred in
+            // the strip, has the same single row above and below it. With the
+            // plain repeat the rows start at the top and land wherever the
+            // pill's height leaves them at the bottom.
+            background-repeat: round;
         }
     }
 
@@ -93,6 +103,8 @@ $app-grid-gap: 8px;
         gap: $smaller;
         height: unset;
         padding: 6px 8px;
+        // The same space above and below: the dotted strip is the nav row and
+        // nothing else (no row gap on phones, see #app-grid).
         margin: $medium 1rem;
         border-radius: $candy-radius-pill;
         background-color: $candy-white;
@@ -106,15 +118,17 @@ $app-grid-gap: 8px;
         // about never happened for the top bar.
         height: $navheight-short;
 
-        // The phone pill keeps its shape, on a shorter row: the margin above it
-        // is what the grid row has left over, so it has to shrink with the row
-        // or the pill grows past it and sits on the content card. Nested under
-        // allPhones on purpose — a flat DESKTOP window is also a short
-        // viewport, and the pill's margin/padding used to land on the
+        // The phone pill keeps its shape, on a shorter row: it is centred in
+        // what the grid row has left over (auto margins), so it shrinks with
+        // the row instead of growing past it onto the content card, and the
+        // dotted strip around it stays the same above and below — here too
+        // thin for a dot row, so the dots flank the pill left and right only.
+        // Nested under allPhones on purpose — a flat DESKTOP window is also a
+        // short viewport, and the pill's margin/padding used to land on the
         // full-width bar there, which has no pill to shape.
         @include allPhones {
             height: unset;
-            margin: $smaller 1rem;
+            margin: auto 1rem;
             padding: 3px 6px;
         }
     }

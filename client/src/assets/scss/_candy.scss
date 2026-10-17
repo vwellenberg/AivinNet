@@ -1297,12 +1297,17 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 // white — the top bar and the Continue card name their own width, and the
 // bottom bar wears none.
 // `--shape-halftone` lets a look drop them.
-@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null) {
+// `$on` answers the fill underneath, like `mem-hatch`: `surface` (ground,
+// panels) reads the theme's `--mem-halftone-dot`, ink on light and paper on
+// dark; `accent` (a pastel that stays light in both themes) keeps static ink.
+@mixin mem-halftone($dot: 2px, $pitch: 11px, $reach: 58%, $band: null, $inset: 0, $edges: null, $right: null, $on: surface) {
+  $dot-color: mem-alpha($mem-ink, 0.34);
+  @if $on != accent { $dot-color: var(--mem-halftone-dot, #{$dot-color}); }
   content: "";
   position: absolute;
   inset: $inset;
   pointer-events: none;
-  background-image: var(--shape-halftone, radial-gradient(circle, #{mem-alpha($mem-ink, 0.34)} #{$dot}, transparent #{$dot + 0.6px}));
+  background-image: var(--shape-halftone, radial-gradient(circle, #{$dot-color} #{$dot}, transparent #{$dot + 0.6px}));
   background-size: $pitch $pitch;
   @if $band {
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $band, #000 calc(100% - #{$band}), transparent 100%);

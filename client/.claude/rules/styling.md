@@ -435,6 +435,23 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   hier **nicht**: `html` und `body` malen beide eine Hintergrundfarbe, also wird der Body-Grund
   als normaler Block **über** jeder negativen Ebene gemalt — die Punkte waren einfach weg, ohne
   Fehler. Zensus: `halftoneEdges.test.ts`.
+  **Oben und unten je EINE Reihe** (Nutzer, 2026-10-17): Der Streifen reichte über den
+  8-px-Zeilenabstand bis zur Inhaltskarte, also standen unten 20 px Punkte gegen 12 oben (zwei
+  Reihen gegen eine). Am Handy gibt es deshalb **keinen Zeilenabstand** im Grid (der Inhalt
+  läuft ohnehin hinter der Player-Leiste, der einzige sichtbare Abstand war dieser), der Streifen
+  ist genau die Nav-Zeile, und die Pille sitzt mit gleichem Margin oben und unten — quer
+  (`shortViewport`, feste Zeilenhöhe) per `margin: auto` zentriert; dort ist der Rest zu schmal
+  für eine Reihe, die Punkte flankieren die Pille nur links und rechts. Dazu
+  `background-repeat: round`: ganze Kacheln, minimal gestreckt — die erste und die letzte Reihe
+  stehen gleich weit von ihrer Kante, egal wie hoch die Pille ist.
+- ⚠️ **Die Punktfarbe antwortet auf die Fläche darunter, wie die Schraffur** (`$on` in
+  `mem-halftone`): Auf Grund und Panels liest sie `--mem-halftone-dot` (Ink hell, im Dunkelmodus
+  `transparent` — **keine** Punkte), auf einer Akzent-Pastellfläche (Continue-Karte) bleibt sie
+  statisches Ink. Bis 2026-10-17 war sie überall Ink, also waren die Punkte im Dunkelmodus nur
+  *zufällig* unsichtbar. Paper-Punkte wurden am selben Tag probiert und verworfen (Nutzer: der
+  Dunkelmodus soll dunkler und ruhiger werden). Jetzt ist „keine Punkte" eine Aussage im Token.
+  Jeder Wirt steht mit seiner Fläche in `halftoneEdges.test.ts` (eingesammelt, nicht
+  aufgelistet): ein neuer muss sagen, worauf er sitzt.
 - **Ein Look wirft es mit `--shape-motif: none` weg** (Boring tut das), wie `--shape-halftone`.
 - **Der Aufbau ist ein Pop aus der Ecke** (`mem-motif-pop`, `transform-origin: 100% 0`), gestaffelt
   über `:nth-child` auf `.statmotif`. Die `animation`-Kurzform setzt das Delay zurück — es steht
