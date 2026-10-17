@@ -35,6 +35,31 @@
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// HOVER IS POINTER-ONLY — every role states its `:hover` inside
+// `@media (hover: hover)`, and its `:active` outside it.
+//
+// On touch `:hover` LATCHES: a tap applies it, and it stays until the next tap
+// lands somewhere else. Ungated, every tapped button stood as the contrast
+// plate — ink in the light theme, paper in the dark one — with the hover hatch
+// and the 1.06 scale, long after the finger had left. The theme toggle was
+// reported first (2026-10-17), because there the latched plate is the brightest
+// thing on a dark screen; it was gated at its call site, and this is the same
+// answer at the source, so no call site has to know. Track rows were gated for
+// the same reason in #457.
+//
+// The press is what touch gets instead, so `:active` stays ungated. Safari on
+// iOS applies `:active` to a non-link only when the element or <body> listens
+// for `touchstart` — `utils/touchActive.ts` registers that listener; without
+// it an iPhone, which until now only ever showed the latched hover, would show
+// nothing at all.
+//
+// A call site that restates the hover on top of a role (an ON state, a dimmed
+// glyph) gates it the same way. Left ungated it latches on its own, and a
+// latched tap then shows the call site's half without the role's — hover text
+// on a resting fill. Census: `roleHoverGate.test.ts`.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // CHROME GEOMETRY — one owner for the footprint of a bar control.
 //
 // The player bar used to hold four heights (32 / 36 / 40 / 48px) and four glyph
@@ -373,20 +398,23 @@ $control-dense-glyph: 1rem;
   // state meaning, so the conflict that rule prevented no longer exists; what
   // DID exist was a play button that was the one control in the bar the
   // pointer said nothing on.
-  &:hover {
-    background-color: var(--mem-hover);
-    color: var(--mem-hover-text);
-    // The hatch, not the sprinkle: on the contrast surface the texture means
-    // what it means on every other hovered plate. The sprinkle is ink-stroked
-    // and would sit invisible (light) or as a second, clashing texture (dark),
-    // so the hatch takes its place — on the same masked layer, so it thins
-    // toward the label like the sprinkle does.
-    transform: scale(1.06);
+  // Pointer devices only (HOVER IS POINTER-ONLY, top of this file).
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--mem-hover);
+      color: var(--mem-hover-text);
+      // The hatch, not the sprinkle: on the contrast surface the texture means
+      // what it means on every other hovered plate. The sprinkle is ink-stroked
+      // and would sit invisible (light) or as a second, clashing texture (dark),
+      // so the hatch takes its place — on the same masked layer, so it thins
+      // toward the label like the sprinkle does.
+      transform: scale(1.06);
 
-    &::before {
-      background-image: var(--mem-hatch-hover);
-      background-size: 28px 28px;
-      opacity: 1;
+      &::before {
+        background-image: var(--mem-hatch-hover);
+        background-size: 28px 28px;
+        opacity: 1;
+      }
     }
   }
 
@@ -489,27 +517,33 @@ $control-dense-glyph: 1rem;
   // repeat on), and the open-menu state already uses it. Making it blush would
   // turn a state signal into the pointer signal — the same conflation that made
   // a pinned button look permanently hovered. Call sites keep their yellow.
-  &:hover {
-    // The shared hover token (#418), not a hand-written fill: this role was one
-    // of the two places that wrote `$mem-blush` itself and therefore never
-    // moved when the pointer colour changed.
-    background-color: var(--mem-hover);
-    color: var(--mem-hover-text);
-    border-color: $mem-frame;
-    // The surface just went dark (light theme) or light (dark theme), so the
-    // texture takes the inverted sprite. This is also where `$rest: bare` gets
-    // its texture at all, together with the plate it only grows on hover.
-    //
-    // A label variant keeps its ring and only swaps the sprite with the fill.
-    @if $hatch == true {
-      background-image: var(--mem-hatch-hover);
-      background-size: 28px 28px;
+  //
+  // Pointer devices only (HOVER IS POINTER-ONLY, top of this file). On touch a
+  // `$rest: bare` button therefore never grows its plate: it is a glyph that
+  // presses, like a `btn-quiet`.
+  @media (hover: hover) {
+    &:hover {
+      // The shared hover token (#418), not a hand-written fill: this role was one
+      // of the two places that wrote `$mem-blush` itself and therefore never
+      // moved when the pointer colour changed.
+      background-color: var(--mem-hover);
+      color: var(--mem-hover-text);
+      border-color: $mem-frame;
+      // The surface just went dark (light theme) or light (dark theme), so the
+      // texture takes the inverted sprite. This is also where `$rest: bare` gets
+      // its texture at all, together with the plate it only grows on hover.
+      //
+      // A label variant keeps its ring and only swaps the sprite with the fill.
+      @if $hatch == true {
+        background-image: var(--mem-hatch-hover);
+        background-size: 28px 28px;
+      }
+      @if $hatch == label {
+        --label-hatch: var(--mem-hatch-hover);
+      }
+      box-shadow: if($rest == surface, mem-shadow(4px, 4px, hover), mem-shadow(3px, 3px, hover));
+      transform: scale(1.06);
     }
-    @if $hatch == label {
-      --label-hatch: var(--mem-hatch-hover);
-    }
-    box-shadow: if($rest == surface, mem-shadow(4px, 4px, hover), mem-shadow(3px, 3px, hover));
-    transform: scale(1.06);
   }
 
   &:active {
@@ -564,16 +598,19 @@ $control-dense-glyph: 1rem;
     height: $glyph;
   }
 
-  &:hover {
-    // Same token as every other hover (#418) — this role already read it, the
-    // other two did not, which is what made the pointer colour a three-place
-    // change. Text and texture follow the fill, because the fill is now the
-    // contrast surface rather than a light tint.
-    background-color: $mem-hover;
-    color: var(--mem-hover-text);
-    background-image: var(--mem-hatch-hover);
-    background-size: 28px 28px;
-    transform: scale(1.06);
+  // Pointer devices only (HOVER IS POINTER-ONLY, top of this file).
+  @media (hover: hover) {
+    &:hover {
+      // Same token as every other hover (#418) — this role already read it, the
+      // other two did not, which is what made the pointer colour a three-place
+      // change. Text and texture follow the fill, because the fill is now the
+      // contrast surface rather than a light tint.
+      background-color: $mem-hover;
+      color: var(--mem-hover-text);
+      background-image: var(--mem-hatch-hover);
+      background-size: 28px 28px;
+      transform: scale(1.06);
+    }
   }
 
   &:active {
@@ -634,16 +671,19 @@ $control-dense-glyph: 1rem;
   transition: transform $motion-press $motion-curve,
     box-shadow $motion-shadow $motion-curve $motion-lag;
 
-  &:hover {
-    // Was `$candy-pink-deep`, which is YELLOW — and yellow means "playing" in
-    // this design, so a pill turned into a state signal for as long as the
-    // pointer sat on it. The shared token instead (#418); found by the census
-    // in hoverToken.test.ts the moment it existed.
-    background-color: var(--mem-hover);
-    color: var(--mem-hover-text);
-    // The ring stays; its sprite follows the fill to the hover surface.
-    --label-hatch: var(--mem-hatch-hover);
-    transform: scale(1.04);
+  // Pointer devices only (HOVER IS POINTER-ONLY, top of this file).
+  @media (hover: hover) {
+    &:hover {
+      // Was `$candy-pink-deep`, which is YELLOW — and yellow means "playing" in
+      // this design, so a pill turned into a state signal for as long as the
+      // pointer sat on it. The shared token instead (#418); found by the census
+      // in hoverToken.test.ts the moment it existed.
+      background-color: var(--mem-hover);
+      color: var(--mem-hover-text);
+      // The ring stays; its sprite follows the fill to the hover surface.
+      --label-hatch: var(--mem-hatch-hover);
+      transform: scale(1.04);
+    }
   }
 
   &:active {
@@ -709,19 +749,25 @@ $control-dense-glyph: 1rem;
   // this file exists to end. The on-state's own class outranks the base role's
   // hover in specificity, so without this block an ON shuffle/repeat is the
   // one button the pointer says nothing on.
-  &:hover {
-    background-color: var(--mem-hover);
-    color: var(--mem-hover-text);
-    // Hatch over sprinkle: the ink-stroked sprinkle is invisible on the ink
-    // plate and a second texture on the paper one. On the plate itself here —
-    // a toggle carries a glyph, no text; `btn-primary` moves its hover hatch
-    // onto its masked layer because of its label.
-    background-image: var(--mem-hatch-hover);
-    background-size: 28px 28px;
-    transform: scale(1.06);
+  //
+  // Pointer devices only (HOVER IS POINTER-ONLY, top of this file) — and here
+  // the latch was at its most misleading: a tap switches shuffle ON, and the
+  // latched hover then hid the yellow that says so behind the contrast plate.
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--mem-hover);
+      color: var(--mem-hover-text);
+      // Hatch over sprinkle: the ink-stroked sprinkle is invisible on the ink
+      // plate and a second texture on the paper one. On the plate itself here —
+      // a toggle carries a glyph, no text; `btn-primary` moves its hover hatch
+      // onto its masked layer because of its label.
+      background-image: var(--mem-hatch-hover);
+      background-size: 28px 28px;
+      transform: scale(1.06);
 
-    &::before {
-      opacity: 0;
+      &::before {
+        opacity: 0;
+      }
     }
   }
 

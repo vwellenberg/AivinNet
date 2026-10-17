@@ -131,8 +131,13 @@ const settings = useSettings()
         color: mem-alpha($candy-text, 0.45);
     }
 
-    .aux-off:hover {
-        color: mem-alpha(var(--mem-hover-text), 0.45);
+    // Gated like the role's own hover (Global/_buttons.scss): ungated, a tap
+    // latched this half alone — the hover TEXT colour on the resting panel,
+    // paper on white in the light theme, i.e. a glyph that vanished.
+    @media (hover: hover) {
+        .aux-off:hover {
+            color: mem-alpha(var(--mem-hover-text), 0.45);
+        }
     }
 
     // Active shuffle / repeat: the yellow memphis box (v1.4.0 decision, kept).

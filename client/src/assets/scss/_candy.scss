@@ -419,8 +419,13 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // be changed together with them.
   transition: transform $motion-shadow ease-out, box-shadow $motion-shadow ease-out $motion-lag;
 
-  &:hover {
-    @include candy-shadow($x + 1, $y + 1, hover);
+  // Pointer devices only, like the button roles that include this (HOVER IS
+  // POINTER-ONLY in Global/_buttons.scss): on touch `:hover` latches after a
+  // tap, and the tapped plate kept the deeper shadow. The press stays ungated.
+  @media (hover: hover) {
+    &:hover {
+      @include candy-shadow($x + 1, $y + 1, hover);
+    }
   }
 
   @if $press {

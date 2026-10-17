@@ -117,9 +117,13 @@ defineEmits<{
     }
 
     // The hover fill is dark in the light theme, so the dimmed glyph takes the
-    // hover text colour at the same strength.
-    button.aux.aux-off:hover {
-        color: mem-alpha(var(--mem-hover-text), 0.45);
+    // hover text colour at the same strength. Gated like the role's own hover
+    // (Global/_buttons.scss): ungated, a tap latched this half alone — paper
+    // text on the resting white plate, a glyph that vanished.
+    @media (hover: hover) {
+        button.aux.aux-off:hover {
+            color: mem-alpha(var(--mem-hover-text), 0.45);
+        }
     }
 
     // Active shuffle / repeat wear the yellow memphis box, mirroring the
