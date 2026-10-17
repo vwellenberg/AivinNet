@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
+
+import { sourceFiles } from "./scssBlocks";
 
 // ---------------------------------------------------------------------------
 // THE POINTER SIGNAL HAS ONE SOURCE: `--mem-hover` (#418).
@@ -132,21 +133,6 @@ describe("hover has one source", () => {
 // it anyway — because "the two only ever move together" is the entire lesson
 // of this round.
 // ---------------------------------------------------------------------------
-function sourceFiles(dir: string): string[] {
-  // Hand-rolled walk instead of `readdirSync(..., { recursive: true })`, which
-  // needs a newer Node than this repo pins.
-  const found: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (entry !== "node_modules" && entry !== "__tests__") found.push(...sourceFiles(path));
-    } else if (/\.(scss|vue)$/.test(entry)) {
-      found.push(path);
-    }
-  }
-  return found;
-}
-
 /**
  * Every rule whose selector mentions `:hover`, with its FULL body — nested
  * rules included, and selector lists that span lines (`&:hover,\n&.open {`)

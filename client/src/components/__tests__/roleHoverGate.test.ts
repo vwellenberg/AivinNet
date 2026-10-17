@@ -1,6 +1,7 @@
-import { readFileSync, readdirSync, statSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
+
+import { sourceFiles, stripPointerGates } from "./scssBlocks";
 
 // ---------------------------------------------------------------------------
 // THE BUTTON ROLES HOVER ONLY UNDER A POINTER (Global/_buttons.scss, "HOVER IS
@@ -33,16 +34,18 @@ import { describe, expect, it } from "vitest";
 
 const ROLES = ["btn-primary", "btn-action", "btn-quiet", "btn-pill", "btn-toggle-on"];
 const WEARS_ROLE = /@include\s+btn-(?:action|primary|pill|quiet|toggle-on)\b/;
-const ROLE_CLASS = /^btn-(?:action|primary|pill|quiet)$/;
+// The global role classes of `_button-classes.scss`, modifiers (`btn-pill--wrap`) included.
+const ROLE_CLASS = /^btn-(?:action|primary|pill|quiet)(?:--[\w-]+)?$/;
 const POINTER_GATE = /^@media[^{]*\(\s*hover\s*:\s*hover\s*\)/;
 
 /**
  * Hovers on a role wearer that may stay ungated, each with its reason. Both
  * take the role BACK on a state that cannot be pressed: they restate the rest
- * look, so a latched tap shows nothing the rest state does not, and on touch
- * they are also what keeps the role's press off (the emulated `:hover` of a
- * tap outranks the role's `:active`). Gating them would make the dead key
- * press again.
+ * look, so a latched tap shows nothing the rest state does not. The empty
+ * letter's hover is also what keeps the role's press off on touch (a tap's
+ * emulated `:hover` outranks the role's `:active`), so gating it would make
+ * the dead key press again; the error message takes the press back with its
+ * own `:active` beside it.
  */
 const ALLOWED: { file: string; selector: RegExp; why: string }[] = [
   {
@@ -61,28 +64,6 @@ const ALLOWED: { file: string; selector: RegExp; why: string }[] = [
 function code(source: string): string {
   let out = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   while (/#\{[^{}]*\}/.test(out)) out = out.replace(/#\{[^{}]*\}/g, "_i_");
-  return out;
-}
-
-/** The source with every `@media (hover: hover) { … }` block removed. */
-function stripPointerGates(clean: string): string {
-  const opener = /@media[^{]*\(\s*hover\s*:\s*hover\s*\)[^{]*\{/;
-  let out = clean;
-  for (let match = opener.exec(out); match; match = opener.exec(out)) {
-    let depth = 0;
-    let end = -1;
-    for (let i = match.index + match[0].length - 1; i < out.length; i++) {
-      if (out[i] === "{") depth++;
-      else if (out[i] === "}" && --depth === 0) {
-        end = i;
-        break;
-      }
-    }
-    // Unclosed: the matcher is broken. Stop here, so the checks below see a
-    // hover that is still there and fail loudly instead of passing.
-    if (end < 0) return out;
-    out = out.slice(0, match.index) + out.slice(end + 1);
-  }
   return out;
 }
 
@@ -257,19 +238,6 @@ function wears(wearer: Subject, element: Subject): boolean {
   return wearer.classes.every(name => element.classes.includes(name));
 }
 
-function sourceFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (entry !== "node_modules" && entry !== "__tests__") found.push(...sourceFiles(path));
-    } else if (/\.(scss|vue)$/.test(entry)) {
-      found.push(path.replace(/\\/g, "/"));
-    }
-  }
-  return found;
-}
-
 function styles(file: string, source: string): string {
   if (!file.endsWith(".vue")) return source;
   return [...source.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join("\n");
@@ -278,12 +246,14 @@ function styles(file: string, source: string): string {
 /** The class names of every element in a template: static `class` and the literals in `:class`. */
 function templateClassLists(source: string): string[][] {
   const template = source.match(/<template>([\s\S]*)<\/template>/)?.[1] ?? "";
-  // Attribute values are double-quoted in this codebase and may hold a `>`
-  // (`@click="() => …"`), so the tag is matched attribute by attribute.
-  const tag = /<[a-zA-Z][\w-]*((?:\s+[^\s=>"'/]+(?:\s*=\s*"[^"]*")?)*)\s*\/?>/g;
+  // Attribute values may hold a `>` (`@click="() => …"`), so the tag is
+  // matched attribute by attribute; a value in single quotes must not drop
+  // the whole tag (and its classes) out of the census.
+  const tag = /<[a-zA-Z][\w-]*((?:\s+[^\s=>"'/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g;
   const lists: string[][] = [];
   for (const [, attrs] of template.matchAll(tag)) {
-    const names = (attrs.match(/(?:^|\s)class="([^"]*)"/)?.[1] ?? "").split(/\s+/).filter(Boolean);
+    const statics = attrs.match(/(?:^|\s)class=(?:"([^"]*)"|'([^']*)')/);
+    const names = (statics?.[1] ?? statics?.[2] ?? "").split(/\s+/).filter(Boolean);
     const bound = attrs.match(/\s:class="([^"]*)"/)?.[1] ?? "";
     names.push(...[...bound.matchAll(/'([\w-]+)'/g)].map(m => m[1]));
     if (names.length) lists.push(names);
@@ -314,6 +284,8 @@ interface Found {
   selector: string;
   gated: boolean;
   pair: boolean;
+  /** The rule's own declarations. */
+  own: string;
 }
 
 /** Every hover rule on a role wearer, gated or not, across the app — one entry per occurrence. */
@@ -350,7 +322,7 @@ function wearerHovers(): { files: number; wearers: number; found: Found[] } {
         // `X, X:hover { … }`: the hover restates its own rest state, so a
         // latched tap cannot show anything the rest state does not.
         const pair = rule.selectors.includes(selector.replace(/:hover\b/g, ""));
-        found.push({ file, selector, gated: rule.gated, pair });
+        found.push({ file, selector, gated: rule.gated, pair, own: rule.own });
       }
     }
   }
@@ -373,7 +345,7 @@ describe("role wearers gate their own hovers too", () => {
     // …one on a wearer inside a selector list with `:not()`…
     expect(has("src/components/BottomBar/Right.vue", /button\.aux\.aux-off:hover$/)?.gated).toBe(true);
     // …one on a template-class wearer…
-    expect(has("src/components/modals/ConfirmModal.vue", /\.cancel:hover$/)?.gated).toBe(true);
+    expect(has("src/components/modals/ConfirmModal.vue", /\.confirm:hover$/)?.gated).toBe(true);
     // …one on a state class that only the template ties to the wearer…
     expect(has("src/components/LeftSidebar/NP/HotKeys.vue", /\.aux-off:hover$/)?.gated).toBe(true);
     // …and an exempt pair.
@@ -383,6 +355,18 @@ describe("role wearers gate their own hovers too", () => {
   it("states no hover on a role wearer outside the pointer gate", () => {
     const offenders = found
       .filter(hit => !hit.gated && !hit.pair && !isAllowed(hit))
+      .map(hit => `${hit.file} → ${hit.selector}`);
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+
+  it("repaints no role fill under the pointer without stating the label colour", () => {
+    // Every role's hover sets `color: var(--mem-hover-text)` — the label for
+    // the CONTRAST plate. A call site that paints a fill of its own on top
+    // keeps that label unless it names one: Cancel in the confirm dialog
+    // hovered on a soft pink while the role, later in the bundle at the same
+    // specificity, flipped its text to paper — unreadable in both themes.
+    const offenders = found
+      .filter(hit => /(^|[;\s])background(-color)?\s*:/.test(hit.own) && !/(^|[;\s{])color\s*:/.test(hit.own))
       .map(hit => `${hit.file} → ${hit.selector}`);
     expect([...new Set(offenders)]).toEqual([]);
   });
