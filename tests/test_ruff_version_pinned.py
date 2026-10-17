@@ -17,6 +17,9 @@ import re
 import tomllib
 from pathlib import Path
 
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # The places that call ruff through uvx. The hook in settings.json spells the
@@ -45,7 +48,7 @@ def _calls():
             yield name, match.group(1)
 
 
-def _uv_requirements(tool: str) -> list[str]:
+def _uv_requirements(tool: str) -> list[Requirement]:
     # Everything `uv sync` can be told to install: dependencies, extras, the
     # dependency groups and uv's older `dev-dependencies`.
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -56,8 +59,8 @@ def _uv_requirements(tool: str) -> list[str]:
         *pyproject.get("dependency-groups", {}).values(),
         pyproject.get("tool", {}).get("uv", {}).get("dev-dependencies", []),
     ]
-    named = re.compile(rf"{tool}(?![\w.-])", re.I)
-    return [req.replace(" ", "") for reqs in lists for req in reqs if isinstance(req, str) and named.match(req)]
+    parsed = [Requirement(req) for reqs in lists for req in reqs if isinstance(req, str)]
+    return [req for req in parsed if canonicalize_name(req.name) == tool]
 
 
 def _locked_versions(tool: str) -> list[str]:
@@ -73,12 +76,15 @@ def test_every_uvx_ruff_call_uses_the_pre_commit_version():
 
 
 def test_uv_installs_no_other_ruff():
-    # A bare `ruff` passes as long as uv.lock happens to match, and drifts on
-    # the next `uv lock --upgrade`; so the requirement itself must be pinned.
+    # Checking uv.lock alone would pass a bare `ruff` while the lock happens to
+    # match, until the next `uv lock --upgrade`; so the requirement itself must
+    # be pinned (a marker is fine, a range is not).
     version = _pinned_version()
-    off = [f"pyproject.toml: {req}" for req in _uv_requirements("ruff") if req != f"ruff=={version}"]
+    pins = _uv_requirements("ruff")
+    off = [f"pyproject.toml: {req}" for req in pins if req.url or str(req.specifier) != f"=={version}"]
     off += [f"uv.lock: ruff {found}" for found in _locked_versions("ruff") if found != version]
-    assert not off, f"pin these to ruff=={version} (the rev in .pre-commit-config.yaml) or drop them: {off}"
+    rev = f"{version} (the rev in .pre-commit-config.yaml)"
+    assert not off, f"uv would install another ruff than {rev}; pin it with ruff=={version} or drop it: {off}"
 
 
 def test_pre_commit_checks_what_ci_checks():
