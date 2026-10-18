@@ -246,7 +246,7 @@ function deletePlaylist() {
         }
 
         .m-content {
-            opacity: 0.12;
+            opacity: 0.08;
         }
     }
 

@@ -1,11 +1,20 @@
 <template>
     <div class="tilepreview" aria-hidden="true">
-        <div class="tilepreview-grid" :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${cell}px, 1fr))` }">
-            <div v-for="t in tiles" :key="t.name" class="tp-tile">
-                <div class="tp-art" :class="[t.tone, { round: t.round }]"></div>
-                <div class="tp-plate">
-                    <b>{{ t.name }}</b>
-                    <span>{{ t.meta }}</span>
+        <div ref="box" class="tilepreview-box">
+            <div
+                class="tilepreview-grid"
+                :style="{
+                    width: `${gridWidth}px`,
+                    gap: `${gap}px`,
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${cell}px, 1fr))`,
+                }"
+            >
+                <div v-for="(t, i) in tiles" :key="i" class="tp-tile">
+                    <div class="tp-art" :class="[t.tone, { round: t.round }]"></div>
+                    <div class="tp-plate">
+                        <b>{{ t.name }}</b>
+                        <span>{{ t.meta }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -14,20 +23,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { useElementSize } from '@vueuse/core'
+import { computed, ref } from 'vue'
 
 import { content_width, win_width } from '@/stores/content-width'
 import useSettings from '@/stores/settings'
-import { cardColumns } from '@/utils/cardColumns'
-
-// The settings row is narrow, so the real grid is drawn at this fraction of its
-// size. The layout rules are the app's (auto-fill, 1fr, a gap that scales with
-// the cell), the dimensions are scaled.
-const SCALE = 0.3
+import { CARD_GAP, cardColumns, cardMin } from '@/utils/cardColumns'
 
 const settings = useSettings()
 
-const cell = computed(() => settings.tile_size * SCALE)
+const box = ref<HTMLElement | null>(null)
+const { width: boxWidth } = useElementSize(box)
+
+// A MINIATURE of the real grid: every length (column minimum, gap, total width)
+// is multiplied by the same factor, and floor((W + g) / (m + g)) does not change
+// when all three scale together — so the preview builds exactly as many columns
+// as the page behind the modal will. The factor fits the page's content width
+// into the row this sits in (and never blows it up past half size).
+const scale = computed(() => {
+    if (!boxWidth.value || !content_width.value) return 0.3
+    return Math.min(0.5, Math.max(0.15, boxWidth.value / content_width.value))
+})
+
+const gridWidth = computed(() => Math.max(content_width.value, 1) * scale.value)
+const gap = computed(() => CARD_GAP * scale.value)
+const cell = computed(() => cardMin(win_width.value, settings.tile_size) * scale.value)
 
 const columns = computed(() => cardColumns(content_width.value, win_width.value, settings.tile_size))
 
@@ -40,6 +60,14 @@ const tiles = [
     { name: 'Album', meta: '2019', tone: 'coral' },
     { name: 'Playlist', meta: '120 tracks', tone: 'teal' },
     { name: 'Album', meta: '2021', tone: 'pink' },
+    { name: 'Artist', meta: 'Artist', tone: 'coral', round: true },
+    { name: 'Playlist', meta: '9 tracks', tone: 'purple' },
+    { name: 'Album', meta: '2016', tone: 'teal' },
+    { name: 'Playlist', meta: '64 tracks', tone: 'pink' },
+    { name: 'Album', meta: '2023', tone: 'purple' },
+    { name: 'Artist', meta: 'Artist', tone: 'teal', round: true },
+    { name: 'Playlist', meta: '31 tracks', tone: 'coral' },
+    { name: 'Album', meta: '2020', tone: 'pink' },
 ]
 </script>
 
@@ -49,22 +77,28 @@ const tiles = [
     grid-column: 1 / -1;
     display: grid;
     gap: $small;
-    // Reads the app's own content width: the preview must never claim more
-    // columns than the page behind it will build.
-    max-width: 100%;
+    min-width: 0;
+
+    // The height is FIXED, not the content's: the slider sits above this and
+    // moves under the finger, so a preview that grew and shrank with the column
+    // count would drag the slider out of reach mid-gesture. The fade says
+    // "the grid goes on" instead of cutting a tile in half.
+    .tilepreview-box {
+        height: 8.5rem;
+        overflow: hidden;
+        padding: $smaller;
+        mask-image: linear-gradient(to bottom, #000 62%, transparent);
+    }
 
     .tilepreview-grid {
         display: grid;
-        gap: 0.6rem;
-        // Two rows are enough to see the rhythm; a third only makes the row tall.
-        max-height: 9.5rem;
-        overflow: hidden;
-        padding: $smaller;
+        max-width: 100%;
     }
 
     .tp-tile {
         display: grid;
         gap: 0.2rem;
+        align-content: start;
         min-width: 0;
     }
 
