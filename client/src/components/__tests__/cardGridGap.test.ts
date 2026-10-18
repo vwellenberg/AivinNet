@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { CARD_GAP, CARD_MIN } from "@/utils/cardColumns";
+import { CARD_GAP, CARD_MIN, CARD_MIN_PHONE } from "@/utils/cardColumns";
 
 // ---------------------------------------------------------------------------
 // Every cover-card grid spaces its tiles with the SAME pair of tokens
@@ -112,9 +112,28 @@ describe("card grid spacing", () => {
     expect(gap, "$card-col-gap is not defined in _variables.scss").toBeTruthy();
     expect(parseFloat((gap as RegExpMatchArray)[1]) * 16).toBe(CARD_GAP);
 
-    const width = variables.match(/\$cardwidth:\s*([\d.]+)rem/);
+    // The card width is the user's tile size (--tile-min, utils/tileSize.ts);
+    // the rem after the comma is the FALLBACK an untouched install renders,
+    // and it is what the JS defaults must equal.
+    const width = variables.match(/\$cardwidth:\s*var\(--tile-min,\s*([\d.]+)rem\)/);
     expect(width, "$cardwidth is not defined in _variables.scss").toBeTruthy();
     expect(parseFloat((width as RegExpMatchArray)[1]) * 16).toBe(CARD_MIN);
+
+    const phone = variables.match(/\$cardwidth-phone:\s*var\(--tile-min-phone,\s*([\d.]+)rem\)/);
+    expect(phone, "$cardwidth-phone is not defined in _variables.scss").toBeTruthy();
+    expect(parseFloat((phone as RegExpMatchArray)[1]) * 16).toBe(CARD_MIN_PHONE);
+  });
+
+  // A phone override written as a literal (`minmax(9rem, 1fr)`) would stand
+  // still while the slider moves everything else, and the JS column count —
+  // which scales the phone minimum with the size — would stop matching CSS.
+  it("no card grid hard-codes the phone column minimum", () => {
+    for (const [file, source] of cardGrids()) {
+      expect(
+        /minmax\(\s*[\d.]+rem\s*,\s*1fr\)/.test(source),
+        `${file} sizes a card grid with a literal rem — use $cardwidth-phone`
+      ).toBe(false);
+    }
   });
 
   // The gapless twin of the CSS census: partitioning by `maxAbumCards` was

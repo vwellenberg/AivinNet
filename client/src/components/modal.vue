@@ -1,6 +1,10 @@
 <template>
     <!-- 👇 login modal should not be dismissable -->
-    <div v-if="modal.visible || modal.component == ModalOptions.login" class="modal">
+    <div
+        v-if="modal.visible || modal.component == ModalOptions.login"
+        class="modal"
+        :class="{ peeking: peeking && modal.component == modal.options.settings }"
+    >
         <div class="bg" @click="modal.hideModal"></div>
         <div
             class="m-content rounded"
@@ -81,6 +85,7 @@ import useModalStore, { ModalOptions } from '@/stores/modal'
 import usePlaylistsStore from '@/stores/pages/playlists'
 import { useRouter } from 'vue-router'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { peeking } from '@/utils/settingsPeek'
 
 import AuthLogin from './modals/AuthLogin.vue'
 import ConfirmModal from './modals/ConfirmModal.vue'
@@ -220,6 +225,29 @@ function deletePlaylist() {
         // transition: opacity 300ms ease, visibility 300ms ease;
         //background-color: rgba(22, 22, 22, 0.8);
         // backdrop-filter: blur(5px);
+    }
+
+    // Peek mode (utils/settingsPeek.ts): a held settings control that changes
+    // the page behind the modal — the tile size — clears the backdrop and fades
+    // the modal to a ghost, so the change is judged on the real page. The
+    // control stays under the finger: no `pointer-events: none`, or the drag
+    // would be lost. Motion only; under reduced motion the policy cuts it.
+    .bg {
+        transition: background-color $motion-move $motion-curve;
+    }
+
+    .m-content {
+        transition: opacity $motion-move $motion-curve;
+    }
+
+    &.peeking {
+        .bg {
+            background-color: transparent;
+        }
+
+        .m-content {
+            opacity: 0.08;
+        }
     }
 
     .m-content {

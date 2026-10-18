@@ -7,6 +7,8 @@ export enum SettingType {
   root_dirs,
   free_number_input,
   locked_number_input,
+  // A slider with a live readout (tile size).
+  range,
   // Native <select>: for lists too long for the segmented `select` (hours, zones).
   dropdown,
 

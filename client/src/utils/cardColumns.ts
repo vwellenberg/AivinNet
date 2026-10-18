@@ -1,3 +1,5 @@
+import { phoneTileSize, TILE_DEFAULT } from '@/utils/tileSize'
+
 /**
  * The column count CSS will actually produce for a one-row card grid
  * (`repeat(auto-fill, minmax($cardwidth, 1fr))` with a 2rem column gap).
@@ -11,17 +13,23 @@
  * so "Recently played" broke into two rows on half-width screens).
  *
  * The constants mirror the SCSS and must move with it:
- * `$cardwidth: 12rem` and the `$card-col-gap: 2rem` column gap every card
- * grid reads (_variables.scss), 9rem under `mediumPhones` (≤460px,
- * _mixins.scss). The pair is tied together by
+ * `$cardwidth` (12rem by default, the user's tile size otherwise — see
+ * utils/tileSize.ts) and the `$card-col-gap: 2rem` column gap every card
+ * grid reads (_variables.scss), `$cardwidth-phone` under `mediumPhones`
+ * (≤460px, _mixins.scss). The pair is tied together by
  * components/__tests__/cardGridGap.test.ts.
  */
-export const CARD_MIN = 192
-export const CARD_MIN_PHONE = 144
+export const CARD_MIN = TILE_DEFAULT
+export const CARD_MIN_PHONE = phoneTileSize(TILE_DEFAULT)
 export const CARD_GAP = 32
 export const MEDIUM_PHONE_MAX = 460
 
-export function cardColumns(gridWidth: number, viewportWidth: number): number {
-    const min = viewportWidth <= MEDIUM_PHONE_MAX ? CARD_MIN_PHONE : CARD_MIN
+/** The column minimum CSS uses at this viewport width for this tile size. */
+export function cardMin(viewportWidth: number, tile: number = TILE_DEFAULT): number {
+    return viewportWidth <= MEDIUM_PHONE_MAX ? phoneTileSize(tile) : tile
+}
+
+export function cardColumns(gridWidth: number, viewportWidth: number, tile: number = TILE_DEFAULT): number {
+    const min = cardMin(viewportWidth, tile)
     return Math.max(1, Math.floor((gridWidth + CARD_GAP) / (min + CARD_GAP)))
 }

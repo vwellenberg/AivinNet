@@ -14,6 +14,7 @@ import rootDirSettings from './root-dirs'
 import separators from './separators'
 import sidebarSettings from './sidebar'
 import theme from './theme'
+import tileSize from './tile-size'
 import tracks from './tracks'
 // icons
 import AlbumSvg from '@/assets/icons/album.svg?raw'
@@ -38,6 +39,7 @@ export const general = {
                 ...theme,
                 ...pageGradient,
                 ...font,
+                ...tileSize,
                 ...sidebarSettings,
                 ...nowPlaying,
             ],

@@ -19,6 +19,7 @@ import {
     themeForNow,
 } from '@/utils/autoTheme'
 import { normalizeLook, normalizePalette, type Look, type Palette } from '@/utils/theme'
+import { normalizeTileSize, TILE_DEFAULT } from '@/utils/tileSize'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
 
 export default defineStore('settings', {
@@ -60,6 +61,8 @@ export default defineStore('settings', {
 
         // client
         font: <UiFont>'default',
+        // Minimum width of a cover tile in px (utils/tileSize.ts), per device.
+        tile_size: TILE_DEFAULT,
 
         // plugins
         use_lyrics_plugin: <boolean | undefined>false,
@@ -246,6 +249,9 @@ export default defineStore('settings', {
         },
         setRootDirs(dirs: string[]) {
             this.root_dirs = dirs
+        },
+        setTileSize(value: number) {
+            this.tile_size = normalizeTileSize(value)
         },
         setFont(value: UiFont) {
             this.font = value
@@ -505,6 +511,7 @@ export default defineStore('settings', {
 
             // The font option was stored under another name before it was renamed.
             store.font = normalizeUiFont(store.font)
+            store.tile_size = normalizeTileSize(store.tile_size)
 
             // A look this build does not know (stored by a newer one, or one
             // that was removed) would leave the body with no look class at all.

@@ -59,6 +59,17 @@
                         :value="setting.state && setting.state()"
                         :callback="setting.action"
                     />
+                    <RangeInput
+                        v-if="setting.type === SettingType.range && setting.range"
+                        :value="setting.state ? setting.state() : setting.range.min"
+                        :min="setting.range.min"
+                        :max="setting.range.max"
+                        :step="setting.range.step"
+                        :format="setting.range.format"
+                        :label="setting.title"
+                        :peek="setting.peek"
+                        :on-change="setting.action"
+                    />
                     <button v-if="setting.type === SettingType.button" @click="setting.action">
                         {{ setting.button_text && setting.button_text() }}
                     </button>
@@ -72,6 +83,8 @@
                         :on-change="setting.action"
                     />
                 </div>
+
+                <TileSizePreview v-if="setting.preview === 'tiles'" />
 
                 <!-- Custom components -->
                 <List
@@ -112,6 +125,7 @@ import List from './Components/List.vue'
 import LockedNumberInput from './Components/LockedNumberInput.vue'
 import NumberInput from './Components/NumberInput.vue'
 import NativeSelect from './Components/NativeSelect.vue'
+import RangeInput from './Components/RangeInput.vue'
 import Select from './Components/Select.vue'
 import SeparatorsInput from './Components/SeparatorsInput.vue'
 import Switch from './Components/Switch.vue'
@@ -122,6 +136,7 @@ import Pairing from '../modals/settings/custom/Pairing.vue'
 import About from './About.vue'
 import BackupRestore from './Components/BackupRestore.vue'
 import SecretInput from './Components/SecretInput.vue'
+import TileSizePreview from './Components/TileSizePreview.vue'
 
 defineProps<{
     group: SettingGroup

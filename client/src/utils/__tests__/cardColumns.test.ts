@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { CARD_GAP, CARD_MIN, CARD_MIN_PHONE, cardColumns } from '../cardColumns'
+import { CARD_GAP, CARD_MIN, CARD_MIN_PHONE, cardColumns, cardMin } from '../cardColumns'
+import { phoneTileSize, TILE_MAX, TILE_MIN, TILE_STEP } from '../tileSize'
 
 /**
  * The CSS truth this util must mirror: `repeat(auto-fill, minmax(min, 1fr))`
@@ -51,5 +52,38 @@ describe('cardColumns', () => {
         // minimum from the mediumPhones media query override.
         expect(cardColumns(358, 460)).toBe(2)
         expect(cardColumns(358, 461)).toBe(1)
+    })
+
+    it('keeps its defaults equal to the old fixed 12rem / 9rem', () => {
+        expect(CARD_MIN).toBe(192)
+        expect(CARD_MIN_PHONE).toBe(144)
+    })
+
+    it('matches the CSS auto-fill column count for every tile size and width', () => {
+        // The user's tile size is the grid minimum (--tile-min). The JS count
+        // must follow it at every step of the slider, or a one-row scroller
+        // wraps (or leaves a hole) the moment the size moves.
+        for (let tile = TILE_MIN; tile <= TILE_MAX; tile += TILE_STEP) {
+            for (let width = 200; width <= 2400; width += 7) {
+                expect(cardColumns(width, 1920, tile), `tile ${tile}, grid ${width}px`).toBe(
+                    cssAutoFillColumns(width, tile, CARD_GAP)
+                )
+            }
+        }
+    })
+
+    it('scales the phone minimum with the tile size', () => {
+        for (let tile = TILE_MIN; tile <= TILE_MAX; tile += TILE_STEP) {
+            for (let width = 150; width <= 460; width += 5) {
+                expect(cardColumns(width, 400, tile), `tile ${tile}, grid ${width}px`).toBe(
+                    cssAutoFillColumns(width, phoneTileSize(tile), CARD_GAP)
+                )
+            }
+        }
+    })
+
+    it('cardMin picks the phone share at the mediumPhones breakpoint', () => {
+        expect(cardMin(460, 256)).toBe(192)
+        expect(cardMin(461, 256)).toBe(256)
     })
 })

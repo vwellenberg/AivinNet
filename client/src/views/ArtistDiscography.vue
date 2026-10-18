@@ -116,7 +116,7 @@ onBeforeRouteLeave(() => artist.resetStore());
     gap: $card-row-gap $card-col-gap;
 
     @include mediumPhones {
-      grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax($cardwidth-phone, 1fr));
     }
   }
 

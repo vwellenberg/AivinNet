@@ -208,7 +208,7 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
         grid-template-columns: repeat(auto-fill, minmax($cardwidth, 1fr));
 
         @include mediumPhones {
-            grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax($cardwidth-phone, 1fr));
         }
     }
 
