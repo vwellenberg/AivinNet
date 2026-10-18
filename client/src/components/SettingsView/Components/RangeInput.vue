@@ -95,7 +95,7 @@ onBeforeUnmount(() => release?.())
             border: $candy-border;
             border-radius: 50%;
             background: $mem-teal;
-            box-shadow: mem-shadow(2px, 2px);
+            box-shadow: mem-shadow(3px, 3px);
         }
 
         &::-moz-range-thumb {
@@ -104,7 +104,7 @@ onBeforeUnmount(() => release?.())
             border: $candy-border;
             border-radius: 50%;
             background: $mem-teal;
-            box-shadow: mem-shadow(2px, 2px);
+            box-shadow: mem-shadow(3px, 3px);
         }
 
         &:focus-visible {
