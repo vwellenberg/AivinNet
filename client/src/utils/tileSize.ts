@@ -23,8 +23,15 @@ export const TILE_DEFAULT = 192
 /** Phones get a fixed share of the chosen size (default: 192 → 144 = the old 9rem). */
 const PHONE_SHARE = 0.75
 
+/**
+ * ...but never less than this: the tile's type label ("PLAYLIST") and a short
+ * name need ~110px, and at 96px (the share of the smallest size) the label was
+ * cut off in the phone grid.
+ */
+const PHONE_MIN = 112
+
 export function phoneTileSize(size: number): number {
-    return Math.round(size * PHONE_SHARE)
+    return Math.max(PHONE_MIN, Math.round(size * PHONE_SHARE))
 }
 
 /**

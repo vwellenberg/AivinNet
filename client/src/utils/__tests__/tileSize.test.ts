@@ -43,7 +43,9 @@ describe('phoneTileSize', () => {
 
     it('scales with the chosen size', () => {
         expect(phoneTileSize(256)).toBe(192)
-        expect(phoneTileSize(128)).toBe(96)
+        // 128 * 0.75 = 96 would cut the type label ("PLAYLIST"): floor at 112.
+        expect(phoneTileSize(128)).toBe(112)
+        expect(phoneTileSize(TILE_MIN)).toBeGreaterThanOrEqual(112)
     })
 })
 
