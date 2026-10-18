@@ -13,6 +13,7 @@
             :text="item.text"
             :icon="item.cssclass"
             :image="item.image"
+            :trackhash="item.trackhash"
         />
     </div>
     <div class="statsdates" v-if="date">
@@ -34,6 +35,7 @@ interface StatItemData {
     value: string
     text: string
     image?: string
+    trackhash?: string
 }
 
 const props = defineProps<{
