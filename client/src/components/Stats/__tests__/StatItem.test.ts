@@ -146,4 +146,19 @@ describe('StatItem count box', () => {
         expect(w.find('.count').classes()).not.toContain('counting')
         expect(w.find('.count').text()).toBe('Some Song')
     })
+
+    // The backend sends a track's cover as `<albumhash>.webp?pathhash=…&fb=track`.
+    // Stripping only `.webp` made the link point at an album that does not exist.
+    it('links the cover of a top tile to the album, without the image query', () => {
+        const w = mount(StatItem, {
+            props: {
+                icon: 'toptrack',
+                value: 'Some Song',
+                text: 'top track',
+                image: 'f1e2d3c4b5a69788.webp?pathhash=0a1b2c3d4e5f6071&fb=track',
+            },
+            global: { stubs: { 'router-link': { props: ['to'], template: '<a :data-hash="to.params.albumhash"><slot /></a>' } } },
+        })
+        expect(w.find('a').attributes('data-hash')).toBe('f1e2d3c4b5a69788')
+    })
 })
