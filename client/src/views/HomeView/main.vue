@@ -3,7 +3,7 @@
         <GenericHeader />
         <!-- Up to three unfinished albums/playlists, newest first. How many
              show depends on the width of THIS area (container query below):
-             one on a laptop, two on a wide monitor, three on an ultrawide. -->
+             one on a narrow window, two from ~1000px, three on an ultrawide. -->
         <div v-if="home.continueListening.length" class="continue-row">
             <div class="continue-cards">
                 <ContinueCard
@@ -148,9 +148,12 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
     }
 
     // The cards share the row equally; extra ones only appear where there is
-    // room for each to stay a proper card (~700px+). With fewer items than
+    // room for each to stay a proper card (~480px+). With fewer items than
     // room, the shown ones simply grow — no empty slot. Thresholds are the
     // content area's width, not the window's, so open sidebars count.
+    // Two Continue cards come before one card with an "Up next" column
+    // (user, 2026-10-18); "Up next" returns once each card is 760px wide
+    // (ContinueCard.vue): 2 × 760 + gap = 1544, 3 × 760 + 2 gaps = 2328.
     .continue-row {
         container-type: inline-size;
         margin-bottom: 2rem;
@@ -170,13 +173,13 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         }
     }
 
-    @container (min-width: 1500px) {
+    @container (min-width: 1000px) {
         .continue-cards > :nth-child(2) {
             display: block;
         }
     }
 
-    @container (min-width: 2250px) {
+    @container (min-width: 2330px) {
         .continue-cards > :nth-child(3) {
             display: block;
         }
