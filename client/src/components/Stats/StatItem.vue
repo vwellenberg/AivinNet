@@ -40,7 +40,7 @@
             :to="{
                 name: Routes.album,
                 params: {
-                    albumhash: props.image?.replace('.webp', ''),
+                    albumhash: albumhash,
                 },
             }"
         >
@@ -69,6 +69,11 @@ const props = defineProps<{
     icon: string
     image?: string
 }>()
+
+// A track's image is `<albumhash>.webp?pathhash=…&fb=track`; only the part before
+// the first dot is the album. Stripping just `.webp` left the query in the
+// route param, so the tile's link opened an album that does not exist.
+const albumhash = computed(() => props.image?.split('.')[0])
 
 const icon = computed(() => {
     switch (props.icon) {
