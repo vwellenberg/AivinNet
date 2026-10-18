@@ -84,7 +84,7 @@ const playlists = computed(() => pStore.playlists.filter(p => !p.pinned))
         gap: 3.5rem $card-col-gap;
 
         @include mediumPhones {
-            grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(var(--tile-min-phone, 8.5rem), 1fr));
             gap: 1rem;
         }
     }

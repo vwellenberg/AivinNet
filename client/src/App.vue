@@ -55,6 +55,7 @@ import useTracker from "@/stores/tracker";
 import handleShortcuts from "@/helpers/useKeyboard";
 import { lauflichtClasses } from "@/utils/lauflicht";
 import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
+import { applyTileSize } from "@/utils/tileSize";
 import { xl, xxl } from "./composables/useBreakpoints";
 
 // @small-components
@@ -92,6 +93,14 @@ watch(
     (font) => {
         document.body.classList.toggle("use-figtree-font", font === "figtree");
     },
+    { immediate: true }
+);
+
+// Tile size -> --tile-min on <html> and the JS column maths (utils/tileSize.ts).
+// Immediate, so a reload paints the saved size on the first frame.
+watch(
+    () => settings.tile_size,
+    (size) => applyTileSize(size),
     { immediate: true }
 );
 

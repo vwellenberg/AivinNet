@@ -3,6 +3,7 @@ import { computed, Ref } from 'vue'
 
 import { maxAbumCards, win_width } from '@/stores/content-width'
 import { cardColumns } from '@/utils/cardColumns'
+import { tileSize } from '@/utils/tileSize'
 
 /**
  * The column count a cover-card grid actually renders, measured from the grid
@@ -22,6 +23,6 @@ export default function useCardGridColumns(el: Ref<HTMLElement | null>) {
     return computed(() => {
         if (!width.value) return maxAbumCards.value
 
-        return cardColumns(width.value, win_width.value)
+        return cardColumns(width.value, win_width.value, tileSize.value)
     })
 }

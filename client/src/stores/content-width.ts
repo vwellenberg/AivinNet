@@ -1,7 +1,8 @@
 import { useWindowSize } from '@vueuse/core'
 import { computed, ref } from 'vue'
 
-import { CARD_MIN, CARD_MIN_PHONE, MEDIUM_PHONE_MAX } from '@/utils/cardColumns'
+import { cardMin } from '@/utils/cardColumns'
+import { tileSize } from '@/utils/tileSize'
 
 const content_width = ref(0)
 const content_height = ref(0)
@@ -60,7 +61,7 @@ const isMedium = computed(() => {
 const maxAbumCards = computed(() => {
     if (resizer_width.value == 0) return 7
 
-    const min = win_width.value <= MEDIUM_PHONE_MAX ? CARD_MIN_PHONE : CARD_MIN
+    const min = cardMin(win_width.value, tileSize.value)
 
     return Math.max(2, Math.floor(resizer_width.value / min))
 })
@@ -80,7 +81,7 @@ const MAX_FETCH_CARDS = 24
 
 const fetchCardCount = computed(() => {
     const screenWidth = typeof window !== 'undefined' ? window.screen?.width || 0 : 0
-    const min = win_width.value <= MEDIUM_PHONE_MAX ? CARD_MIN_PHONE : CARD_MIN
+    const min = cardMin(win_width.value, tileSize.value)
     const forScreen = Math.ceil(screenWidth / min)
 
     return Math.min(MAX_FETCH_CARDS, Math.max(maxAbumCards.value, forScreen))

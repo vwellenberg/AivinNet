@@ -232,7 +232,13 @@ $bottombarheight-short: 3.75rem;
 // Same idea for the title bar: the pill does not need 4.5rem of row when the
 // whole viewport is 390.
 $navheight-short: 3.75rem;
-$cardwidth: 12rem;
+// The tile size is the USER's (Settings → Appearance → Tile size, utils/tileSize.ts):
+// `applyTileSize` writes --tile-min / --tile-min-phone on <html>, and only when
+// the choice differs from the default — an untouched install uses the fallbacks
+// below, which are the old fixed 12rem / 9rem. The JS mirror of the column
+// maths (utils/cardColumns.ts) reads the same number.
+$cardwidth: var(--tile-min, 12rem);
+$cardwidth-phone: var(--tile-min-phone, 9rem);
 // One spacing for EVERY cover-card grid: the Home rows (.recentitems), the
 // virtualised album/artist list and the search card pages (.cardlistrow) and
 // the discography grid. The tiles carry no surface of their own since the

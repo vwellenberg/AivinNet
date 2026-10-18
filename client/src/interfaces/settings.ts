@@ -18,6 +18,14 @@ export interface Setting {
   show_if?: () => boolean;
   experimental?: boolean;
   new?: boolean;
+  // SettingType.range: the slider's bounds and how its value is printed.
+  range?: { min: number; max: number; step: number; format?: (value: number) => string };
+  // Hold the settings modal see-through while the control is held, so the page
+  // behind it can be judged live (utils/settingsPeek.ts).
+  peek?: boolean;
+  // A small in-row preview under the control, for when the page behind has
+  // nothing to show.
+  preview?: "tiles";
 }
 
 export interface SettingGroup {

@@ -66,7 +66,7 @@ const items = computed(() => {
     z-index: -1;
 
     @include mediumPhones {
-        grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax($cardwidth-phone, 1fr));
     }
 }
 </style>
