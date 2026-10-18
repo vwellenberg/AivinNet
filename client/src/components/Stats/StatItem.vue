@@ -35,8 +35,18 @@
         </div>
 
         <component :is="icon" v-if="!props.icon.startsWith('top')" class="staticon" />
+        <button
+            v-if="props.icon.startsWith('top') && props.image && props.trackhash"
+            class="statplay"
+            type="button"
+            :title="`Play ${props.value}`"
+            :aria-label="`Play ${props.value}`"
+            @click="playTrack"
+        >
+            <img class="staticon statimage shadow-md" :src="paths.images.thumb.small + props.image" alt="" />
+        </button>
         <router-link
-            v-if="props.icon.startsWith('top') && props.image"
+            v-else-if="props.icon.startsWith('top') && props.image"
             :to="{
                 name: Routes.album,
                 params: {
@@ -62,18 +72,25 @@ import SparklesSvg from '@/assets/icons/sparkles.svg'
 
 import { paths } from '@/config'
 import { Routes } from '@/router'
+import { playAlbumAt } from '@/helpers/usePlayFrom'
 
 const props = defineProps<{
     value: string
     text: string
     icon: string
     image?: string
+    trackhash?: string
 }>()
 
 // A track's image is `<albumhash>.webp?pathhash=…&fb=track`; only the part before
 // the first dot is the album. Stripping just `.webp` left the query in the
 // route param, so the tile's link opened an album that does not exist.
 const albumhash = computed(() => props.image?.split('.')[0])
+
+// A top-track tile that knows its track plays it, in its album, from that track.
+function playTrack() {
+    if (albumhash.value && props.trackhash) playAlbumAt(albumhash.value, 0, props.trackhash)
+}
 
 const icon = computed(() => {
     switch (props.icon) {
@@ -330,6 +347,11 @@ const tileStyle = computed(() => ({
         width: 1.5rem;
         z-index: 1;
         color: $mem-ink;
+    }
+
+    .statplay {
+        display: contents;
+        cursor: pointer;
     }
 
     .statimage {

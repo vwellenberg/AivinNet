@@ -250,6 +250,7 @@ def get_track_group_stats(tracks: list[Track], is_album: bool = False):
             f"top track ({seconds_to_time_string(top_track.playduration)} listened)",
             f"{top_track.title}",
             top_track.image if top_track else None,
+            top_track.trackhash,
         )
         if top_track
         else StatItem(

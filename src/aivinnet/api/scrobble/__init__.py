@@ -466,6 +466,7 @@ def get_stats():
         f"Top track {said_period}",
         (tracks[0].title + " - " + tracks[0].artists[0]["name"] if len(tracks) > 0 else "—"),
         (tracks[0].image if len(tracks) > 0 else None),
+        (tracks[0].trackhash if len(tracks) > 0 else None),
     )
 
     fav_count = FavoritesTable.count_favs_in_period(start_time, end_time)

@@ -3,6 +3,8 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/router', () => ({ Routes: { album: 'album' } }))
+const playAlbumAt = vi.fn()
+vi.mock('@/helpers/usePlayFrom', () => ({ playAlbumAt: (...a: unknown[]) => playAlbumAt(...a) }))
 
 import StatItem from '@/components/Stats/StatItem.vue'
 
@@ -160,5 +162,26 @@ describe('StatItem count box', () => {
             global: { stubs: { 'router-link': { props: ['to'], template: '<a :data-hash="to.params.albumhash"><slot /></a>' } } },
         })
         expect(w.find('a').attributes('data-hash')).toBe('f1e2d3c4b5a69788')
+    })
+
+    describe('a top tile that knows its track', () => {
+        const image = 'f1e2d3c4b5a69788.webp?pathhash=0a1b2c3d4e5f6071&fb=track'
+        const top = (trackhash?: string) =>
+            mount(StatItem, {
+                props: { icon: 'toptrack', value: 'Some Song', text: 'top track', image, trackhash },
+                global: { stubs: { 'router-link': { template: '<a class="album-link"><slot /></a>' } } },
+            })
+
+        it('plays that track in its album when the cover is clicked', async () => {
+            playAlbumAt.mockClear()
+            await top('abcd1234abcd1234').find('button.statplay').trigger('click')
+            expect(playAlbumAt).toHaveBeenCalledWith('f1e2d3c4b5a69788', 0, 'abcd1234abcd1234')
+        })
+
+        it('keeps the album link when no track is known', () => {
+            const w = top(undefined)
+            expect(w.find('button.statplay').exists()).toBe(false)
+            expect(w.find('a.album-link').exists()).toBe(true)
+        })
     })
 })
