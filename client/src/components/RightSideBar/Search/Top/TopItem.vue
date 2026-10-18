@@ -126,6 +126,8 @@ function onContextMenu(e: MouseEvent) {
     // A row tile's width. It stands alone, so nothing else sizes it — without
     // this it would stretch to the header column's max-content.
     width: $cardwidth;
+    // The tile size is the user's now (up to 288px): never wider than its column.
+    max-width: 100%;
 
     .name {
         font-size: 1.15rem;

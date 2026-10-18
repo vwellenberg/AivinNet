@@ -18,7 +18,7 @@
                 </div>
             </div>
         </div>
-        <div class="tilepreview-count">{{ columns }} per row in this window</div>
+        <div class="tilepreview-count">about {{ columns }} per row in this window</div>
     </div>
 </template>
 

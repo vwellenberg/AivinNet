@@ -2119,3 +2119,29 @@ stehen zu bleiben, darunter auch Devices (`shortNarrowestBar`, < 700 px). Die vo
 (9 Controls) im Hochformat gibt es erst ab `RICH_BAR_MIN_WIDTH` (760 px) — ab 660 ließ sie dem
 Titel 20 px. Unter ~624 px quer passt es weiterhin nicht (568×320). Tests:
 `barLandscape.test.ts`, `shortViewport.test.ts`.
+
+## ⚠️ Die Kachelgröße ist die Einstellung des Nutzers — und hat drei Stellen, die zusammenbewegen (Tile size)
+
+Settings → Appearance → Tile size (128–288 px, Standard 192 = das alte `$cardwidth: 12rem`).
+Der Wert ist die **Mindest-Spaltenbreite** jedes Kartenrasters (`minmax($cardwidth, 1fr)`), die
+Kacheln dehnen sich danach auf den Rest.
+
+- **`$cardwidth` / `$cardwidth-phone` sind Laufzeit-Variablen** (`var(--tile-min, 12rem)`,
+  `var(--tile-min-phone, 9rem)`), geschrieben von `applyTileSize` (`utils/tileSize.ts`) auf `<html>`.
+  **Beim Standard wird nichts geschrieben** — eine unberührte Installation rendert byte-gleich wie
+  vorher; die Fallbacks sind die alten Festwerte. Ein Phone-Override schreibt man deshalb als
+  `$cardwidth-phone`, nie als Literal (`cardGridGap.test.ts` verbietet `minmax(9rem, 1fr)`).
+- **Der JS-Spiegel muss dieselbe Zahl lesen:** `cardColumns(width, viewport, tileSize.value)`
+  (`utils/cardColumns.ts`) zählt, wie viele Spalten CSS baut; eine Ein-Zeilen-Reihe rendert genau so
+  viele Karten. `tileSize` ist ein Ref in einem eigenen Modul, weil `content-width.ts` den
+  Settings-Store nicht importieren darf (Zirkel). Telefon = 75 % der Größe, **mindestens 112 px**
+  (bei 96 px wurde das Typ-Etikett „PLAYLIST“ abgeschnitten).
+- **Durchblick-Modus (Peek):** Solange der Regler gehalten wird, löscht `.modal.peeking` den
+  Dimm-Schleier und blendet das Fenster auf 8 % (`utils/settingsPeek.ts`, `modal.vue`), damit man die
+  **echte** Seite beurteilt. Das Ende lauscht auf `window` (`pointerup`/`pointercancel`): ein Zug endet
+  oft außerhalb des Reglers, und ein nur am Regler gehörtes `pointerup` ließe das Fenster unsichtbar.
+  Kein `pointer-events: none` am Fenster, sonst reißt der Zug ab.
+- **Die Mini-Vorschau ist ein Maßstab-Abbild:** Spaltenminimum, Abstand und Breite werden mit
+  demselben Faktor skaliert — `floor((W+g)/(m+g))` ändert sich dabei nicht. Ihre Höhe ist fest, sonst
+  wanderte der Regler unter dem Finger. Sie zählt aus `content_width`, nicht aus dem echten Raster
+  (Seiten-Padding fehlt), darum „about N per row“.

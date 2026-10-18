@@ -72,7 +72,9 @@ onBeforeUnmount(() => release?.())
         cursor: pointer;
 
         &::-webkit-slider-runnable-track {
-            height: var(--range-h);
+            // The content height: with the 3px frame the bar totals --range-h,
+            // the same as Firefox's track below, and the thumb maths holds.
+            height: var(--range-track);
             border: $candy-border;
             border-radius: $candy-radius-pill;
             background: $mem-panel;
