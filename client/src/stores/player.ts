@@ -21,6 +21,7 @@ import updateMediaNotif from '@/helpers/mediaNotification'
 import { cancelFade, crossFade, isFading } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
 import { createSkipGuard, MAX_FAILED_IN_A_ROW } from '@/utils/skipGuard'
+import { describeMediaError } from '@/utils/mediaError'
 
 class AudioSource {
     private sources: HTMLAudioElement[] = []
@@ -480,6 +481,8 @@ export const usePlayer = defineStore('player', () => {
         // Read before skipping: afterwards `currenttrack` is the NEXT track, and
         // the toast named a track that had not even been tried yet.
         const title = queue.currenttrack.title
+        const why = describeMediaError(e)
+        console.warn(`[player] "${title}" could not be loaded: ${why.reason}`, why.detail)
 
         if (!skipGuard.failed()) {
             // Local only — never playPause(), which would broadcast a pause to
@@ -487,13 +490,13 @@ export const usePlayer = defineStore('player', () => {
             audioSource.pausePlayingSource()
             queue.setPlaying(false)
             return toast.showNotification(
-                `Stopped: ${MAX_FAILED_IN_A_ROW} tracks in a row could not be loaded. Start the playlist or album again.`,
+                `Stopped: ${MAX_FAILED_IN_A_ROW} tracks in a row could not be loaded (${why.reason}). Start the playlist or album again.`,
                 NotifType.Error
             )
         }
 
         queue.playNext() // skip unplayable track
-        toast.showNotification("Can't load: " + title, NotifType.Error)
+        toast.showNotification(`Can't load: ${title} (${why.reason})`, NotifType.Error)
     }
 
     const runActionsOnPlay = () => {
