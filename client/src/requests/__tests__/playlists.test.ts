@@ -6,10 +6,18 @@ vi.mock('@/requests/useAxios', () => ({
     default: (...args: any[]) => useAxiosMock(...args),
 }))
 
+const showNotification = vi.fn()
+const routerPush = vi.fn()
+
 vi.mock('@/stores/notification', () => ({
     NotifType: { Success: 0, Error: 1, Info: 2 },
     Notification: vi.fn(),
-    useToast: () => ({ showNotification: vi.fn() }),
+    useToast: () => ({ showNotification }),
+}))
+
+vi.mock('@/router', () => ({
+    router: { push: (...a: any[]) => routerPush(...a) },
+    Routes: { playlist: 'PlaylistView' },
 }))
 
 vi.mock('@/stores/pages/folder', () => ({ default: () => ({}) }))
@@ -17,6 +25,7 @@ vi.mock('@/utils/recentPlaylists', () => ({ recordRecentPlaylist: vi.fn() }))
 
 import { createNewPlaylist, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
 import { recordRecentPlaylist } from '@/utils/recentPlaylists'
+import { Notification } from '@/stores/notification'
 
 describe('movePlaylistTrack', () => {
     beforeEach(() => {
@@ -97,3 +106,44 @@ describe('a created playlist heads the add-to-playlist suggestions', () => {
         expect(recordRecentPlaylist).not.toHaveBeenCalled()
     })
 })
+
+// Tapping the "Playlist created" toast opens the new playlist — both the
+// empty "New playlist" path and the save-as paths (album, folder, track, artist).
+describe('the "Playlist created" toast opens the playlist', () => {
+    beforeEach(() => {
+        useAxiosMock.mockReset()
+        routerPush.mockReset()
+        showNotification.mockReset()
+        vi.mocked(Notification).mockClear()
+    })
+
+    it('from "New playlist"', async () => {
+        useAxiosMock.mockResolvedValue({ data: { playlist: { id: 42, name: 'Road trip' } }, status: 201 })
+        await createNewPlaylist('Road trip')
+
+        const onClick = vi.mocked(Notification).mock.calls[0][3]
+        expect(onClick).toBeTypeOf('function')
+        await onClick!()
+        expect(routerPush).toHaveBeenCalledWith({ name: 'PlaylistView', params: { pid: 42 } })
+    })
+
+    it('from "Save as playlist"', async () => {
+        useAxiosMock.mockResolvedValue({ data: { playlist: { id: 43, name: 'Aurora' } }, status: 201 })
+        await saveAlbumAsPlaylist('Aurora', 'albumhash')
+
+        const onClick = showNotification.mock.calls[0][3]
+        expect(onClick).toBeTypeOf('function')
+        await onClick()
+        expect(routerPush).toHaveBeenCalledWith({ name: 'PlaylistView', params: { pid: 43 } })
+    })
+
+    it('an error toast is not clickable', async () => {
+        useAxiosMock.mockResolvedValue({ data: { error: 'exists' }, status: 409 })
+        await createNewPlaylist('Road trip')
+        await saveAlbumAsPlaylist('Aurora', 'albumhash')
+
+        expect(vi.mocked(Notification).mock.calls[0][3]).toBeUndefined()
+        expect(showNotification.mock.calls[0][3]).toBeUndefined()
+    })
+})
+

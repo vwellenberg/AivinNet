@@ -80,4 +80,21 @@ describe('notification store', () => {
         store.notifs[0].action?.handler()
         expect(handler).toHaveBeenCalledOnce()
     })
+
+    it('keeps clickable toasts for 8s and forwards the click handler', () => {
+        const store = useToast()
+        const onClick = vi.fn()
+
+        new Notification('Playlist created', NotifType.Success, undefined, onClick)
+
+        expect(store.notifs[0].action).toBeUndefined()
+        store.notifs[0].onClick?.()
+        expect(onClick).toHaveBeenCalledOnce()
+
+        vi.advanceTimersByTime(3000)
+        expect(store.notifs).toHaveLength(1)
+
+        vi.advanceTimersByTime(5000)
+        expect(store.notifs).toHaveLength(0)
+    })
 })

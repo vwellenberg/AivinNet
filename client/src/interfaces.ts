@@ -185,6 +185,9 @@ export interface Notif {
     text: string
     type: NotifType
     action?: NotifAction
+    /** Tapping the toast itself (e.g. "Playlist created" → open it). Ignored
+     * when there is an `action`: a stray tap must never undo. */
+    onClick?: () => void
 }
 
 export interface fromFolder {
