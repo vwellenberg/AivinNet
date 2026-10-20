@@ -9,6 +9,8 @@ import {
     NOW_PLAYING_ANIMATIONS,
     NOW_PLAYING_ARRIVED_ATTR,
     NOW_PLAYING_CLASS,
+    SCROLLED_ATTR,
+    SCROLLER,
     SCROLLER_VIEW,
     STARTED_ATTR,
     installArrivalLatch,
@@ -251,6 +253,47 @@ describe('now-playing latch', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// An arrival belongs to the page's build. A fast jump makes the scroller build a
+// screenful of NEW views, and 13 playlist rows arrived mid-scroll. Once a
+// scroller has scrolled, it carries a flag and the arrivals leave its views be.
+// ---------------------------------------------------------------------------
+
+/** jsdom fires `scroll` without bubbling, like the browser. */
+function scroll(target: Element) {
+    target.dispatchEvent(new Event('scroll', { bubbles: false }))
+}
+
+describe('scrolled scroller', () => {
+    it('is marked by its first scroll, so what it builds next does not arrive', () => {
+        const scroller = document.createElement('div')
+        scroller.className = 'vue-recycle-scroller ready direction-vertical'
+        document.body.appendChild(scroller)
+        expect(scroller.hasAttribute(SCROLLED_ATTR), 'the first build still arrives').toBe(false)
+
+        scroll(scroller)
+        expect(scroller.hasAttribute(SCROLLED_ATTR)).toBe(true)
+    })
+
+    it('ignores every other scrolling element (a card row, the sidebar)', () => {
+        const cards = document.createElement('div')
+        cards.className = 'card-scroller'
+        document.body.appendChild(cards)
+        scroll(cards)
+        expect(cards.hasAttribute(SCROLLED_ATTR)).toBe(false)
+    })
+
+    it('stops marking when uninstalled', () => {
+        const scroller = document.createElement('div')
+        scroller.className = 'vue-recycle-scroller'
+        document.body.appendChild(scroller)
+        uninstall()
+        scroll(scroller)
+        expect(scroller.hasAttribute(SCROLLED_ATTR)).toBe(false)
+        uninstall = () => {}
+    })
+})
+
 describe('the two halves agree', () => {
     it('latches the keyframes the arrival actually runs', () => {
         const classes = readFileSync('src/assets/scss/Global/_button-classes.scss', 'utf8')
@@ -282,8 +325,37 @@ describe('the two halves agree', () => {
 
         expect(body, `${head} not found`).toContain(`animation: ${name} `)
         expect(body).toMatch(
-            new RegExp(`\\${SCROLLER_VIEW} &\\[${ARRIVED_ATTR}\\]\\s*\\{\\s*animation: none;`)
+            new RegExp(
+                `\\${SCROLLER_VIEW} &\\[${ARRIVED_ATTR}\\](,\\s*\\${SCROLLER}\\[${SCROLLED_ATTR}\\] \\${SCROLLER_VIEW} &:not\\(\\[${STARTED_ATTR}\\]\\))?\\s*\\{\\s*animation: none;`
+            )
         )
+    })
+
+    it.each([
+        ['src/assets/scss/_candy.scss', '@mixin mem-arrival'],
+        ['src/assets/scss/Global/_buttons.scss', '@mixin btn-pop'],
+        ['src/assets/scss/_candy.scss', '@mixin mem-sticker'],
+        ['src/assets/scss/_candy.scss', '@mixin mem-motif-pop'],
+    ])('%s: %s leaves what a scrolled scroller builds as it is', (file, head) => {
+        // Only what has not STARTED: an arrival someone scrolls into finishes.
+        const source = readFileSync(file, 'utf8')
+        const at = source.search(new RegExp(`${head}\\b`))
+        expect(at, `${head} not found in ${file}`).toBeGreaterThanOrEqual(0)
+        const body = source.slice(at, at + source.slice(at).search(/^}/m) + 1)
+
+        expect(body).toMatch(
+            new RegExp(
+                `\\${SCROLLER}\\[${SCROLLED_ATTR}\\] \\${SCROLLER_VIEW} &:not\\(\\[${STARTED_ATTR}\\]\\)\\s*\\{\\s*animation: none;`
+            )
+        )
+    })
+
+    it('keeps the playing row out of it: a track change after scrolling still rings in', () => {
+        const candy = readFileSync('src/assets/scss/_candy.scss', 'utf8')
+        const at = candy.indexOf('@mixin mem-now-playing-row')
+        const body = candy.slice(at, at + candy.slice(at).search(/^}/m) + 1)
+        expect(body).toContain('animation: mem-band-drop')
+        expect(body).not.toContain(SCROLLED_ATTR)
     })
 
     it("latches the keyframes the playing row runs, and switches them off inside its mixin", () => {

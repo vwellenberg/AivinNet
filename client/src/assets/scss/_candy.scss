@@ -795,7 +795,9 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // ⚠️ „Neu" heißt im virtuellen Scroller nicht „einmal": Er hängt seine
   // Knoten ~300 ms nach dem Scrollen um, und das Umhängen startete den
   // Anschlag erneut (utils/arrivalLatch.ts setzt das Attribut).
-  .vue-recycle-scroller__item-view &[data-arrived] {
+  // Und nach dem ersten Scrollen kommt dort nichts mehr an (mem-arrival).
+  .vue-recycle-scroller__item-view &[data-arrived],
+  .vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view &:not([data-arrival-started]) {
     animation: none;
   }
 }
@@ -817,9 +819,8 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 //   wartet auf das Ende der Welle. Muss es, weil es gleichzeitig sichtbar ist.
 // - `drop`: Was hinter dem Deckel liegt, ist sofort da. Richtig für alles
 //   UNTEREINANDER — Zeile 9 steht unter der Falz, niemand sieht sie zu früh
-//   ankommen; und im virtualisierten Scroller entsteht sie erst beim
-//   Hinscrollen, wo eine Verzögerung sie mitten in der Bewegung nachblenden
-//   ließe.
+//   ankommen. (Was ein virtueller Scroller erst beim Scrollen baut, kommt
+//   ohnehin nicht an, siehe `data-scrolled` unten.)
 // ---------------------------------------------------------------------------
 @mixin mem-arrival($steps: 8, $beyond: hold) {
   // `backwards` hält den Startzustand während der Verzögerung — ohne das blitzt
@@ -850,6 +851,17 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Attribut). Ohne diese Zeile flackerte jede Liste ~300 ms nach dem
   // Scrollen ein zweites Mal auf.
   &[data-arrived] {
+    animation: none;
+  }
+
+  // Angekommen wird beim AUFBAU der Seite, nicht beim Scrollen. Sobald ein
+  // virtueller Scroller einmal gescrollt wurde (utils/arrivalLatch.ts setzt
+  // `data-scrolled`), ist, was in seinen Views neu entsteht, sofort da: Nach
+  // einem schnellen Sprung legt der Scroller einen Bildschirm voll NEUER Views
+  // an, und die bauten sich mitten in der Bewegung auf (Playlist: 13 Zeilen).
+  // `:not([data-arrival-started])`: Was schon angefangen hat — der Aufbau, in
+  // den jemand nach 100 ms hineinscrollt —, läuft zu Ende, statt zu springen.
+  .vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view &:not([data-arrival-started]) {
     animation: none;
   }
 }
@@ -1383,7 +1395,9 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 
   // Once grown, it stays grown where a scroller moves its views (the album
   // page's stats sit in one) — see the sticker above.
-  .vue-recycle-scroller__item-view &[data-arrived] {
+  // Und nach dem ersten Scrollen kommt dort nichts mehr an (mem-arrival).
+  .vue-recycle-scroller__item-view &[data-arrived],
+  .vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view &:not([data-arrival-started]) {
     animation: none;
   }
 }

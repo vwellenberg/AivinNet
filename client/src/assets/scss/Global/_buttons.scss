@@ -250,8 +250,10 @@ $control-dense-glyph: 1rem;
   // restarted it — a detail head's buttons popped in twice on the way back up
   // (utils/arrivalLatch.ts sets the attribute). Scoped to the views on
   // purpose: `btn-toggle-on` pops on a STATE change, and outside a scroller
-  // nothing moves the node anyway.
-  .vue-recycle-scroller__item-view &[data-arrived] {
+  // nothing moves the node anyway. And once the scroller has been scrolled,
+  // what is built in its views is simply there (see mem-arrival).
+  .vue-recycle-scroller__item-view &[data-arrived],
+  .vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view &:not([data-arrival-started]) {
     animation: none;
   }
 
