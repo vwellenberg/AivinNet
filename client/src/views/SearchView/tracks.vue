@@ -19,6 +19,7 @@
                 :items="scrollerItems"
                 :item-size="SONG_ROW_HEIGHT"
                 key-field="id"
+                type-field="component"
             >
                 <component :is="item.component" v-bind="item.props" @playThis="playFromSearch(index)" />
             </RecycleScroller>

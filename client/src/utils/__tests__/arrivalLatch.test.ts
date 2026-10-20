@@ -9,6 +9,7 @@ import {
     NOW_PLAYING_ANIMATIONS,
     NOW_PLAYING_ARRIVED_ATTR,
     NOW_PLAYING_CLASS,
+    SCROLLER_VIEW,
     STARTED_ATTR,
     installArrivalLatch,
 } from '@/utils/arrivalLatch'
@@ -77,7 +78,7 @@ describe('arrival latch', () => {
 
     it('ignores every other animation', () => {
         animationEnd(row, 'mem-band-drop')
-        animationEnd(row, 'btn-pop')
+        animationEnd(row, 'fav-shard-fly') // a click effect, not an arrival
         expect(row.hasAttribute(ARRIVED_ATTR)).toBe(false)
     })
 
@@ -101,6 +102,34 @@ describe('arrival latch', () => {
 
         animationStart(row, ARRIVAL_ANIMATION)
         expect(row.hasAttribute(ARRIVED_ATTR)).toBe(true)
+    })
+
+    it("latches a detail head's button pop and its sticker when the re-sort restarts them", () => {
+        // The album head's four buttons and its caption sticker popped in twice
+        // on the way back up: the scroller moved the view they sit in.
+        const view = document.createElement('div')
+        view.className = 'vue-recycle-scroller__item-view'
+        document.body.appendChild(view)
+        for (const name of ['btn-pop', 'mem-sticker-slap', 'mem-motif-pop']) {
+            const el = document.createElement('button')
+            view.appendChild(el)
+            animationStart(el, name)
+            expect(el.hasAttribute(ARRIVED_ATTR), `${name}: the first start is the arrival`).toBe(false)
+            animationStart(el, name)
+            expect(el.hasAttribute(ARRIVED_ATTR), name).toBe(true)
+        }
+    })
+
+    it('leaves buttons and stickers outside a scroller view alone', () => {
+        // Nothing moves them there, and shuffle/repeat pop again on purpose
+        // each time they are switched on.
+        const toggle = document.createElement('button')
+        document.body.appendChild(toggle)
+        animationStart(toggle, 'btn-pop')
+        animationStart(toggle, 'btn-pop')
+        animationEnd(toggle, 'mem-sticker-slap')
+        expect(toggle.hasAttribute(STARTED_ATTR)).toBe(false)
+        expect(toggle.hasAttribute(ARRIVED_ATTR)).toBe(false)
     })
 
     it('does not count pseudo-elements or other animations as a restart', () => {
@@ -236,6 +265,25 @@ describe('the two halves agree', () => {
         const body = mixin.slice(0, mixin.search(/^}/m) + 1)
 
         expect(body).toMatch(new RegExp(`&\\[${ARRIVED_ATTR}\\]\\s*\\{\\s*animation: none;`))
+    })
+
+    it.each([
+        ['src/assets/scss/Global/_buttons.scss', '@mixin btn-pop', 'btn-pop'],
+        ['src/assets/scss/_candy.scss', '@mixin mem-sticker', 'mem-sticker-slap'],
+        ['src/assets/scss/_candy.scss', '@mixin mem-motif-pop', 'mem-motif-pop'],
+    ])('%s: %s switches its arrival off once latched, inside a scroller view', (file, head, name) => {
+        // Inside a scroller VIEW only: `btn-toggle-on` pops on purpose each time
+        // shuffle or repeat is switched on, and nothing moves those nodes.
+        expect(ARRIVAL_ANIMATIONS.has(name)).toBe(true)
+        const source = readFileSync(file, 'utf8')
+        const at = source.search(new RegExp(`${head}\\b`))
+        expect(at, `${head} not found in ${file}`).toBeGreaterThanOrEqual(0)
+        const body = source.slice(at, at + source.slice(at).search(/^}/m) + 1)
+
+        expect(body, `${head} not found`).toContain(`animation: ${name} `)
+        expect(body).toMatch(
+            new RegExp(`\\${SCROLLER_VIEW} &\\[${ARRIVED_ATTR}\\]\\s*\\{\\s*animation: none;`)
+        )
     })
 
     it("latches the keyframes the playing row runs, and switches them off inside its mixin", () => {

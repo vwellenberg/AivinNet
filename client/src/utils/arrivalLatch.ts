@@ -30,8 +30,33 @@ export const ARRIVAL_ANIMATION = 'mem-step-in'
  * card on Home: a keyed `v-for` item, so a refetch that changes the order of
  * the cards moves its node — and the card rose a second time, fill and pop
  * included.
+ *
+ * The last three are the arrivals of whatever ELSE sits in a scroller view: a
+ * button's pop, a caption sticker's slap, a stat tile's motif. The same move
+ * restarted them — on the album page the head's four buttons and its sticker
+ * popped in twice when scrolling back up. Their stylesheets honour the latch
+ * only inside a scroller view (`btn-toggle-on` pops on purpose when switched on).
  */
-export const ARRIVAL_ANIMATIONS: ReadonlySet<string> = new Set([ARRIVAL_ANIMATION, 'mem-plate-rise'])
+export const ARRIVAL_ANIMATIONS: ReadonlySet<string> = new Set([
+    ARRIVAL_ANIMATION,
+    'mem-plate-rise',
+    'btn-pop',
+    'mem-sticker-slap',
+    'mem-motif-pop',
+])
+/** A scroller's view: the only place the last three are latched. */
+export const SCROLLER_VIEW = '.vue-recycle-scroller__item-view'
+const SCROLLER_ONLY: ReadonlySet<string> = new Set(['btn-pop', 'mem-sticker-slap', 'mem-motif-pop'])
+
+/** The element whose own arrival this event is, if it is one the latch keeps. */
+function arrivalTarget(e: AnimationEvent): Element | null {
+    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return null
+    if (!(e.target instanceof Element)) return null
+    // Every button in the app pops; outside a scroller nothing moves it, and
+    // marking them all would only leave attributes nobody reads.
+    if (SCROLLER_ONLY.has(e.animationName) && !e.target.closest(SCROLLER_VIEW)) return null
+    return e.target
+}
 export const ARRIVED_ATTR = 'data-arrived'
 /** Set when the entrance starts; seeing it again at a start means a RESTART. */
 export const STARTED_ATTR = 'data-arrival-started'
@@ -45,17 +70,16 @@ export const STARTED_ATTR = 'data-arrival-started'
 // concerned, so it is latched on the spot (and `animation: none` jumps it to its
 // end state instead of replaying).
 function onAnimationStart(e: AnimationEvent) {
-    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return
-    if (!(e.target instanceof Element)) return
-    if (e.target.hasAttribute(STARTED_ATTR)) e.target.setAttribute(ARRIVED_ATTR, '')
-    else e.target.setAttribute(STARTED_ATTR, '')
+    const el = arrivalTarget(e)
+    if (!el) return
+    if (el.hasAttribute(STARTED_ATTR)) el.setAttribute(ARRIVED_ATTR, '')
+    else el.setAttribute(STARTED_ATTR, '')
 }
 
 function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
     // report the row as their target — only the element's own entrance counts.
-    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return
-    if (e.target instanceof Element) e.target.setAttribute(ARRIVED_ATTR, '')
+    arrivalTarget(e)?.setAttribute(ARRIVED_ATTR, '')
 }
 
 // ---------------------------------------------------------------------------
