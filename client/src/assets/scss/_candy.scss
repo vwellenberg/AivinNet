@@ -1486,6 +1486,17 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
   &::before {
     animation: mem-texture-wipe $motion-move ease-out;
   }
+
+  // Einmal aufgezogen, bleibt es aufgezogen — dieselbe Sperre wie bei der
+  // Ankunft der Zeilen (mem-arrival). Die Scroller hängen ihre Zeilen ~300 ms
+  // nach dem Scrollen um, und das startete Band und Textur neu: Beim
+  // Hochscrollen der Queue baute sich die laufende Zeile zweimal auf.
+  // utils/arrivalLatch.ts setzt das Attribut und nimmt es wieder weg, sobald
+  // die Zeile `.current` verliert — damit sie beim nächsten Mal wieder ruckt.
+  &[data-now-playing-arrived]::before,
+  &[data-now-playing-arrived]::after {
+    animation: none;
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,16 @@ import { readFileSync } from 'node:fs'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ARRIVAL_ANIMATION, ARRIVAL_ANIMATIONS, ARRIVED_ATTR, STARTED_ATTR, installArrivalLatch } from '@/utils/arrivalLatch'
+import {
+    ARRIVAL_ANIMATION,
+    ARRIVAL_ANIMATIONS,
+    ARRIVED_ATTR,
+    NOW_PLAYING_ANIMATIONS,
+    NOW_PLAYING_ARRIVED_ATTR,
+    NOW_PLAYING_CLASS,
+    STARTED_ATTR,
+    installArrivalLatch,
+} from '@/utils/arrivalLatch'
 
 // ---------------------------------------------------------------------------
 // The arrival plays once per element. A CSS animation restarts whenever its
@@ -109,6 +118,110 @@ describe('arrival latch', () => {
     })
 })
 
+// ---------------------------------------------------------------------------
+// The playing row rings its state in on its pseudo-elements (band drop on
+// ::after, texture wipe on ::before), and the scroller's re-sort restarted them
+// just like the entrance: scrolling up the queue, the playing row built up,
+// then built up again ~580 ms later. Unlike the entrance, it must come back
+// when the same node becomes the playing row again.
+// ---------------------------------------------------------------------------
+
+/** The MutationObserver reports a microtask after the class change. */
+const observed = () => new Promise(resolve => setTimeout(resolve))
+
+/** A row entering the playing state: both ornaments start in the same frame. */
+function ringIn(target: Element) {
+    animationStart(target, 'mem-texture-wipe', '::before')
+    animationStart(target, 'mem-band-drop', '::after')
+}
+
+describe('now-playing latch', () => {
+    beforeEach(() => row.classList.add(NOW_PLAYING_CLASS))
+
+    it('latches the row once its ornament has played', () => {
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR), 'not while it plays').toBe(false)
+        animationEnd(row, 'mem-band-drop', '::after')
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('latches an ornament the re-sort restarts before it has ended', () => {
+        ringIn(row)
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('does not take the second pseudo-element of the same start for a restart', () => {
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(false)
+    })
+
+    it('leaves the entrance latch alone, and the entrance leaves this one alone', () => {
+        ringIn(row)
+        animationEnd(row, 'mem-band-drop', '::after')
+        expect(row.hasAttribute(ARRIVED_ATTR)).toBe(false)
+
+        const other = document.createElement('div')
+        other.className = `songlist-item ${NOW_PLAYING_CLASS}`
+        document.body.appendChild(other)
+        animationStart(other, ARRIVAL_ANIMATION)
+        animationStart(other, ARRIVAL_ANIMATION)
+        animationEnd(other, 'mem-band-drop') // not on a pseudo-element
+        expect(other.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(false)
+    })
+
+    it('stays latched through class rewrites that keep the state', async () => {
+        // A recycled row swaps its band class all the time.
+        ringIn(row)
+        animationEnd(row, 'mem-band-drop', '::after')
+        row.className = `songlist-item band-1 is-last ${NOW_PLAYING_CLASS}`
+        await observed()
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('is released when the row leaves the state, so it rings in again next time', async () => {
+        // The next track, or the node recycled onto a track that is not playing.
+        ringIn(row)
+        animationEnd(row, 'mem-band-drop', '::after')
+        row.classList.remove(NOW_PLAYING_CLASS)
+        await observed()
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(false)
+
+        row.classList.add(NOW_PLAYING_CLASS)
+        await observed()
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR), 'a new state, not a restart').toBe(false)
+    })
+
+    it('forgets a start that never ended when the row leaves the state', async () => {
+        // Recycled mid-animation: no animationend, no latch — the record of
+        // the start must go all the same, or the next ring-in counts as a restart.
+        ringIn(row)
+        row.classList.remove(NOW_PLAYING_CLASS)
+        await observed()
+        row.classList.add(NOW_PLAYING_CLASS)
+        await observed()
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(false)
+    })
+
+    it('does not let an event that arrives after the row left the state latch it again', async () => {
+        // The frame the ring-in ends in can be the frame the row is recycled:
+        // the observer has released it, then `animationend` still comes in.
+        ringIn(row)
+        row.classList.remove(NOW_PLAYING_CLASS)
+        await observed()
+        animationEnd(row, 'mem-band-drop', '::after')
+        ringIn(row) // a late start, too
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR)).toBe(false)
+
+        row.classList.add(NOW_PLAYING_CLASS)
+        await observed()
+        ringIn(row)
+        expect(row.hasAttribute(NOW_PLAYING_ARRIVED_ATTR), 'the next ring-in still plays').toBe(false)
+    })
+})
+
 describe('the two halves agree', () => {
     it('latches the keyframes the arrival actually runs', () => {
         const classes = readFileSync('src/assets/scss/Global/_button-classes.scss', 'utf8')
@@ -123,6 +236,24 @@ describe('the two halves agree', () => {
         const body = mixin.slice(0, mixin.search(/^}/m) + 1)
 
         expect(body).toMatch(new RegExp(`&\\[${ARRIVED_ATTR}\\]\\s*\\{\\s*animation: none;`))
+    })
+
+    it("latches the keyframes the playing row runs, and switches them off inside its mixin", () => {
+        const classes = readFileSync('src/assets/scss/Global/_button-classes.scss', 'utf8')
+        const candy = readFileSync('src/assets/scss/_candy.scss', 'utf8')
+        const mixin = candy.slice(candy.indexOf('@mixin mem-now-playing-row'))
+        const body = mixin.slice(0, mixin.search(/^}/m) + 1)
+
+        const run = [...body.matchAll(/animation:\s*(mem-[\w-]+)/g)].map(m => m[1])
+        expect(run.length, 'the mixin rings the state in').toBeGreaterThan(0)
+        expect(new Set(run)).toEqual(NOW_PLAYING_ANIMATIONS)
+        for (const name of NOW_PLAYING_ANIMATIONS) expect(classes).toContain(`@keyframes ${name}`)
+
+        expect(body).toMatch(
+            new RegExp(
+                `&\\[${NOW_PLAYING_ARRIVED_ATTR}\\]::before,\\s*&\\[${NOW_PLAYING_ARRIVED_ATTR}\\]::after\\s*\\{\\s*animation: none;`
+            )
+        )
     })
 
     it('is installed for the app', () => {

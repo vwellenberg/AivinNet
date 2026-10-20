@@ -1447,6 +1447,19 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Animation dann ab). Ein Attribut, keine Klasse: Vue schreibt `class` bei jeder gebundenen
   Änderung neu. Messen mit `animationstart`-Listener **und einer Pause nach dem Scrollen** —
   wer direkt nach dem letzten Rad-Schritt aufhört, sieht das Nachsortieren nie.
+  ⚠️ **Die Sperre gilt pro Animation, nicht pro Knoten — und Pseudo-Elemente animieren mit.**
+  Die laufende Zeile zieht ihren Zustand auf `::before`/`::after` auf (`mem-texture-wipe`,
+  `mem-band-drop`), und dieselbe Umhängung startet auch die neu. #370 latchte nur
+  `mem-step-in` auf dem Element (und ignorierte Pseudo-Events ausdrücklich), also blieb genau
+  diese eine Zeile übrig: Queue hochscrollen, die laufende Zeile baut sich auf und ~580 ms später
+  ein zweites Mal (gemessen am echten Stack, 200 Tracks; alle anderen Zeilen 0 Doppelstarts).
+  Sie hat deshalb eine eigene Sperre (`data-now-playing-arrived`, im Mixin
+  `mem-now-playing-row`), die anders als die Ankunft **wieder gelöst** wird, sobald der Wirt
+  `.current` verliert — sonst stünde das Band auf einem recycelten Knoten oder einer
+  Lyrics-Zeile beim nächsten Mal still. Jeder Wirt muss den Zustand deshalb als `.current`
+  führen (Zensus in `nowPlayingRow.test.ts`). Wer eine Pseudo-Element-Animation an ein
+  gescrolltes Element hängt, zählt beim Messen **auch die Pseudo-Events** (`e.pseudoElement`) —
+  ein Zähler nur über das Element sah diesen Fall nie.
 - ⚠️ **Unter „weniger Bewegung" transitioniert JEDES Element JEDE Eigenschaft.** Die Policy
   (`motion-policy.scss`) setzt `transition-duration: 0.01ms !important` auf `*` — und ein Element
   ohne eigene Transition hat als Standard `transition-property: all`. Ein vererbtes `visibility`
