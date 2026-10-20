@@ -15,7 +15,8 @@ vi.mock('@/stores/notification', () => ({
 vi.mock('@/stores/pages/folder', () => ({ default: () => ({}) }))
 vi.mock('@/utils/recentPlaylists', () => ({ recordRecentPlaylist: vi.fn() }))
 
-import { movePlaylistTrack } from '@/requests/playlists'
+import { createNewPlaylist, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
+import { recordRecentPlaylist } from '@/utils/recentPlaylists'
 
 describe('movePlaylistTrack', () => {
     beforeEach(() => {
@@ -65,5 +66,34 @@ describe('movePlaylistTrack', () => {
     it('reports failure on a rejected reorder-style conflict too', async () => {
         useAxiosMock.mockResolvedValue({ data: { error: 'conflict' }, status: 409 })
         expect(await movePlaylistTrack(7, 'MOVED', null)).toBe(false)
+    })
+})
+
+// A new playlist is the one you are about to fill. "Add to playlist" suggests
+// the recently used ones on top, and they only learned from adds — so a
+// freshly created, empty playlist never showed up there.
+describe('a created playlist heads the add-to-playlist suggestions', () => {
+    beforeEach(() => {
+        useAxiosMock.mockReset()
+        vi.mocked(recordRecentPlaylist).mockClear()
+    })
+
+    it('records an empty playlist made from "New playlist"', async () => {
+        useAxiosMock.mockResolvedValue({ data: { playlist: { id: 42, name: 'Road trip' } }, status: 201 })
+        await createNewPlaylist('Road trip')
+        expect(recordRecentPlaylist).toHaveBeenCalledWith(42)
+    })
+
+    it('records a playlist saved from an album (or folder, track, artist)', async () => {
+        useAxiosMock.mockResolvedValue({ data: { playlist: { id: 43, name: 'Aurora' } }, status: 201 })
+        await saveAlbumAsPlaylist('Aurora', 'albumhash')
+        expect(recordRecentPlaylist).toHaveBeenCalledWith(43)
+    })
+
+    it('records nothing when the playlist was not created', async () => {
+        useAxiosMock.mockResolvedValue({ data: { error: 'exists' }, status: 409 })
+        await createNewPlaylist('Road trip')
+        await saveAlbumAsPlaylist('Aurora', 'albumhash')
+        expect(recordRecentPlaylist).not.toHaveBeenCalled()
     })
 })

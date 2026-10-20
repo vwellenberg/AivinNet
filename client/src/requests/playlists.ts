@@ -33,6 +33,10 @@ export async function createNewPlaylist(playlist_name: string) {
 
     if (status == 201) {
         new Notification('Playlist created successfullly!', NotifType.Success)
+        // A playlist you just made is the one you are about to fill: it heads
+        // the suggestions in "Add to playlist" (they only ever learned from
+        // adds, so a new, empty playlist never showed up there).
+        recordRecentPlaylist(data.playlist.id)
         return data.playlist as Playlist
     }
 
@@ -154,6 +158,8 @@ export async function saveItemAsPlaylist(itemtype: string, props: {}) {
 
     if (status === 201) {
         store.showNotification('Playlist created successfully!', NotifType.Success)
+        // Same as createNewPlaylist: the newest playlist heads the suggestions.
+        recordRecentPlaylist(data.playlist.id)
         return data.playlist as Playlist
     }
 
