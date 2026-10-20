@@ -791,6 +791,13 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Läuft, weil das Element NEU ist: eine Caption erscheint, wenn ihr Abschnitt
   // erscheint. Nichts muss einen Zustand mitführen.
   animation: mem-sticker-slap $motion-settle ease-out;
+
+  // ⚠️ „Neu" heißt im virtuellen Scroller nicht „einmal": Er hängt seine
+  // Knoten ~300 ms nach dem Scrollen um, und das Umhängen startete den
+  // Anschlag erneut (utils/arrivalLatch.ts setzt das Attribut).
+  .vue-recycle-scroller__item-view &[data-arrived] {
+    animation: none;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1373,6 +1380,12 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 // specific rule has to set it). `backwards`, not `both`.
 @mixin mem-motif-pop($delay: 0s) {
   animation: mem-motif-pop $motion-settle $motion-curve-settle $delay backwards;
+
+  // Once grown, it stays grown where a scroller moves its views (the album
+  // page's stats sit in one) — see the sticker above.
+  .vue-recycle-scroller__item-view &[data-arrived] {
+    animation: none;
+  }
 }
 
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —

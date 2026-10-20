@@ -245,6 +245,16 @@ $control-dense-glyph: 1rem;
   // silently kill hover and press in all five roles.
   animation: btn-pop $motion-move $motion-curve-settle var(--btn-pop-delay, 0s) backwards;
 
+  // In a recycled scroller view the pop is an arrival and happens once: the
+  // scroller re-sorts its views ~300 ms after every scroll, and the move
+  // restarted it — a detail head's buttons popped in twice on the way back up
+  // (utils/arrivalLatch.ts sets the attribute). Scoped to the views on
+  // purpose: `btn-toggle-on` pops on a STATE change, and outside a scroller
+  // nothing moves the node anyway.
+  .vue-recycle-scroller__item-view &[data-arrived] {
+    animation: none;
+  }
+
   // (Der eigene reduced-motion-Block hier ist entfallen: die pauschale Regel
   // in Global/motion-policy.scss deckt jede Animation ab, auch diese. Zwei
   // Antworten auf dieselbe Frage waren genau der Zustand, aus dem heraus 62

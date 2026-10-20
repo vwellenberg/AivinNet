@@ -5,7 +5,6 @@ import WrapBalancer from "vue-wrap-balancer";
 
 import {
   RecycleScroller,
-  DynamicScroller,
   DynamicScrollerItem,
   // @ts-ignore
 } from "vue-virtual-scroller";
@@ -18,6 +17,7 @@ import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
 import vContextMenu from "./directives/vContextMenu";
 import { installArrivalLatch } from "./utils/arrivalLatch";
+import { TypedDynamicScroller } from "./utils/typedScroller";
 import { installTouchActive } from "./utils/touchActive";
 
 import "./assets/scss/index.scss";
@@ -62,7 +62,9 @@ installTouchActive();
 
 app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);
-app.component("DynamicScroller", DynamicScroller);
+// One view pool per component, so a recycled view never turns a card row into
+// a head and rebuilds it. See utils/typedScroller.ts.
+app.component("DynamicScroller", TypedDynamicScroller);
 app.component("DynamicScrollerItem", DynamicScrollerItem);
 
 app.mount("#app");

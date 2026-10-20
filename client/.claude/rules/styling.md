@@ -1460,6 +1460,23 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   führen (Zensus in `nowPlayingRow.test.ts`). Wer eine Pseudo-Element-Animation an ein
   gescrolltes Element hängt, zählt beim Messen **auch die Pseudo-Events** (`e.pseudoElement`) —
   ein Zähler nur über das Element sah diesen Fall nie.
+  ⚠️ **Und es sind nicht nur Zeilen, die ankommen.** Alles, was in einem Scroller-*View* sitzt,
+  bringt seinen eigenen Auftritt mit: die Knöpfe eines Detail-Kopfs (`btn-pop`), Sticker
+  (`mem-sticker-slap`), Stat-Motive (`mem-motif-pop`). Auf der Album-Seite ploppten Kopf-Knöpfe
+  und Disc-Sticker beim schnellen Hochscrollen zweimal (gemessen auf master: alle 5 Elemente je
+  2 Starts). Diese drei stehen jetzt im Latch, ihre Sperre greift aber **nur innerhalb von
+  `.vue-recycle-scroller__item-view`**: `btn-toggle-on` ploppt beim Einschalten absichtlich
+  erneut, und außerhalb eines Scrollers hängt niemand den Knoten um.
+  ⚠️ **Ein View-Pool pro KOMPONENTE, sonst baut der Scroller Köpfe neu.** `DynamicScroller`
+  reicht keinen `type` an `RecycleScroller` weiter, also teilten Kopf, Zeilen, Disc-Leiste und
+  Kartenreihen *einen* Pool: Der View, der unten „More from …“ zeigte, wurde oben zum Kopf, und
+  `<component :is>` baute ihn neu, samt Auftritt. `utils/typedScroller.ts` gibt jeder Zeile
+  `type: item.component`; registriert unter dem Bibliotheksnamen in `main.ts`, also gilt es für
+  jede Seite; ein nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"`
+  (Suche → Tracks). Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
+  Bleibt (auf master identisch): Ein Scrollsprung, der weiter reicht als der gerenderte Bereich,
+  ist für die Bibliothek „nicht kontinuierlich“ und legt **neue** Views an, statt die alten
+  freizugeben. Diese Zeilen kommen einmal an (Playlist: 13 bei 5 × 1500 px).
 - ⚠️ **Unter „weniger Bewegung" transitioniert JEDES Element JEDE Eigenschaft.** Die Policy
   (`motion-policy.scss`) setzt `transition-duration: 0.01ms !important` auf `*` — und ein Element
   ohne eigene Transition hat als Standard `transition-property: all`. Ein vererbtes `visibility`
