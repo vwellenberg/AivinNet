@@ -1,17 +1,23 @@
 <template>
     <div v-if="notifStore.notifs" class="toasts">
-        <div
+        <!-- A toast with onClick is itself the control ("Playlist created" →
+             open it), so it renders as a real <button>. Not combined with an
+             action: that would nest a button in a button. -->
+        <component
+            :is="isLink(notif) ? 'button' : 'div'"
             v-for="notif in notifStore.notifs"
             :key="notif.id"
+            :type="isLink(notif) ? 'button' : undefined"
             class="new-notif rounded-sm"
-            :class="[notif.type, { 'has-action': notif.action }]"
+            :class="[notif.type, { 'has-action': notif.action, 'is-link': isLink(notif) }]"
+            @click="openNotif(notif)"
         >
             <component :is="getSvg(notif.type)" class="notif-icon" />
             <div class="notif-text">{{ notif.text }}</div>
             <button v-if="notif.action" type="button" class="notif-action rounded-sm" @click="runAction(notif)">
                 {{ notif.action.label }}
             </button>
-        </div>
+        </component>
     </div>
 </template>
 
@@ -30,6 +36,16 @@ const notifStore = useToast()
 function runAction(notif: Notif) {
     notifStore.dismiss(notif.id)
     notif.action?.handler()
+}
+
+function isLink(notif: Notif) {
+    return !!notif.onClick && !notif.action
+}
+
+function openNotif(notif: Notif) {
+    if (!isLink(notif)) return
+    notifStore.dismiss(notif.id)
+    notif.onClick?.()
 }
 
 function getSvg(notif: NotifType) {
@@ -94,6 +110,16 @@ function getSvg(notif: NotifType) {
 
     .notif-text {
         width: 100%;
+    }
+
+    // The whole toast is the target ("Playlist created" → open it).
+    // As a <button> it would centre its text and take the button reset's
+    // line-height; it must look exactly like every other toast.
+    &.is-link {
+        text-align: start;
+        line-height: inherit;
+        cursor: pointer;
+        @include focus-ring;
     }
 
     &.has-action {

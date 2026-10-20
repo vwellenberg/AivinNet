@@ -9,22 +9,23 @@ const useToast = defineStore("notification", {
     notifs: <Notif[]>[],
   }),
   actions: {
-    showNotification(new_text: string, new_type?: NotifType, action?: NotifAction) {
+    showNotification(new_text: string, new_type?: NotifType, action?: NotifAction, onClick?: () => void) {
       const id = nextNotifId++;
       this.notifs.push(<Notif>{
         id,
         text: new_text,
         type: new_type,
         action,
+        onClick,
       });
 
-      // Action toasts stay longer so the user can actually hit the button.
-      // Removal is id-based (not shift) since timeouts differ per toast.
+      // Action and clickable toasts stay longer so the user can actually hit
+      // them. Removal is id-based (not shift) since timeouts differ per toast.
       setTimeout(
         () => {
           this.notifs = this.notifs.filter((n) => n.id !== id);
         },
-        action ? 8000 : 3000
+        action || onClick ? 8000 : 3000
       );
 
       return id;
@@ -48,8 +49,8 @@ class Notification {
   /** For `useToast().dismiss()`: an action toast whose action has lapsed must not keep offering it. */
   readonly id: number;
 
-  constructor(text: string, type: NotifType = NotifType.Info, action?: NotifAction) {
-    this.id = useToast().showNotification(text, type, action);
+  constructor(text: string, type: NotifType = NotifType.Info, action?: NotifAction, onClick?: () => void) {
+    this.id = useToast().showNotification(text, type, action, onClick);
   }
 }
 
