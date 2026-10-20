@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
 
 import { resolveQueueMove } from '@/utils/queueMove'
-import { remapAfterMove, shiftAfterInsert, shiftAfterRemove } from '@/utils/shuffleIndexes'
+import { remapAfterMove, shiftAfterInsert, shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
 
 describe('shiftAfterInsert', () => {
     it('leaves indexes in front of the insert alone', () => {
@@ -78,5 +80,49 @@ describe('remapAfterMove', () => {
                 }
             }
         }
+    })
+})
+
+describe('successorOnRemove', () => {
+    it('hands over to the pre-rolled next row, wherever it is (shuffle)', () => {
+        expect(successorOnRemove(10, 3, 7)).toBe(7)
+        expect(successorOnRemove(10, 3, 0)).toBe(0)
+    })
+
+    it('hands over to the row below in sequential order', () => {
+        // `nextindex` already is the row below there — passed through as is.
+        expect(successorOnRemove(10, 3, 4)).toBe(4)
+    })
+
+    it("never repeats the row that is going away (repeat: 'one')", () => {
+        expect(successorOnRemove(10, 3, 3)).toBe(4)
+    })
+
+    it('wraps to the top when the last row repeats and goes away', () => {
+        expect(successorOnRemove(10, 9, 9)).toBe(0)
+    })
+
+    it('answers with a PRE-splice index — the caller shifts it', () => {
+        const successor = successorOnRemove(10, 3, 7)
+        expect(shiftAfterRemove(successor, 3)).toBe(6)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// #264: the solo path and the group seam wrote this rule out each, and two
+// copies of a queue rule are how the group drifted before (#506 → #518). Both
+// halves call the helper, and neither spells the wrap out again.
+// ---------------------------------------------------------------------------
+describe('one successor rule for both halves', () => {
+    it.each([
+        ['src/stores/queue/tracklist.ts', 'removeByIndex'],
+        ['src/stores/devicesync.ts', "case 'removeTracks'"],
+    ])('%s (%s) asks successorOnRemove', (file, anchor) => {
+        const source = readFileSync(file, 'utf8')
+        const at = source.indexOf(anchor)
+        expect(at, `${anchor} not found in ${file}`).toBeGreaterThanOrEqual(0)
+        expect(source.slice(at, at + 4000)).toMatch(/successorOnRemove\(/)
+        // The wrap written out by hand: `… === <len> - 1 ? 0 : … + 1`.
+        expect(source).not.toMatch(/length\s*-\s*1\s*\?\s*0\s*:/)
     })
 })

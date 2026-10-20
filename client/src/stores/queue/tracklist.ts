@@ -20,7 +20,7 @@ import {
     Track,
 } from '@/interfaces'
 import { resolveQueueMove } from '@/utils/queueMove'
-import { shiftAfterRemove } from '@/utils/shuffleIndexes'
+import { shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
 
 export type From =
     | fromFolder
@@ -285,18 +285,8 @@ export default defineStore('tracklist', {
             const nextBefore = this.tracklist[queue.nextindex]
 
             if (index == currentindex) {
-                // Who takes over? `nextindex` answers that everywhere except
-                // `repeat: 'one'`, where it hands back the row that is about to
-                // disappear — there the honest answer is the row below it
-                // (wrapping), which is what sequential order gives anyway.
-                // Repeating a track that was just deleted is not a state the
-                // queue can be in.
-                const successor =
-                    queue.nextindex === index
-                        ? index === this.tracklist.length - 1
-                            ? 0
-                            : index + 1
-                        : queue.nextindex
+                // Who takes over — the one rule the group seam asks too.
+                const successor = successorOnRemove(this.tracklist.length, index, queue.nextindex)
 
                 // Written out rather than `playNext()` / `moveForward()`: those
                 // read `nextindex` themselves, so the corrected successor could
