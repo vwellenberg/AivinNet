@@ -58,12 +58,88 @@ function onAnimationEnd(e: AnimationEvent) {
     if (e.target instanceof Element) e.target.setAttribute(ARRIVED_ATTR, '')
 }
 
+// ---------------------------------------------------------------------------
+// ⚠️ The PLAYING row has a second arrival, and the latch above never saw it.
+//
+// `mem-now-playing-row` (_candy.scss) rings the state in on its pseudo-elements:
+// the zigzag band drops in on `::after`, the sprinkle wipes in on `::before`.
+// The same move restarts them. Measured on the queue page (200 tracks, wheel
+// down, then back up): the playing row scrolls in, builds up, and ~580 ms
+// later — the scroller's re-sort — builds up a second time, while every other
+// row stayed still. Reported as "scrolling up the queue plays the build-up
+// twice"; #370 had only latched the element's own entrance.
+//
+// Unlike the entrance, this one must be able to play AGAIN on the same node: a
+// recycled row that shows the playing track later, a lyric line that becomes
+// current a second time. So the latch is RELEASED when the host leaves the
+// state — every host marks it with the class `current` (census in
+// nowPlayingRow.test.ts).
+// ---------------------------------------------------------------------------
+
+/** The keyframes that ring the playing state in, on the row's pseudo-elements. */
+export const NOW_PLAYING_ANIMATIONS: ReadonlySet<string> = new Set(['mem-band-drop', 'mem-texture-wipe'])
+export const NOW_PLAYING_ARRIVED_ATTR = 'data-now-playing-arrived'
+/** The class every host of `mem-now-playing-row` toggles for the state. */
+export const NOW_PLAYING_CLASS = 'current'
+
 export function installArrivalLatch(root: Document = document): () => void {
+    // Which of a row's two ornament animations have started since it became
+    // current. Per animation, not per row: `::before` and `::after` start in
+    // the same frame, and the second of them is no restart.
+    const started = new WeakMap<Element, Set<string>>()
+
+    // A class change that drops the state releases the row. A microtask after
+    // the patch, so before the next frame — the browser sees the row leave the
+    // state and lose the latch together.
+    const leaving = new MutationObserver(records => {
+        for (const { target } of records) {
+            if (!(target instanceof Element) || target.classList.contains(NOW_PLAYING_CLASS)) continue
+            target.removeAttribute(NOW_PLAYING_ARRIVED_ATTR)
+            started.delete(target)
+        }
+    })
+
+    /**
+     * An ornament event of a row that is in the state. One that arrives after
+     * the class has gone (the frame it ends or starts in is the frame the row
+     * leaves) must not latch it again behind the observer's back.
+     */
+    function ornamentHost(e: AnimationEvent): Element | null {
+        if (!NOW_PLAYING_ANIMATIONS.has(e.animationName) || !e.pseudoElement) return null
+        if (!(e.target instanceof Element) || !e.target.classList.contains(NOW_PLAYING_CLASS)) return null
+        return e.target
+    }
+
+    function onOrnamentStart(e: AnimationEvent) {
+        const row = ornamentHost(e)
+        if (!row) return
+        const key = e.pseudoElement + e.animationName
+        const seen = started.get(row)
+        if (seen?.has(key)) {
+            row.setAttribute(NOW_PLAYING_ARRIVED_ATTR, '')
+            return
+        }
+        if (seen) seen.add(key)
+        else started.set(row, new Set([key]))
+        // Watched from the first start, not from the latch: a row recycled
+        // mid-animation never ends it, and its record must go all the same.
+        leaving.observe(row, { attributes: true, attributeFilter: ['class'] })
+    }
+
+    function onOrnamentEnd(e: AnimationEvent) {
+        ornamentHost(e)?.setAttribute(NOW_PLAYING_ARRIVED_ATTR, '')
+    }
+
     // Capture phase: animation events bubble, but a handler below could stop them.
     root.addEventListener('animationstart', onAnimationStart, true)
     root.addEventListener('animationend', onAnimationEnd, true)
+    root.addEventListener('animationstart', onOrnamentStart, true)
+    root.addEventListener('animationend', onOrnamentEnd, true)
     return () => {
         root.removeEventListener('animationstart', onAnimationStart, true)
         root.removeEventListener('animationend', onAnimationEnd, true)
+        root.removeEventListener('animationstart', onOrnamentStart, true)
+        root.removeEventListener('animationend', onOrnamentEnd, true)
+        leaving.disconnect()
     }
 }

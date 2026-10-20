@@ -1,6 +1,8 @@
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
+import { NOW_PLAYING_CLASS } from "@/utils/arrivalLatch";
+
 // ---------------------------------------------------------------------------
 // The "this row is playing" state is ONE decision: `mem-now-playing-row` in
 // src/assets/scss/_candy.scss (yellow fill + ink frame + the zigzag marker on
@@ -70,6 +72,24 @@ function blockFor(source: string, head: string): string | null {
   return null;
 }
 
+/**
+ * The selector of the rule a position sits in, braces balanced; at-rules
+ * (`@media …`) in between are walked through to the rule around them.
+ */
+function enclosingSelector(source: string, index: number): string {
+  let depth = 0;
+  for (let i = index - 1; i >= 0; i--) {
+    if (source[i] === "}") depth++;
+    else if (source[i] === "{" && depth-- === 0) {
+      depth = 0;
+      const start = Math.max(...["{", "}", ";"].map((c) => source.lastIndexOf(c, i - 1)));
+      const head = source.slice(start + 1, i).trim();
+      if (!head.startsWith("@")) return head;
+    }
+  }
+  return "";
+}
+
 describe("now-playing row", () => {
   // A source-scanning test goes silently green when its parser breaks, so it
   // guards its own inputs first.
@@ -129,6 +149,30 @@ describe("now-playing row", () => {
     expect(mixin).toMatch(/[^-]mask-image:/);
     // The row's content has to sit above it, or the sprinkle paints ON the title.
     expect(mixin).toMatch(/>\s*\*\s*\{[^}]*z-index/);
+  });
+
+  // The ornament's once-only latch (utils/arrivalLatch.ts) is RELEASED when the
+  // row loses this class, so the next time it plays the band drops in again.
+  // A host that marked the state any other way would latch its row for good.
+  // Collected, not listed: the lyric line is a host that ROWS does not name.
+  it(`every host marks the state with .${NOW_PLAYING_CLASS}, the class the ornament latch is released on`, () => {
+    const hosts = Object.entries(SOURCES)
+      .map(([file, source]) => [file, styleSource(source)] as const)
+      .filter(([, style]) => style.includes(`@include ${MIXIN}`));
+    const files = hosts.map(([file]) => file);
+    expect(files, "the census finds the song row").toContain(ROWS[0].file);
+    expect(files, "the census finds the lyric line").toContain("/src/views/LyricsView/main.vue");
+
+    // The parser has to be able to fail: a host under another class is red.
+    expect(enclosingSelector(`.line.playing {\n @include ${MIXIN};\n}`, 20)).toBe(".line.playing");
+    expect(enclosingSelector(`.a.current { @media (x) { @include ${MIXIN}; } }`, 30)).toBe(".a.current");
+
+    const current = new RegExp(`\\.${NOW_PLAYING_CLASS}(?![\\w-])`);
+    for (const [file, style] of hosts) {
+      for (const m of style.matchAll(new RegExp(`@include ${MIXIN}\\b`, "g"))) {
+        expect(enclosingSelector(style, m.index ?? 0), file).toMatch(current);
+      }
+    }
   });
 
   // Two tests lived here for the queue row's own copy of this state — pinned
