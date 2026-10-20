@@ -1474,9 +1474,26 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   `type: item.component`; registriert unter dem Bibliotheksnamen in `main.ts`, also gilt es für
   jede Seite; ein nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"`
   (Suche → Tracks). Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
-  Bleibt (auf master identisch): Ein Scrollsprung, der weiter reicht als der gerenderte Bereich,
-  ist für die Bibliothek „nicht kontinuierlich“ und legt **neue** Views an, statt die alten
-  freizugeben. Diese Zeilen kommen einmal an (Playlist: 13 bei 5 × 1500 px).
+  ⚠️ **Angekommen wird beim Seitenaufbau, nicht beim Scrollen** (Entscheidung des Nutzers,
+  2026-10-20). Ein Scrollsprung, der weiter reicht als der gerenderte Bereich, ist für die
+  Bibliothek „nicht kontinuierlich“ und legt **neue** Views an, statt die alten freizugeben;
+  die kamen mitten im Scrollen an (Playlist: 13 Zeilen bei 5 × 1500 px, Suche und
+  Artist-Tracks 17–18). Seitdem setzt `arrivalLatch.ts` beim ersten Scroll-Ereignis
+  `data-scrolled` auf den Scroller, und die vier Ankunfts-Mixins (`mem-arrival`, `btn-pop`,
+  `mem-sticker`, `mem-motif-pop`) lassen alles, was danach in seinen Views entsteht, einfach
+  stehen — auch nachgeladene Kacheln. **Ausgenommen ist die laufende Zeile**: Ihr Ruck sagt
+  „neuer Track“, und ein Trackwechsel nach dem Scrollen ist immer noch einer (Zensus in
+  `arrivalLatch.test.ts`). Gemessen nach dem Umbau: Seitenaufbau auf allen Scroller-Seiten
+  gleich master, beim Scrollen 0 Ankünfte. Wer eine neue Ankunft für Scroller-Inhalt schreibt,
+  gibt ihr dieselbe Zeile `.vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view
+  &:not([data-arrival-started])`. Das `:not` ist tragend: Ohne es schnitt ein Scrollen in den
+  ersten ~300 ms den laufenden Aufbau ab, und die Zeilen sprangen ans Ende. Zwei Grenzen, bewusst:
+  Das Flag hängt am Scroller-**Element** — eine Seite, die ihren Scroller über einen Routenwechsel
+  behält (Album → Album, Ordner → Ordner), baut die nächste Seite also ohne Ankunft (dort kam
+  auch vorher fast nichts an: die wiederverwendeten Knoten sind gesperrt); wer einen frischen
+  Aufbau will, keyt den Scroller wie `PlaylistView`. Und auch **programmatisches** Scrollen setzt
+  es (Positionswiederherstellung nach dem Bearbeiten-Modus der Playlist) — was dabei entsteht,
+  ist einfach da.
 - ⚠️ **Unter „weniger Bewegung" transitioniert JEDES Element JEDE Eigenschaft.** Die Policy
   (`motion-policy.scss`) setzt `transition-duration: 0.01ms !important` auf `*` — und ein Element
   ohne eigene Transition hat als Standard `transition-property: all`. Ein vererbtes `visibility`

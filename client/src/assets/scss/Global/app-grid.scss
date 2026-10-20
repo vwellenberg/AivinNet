@@ -207,10 +207,10 @@ $app-grid-gap: 8px;
     // Begrüßung wird eine Ladezeit.
     //
     // `$beyond: drop` ist hier die richtige Hälfte der Regel: Zeile 9 steht
-    // unter der Falz, und im virtualisierten Scroller entsteht sie erst beim
-    // Hinscrollen — mit gehaltener Verzögerung würde sie mitten in der
-    // Scrollbewegung nachblenden. Reihen NEBENeinander brauchen das Gegenteil
-    // (siehe mem-arrival in _candy.scss).
+    // unter der Falz, also sieht niemand sie zu früh ankommen. Was erst beim
+    // Scrollen entsteht, kommt gar nicht an (mem-arrival, `data-scrolled`).
+    // Reihen NEBENeinander brauchen das Gegenteil (siehe mem-arrival in
+    // _candy.scss).
     @include mem-arrival($beyond: drop);
 
     // The frame declarations need the .rounded-sm compound: SongItem.vue's

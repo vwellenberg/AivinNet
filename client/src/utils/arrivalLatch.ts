@@ -106,6 +106,30 @@ export const NOW_PLAYING_ARRIVED_ATTR = 'data-now-playing-arrived'
 /** The class every host of `mem-now-playing-row` toggles for the state. */
 export const NOW_PLAYING_CLASS = 'current'
 
+// ---------------------------------------------------------------------------
+// An arrival belongs to the page's BUILD, not to scrolling.
+//
+// A scroll jump further than the rendered range is "not continuous" to
+// vue-virtual-scroller: it creates NEW views for the new range instead of
+// freeing the old ones, and every new row then arrived mid-scroll — 13 rows on
+// a playlist after five fast flicks back up. Once a scroller has scrolled, the
+// arrival mixins (mem-arrival, btn-pop, mem-sticker, mem-motif-pop) leave
+// whatever is built in its views as it is. The playing row's ornament is not
+// among them: it rings in a state change, and a track change after scrolling
+// is still one.
+// ---------------------------------------------------------------------------
+
+export const SCROLLED_ATTR = 'data-scrolled'
+export const SCROLLER = '.vue-recycle-scroller'
+
+function onScroll(e: Event) {
+    // `scroll` does not bubble; the capture phase sees every scroller's.
+    const el = e.target
+    if (el instanceof Element && !el.hasAttribute(SCROLLED_ATTR) && el.matches(SCROLLER)) {
+        el.setAttribute(SCROLLED_ATTR, '')
+    }
+}
+
 export function installArrivalLatch(root: Document = document): () => void {
     // Which of a row's two ornament animations have started since it became
     // current. Per animation, not per row: `::before` and `::after` start in
@@ -159,11 +183,15 @@ export function installArrivalLatch(root: Document = document): () => void {
     root.addEventListener('animationend', onAnimationEnd, true)
     root.addEventListener('animationstart', onOrnamentStart, true)
     root.addEventListener('animationend', onOrnamentEnd, true)
+    // Before the scroller's own handler, so the views it builds for this very
+    // scroll already find the flag.
+    root.addEventListener('scroll', onScroll, { capture: true, passive: true })
     return () => {
         root.removeEventListener('animationstart', onAnimationStart, true)
         root.removeEventListener('animationend', onAnimationEnd, true)
         root.removeEventListener('animationstart', onOrnamentStart, true)
         root.removeEventListener('animationend', onOrnamentEnd, true)
+        root.removeEventListener('scroll', onScroll, true)
         leaving.disconnect()
     }
 }
