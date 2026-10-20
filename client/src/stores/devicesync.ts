@@ -28,7 +28,7 @@ import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
 import { learnLatency, loadLatency, saveLatency, type LatencyKind } from '@/utils/deviceSync/latency'
 import { resolveQueueMove } from '@/utils/queueMove'
 import { pickShuffleIndex } from '@/utils/shufflePicker'
-import { shiftAfterRemove } from '@/utils/shuffleIndexes'
+import { shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
 import type {
     DeviceSummary,
     PollResponse,
@@ -1691,11 +1691,8 @@ export default defineStore('devicesync', {
                     // row (`track_change` with `queue.nextindex`), so the two
                     // halves contradicted each other and every device landed on
                     // the wrong track together (#518).
-                    //
-                    // `nextindex === at` only under `repeat: 'one'`, where it
-                    // hands back the row that is going away.
-                    const successor =
-                        queue.nextindex === at ? (at === hashes.length - 1 ? 0 : at + 1) : queue.nextindex
+                    // One helper for both halves, so they cannot drift (#264).
+                    const successor = successorOnRemove(hashes.length, at, queue.nextindex)
 
                     hashes.splice(at, 1)
 

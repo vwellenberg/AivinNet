@@ -48,6 +48,26 @@ export function shiftAfterRemove(index: number, removed: number): number | null 
 }
 
 /**
+ * The playing row at `removed` is going away: which row takes over? Asked
+ * BEFORE the splice, so the answer is a pre-splice index — pass it through
+ * `shiftAfterRemove` for the list after.
+ *
+ * `nextindex` answers that everywhere except `repeat: 'one'`, where it hands
+ * back the row that is about to disappear. There the honest answer is the row
+ * below it (wrapping), which is what sequential order gives anyway — repeating
+ * a track that was just deleted is not a state the queue can be in.
+ *
+ * ONE rule for both halves (#264): the solo path (`tracklist.removeByIndex`)
+ * and the group seam (`intercept('removeTracks')`) each wrote it out, and two
+ * copies of a queue rule are how the group drifted before (#506 → #518, and
+ * the group shuffle's front row).
+ */
+export function successorOnRemove(length: number, removed: number, nextindex: number): number {
+    if (nextindex !== removed) return nextindex
+    return removed === length - 1 ? 0 : removed + 1
+}
+
+/**
  * A row moved from `from` to `finalIndex` (post-splice index, the one
  * `resolveQueueMove` returns — not the drop gap).
  *
