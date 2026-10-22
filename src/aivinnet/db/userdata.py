@@ -537,6 +537,25 @@ class ScrobbleTable(Base):
         return [(row[0], row[1]) for row in result.all()]
 
     @classmethod
+    def trackhashes_before(cls, timestamp: int, userid: int | None = None) -> list[str]:
+        """Every track the user played before `timestamp`, once (Rewind's "new artists")."""
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(select(cls.trackhash).where(cls.userid == userid).where(cls.timestamp < timestamp).distinct())
+        return [row[0] for row in result.all()]
+
+    @classmethod
+    def timestamp_range(cls, userid: int | None = None) -> tuple[int | None, int | None]:
+        """The user's first and last play, or `(None, None)` without any."""
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(select(func.min(cls.timestamp), func.max(cls.timestamp)).where(cls.userid == userid))
+        first, last = result.one()
+        return first, last
+
+    @classmethod
     def change_marker(cls, userid: int | None = None) -> tuple[int, int]:
         """`(plays, highest id)` of a user: changes with every play added or removed."""
         if userid is None:

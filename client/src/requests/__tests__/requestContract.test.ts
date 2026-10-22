@@ -244,6 +244,7 @@ const CALLS: Record<string, unknown[]> = {
     'stats/getTopTracks': ['week', 10, 'playduration'],
     'stats/getStats': ['month'],
     'stats/getListeningCalendar': [],
+    'stats/getRewind': [2025],
     'track/editTrackTags': ['t1', { title: 'B' }],
 }
 

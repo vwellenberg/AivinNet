@@ -236,6 +236,14 @@
   },
   "GET /img/user/{imgpath}": {},
   "GET /logger/calendar": {},
+  "GET /logger/rewind": {
+    "query": {
+      "allowed": [
+        "year"
+      ],
+      "required": []
+    }
+  },
   "GET /logger/stats": {
     "query": {
       "allowed": [

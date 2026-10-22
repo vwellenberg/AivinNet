@@ -1,0 +1,167 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { reactive } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const route = reactive<{ name: string; params: Record<string, string> }>({ name: 'RewindView', params: {} })
+const replace = vi.fn()
+
+vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace }) }))
+vi.mock('@/router', () => ({ Routes: { artist: 'ArtistView', album: 'AlbumView', Rewind: 'RewindView' } }))
+vi.mock('@/requests/stats', () => ({ getRewind: vi.fn() }))
+vi.mock('@/utils/updatePageTitle', () => ({ default: vi.fn() }))
+
+import RewindView from '@/views/Rewind/main.vue'
+import { getRewind } from '@/requests/stats'
+
+// As GET /logger/rewind sends it (#527).
+const year2026 = {
+    year: 2026,
+    years: [2025, 2026],
+    plays: 4567,
+    seconds: 740_700,
+    days: 241,
+    top_artists: [
+        { name: 'Red Hot Chili Peppers', artisthash: 'ar1', image: 'ar1.webp', seconds: 38 * 3600 },
+        { name: 'Primus', artisthash: 'ar2', image: 'ar2.webp', seconds: 3600 },
+    ],
+    top_albums: [
+        {
+            title: 'Blood Sugar',
+            albumhash: 'al1',
+            image: 'al1.webp?pathhash=p1',
+            albumartists: [{ name: 'Red Hot Chili Peppers', artisthash: 'ar1' }],
+            seconds: 7200,
+        },
+    ],
+    top_tracks: [{ title: 'Blue', trackhash: 't1', artists: [{ name: 'The Artist', artisthash: 'ar3' }], plays: 12 }],
+    summer_track: { track: { title: 'Summer', trackhash: 't2', artists: [{ name: 'Primus', artisthash: 'ar2' }] }, plays: 9 },
+    first_track: null,
+    busiest_day: { date: '2026-05-02', seconds: 5 * 3600 },
+    new_artists: 7,
+    new_artists_top: [{ name: 'Primus', artisthash: 'ar2' }],
+    listener: { kind: 'album', share: 0.62 },
+    time_of_day: { band: 'evenings', share: 0.5 },
+}
+
+const stubs = { RouterLink: { template: '<a><slot /></a>' } }
+
+// Every mounted page, unmounted after its test: the next test's route reset
+// would otherwise reach the old page's watcher.
+const mounted: ReturnType<typeof mount>[] = []
+function page() {
+    const w = mount(RewindView, { global: { stubs } })
+    mounted.push(w)
+    return w
+}
+
+function plates(w: ReturnType<typeof mount>) {
+    return w.findAll('.rewind-plate .section-title').map(t => t.text())
+}
+
+describe('Rewind', () => {
+    afterEach(() => {
+        mounted.splice(0).forEach(w => w.unmount())
+    })
+
+    beforeEach(() => {
+        route.name = 'RewindView'
+        route.params = {}
+        replace.mockReset()
+        vi.mocked(getRewind).mockReset()
+    })
+
+    it('tells the year in plates', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+        const w = page()
+        await flushPromises()
+
+        expect(getRewind).toHaveBeenLastCalledWith(undefined)
+        expect(w.find('.rewind-hero .rewind-big').text()).toBe('12,345')
+        expect(plates(w)).toEqual([
+            'Rewind 2026',
+            'Your top artist',
+            'Your top album',
+            'Your top tracks',
+            'Song of your summer',
+            'Your biggest day',
+            'New to you',
+            'How you listen',
+        ])
+        expect(w.text()).toContain('The album listener')
+        expect(w.text()).toContain('Saturday, May 2')
+    })
+
+    it('switches years through the route', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+        const w = page()
+        await flushPromises()
+        await w.findAll('.rewind-years button')[0].trigger('click')
+
+        expect(replace).toHaveBeenCalledWith({ name: 'RewindView', params: { year: 2025 } })
+
+        route.params = { year: '2025' }
+        await flushPromises()
+        expect(getRewind).toHaveBeenLastCalledWith(2025)
+    })
+
+    it('keeps the way to the other years when one fails to load', async () => {
+        vi.mocked(getRewind).mockResolvedValueOnce({ status: 200, data: year2026 } as any)
+        const w = page()
+        await flushPromises()
+
+        vi.mocked(getRewind).mockResolvedValueOnce({ status: 500, data: null } as any)
+        route.params = { year: '2025' }
+        await flushPromises()
+
+        expect(w.findAll('.rewind-years button').map(b => b.text())).toEqual(['2025', '2026'])
+        expect(w.find('.rewind-years button[aria-pressed="true"]').text()).toBe('2025')
+        expect(plates(w)).toEqual(['Rewind 2025'])
+        expect(w.text()).toContain('could not be loaded')
+
+        vi.mocked(getRewind).mockResolvedValueOnce({ status: 200, data: { ...year2026, year: 2025 } } as any)
+        await w.find('.rewind-retry').trigger('click')
+        await flushPromises()
+        expect(getRewind).toHaveBeenLastCalledWith(2025)
+        expect(plates(w)[0]).toBe('Rewind 2025')
+        expect(w.text()).not.toContain('could not be loaded')
+    })
+
+    it('loads nothing when the route moves on to another page', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+        route.params = { year: '2026' }
+        page()
+        await flushPromises()
+
+        route.name = 'StatsView'
+        route.params = {}
+        await flushPromises()
+
+        expect(getRewind).toHaveBeenCalledTimes(1)
+    })
+
+    it('says so when a year has no music', async () => {
+        const empty = {
+            ...year2026,
+            year: 2019,
+            years: [],
+            plays: 0,
+            top_artists: [],
+            top_albums: [],
+            top_tracks: [],
+            summer_track: null,
+            busiest_day: null,
+            new_artists: 0,
+            listener: null,
+        }
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: empty } as any)
+        route.params = { year: '2019' }
+
+        const w = page()
+        await flushPromises()
+
+        expect(plates(w)).toEqual(['Rewind 2019'])
+        expect(w.text()).toContain('No music in 2019')
+    })
+})

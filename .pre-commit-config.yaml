@@ -30,6 +30,7 @@ repos:
           src/aivinnet/lib/reference_migration.py,
           src/aivinnet/lib/listening_calendar.py,
           src/aivinnet/lib/date_added.py,
+          src/aivinnet/lib/rewind.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]

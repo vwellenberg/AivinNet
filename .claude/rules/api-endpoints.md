@@ -209,3 +209,25 @@ Befund, nicht das Hindernis: der Client schickt etwas, das der Server nicht (meh
 Falle, die der Abgleich beim ersten Lauf zweimal gefunden hat: **Ein Pydantic-`alias` ist der
 Name auf dem Draht.** `AlbumLimitSchema.limit` heißt nach außen `albumlimit`; der Client schickte
 `limit`, das wurde still ignoriert und der Server nahm seinen Standardwert.
+
+## Stats-Seite: Hörkalender und Rewind rechnen über die ganze Historie
+
+`GET /logger/calendar` (#525) und `GET /logger/rewind` (#527) lesen viele Plays im
+Request-Thread — deshalb **gruppiert** der Kalender in SQL, und beide **cachen pro User** bis zum
+nächsten Play (`ScrobbleTable.change_marker`: Anzahl + höchste ID; der Kalender zusätzlich bis
+zum nächsten Tag, Rewind nur das zuletzt geöffnete Jahr). Wer dort etwas ergänzt, rechnet es in
+den gecachten Payload hinein, nicht daneben.
+
+⚠️ **Beide zählen Tage in der Zone der C-Bibliothek, nicht in pendulums** — der Kalender, weil er
+in SQL gruppiert (`database.md`), Rewind, damit „Your biggest day“ derselbe Tag ist wie im
+Kalender daneben: naive `datetime`s (`datetime(year, 1, 1).timestamp()`,
+`datetime.fromtimestamp(ts)`). Deren Grenzen sind plattformabhängig — Windows' Uhr kennt keine
+Zeit vor 1970 und nach 3000, und `datetime(10000, 1, 1)` gibt es nirgends. Rewind fängt das in
+`_year_bounds` ab und antwortet für so ein Jahr leer statt mit 500.
+
+⚠️ **Die Quelle eines Plays hat mehr Präfixe, als `TrackLog` kennt.** Der Client schickt
+`al:` `ar:` `fo:` `pl:` `pf:` `q:` `favorite` (`client/src/stores/tracker.ts::getSource`),
+`models/logger.TrackLog` ordnet aber nur `al/ar/fo/pl/favorite` zu — `pf:` (Playlist-Ordner) und
+`q:` (Suche) landen dort als `track`. Rewind liest deshalb den rohen `source`-String
+(`lib/rewind.py::source_kind`), und eine erzeugte Playlist (`CUSTOM_PLAYLISTS`) zählt dort als
+„Home“. Wer eine neue Quelle im Client einführt, trägt sie an beiden Stellen ein.
