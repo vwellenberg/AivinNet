@@ -174,6 +174,32 @@ Live 2026-10-02: ein Batch schickte 149 × `PUT /track/<hash>/tags` (eine pro Da
 Wer einen neuen Schreibpfad baut: Ziel ist eine **Datei**, also Pfad (`edit_track_tags_by_filepath`).
 Ein Hash ist nur als Gruppe sinnvoll — Referenzen (Playlists, Favoriten) zeigen auf die Gruppe.
 
+## ⚠️ Hinzugefügt ist nicht geändert: `added` statt `last_mod`
+
+`last_mod` ist die **mtime**, also der letzte *Schreibvorgang*. Jeder Tag-Edit, jedes in die
+Datei geschriebene Cover und jeder Album-Apply setzt sie auf jetzt, und der nächste Scan liest
+die Datei als neue Zeile ein. „Recently added“, „Date added“ (Alben, Artists, Ordner) und die
+Standardreihenfolge eines Ordners lasen bis 2026-10 genau das. Nach einer Tag-Reparatur stand
+deshalb der ganze Ordner `100-Musicians` (2954 Tracks) als „NEW MUSIC“ auf Home, und ein
+bearbeiteter Song rutschte ans Ende seines Ordners.
+
+Seitdem trägt jede Zeile `added` (`migrations/track_added.py`, `lib/date_added.py`):
+
+- **Neue Datei:** ihre mtime, wie früher.
+- **Neu geschriebene Zeile:** `added` wird **mitgenommen**, und zwar vom Rescan
+  (`filter_modded` merkt es sich, `tag_untagged` setzt es) und vom Tag-Editor (`track_edit._edit`).
+  Ein Rename behält die Zeile und damit auch `added`.
+- **Zeilen von vor der Spalte** (NULL) füllt `backfill_added` nach dem Laden: die mtime, außer
+  der Track wurde **vor** ihr schon gespielt. Ein Play beweist, dass die Datei da war. Ein
+  bearbeiteter, aber nie gespielter Track behält die Bearbeitung als Datum, weil nichts in der DB
+  es besser weiß.
+
+`last_mod` bleibt, was es ist: die Frage des Scans „hat sich die Datei geändert?“. **Wer einen
+neuen Schreibpfad baut, der die `track`-Zeile neu anlegt, setzt `tags["added"]` aus der alten
+Zeile.** Fehlt es, landet die Datei wieder als „neu“ auf Home. Grenze: Wird eine Datei erst
+bearbeitet und dann **außerhalb** der App verschoben, sieht der Scan eine fremde neue Datei, und
+`added` wird ihre (frische) mtime.
+
 ## Dateien umbenennen: der Hash bleibt, drei Stellen ziehen mit
 
 Ein Rename (`lib/track_rename.py`, #144) ändert **keinen** Hash — dafür alles, was den Pfad
@@ -352,7 +378,7 @@ je Zeile:
   einem Symlink mit 0 zählte.
 
 Ein Ordner hat **eine** Reihenfolge, wenn keine Sortierung gewählt ist:
-`sortlib.folder_order`, also gespeichertes `last_mod` und danach der Pfad. Diese Reihenfolge
+`sortlib.folder_order`, also `added` (oben, „Hinzugefügt ist nicht geändert“) und danach der Pfad. Diese Reihenfolge
 gilt für die Ordneransicht, „Play“ auf der Ordnerkarte (`/folder/tracks/all`) und „als Playlist
 speichern“. Früher sortierte die Ansicht nach der mtime auf der Platte, die anderen beiden nach
 `last_mod`. Bei Gleichstand entschied einmal die Verzeichnisreihenfolge, einmal die Hash-Reihenfolge,

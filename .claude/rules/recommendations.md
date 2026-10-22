@@ -53,8 +53,10 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
   sein). Sie steht in `homerows.DATED_PLAYLISTS`: ein Play daraus macht **keine** Karte in
   „Recently played“, die würde morgen einen anderen Tag spielen.
 - **Recently played** (lokale Scrobble-Aggregation, neu nach jedem Scrobble) und **Recently
-  added** (Library-Timestamps, neu nach jedem Scan in `lib/index.py`): beide auch beim Start
-  gefüllt.
+  added** (`track.added`, neu nach jedem Scan in `lib/index.py`): beide auch beim Start
+  gefüllt. ⚠️ Recently added liest **nicht** die mtime (`last_mod`): Mit ihr stand nach einer
+  Tag-Reparatur der ganze `100-Musicians`-Ordner als „NEW MUSIC“ oben. Warum, und was jeder
+  Schreibpfad mittragen muss: `track-tags.md`, „Hinzugefügt ist nicht geändert“.
 
 Die Regeln und Schwellen stehen in `lib/home/homerows.py`, absichtlich ohne DB- und
 Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen dazu liegen in

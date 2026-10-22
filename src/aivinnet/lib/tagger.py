@@ -58,7 +58,9 @@ class IndexTracks:
         unmodified, modified_tracks = self.filter_modded(ScanScope.from_scan(found, exclude, unreadable))
         untagged = files - unmodified
 
-        self.tag_untagged(untagged)
+        # A changed file is re-read into a new row, and that row must not be
+        # "added" today: the change was a tag edit or a cover, not new music.
+        self.tag_untagged(untagged, added={t["filepath"]: t["added"] for t in modified_tracks})
         self.extract_thumb_with_overwrite(modified_tracks)
 
     @staticmethod
@@ -123,6 +125,7 @@ class IndexTracks:
                 {
                     "filepath": track.filepath,
                     "albumhash": track.albumhash,
+                    "added": track.added,
                 }
             )
 
@@ -138,8 +141,14 @@ class IndexTracks:
 
         return unmodified_paths, modified_tracks
 
-    def tag_untagged(self, files: set[str]):
+    def tag_untagged(self, files: set[str], added: dict[str, int] | None = None):
+        """
+        Index ``files`` into new rows. ``added`` holds, by path, when the files
+        that were already in the library came into it; every other file is new,
+        and was added at its mtime.
+        """
         config = UserConfig()
+        added = added or {}
 
         # Create process pool with worker function
         with Pool(processes=max(1, cpu_count() // 2)) as pool:
@@ -159,6 +168,7 @@ class IndexTracks:
         # The folder store is NOT touched here: it is read by request threads
         # while this runs, and `load_filepaths()` rebuilds it after the scan.
         for tags in results:
+            tags["added"] = added.get(tags["filepath"], tags["last_mod"])
             TrackTable.insert_one(tags)
 
         print(f"{len(results)} new files indexed")
@@ -200,7 +210,7 @@ def create_albums(_trackhashes: list[str] | None = None) -> list[tuple[Album, se
                 "albumhash": track.albumhash,
                 "base_title": None,
                 "color": None,
-                "created_date": track.last_mod,
+                "created_date": track.added,
                 "date": track.date,
                 "duration": track.duration,
                 "genres": [*track.genres] if track.genres else [],
@@ -221,7 +231,7 @@ def create_albums(_trackhashes: list[str] | None = None) -> list[tuple[Album, se
             album["lastplayed"] = max(album["lastplayed"], track.lastplayed)
             album["duration"] += track.duration
             album["date"] = min(album["date"], track.date)
-            album["created_date"] = min(album["created_date"], track.last_mod)
+            album["created_date"] = min(album["created_date"], track.added)
 
             if track.genres:
                 album["genres"].extend(track.genres)
@@ -290,7 +300,7 @@ def create_artists(artisthashes: list[str]) -> list[tuple[Artist, set[str], set[
                     "albumcount": None,
                     "albums": {track.albumhash},
                     "artisthash": thisartist["artisthash"],
-                    "created_date": track.last_mod,
+                    "created_date": track.added,
                     "date": track.date,
                     "duration": track.duration,
                     # A copy, like create_albums: extended below, the
@@ -314,7 +324,7 @@ def create_artists(artisthashes: list[str]) -> list[tuple[Artist, set[str], set[
                 artist["albums"].add(track.albumhash)
                 artist["date"] = min(artist["date"], track.date)
                 artist["lastplayed"] = max(artist["lastplayed"], track.lastplayed)
-                artist["created_date"] = min(artist["created_date"], track.last_mod)
+                artist["created_date"] = min(artist["created_date"], track.added)
                 artist["names"].add(thisartist["name"])
 
                 artist.setdefault("albums", set())

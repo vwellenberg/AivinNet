@@ -33,7 +33,9 @@ def folder_api(api_client, monkeypatch):
 
     def add(filepath: str, last_mod: int):
         TrackStore.add_track(
-            SimpleNamespace(trackhash=f"h{len(TrackStore.trackhashmap)}", filepath=filepath, last_mod=last_mod)
+            SimpleNamespace(
+                trackhash=f"h{len(TrackStore.trackhashmap)}", filepath=filepath, last_mod=last_mod, added=last_mod
+            )
         )
 
     return SimpleNamespace(api=api_client("aivinnet.api.folder"), add=add, stats=stats)

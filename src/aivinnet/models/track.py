@@ -55,6 +55,9 @@ class Track:
     _score: float = 0
     explicit: bool = False
     fav_userids: list[int] = field(default_factory=list)
+    # When the file came into the library (`track.added`), for "Recently added"
+    # and every "Date added". Not `last_mod`: a tag edit moves that one.
+    added: int = 0
 
     # What this track was called before the server cleaned its title and artist
     # names (`strip_track_number`, `strip_artist_credit`): the trackhash it had
@@ -94,6 +97,10 @@ class Track:
         self.og_title = self.title
         self.og_album = self.album
         self.folder = self.folder + "/"
+        # A row from before the column, until the backfill has run: the mtime
+        # is all that is known, and it is what "added" meant until then.
+        if not self.added:
+            self.added = self.last_mod
         self.weakhash = create_hash(self.title, self.artists)
 
         explicit_tag = self.extra.get("explicit", ["0"])

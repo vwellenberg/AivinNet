@@ -51,7 +51,8 @@ class FolderTree(BaseModel):
     folder: str = Field("$home", description="The folder to things from")
     sorttracksby: str = Field(
         "default",
-        description="""The field to sort tracks by. Options: [
+        description="""The field to sort tracks by. "last_mod" is "Date Added": when the
+        file came into the library (`added`), not its mtime. Options: [
             "default",
             "album",
             "albumartists",

@@ -60,7 +60,7 @@ def create_track(t: Track):
     return {
         "type": "track",
         "hash": t.trackhash,
-        "timestamp": t.last_mod,
+        "timestamp": t.added,
         "help_text": "NEW TRACK",
     }
 
@@ -86,7 +86,7 @@ def check_folder_type(group_: dict):
     # store?" called every album new and no artist new (#391). A day of slack:
     # CD1/ and CD2/ of a new album, or the album folders of a new artist,
     # are copied one after the other.
-    new_since = min(t.last_mod for t in tracks) - NEW_TOLERANCE_SECONDS
+    new_since = min(t.added for t in tracks) - NEW_TOLERANCE_SECONDS
 
     is_album, albumhash, _ = check_is_album_folder(tracks)
     if is_album:
@@ -152,22 +152,24 @@ def get_recently_added_items(limit: int = 7):
     groups = group_track_by_folders(tracks, {})
     grouplist = []
 
-    # INFO: sort tracks by last modified date in descending order to get the most recent last modified date
+    # A folder is as new as the newest file that came into it. Not its newest
+    # mtime: a tag edit or a cover written into one file put a whole folder of
+    # long-known music on top, as "NEW MUSIC" (lib/date_added.py).
     for folder, trackgroup in groups.items():
         if not pathlib.Path(folder).exists():
             continue
 
-        trackgroup.sort(key=lambda t: t.last_mod, reverse=True)
+        trackgroup.sort(key=lambda t: t.added, reverse=True)
         grouplist.append(
             {
                 "folder": folder,
                 "len": len(trackgroup),
                 "tracks": trackgroup,
-                "time": trackgroup[0].last_mod,
+                "time": trackgroup[0].added,
             }
         )
 
-    # sort groups by last modified date
+    # newest folder first
     grouplist = sorted(grouplist, key=lambda group: group["time"], reverse=True)
 
     recent_items = []
@@ -201,7 +203,7 @@ def get_recently_added_playlist(limit: int = 100):
 
     try:
         # Create date to show as last updated
-        date = datetime.fromtimestamp(tracks[0].last_mod)
+        date = datetime.fromtimestamp(tracks[0].added)
     except IndexError:
         return playlist, []
 

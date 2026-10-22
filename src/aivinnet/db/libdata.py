@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import JSON, Integer, String, delete, insert, select, update
+from sqlalchemy import JSON, Integer, String, bindparam, delete, insert, select, update
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from aivinnet.config import UserConfig
@@ -37,6 +37,33 @@ class TrackTable(Base):
     playcount: Mapped[int] = mapped_column(Integer(), default=0)
     playduration: Mapped[int] = mapped_column(Integer(), default=0)
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSON(), default_factory=dict)
+    # When the file came into the library. NOT `last_mod`, which every tag edit
+    # moves: carried over each rewrite of the row (migrations/track_added.py).
+    # NULL until `lib/date_added.backfill_added` has filled it.
+    added: Mapped[int | None] = mapped_column(Integer(), nullable=True, default=None)
+
+    @classmethod
+    def ids_without_added(cls) -> set[int]:
+        with DbEngine.manager() as conn:
+            return set(conn.execute(select(cls.id).where(cls.added.is_(None))).scalars())
+
+    @classmethod
+    def fill_added(cls, values: dict[int, int]) -> None:
+        """
+        Set `added` by row id, and every row still without one to its `last_mod`,
+        in one transaction. Afterwards no row is NULL, so the next start reads
+        one column and writes nothing.
+        """
+        with DbEngine.manager(commit=True) as session:
+            if values:
+                # On the table, not the ORM's bulk update by primary key: that one
+                # raises (and rolls back the fill below) for a row deleted since.
+                table = cls.__table__
+                session.connection().execute(
+                    update(table).where(table.c.id == bindparam("rowid")).values(added=bindparam("value")),
+                    [{"rowid": rowid, "value": added} for rowid, added in values.items()],
+                )
+            session.execute(update(cls).where(cls.added.is_(None)).values(added=cls.last_mod))
 
     @classmethod
     def get_all(cls):
