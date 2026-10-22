@@ -45,11 +45,20 @@ ROW_LIMIT = 15
 # Playlists the server builds on the fly, by name; their handlers are in
 # `generated_playlists.GENERATED_PLAYLISTS` (kept apart: this module stays free
 # of store imports). They have no stable track order, so nothing to continue.
-CUSTOM_PLAYLISTS = {"recentlyadded", "recentlyplayed", "onrepeat", "onthisday"}
+CUSTOM_PLAYLISTS = {
+    "recentlyadded",
+    "recentlyplayed",
+    "onrepeat",
+    "onthisday",
+    "forgottenfavorites",
+    "becauseyoulistened",
+}
 
-# Generated playlists whose content belongs to one day. A "Recently played"
-# card for one would play whatever day it is when it is clicked, so none is made.
-DATED_PLAYLISTS = {"onthisday"}
+# Generated playlists whose content belongs to the moment they were played: one
+# day, or the seed artist of the week. A "Recently played" card for one would
+# play whatever day (or seed) it is when it is clicked, under another name, so
+# none is made.
+DATED_PLAYLISTS = {"onthisday", "becauseyoulistened"}
 
 
 def parse_playlist_id(src: str) -> int | None:

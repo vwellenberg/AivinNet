@@ -39,20 +39,12 @@
                     Play one
                 </button>
             </template>
-            <!-- "On repeat" is also a playlist the server serves ("onrepeat"),
-                 so the queue is named after it and keeps the row's order. -->
-            <template v-else-if="item.key === 'on_repeat'" #actions>
-                <button class="btn-action btn-action-label surprise" @click="playFromPlaylist('onrepeat')">
+            <!-- Rows the server also serves as a playlist (`item.playlist`):
+                 the queue is named after it and keeps the row's order. -->
+            <template v-else-if="item.playlist" #actions>
+                <button class="btn-action btn-action-label surprise" @click="playFromPlaylist(item.playlist!)">
                     <PlaySvg />
-                    Play all
-                </button>
-            </template>
-            <!-- "On this day": the day a year ago in the order it was heard
-                 (playlist "onthisday"), not just its albums one by one. -->
-            <template v-else-if="item.key === 'on_this_day'" #actions>
-                <button class="btn-action btn-action-label surprise" @click="playFromPlaylist('onthisday')">
-                    <PlaySvg />
-                    Play that day
+                    {{ playButtonLabel(item.key) }}
                 </button>
             </template>
             <template v-if="item.chips?.length" #chips>
@@ -94,7 +86,7 @@ import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
 import { getSurpriseAlbum } from '@/requests/home'
 import { pickRowAlbum } from '@/utils/pickRowAlbum'
-import { chipItems } from '@/utils/homeRows'
+import { chipItems, playButtonLabel } from '@/utils/homeRows'
 import { HomePageItem } from '@/interfaces'
 import PlaySvg from '@/assets/icons/play.svg'
 import GenericHeader from '@/components/shared/GenericHeader.vue'

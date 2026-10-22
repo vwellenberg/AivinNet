@@ -212,6 +212,11 @@ def test_the_three_rows_their_shape_and_order(home, history):
 
     because = data["because_you_listened"]
     assert because["title"] == "Because you listened to Red Hot Chili Peppers"
+    # The row names the playlist that plays it ("Play mix", #524); a row that
+    # is no playlist names none.
+    assert because["playlist"] == "becauseyoulistened"
+    assert data["on_repeat"]["playlist"] == "onrepeat"
+    assert "playlist" not in data["never_played"]
     assert because["url"] == f"/artists/{artisthash(RHCP)}"
     assert because["description"] == "Often played in the same sessions"
     (album,) = because["items"]
@@ -286,6 +291,8 @@ def test_a_user_who_loses_the_seed_loses_the_title_too(home, history, monkeypatc
 
     assert entry.items[1] == []
     assert 1 not in entry.meta
+    # …and its mix: "Play mix" would play the old seed's tracks.
+    assert 1 not in entry.trackhashes
 
 
 def run_newer_routines():
@@ -406,12 +413,87 @@ def test_on_repeat_is_also_a_playlist(home, history, monkeypatch):
     assert home.get("/playlists/onrepeat").get_json()["tracks"] == []
 
 
+def test_forgotten_favorites_are_also_a_playlist(home, history, monkeypatch):
+    """ "Play all" on the row (#524), in the row's order."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    for trackhash in (th(FNM, 4), th(MILES, 1)):
+        TRACKS[next(k for k, t in TRACKS.items() if t.trackhash == trackhash)].fav_userids.append(1)
+    run_newer_routines()
+
+    res = home.get("/playlists/forgottenfavorites")
+    assert res.status_code == 200, res.text
+    body = res.get_json()
+    assert body["info"]["name"] == "Forgotten favorites"
+    assert [t["trackhash"] for t in body["tracks"]] == [th(FNM, 4), th(MILES, 1)]
+
+    data, _ = rows(home)
+    assert data["forgotten_favorites"]["playlist"] == "forgottenfavorites"
+
+    home.userid = 2
+    assert home.get("/playlists/forgottenfavorites").get_json()["tracks"] == []
+
+
+def test_play_all_plays_more_forgotten_favorites_than_the_row_shows(home, history, monkeypatch):
+    """The row shows as many cards as fit; "Play all" plays every one the
+    routine found. Every track a favourite: ten are forgotten (two per album,
+    Red Hot Chili Peppers and Faith No More 1–3 were played lately)."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    for track in TRACKS.values():
+        track.fav_userids.append(1)
+    run_newer_routines()
+
+    data, _ = rows(home)
+    assert len(data["forgotten_favorites"]["items"]) == 9  # the ?limit= of `rows`
+    assert len(home.get("/playlists/forgottenfavorites").get_json()["tracks"]) == 10
+
+
+def test_because_you_listened_plays_as_a_mix(home, history, monkeypatch):
+    """ "Play mix" (#524): one track per album of the row — the one the user
+    played most. Faith No More 1–3 tie at 11 plays; 3 was played last."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    run_routines()
+
+    res = home.get("/playlists/becauseyoulistened")
+    assert res.status_code == 200, res.text
+    body = res.get_json()
+    assert body["info"]["name"] == "Because you listened to Red Hot Chili Peppers"
+    assert [t["trackhash"] for t in body["tracks"]] == [th(FNM, 3)]
+
+    home.userid = 2
+    body = home.get("/playlists/becauseyoulistened").get_json()
+    assert body["info"]["name"] == "Because you listened"
+    assert body["tracks"] == []
+
+
 def test_every_generated_playlist_is_known_by_name_too():
     """The registry and the name list must agree, see `generated_playlists`."""
     from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
     from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 
     assert set(GENERATED_PLAYLISTS) == CUSTOM_PLAYLISTS
+
+
+def test_every_row_playlist_is_one_the_server_generates():
+    """A row that names a playlist the endpoint does not know would get a
+    "Play all" that plays nothing (GET /playlists/<id> answers 404)."""
+    from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
+    from aivinnet.store.homepage import HomepageStore
+
+    named = {key: entry.playlist for key, entry in HomepageStore.entries.items() if entry.playlist}
+
+    assert named == {
+        "because_you_listened": "becauseyoulistened",
+        "on_repeat": "onrepeat",
+        "forgotten_favorites": "forgottenfavorites",
+        "on_this_day": "onthisday",
+    }
+    assert set(named.values()) <= set(GENERATED_PLAYLISTS)
 
 
 def test_on_this_day_shows_the_albums_of_several_years_and_plays_the_day(home, monkeypatch):

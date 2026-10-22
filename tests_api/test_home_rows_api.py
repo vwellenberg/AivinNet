@@ -311,13 +311,15 @@ def test_every_entry_has_a_place_in_the_order():
     assert sorted(ordered) == sorted(HomepageStore.entries)
 
 
-def test_a_play_from_on_this_day_makes_no_recently_played_card(home):
-    """Its content is one day's: a card for it tomorrow would play another day."""
+@pytest.mark.parametrize("playlist", ["onthisday", "becauseyoulistened"])
+def test_a_play_from_a_dated_playlist_makes_no_recently_played_card(home, playlist):
+    """Its content is one day's (or one seed's): a card for it tomorrow would
+    play another day, or another artist's mix under that artist's name."""
     from aivinnet.lib.recipes.recents import RecentlyPlayed
     from aivinnet.store.homepage import HomepageStore
 
     now = int(pendulum.now().timestamp())
-    scrobble(_trackhash(ALBUM_A, 1), now - 120, "pl:onthisday")
+    scrobble(_trackhash(ALBUM_A, 1), now - 120, f"pl:{playlist}")
     scrobble(_trackhash(ALBUM_B, 2), now - 60, f"al:{ALBUM_B}")
 
     RecentlyPlayed()
