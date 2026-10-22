@@ -235,6 +235,7 @@
     }
   },
   "GET /img/user/{imgpath}": {},
+  "GET /logger/calendar": {},
   "GET /logger/stats": {
     "query": {
       "allowed": [

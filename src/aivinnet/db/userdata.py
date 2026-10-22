@@ -502,6 +502,44 @@ class ScrobbleTable(Base):
         )
         return [tuple(row) for row in result.all()]
 
+    @staticmethod
+    def local_today() -> str:
+        """
+        Today's ISO date in SQLite's `localtime` (the C library's zone) — the
+        same zone `seconds_per_day` puts the plays in. Not pendulum's today: it
+        falls back to UTC where it cannot read the host zone
+        (`utils/timezone.ensure_local_timezone`) and libc does not, and the
+        newest plays would then land after the end of the calendar.
+        """
+        with DbEngine.manager() as conn:
+            return conn.execute(select(func.date("now", "localtime"))).scalar_one()
+
+    @classmethod
+    def seconds_per_day(cls, userid: int | None = None) -> list[tuple[str | None, int | None]]:
+        """
+        `(ISO date, seconds listened)` for every day the user played anything,
+        over the whole history — the listening calendar (`lib/listening_calendar`).
+
+        Grouped in SQL, in the zone of `local_today`, so only a day count
+        crosses into Python on the request thread.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        day = func.date(cls.timestamp, "unixepoch", "localtime")
+        result = cls.rows(select(day, func.sum(cls.duration)).where(cls.userid == userid).group_by(day))
+        return [(row[0], row[1]) for row in result.all()]
+
+    @classmethod
+    def change_marker(cls, userid: int | None = None) -> tuple[int, int]:
+        """`(plays, highest id)` of a user: changes with every play added or removed."""
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(select(func.count(cls.id), func.max(cls.id)).where(cls.userid == userid))
+        count, highest = result.one()
+        return int(count or 0), int(highest or 0)
+
     @classmethod
     def plays_by_trackhash_in_period(
         cls, start_time: int, end_time: int, userid: int | None = None

@@ -10,12 +10,14 @@
             <template #description>Your listening stats {{ statsPeriodPhrase(settings.statsperiod) }}</template>
         </GenericHeader>
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
+        <ListeningCalendar />
     </div>
 </template>
 
 <script setup lang="ts">
 import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
+import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
 import Stats from '@/components/Stats/Stats.vue'
 import useSettings from '@/stores/settings'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
