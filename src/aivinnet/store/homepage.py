@@ -4,6 +4,7 @@ from aivinnet.store.homepageentries import (
     ChipsEntry,
     GenericRecoverableEntry,
     HomepageEntry,
+    MixesEntry,
     PlayableEntry,
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
@@ -20,6 +21,11 @@ class HomepageStore:
     entries: dict[str, HomepageEntry] = {
         "continue_listening": GenericRecoverableEntry(
             title="Continue listening",
+        ),
+        # Playlist cards "Mix 1" … from the user's own sessions (#526).
+        "your_mixes": MixesEntry(
+            title="Your mixes",
+            description="Made from what you play together",
         ),
         # Titled per user by the routine: "Because you listened to <artist>";
         # one track per album for "Play mix" (playlist "becauseyoulistened").
@@ -76,6 +82,7 @@ class HomepageStore:
     # two lists; "Recently added" is pinned to the bottom.
     ORDER_BEFORE_PAGES = (
         "continue_listening",
+        "your_mixes",
         "because_you_listened",
         "on_repeat",
         "recently_played",

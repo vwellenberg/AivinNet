@@ -135,7 +135,9 @@ def home(api_client, monkeypatch):
         tracks = [t for (a, _), t in TRACKS.items() if a == albumhash]
         albummap[albumhash] = AlbumMapEntry(_album(albumhash, tracks), {t.trackhash for t in tracks})
         artist = tracks[0].albumartists[0]
-        artistmap[artist["artisthash"]] = ArtistMapEntry(_artist(artist), {albumhash}, set())
+        # With its tracks, as the scanner builds it: "Your mixes" draws the
+        # never-played tracks of an artist from here.
+        artistmap[artist["artisthash"]] = ArtistMapEntry(_artist(artist), {albumhash}, {t.trackhash for t in tracks})
 
     monkeypatch.setattr(AlbumStore, "albummap", albummap)
     monkeypatch.setattr(ArtistStore, "artistmap", artistmap)
@@ -383,10 +385,14 @@ def test_a_shutdown_stops_the_routines_between_users(home, history, monkeypatch)
     stop.set()
     monkeypatch.setattr(crons, "_stop", stop)
 
+    from aivinnet.lib.recipes.homerows import YourMixes
+
     run_routines()
     run_newer_routines()
+    YourMixes()
 
     for key in (
+        "your_mixes",
         "because_you_listened",
         "on_repeat",
         "never_played",
@@ -599,3 +605,88 @@ def test_on_this_day_logs_plays_that_left_the_library(home, caplog):
     ]
     _, order = rows(home)
     assert "on_this_day" not in order
+
+
+def test_your_mixes_are_playlists_cut_from_the_users_sessions(home, monkeypatch):
+    """#526: twelve weeks of evenings with Red Hot Chili Peppers (most played),
+    Faith No More and Primus together make one mix of the three; Miles Davis
+    and Fishbone, never played, are in none."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.lib.recipes.homerows import YourMixes
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    now = int(pendulum.now().timestamp())
+    for week in range(12):
+        listen(
+            now - week * 7 * DAY - 3600, th(RHCP, 1), th(FNM, 1), th(PRIMUS, 1), th(RHCP, 2), th(FNM, 2), th(RHCP, 3)
+        )
+
+    YourMixes()
+    data, order = rows(home)
+
+    assert order == ["your_mixes"]
+    (card,) = data["your_mixes"]["items"]
+    assert card["type"] == "playlist"
+    assert card["item"]["name"] == "Mix 1"
+    assert card["item"]["help_text"] == "Red Hot Chili Peppers, Faith No More, Primus"
+    # Every generated card said "0 Tracks": the handlers build the playlist
+    # without its trackhashes, and the card read the count from there.
+    assert card["item"]["count"] == 9
+
+    body = home.get("/playlists/mix1").get_json()
+    tracks = [t["trackhash"] for t in body["tracks"]]
+    album = {t.trackhash: a for (a, _), t in TRACKS.items()}
+    # Artist by artist, each giving a track the user knows first.
+    assert [album[t] for t in tracks[:3]] == [RHCP, FNM, PRIMUS]
+    assert tracks[0] in {th(RHCP, 1), th(RHCP, 2), th(RHCP, 3)}
+    # Three per album, each track once: 9 tracks, some never played.
+    assert len(tracks) == len(set(tracks)) == 9
+    assert th(PRIMUS, 5) in tracks or th(PRIMUS, 4) in tracks or th(PRIMUS, 3) in tracks
+    assert {album[t] for t in tracks} == {RHCP, FNM, PRIMUS}
+
+    # No second mix: an empty "Mix 2", not a 404 (a card or queue can outlive it).
+    second = home.get("/playlists/mix2")
+    assert second.status_code == 200
+    assert second.get_json()["tracks"] == []
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "your_mixes" not in order
+
+
+def test_a_mix_keeps_the_slot_its_core_had(home, monkeypatch):
+    """Served by its slot, a mix must not move: had the funk core been "Mix 2"
+    before, it stays "mix2" — and "mix1" stays empty rather than becoming funk."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.lib.recipes.homerows import YourMixes
+    from aivinnet.store.homepage import HomepageStore
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    now = int(pendulum.now().timestamp())
+    for week in range(12):
+        listen(
+            now - week * 7 * DAY - 3600, th(RHCP, 1), th(FNM, 1), th(PRIMUS, 1), th(RHCP, 2), th(FNM, 2), th(RHCP, 3)
+        )
+    entry = HomepageStore.entries["your_mixes"]
+    entry.mixes[1] = [None, {"name": "Mix 2", "core": artisthash(RHCP), "trackhashes": []}]
+
+    YourMixes()
+    data, _ = rows(home)
+
+    (card,) = data["your_mixes"]["items"]
+    assert card["item"]["id"] == "mix2"
+    assert card["item"]["name"] == "Mix 2"
+    assert home.get("/playlists/mix1").get_json()["tracks"] == []
+    assert len(home.get("/playlists/mix2").get_json()["tracks"]) == 9
+
+
+def test_your_mixes_need_a_history(home, caplog):
+    from aivinnet.lib.recipes.homerows import YourMixes
+
+    listen(int(pendulum.now().timestamp()) - 3600, th(RHCP, 1), th(FNM, 1))
+    with caplog.at_level("INFO"):
+        YourMixes()
+
+    assert "too short a history for mixes" in caplog.text
+    _, order = rows(home)
+    assert "your_mixes" not in order

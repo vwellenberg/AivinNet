@@ -146,3 +146,18 @@ class ChipsEntry(GenericRecoverableEntry):
             row["chips"] = chips
 
         return row
+
+
+class MixesEntry(GenericRecoverableEntry):
+    """
+    "Your mixes": one playlist card per mix. `mixes[userid]` holds one slot per
+    generated playlist "mix1" … (`onrepeat.get_mix_playlist` reads it by
+    position): `{"name", "core", "trackhashes"}`, or None for a slot without a
+    mix. A mix keeps its slot while its core artist does (`mixes.place_mixes`).
+    """
+
+    mixes: dict[int, list[dict[str, Any] | None]]
+
+    def __init__(self, title: str, description: str = "", playlist: str | None = None):
+        super().__init__(title, description, playlist)
+        self.mixes = {}

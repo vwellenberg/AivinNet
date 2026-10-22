@@ -7,6 +7,7 @@ Home rows that are also playlists, served like "recentlyplayed":
   plays) in the order it was heard — "Play that day".
 - "becauseyoulistened": one track per album of "Because you listened to …"
   — "Play mix".
+- "mix1" … "mix4": the cards of "Your mixes", by position.
 
 Read from what the routines already computed (RAM), so a playlist and its row
 always agree.
@@ -64,3 +65,15 @@ def get_on_this_day_playlist():
 
 def get_because_playlist():
     return _playable_playlist("because_you_listened", "becauseyoulistened", "Because you listened")
+
+
+def get_mix_playlist(position: int):
+    """
+    The user's mix at `position`. A position the user has no mix for is an
+    empty "Mix <n>" rather than a 404: a card or a queue can outlive the mix.
+    """
+    mixes = HomepageStore.entries["your_mixes"].mixes.get(get_current_userid(), [])
+    mix = mixes[position] if position < len(mixes) else None
+    if mix is None:
+        mix = {"name": f"Mix {position + 1}", "trackhashes": []}
+    return _playlist(f"mix{position + 1}", mix["name"], mix["trackhashes"])
