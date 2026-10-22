@@ -63,22 +63,28 @@ export async function createNewPlaylist(playlist_name: string) {
 }
 
 /**
- * Fetches all playlists from the server.
- * @returns {Promise<Playlist[]>} A promise that resolves to an array of playlists.
+ * All playlists of the user, or null when they could not be loaded. A failure
+ * is not "no playlists": the caller keeps what it shows. (Returning [] here
+ * emptied the sidebar on every network blip, and an error body made it
+ * `undefined`, which crashed it.)
  */
-export async function getAllPlaylists(no_images = false): Promise<Playlist[]> {
+export async function getAllPlaylists(no_images = false): Promise<Playlist[] | null> {
     const { data, error } = await useAxios({
         url: basePlaylistUrl + (no_images ? '?no_images=true' : ''),
         method: 'GET',
     })
 
-    if (error) console.error(error)
-
-    if (data) {
-        return data.data
+    if (error) {
+        console.error(error)
+        return null
     }
 
-    return []
+    if (!Array.isArray(data?.data)) {
+        console.error('GET /playlists: unexpected response', data)
+        return null
+    }
+
+    return data.data
 }
 
 export async function getPlaylist(pid: number | string, no_tracks = false, start: number = 0, limit: number = 50) {
