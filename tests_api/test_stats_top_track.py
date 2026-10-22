@@ -25,7 +25,9 @@ def make_track():
 def stats(api_client, monkeypatch, tracks):
     import aivinnet.api.scrobble as scrobble_api
 
-    monkeypatch.setattr(scrobble_api, "get_tracks_in_period", lambda *_: (tracks, len(tracks), 300))
+    monkeypatch.setattr(
+        scrobble_api, "summarize_tracks_in_period", lambda *_: (len(tracks), 300, tracks[0] if tracks else None)
+    )
     monkeypatch.setattr(scrobble_api.TrackStore, "get_flat_list", staticmethod(lambda: tracks), raising=False)
     api = api_client("aivinnet.api.scrobble")
     res = api.get("/logger/stats")

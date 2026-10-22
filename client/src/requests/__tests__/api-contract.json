@@ -235,7 +235,14 @@
     }
   },
   "GET /img/user/{imgpath}": {},
-  "GET /logger/stats": {},
+  "GET /logger/stats": {
+    "query": {
+      "allowed": [
+        "period"
+      ],
+      "required": []
+    }
+  },
   "GET /logger/top-albums": {
     "query": {
       "allowed": [

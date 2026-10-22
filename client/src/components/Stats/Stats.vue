@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { getStats } from '@/requests/stats'
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import StatItem from './StatItem.vue'
 import CalendarSvg from '@/assets/icons/calendar.svg'
 
@@ -40,23 +40,34 @@ interface StatItemData {
 
 const props = defineProps<{
     items?: StatItemData[]
+    /** The charts' period on the stats page (#523); without one the server answers for the week. */
+    period?: string
 }>()
 
 const statItems = ref<StatItemData[]>([])
 const date = ref<string | null>(null)
 
-onMounted(async () => {
+// Quick period flips can overtake each other: only the newest answer may
+// paint, or "Year" ends up showing the week that was still on its way.
+let fetchSeq = 0
+
+async function load() {
     if (props.items) {
         statItems.value = props.items
         return
     }
 
-    const res = await getStats()
-    if (res.status == 200) {
-        statItems.value = res.data.stats
-        date.value = res.data.dates
-    }
-})
+    const seq = ++fetchSeq
+    const res = await getStats(props.period)
+    if (seq !== fetchSeq) return
+
+    // A failed request clears the row: the previous period's numbers under
+    // the new period's tab would read as an answer.
+    statItems.value = res.status == 200 ? res.data.stats : []
+    date.value = res.status == 200 ? res.data.dates : null
+}
+
+watch(() => [props.period, props.items], load, { immediate: true })
 
 defineOptions({
     inheritAttrs: false,
