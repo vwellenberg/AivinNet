@@ -19,6 +19,7 @@ from pendulum.tz import local_timezone
 
 from aivinnet.db.userdata import PlaylistTable, ScrobbleTable
 from aivinnet.lib.home.discover import (
+    FAVORITE_PLAYLIST_LIMIT,
     ON_THIS_DAY_YEARS,
     REPEAT_BASELINE_WEEKS,
     REPEAT_DAYS,
@@ -26,6 +27,7 @@ from aivinnet.lib.home.discover import (
     AlbumFacts,
     TrackFacts,
     because_item,
+    because_mix,
     day_playlist,
     day_summary,
     for_this_time_item,
@@ -232,17 +234,23 @@ class BecauseYouListened(HomepageRoutine):
                 log.info("because-you-listened: no seed artist in the last 30 days for user %s", userid)
                 entry.items[userid] = []
                 entry.meta.pop(userid, None)
+                entry.trackhashes.pop(userid, None)
                 continue
 
             ranked = rank_because(scrobbles, track_facts, artist.artist.artisthash, now, UNKNOWN_ARTISTS.__contains__)
             if not ranked:
                 log.info("because-you-listened: nothing played with %s for user %s", artist.artist.name, userid)
 
-            entry.items[userid] = [because_item(*r) for r in ranked]
+            title = f"Because you listened to {artist.artist.name}"
+            # Mix and title before the cards, like "On this day": a reader in
+            # between would otherwise play the old seed's mix under new cards.
+            entry.trackhashes[userid] = because_mix(scrobbles, track_facts, [a for a, _, _ in ranked])
             entry.meta[userid] = {
-                "title": f"Because you listened to {artist.artist.name}",
+                "title": title,
                 "url": f"/artists/{artist.artist.artisthash}",
+                "playlist_name": title,
             }
+            entry.items[userid] = [because_item(*r) for r in ranked]
 
 
 class OnRepeat(HomepageRoutine):
@@ -476,7 +484,10 @@ class ForgottenFavorites(HomepageRoutine):
                 continue
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
-            ranked = rank_forgotten_favorites(favorites[userid], scrobbles, track_facts, now)
+            # More than a row shows: the rest are what "Play all" plays.
+            ranked = rank_forgotten_favorites(
+                favorites[userid], scrobbles, track_facts, now, limit=FAVORITE_PLAYLIST_LIMIT
+            )
 
             if not ranked:
                 log.info("forgotten-favorites: user %s played every favourite lately", userid)

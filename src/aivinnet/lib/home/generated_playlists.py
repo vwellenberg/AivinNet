@@ -12,23 +12,26 @@ from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
 from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
 
 
-def _on_repeat_playlist():
-    # Imported here: `onrepeat` reads the homepage store, whose entries import
-    # `recover_items`, which imports this module.
-    from aivinnet.lib.home.onrepeat import get_on_repeat_playlist
+def _row(getter: str):
+    """
+    A playlist built from a home row (`onrepeat.py`), imported when asked for:
+    `onrepeat` reads the homepage store, whose entries import `recover_items`,
+    which imports this module.
+    """
 
-    return get_on_repeat_playlist()
+    def handler():
+        from aivinnet.lib.home import onrepeat
 
+        return getattr(onrepeat, getter)()
 
-def _on_this_day_playlist():
-    from aivinnet.lib.home.onrepeat import get_on_this_day_playlist
-
-    return get_on_this_day_playlist()
+    return handler
 
 
 GENERATED_PLAYLISTS = {
     "recentlyadded": get_recently_added_playlist,
     "recentlyplayed": get_recently_played_playlist,
-    "onrepeat": _on_repeat_playlist,
-    "onthisday": _on_this_day_playlist,
+    "onrepeat": _row("get_on_repeat_playlist"),
+    "onthisday": _row("get_on_this_day_playlist"),
+    "forgottenfavorites": _row("get_forgotten_favorites_playlist"),
+    "becauseyoulistened": _row("get_because_playlist"),
 }

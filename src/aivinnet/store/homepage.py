@@ -4,7 +4,6 @@ from aivinnet.store.homepageentries import (
     ChipsEntry,
     GenericRecoverableEntry,
     HomepageEntry,
-    PersonalTitleEntry,
     PlayableEntry,
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
@@ -22,14 +21,17 @@ class HomepageStore:
         "continue_listening": GenericRecoverableEntry(
             title="Continue listening",
         ),
-        # Titled per user by the routine: "Because you listened to <artist>".
-        "because_you_listened": PersonalTitleEntry(
+        # Titled per user by the routine: "Because you listened to <artist>";
+        # one track per album for "Play mix" (playlist "becauseyoulistened").
+        "because_you_listened": PlayableEntry(
             title="Because you listened",
             description="Often played in the same sessions",
+            playlist="becauseyoulistened",
         ),
         "on_repeat": GenericRecoverableEntry(
             title="On repeat",
             description="Played much more this week than usual",
+            playlist="onrepeat",
         ),
         "recently_played": RecentlyPlayedHomepageEntry(
             title="Recently played",
@@ -51,6 +53,7 @@ class HomepageStore:
         "forgotten_favorites": GenericRecoverableEntry(
             title="Forgotten favorites",
             description="Favorites you have not played in a while",
+            playlist="forgottenfavorites",
         ),
         "rediscover": GenericRecoverableEntry(
             title="Rediscover",
@@ -61,6 +64,7 @@ class HomepageStore:
         "on_this_day": PlayableEntry(
             title="On this day",
             description="",
+            playlist="onthisday",
         ),
         "recently_added": RecentlyAddedHomepageEntry(
             title="Recently added",

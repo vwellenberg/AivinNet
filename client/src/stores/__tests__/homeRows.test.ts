@@ -67,6 +67,31 @@ describe('home rows', () => {
         expect(home.continueListening.map(e => e.type)).toEqual(['album', 'playlist'])
     })
 
+    it('links a playable row to the playlist the server names, unless it sends a url (#524)', async () => {
+        const track = { type: 'track', item: { trackhash: 't1', image: 'a1.webp?pathhash=p1' } }
+        fetchHome.mockResolvedValue([
+            { forgotten_favorites: { title: 'Forgotten favorites', description: '', items: [track], playlist: 'forgottenfavorites' } },
+            {
+                because_you_listened: {
+                    title: 'Because you listened to Primus',
+                    description: '',
+                    items: [{ type: 'album', item: album }],
+                    playlist: 'becauseyoulistened',
+                    url: '/artists/ar1',
+                },
+            },
+            { rediscover: { title: 'Rediscover', description: 'x', items: [{ type: 'album', item: album }] } },
+        ])
+        const home = useHome()
+        await home.fetchAll()
+
+        const path = Object.fromEntries(home.homepageItems.map(i => [i.key, i.path]))
+        expect(path.forgotten_favorites).toBe('/playlist/forgottenfavorites')
+        // The caption stays on the seed artist; the mix is the button's.
+        expect(path.because_you_listened).toBe('/artists/ar1')
+        expect(path.rediscover).toBeUndefined()
+    })
+
     it('has no card when the server sends nothing to continue', async () => {
         fetchHome.mockResolvedValue(response.slice(1))
         const home = useHome()

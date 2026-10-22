@@ -27,9 +27,6 @@ export default defineStore('homepage', () => {
 
     const routes = {
         recently_played: '/playlist/recentlyplayed',
-        // Served as a playlist too, so the caption opens the whole list.
-        on_repeat: '/playlist/onrepeat',
-        on_this_day: '/playlist/onthisday',
         // top_streamed_weekly_artists: '',
         recently_added: '/playlist/recentlyadded',
     }
@@ -63,7 +60,9 @@ export default defineStore('homepage', () => {
             // index IS the position.
             homepageData[key].position = index
             // @ts-ignore
-            homepageData[key].path = routes[key]
+            // A row the server also serves as a playlist names it, and its
+            // caption opens the whole list ("On repeat" …); a `url` still wins.
+            homepageData[key].path = routes[key] ?? (item[key].playlist && `/playlist/${item[key].playlist}`)
             // @ts-ignore
             homepageData[key].seeAllText = seeAllTexts[key]
 

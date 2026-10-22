@@ -14,10 +14,15 @@ class HomepageEntry(ABC):
     title: str
     description: str
     items: dict[int, Any]
+    # The generated playlist (`generated_playlists`) that plays this row, if
+    # any. Sent with the row, so the client's "Play all" and caption link
+    # need no table of their own.
+    playlist: str | None
 
-    def __init__(self, title: str, description: str):
+    def __init__(self, title: str, description: str, playlist: str | None = None):
         self.title = title
         self.description = description
+        self.playlist = playlist
 
     @abstractmethod
     def get_items(self, userid: int, limit: int | None = None):
@@ -34,8 +39,8 @@ class RecentlyPlayedHomepageEntry(HomepageEntry):
 
     items: dict[int, list[dict[str, Any]]]
 
-    def __init__(self, title: str, description: str = ""):
-        super().__init__(title, description)
+    def __init__(self, title: str, description: str = "", playlist: str | None = None):
+        super().__init__(title, description, playlist)
         self.items = {}
 
     def add_new_user(self, userid: int):
@@ -47,11 +52,15 @@ class RecentlyPlayedHomepageEntry(HomepageEntry):
     def get_items(self, userid: int, limit: int | None = None):
         items = self.items.get(userid, [])[:limit]
 
-        return {
+        row = {
             "title": self.title,
             "description": self.description,
             "items": recover_items(items),
         }
+        if self.playlist:
+            row["playlist"] = self.playlist
+
+        return row
 
 
 class RecentlyAddedHomepageEntry(RecentlyPlayedHomepageEntry):
@@ -83,8 +92,8 @@ class PersonalTitleEntry(GenericRecoverableEntry):
 
     meta: dict[int, dict[str, str]]
 
-    def __init__(self, title: str, description: str = ""):
-        super().__init__(title, description)
+    def __init__(self, title: str, description: str = "", playlist: str | None = None):
+        super().__init__(title, description, playlist)
         self.meta = {}
 
     def get_items(self, userid: int, limit: int | None = None):
@@ -108,8 +117,8 @@ class PlayableEntry(PersonalTitleEntry):
 
     trackhashes: dict[int, list[str]]
 
-    def __init__(self, title: str, description: str = ""):
-        super().__init__(title, description)
+    def __init__(self, title: str, description: str = "", playlist: str | None = None):
+        super().__init__(title, description, playlist)
         self.trackhashes = {}
 
 

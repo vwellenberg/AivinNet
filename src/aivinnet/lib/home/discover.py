@@ -89,6 +89,9 @@ LIKE_MAX_PLAYS = 5
 # "Forgotten favorites": favourite tracks not played for this long.
 FAVORITE_QUIET_DAYS = 60
 FAVORITE_MAX_PER_ALBUM = 2
+# The routine keeps this many: the row shows as many as fit, "Play all"
+# (playlist "forgottenfavorites") plays them all.
+FAVORITE_PLAYLIST_LIMIT = 100
 # A listening phase: the most plays in any PHASE_DAYS window. It shows as a
 # burst only when it is at least PHASE_MIN_PLAYS and PHASE_MIN_SHARE of all
 # plays the track ever got (a 2-year favourite with a 4-day spike is no burst).
@@ -297,6 +300,49 @@ def because_item(albumhash: str, sessions: int, last_played: int) -> dict[str, A
         "help_text": f"{sessions} sessions together",
         "secondary_text": f"last {_month(last_played)}",
     }
+
+
+def because_mix(
+    plays: Iterable[Play],
+    facts_of: Callable[[str], TrackFacts | None],
+    albumhashes: Sequence[str],
+) -> list[str]:
+    """
+    "Play mix" of "Because you listened to …": one track per album of the row,
+    in the row's order — the one the user played most (ties: played last).
+
+    A track, not the album: the row is fifteen albums, and played in full it
+    would be a day. Every album in the row has plays (it shared sessions with
+    the seed), so each gets a track the user already knows from it.
+
+    One pass, no `_resolve`: the routine has just resolved and sorted the same
+    whole history for `rank_because`, and this needs no order.
+    """
+    wanted = set(albumhashes)
+    count: Counter[str] = Counter()
+    last: dict[str, int] = {}
+    album_of: dict[str, str] = {}
+    cache: dict[str, TrackFacts | None] = {}
+
+    for play in plays:
+        if play.trackhash not in cache:
+            cache[play.trackhash] = facts_of(play.trackhash)
+
+        facts = cache[play.trackhash]
+        if facts is None or facts.albumhash not in wanted:
+            continue
+        count[play.trackhash] += 1
+        last[play.trackhash] = max(last.get(play.trackhash, play.timestamp), play.timestamp)
+        album_of[play.trackhash] = facts.albumhash
+
+    best: dict[str, str] = {}
+    for trackhash in count:
+        albumhash = album_of[trackhash]
+        current = best.get(albumhash)
+        if current is None or (count[trackhash], last[trackhash]) > (count[current], last[current]):
+            best[albumhash] = trackhash
+
+    return [best[a] for a in albumhashes if a in best]
 
 
 def rank_on_repeat(

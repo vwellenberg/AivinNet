@@ -71,7 +71,10 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   Abend sagen mehr als achtzig im Tages-Shuffle einer großen Playlist. Mindestens 2 gemeinsame
   Sitzungen, nichts aus den letzten 7 Tagen (steht schon in „Recently played“), ein Album pro
   Artist, keine ungetaggten Alben („Unknown“). Titel und Link (`/artists/<seed>`) sind **pro
-  User** (`PersonalTitleEntry.meta`) und verschwinden mit dem Seed.
+  User** (`PlayableEntry.meta`) und verschwinden mit dem Seed. **„Play mix“** spielt die
+  erzeugte Playlist `becauseyoulistened`: pro Album der Zeile **ein** Track, der meistgehörte
+  des Users (`discover.because_mix`) — fünfzehn ganze Alben wären ein Tag. Mix, Titel und
+  Karten werden zusammen gesetzt und verschwinden zusammen mit dem Seed.
 - **„On repeat“** (stündlich): Tracks mit ≥ 3 Plays in 7 Tagen und mindestens dem Doppelten
   ihres Wochenschnitts der 8 Wochen davor. Sortiert nach Plays **über** dem Schnitt (Trend, nicht
   Charts), höchstens 2 pro Album. Jede Karte trägt `home: {weeks, factor}` (8 Wochen + diese,
@@ -115,7 +118,28 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   stärkste 3-Tage-Spanne). Danach die früher meistgespielten, dann die
   am längsten stillen; höchstens 2 pro Album. Die Favoriten kommen aus dem RAM
   (`fav_userids` an den Tracks), nicht aus der DB. Ein Favorit ohne Bibliothekstrack fällt
-  lautlos heraus — das ist die Lücke aus #433.
+  lautlos heraus — das ist die Lücke aus #433. Wie „On repeat“ auch eine Playlist
+  (`forgottenfavorites`, Reihenfolge der Zeile): „Play all“, der Titel öffnet sie. Die Routine
+  behält bis zu `FAVORITE_PLAYLIST_LIMIT` (100) statt 15 — die Zeile zeigt so viele, wie passen
+  (`?limit=`), „Play all“ spielt alle.
+
+**Der Grund steht schon auf der Karte** — die Hilfezeile über dem Titel ist `help_text` plus
+`secondary_text` (beim Client `time`, `recover_items`): „2 sessions together · last March 2025“,
+„you play Primus · never played“, „in 2 of your playlists“. Wer eine Empfehlungszeile baut,
+schreibt den Grund dorthin; ein eigenes „Warum?“-Element braucht es nicht (#524).
+
+**Welche Zeile spielbar ist, sagt der Server:** Der Eintrag im `HomepageStore` trägt
+`playlist="<id>"`, und die Zeile schickt sie mit. Der Client baut daraus den Abspiel-Knopf und
+den Link des Titels (ein `url` des Servers geht vor — „Because you listened“ bleibt auf dem
+Artist). Eine neue spielbare Zeile ist also: Getter in `onrepeat.py`, Eintrag in
+`GENERATED_PLAYLISTS` und `CUSTOM_PLAYLISTS`, `playlist=` am Store-Eintrag; nur ein anderer
+Knopftext als „Play all“ braucht noch `PLAY_BUTTONS` in `client/src/utils/homeRows.ts`.
+`test_every_row_playlist_is_one_the_server_generates` hält Store und Register zusammen.
+
+⚠️ **Eine Zeile, deren Inhalt am Zeitpunkt hängt, gehört in `DATED_PLAYLISTS`** — sonst macht ein
+Play daraus eine „Recently played“-Karte, die morgen etwas anderes spielt. Das gilt für
+`onthisday` (ein Tag) **und** `becauseyoulistened` (der Seed der Woche; die Karte hieße
+„Because you listened to Primus“ und spielte nach dem nächsten Lauf einen anderen Artist).
 
 ⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
 der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen

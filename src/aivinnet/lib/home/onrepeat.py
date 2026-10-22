@@ -2,8 +2,11 @@
 Home rows that are also playlists, served like "recentlyplayed":
 
 - "onrepeat": the "On repeat" row — "Play all" plays it, its caption opens it.
+- "forgottenfavorites": the "Forgotten favorites" row, the same way.
 - "onthisday": the day a year ago (or the most recent earlier year with
   plays) in the order it was heard — "Play that day".
+- "becauseyoulistened": one track per album of "Because you listened to …"
+  — "Play mix".
 
 Read from what the routines already computed (RAM), so a playlist and its row
 always agree.
@@ -16,38 +19,48 @@ from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.auth import get_current_userid
 
 
-def get_on_repeat_playlist():
+def _playlist(playlistid: str, name: str, trackhashes: list[str]):
     playlist = Playlist(
-        id="onrepeat",
-        name="On repeat",
+        id=playlistid,
+        name=name,
         image=None,
         last_updated="Now",
         settings={},
         trackhashes=[],
     )
 
-    items = HomepageStore.entries["on_repeat"].items.get(get_current_userid(), [])
-    tracks = TrackStore.get_tracks_by_trackhashes([item["hash"] for item in items])
+    tracks = TrackStore.get_tracks_by_trackhashes(trackhashes)
     if tracks:
         playlist.images = get_first_4_images(tracks=tracks)
 
     return playlist, tracks
+
+
+def _row_playlist(key: str, playlistid: str, name: str):
+    """A row of track cards, in the row's order."""
+    items = HomepageStore.entries[key].items.get(get_current_userid(), [])
+    return _playlist(playlistid, name, [item["hash"] for item in items])
+
+
+def _playable_playlist(key: str, playlistid: str, name: str):
+    """A `PlayableEntry`: its own track list, and a name per user if it has one."""
+    entry = HomepageStore.entries[key]
+    userid = get_current_userid()
+    name = entry.meta.get(userid, {}).get("playlist_name", name)
+    return _playlist(playlistid, name, entry.trackhashes.get(userid, []))
+
+
+def get_on_repeat_playlist():
+    return _row_playlist("on_repeat", "onrepeat", "On repeat")
+
+
+def get_forgotten_favorites_playlist():
+    return _row_playlist("forgotten_favorites", "forgottenfavorites", "Forgotten favorites")
 
 
 def get_on_this_day_playlist():
-    entry = HomepageStore.entries["on_this_day"]
-    userid = get_current_userid()
-    playlist = Playlist(
-        id="onthisday",
-        name=entry.meta.get(userid, {}).get("playlist_name", "On this day"),
-        image=None,
-        last_updated="Now",
-        settings={},
-        trackhashes=[],
-    )
+    return _playable_playlist("on_this_day", "onthisday", "On this day")
 
-    tracks = TrackStore.get_tracks_by_trackhashes(entry.trackhashes.get(userid, []))
-    if tracks:
-        playlist.images = get_first_4_images(tracks=tracks)
 
-    return playlist, tracks
+def get_because_playlist():
+    return _playable_playlist("because_you_listened", "becauseyoulistened", "Because you listened")

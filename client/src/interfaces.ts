@@ -104,6 +104,8 @@ export interface HomePageItem {
     path?: string
     seeAllText?: string
     url?: string
+    /** The generated playlist that plays this row ("onrepeat" …), if the server serves one. */
+    playlist?: string
 }
 
 export interface Artist {

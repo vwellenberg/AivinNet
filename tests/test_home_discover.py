@@ -16,6 +16,7 @@ from aivinnet.lib.home.discover import (
     AlbumFacts,
     TrackFacts,
     because_item,
+    because_mix,
     day_playlist,
     day_summary,
     forgotten_favorite_item,
@@ -206,6 +207,39 @@ class TestBecause:
         assert item["hash"] == "fnm1"
         assert item["help_text"] == "9 sessions together"
         assert item["secondary_text"].startswith("last ")
+
+
+class TestBecauseMix:
+    """ "Play mix": one track per album of the row, the user's favourite of it."""
+
+    def setup_method(self):
+        self.lib = Library().add("rhcp1", "rhcp").add("fnm1", "fnm").add("primus1", "primus").add("jazz1", "miles")
+
+    def test_the_most_played_track_of_each_album_in_the_rows_order(self):
+        plays = session(NOW - 30 * DAY, "fnm1/2", "fnm1/2", "fnm1/1", "primus1/3") + session(
+            NOW - 20 * DAY, "primus1/1", "primus1/3"
+        )
+
+        assert because_mix(plays, self.lib.facts, ["primus1", "fnm1"]) == ["primus1/3", "fnm1/2"]
+
+    def test_a_tie_goes_to_the_track_played_last(self):
+        plays = session(NOW - 30 * DAY, "fnm1/1", "fnm1/2")
+
+        assert because_mix(plays, self.lib.facts, ["fnm1"]) == ["fnm1/2"]
+
+    def test_only_the_rows_albums(self):
+        # The seed and everything else the user played stay out of the mix.
+        plays = session(NOW - 30 * DAY, "rhcp1/1", "rhcp1/1", "fnm1/1", "jazz1/1")
+
+        assert because_mix(plays, self.lib.facts, ["fnm1"]) == ["fnm1/1"]
+
+    def test_tracks_gone_from_the_library_are_left_out(self):
+        plays = session(NOW - 30 * DAY, "gone/1", "gone/1", "fnm1/1")
+
+        assert because_mix(plays, self.lib.facts, ["gone", "fnm1"]) == ["fnm1/1"]
+
+    def test_an_empty_row_is_an_empty_mix(self):
+        assert because_mix(session(NOW - DAY, "fnm1/1"), self.lib.facts, []) == []
 
 
 class TestOnRepeat:
