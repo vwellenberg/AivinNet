@@ -43,6 +43,7 @@ from aivinnet.utils.stats import (
     get_artists_in_period,
     get_playlists_in_period,
     get_tracks_in_period,
+    summarize_tracks_in_period,
 )
 
 bp_tag = Tag(name="Logger", description="Log item plays")
@@ -51,6 +52,10 @@ api = APIBlueprint("logger", __name__, url_prefix="/logger", abp_tags=[bp_tag])
 
 # Year 5138: no clock reaches it, every timestamp in milliseconds does.
 MAX_SCROBBLE_TIMESTAMP = 10**11
+
+
+# The periods the stats page offers: the chart tabs and the tiles under them.
+StatsPeriod = Literal["day", "week", "month", "year", "alltime"]
 
 
 class LogTrackBody(TrackHashSchema):
@@ -140,7 +145,7 @@ def log_track(body: LogTrackBody):
 
 
 class ChartItemsQuery(BaseModel):
-    duration: Literal["day", "week", "month", "year", "alltime"] = Field(
+    duration: StatsPeriod = Field(
         "year",
         description="Duration to fetch data for",
     )
@@ -418,24 +423,33 @@ def sort_playlists(playlists: list[dict], order_by: Literal["playcount", "playdu
     return sorted(playlists, key=lambda x: x[order_by], reverse=True)
 
 
+class StatsQuery(BaseModel):
+    # The same periods as the charts above the tiles, and "week" by default:
+    # the tiles were fixed to it, and the search page's library numbers
+    # (`LibraryNumbers.vue`) still ask without a period.
+    period: StatsPeriod = Field(
+        "week",
+        description="Period the listening tiles cover",
+    )
+
+
+SAID_PERIOD = {
+    "day": "today",
+    "week": "this week",
+    "month": "this month",
+    "year": "this year",
+    "alltime": "all time",
+}
+
+
 @api.get("/stats")
-def get_stats():
+def get_stats(query: StatsQuery):
     """
     Get the stats for the user.
     """
-    period = "week"
+    period = query.period
     start_time, end_time = get_date_range(period)
-
-    said_period = period
-    match period:
-        case "week":
-            said_period = "this week"
-        case "month":
-            said_period = "this month"
-        case "year":
-            said_period = "this year"
-        case "alltime":
-            said_period = "all time"
+    said_period = SAID_PERIOD[period]
 
     count = len(TrackStore.get_flat_list())
     total_tracks = StatItem(
@@ -444,36 +458,40 @@ def get_stats():
         locale.format_string("%d", count, grouping=True) + " " + ngettext("track", "tracks", count),
     )
 
-    tracks, playcount, playduration = get_tracks_in_period(start_time, end_time)
+    # Grouped in SQL: since the tiles follow the period, "all time" asks here
+    # too, and a copy of every track ever played would hold up the single
+    # request thread (bjoern) for every other request.
+    plays, listened, top = summarize_tracks_in_period(start_time, end_time)
 
     playcount = StatItem(
         "streams",
         said_period,
-        f"{playcount} track {ngettext('play', 'plays', playcount)}",
+        f"{plays} track {ngettext('play', 'plays', plays)}",
     )
 
     playduration = StatItem(
         "playtime",
         said_period,
-        f"{seconds_to_time_string(playduration)} listened",
+        f"{seconds_to_time_string(listened)} listened",
     )
 
-    tracks = sorted(tracks, key=lambda t: t.playduration, reverse=True)
-
-    # Find the top track from the last 7 days
+    # The top track of the period, by time listened (like the charts)
     top_track = StatItem(
         "toptrack",
         f"Top track {said_period}",
-        (tracks[0].title + " - " + tracks[0].artists[0]["name"] if len(tracks) > 0 else "—"),
-        (tracks[0].image if len(tracks) > 0 else None),
-        (tracks[0].trackhash if len(tracks) > 0 else None),
+        (top.title + " - " + top.artists[0]["name"] if top else "—"),
+        (top.image if top else None),
+        (top.trackhash if top else None),
     )
 
     fav_count = FavoritesTable.count_favs_in_period(start_time, end_time)
+    # Every favorite is a new one over all time; "7  favorites" with the
+    # empty word left a double space.
+    fav_word = "favorite" if fav_count == 1 else "favorites"
     favorites = StatItem(
         "favorites",
         said_period,
-        f"{fav_count} {'new' if period != 'alltime' else ''} favorite{'' if fav_count == 1 else 's'}",
+        f"{fav_count} {fav_word}" if period == "alltime" else f"{fav_count} new {fav_word}",
     )
 
     return {

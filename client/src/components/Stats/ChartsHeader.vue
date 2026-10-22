@@ -37,6 +37,8 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
 
+import { STATS_PERIODS } from '@/utils/statsPeriod'
+
 const props = defineProps<{
     name: string
     period: string
@@ -48,7 +50,8 @@ defineEmits<{
 }>()
 
 const groups = ['artists', 'albums', 'tracks', 'playlists']
-const periods = ['day', 'week', 'month', 'year', 'alltime']
+// One list for the tabs, the tiles and the caption (utils/statsPeriod.ts).
+const periods = STATS_PERIODS
 
 const groupSeg = ref<HTMLElement | null>(null)
 const periodSeg = ref<HTMLElement | null>(null)

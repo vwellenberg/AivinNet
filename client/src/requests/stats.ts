@@ -22,9 +22,11 @@ export async function getTopTracks(duration: string, limit: number, order_by: st
     return await getChartItem('tracks', duration, limit, order_by)
 }
 
-export async function getStats() {
+// Without a period the server answers for the week — what the search page's
+// library numbers want. The stats page passes the charts' period (#523).
+export async function getStats(period?: string) {
     const res = await useAxios({
-        url: paths.api.stats.base + "/stats",
+        url: paths.api.stats.base + '/stats' + (period ? `?period=${encodeURIComponent(period)}` : ''),
         method: 'GET',
     })
 

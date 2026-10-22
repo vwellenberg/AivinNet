@@ -94,6 +94,29 @@ def get_tracks_in_period(start_time: int, end_time: int, userid: int | None = No
     return list(tracks.values()), total, duration
 
 
+def summarize_tracks_in_period(
+    start_time: int, end_time: int, userid: int | None = None
+) -> tuple[int, int, Track | None]:
+    """
+    Plays, seconds listened and the top track (by time listened) of a period.
+
+    What the stats tiles need, without `get_tracks_in_period`'s copy of every
+    track it meets: one grouped query, and the tracks are only looked up, never
+    copied. Counted the same way: every play counts as a play, but only plays
+    of tracks still in the library count as time and can be the top track.
+    """
+    rows = ScrobbleTable.plays_by_trackhash_in_period(start_time, end_time, userid)
+    plays = sum(count for _, count, _ in rows)
+
+    in_library = {track.trackhash: track for track in TrackStore.get_tracks_by_trackhashes([h for h, _, _ in rows])}
+    known = [(trackhash, duration) for trackhash, _, duration in rows if trackhash in in_library]
+
+    listened = sum(duration for _, duration in known)
+    top = max(known, key=lambda row: row[1], default=None)
+
+    return plays, listened, (in_library[top[0]] if top else None)
+
+
 def get_playlists_in_period(start_time: int | float, end_time: int | float, userid: int | None = None):
     """
     Aggregate plays per playlist in the given period.

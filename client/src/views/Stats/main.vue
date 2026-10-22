@@ -7,9 +7,9 @@
              page. -->
         <GenericHeader>
             <template #name>Stats</template>
-            <template #description>Your listening stats for the past week</template>
+            <template #description>Your listening stats {{ statsPeriodPhrase(settings.statsperiod) }}</template>
         </GenericHeader>
-        <Stats />
+        <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
     </div>
 </template>
 
@@ -17,8 +17,12 @@
 import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import Stats from '@/components/Stats/Stats.vue'
+import useSettings from '@/stores/settings'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
+import { normalizeStatsPeriod, statsPeriodPhrase } from '@/utils/statsPeriod'
 import updatePageTitle from '@/utils/updatePageTitle'
+
+const settings = useSettings()
 
 updatePageTitle('Stats')
 </script>

@@ -503,6 +503,27 @@ class ScrobbleTable(Base):
         return [tuple(row) for row in result.all()]
 
     @classmethod
+    def plays_by_trackhash_in_period(
+        cls, start_time: int, end_time: int, userid: int | None = None
+    ) -> list[tuple[str, int, int]]:
+        """
+        `(trackhash, plays, total duration)` for one user's period.
+
+        Grouped in SQL, so a period of "all time" is one aggregate instead of
+        every scrobble row coming back as an object on the request thread.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(
+            select(cls.trackhash, func.count(cls.id), func.sum(cls.duration))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(cls.trackhash)
+        )
+        return [(trackhash, int(plays), int(duration or 0)) for trackhash, plays, duration in result.all()]
+
+    @classmethod
     def get_all(cls, start: int, limit: int | None = None, userid: int | None = None):
         result = cls.rows(
             select(cls)
