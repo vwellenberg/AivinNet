@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py --config-file pyproject.toml
 ```
 
 **Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`

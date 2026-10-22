@@ -109,6 +109,18 @@ Das Ziel-Schema aus dem Modell kompilieren (`CreateTable(Model.__table__)`), nic
 danebenlegen — sonst driften Reparatur und `create_all` auseinander. Der Test dazu vergleicht
 beide Tabellen strukturell (`tests_api/test_favorites_table_roundtrip.py`).
 
+## ⚠️ `localtime` in SQL und pendulum sind ZWEI Zonen
+
+Wer in SQL nach Tagen gruppiert (`date(timestamp, 'unixepoch', 'localtime')`), bekommt die Zone der
+**C-Bibliothek**; `pendulum.now()` liest seine eigene — und fällt auf UTC zurück, wo es die
+Host-Zone nicht lesen kann (`utils/timezone.ensure_local_timezone`, siehe `packaging-release.md`).
+Auf so einem Host liegen zwischen Mitternacht und Mitternacht-UTC die neuesten Plays **nach** einem
+pendulum-„heute“. Also das Ende eines SQL-gruppierten Fensters ebenfalls aus SQL nehmen
+(`ScrobbleTable.local_today()`, Vorbild Hörkalender #525) und den Test mit zwei pendulum-Zonen
+links und rechts von UTC schreiben: zu jeder Uhrzeit weicht eine der beiden ab
+(`test_listening_calendar_api.py`). Gemessen: die Tagesgruppierung kostet ~200 ms für 150 000
+Plays — im Request-Pfad deshalb mit Cache (`change_marker`: Anzahl + höchste ID).
+
 ## ⚠️ Nutzergebundene Tabellen: der `userid`-Filter fehlt schnell
 
 In `db/userdata.py` hat jede Zeile einen `userid` — aber der Filter steht **nicht** automatisch

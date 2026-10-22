@@ -1,4 +1,5 @@
 import locale
+from datetime import date
 from gettext import ngettext
 from typing import Literal
 
@@ -10,6 +11,7 @@ from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.extras import get_extra_info
+from aivinnet.lib.listening_calendar import build_calendar
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.recents import RecentlyPlayed
@@ -421,6 +423,30 @@ def get_top_playlists(query: ChartItemsQuery):
 
 def sort_playlists(playlists: list[dict], order_by: Literal["playcount", "playduration"]):
     return sorted(playlists, key=lambda x: x[order_by], reverse=True)
+
+
+# The last calendar per user, with what it was built from. The grouping runs
+# over the whole history on the request thread (measured ~200 ms for 150,000
+# plays), so a revisit on the same day and without a new play reuses it.
+_calendars: dict[int, tuple[tuple[str, int, int], dict]] = {}
+
+
+@api.get("/calendar")
+def get_listening_calendar():
+    """
+    The listening calendar: seconds listened per day over the last year, and
+    the current and longest streak of days in a row with music.
+    """
+    userid = get_current_userid()
+    today = ScrobbleTable.local_today()
+    key = (today, *ScrobbleTable.change_marker(userid))
+
+    cached = _calendars.get(userid)
+    if cached is None or cached[0] != key:
+        cached = (key, build_calendar(ScrobbleTable.seconds_per_day(userid), date.fromisoformat(today)))
+        _calendars[userid] = cached
+
+    return cached[1], 200
 
 
 class StatsQuery(BaseModel):

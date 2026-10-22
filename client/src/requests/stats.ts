@@ -32,3 +32,10 @@ export async function getStats(period?: string) {
 
     return res
 }
+/** The listening calendar: a year of days and both streaks (#525). */
+export async function getListeningCalendar() {
+    return await useAxios({
+        url: paths.api.stats.base + '/calendar',
+        method: 'GET',
+    })
+}
