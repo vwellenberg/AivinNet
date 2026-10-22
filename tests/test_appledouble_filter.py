@@ -144,6 +144,7 @@ class _StubTrack:
     def __init__(self, filepath: str, last_mod: int = 100, albumhash: str = "alb"):
         self.filepath = filepath
         self.last_mod = last_mod
+        self.added = last_mod
         self.albumhash = albumhash
 
 

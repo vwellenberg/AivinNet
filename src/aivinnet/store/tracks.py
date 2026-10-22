@@ -354,12 +354,13 @@ class TrackStore:
         """
         Returns the most recently added tracks.
         """
-        tracks = cls.get_flat_list()
+        # By `added`, not `last_mod`: a tag edit is not new music.
+        tracks = sorted(cls.get_flat_list(), key=lambda x: x.added, reverse=True)
 
         if limit is None:
-            return sorted(tracks, key=lambda x: x.last_mod, reverse=True)[start:]
+            return tracks[start:]
 
-        return sorted(tracks, key=lambda x: x.last_mod, reverse=True)[start:limit]
+        return tracks[start:limit]
 
     @classmethod
     def get_recently_played(cls, limit: int):

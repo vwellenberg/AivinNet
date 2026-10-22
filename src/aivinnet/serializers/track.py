@@ -26,6 +26,7 @@ def serialize_track(
         "date",
         "genre",
         "last_mod",
+        "added",
         "og_title",
         "og_album",
         "copyright",

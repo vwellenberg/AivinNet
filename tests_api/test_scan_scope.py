@@ -64,7 +64,7 @@ def library(monkeypatch):
     wipe()
 
     tagged: list[set[str]] = []
-    monkeypatch.setattr(tagger.IndexTracks, "tag_untagged", lambda self, files: tagged.append(set(files)))
+    monkeypatch.setattr(tagger.IndexTracks, "tag_untagged", lambda self, files, added=None: tagged.append(set(files)))
     monkeypatch.setattr(tagger.IndexTracks, "extract_thumb_with_overwrite", staticmethod(lambda tracks: None))
 
     class Library:

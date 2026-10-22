@@ -502,6 +502,12 @@ class ScrobbleTable(Base):
         )
         return [tuple(row) for row in result.all()]
 
+    @classmethod
+    def first_play_by_trackhash(cls) -> dict[str, int]:
+        """trackhash -> its earliest play, over ALL users (`lib/date_added.py`)."""
+        result = cls.rows(select(cls.trackhash, func.min(cls.timestamp)).group_by(cls.trackhash))
+        return {trackhash: first for trackhash, first in result.all() if first is not None}
+
     @staticmethod
     def local_today() -> str:
         """

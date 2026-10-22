@@ -93,6 +93,11 @@ die Datenbank des Servers behält ihr altes Schema für immer. SQLite kann Const
 nicht per `ALTER TABLE` entfernen: **die Tabelle muss neu gebaut werden** (neue Tabelle, Zeilen
 kopieren, alte droppen). Vorbild und Baumuster: `migrations/favorites_unique_per_user.py`.
 
+Eine **neue Spalte** ist der billige Fall: `ALTER TABLE … ADD COLUMN` geht in place
+(`migrations/user_token_version.py`, `track_added.py`). ⚠️ Sie muss aber in `setup_sqlite()`
+laufen, **vor** dem ersten SELECT der Tabelle: Der nennt jede gemappte Spalte, und auf der alten
+DB scheitert er mit `no such column`. `run_migrations()` ist dafür zu spät.
+
 Drei Punkte, an denen dieser Umbau schiefgeht:
 
 - **Erkennung über die Struktur, nicht über eine Versionsnummer** — `PRAGMA index_list` /

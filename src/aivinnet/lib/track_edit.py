@@ -346,6 +346,8 @@ def _edit(old_track: Track, fields: dict, batch: ReferenceBatch | None = None) -
     try:
         tag_writer.write_tags(filepath, fields)
         tags = _read_tags(filepath)
+        # The write moved the mtime; the file is no newer to the library for it.
+        tags["added"] = old_track.added
         new_track = _as_track(tags, 0)
         new_trackhash = new_track.trackhash
 

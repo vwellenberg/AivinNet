@@ -11,7 +11,7 @@ from aivinnet.utils import flatten
 
 def folder_order(track: Track) -> tuple[int, str]:
     """
-    The order a folder lists its files in when no sort is chosen: oldest
+    The order a folder lists its files in when no sort is chosen: first added
     first, then by path.
 
     ONE key for the folder view, "Play" on a folder card (`/folder/tracks/all`)
@@ -20,8 +20,11 @@ def folder_order(track: Track) -> tuple[int, str]:
     `last_mod`, and a tie (an album unpacked from a zip or rsync'ed with its
     times) fell back to directory order in one and hash order in the others,
     so the queue and the playlist did not follow what the user saw.
+
+    By `added`, not `last_mod`: with the mtime, a tag edit moved the edited
+    song to the end of its folder (lib/date_added.py).
     """
-    return (track.last_mod or 0, track.filepath)
+    return (track.added or 0, track.filepath)
 
 
 # What the folder view offers (`api/folder.FolderTree.sorttracksby`).
@@ -61,8 +64,12 @@ def sort_tracks(tracks: list[Track], key: str, reverse: bool = False):
 
         return flatten([sort_by_track_no(list(g)) for k, g in groups])
 
+    # The client's "Date Added" asks for `last_mod`, the mtime, which a tag
+    # edit moves; the date the file came into the library is `added`.
+    attribute = "added" if key == "last_mod" else key
+
     def value_of(track: Track) -> Any:
-        value = getattr(track, key, None)
+        value = getattr(track, attribute, None)
         if key in ("artists", "albumartists"):
             # An artist tag of only separators splits to no artist at all.
             value = value[0]["name"] if value else ""

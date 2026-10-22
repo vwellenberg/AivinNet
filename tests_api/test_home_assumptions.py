@@ -120,6 +120,7 @@ def _track(folder: str, last_mod: int, albumhash: str, artisthashes: list[str]):
     return SimpleNamespace(
         folder=folder,
         last_mod=last_mod,
+        added=last_mod,
         albumhash=albumhash,
         artisthashes=artisthashes,
         trackhash=f"t{last_mod:015d}",

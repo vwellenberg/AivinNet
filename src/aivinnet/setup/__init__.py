@@ -9,6 +9,7 @@ from time import time
 from aivinnet.config import UserConfig
 from aivinnet.lib.artist_image import user_set_dir
 from aivinnet.lib.backups import adopt_container_backups
+from aivinnet.lib.date_added import backfill_added
 from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
@@ -61,6 +62,9 @@ def load_into_mem():
     TrackStore.load_all_tracks(get_random_str())
     # Before the favourites and plays are mapped below, which read the references.
     carry_cleaned_names()
+    # On the hashes carried just above, and before the albums take their
+    # `created_date` from it (lib/date_added.py).
+    backfill_added()
     FolderStore.load_filepaths()  # reads the track store, as in lib/index.py
     AlbumStore.load_albums(key)
     ArtistStore.load_artists(key)
