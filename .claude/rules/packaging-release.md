@@ -299,3 +299,23 @@ Das Skript prüft die Regeln selbst (Guards, siehe Kopf der Datei):
    alten Release (Tag bleibt), die rc-Releases samt Tags und die älteren Images in ghcr.io.
 
 Ohne Testhost bricht `test` ab. `status` zeigt die letzten Builds und Releases.
+
+## Vor `rc`: Review des Deltas (#240)
+
+Grüne CI ist kein Review, und die Self-Reviews der einzelnen PRs sehen nie das Zusammenspiel.
+Deshalb vor Schritt 1 einmal **das Delta seit dem letzten Release** prüfen
+(`git log --oneline v<letztes>..origin/master`). Bewährt hat sich ab v2026.9.1:
+
+- **Schlank:** 5–7 Agenten, je einer pro Bereich, dazu ein Verifizierer pro Bereich. Ein Lauf mit
+  ~300 Agenten sprengte das Sitzungslimit, und ~30 Funde blieben ungeprüft.
+- **Umfang:** das Delta plus die Sicherheitsflächen (Login, Pfade, Uploads, Outbound), nicht die
+  ganze Codebasis.
+- **Freigabe nur ohne Blocker:** Sicherheitslücke ohne Admin-Rechte, Datenverlust, Absturz oder
+  Hänger auf einem üblichen Pfad, Regression im Delta. `high` ist behoben oder mit Begründung
+  akzeptiert. `pip-audit` auf `uv.lock` ohne offene Meldung, Changelog und `docs/privacy.md`
+  aktuell.
+- **Funde gehören in den Release-PR bzw. das Release**, nicht in den Chat — sonst weiß der
+  nächste Lauf nicht, was schon geprüft und angenommen ist.
+
+v2026.10.2 bis 10.4 sind ohne diesen Schritt erschienen. Er stand nur in einem Issue — darum
+steht er jetzt hier, neben dem Skript, das man ohnehin aufruft.
