@@ -51,11 +51,17 @@ export default defineStore("playlists", {
     },
     /**
      * Adds a single playlist to the store
+     *
+     * The unshift lands 250 ms later, and the caller refetches the whole list
+     * right after this call (NewPlaylist.vue). On a LAN that refetch answers
+     * first and already holds the new playlist, so the late unshift would list
+     * it twice — skip it when the id is already there.
      * @param playlist Playlist to add to the store
      * @returns void
      */
     addPlaylist(playlist: Playlist) {
       setTimeout(() => {
+        if (this.playlists.some((p) => p.id === playlist.id)) return;
         this.playlists.unshift(playlist);
       }, 250);
     },

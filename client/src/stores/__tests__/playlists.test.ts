@@ -1,11 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- mocks for the request layers the involved stores import ----------------
 const reorderSidebarPlaylists = vi.fn()
+const getAllPlaylists = vi.fn()
 
 vi.mock('@/requests/playlists', () => ({
-    getAllPlaylists: vi.fn(),
+    getAllPlaylists: (...args: any[]) => getAllPlaylists(...args),
     reorderSidebarPlaylists: (...args: any[]) => reorderSidebarPlaylists(...args),
 }))
 vi.mock('@/requests/playlistFolders', () => ({
@@ -105,5 +106,43 @@ describe('playlists.movePlayedToTop', () => {
         await store.movePlayedToTop(2)
 
         expect(reorderSidebarPlaylists).toHaveBeenCalledWith([{ id: 2, position: MAX - 2 }])
+    })
+})
+
+// "Save folder as playlist" listed the new playlist twice in the sidebar:
+// NewPlaylist.vue calls addPlaylist (an unshift 250 ms later) and then
+// fetchAll. On a LAN the refetch answers first and already holds the new
+// playlist, so the late unshift added it a second time.
+describe('playlists.addPlaylist', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        vi.useFakeTimers()
+        getAllPlaylists.mockReset()
+    })
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    it('does not list a playlist twice when the refetch answered before the delayed add', async () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1)]
+        const created = mkPl(7, { name: 'World of Warcraft' })
+        getAllPlaylists.mockResolvedValue([mkPl(1), mkPl(7, { name: 'World of Warcraft' })])
+
+        store.addPlaylist(created)
+        await store.fetchAll()
+        vi.advanceTimersByTime(250)
+
+        expect(store.playlists.map(p => p.id)).toEqual([1, 7])
+    })
+
+    it('still adds the playlist when the refetch has not answered yet', () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1)]
+
+        store.addPlaylist(mkPl(7))
+        vi.advanceTimersByTime(250)
+
+        expect(store.playlists.map(p => p.id)).toEqual([7, 1])
     })
 })
