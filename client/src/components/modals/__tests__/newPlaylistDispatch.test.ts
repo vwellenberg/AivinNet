@@ -24,10 +24,13 @@ vi.mock('@/requests/playlists', () => ({
 
 // The store's list is what the server answers for "all playlists" (`fetchAll`).
 let storedList: unknown[] = []
-let serverList: unknown[] = []
+let serverList: unknown[] | null = []
 const addPlaylist = vi.fn()
+// null = the fetch failed: the store keeps its list and says so (`false`).
 const fetchAll = vi.fn(async () => {
+    if (!serverList) return false
     storedList.splice(0, storedList.length, ...serverList)
+    return true
 })
 vi.mock('@/stores/pages/playlists', () => ({
     default: () => ({ addPlaylist, fetchAll, playlists: storedList }),
@@ -89,6 +92,7 @@ beforeEach(() => {
     notification.mockClear()
     celebrate.mockClear()
     serverList = []
+    storedList.splice(0)
 })
 
 describe('NewPlaylist celebrates the first playlist', () => {
@@ -100,6 +104,13 @@ describe('NewPlaylist celebrates the first playlist', () => {
 
     it('stays quiet when the list already held other playlists', async () => {
         serverList = [{ id: 1, name: 'older' }, PLAYLIST]
+        await submit({})
+        expect(celebrate).not.toHaveBeenCalled()
+    })
+
+    it('stays quiet when the refetch failed and the old list holds one playlist', async () => {
+        storedList.splice(0, storedList.length, { id: 1, name: 'older' })
+        serverList = null
         await submit({})
         expect(celebrate).not.toHaveBeenCalled()
     })

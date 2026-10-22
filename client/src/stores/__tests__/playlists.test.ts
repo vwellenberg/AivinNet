@@ -146,3 +146,33 @@ describe('playlists.addPlaylist', () => {
         expect(store.playlists.map(p => p.id)).toEqual([7, 1])
     })
 })
+
+// A refetch that fails (network blip, the server restarting for a deploy)
+// emptied the sidebar until the next reload, though nothing was deleted.
+describe('playlists.fetchAll', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        getAllPlaylists.mockReset()
+    })
+
+    it('keeps the list it has when the fetch fails', async () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1), mkPl(7)]
+        getAllPlaylists.mockResolvedValue(null)
+
+        expect(await store.fetchAll()).toBe(false)
+
+        expect(store.playlists.map(p => p.id)).toEqual([1, 7])
+        expect(store.sortedPlaylists).toHaveLength(2)
+    })
+
+    it('takes an empty list from the server as it is', async () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1)]
+        getAllPlaylists.mockResolvedValue([])
+
+        expect(await store.fetchAll()).toBe(true)
+
+        expect(store.playlists).toEqual([])
+    })
+})

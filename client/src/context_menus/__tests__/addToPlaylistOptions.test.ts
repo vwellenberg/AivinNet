@@ -28,4 +28,11 @@ describe('"Add to playlist" suggestions', () => {
         const options = await getAddToPlaylistOptions(() => {})
         expect(labels(options)).toEqual(['New playlist', '—', 'Road trip', 'Gym', '—', 'Chill', 'Gym', 'Road trip'])
     })
+
+    it('offers "New playlist" alone when the playlists could not be loaded', async () => {
+        getAllPlaylistsMock.mockResolvedValue(null)
+
+        const options = await getAddToPlaylistOptions(() => {})
+        expect(labels(options)).toEqual(['New playlist'])
+    })
 })

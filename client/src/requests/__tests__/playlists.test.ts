@@ -23,7 +23,7 @@ vi.mock('@/router', () => ({
 vi.mock('@/stores/pages/folder', () => ({ default: () => ({}) }))
 vi.mock('@/utils/recentPlaylists', () => ({ recordRecentPlaylist: vi.fn() }))
 
-import { createNewPlaylist, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
+import { createNewPlaylist, getAllPlaylists, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
 import { recordRecentPlaylist } from '@/utils/recentPlaylists'
 import { Notification } from '@/stores/notification'
 
@@ -147,3 +147,27 @@ describe('the "Playlist created" toast opens the playlist', () => {
     })
 })
 
+
+// A failed fetch returned [] — or, when the server answered with an error
+// body, `undefined` (`error.data.data`). Both look like "no playlists" to the
+// caller; the second one crashed the sidebar.
+describe('getAllPlaylists', () => {
+    beforeEach(() => {
+        useAxiosMock.mockReset()
+    })
+
+    it('returns the playlists', async () => {
+        useAxiosMock.mockResolvedValue({ data: { data: [{ id: 1 }] }, status: 200 })
+        expect(await getAllPlaylists()).toEqual([{ id: 1 }])
+    })
+
+    it('returns null when the request never got an answer', async () => {
+        useAxiosMock.mockResolvedValue({ error: 'Network Error', data: undefined, status: undefined })
+        expect(await getAllPlaylists()).toBeNull()
+    })
+
+    it('returns null when the server answered with an error body', async () => {
+        useAxiosMock.mockResolvedValue({ error: 'Request failed', data: { msg: 'Internal error' }, status: 500 })
+        expect(await getAllPlaylists()).toBeNull()
+    })
+})

@@ -29,11 +29,15 @@ export default defineStore("playlists", {
   },
   actions: {
     /**
-     * Fetch all playlists from the server
+     * Fetch all playlists from the server. A failed fetch keeps the list as it
+     * is — the playlists are still there, only this request is not.
+     * @returns whether the list is fresh from the server
      */
     async fetchAll() {
       const playlists = await getAllPlaylists();
+      if (!playlists) return false;
       this.playlists = playlists;
+      return true;
     },
     /**
      * Flip the pinned flag for a playlist in the store (after the server call).

@@ -49,13 +49,14 @@ const store = usePlaylistStore();
  * The count comes from the server, not from the store. The desktop sidebar is
  * what fills the store, and on a phone there is no sidebar: the store is empty
  * whatever the real count is. The fresh list holds the new playlist, so one
- * entry means it is the first.
+ * entry means it is the first. A failed fetch leaves the old list, which says
+ * nothing about the count.
  */
 async function added(playlist: Playlist | undefined) {
   if (!playlist) return;
   store.addPlaylist(playlist);
-  await store.fetchAll();
-  if (store.playlists.length === 1) celebrate();
+  const fresh = await store.fetchAll();
+  if (fresh && store.playlists.length === 1) celebrate();
 }
 
 onMounted(() => {
