@@ -15,6 +15,8 @@ from typing import Any, Protocol
 
 import pendulum
 
+from aivinnet.lib.home.mixes import MIX_PLAYLIST_IDS
+
 
 class ScrobbleLike(Protocol):
     """The fields of `models.logger.TrackLog` these rules read."""
@@ -52,13 +54,14 @@ CUSTOM_PLAYLISTS = {
     "onthisday",
     "forgottenfavorites",
     "becauseyoulistened",
+    *MIX_PLAYLIST_IDS,
 }
 
 # Generated playlists whose content belongs to the moment they were played: one
-# day, or the seed artist of the week. A "Recently played" card for one would
-# play whatever day (or seed) it is when it is clicked, under another name, so
-# none is made.
-DATED_PLAYLISTS = {"onthisday", "becauseyoulistened"}
+# day, the seed artist of the week, the mixes of the day (re-drawn daily, and a
+# slot can change hands). A "Recently played" card for one would play whatever
+# it is when it is clicked, under the old name, so none is made.
+DATED_PLAYLISTS = {"onthisday", "becauseyoulistened", *MIX_PLAYLIST_IDS}
 
 
 def parse_playlist_id(src: str) -> int | None:

@@ -25,6 +25,9 @@ Cron, Routen und Modell (#76/#77). `migrations/drop_mixes.py` löscht beim Start
 und leert die `mix:`-Quellen der Scrobbles. Die Scrobbles selbst bleiben, denn das sind echte
 Plays.
 
+Seit #526 gibt es wieder Mixes, diesmal **lokal** („Your mixes“, unten). Sie heißen als
+Playlist `mix1` … `mix4`, nicht `mix:` — diese Quelle leert `drop_mixes.py` bei jedem Start.
+
 **Lehre daraus, Kriterium für #138:** Kein externer Dienst darf die einzige Quelle einer Zeile
 sein. Die Zeilen liefen noch Wochen nach dem Tod des Dienstes, weil sie vom Zwischenspeicher
 lebten, und niemand bemerkte den Ausfall.
@@ -60,10 +63,30 @@ Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen
 ### Die Empfehlungszeilen (#138)
 
 Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores, strikt unter mypy), Routinen
-in `lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Because you listened** → **On
-repeat** → Recently played → **Your weekday evenings** → **Never played** → **Artists you might
+in `lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Your mixes** → **Because you
+listened** → **On repeat** → Recently played → **Your weekday evenings** → **Never played** → **Artists you might
 like** → **Forgotten favorites** → Rediscover → On this day → Collections → Recently added.
 
+- **„Your mixes“** (alle 6 h, #526; Regeln in `lib/home/mixes.py`, ebenfalls pur und strikt):
+  bis zu vier Playlist-Karten „Mix 1“ … aus den Sitzungen der letzten 180 Tage (ab 50 Plays).
+  Gleiches Signal wie „Because you listened“, aber über alle Artists: Kante = gemeinsame
+  Sitzungen (Gewicht 1/√(Artists der Sitzung − 1)), **Nähe** = Kante / √(Sitzungen a ·
+  Sitzungen b). Kerne sind die meistgehörten Artists (≥ 3 Plays), die einander **nicht** nahe
+  sind (Nähe < 0,25); jeder andere Artist geht zum Kern, dem er am nächsten ist — erst ab Nähe
+  0,1 (`MIX_MIN_MEMBER_AFFINITY`; ein einziger Tages-Shuffle liegt bei ~0,01). Ein Kern, dessen
+  Gruppe unter 3 Artists bleibt, gibt seinen Platz ab und die Kerne werden neu gewählt —
+  sonst blockierte er einen der vier Plätze. Mixes unter 8 Tracks fallen weg. Ein Mix nimmt die
+  Artists reihum: ein bekannter Track (der meistgehörte **der 180 Tage** zuerst), dann ein nie
+  gespielter (täglich neu gemischt; „nie“ heißt über die ganze Historie), höchstens 3 pro Album
+  (Album immer aus `track_facts`), 30 Tracks. Die Karte nennt die drei stärksten Artists
+  (`help_text`). Platzhalter und Artists ohne Seite sind nie Teil einer Gruppe, Sampler zählen
+  für ihre Track-Artists.
+  **Ein Mix wird über seinen Platz ausgeliefert** (`mix2` = zweiter Platz, `MixesEntry.mixes`
+  pro User, `onrepeat.get_mix_playlist`) und **behält ihn, solange sein Kern bleibt**
+  (`mixes.place_mixes`, Kern im Slot gespeichert) — sonst rückte nach einer weggefallenen
+  Gruppe alles auf, und „Mix 2“ spielte unter altem Namen die Musik von „Mix 3“. Ein Platz ohne
+  Mix ist ein **leerer** „Mix n“, kein 404. Nach einem Neustart (RAM leer) gilt wieder
+  „stärkster zuerst“. Alle vier Ids stehen in `DATED_PLAYLISTS` (täglich neu gemischt).
 - **„Because you listened to <Artist>“** (alle 6 h): Seed ist der Album-Artist mit den meisten
   Plays der letzten 7 Tage, sonst der letzten 30 (Platzhalter wie „Various Artists“ nie).
   „Ähnlich“ heißt: **lief in derselben Hörsitzung** (Pause > 30 min = neue Sitzung). Jede Sitzung
@@ -138,8 +161,9 @@ Knopftext als „Play all“ braucht noch `PLAY_BUTTONS` in `client/src/utils/ho
 
 ⚠️ **Eine Zeile, deren Inhalt am Zeitpunkt hängt, gehört in `DATED_PLAYLISTS`** — sonst macht ein
 Play daraus eine „Recently played“-Karte, die morgen etwas anderes spielt. Das gilt für
-`onthisday` (ein Tag) **und** `becauseyoulistened` (der Seed der Woche; die Karte hieße
-„Because you listened to Primus“ und spielte nach dem nächsten Lauf einen anderen Artist).
+`onthisday` (ein Tag), `becauseyoulistened` (der Seed der Woche; die Karte hieße
+„Because you listened to Primus“ und spielte nach dem nächsten Lauf einen anderen Artist) und
+`mix1` … `mix4` (täglich neu gemischt).
 
 ⚠️ **Eine Routine, die über User läuft, fragt zwischen ihnen `crons.cron_stopping()`** (Import in
 der Funktion, sonst zirkulär). `stop_cron_jobs` wartet nur begrenzt; ein Job, der beim Schließen

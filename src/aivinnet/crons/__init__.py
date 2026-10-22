@@ -14,6 +14,7 @@ from aivinnet.lib.recipes.homerows import (
     OnRepeat,
     OnThisDay,
     Rediscover,
+    YourMixes,
 )
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 
@@ -127,6 +128,7 @@ def _run_cron_jobs():
         ForThisTime,
         ArtistsYouMightLike,
         ForgottenFavorites,
+        YourMixes,
     ):
         if getattr(routine, "on_the_hour", False):
             schedule.every().hour.at(":00").do(_guarded(routine))

@@ -8,6 +8,7 @@ checks that the two agree. A generated playlist missing from one of them
 either 404s on its own page or vanishes from "Recently played".
 """
 
+from aivinnet.lib.home.mixes import MIX_PLAYLIST_IDS
 from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
 from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
 
@@ -27,6 +28,17 @@ def _row(getter: str):
     return handler
 
 
+def _mix(position: int):
+    """Mix <position + 1> of the current user ("Your mixes")."""
+
+    def handler():
+        from aivinnet.lib.home import onrepeat
+
+        return onrepeat.get_mix_playlist(position)
+
+    return handler
+
+
 GENERATED_PLAYLISTS = {
     "recentlyadded": get_recently_added_playlist,
     "recentlyplayed": get_recently_played_playlist,
@@ -34,4 +46,5 @@ GENERATED_PLAYLISTS = {
     "onthisday": _row("get_on_this_day_playlist"),
     "forgottenfavorites": _row("get_forgotten_favorites_playlist"),
     "becauseyoulistened": _row("get_because_playlist"),
+    **{playlistid: _mix(position) for position, playlistid in enumerate(MIX_PLAYLIST_IDS)},
 }

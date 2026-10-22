@@ -63,8 +63,12 @@ def recover_items(items: list[dict]):
                 handler = GENERATED_PLAYLISTS.get(item["hash"])
                 if handler is None:
                     continue
-                playlist, _ = handler()
+                playlist, tracks = handler()
                 playlist.images = [i["image"] for i in playlist.images]
+                # The handlers build the playlist without its trackhashes, so
+                # its count was 0: every generated card said "0 Tracks" (the
+                # playlist page counts for itself, `format_custom_playlist`).
+                playlist.count = len(tracks)
 
                 playlist = serialize_playlist(playlist, to_remove={"settings", "duration"})
                 recovered_item = {

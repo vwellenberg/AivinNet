@@ -1,7 +1,7 @@
 """
 Routines for the personal homepage rows "Rediscover", "On this day",
 "Because you listened to …", "On repeat", "Never played", "Your <weekday>
-<evenings>", "Artists you might like" and "Forgotten favorites". The rules
+<evenings>", "Artists you might like", "Forgotten favorites" and "Your mixes". The rules
 themselves live in `lib/home/homerows.py` and `lib/home/discover.py`.
 
 Scheduled by `crons/__init__.py` (`schedule.every(cls.hours)`), deliberately
@@ -54,6 +54,7 @@ from aivinnet.lib.home.homerows import (
     rank_rediscover,
     rediscover_item,
 )
+from aivinnet.lib.home.mixes import MIX_NAMED_ARTISTS, MIX_PLAYLIST_IDS, build_mixes, place_mixes
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES, PLACEHOLDER_ARTIST_NAMES
 from aivinnet.lib.recipes import HomepageRoutine
 from aivinnet.lib.recipes.continuelistening import all_userids
@@ -493,3 +494,72 @@ class ForgottenFavorites(HomepageRoutine):
                 log.info("forgotten-favorites: user %s played every favourite lately", userid)
 
             HomepageStore.entries[self.store_key].items[userid] = [forgotten_favorite_item(*r) for r in ranked]
+
+
+def library_tracks_of(artisthash: str) -> list[str]:
+    """An artist's tracks in the library, for the mixes (their albums come from `track_facts`)."""
+    return [track.trackhash for track in ArtistStore.get_artist_tracks(artisthash)]
+
+
+class YourMixes(HomepageRoutine):
+    """
+    "Your mixes": playlists cut from the user's own sessions (`lib/home/mixes`).
+    Every 6 hours like the other session rows; the never-played tracks in each
+    mix are re-drawn once a day.
+    """
+
+    hours = 6
+    store_key = "your_mixes"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        now = pendulum.now()
+        day = now.date().toordinal()
+        entry = HomepageStore.entries[self.store_key]
+
+        def name_of(artisthash: str) -> str:
+            artist = ArtistStore.artistmap.get(artisthash)
+            return artist.artist.name if artist else ""
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            mixes = build_mixes(
+                scrobbles,
+                track_facts,
+                library_tracks_of,
+                now.timestamp(),
+                day,
+                skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
+            )
+
+            if mixes is None:
+                log.info("your-mixes: user %s has too short a history for mixes", userid)
+            elif not mixes:
+                log.info("your-mixes: no group of artists played together for user %s", userid)
+
+            # A mix keeps the slot its core had last run ("mix2" stays jazz).
+            previous = [slot["core"] if slot else None for slot in entry.mixes.get(userid, [])]
+            slots = place_mixes(mixes or [], previous)
+
+            # The playlists before the cards: a reader in between must not
+            # open "Mix 1" and find the previous run's tracks under new names.
+            entry.mixes[userid] = [
+                {"name": f"Mix {i + 1}", "core": m.artists[0], "trackhashes": m.tracks} if m else None
+                for i, m in enumerate(slots)
+            ]
+            entry.items[userid] = [
+                {
+                    "type": "playlist",
+                    "hash": MIX_PLAYLIST_IDS[i],
+                    "is_custom": True,
+                    "help_text": ", ".join(n for n in map(name_of, m.artists[:MIX_NAMED_ARTISTS]) if n),
+                }
+                for i, m in enumerate(slots)
+                if m
+            ]
