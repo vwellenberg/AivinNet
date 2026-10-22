@@ -1,5 +1,6 @@
 import locale
-from datetime import date
+import time
+from datetime import date, datetime
 from gettext import ngettext
 from typing import Literal
 
@@ -11,10 +12,14 @@ from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.extras import get_extra_info
+from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
 from aivinnet.lib.name_cleanup import current_trackhash
+from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
+from aivinnet.lib.recipes.homerows import track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
+from aivinnet.lib.rewind import build_rewind
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
 from aivinnet.models.track import Track
@@ -447,6 +452,122 @@ def get_listening_calendar():
         _calendars[userid] = cached
 
     return cached[1], 200
+
+
+class RewindQuery(BaseModel):
+    year: int | None = Field(None, ge=1970, le=9999, description="The year to look back on; this year by default")
+
+
+# The last Rewind each user opened, with the year and the plays it was built
+# from — a year is one read of every play in it on the request thread. One
+# per user, so switching through the years holds no more than one page.
+_rewinds: dict[int, tuple[int, tuple[int, int], dict]] = {}
+
+
+@api.get("/rewind")
+def get_rewind(query: RewindQuery):
+    """
+    AivinNet Rewind: one year of listening — minutes, top artists, albums and
+    tracks, the song of the summer, the first track, the busiest day, the new
+    artists, how and when the user listens. Plus the years there are plays in.
+
+    Days and years are the C library's local time, like the listening calendar
+    on the same page (`ScrobbleTable.local_today`), not pendulum's zone.
+    """
+    userid = get_current_userid()
+    year = query.year or datetime.now().year
+
+    marker = ScrobbleTable.change_marker(userid)
+    cached = _rewinds.get(userid)
+    if cached is None or cached[:2] != (year, marker):
+        cached = (year, marker, _build_rewind(userid, year))
+        _rewinds[userid] = cached
+
+    return cached[2], 200
+
+
+def _year_bounds(year: int) -> tuple[int, int] | None:
+    """
+    The first and last second of a local year — naive datetimes are the C
+    library's local time, both ways. None for a year that clock cannot hold
+    (after 9999 anywhere; on Windows before 1970 or after 3000): no play is
+    in it.
+    """
+    try:
+        return int(datetime(year, 1, 1).timestamp()), int(datetime(year + 1, 1, 1).timestamp()) - 1
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _build_rewind(userid: int, year: int) -> dict:
+    bounds = _year_bounds(year)
+    plays: list = []
+    heard_before: set[str] = set()
+    if bounds:
+        plays = list(ScrobbleTable.get_all_in_period(*bounds, userid))
+        for trackhash in ScrobbleTable.trackhashes_before(bounds[0], userid):
+            facts = track_facts(trackhash)
+            if facts:
+                heard_before.update(facts.track_artists or facts.artists)
+
+    numbers = build_rewind(
+        plays,
+        track_facts,
+        None,
+        heard_before,
+        skip=PLACEHOLDER_ARTIST_HASHES.__contains__,
+        generated=CUSTOM_PLAYLISTS,
+    )
+
+    first, last = ScrobbleTable.timestamp_range(userid)
+    now = int(time.time())
+    years = []
+    if first is not None and last is not None and 0 <= first <= now:
+        # Clipped to now: a play stamped by a clock running ahead opens no year.
+        newest = datetime.fromtimestamp(min(last, now)).year
+        years = list(range(datetime.fromtimestamp(first).year, newest + 1))
+
+    def track(trackhash: str) -> dict | None:
+        found = TrackStore.get_tracks_by_trackhashes([trackhash])
+        return serialize_track(found[0]) if found else None
+
+    def album(albumhash: str) -> dict | None:
+        found = AlbumStore.get_album_by_hash(albumhash)
+        return serialize_for_album_card(found) if found else None
+
+    def artist(artisthash: str) -> dict | None:
+        found = ArtistStore.get_artist_by_hash(artisthash)
+        return serialize_for_card(found) if found else None
+
+    def listed(rows, card, *fields):
+        out = []
+        for row in rows:
+            item = card(row[0])
+            if item:
+                out.append({**item, **dict(zip(fields, row[1:], strict=False))})
+        return out
+
+    summer, first_play, busiest = numbers["summer_track"], numbers["first_track"], numbers["busiest_day"]
+    summer_track = track(summer[0]) if summer else None
+    first_track = track(first_play[0]) if first_play else None
+
+    return {
+        "year": year,
+        "years": years,
+        "plays": numbers["plays"],
+        "seconds": numbers["seconds"],
+        "days": numbers["days"],
+        "top_artists": listed(numbers["top_artists"], artist, "seconds"),
+        "top_albums": listed(numbers["top_albums"], album, "seconds"),
+        "top_tracks": listed(numbers["top_tracks"], track, "seconds", "plays"),
+        "summer_track": {"track": summer_track, "plays": summer[1]} if summer_track else None,
+        "first_track": {"track": first_track, "timestamp": first_play[1]} if first_track else None,
+        "busiest_day": {"date": busiest[0], "seconds": busiest[1]} if busiest else None,
+        "new_artists": numbers["new_artists"],
+        "new_artists_top": [a for a in map(artist, numbers["new_artists_top"]) if a],
+        "listener": numbers["listener"],
+        "time_of_day": numbers["time_of_day"],
+    }
 
 
 class StatsQuery(BaseModel):

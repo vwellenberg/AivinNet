@@ -27,7 +27,9 @@ yarn install
 # Dev-Server starten
 yarn dev
 
-# Lint (auto-fix)
+# Lint (auto-fix) — ⚠️ fixt auch WARNUNGEN in ganz src/, also fremde Dateien (2026-10-22:
+# 32 Stück, u. a. Attribut-Reihenfolge — und das brach folderHeadPlate.test.ts, das ein
+# `#before v-if` im Quelltext sucht). Danach `git status` lesen, oder `npx eslint --fix <datei>`
 yarn lint
 
 # Lint (nur prüfen, kein fix — für CI)

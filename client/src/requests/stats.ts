@@ -39,3 +39,11 @@ export async function getListeningCalendar() {
         method: 'GET',
     })
 }
+
+/** AivinNet Rewind: one year of listening (#527); without a year, this one. */
+export async function getRewind(year?: number) {
+    return await useAxios({
+        url: paths.api.stats.base + '/rewind' + (year ? `?year=${year}` : ''),
+        method: 'GET',
+    })
+}

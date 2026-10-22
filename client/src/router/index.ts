@@ -28,6 +28,7 @@ const PlaylistView = () => import('@/views/PlaylistView/index.vue')
 const ArtistDiscographyView = () => import('@/views/ArtistDiscography.vue')
 const FavoriteCardScroller = () => import('@/views/FavoriteCardScroller.vue')
 const StatsView = () => import('@/views/Stats/main.vue')
+const RewindView = () => import('@/views/Rewind/main.vue')
 const PairView = () => import('@/views/PairView.vue')
 
 const folder = {
@@ -192,6 +193,14 @@ const Stats = {
     component: StatsView,
 }
 
+// AivinNet Rewind (#527): one year of listening; without a year, this one.
+// A year switch stays on the page and fetches the year (views/Rewind).
+const Rewind = {
+    path: '/rewind/:year?',
+    name: 'RewindView',
+    component: RewindView,
+}
+
 const ArtistListView = {
     ...AlbumListView,
     path: '/artists',
@@ -226,6 +235,7 @@ const routes = [
     ArtistListView,
     LyricsView,
     Stats,
+    Rewind,
     Pair,
 ]
 
@@ -249,6 +259,7 @@ const Routes = {
     ArtistList: ArtistListView.name,
     Lyrics: LyricsView.name,
     Stats: Stats.name,
+    Rewind: Rewind.name,
     Pair: Pair.name,
 }
 
