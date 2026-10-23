@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.recover_items import recover_items
 
 
@@ -71,11 +72,20 @@ class RecentlyPlayedHomepageEntry(HomepageEntry):
 
 class RecentlyAddedHomepageEntry(RecentlyPlayedHomepageEntry):
     """
-    A homepage entry for recently added.
+    A homepage entry for recently added. The row is the same for everyone
+    (kept under user 0); only the "NEW" stamp is the user's own (#533): on
+    every album they have not played a single track of.
     """
 
     def get_items(self, userid: int, limit: int | None = None):
-        return super().get_items(0, limit)
+        row = super().get_items(0, limit)
+
+        played = first_plays_of(userid).albums
+        for card in row["items"]:
+            if card["type"] == "album" and card["item"]["albumhash"] not in played:
+                card["item"]["home"] = {"unheard": True}
+
+        return row
 
 
 class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):

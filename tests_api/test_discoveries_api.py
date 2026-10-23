@@ -28,12 +28,13 @@ DAY = 86400
 @pytest.fixture()
 def stats(home, api_client, monkeypatch):  # noqa: F811 - the imported fixture
     import aivinnet.api.scrobble as scrobble_api
+    import aivinnet.lib.first_play_cache as first_play_cache
 
     api = api_client("aivinnet.api.scrobble")
     monkeypatch.setattr(scrobble_api, "get_current_userid", lambda: api.userid)
     # Kept per user until the next play: a fresh one per test, whose plays
     # may repeat the last test's count and highest id.
-    monkeypatch.setattr(scrobble_api, "_first_plays", {}, raising=False)
+    monkeypatch.setattr(first_play_cache, "_first_plays", {})
     return api
 
 
