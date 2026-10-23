@@ -63,4 +63,10 @@ describe('the NEW stamp on an album card', () => {
         expect(stamp.props()).toMatchObject({ value: '1st', caption: 'time', tone: 'yellow' })
         expect(w.find('.card-art').classes()).toContain('has-stamp')
     })
+
+    it('counts the songs left on an album that is almost complete (#529)', () => {
+        const w = card({ ...ALBUM, help_text: '3 songs to go', home: { missing: 3 } })
+
+        expect(w.findComponent(CardStamp).props()).toMatchObject({ value: '3', caption: 'to go', tone: 'teal' })
+    })
 })

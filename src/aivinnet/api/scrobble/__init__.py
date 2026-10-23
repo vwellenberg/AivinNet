@@ -20,7 +20,7 @@ from aivinnet.lib.listening_sources import count_kinds, shares_text, source_shar
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
-from aivinnet.lib.recipes.homerows import track_facts
+from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.lib.rewind import build_rewind, finished_years
 from aivinnet.models.album import Album
@@ -124,6 +124,7 @@ def log_track(body: LogTrackBody):
     # NOTE: Update the recently played homepage for this userid
     RecentlyPlayed(userid=scrobble_data["userid"])
     ContinueListening(userid=scrobble_data["userid"])
+    almost_complete_played(scrobble_data["userid"], scrobble_data["trackhash"])
 
     # Update play data on the in-memory stores
     track = trackentry.tracks[0]

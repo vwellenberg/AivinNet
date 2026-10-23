@@ -6,6 +6,7 @@ import schedule
 from aivinnet.lib.groupsession import manager as group_session_manager
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import (
+    AlmostComplete,
     ArtistsYouMightLike,
     BecauseYouListened,
     ForgottenFavorites,
@@ -129,6 +130,7 @@ def _run_cron_jobs():
         ArtistsYouMightLike,
         ForgottenFavorites,
         YourMixes,
+        AlmostComplete,
     ):
         if getattr(routine, "on_the_hour", False):
             schedule.every().hour.at(":00").do(_guarded(routine))

@@ -50,6 +50,7 @@ jobs:
           src/aivinnet/lib/home/layout.py
           src/aivinnet/lib/discoveries.py
           src/aivinnet/lib/listening_sources.py
+          src/aivinnet/lib/home/almost_complete.py
           --config-file pyproject.toml
 
       # These two shell scripts are shipped, not internal tooling: install.sh is

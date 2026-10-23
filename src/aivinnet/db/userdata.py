@@ -626,6 +626,12 @@ class ScrobbleTable(Base):
         return [(trackhash, int(plays), int(duration or 0)) for trackhash, plays, duration in result.all()]
 
     @classmethod
+    def heard_trackhashes_of(cls, userid: int) -> set[str]:
+        """Every track ONE user has ever played ("Almost complete", #529), distinct in SQL."""
+        result = cls.rows(select(cls.trackhash).where(cls.userid == userid).distinct())
+        return {trackhash for (trackhash,) in result.all()}
+
+    @classmethod
     def plays_by_source_in_period(cls, start_time: int, end_time: int, userid: int) -> list[tuple[str, int]]:
         """`(source, plays)` for one user's period ("how you listened", #538), grouped in SQL."""
         result = cls.rows(
