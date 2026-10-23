@@ -23,7 +23,7 @@ vi.mock('@/router', () => ({
 vi.mock('@/stores/pages/folder', () => ({ default: () => ({}) }))
 vi.mock('@/utils/recentPlaylists', () => ({ recordRecentPlaylist: vi.fn() }))
 
-import { createNewPlaylist, getAllPlaylists, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
+import { addTracksToPlaylist, createNewPlaylist, getAllPlaylists, movePlaylistTrack, saveAlbumAsPlaylist } from '@/requests/playlists'
 import { recordRecentPlaylist } from '@/utils/recentPlaylists'
 import { Notification } from '@/stores/notification'
 
@@ -147,6 +147,34 @@ describe('the "Playlist created" toast opens the playlist', () => {
     })
 })
 
+
+// Tapping the "Added to <playlist>" toast opens that playlist. Same target as
+// "Playlist created", so a track added from a menu lands where it went.
+describe('the "Added to" toast opens the playlist', () => {
+    beforeEach(() => {
+        useAxiosMock.mockReset()
+        routerPush.mockReset()
+        vi.mocked(Notification).mockClear()
+    })
+
+    it('is clickable and navigates to the playlist it was added to', async () => {
+        useAxiosMock.mockResolvedValue({ data: {}, status: 200 })
+        await addTracksToPlaylist({ id: 9, name: 'Road trip' } as any, [{ trackhash: 't1' } as any])
+
+        const [text, , , onClick] = vi.mocked(Notification).mock.calls[0]
+        expect(text).toBe('Added to Road trip')
+        expect(onClick).toBeTypeOf('function')
+        await onClick!()
+        expect(routerPush).toHaveBeenCalledWith({ name: 'PlaylistView', params: { pid: 9 } })
+    })
+
+    it('a duplicate add is an error toast and not clickable', async () => {
+        useAxiosMock.mockResolvedValue({ data: { error: 'exists' }, status: 409 })
+        await addTracksToPlaylist({ id: 9, name: 'Road trip' } as any, [{ trackhash: 't1' } as any])
+
+        expect(vi.mocked(Notification).mock.calls[0][3]).toBeUndefined()
+    })
+})
 
 // A failed fetch returned [] — or, when the server answered with an error
 // body, `undefined` (`error.data.data`). Both look like "no playlists" to the
