@@ -117,7 +117,8 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
   `python-appimage` ist auf eine Version gepinnt, `appimagetool` auf die sha256 des seit
   2023-03-08 unveränderten `continuous`-Builds von AppImageKit. Eine andere Datei bricht den
   Build ab. Updates bringt **Dependabot** (`.github/dependabot.yml`): einmal pro Woche ein
-  gruppierter PR mit neuen SHAs. Wächter: `TestPinnedBuildInputs` in
+  gruppierter PR mit neuen SHAs (seit #573 auch für `uv.lock` und `client/yarn.lock`, siehe
+  `CLAUDE.md`). Wächter: `TestPinnedBuildInputs` in
   `tests/test_packaging_manifests.py`. Noch frei bleibt das Python, das `python-appimage` beim
   Bauen herunterlädt. Bricht ein Schritt „ohne Zutun", zuerst im Log die Versionen ablesen.
 - **Ein übersprungener `needs`-Job überspringt den abhängigen Job.** Mit `binary_build=false`

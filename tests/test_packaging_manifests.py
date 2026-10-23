@@ -517,3 +517,20 @@ class TestPinnedBuildInputs:
     def test_dependabot_keeps_the_pins_fresh(self):
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         assert "package-ecosystem: github-actions" in config
+
+    def test_dependabot_updates_the_libraries(self):
+        """Without an entry, Dependabot only raises alerts and never opens a PR.
+
+        Pillow sat 35 advisories behind that way (#573). Each entry must point
+        at the directory that holds its lockfile, or Dependabot finds nothing
+        to update and says so only in its own log.
+        """
+        config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        entries = {
+            found.group(1): found.group(2)
+            for found in re.finditer(r"- package-ecosystem: (\S+)\n\s+directory: (\S+)", config)
+        }
+        assert entries.get("uv") == "/"
+        assert entries.get("npm") == "/client"
+        assert (REPO_ROOT / "uv.lock").is_file()
+        assert (REPO_ROOT / "client" / "yarn.lock").is_file()
