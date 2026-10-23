@@ -300,6 +300,28 @@ def migrate_item_favorites(kind: str, old_hash: str, new_hash: str, session: Any
         log.info("Tag edit: %s favourite(s) moved from %s %s to %s", len(rows), kind, old_hash, new_hash)
 
 
+def migrate_not_interested(kind: str, old_hash: str, new_hash: str, session: Any) -> None:
+    """
+    Move every user's "Not interested" of an album or artist (#531) from
+    ``old_hash`` to ``new_hash``. A user who marked the new identity already
+    keeps that row, and the old one goes.
+    """
+    from sqlalchemy import delete, select, update
+
+    from aivinnet.db.userdata import NotInterestedTable as T
+
+    rows = session.execute(select(T.id, T.userid).where(T.type == kind, T.hash == old_hash)).all()
+    for row_id, userid in rows:
+        taken = session.execute(select(T.id).where(T.userid == userid, T.type == kind, T.hash == new_hash)).first()
+        if taken:
+            session.execute(delete(T).where(T.id == row_id))
+        else:
+            session.execute(update(T).where(T.id == row_id).values(hash=new_hash))
+
+    if rows:
+        log.info("Tag edit: %s not-interested mark(s) moved from %s %s to %s", len(rows), kind, old_hash, new_hash)
+
+
 def _is_card(item: Any, kind: str) -> bool:
     return isinstance(item, dict) and item.get("type") == kind and isinstance(item.get("hash"), str)
 
@@ -380,13 +402,15 @@ def migrate_identity_references(kind: str, mapping: dict[str, str], session: Any
     Every database row that keys an album or artist by its hash, moved along ``mapping``.
 
     The one place to add a new store, called by the tag edit and by the name
-    cleanup alike: favourites (#296), the sidebar pins of an album and the cards
-    in Home's collections (#481) were each wired in on their own, and every one
-    left out vanished silently after a retag. Files keyed by the hash (a chosen
+    cleanup alike: favourites (#296), the sidebar pins of an album, the cards
+    in Home's collections (#481) and the "Not interested" marks (#531) were
+    each wired in on their own, and every one left out vanished silently
+    after a retag. Files keyed by the hash (a chosen
     album cover, an artist picture) are not rows and do not move here.
     """
     for old_hash, new_hash in mapping.items():
         migrate_item_favorites(kind, old_hash, new_hash, session)
+        migrate_not_interested(kind, old_hash, new_hash, session)
         if kind == "album":
             migrate_item_favorites("pinned_album", old_hash, new_hash, session)
     migrate_collection_items(kind, mapping, session)

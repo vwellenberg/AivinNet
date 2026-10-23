@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { releaseYear } from '@/utils/dates'
 import { Routes } from '@/router'
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Album } from '../../interfaces'
@@ -67,6 +67,7 @@ import useAlbumStore from '@/stores/pages/album'
 import { paths } from '../../config'
 import MasterFlag from './MasterFlag.vue'
 import { showAlbumContextMenu } from '@/helpers/contextMenuHandler'
+import { CARD_MENU_EXTRAS } from '@/utils/cardMenu'
 import { isTypeEcho } from '@/utils/cardTypes'
 import { armCoverMorph } from '@/utils/coverMorph'
 
@@ -100,8 +101,12 @@ const artists = computed(() => {
     return albumartists
 })
 
+// A row's own entries ("Not interested" on Home, utils/cardMenu.ts).
+const menuExtras = inject(CARD_MENU_EXTRAS, null)
+
 function showMenu(e: MouseEvent) {
-    showAlbumContextMenu(e, contextMenuFlag, props.album)
+    const card = { type: 'album' as const, hash: props.album.albumhash, name: props.album.title }
+    showAlbumContextMenu(e, contextMenuFlag, props.album, menuExtras?.(card))
 }
 </script>
 

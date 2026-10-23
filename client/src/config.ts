@@ -137,6 +137,9 @@ export const paths = {
             get layout() {
                 return this.base + '/layout'
             },
+            get notInterested() {
+                return this.base + '/not-interested'
+            },
         },
         auth: {
             base: '/auth',

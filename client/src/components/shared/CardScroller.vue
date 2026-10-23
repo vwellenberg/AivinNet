@@ -51,7 +51,8 @@ import { playSources } from '@/enums'
 import { maxAbumCards } from '@/stores/content-width'
 import useCardGridColumns from '@/helpers/useCardGridColumns'
 
-import { computed, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
+import { CARD_MENU_EXTRAS, CardMenuExtras } from '@/utils/cardMenu'
 import PlaylistCard from '../PlaylistsList/PlaylistCard.vue'
 import SeeAll from '../shared/SeeAll.vue'
 import AlbumCard from './AlbumCard.vue'
@@ -79,7 +80,12 @@ const props = defineProps<{
     // otherwise four favourite albums looked like the whole list with no hint
     // that the caption leads anywhere (reported 2026-10-04).
     alwaysSeeAll?: boolean
+    // Entries this row adds to its cards' menus (Home's "Not interested",
+    // utils/cardMenu.ts).
+    cardMenu?: CardMenuExtras
 }>()
+
+provide(CARD_MENU_EXTRAS, card => props.cardMenu?.(card) ?? [])
 
 defineEmits<{
     playThis: [index: number]

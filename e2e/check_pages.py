@@ -188,6 +188,21 @@ for chart in ("top-tracks", "top-artists", "top-albums", "top-playlists"):
         call("GET", f"/logger/{chart}?duration={duration}&limit=10")
 call("GET", "/logger/stats")
 
+# ---------------------------------------------------------------- Settings → Home
+# The layout (#532) and "Not interested" (#531): a new table on an upgraded
+# database, and a DELETE with a body, only show on the built server.
+call("GET", "/nothome/layout")
+if albums:
+    mark = {"type": "album", "hash": albums[0]["albumhash"]}
+    call("POST", "/nothome/not-interested", mark)
+    marks = call("GET", "/nothome/not-interested") or {}
+    if not any(m.get("hash") == mark["hash"] for m in marks.get("items", [])):
+        failures.append("a 'Not interested' mark is not listed after it was set")
+    call("DELETE", "/nothome/not-interested", mark)
+    marks = call("GET", "/nothome/not-interested") or {}
+    if marks.get("items"):
+        failures.append("a 'Not interested' mark is still listed after it was taken back")
+
 # ---------------------------------------------------------------- verdict
 print(f"{checked} requests, {len(failures)} failed")
 for f in failures:

@@ -74,3 +74,70 @@ describe('home store refetch on widen', () => {
         expect(fetchHome).not.toHaveBeenCalled()
     })
 })
+
+// "Not interested" (#531): the card leaves the row at once, and comes back if
+// the server refuses — unless Home was fetched in between.
+describe('home store: dropCard', () => {
+    const album = (albumhash: string) => ({ type: 'album', item: { albumhash } })
+    const row = () => ({
+        never_played: {
+            items: [album('a'), album('b')],
+            chips: [{ key: 'funk', label: 'funk rock', items: [album('a')] }],
+        },
+    })
+
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        fetchHome.mockReset()
+    })
+
+    it('takes the card out of the row and its chips, and can put it back', async () => {
+        fetchHome.mockResolvedValue([row()])
+        const home = useHome()
+        await home.fetchAll()
+
+        const putBack = home.dropCard('never_played', 'a')
+        // @ts-ignore
+        const shown = home.homepageData.never_played
+
+        expect(shown.items.map((i: any) => i.item.albumhash)).toEqual(['b'])
+        // Its only chip held just that album: gone.
+        expect(shown.chips).toEqual([])
+
+        putBack()
+        expect(shown.items.map((i: any) => i.item.albumhash)).toEqual(['a', 'b'])
+        expect(shown.chips).toHaveLength(1)
+    })
+
+    it('puts back only the card the server refused, not a second one marked meanwhile', async () => {
+        fetchHome.mockResolvedValue([row()])
+        const home = useHome()
+        await home.fetchAll()
+
+        const putBackA = home.dropCard('never_played', 'a')
+        home.dropCard('never_played', 'b')
+        putBackA() // the first mark failed, the second went through
+
+        // @ts-ignore
+        expect(home.homepageData.never_played.items.map((i: any) => i.item.albumhash)).toEqual(['a'])
+    })
+
+    it('does not put back over a fetch that came in between', async () => {
+        fetchHome.mockResolvedValue([row()])
+        const home = useHome()
+        await home.fetchAll()
+
+        const putBack = home.dropCard('never_played', 'a')
+        fetchHome.mockResolvedValue([{ never_played: { items: [album('c')] } }])
+        await home.fetchAll()
+        putBack()
+
+        // @ts-ignore
+        expect(home.homepageData.never_played.items.map((i: any) => i.item.albumhash)).toEqual(['c'])
+    })
+
+    it('is a no-op for a row Home does not have', () => {
+        const home = useHome()
+        expect(() => home.dropCard('never_played', 'a')()).not.toThrow()
+    })
+})

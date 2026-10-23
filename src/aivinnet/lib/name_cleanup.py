@@ -127,6 +127,25 @@ def _favorited_artisthashes(session: Any, hashes: set[str]) -> set[str]:
     return found
 
 
+def _marked_artisthashes(session: Any, hashes: set[str]) -> set[str]:
+    """The old artist hashes a "Not interested" mark (#531) still names."""
+    from sqlalchemy import select
+
+    from aivinnet.db.userdata import NotInterestedTable
+
+    found: set[str] = set()
+
+    for chunk in _chunks(sorted(hashes)):
+        rows = session.execute(
+            select(NotInterestedTable.hash).where(
+                NotInterestedTable.type == "artist", NotInterestedTable.hash.in_(chunk)
+            )
+        ).all()
+        found.update(h for (h,) in rows)
+
+    return found
+
+
 def _copy_artist_images(mapping: dict[str, str]) -> int:
     """
     Give each renamed artist the picture of its old name, where it has none.
@@ -221,18 +240,22 @@ def _carry(tracks: Iterable[Any] | None, report: dict[str, int]) -> None:
     with DbEngine.manager() as session:
         referenced = _referenced_trackhashes(session, set(track_map)) if track_map else set()
         favorited = _favorited_artisthashes(session, set(artist_map)) if artist_map else set()
+        marked = _marked_artisthashes(session, set(artist_map)) if artist_map else set()
         collections = collections_to_move("artist", artist_map, session)
 
     track_map = {old: new for old, new in track_map.items() if old in referenced}
     favorite_map = {old: new for old, new in artist_map.items() if old in favorited}
+    marked_map = {old: new for old, new in artist_map.items() if old in marked}
 
-    if track_map or favorite_map or collections:
+    if track_map or favorite_map or marked_map or collections:
         with DbEngine.manager(commit=True) as session:
             if track_map:
                 migrate_track_references_many(track_map, session=session)
             # The same function as the tag edit, so a store added there moves
-            # here too; it writes only rows that exist.
-            if favorite_map or collections:
+            # here too; it writes only rows that exist. ⚠️ Its probe above
+            # does not come along: a store added there needs one here, or
+            # it moves only when a favourite or a collection happens to.
+            if favorite_map or marked_map or collections:
                 migrate_identity_references("artist", artist_map, session)
 
     report["tracks"] = len(track_map)

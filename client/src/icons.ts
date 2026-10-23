@@ -27,3 +27,4 @@ export { default as ReloadIcon } from "@/assets/icons/reload.svg?raw";
 export { default as SettingsIcon } from "@/assets/icons/settings.svg?raw";
 export { default as DownloadIcon } from "@/assets/icons/download.svg?raw";
 export { default as PencilIcon } from "@/assets/icons/pencil.svg?raw";
+export { default as NotInterestedIcon } from "@/assets/icons/not-interested.svg?raw";

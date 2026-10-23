@@ -17,6 +17,11 @@ export default <SettingCategory>{
                 {
                     type: SettingType.home_rows,
                 },
+                {
+                    type: SettingType.home_not_interested,
+                    title: 'Not interested',
+                    desc: 'What you hid from Never played and Artists you might like.',
+                },
             ],
         },
     ],

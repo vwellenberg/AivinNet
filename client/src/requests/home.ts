@@ -66,3 +66,42 @@ export async function setHomeLayout(order: string[], hidden: string[]) {
         props: { order, hidden },
     })
 }
+
+/** What a card of "Never played" or "Artists you might like" can be marked as (#531). */
+export type NotInterestedType = 'album' | 'artist'
+
+/** One "Not interested" as Settings → Home lists it; `title` is null once it left the library. */
+export interface NotInterestedItem {
+    type: NotInterestedType
+    hash: string
+    timestamp: number
+    title: string | null
+    subtitle: string | null
+    image: string | null
+}
+
+/** Everything the user said "Not interested" to, newest first. */
+export async function getNotInterested() {
+    return await useAxios({
+        url: paths.api.home.notInterested,
+        method: 'GET',
+    })
+}
+
+/** Leave an album out of "Never played", or an artist out of "Artists you might like". */
+export async function markNotInterested(type: NotInterestedType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.notInterested,
+        method: 'POST',
+        props: { type, hash },
+    })
+}
+
+/** Take a "Not interested" back. */
+export async function unmarkNotInterested(type: NotInterestedType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.notInterested,
+        method: 'DELETE',
+        props: { type, hash },
+    })
+}

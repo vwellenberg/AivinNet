@@ -180,6 +180,28 @@ Drei Dinge, die beim Bauen aufgefallen sind:
 - **Das Gastkonto hat das Standard-Home:** Alle Gäste teilen *ein* Konto, also antwortet
   `PUT /nothome/layout` dort 403, und der Client blendet Settings → Home aus.
 
+**„Not interested“ (#531)** im Kontextmenü einer Karte von „Never played“ (Alben) und „Artists you
+might like“ (Artists): Beide Zeilen ziehen täglich aus denselben besten Kandidaten, ohne Markierung
+kam eine ungewollte Karte also alle paar Tage wieder. Gespeichert pro User in einer **eigenen**
+Tabelle `not_interested` (nicht `FavoritesTable` mit neuem Typ: deren Zähler und
+Start-Mapping lesen jede Zeile; nicht `UserTable.extra`: das steckt in jedem Token). Gewirkt wird
+an **zwei** Stellen, und beide sind nötig:
+
+- **Beim Ausliefern** (`HomepageStore._row`, `NOT_INTERESTED_ROWS`): Home fragt die Tabelle bei
+  jedem Aufruf (klein, indiziert) und lässt markierte Karten weg — so ist die Karte sofort weg und
+  nach einem Undo sofort zurück, ohne auf die Routine zu warten. Die Zeile wird um so viele
+  Einträge mehr angefragt, wie markiert sind, damit sie voll bleibt.
+- **In der Routine** (`NeverPlayed`, `ArtistsYouMightLike`): Markiertes ist kein Kandidat, auch
+  nicht für die Genre-Chips — sonst fehlte nach dem nächsten Lauf eine Karte, statt dass die
+  nächste nachrückt.
+
+⚠️ Die Hashes hängen an den Tags: `reference_migration.migrate_identity_references` zieht die
+Markierungen bei jedem Retag mit (`migrate_not_interested`). Wer eine weitere Zeile markierbar
+macht, trägt sie in `NOT_INTERESTED_ROWS` ein — im Server (`store/homepage.py`) **und** im Client
+(`utils/homeRows.ts`); dazu der Filter in ihrer Routine. Im Client hängt der Menüeintrag über
+`CardScroller`s `cardMenu` (provide/inject, `utils/cardMenu.ts`) an genau den Karten dieser Zeilen,
+die Liste zum Zurücknehmen steht unter Settings → Home. Das Gastkonto markiert nicht (403).
+
 **Welche Zeile spielbar ist, sagt der Server:** Der Eintrag im `HomepageStore` trägt
 `playlist="<id>"`, und die Zeile schickt sie mit. Der Client baut daraus den Abspiel-Knopf und
 den Link des Titels (ein `url` des Servers geht vor — „Because you listened“ bleibt auf dem

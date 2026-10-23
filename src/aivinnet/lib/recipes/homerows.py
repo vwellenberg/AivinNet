@@ -17,7 +17,7 @@ import logging
 import pendulum
 from pendulum.tz import local_timezone
 
-from aivinnet.db.userdata import PlaylistTable, ScrobbleTable
+from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib.home.discover import (
     FAVORITE_PLAYLIST_LIMIT,
     ON_THIS_DAY_YEARS,
@@ -332,14 +332,18 @@ class NeverPlayed(HomepageRoutine):
                 return
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            # What the user said "Not interested" to (#531) is no candidate,
+            # for the row or its chips.
+            marked = NotInterestedTable.hashes(userid).get("album", set())
+            candidates = [a for a in albums if a.albumhash not in marked] if marked else albums
             # Scored once, for the row and its chips.
-            unplayed = score_unplayed(scrobbles, track_facts, albums)
-            ranked = rank_never_played(scrobbles, track_facts, albums, day, unplayed=unplayed) if unplayed else None
+            unplayed = score_unplayed(scrobbles, track_facts, candidates)
+            ranked = rank_never_played(scrobbles, track_facts, candidates, day, unplayed=unplayed) if unplayed else None
 
             if ranked is None:
                 log.info("never-played: user %s has too short a history for this row", userid)
             elif not ranked:
-                log.info("never-played: user %s has played every album", userid)
+                log.info("never-played: user %s has played every album (or marked it not interesting)", userid)
 
             entry = HomepageStore.entries[self.store_key]
             entry.items[userid] = [
@@ -353,7 +357,7 @@ class NeverPlayed(HomepageRoutine):
                     "items": [never_played_item(a, reason(artist, g)) for a, artist, g in picks],
                 }
                 for genre, picks in (
-                    never_played_chips(scrobbles, track_facts, albums, unplayed=unplayed) if unplayed else []
+                    never_played_chips(scrobbles, track_facts, candidates, unplayed=unplayed) if unplayed else []
                 )
             ]
 
@@ -435,14 +439,16 @@ class ArtistsYouMightLike(HomepageRoutine):
                 continue
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
-            # Artists without a page are left out BEFORE the row is cut to
-            # its length, so the next ones fill their places.
+            # Artists without a page, and those the user said "Not interested"
+            # to (#531), are left out BEFORE the row is cut to its length, so
+            # the next ones fill their places.
             ranked = rank_playlist_neighbours(
                 scrobbles,
                 track_facts,
                 playlists[userid],
                 now,
                 skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
+                exclude=NotInterestedTable.hashes(userid).get("artist", set()),
             )
 
             if not ranked:

@@ -15,7 +15,7 @@
                 <div
                     v-if="setting.type !== SettingType.backup"
                     class="text"
-                    @click="setting.defaultAction ? setting.defaultAction() : setting.action()"
+                    @click="setting.defaultAction ? setting.defaultAction() : setting.action?.()"
                 >
                     <div class="title">
                         <span class="ellip">
@@ -102,6 +102,7 @@
                 <About v-if="setting.type === SettingType.about" />
                 <Pairing v-if="setting.type === SettingType.pairing" />
                 <HomeRows v-if="setting.type === SettingType.home_rows" />
+                <NotInterested v-if="setting.type === SettingType.home_not_interested" />
                 <BackupRestore
                     v-if="setting.type === SettingType.backup"
                     :title="setting.title"
@@ -134,6 +135,7 @@ import Switch from './Components/Switch.vue'
 import Profile from '../modals/settings/Profile.vue'
 import Accounts from '../modals/settings/custom/Accounts.vue'
 import HomeRows from '../modals/settings/custom/HomeRows.vue'
+import NotInterested from '../modals/settings/custom/NotInterested.vue'
 import Pairing from '../modals/settings/custom/Pairing.vue'
 import About from './About.vue'
 import BackupRestore from './Components/BackupRestore.vue'
@@ -162,6 +164,7 @@ const PANEL_TYPES = [
     SettingType.separators_input,
     SettingType.secretinput,
     SettingType.home_rows,
+    SettingType.home_not_interested,
 ]
 </script>
 

@@ -1,4 +1,5 @@
-from aivinnet.db.userdata import CollectionTable, UserTable
+from aivinnet.db.userdata import CollectionTable, NotInterestedTable, UserTable
+from aivinnet.lib.home.discover import NEVER_CHIP_MIN
 from aivinnet.lib.home.layout import COLLECTIONS, Layout, make_layout
 from aivinnet.lib.pagelib import recover_page_items
 from aivinnet.models.user import HOME_LAYOUT_KEY
@@ -12,6 +13,28 @@ from aivinnet.store.homepageentries import (
     RecentlyPlayedHomepageEntry,
 )
 from aivinnet.utils.auth import get_current_userid
+
+# The rows whose cards can be marked "Not interested" (#531), and what kind
+# of card they hold. Their routines leave marked items out when they run; Home
+# also filters at serve time, so a mark (and its undo) shows at once.
+NOT_INTERESTED_ROWS = {"never_played": "album", "artists_you_might_like": "artist"}
+
+
+def _card_hash(card: dict) -> str | None:
+    item = card.get("item") or {}
+    return item.get("albumhash") if card.get("type") == "album" else item.get("artisthash")
+
+
+def _without(cards: list[dict], hashes: set[str]) -> list[dict]:
+    return [card for card in cards if _card_hash(card) not in hashes]
+
+
+def _stored_hashes(entry: HomepageEntry, userid: int) -> set[str]:
+    """The hashes a row holds for a user, its chips' included (before recovery)."""
+    items = list(getattr(entry, "items", {}).get(userid, []))
+    for chip in getattr(entry, "chips", {}).get(userid, []):
+        items += chip["items"]
+    return {item["hash"] for item in items}
 
 
 class HomepageStore:
@@ -139,8 +162,29 @@ class HomepageStore:
         return names
 
     @classmethod
-    def _row(cls, key: str, userid: int, limit: int) -> list[dict]:
-        row = cls.entries[key].get_items(userid, limit)
+    def _row(cls, key: str, userid: int, limit: int, marked: dict[str, set[str]]) -> list[dict]:
+        entry = cls.entries[key]
+        kind = NOT_INTERESTED_ROWS.get(key)
+        # Only the marks still in the row's stored items: the routine leaves
+        # out what was marked before it ran (#531).
+        skip = marked.get(kind, set()) & _stored_hashes(entry, userid) if kind else set()
+        # Asked for as many more as are marked, so the row stays full until
+        # its routine runs again and leaves them out itself.
+        row = entry.get_items(userid, limit + len(skip))
+
+        if kind:
+            # The client offers "Not interested" on the rows that say so.
+            row["markable"] = kind
+        if skip:
+            row["items"] = _without(row["items"], skip)[:limit]
+            # A chip left with one album is no choice (`NEVER_CHIP_MIN`, as
+            # the routine decides), and one left with none leads nowhere.
+            chips = [{**c, "items": _without(c["items"], skip)[:limit]} for c in row.get("chips", [])]
+            chips = [c for c in chips if len(c["items"]) >= NEVER_CHIP_MIN]
+            if chips:
+                row["chips"] = chips
+            else:
+                row.pop("chips", None)
 
         # A row with nothing to show is left out, not sent empty.
         return [{key: row}] if row["items"] else []
@@ -172,9 +216,13 @@ class HomepageStore:
         per row, not per user).
         """
         userid = get_current_userid()
+        visible = cls.get_layout(userid).visible
+        # Read on every Home, not cached: one small indexed table, and an Undo
+        # must bring the card back on the very next Home.
+        marked = NotInterestedTable.hashes(userid) if any(k in NOT_INTERESTED_ROWS for k in visible) else {}
         rows: list[dict] = []
 
-        for key in cls.get_layout(userid).visible:
-            rows += cls._collections() if key == COLLECTIONS else cls._row(key, userid, limit)
+        for key in visible:
+            rows += cls._collections() if key == COLLECTIONS else cls._row(key, userid, limit, marked)
 
         return rows
