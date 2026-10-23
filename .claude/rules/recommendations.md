@@ -57,6 +57,13 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
   gefüllt. ⚠️ Recently added liest **nicht** die mtime (`last_mod`): Mit ihr stand nach einer
   Tag-Reparatur der ganze `100-Musicians`-Ordner als „NEW MUSIC“ oben. Warum, und was jeder
   Schreibpfad mittragen muss: `track-tags.md`, „Hinzugefügt ist nicht geändert“.
+  Die Zeile ist **für alle gleich** (gespeichert unter User 0), nur der Stempel „NEW · to you“
+  ist pro User (#533): `RecentlyAddedHomepageEntry.get_items` setzt `home: {unheard: true}` auf
+  jedes Album, von dem der User noch keinen Track gehört hat. Die Quelle ist derselbe
+  Erst-Play-Cache wie bei „New to you“ auf Stats (`lib/first_play_cache.py`, gilt bis zum nächsten
+  Play), also gibt es keine eigene Abfrage pro Aufruf. Der Stempel wird auf die **frisch
+  zusammengesetzte** Karte gesetzt, nie auf die gespeicherten Items, sonst würde der Stempel eines
+  Users für alle gelten.
 
 Die Regeln und Schwellen stehen in `lib/home/homerows.py`, absichtlich ohne DB- und
 Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen dazu liegen in

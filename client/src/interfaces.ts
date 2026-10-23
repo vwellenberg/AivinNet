@@ -78,6 +78,8 @@ export interface Album {
     copyright?: string
     help_text?: string
     time?: string
+    // What a Home row draws on the card ("Recently added": not played by this user, #533).
+    home?: { unheard?: boolean }
     is_favorite: boolean
     is_pinned?: boolean
     is_single?: boolean

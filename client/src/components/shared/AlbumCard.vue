@@ -10,8 +10,12 @@
         @click.capture="armCoverMorph(coverImg, $event)"
     >
         <CardTypeLabel type="album" />
-        <div class="with-img card-art no-scroll">
+        <div class="with-img card-art no-scroll" :class="{ 'has-stamp': unheard }">
             <img ref="coverImg" class="shadow-lg" :src="imguri + album.image" alt="" />
+            <!-- "Recently added": the user has not played a track of it (#533).
+                 "to you", because the line under the cover already says
+                 whether the album is new to the library. -->
+            <CardStamp v-if="unheard" value="NEW" caption="to you" tone="coral" />
             <PlayBtn
                 :store="useAlbumStore"
                 :source="playSources.album"
@@ -59,6 +63,7 @@ import { computed, inject, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Album } from '../../interfaces'
+import CardStamp from './CardStamp.vue'
 import CardTypeLabel from './CardTypeLabel.vue'
 import PlayBtn from './PlayBtn.vue'
 
@@ -92,6 +97,8 @@ function getVersions(ver1: string[], ver2: string[] = []) {
 
     return ver1.slice(0, 1)
 }
+
+const unheard = computed(() => !!props.album.home?.unheard)
 
 const artists = computed(() => {
     const albumartists = props.artist_page

@@ -1,4 +1,5 @@
 from aivinnet.db.userdata import CollectionTable, NotInterestedTable, UserTable
+from aivinnet.lib import first_play_cache
 from aivinnet.lib.home.discover import NEVER_CHIP_MIN
 from aivinnet.lib.home.layout import COLLECTIONS, Layout, make_layout
 from aivinnet.lib.pagelib import recover_page_items
@@ -112,11 +113,13 @@ class HomepageStore:
     @classmethod
     def forget_user(cls, userid: int):
         """
-        Drop a deleted user's cached layout. SQLite hands the id of the newest
-        user to the next one created after its deletion, and the layout would
-        still be cached under it.
+        Drop a deleted user's cached layout and first plays (the NEW stamps of
+        "Recently added", #533). SQLite hands the id of the newest user to the
+        next one created after its deletion, and both would still be cached
+        under it.
         """
         cls.layouts.pop(userid, None)
+        first_play_cache.forget(userid)
 
     @classmethod
     def add_new_user(cls, userid: int):

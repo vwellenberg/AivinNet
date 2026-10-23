@@ -11,8 +11,9 @@ from pydantic import BaseModel, Field
 from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
-from aivinnet.lib.discoveries import FirstPlays, first_heard_in, first_plays
+from aivinnet.lib.discoveries import first_heard_in
 from aivinnet.lib.extras import get_extra_info
+from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
 from aivinnet.lib.name_cleanup import current_trackhash
@@ -614,35 +615,6 @@ SAID_PERIOD = {
     "year": "this year",
     "alltime": "all time",
 }
-
-
-# "New to you" (#539): each user's first play of every album and artist, kept
-# until their next play. The history is grouped in SQL, but every period of
-# the stats page and both chart captions ask for it. Like Rewind, a rescan that
-# moves tracks to other albums shows on the next play, not at once.
-_first_plays: dict[int, tuple[tuple[int, int], FirstPlays]] = {}
-
-
-def _resolve_track(trackhash: str) -> tuple[str, list[str]] | None:
-    """A track's album (as the album pages know it) and the artists on it, None once it left the library."""
-    group = TrackStore.trackhashmap.get(trackhash)
-    if group is None:
-        return None
-    track = group.tracks[0]
-    entry = AlbumStore.albummap.get(track.albumhash)
-    if entry is None:
-        return None
-    return entry.album.albumhash, [artist["artisthash"] for artist in track.artists]
-
-
-def first_plays_of(userid: int) -> FirstPlays:
-    marker = ScrobbleTable.change_marker(userid)
-    cached = _first_plays.get(userid)
-    if cached is None or cached[0] != marker:
-        first = ScrobbleTable.first_play_by_trackhash_of(userid)
-        cached = (marker, first_plays(first, _resolve_track, PLACEHOLDER_ARTIST_HASHES.__contains__))
-        _first_plays[userid] = cached
-    return cached[1]
 
 
 def discovered_in(userid: int, start: int, end: int) -> tuple[list[str], list[str]]:
