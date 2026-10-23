@@ -125,6 +125,12 @@ def home(api_client, monkeypatch):
     from aivinnet.store.homepageentries import PersonalTitleEntry
     from aivinnet.store.tracks import TrackGroup, TrackStore
 
+    # First plays are cached per user by their play count and last id, which
+    # a later test's fresh database may repeat.
+    import aivinnet.lib.first_play_cache as first_play_cache
+
+    monkeypatch.setattr(first_play_cache, "_first_plays", {})
+
     TRACKS.clear()
     for albumhash in ALBUMS:
         for n in range(1, 6):
@@ -525,11 +531,14 @@ def test_on_this_day_shows_the_albums_of_several_years_and_plays_the_day(home, m
 
     otd = data["on_this_day"]
     year = pendulum.now().year
-    # Albums, not the one playlist the plays came from.
+    # Albums, not the one playlist the plays came from. Each of the three was
+    # first heard on one of these days, and the card says so (#534): Faith No
+    # More two years ago, so it shows with that year rather than last year's
+    # replay.
     assert [(i["item"]["albumhash"], i["item"]["help_text"]) for i in otd["items"]] == [
-        (FNM, f"{year - 1} · 3 plays"),
-        (RHCP, f"{year - 1} · 1 play"),
-        (PRIMUS, f"{year - 2} · 1 play"),
+        (RHCP, f"First heard · {year - 1}"),
+        (FNM, f"First heard · {year - 2}"),
+        (PRIMUS, f"First heard · {year - 2}"),
     ]
     label = pendulum.now().subtract(years=1).format("D MMMM YYYY")
     assert otd["description"] == f"{label} · 13 min · mostly Faith No More · in the evening"

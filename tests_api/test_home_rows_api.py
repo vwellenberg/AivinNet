@@ -108,6 +108,12 @@ def home(api_client, monkeypatch):
             if hasattr(entry, attr):
                 monkeypatch.setattr(entry, attr, {})
 
+    # First plays are cached per user by their play count and last id, which
+    # a later test's fresh database may repeat ("On this day", #534).
+    import aivinnet.lib.first_play_cache as first_play_cache
+
+    monkeypatch.setattr(first_play_cache, "_first_plays", {})
+
     api = api_client("aivinnet.api.home", "aivinnet.api.scrobble")
     # The store asks auth for the user directly, not through the DB layer.
     monkeypatch.setattr(homepage, "get_current_userid", lambda: api.userid)
@@ -181,7 +187,63 @@ def test_new_rows_their_shape_and_order(home):
     # "mostly …": this library has no artist pages to name.
     assert otd["description"] == pendulum.now().subtract(years=1).format("D MMMM YYYY") + " · 3 min · in the afternoon"
     assert [i["item"]["albumhash"] for i in otd["items"]] == [ALBUM_A]
-    assert otd["items"][0]["item"]["help_text"] == f"{pendulum.now().year - 1} · 1 play"
+    # The play a year ago is A's first ever (the 200-days-ago ones came
+    # after), so the card names the discovery (#534).
+    assert otd["items"][0]["item"]["help_text"] == f"First heard · {pendulum.now().year - 1}"
+
+
+def test_on_this_day_says_when_it_was_the_first_play_of_an_album(home):
+    year = pendulum.now().year - 1
+    year_ago = int(pendulum.now().subtract(years=1).start_of("day").add(hours=12).timestamp())
+    now = int(pendulum.now().timestamp())
+
+    # B: first heard on this day a year ago (and again lately). A: on this day
+    # too, but heard long before.
+    scrobble(_trackhash(ALBUM_B, 1), year_ago, f"al:{ALBUM_B}")
+    scrobble(_trackhash(ALBUM_B, 2), year_ago + 200, f"al:{ALBUM_B}")
+    scrobble(_trackhash(ALBUM_B, 3), now - 60, f"al:{ALBUM_B}")
+    scrobble(_trackhash(ALBUM_A, 1), year_ago + 400, f"al:{ALBUM_A}")
+    scrobble(_trackhash(ALBUM_A, 2), now - 500 * DAY, f"al:{ALBUM_A}")
+
+    run_routines()
+    data, _ = rows(home)
+
+    cards = {c["item"]["albumhash"]: c["item"] for c in data["on_this_day"]["items"]}
+    assert cards[ALBUM_B]["help_text"] == f"First heard · {year}"
+    assert cards[ALBUM_B]["home"] == {"first_heard": year}
+    assert cards[ALBUM_A]["help_text"] == f"{year} · 1 play"
+    assert "home" not in cards[ALBUM_A]
+
+
+def test_a_discovery_years_ago_outweighs_a_replay_on_the_same_date(home):
+    def on_this_day(years: int) -> int:
+        return int(pendulum.now().subtract(years=years).start_of("day").add(hours=12).timestamp())
+
+    # A: first heard on this date two years ago, played again on it last year.
+    scrobble(_trackhash(ALBUM_A, 1), on_this_day(2), f"al:{ALBUM_A}")
+    scrobble(_trackhash(ALBUM_A, 2), on_this_day(1), f"al:{ALBUM_A}")
+
+    run_routines()
+
+    (card,) = rows(home)[0]["on_this_day"]["items"]
+    assert card["item"]["help_text"] == f"First heard · {pendulum.now().year - 2}"
+    assert card["item"]["home"] == {"first_heard": pendulum.now().year - 2}
+
+
+def test_a_first_play_is_each_users_own(home):
+    year = pendulum.now().year - 1
+    year_ago = int(pendulum.now().subtract(years=1).start_of("day").add(hours=12).timestamp())
+
+    # User 1 first heard A on this day; user 2 had heard it long before.
+    scrobble(_trackhash(ALBUM_A, 1), year_ago, f"al:{ALBUM_A}")
+    scrobble(_trackhash(ALBUM_A, 1), year_ago, f"al:{ALBUM_A}", userid=2)
+    scrobble(_trackhash(ALBUM_A, 2), year_ago - 400 * DAY, f"al:{ALBUM_A}", userid=2)
+
+    run_routines()
+
+    assert rows(home)[0]["on_this_day"]["items"][0]["item"]["help_text"] == f"First heard · {year}"
+    home.userid = 2
+    assert rows(home)[0]["on_this_day"]["items"][0]["item"]["help_text"] == f"{year} · 1 play"
 
 
 def test_a_finished_album_is_not_continued(home):

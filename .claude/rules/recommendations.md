@@ -45,7 +45,15 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
 - **„On this day“** (stündlich, Server-Zeitzone): derselbe Kalendertag in den letzten 15 Jahren.
   Gezeigt werden die **Alben der gehörten Tracks**, nicht die Quellen — vorher wurde ein Tag in
   einer Playlist zu einer einzigen Playlist-Karte. Pro Jahr meistgehört zuerst, jedes Album
-  einmal (mit seinem jüngsten Jahr), Karte „2024 · 8 plays“. Der Untertitel ist pro User
+  einmal (mit seinem jüngsten Jahr), Karte „2024 · 8 plays“. War der Tag der **erste** Play des
+  Albums überhaupt, heißt die Karte „First heard · 2023“ und trägt den Stempel „1st time“ (#534):
+  der Jahrestag einer Entdeckung, verlässlicher als ein Erscheinungsdatum (oft nur ein Jahr, ohne
+  Tag die mtime). Ein Album, das an diesem Datum vor zwei Jahren entdeckt und letztes Jahr am
+  selben Datum wieder gehört wurde, steht mit dem **Entdeckungsjahr** da, nicht mit dem jüngsten
+  (`rank_on_this_day(…, discovered=)`). Quelle ist der Erst-Play-Cache (`lib/first_play_cache.py`),
+  nur gefragt, wenn es einen Tag zu zeigen gibt. ⚠️ Er kennt nur Plays von Tracks, die noch in
+  der Bibliothek sind: Liegen ältere Plays unter einem Hash, den niemand mehr auflöst, gilt ein
+  späterer Tag als „First heard“. Der Untertitel ist pro User
   (`PlayableEntry.meta`): Datum des jüngsten Jahres mit Plays plus Tagesbilanz („2 h 40 min ·
   mostly Dream.Corp · in the evening“). **„Play that day“** spielt diesen Tag in der Reihenfolge,
   in der er lief, als erzeugte Playlist `onthisday` (`lib/home/onrepeat.py`) — vom jüngsten Jahr,
