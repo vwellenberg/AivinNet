@@ -22,6 +22,12 @@
                 v-else-if="motif === 'sparkle'"
                 d="M118 -38 L128 4 L170 14 L128 24 L118 66 L108 24 L66 14 L108 4 Z"
             />
+            <!-- "How you listened" (#538): a pie with a slice taken out. -->
+            <path
+                v-else-if="motif === 'pie'"
+                transform="rotate(-8 130 0)"
+                d="M130 0 L77.4 19.2 A56 56 0 1 1 110.8 52.6 Z"
+            />
             <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
         </svg>
         <div class="itemcontent">
@@ -91,6 +97,7 @@ import FolderSvg from '@/assets/icons/folder.nopad.svg'
 import Index1Svg from '@/assets/icons/index1.svg'
 import SparklesSvg from '@/assets/icons/sparkles.svg'
 import CompassSvg from '@/assets/icons/compass.svg'
+import PieSvg from '@/assets/icons/pie.svg'
 import ExpandSvg from '@/assets/icons/expand.svg'
 
 import { paths } from '@/config'
@@ -139,6 +146,9 @@ const icon = computed(() => {
 
         case 'discoveries':
             return CompassSvg
+
+        case 'sources':
+            return PieSvg
 
         default:
             return SparklesSvg
@@ -233,6 +243,9 @@ const defaultBackgroundStyles = computed(() => {
             // The one accent none of the other tiles wears: the purple of the
             // doodle, which is also Stats in the navigation.
             return 'var(--mem-orchid)'
+        case 'sources':
+            // "How you listened" (#538): lime, worn by no other tile.
+            return 'var(--mem-lime)'
         default:
             // "New favorites" and anything else unclaimed. Coral, not blush:
             // `streams` already takes blush, so the two sat side by side in
@@ -260,6 +273,8 @@ const motif = computed(() => {
             return 'bar'
         case 'discoveries':
             return 'sparkle'
+        case 'sources':
+            return 'pie'
         default:
             return 'zigzag'
     }

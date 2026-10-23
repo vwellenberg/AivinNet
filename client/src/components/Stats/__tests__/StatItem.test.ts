@@ -30,7 +30,7 @@ function shapeOf(icon: string) {
 describe('StatItem motif', () => {
     // The kinds /logger/stats really sends (Stats.test.ts), one shape each — a
     // row of five tiles reads as five, not as one texture repeated.
-    const KINDS = ['toptrack', 'streams', 'playtime', 'favorites', 'discoveries', 'trackcount']
+    const KINDS = ['toptrack', 'streams', 'playtime', 'favorites', 'discoveries', 'sources', 'trackcount']
 
     it('gives every kind its own shape, and the top tiles the same one', () => {
         const shapes = KINDS.map(shapeOf)
@@ -45,6 +45,7 @@ describe('StatItem motif', () => {
         expect(shapeOf('favorites')).toBe('path.line')
         expect(shapeOf('trackcount')).toBe('rect+rotated')
         expect(shapeOf('discoveries')).toBe('path')
+        expect(shapeOf('sources')).toBe('path+rotated')
     })
 
     it('puts a kind nobody claimed on the zigzag', () => {

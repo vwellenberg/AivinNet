@@ -626,6 +626,17 @@ class ScrobbleTable(Base):
         return [(trackhash, int(plays), int(duration or 0)) for trackhash, plays, duration in result.all()]
 
     @classmethod
+    def plays_by_source_in_period(cls, start_time: int, end_time: int, userid: int) -> list[tuple[str, int]]:
+        """`(source, plays)` for one user's period ("how you listened", #538), grouped in SQL."""
+        result = cls.rows(
+            select(cls.source, func.count(cls.id))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(cls.source)
+        )
+        return [(source or "", int(plays)) for source, plays in result.all()]
+
+    @classmethod
     def get_all(cls, start: int, limit: int | None = None, userid: int | None = None):
         result = cls.rows(
             select(cls)

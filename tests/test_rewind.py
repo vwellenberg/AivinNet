@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from aivinnet.lib.home.discover import TrackFacts
-from aivinnet.lib.rewind import build_rewind, finished_years, source_kind
+from aivinnet.lib.listening_sources import source_kind
+from aivinnet.lib.rewind import build_rewind, finished_years
 
 UTC = UTC
 
