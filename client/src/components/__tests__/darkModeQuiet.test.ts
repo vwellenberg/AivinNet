@@ -25,6 +25,16 @@ function block(selector: string): string {
 }
 
 describe('dark mode: darker and quieter', () => {
+    it("the calendar's busiest days keep their size: their edge is the line, not static ink", () => {
+        // An inset ring in ink is the ground's colour in dark mode: the square
+        // lost 2 px a side and the busiest days looked the smallest.
+        const sfc = read('src/components/Stats/ListeningCalendar.vue')
+        const busiest = sfc.slice(sfc.indexOf('&.level-4 {'), sfc.indexOf('}', sfc.indexOf('&.level-4 {')))
+        expect(busiest, 'the level-4 block').toContain('box-shadow')
+        expect(busiest).toMatch(/box-shadow: inset 0 0 0 \$mem-ring-w \$mem-line;/)
+        expect(busiest).not.toContain('$mem-ink')
+    })
+
     it('the offset shadow is a faint edge, not a bright one', () => {
         const alpha = block('body.theme-dark').match(/--mem-shadow: rgba\(244, 242, 237, ([\d.]+)\);/)
         expect(alpha, 'the dark shadow').not.toBeNull()
