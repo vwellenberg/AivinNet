@@ -58,3 +58,14 @@ export async function getRewind(year?: number) {
         method: 'GET',
     })
 }
+
+/**
+ * The artists and albums first heard in the period (#539), the latest
+ * discovery first, as cards — what the stats page's "new" tile counts.
+ */
+export async function getDiscoveries(period: string) {
+    return await useAxios({
+        url: paths.api.stats.base + `/discoveries?period=${encodeURIComponent(period)}`,
+        method: 'GET',
+    })
+}

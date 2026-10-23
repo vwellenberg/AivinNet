@@ -250,6 +250,7 @@ const CALLS: Record<string, unknown[]> = {
     'stats/getStats': ['month'],
     'stats/getListeningCalendar': [],
     'stats/getRewind': [2025],
+    'stats/getDiscoveries': ['month'],
     'stats/getRewindYears': [],
     'track/editTrackTags': ['t1', { title: 'B' }],
 }

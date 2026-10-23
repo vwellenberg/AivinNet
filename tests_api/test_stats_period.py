@@ -116,6 +116,18 @@ def test_all_time_counts_every_favorite_without_calling_it_new(stats_api):
     assert tiles(stats_api, "?period=alltime")["favorites"]["value"] == "2 favorites"
 
 
+def test_a_pinned_album_is_no_new_favorite(stats_api):
+    """The sidebar pins live in the favourites table too (`pinned_album`)."""
+    from aivinnet.db.userdata import FavoritesTable
+
+    now = int(time.time())
+    favorite("aaaa000000000001", now)
+    FavoritesTable.insert_one({"hash": "pinned_album_" + ALBUM, "type": "pinned_album", "timestamp": now, "userid": 1})
+
+    assert tiles(stats_api, "?period=week")["favorites"]["value"] == "1 new favorite"
+    assert tiles(stats_api, "?period=alltime")["favorites"]["value"] == "1 favorite"
+
+
 def test_a_play_of_a_track_gone_from_the_library_is_a_play_but_no_time(stats_api):
     """Counted like before the tiles were grouped in SQL (`get_tracks_in_period`):
     the play happened, but its track can neither add time nor be the top track."""

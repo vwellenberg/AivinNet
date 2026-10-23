@@ -2,10 +2,11 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/requests/stats', () => ({ getStats: vi.fn() }))
+vi.mock('@/requests/stats', () => ({ getStats: vi.fn(), getDiscoveries: vi.fn() }))
 
 import Stats from '@/components/Stats/Stats.vue'
 import StatItem from '@/components/Stats/StatItem.vue'
+import Discoveries from '@/components/Stats/Discoveries.vue'
 import { getStats } from '@/requests/stats'
 
 // The order /logger/stats really sends — top track first, library count last.
@@ -100,3 +101,47 @@ describe('Stats on the charts page (#523)', () => {
         expect(fetch).not.toHaveBeenCalled()
     })
 })
+
+describe('the tile of what is new (#539)', () => {
+    const answer = {
+        status: 200,
+        data: {
+            stats: [
+                { cssclass: 'streams', text: 'this week', value: '1 track play' },
+                { cssclass: 'discoveries', text: 'new this week', value: '1 artist · 1 album' },
+            ],
+            dates: 'this week',
+        },
+    }
+
+    it('opens the list of them on the stats page, and closes it again', async () => {
+        vi.mocked(getStats).mockReset().mockResolvedValue(answer as any)
+        const w = shallowMount(Stats, { props: { period: 'week' } })
+        await flushPromises()
+
+        const tile = w.findAllComponents(StatItem).find(t => t.props('icon') === 'discoveries')!
+        expect(tile.props('expanded')).toBe(false)
+        expect(w.findComponent(Discoveries).exists()).toBe(false)
+        // The other tiles are no controls.
+        expect(w.findAllComponents(StatItem).find(t => t.props('icon') === 'streams')!.props('expandable')).toBe(false)
+        expect(tile.props('expandable')).toBe(true)
+
+        tile.vm.$emit('toggle')
+        await nextTick()
+        expect(tile.props('expanded')).toBe(true)
+        expect(w.findComponent(Discoveries).props('period')).toBe('week')
+        expect(w.findComponent(Discoveries).attributes('id')).toBe(tile.props('controls'))
+
+        tile.vm.$emit('toggle')
+        await nextTick()
+        expect(w.findComponent(Discoveries).exists()).toBe(false)
+    })
+
+    it('is no control where there is no period to list (an album or artist page)', async () => {
+        const w = shallowMount(Stats, { props: { items: answer.data.stats } })
+        await nextTick()
+
+        expect(w.findAllComponents(StatItem).every(t => !t.props('expandable'))).toBe(true)
+    })
+})
+

@@ -14,6 +14,10 @@
             :icon="item.cssclass"
             :image="item.image"
             :trackhash="item.trackhash"
+            :expandable="opens(item)"
+            :expanded="opens(item) && showDiscoveries"
+            :controls="opens(item) ? 'stats-discoveries' : undefined"
+            @toggle="showDiscoveries = !showDiscoveries"
         />
     </div>
     <div class="statsdates" v-if="date">
@@ -22,12 +26,14 @@
             {{ date }}
         </div>
     </div>
+    <Discoveries v-if="showDiscoveries && props.period" id="stats-discoveries" :period="props.period" />
 </template>
 
 <script setup lang="ts">
 import { getStats } from '@/requests/stats'
 import { ref, watch } from 'vue'
 import StatItem from './StatItem.vue'
+import Discoveries from './Discoveries.vue'
 import CalendarSvg from '@/assets/icons/calendar.svg'
 
 interface StatItemData {
@@ -45,6 +51,11 @@ const props = defineProps<{
 }>()
 
 const statItems = ref<StatItemData[]>([])
+
+// The "new artists · new albums" tile opens the list of them (#539) — on the
+// stats page, which knows the period; an album or artist page has no such tile.
+const showDiscoveries = ref(false)
+const opens = (item: StatItemData) => item.cssclass === 'discoveries' && !!props.period
 const date = ref<string | null>(null)
 
 // Quick period flips can overtake each other: only the newest answer may

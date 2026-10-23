@@ -1,5 +1,9 @@
 <template>
-    <div class="statitem" :class="props.icon" :style="tileStyle">
+    <div
+        class="statitem"
+        :class="[props.icon, { 'is-expandable': props.expandable, 'is-expanded': props.expandable && props.expanded }]"
+        :style="tileStyle"
+    >
         <svg class="statmotif" viewBox="0 0 150 90" aria-hidden="true" focusable="false">
             <circle v-if="motif === 'disc'" cx="128" cy="-6" r="58" />
             <polygon v-else-if="motif === 'triangle'" points="52,-14 168,6 104,74" />
@@ -13,6 +17,10 @@
                 v-else-if="motif === 'zigzag'"
                 class="line"
                 d="M50 62 l16 -20 l16 20 l16 -20 l16 20 l16 -20 l16 20"
+            />
+            <path
+                v-else-if="motif === 'sparkle'"
+                d="M118 -38 L128 4 L170 14 L128 24 L118 66 L108 24 L66 14 L108 4 Z"
             />
             <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
         </svg>
@@ -35,6 +43,19 @@
         </div>
 
         <component :is="icon" v-if="!props.icon.startsWith('top')" class="staticon" />
+        <!-- A tile with something behind it ("new artists · new albums", #539)
+             is one button over its whole face; the chevron says it opens. -->
+        <template v-if="props.expandable">
+            <ExpandSvg class="statchevron" aria-hidden="true" />
+            <button
+                type="button"
+                class="statexpand"
+                :aria-expanded="props.expanded"
+                :aria-controls="props.controls"
+                :aria-label="`${props.value} ${props.text}`"
+                @click="emit('toggle')"
+            ></button>
+        </template>
         <button
             v-if="props.icon.startsWith('top') && props.image && props.trackhash"
             class="statplay"
@@ -69,6 +90,8 @@ import HeadphoneSvg from '@/assets/icons/headphones.svg'
 import FolderSvg from '@/assets/icons/folder.nopad.svg'
 import Index1Svg from '@/assets/icons/index1.svg'
 import SparklesSvg from '@/assets/icons/sparkles.svg'
+import CompassSvg from '@/assets/icons/compass.svg'
+import ExpandSvg from '@/assets/icons/expand.svg'
 
 import { paths } from '@/config'
 import { Routes } from '@/router'
@@ -80,7 +103,16 @@ const props = defineProps<{
     icon: string
     image?: string
     trackhash?: string
+    // A tile that opens a list (#539) is a control; every other one is not.
+    // Two props, not an `expanded` left out: Vue casts a missing boolean
+    // prop to false, so "left out" would read as "closed" on every tile.
+    expandable?: boolean
+    // Whether its list is open, and the id of that list.
+    expanded?: boolean
+    controls?: string
 }>()
+
+const emit = defineEmits<{ toggle: [] }>()
 
 // A track's image is `<albumhash>.webp?pathhash=…&fb=track`; only the part before
 // the first dot is the album. Stripping just `.webp` left the query in the
@@ -104,6 +136,9 @@ const icon = computed(() => {
 
         case 'toptrack':
             return Index1Svg
+
+        case 'discoveries':
+            return CompassSvg
 
         default:
             return SparklesSvg
@@ -194,6 +229,10 @@ const defaultBackgroundStyles = computed(() => {
         case 'toptrack':
         case 'topalbum':
             return 'var(--mem-yellow)'
+        case 'discoveries':
+            // The one accent none of the other tiles wears: the purple of the
+            // doodle, which is also Stats in the navigation.
+            return 'var(--mem-orchid)'
         default:
             // "New favorites" and anything else unclaimed. Coral, not blush:
             // `streams` already takes blush, so the two sat side by side in
@@ -219,6 +258,8 @@ const motif = computed(() => {
             return 'wave'
         case 'trackcount':
             return 'bar'
+        case 'discoveries':
+            return 'sparkle'
         default:
             return 'zigzag'
     }
@@ -352,6 +393,45 @@ const tileStyle = computed(() => ({
     .statplay {
         display: contents;
         cursor: pointer;
+    }
+
+    // The open/close mark of a tile that opens a list, next to its icon:
+    // pointing down at what opens, up once it is open.
+    .statchevron {
+        position: absolute;
+        top: 1rem;
+        left: 3rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        z-index: 1;
+        color: $mem-ink;
+        transform: rotate(90deg);
+        transition: transform $motion-move $motion-curve;
+    }
+
+    &.is-expanded .statchevron {
+        transform: rotate(-90deg);
+    }
+
+    // Over the whole face: the tile IS the control. No role of its own — a
+    // role's hover plate would cover the tile; the TILE answers the pointer
+    // (`candy-raised` below) and the button only carries focus and the click.
+    .statexpand {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        padding: 0;
+        border: 0;
+        border-radius: inherit;
+        background: none;
+        cursor: pointer;
+        @include focus-ring;
+    }
+
+    // A tile that opens something lifts under the pointer like every card
+    // (`$press: false`: `:active` would also match from the button inside).
+    &.is-expandable {
+        @include candy-raised(4px, 4px, $press: false);
     }
 
     .statimage {
