@@ -18,6 +18,8 @@ defineProps<{ fresh: number | null | undefined }>()
     @include btn-pill;
     // A pill, not a bar: the page's column would stretch it across the width.
     width: fit-content;
-    margin-top: 1rem;
+    // First on the page: no space above (the page's own start line, `$page-start`),
+    // the gap to the charts below.
+    margin-bottom: 1.5rem;
 }
 </style>

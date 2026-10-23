@@ -1,5 +1,9 @@
 <template>
     <div class="content-page" style="height: 100%; overflow: auto" :style="{ background: brandGradient(BRAND_RED) }">
+        <!-- Rewind (#527) is a page of its own. While it is news (#572) the way
+             there is the first thing on the page, on every layout; seen to
+             the end, it is gone, and the page starts with the charts again. -->
+        <RewindLink :fresh="rewind?.fresh" />
         <Charts />
         <br><br>
         <!-- A SECTION heading, not the page title: it separates the weekly
@@ -10,9 +14,6 @@
             <template #description>Your listening stats {{ statsPeriodPhrase(settings.statsperiod) }}</template>
         </GenericHeader>
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
-        <!-- Rewind (#527) is a page of its own; this is the way there, under the
-             tiles on every layout (the header's #right slot is hidden on phones). -->
-        <RewindLink :fresh="rewind?.fresh" />
         <ListeningCalendar :rewind-years="rewind?.years ?? []" />
     </div>
 </template>

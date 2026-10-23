@@ -234,7 +234,7 @@ Neujahr noch im alten Jahr.
 
 **Rewind bleibt etwas Besonderes** (#572, Nutzer 2026-10-23): Laut ist nur das jüngste Jahr,
 solange es **ungesehen** ist (`fresh` in `GET /logger/rewind/years`, `lib/rewind.fresh_year`): dann
-steht der Link auf Stats, im **Januar** zusätzlich eine Karte ganz oben auf Home
+steht der Link **ganz oben** auf Stats, über den Charts (auf der Startlinie der Seite), im **Januar** zusätzlich eine Karte ganz oben auf Home
 (`HomeView/RewindCard.vue`; außerhalb des Januars fragt sie den Server gar nicht erst). Beim ersten
 Erscheinen pro Jahr und Gerät fliegt Konfetti aus ihr (`utils/confetti.celebrate(…, from)`, gemerkt
 in `localStorage`; unter „weniger Bewegung“ keins). **Gesehen heißt: bis zum Ende angesehen**, nicht
