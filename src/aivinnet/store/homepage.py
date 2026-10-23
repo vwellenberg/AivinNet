@@ -1,5 +1,7 @@
-from aivinnet.db.userdata import CollectionTable
+from aivinnet.db.userdata import CollectionTable, UserTable
+from aivinnet.lib.home.layout import COLLECTIONS, Layout, make_layout
 from aivinnet.lib.pagelib import recover_page_items
+from aivinnet.models.user import HOME_LAYOUT_KEY
 from aivinnet.store.homepageentries import (
     ChipsEntry,
     GenericRecoverableEntry,
@@ -78,53 +80,76 @@ class HomepageStore:
         ),
     }
 
-    # The order of the response, explicitly. Collection pages go between the
-    # two lists; "Recently added" is pinned to the bottom.
-    ORDER_BEFORE_PAGES = (
-        "continue_listening",
-        "your_mixes",
-        "because_you_listened",
-        "on_repeat",
-        "recently_played",
-        "for_this_time",
-        "never_played",
-        "artists_you_might_like",
-        "forgotten_favorites",
-        "rediscover",
-        "on_this_day",
-    )
-    ORDER_AFTER_PAGES = ("recently_added",)
+    # Each user's Home layout (#532: rows hidden and reordered), read from
+    # `UserTable.extra` on the first Home of a process and kept here: Home is
+    # asked for on every visit, the layout changes only from the settings.
+    # The default order and the rules live in `lib/home/layout.py`.
+    layouts: dict[int, Layout] = {}
+
+    @classmethod
+    def forget_user(cls, userid: int):
+        """
+        Drop a deleted user's cached layout. SQLite hands the id of the newest
+        user to the next one created after its deletion, and the layout would
+        still be cached under it.
+        """
+        cls.layouts.pop(userid, None)
 
     @classmethod
     def add_new_user(cls, userid: int):
         """
-        Give a freshly created user an (empty) slot in every per-user row.
+        Give a freshly created user an (empty) slot in every per-user row, and
+        no cached layout (see `forget_user`: this covers a deletion that went
+        around it).
         """
+        cls.forget_user(userid)
         for entry in cls.entries.values():
             if isinstance(entry, RecentlyPlayedHomepageEntry) and not isinstance(entry, RecentlyAddedHomepageEntry):
                 entry.add_new_user(userid)
 
     @classmethod
-    def _rows(cls, keys: tuple[str, ...], userid: int, limit: int):
-        rows = []
+    def get_layout(cls, userid: int) -> Layout:
+        """The user's Home layout, normalized against today's rows."""
+        layout = cls.layouts.get(userid)
+        if layout is None:
+            saved = UserTable.get_extra(userid).get(HOME_LAYOUT_KEY)
+            if not isinstance(saved, dict):
+                saved = {}
+            # Anything but a list (a hand edit, a later format) is no layout:
+            # read as nothing saved, not as a 500 on every Home.
+            order, hidden = (v if isinstance(v, list) else None for v in (saved.get("order"), saved.get("hidden")))
+            layout = make_layout(order, hidden)
+            cls.layouts[userid] = layout
 
-        for key in keys:
-            row = cls.entries[key].get_items(userid, limit)
-
-            # A row with nothing to show is left out, not sent empty.
-            if row["items"]:
-                rows.append({key: row})
-
-        return rows
+        return layout
 
     @classmethod
-    def get_homepage_items(cls, limit: int):
-        # return a list of {entry name: entry items}, in display order
-        userid = get_current_userid()
-        pages = CollectionTable.get_all()
+    def set_layout(cls, userid: int, order: list[str], hidden: list[str]) -> Layout:
+        """Store a layout the user chose; what is kept is its normalized form."""
+        layout = make_layout(order, hidden)
+        UserTable.set_extra(userid, HOME_LAYOUT_KEY, {"order": list(layout.order), "hidden": sorted(layout.hidden)})
+        cls.layouts[userid] = layout
+        return layout
+
+    @classmethod
+    def row_names(cls) -> dict[str, tuple[str, str]]:
+        """`(title, description)` of every row, for the settings."""
+        names = {key: (entry.name, entry.description) for key, entry in cls.entries.items()}
+        names[COLLECTIONS] = ("Collections", "The collection pages you made")
+        return names
+
+    @classmethod
+    def _row(cls, key: str, userid: int, limit: int) -> list[dict]:
+        row = cls.entries[key].get_items(userid, limit)
+
+        # A row with nothing to show is left out, not sent empty.
+        return [{key: row}] if row["items"] else []
+
+    @classmethod
+    def _collections(cls) -> list[dict]:
         pagedata = []
 
-        for page in pages:
+        for page in CollectionTable.get_all():
             pagedata.append(
                 {
                     page["id"]: {
@@ -137,8 +162,19 @@ class HomepageStore:
                 }
             )
 
-        return (
-            cls._rows(cls.ORDER_BEFORE_PAGES, userid, limit)
-            + pagedata
-            + cls._rows(cls.ORDER_AFTER_PAGES, userid, limit)
-        )
+        return pagedata
+
+    @classmethod
+    def get_homepage_items(cls, limit: int):
+        """
+        A list of {row name: row}, in the user's order. A hidden row is not
+        assembled at all (its routine still runs in the background: it is
+        per row, not per user).
+        """
+        userid = get_current_userid()
+        rows: list[dict] = []
+
+        for key in cls.get_layout(userid).visible:
+            rows += cls._collections() if key == COLLECTIONS else cls._row(key, userid, limit)
+
+        return rows

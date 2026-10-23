@@ -134,6 +134,9 @@ export const paths = {
             get surprise() {
                 return this.base + '/surprise'
             },
+            get layout() {
+                return this.base + '/layout'
+            },
         },
         auth: {
             base: '/auth',

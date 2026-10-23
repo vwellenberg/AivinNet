@@ -39,6 +39,60 @@ export function makeRoomShift(i: number, from: number, to: number, rowHeight: nu
   return 0
 }
 
+// ---------------------------------------------------------------------------
+// Rows of different heights (Settings → Home: a row with a description is
+// taller than one without, and on a phone the descriptions wrap to one, two or
+// three lines). One row height for all of them would put the make-room gaps
+// and the landing slot where the rows are not. These take the rows as they
+// were laid out when the drag began instead: each one's top and height.
+// ---------------------------------------------------------------------------
+
+export interface Slot {
+  top: number
+  height: number
+}
+
+/** The space between two rows, read from the first two (0 for a single row). */
+function slotGap(slots: Slot[]): number {
+  return slots.length > 1 ? Math.max(0, slots[1].top - slots[0].top - slots[0].height) : 0
+}
+
+/** The travel clamped to the list: the row's top no higher than the first row's, its bottom no lower than the last's. */
+export function clampSlotTravel(slots: Slot[], from: number, travel: number): number {
+  const row = slots[from]
+  if (!row || row.height <= 0) return 0
+  const last = slots[slots.length - 1]
+  const min = slots[0].top - row.top
+  const max = last.top + last.height - row.height - row.top
+  return Math.max(min, Math.min(max, travel))
+}
+
+/**
+ * The slot the row lands in, as an index into the list AFTER the move: it has
+ * passed every row whose middle its leading edge has crossed.
+ */
+export function landingSlot(slots: Slot[], from: number, travel: number): number {
+  const row = slots[from]
+  if (!row || row.height <= 0) return from
+  const clamped = clampSlotTravel(slots, from, travel)
+  const top = row.top + clamped
+  const middle = (i: number) => slots[i].top + slots[i].height / 2
+
+  let to = from
+  if (clamped > 0) {
+    while (to + 1 < slots.length && top + row.height > middle(to + 1)) to++
+  } else {
+    while (to - 1 >= 0 && top < middle(to - 1)) to--
+  }
+  return to
+}
+
+/** How far row `i` moves to make room: the dragged row's height and one gap, towards the space it left. */
+export function slotShift(slots: Slot[], i: number, from: number, to: number): number {
+  const step = (slots[from]?.height ?? 0) + slotGap(slots)
+  return makeRoomShift(i, from, to, step)
+}
+
 /**
  * Translate a move made in the list ON SCREEN into the store's terms.
  *

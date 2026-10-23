@@ -55,4 +55,22 @@ describe('home store refetch on widen', () => {
 
         expect(fetchHome).not.toHaveBeenCalled()
     })
+
+    it('refreshes after a layout change, even one that hid every row', async () => {
+        const home = useHome()
+        await home.fetchAll() // every row hidden: nothing came back
+        expect(Object.keys(home.homepageData)).toHaveLength(0)
+
+        await home.refreshIfLoaded()
+
+        expect(fetchHome).toHaveBeenCalledTimes(2)
+    })
+
+    it('leaves a Home that was never opened to fetch when it opens', async () => {
+        const home = useHome()
+
+        await home.refreshIfLoaded()
+
+        expect(fetchHome).not.toHaveBeenCalled()
+    })
 })

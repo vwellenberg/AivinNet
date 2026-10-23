@@ -110,6 +110,24 @@ class UserTable(Base):
         return next(cls.execute(update(cls).where(cls.id == user["id"]).values(user), commit=True))
 
     @classmethod
+    def get_extra(cls, userid: int) -> dict[str, Any]:
+        """The user's `extra` JSON (first name, Home layout …); `{}` when unset."""
+        extra = cls.rows(select(cls.extra).where(cls.id == userid)).scalar()
+        return dict(extra) if isinstance(extra, dict) else {}
+
+    @classmethod
+    def set_extra(cls, userid: int, key: str, value: Any):
+        """
+        Set one key of the user's `extra` JSON and keep the others — read and
+        written in one transaction, so a write to another key in between is
+        not overwritten with the old value.
+        """
+        with DbEngine.manager(commit=True) as session:
+            extra = session.execute(select(cls.extra).where(cls.id == userid)).scalar()
+            extra = {**(extra if isinstance(extra, dict) else {}), key: value}
+            session.execute(update(cls).where(cls.id == userid).values(extra=extra))
+
+    @classmethod
     def bump_token_version(cls, userid: int):
         """
         End every session this account has open.

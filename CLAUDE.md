@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py src/aivinnet/lib/home/layout.py --config-file pyproject.toml
 ```
 
 **Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`
@@ -331,7 +331,8 @@ Workflows oder `settings.py`).
 Hörsitzung“. Home zeigt Continue listening, Your mixes (lokale Mixes aus den eigenen
 Sitzungen, #526), Because you listened, On repeat, Recently played,
 Your weekday evenings (Zeitfenster), Never played, Artists you might like (aus den eigenen
-Playlists), Forgotten favorites, Rediscover, On this day und Recently added. Die früheren Mixes (an
+Playlists), Forgotten favorites, Rediscover, On this day und Recently added. Welche davon und in
+welcher Reihenfolge, wählt jeder User selbst (Settings → Home, #532). Die früheren Mixes (an
 `smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
 antwortete; „Your mixes“ ersetzt sie ohne Dienst. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.
 Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.

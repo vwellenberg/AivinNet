@@ -530,6 +530,7 @@ def delete_user(body: DeleteUseBody):
         return {"msg": "Cannot delete the only admin"}, 400
 
     UserTable.remove_by_username(body.username)
+    HomepageStore.forget_user(next(user.id for user in users if user.username == body.username))
     return {"msg": f"User {body.username} deleted"}
 
 

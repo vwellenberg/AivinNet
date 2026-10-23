@@ -12,6 +12,7 @@ class HomepageEntry(ABC):
     """
 
     title: str
+    name: str
     description: str
     items: dict[int, Any]
     # The generated playlist (`generated_playlists`) that plays this row, if
@@ -21,6 +22,11 @@ class HomepageEntry(ABC):
 
     def __init__(self, title: str, description: str, playlist: str | None = None):
         self.title = title
+        # The row's name in Settings → Home (#532). `title` is what Home shows
+        # now, and a routine may rename it ("For this time" becomes "Your
+        # weekday evenings"): a switch under that name would seem to hide only
+        # the evening's row.
+        self.name = title
         self.description = description
         self.playlist = playlist
 

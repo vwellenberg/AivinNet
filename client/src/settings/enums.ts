@@ -20,4 +20,6 @@ export enum SettingType {
   about,
   backup,
   secretinput,
+  // Settings → Home: show, hide and order the rows (#532).
+  home_rows,
 }

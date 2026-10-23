@@ -40,6 +40,7 @@ describe("the settings pane list", () => {
     // every assertion below trivially true.
     expect(ENTRIES.map((entry) => entry.title)).toEqual([
       "Appearance",
+      "Home",
       "Profile",
       "Pair device",
       "Accounts",

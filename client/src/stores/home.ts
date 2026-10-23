@@ -92,11 +92,22 @@ export default defineStore('homepage', () => {
         }
     }
 
+    /**
+     * Fetch again if Home was fetched at all in this session — after a change
+     * to the layout (Settings → Home, #532). Asked of the store, not of the
+     * rows: a layout that hides every row leaves `homepageData` empty, and
+     * Home is still loaded. One that was never loaded fetches when it opens.
+     */
+    async function refreshIfLoaded() {
+        if (fetchedLimit) await fetchAll()
+    }
+
     return {
         homepageData,
         homepageItems,
         continueListening,
         fetchAll,
         refetchIfWider,
+        refreshIfLoaded,
     }
 })

@@ -309,6 +309,7 @@
       "required": []
     }
   },
+  "GET /nothome/layout": {},
   "GET /nothome/recents/added": {
     "query": {
       "allowed": [
@@ -1061,6 +1062,16 @@
         "password",
         "roles",
         "username"
+      ],
+      "required": [],
+      "type": "json"
+    }
+  },
+  "PUT /nothome/layout": {
+    "body": {
+      "allowed": [
+        "hidden",
+        "order"
       ],
       "required": [],
       "type": "json"
