@@ -33,7 +33,15 @@ const year2026 = {
             seconds: 7200,
         },
     ],
-    top_tracks: [{ title: 'Blue', trackhash: 't1', artists: [{ name: 'The Artist', artisthash: 'ar3' }], plays: 12 }],
+    top_tracks: [
+        {
+            title: 'Blue',
+            trackhash: 't1',
+            artists: [{ name: 'The Artist', artisthash: 'ar3' }],
+            seconds: 3 * 3600 + 5 * 60,
+            plays: 12,
+        },
+    ],
     summer_track: { track: { title: 'Summer', trackhash: 't2', artists: [{ name: 'Primus', artisthash: 'ar2' }] }, plays: 9 },
     first_track: null,
     busiest_day: { date: '2026-05-02', seconds: 5 * 3600 },
@@ -90,6 +98,48 @@ describe('Rewind', () => {
         ])
         expect(w.text()).toContain('The album listener')
         expect(w.text()).toContain('Saturday, May 2')
+    })
+
+    it('shows the top tracks by the time they are ranked by, not by plays', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+        const w = page()
+        await flushPromises()
+
+        const row = w.find('.rewind-list.is-numbered li')
+        expect(row.text()).toContain('Blue — The Artist')
+        expect(row.find('.rewind-time').text()).toBe('3 h 5 min')
+    })
+
+    it('says when a year still running opens, and keeps the way to the open ones', async () => {
+        vi.mocked(getRewind).mockResolvedValue({
+            status: 404,
+            data: { error: 'Rewind 2026 opens on January 1, 2027', opens: '2027-01-01', years: [2024, 2025] },
+        } as any)
+        route.params = { year: '2026' }
+
+        const w = page()
+        await flushPromises()
+
+        expect(plates(w)).toEqual(['Rewind 2026'])
+        expect(w.text()).toContain('Opens on January 1, 2027')
+        expect(w.text()).not.toContain('could not be loaded')
+        expect(w.find('.rewind-retry').exists()).toBe(false)
+        // A bookmark to this year still reaches the last finished one.
+        expect(w.findAll('.rewind-years button').map(b => b.text())).toEqual(['2024', '2025'])
+    })
+
+    it('takes a 404 that does not say when the year opens for a failure', async () => {
+        // An older backend or a proxy in between: no `opens`, so nothing is promised.
+        vi.mocked(getRewind).mockResolvedValue({ status: 404, data: 'Not Found' } as any)
+        route.params = { year: '2023' }
+
+        const w = page()
+        await flushPromises()
+
+        expect(w.text()).toContain('could not be loaded')
+        expect(w.text()).not.toContain('Opens on')
+        expect(w.find('.rewind-retry').exists()).toBe(true)
     })
 
     it('switches years through the route', async () => {

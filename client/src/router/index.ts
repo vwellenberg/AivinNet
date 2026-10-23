@@ -193,8 +193,9 @@ const Stats = {
     component: StatsView,
 }
 
-// AivinNet Rewind (#527): one year of listening; without a year, this one.
-// A year switch stays on the page and fetches the year (views/Rewind).
+// AivinNet Rewind (#527): one year of listening; without a year, the latest
+// finished one (a year opens on January 1). A year switch stays on the page
+// and fetches the year (views/Rewind).
 const Rewind = {
     path: '/rewind/:year?',
     name: 'RewindView',

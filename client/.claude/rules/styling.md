@@ -1324,6 +1324,17 @@ Sechs Dinge, die dabei mit hochkamen:
   Ein Parameter für die Glyph-*Farbe* heißt `$glyph-color`, sonst emittiert der nächste Aufrufer
   `color: 1rem` — vom Browser wortlos verworfen.
 
+## ⚠️ Eine Ellipse braucht eine Spur, die schrumpfen darf
+
+`text-overflow: ellipsis` auf einem Titel in einer Grid-Liste greift nur, wenn die Spalte
+**schmaler als ihr längster Inhalt** werden darf. Die implizite Spalte eines `display: grid` ist
+`auto`, und ein Grid-Item hat `min-width: auto`: Ein `nowrap`-Titel macht die Spalte so breit wie
+sich selbst, und die Zeile läuft über die Platte hinaus — samt der Zeitangabe rechts daneben, die
+dann unter der Nachbarplatte liegt. Das `min-width: 0` am Titel selbst hilft dagegen nicht, es
+sitzt eine Ebene zu tief. Also `grid-template-columns: minmax(0, 1fr)` an der Liste. Gefunden in
+Rewinds „Your top album“ (2026-10-23, Screenshot des Nutzers): Gemessen standen die Zeilen 82 px
+über der Innenkante der Platte, mit der Spur 0 px.
+
 ## ⚠️ Ein `<button>` als Grid-Container zentriert seine SPUR
 
 `display: grid` auf einem `<button>` verhält sich nicht wie auf einem `<div>`: Das

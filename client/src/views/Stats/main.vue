@@ -12,7 +12,7 @@
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
         <!-- Rewind (#527) is a page of its own; this is the way there, under the
              tiles on every layout (the header's #right slot is hidden on phones). -->
-        <RouterLink class="rewind-link" :to="{ name: Routes.Rewind }">Your {{ thisYear }} Rewind</RouterLink>
+        <RewindLink />
         <ListeningCalendar />
     </div>
 </template>
@@ -21,22 +21,14 @@
 import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
+import RewindLink from '@/components/Stats/RewindLink.vue'
 import Stats from '@/components/Stats/Stats.vue'
 import useSettings from '@/stores/settings'
-import { Routes } from '@/router'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
 import { normalizeStatsPeriod, statsPeriodPhrase } from '@/utils/statsPeriod'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 const settings = useSettings()
-const thisYear = new Date().getFullYear()
 
 updatePageTitle('Stats')
 </script>
-
-<style lang="scss">
-.content-page > .rewind-link {
-    @include btn-pill;
-    margin-top: 1rem;
-}
-</style>

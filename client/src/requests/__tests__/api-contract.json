@@ -244,6 +244,7 @@
       "required": []
     }
   },
+  "GET /logger/rewind/years": {},
   "GET /logger/stats": {
     "query": {
       "allowed": [
