@@ -106,11 +106,11 @@ def test_an_edit_that_leaves_the_old_hash_to_another_file_carries_no_favourites(
     import aivinnet.lib.track_edit as track_edit
 
     previous = SimpleNamespace(fav_userids=[1], playcount=7, playduration=900, lastplayed=5, color="#abc")
-    new = SimpleNamespace(trackhash="h2", fav_userids=[], playcount=0, playduration=0, lastplayed=0, color="")
+    new = SimpleNamespace(trackhash="h2", fav_userids=[], playcount=0, playduration=0, lastplayed=0, color="", added=0)
     monkeypatch.setattr(track_edit.TrackStore, "get_tracks_by_filepaths", classmethod(lambda cls, p: [previous]))
     monkeypatch.setattr(track_edit.TrackStore, "remove_track_by_filepath", classmethod(lambda cls, p: None))
     monkeypatch.setattr(track_edit.TrackStore, "add_track", classmethod(lambda cls, t: None))
-    monkeypatch.setattr(track_edit.FolderStore, "index_file", classmethod(lambda cls, p, h: None))
+    monkeypatch.setattr(track_edit.FolderStore, "index_file", classmethod(lambda cls, p, h, added=None: None))
 
     track_edit._store_track("/m/x.wav", new, carry_references=False)
 

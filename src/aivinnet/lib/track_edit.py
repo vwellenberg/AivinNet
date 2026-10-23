@@ -219,7 +219,7 @@ def _store_track(filepath: str, track: Track, carry_references: bool = True) -> 
     TrackStore.add_track(track)
     # The folder view looks files up by their hash, and the hash may just have
     # changed with the tags.
-    FolderStore.index_file(filepath, track.trackhash)
+    FolderStore.index_file(filepath, track.trackhash, track.added)
 
 
 def resolve_track(old_trackhash: str, filepath: str | None = None) -> Track:

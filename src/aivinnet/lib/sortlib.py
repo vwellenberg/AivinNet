@@ -1,4 +1,3 @@
-import os
 from collections.abc import Callable
 from itertools import groupby
 from typing import Any
@@ -88,15 +87,6 @@ def sort_tracks(tracks: list[Track], key: str, reverse: bool = False):
     return sorted(known, key=value_of, reverse=reverse) + missing
 
 
-def _folder_mtime(folder: Folder) -> float:
-    # A folder removed (or a mount gone) since it was listed sorts as oldest
-    # instead of failing the whole page (#391).
-    try:
-        return os.path.getmtime(folder.path)
-    except OSError:
-        return 0.0
-
-
 def sort_folders(folders: list[Folder], key: str, reverse: bool = False):
     """
     Sorts a list of folders by a key.
@@ -109,6 +99,14 @@ def sort_folders(folders: list[Folder], key: str, reverse: bool = False):
     if key == "name":
         sortfunc = lambda folder: folder.name.casefold()
     elif key == "lastmod":
-        sortfunc = _folder_mtime
+        # "Folder date": when music last came into the folder, not the
+        # directory's mtime (`FolderStore.newest_added`). Imported here: the
+        # store chain does not load in the fast test lane, which imports this.
+        from aivinnet.store.folder import FolderStore
+
+        dates = FolderStore.newest_added([folder.path for folder in folders])
+        # By name among equals: folders of one import share their date, and
+        # the listing order of a directory is whatever the filesystem says.
+        return sorted(folders, key=lambda folder: (dates[folder.path], folder.name.casefold()), reverse=reverse)
 
     return sorted(folders, key=sortfunc, reverse=reverse)

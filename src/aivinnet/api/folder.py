@@ -74,8 +74,9 @@ class FolderTree(BaseModel):
     )
     sortfoldersby: str = Field(
         "name",
-        description="""The field to sort folders by.
-        Options: [
+        description="""The field to sort folders by. "lastmod" is "Folder date": when
+        music last came into the folder (the newest `added` beneath it), not the
+        directory's mtime. Options: [
             "default",
             "name",
             "lastmod",

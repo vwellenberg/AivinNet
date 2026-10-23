@@ -13,7 +13,9 @@ from test_track_edit_db_lock import library  # noqa: F401  (fixture, tests_api i
 
 
 def _track(trackhash, filepath=None, **extra):
-    return SimpleNamespace(trackhash=trackhash, filepath=filepath or f"/music/{trackhash}.mp3", bitrate=320, **extra)
+    return SimpleNamespace(
+        trackhash=trackhash, filepath=filepath or f"/music/{trackhash}.mp3", bitrate=320, added=0, **extra
+    )
 
 
 @pytest.fixture()
@@ -61,6 +63,7 @@ def test_the_folder_index_is_swapped_and_forgets_removed_files(monkeypatch):
 
     monkeypatch.setattr(FolderStore, "filepaths", {"/music/gone.mp3", "/music/kept.mp3"})
     monkeypatch.setattr(FolderStore, "map", {"/music/gone.mp3": "g", "/music/kept.mp3": "k"})
+    monkeypatch.setattr(FolderStore, "added", {})
     during = []
 
     def get_all():
@@ -94,6 +97,7 @@ def test_the_swapped_folder_index_can_still_be_counted(monkeypatch):
     music = Path("/music").resolve().as_posix()
     monkeypatch.setattr(FolderStore, "filepaths", folder_module.SortedSet())
     monkeypatch.setattr(FolderStore, "map", {})
+    monkeypatch.setattr(FolderStore, "added", {})
     monkeypatch.setattr(
         folder_module.TrackStore,
         "get_flat_list",
