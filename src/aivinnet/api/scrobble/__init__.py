@@ -16,6 +16,7 @@ from aivinnet.lib.extras import get_extra_info
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
+from aivinnet.lib.listening_sources import count_kinds, shares_text, source_shares
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
@@ -719,7 +720,8 @@ def get_stats(query: StatsQuery):
         (top.trackhash if top else None),
     )
 
-    new_artists, new_albums = discovered_in(get_current_userid(), start_time, end_time)
+    userid = get_current_userid()
+    new_artists, new_albums = discovered_in(userid, start_time, end_time)
     # "new" in the caption, not the value: "2 new artists · 2 new albums" ran
     # past the tile's two lines. Over all time everything heard counts.
     discoveries = StatItem(
@@ -727,6 +729,13 @@ def get_stats(query: StatsQuery):
         "heard all time" if period == "alltime" else f"new {said_period}",
         discoveries_text(len(new_artists), len(new_albums)),
     )
+
+    # "How you listened" (#538): what the period's plays were started from,
+    # every play counted like the plays tile. The rule is Rewind's listener.
+    kinds = count_kinds(ScrobbleTable.plays_by_source_in_period(start_time, end_time, userid), CUSTOM_PLAYLISTS)
+    # The caption is the period like the plays tile: "how you listened this
+    # week" ran onto a second line and lifted the value out of the row.
+    sources = StatItem("sources", said_period, shares_text(source_shares(kinds)))
 
     fav_count = FavoritesTable.count_favs_in_period(start_time, end_time)
     # Every favorite is a new one over all time; "7  favorites" with the
@@ -745,6 +754,7 @@ def get_stats(query: StatsQuery):
             playduration,
             favorites,
             discoveries,
+            sources,
             total_tracks,
         ],
         "dates": format_date(start_time, end_time),

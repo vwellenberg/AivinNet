@@ -16,7 +16,7 @@ import {
 
 describe('listenerText', () => {
     it('names every kind the server sends', () => {
-        // lib/rewind.py::source_kind, minus "other" (never the listener).
+        // lib/listening_sources.py::source_kind, minus "other" (never the listener).
         for (const kind of ['album', 'playlist', 'artist', 'folder', 'search', 'favorites', 'home']) {
             expect(LISTENERS[kind], kind).toBeDefined()
         }

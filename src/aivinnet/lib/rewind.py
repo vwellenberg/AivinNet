@@ -13,11 +13,12 @@ top track either.
 """
 
 from collections import Counter
-from collections.abc import Callable, Container, Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime, tzinfo
 from typing import Any, Protocol
 
 from aivinnet.lib.home.discover import TrackFacts, time_slot
+from aivinnet.lib.listening_sources import source_kind, source_shares
 
 # How many entries the top lists carry.
 REWIND_TOP = 5
@@ -25,12 +26,6 @@ REWIND_TOP = 5
 SUMMER_MONTHS = (6, 7, 8)
 # How many of the year's new artists are named.
 REWIND_NEW_NAMED = 3
-
-# Where a play was started from (the client's `getSource`, `stores/tracker.ts`),
-# by prefix. A generated playlist (`homerows.CUSTOM_PLAYLISTS`) counts as Home.
-SOURCES = (("al:", "album"), ("pl:", "playlist"), ("ar:", "artist"), ("fo:", "folder"), ("pf:", "playlist"))
-SOURCE_SEARCH = "q:"
-SOURCE_FAVORITE = "favorite"
 
 
 class RewindPlay(Protocol):
@@ -40,24 +35,6 @@ class RewindPlay(Protocol):
     timestamp: int
     duration: int
     source: str
-
-
-def source_kind(source: str, generated: Container[str] = frozenset()) -> str:
-    """
-    What a play was started from: album, playlist, artist, folder, search,
-    favorites, home (a playlist the server generates — the mixes, On repeat …)
-    or other (a single track, the queue, an old client).
-    """
-    if source.startswith("pl:") and source[3:] in generated:
-        return "home"
-    for prefix, kind in SOURCES:
-        if source.startswith(prefix):
-            return kind
-    if source.startswith(SOURCE_SEARCH):
-        return "search"
-    if source == SOURCE_FAVORITE:
-        return "favorites"
-    return "other"
 
 
 def finished_years(years: Iterable[int], this_year: int) -> list[int]:
@@ -126,9 +103,8 @@ def build_rewind(
         sources[source_kind(play.source, generated_ids)] += 1
 
     new_artists = Counter({a: t for a, t in artist_time.items() if a not in heard_before})
-    # "other" (a single track, the queue) names no kind of listener, but its
-    # plays are still plays: the share is of all of them, as the page says.
-    listener = _top(Counter({k: n for k, n in sources.items() if k != "other"}), 1)
+    # The same rule as the stats tile "how you listened" (#538).
+    listener = source_shares(sources)[:1]
     band = _top(bands, 1)
     busiest = _top(days, 1)
     summer_top = _top(summer, 1)
@@ -149,7 +125,7 @@ def build_rewind(
         "listener": (
             {
                 "kind": listener[0][0],
-                "share": round(listener[0][1] / len(counted), 2),
+                "share": listener[0][1],
             }
             if listener
             else None

@@ -15,6 +15,8 @@ const ITEMS = [
     { cssclass: 'streams', text: 'this week', value: '139 track plays' },
     { cssclass: 'playtime', text: 'this week', value: '5 hrs, 54 mins listened' },
     { cssclass: 'favorites', text: 'this week', value: '7 new favorites' },
+    { cssclass: 'discoveries', text: 'new this week', value: '2 artists · 2 albums' },
+    { cssclass: 'sources', text: 'this week', value: '62% albums · 25% playlists' },
     { cssclass: 'trackcount', text: 'in your library', value: '12,560 tracks' },
 ]
 

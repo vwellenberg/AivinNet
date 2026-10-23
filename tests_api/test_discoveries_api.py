@@ -8,6 +8,7 @@ play EVER: the album captions used to compare with the period before only, so
 an album last heard a month ago came back as "new".
 """
 
+import pendulum
 import pytest
 from test_home_discover_api import (  # noqa: F401
     FNM,
@@ -23,6 +24,16 @@ from test_home_discover_api import (  # noqa: F401
 )
 
 DAY = 86400
+
+
+def ago(history: int, seconds: int) -> int:
+    """
+    `seconds` before `history`, but never before this week began: in the first
+    hours of a Monday "an hour ago" is last week. Shrunk in proportion, so the
+    order of the plays stays.
+    """
+    since = history - int(pendulum.from_timestamp(history, tz="local").start_of("week").timestamp())
+    return history - min(seconds, since * seconds // 7201)
 
 
 @pytest.fixture()
@@ -57,7 +68,7 @@ def caption(api, chart):
 
 
 def test_an_album_and_an_artist_first_heard_this_week(stats, history):
-    scrobble(th(PRIMUS, 1), history - 3600)
+    scrobble(th(PRIMUS, 1), ago(history, 3600))
 
     shown = tile(stats)
 
@@ -69,7 +80,7 @@ def test_an_album_heard_before_is_not_new_when_it_comes_back(stats, history):
     # Faith No More: a long history months ago, played again now. Red Hot
     # Chili Peppers: all over this week, but first heard 40 days ago. Neither
     # played the week before — which made both "new" in the album caption.
-    scrobble(th(FNM, 1), history - 3600)
+    scrobble(th(FNM, 1), ago(history, 3600))
 
     assert caption(stats, "albums") == "0 new albums played"
     assert caption(stats, "artists").startswith("0 new artists")
@@ -77,8 +88,8 @@ def test_an_album_heard_before_is_not_new_when_it_comes_back(stats, history):
 
 
 def test_the_captions_count_what_the_tile_counts(stats, history):
-    scrobble(th(PRIMUS, 1), history - 3600)
-    scrobble(th(MILES, 1), history - 7200)
+    scrobble(th(PRIMUS, 1), ago(history, 3600))
+    scrobble(th(MILES, 1), ago(history, 7200))
 
     assert tile(stats)["value"] == "2 artists · 2 albums"
     assert caption(stats, "albums") == "2 new albums played"
@@ -92,9 +103,9 @@ def test_over_all_time_everything_heard_counts_and_nothing_is_called_new(stats, 
 
 
 def test_the_list_behind_the_tile_latest_discovery_first(stats, history):
-    scrobble(th(MILES, 1), history - 7200)
-    scrobble(th(PRIMUS, 1), history - 3600)
-    scrobble(th(PRIMUS, 2), history - 60)  # a second play is no second discovery
+    scrobble(th(MILES, 1), ago(history, 7200))
+    scrobble(th(PRIMUS, 1), ago(history, 3600))
+    scrobble(th(PRIMUS, 2), ago(history, 60))  # a second play is no second discovery
 
     found = discoveries(stats)
 
@@ -107,7 +118,7 @@ def test_the_list_behind_the_tile_latest_discovery_first(stats, history):
 
 
 def test_nobody_is_no_discovery_but_their_album_is(stats, history):
-    scrobble(th(UNTAGGED, 1), history - 3600)
+    scrobble(th(UNTAGGED, 1), ago(history, 3600))
 
     assert tile(stats)["value"] == "0 artists · 1 album"
 
@@ -115,13 +126,13 @@ def test_nobody_is_no_discovery_but_their_album_is(stats, history):
 def test_a_new_play_is_counted_at_once(stats, history):
     assert tile(stats)["value"] == "0 artists · 0 albums"
 
-    scrobble(th(PRIMUS, 1), history - 60)
+    scrobble(th(PRIMUS, 1), ago(history, 60))
 
     assert tile(stats)["value"] == "1 artist · 1 album"
 
 
 def test_each_user_discovers_on_their_own(stats, history):
-    scrobble(th(PRIMUS, 1), history - 3600, userid=2)
+    scrobble(th(PRIMUS, 1), ago(history, 3600), userid=2)
 
     assert tile(stats)["value"] == "0 artists · 0 albums"
     stats.userid = 2
@@ -129,8 +140,8 @@ def test_each_user_discovers_on_their_own(stats, history):
 
 
 def test_the_list_is_bounded(stats, history):
-    scrobble(th(MILES, 1), history - 7200)
-    scrobble(th(PRIMUS, 1), history - 3600)
+    scrobble(th(MILES, 1), ago(history, 7200))
+    scrobble(th(PRIMUS, 1), ago(history, 3600))
 
     found = stats.get("/logger/discoveries?period=week&limit=1").get_json()
 
@@ -144,8 +155,8 @@ def test_tile_captions_and_list_count_the_same_set(stats, history, monkeypatch):
     # rescan in flight): the list could not show it, so nothing counts it.
     from aivinnet.store.artists import ArtistStore
 
-    scrobble(th(PRIMUS, 1), history - 3600)
-    scrobble(th(MILES, 1), history - 7200)
+    scrobble(th(PRIMUS, 1), ago(history, 3600))
+    scrobble(th(MILES, 1), ago(history, 7200))
     monkeypatch.delitem(ArtistStore.artistmap, artisthash(PRIMUS))
 
     assert tile(stats)["value"] == "1 artist · 2 albums"
@@ -157,6 +168,6 @@ def test_tile_captions_and_list_count_the_same_set(stats, history, monkeypatch):
 
 def test_red_hot_chili_peppers_was_heard_before_the_week(stats, history):
     """The guard over the scenario: the history the tests above lean on."""
-    scrobble(th(RHCP, 1), history - 60)
+    scrobble(th(RHCP, 1), ago(history, 60))
 
     assert tile(stats)["value"] == "0 artists · 0 albums"

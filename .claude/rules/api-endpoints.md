@@ -249,6 +249,15 @@ Artist-Untertitel mit der ganzen Historie: Ein Album von vor einem Monat war die
 Platzhalter („Unknown“, „Various Artists“) zählen nicht als Artist. ⚠️ `first_play_by_trackhash`
 (ohne `_of`) ist **jeder** User — das braucht „Hinzugefügt“, nicht die Statistik.
 
+**„How you listened“ (#538) und der Hörer-Typ in Rewind sind EINE Regel** (`lib/listening_sources.py`):
+`source_kind` ordnet die gespeicherte Quelle einer Art zu (erzeugte Playlists = „Home“),
+`source_shares` rechnet die Anteile **an allen Plays** und nennt „other“ (Einzeltrack, Queue)
+nie. Die Kachel zeigt die zwei größten („60% albums · 20% playlists“), Rewind die größte. Die
+Stats-Kachel zählt jeden Play des Zeitraums wie die Play-Kachel, Rewind nur Plays von Tracks in
+der Bibliothek wie der Rest von Rewind. Der Untertitel ist nur der Zeitraum: „how you listened
+this week“ brach auf zwei Zeilen und hob den Wert aus der Reihe. Gruppiert wird in SQL über die volle Quelle
+(`plays_by_source_in_period`), zugeordnet in Python.
+
 ⚠️ **Die Quelle eines Plays hat mehr Präfixe, als `TrackLog` kennt.** Der Client schickt
 `al:` `ar:` `fo:` `pl:` `pf:` `q:` `favorite` (`client/src/stores/tracker.ts::getSource`),
 `models/logger.TrackLog` ordnet aber nur `al/ar/fo/pl/favorite` zu — `pf:` (Playlist-Ordner) und
