@@ -9,7 +9,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import TrackHashSchema
-from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
+from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.discoveries import first_heard_in
 from aivinnet.lib.extras import get_extra_info
@@ -22,10 +22,11 @@ from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
-from aivinnet.lib.rewind import build_rewind, finished_years
+from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
 from aivinnet.models.track import Track
+from aivinnet.models.user import REWIND_SEEN_KEY
 from aivinnet.plugins.lastfm import LastFmPlugin
 from aivinnet.serializers.album import serialize_for_card as serialize_for_album_card
 from aivinnet.serializers.artist import serialize_for_card
@@ -488,10 +489,40 @@ def _finished_years(userid: int, this_year: int, marker: tuple[int, int]) -> lis
 def get_rewind_years():
     """
     The years a Rewind can be opened for: finished years with plays, oldest
-    first. Cached, for the way to Rewind on the stats page.
+    first. Cached, for the way to Rewind on the stats page. `seen`: the years
+    the user has seen to the end; `fresh`: the latest year while it is still
+    unseen (#572) — the one the stats page and, in January, Home announce.
     """
     userid = get_current_userid()
-    return {"years": _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))}, 200
+    years = _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))
+    seen = seen_years(UserTable.get_extra(userid).get(REWIND_SEEN_KEY))
+    return {"years": years, "seen": seen, "fresh": fresh_year(years, seen)}, 200
+
+
+class RewindSeenBody(BaseModel):
+    year: int = Field(..., ge=1970, le=9999, description="The year of the Rewind seen to the end")
+
+
+@api.post("/rewind/seen")
+def mark_rewind_seen(body: RewindSeenBody):
+    """
+    The user has seen a Rewind to the end (#572): it stops announcing itself
+    and keeps a hidden door (January 1 in the listening calendar). The guest
+    account, shared by every guest, marks nothing.
+    """
+    userid = get_current_userid()
+    if UserTable.is_guest(userid):
+        return {"msg": "The guest account keeps Rewind as it is"}, 403
+
+    years = _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))
+    if body.year not in years:
+        return {"msg": f"No Rewind for {body.year}"}, 404
+
+    seen = seen_years(UserTable.get_extra(userid).get(REWIND_SEEN_KEY))
+    if body.year not in seen:
+        seen = sorted([*seen, body.year])
+        UserTable.set_extra(userid, REWIND_SEEN_KEY, seen)
+    return {"seen": seen, "fresh": fresh_year(years, seen)}, 200
 
 
 @api.get("/rewind")

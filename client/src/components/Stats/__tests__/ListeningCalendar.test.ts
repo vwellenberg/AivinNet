@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/requests/stats', () => ({ getListeningCalendar: vi.fn() }))
+vi.mock('@/router', () => ({ Routes: { Rewind: 'RewindView' } }))
 
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
 import { getListeningCalendar } from '@/requests/stats'
@@ -46,5 +47,56 @@ describe('ListeningCalendar', () => {
         await flushPromises()
 
         expect(w.find('.listening-calendar').exists()).toBe(false)
+    })
+
+    // The hidden door (#572): once a Rewind no longer announces itself, the
+    // square of January 1 is the way back to the year that ended before it.
+    describe('the door to Rewind', () => {
+        const stubs = { RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' } }
+
+        async function calendar(rewindYears: number[]) {
+            vi.mocked(getListeningCalendar).mockResolvedValue({ status: 200, data: payload } as any)
+            const w = mount(ListeningCalendar, { props: { rewindYears }, global: { stubs } })
+            await flushPromises()
+            return w
+        }
+
+        it('is the square of January 1, looking like every other day', async () => {
+            const w = await calendar([2024, 2025])
+
+            const doors = w.findAll('.calendar-days a.calendar-day')
+            expect(doors).toHaveLength(1)
+            expect(doors[0].classes()).toContain('level-0')
+            expect(doors[0].attributes('title')).toContain('Rewind 2025')
+            expect(JSON.parse(doors[0].attributes('data-to')!)).toEqual({ name: 'RewindView', params: { year: 2025 } })
+            // Still a square of the grid: the count of days does not change.
+            expect(w.findAll('.calendar-days .calendar-day')).toHaveLength(53 * 7)
+        })
+
+        it('has a way for the keyboard that only shows when focused', async () => {
+            const w = await calendar([2025])
+
+            expect(w.find('.calendar-days a').attributes('tabindex')).toBe('-1')
+            expect(w.find('a.rewind-door').text()).toBe('Rewind 2025')
+        })
+
+        it('takes the newer year for the keyboard when 53 weeks hold two January 1sts', async () => {
+            vi.mocked(getListeningCalendar).mockResolvedValue({
+                status: 200,
+                data: { ...payload, start: '2024-12-30', end: '2026-01-01', days: {} },
+            } as any)
+            const w = mount(ListeningCalendar, { props: { rewindYears: [2024, 2025] }, global: { stubs } })
+            await flushPromises()
+
+            expect(w.findAll('.calendar-days a')).toHaveLength(2)
+            expect(w.find('a.rewind-door').text()).toBe('Rewind 2025')
+        })
+
+        it('is no door without a Rewind for the year before', async () => {
+            const w = await calendar([2024])
+
+            expect(w.findAll('.calendar-days a')).toHaveLength(0)
+            expect(w.find('a.rewind-door').exists()).toBe(false)
+        })
     })
 })

@@ -104,8 +104,7 @@ def set_home_layout(body: HomeLayoutBody):
 def _is_guest(userid: int) -> bool:
     # One guest account is shared by every guest: what it saves would be every
     # guest's Home. The other per-account writes refuse it too.
-    user = UserTable.get_by_id(userid)
-    return user is None or "guest" in user.roles
+    return UserTable.is_guest(userid)
 
 
 def _not_interested_item(type: str, hash: str, timestamp: int) -> dict:

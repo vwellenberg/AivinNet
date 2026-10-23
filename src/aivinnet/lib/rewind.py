@@ -46,6 +46,25 @@ def finished_years(years: Iterable[int], this_year: int) -> list[int]:
     return sorted({year for year in years if year < this_year})
 
 
+def fresh_year(years: Sequence[int], seen: Iterable[int]) -> int | None:
+    """
+    The Rewind that is still news (#572): the latest finished year, until the
+    user has seen it to the end. On January 1 the next year takes its place,
+    unseen, and Rewind is loud again.
+    """
+    if not years:
+        return None
+    latest = max(years)
+    return None if latest in set(seen) else latest
+
+
+def seen_years(saved: object) -> list[int]:
+    """The years stored as seen, whatever an older or hand-edited `extra` holds."""
+    if not isinstance(saved, list):
+        return []
+    return sorted({y for y in saved if isinstance(y, int) and not isinstance(y, bool)})
+
+
 def _top(counter: Counter[str], n: int = REWIND_TOP) -> list[tuple[str, int]]:
     """The `n` highest, ties by hash so a run does not depend on dict order."""
     return sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))[:n]

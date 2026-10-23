@@ -140,17 +140,22 @@
                         </div>
                     </section>
                 </template>
+
+                <!-- The end of the year (#572): reaching it marks the Rewind
+                     seen, and it stops announcing itself. Not on opening: a
+                     look at the first plate is no Rewind seen. -->
+                <div ref="end" class="rewind-end" aria-hidden="true"></div>
             </template>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { paths } from '@/config'
-import { getRewind } from '@/requests/stats'
+import { getRewind, markRewindSeen } from '@/requests/stats'
 import { Routes } from '@/router'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
 import {
@@ -183,6 +188,42 @@ const topArtist = computed(() => data.value?.top_artists[0])
 const topAlbum = computed(() => data.value?.top_albums[0])
 const listener = computed(() => listenerText(data.value?.listener ?? null))
 
+// Seen to the end (#572): the sentinel after the last plate, in view for a
+// moment — a short year on a tall screen shows its end on opening, and a
+// glance is no Rewind seen. Once per year and page; a failed request tries
+// again the next time the end comes into view, a 403 (the shared guest
+// account) is an answer.
+const SEEN_AFTER_MS = 2500
+const end = ref<HTMLElement | null>(null)
+const marked = new Set<number>()
+let watcher: IntersectionObserver | null = null
+let dwell: ReturnType<typeof setTimeout> | undefined
+
+function stopWatching() {
+    clearTimeout(dwell)
+    watcher?.disconnect()
+    watcher = null
+}
+
+function watchEnd() {
+    stopWatching()
+    const year = data.value?.year
+    if (!year || marked.has(year) || !end.value || typeof IntersectionObserver !== 'function') return
+    watcher = new IntersectionObserver(entries => {
+        clearTimeout(dwell)
+        if (!entries.some(e => e.isIntersecting)) return
+        dwell = setTimeout(async () => {
+            const res = await markRewindSeen(year)
+            if (res?.status === 200 || res?.status === 403) {
+                marked.add(year)
+                if (data.value?.year === year) stopWatching()
+            }
+        }, SEEN_AFTER_MS)
+    })
+    watcher.observe(end.value)
+}
+onUnmounted(stopWatching)
+
 // Only the newest year may paint: a quick switch must not land on the year
 // that answered last.
 let seq = 0
@@ -206,6 +247,8 @@ async function load() {
     // year still finds the way to the last one.
     if (ok || notYet) years.value = res.data.years ?? []
     updatePageTitle(data.value ? `Rewind ${data.value.year}` : 'Rewind')
+    await nextTick()
+    watchEnd()
 }
 
 function showYear(year: number) {
@@ -232,6 +275,13 @@ watch(
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
     align-items: start;
     max-width: 72rem;
+
+    // The sentinel after the last plate: a full row, no height of its own.
+    .rewind-end {
+        grid-column: 1 / -1;
+        height: 1px;
+        margin-top: -1.5rem;
+    }
 
     .rewind-years,
     .rewind-hero {

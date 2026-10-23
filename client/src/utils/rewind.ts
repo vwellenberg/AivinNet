@@ -131,3 +131,37 @@ export function names(cards: RewindCard[]): string {
     if (all.length < 2) return all[0] ?? ''
     return `${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}`
 }
+
+/**
+ * The hidden door to Rewind (#572): the square of January 1 in the listening
+ * calendar opens the year that ended the night before — once that year has a
+ * Rewind. Any other day, or a year without one, is no door.
+ */
+export function rewindDoor(date: string, years: readonly number[]): number | null {
+    if (!date.endsWith('-01-01')) return null
+    const year = Number(date.slice(0, 4)) - 1
+    return years.includes(year) ? year : null
+}
+
+/** Home announces a fresh Rewind only in January (#572); the stats page does all year. */
+export function announcedOnHome(fresh: number | null | undefined, now: Date = new Date()): number | null {
+    return fresh && now.getMonth() === 0 ? fresh : null
+}
+
+const BURST_KEY = 'rewind-confetti'
+
+/**
+ * Whether the New Year's burst on Home's Rewind card is still due for `year`
+ * on this device (#572), and remember that it is not any more. A per-device
+ * convenience in `localStorage`: blocked storage means no burst rather than a
+ * burst on every visit.
+ */
+export function newYearBurst(year: number): boolean {
+    try {
+        if (localStorage.getItem(BURST_KEY) === String(year)) return false
+        localStorage.setItem(BURST_KEY, String(year))
+        return true
+    } catch {
+        return false
+    }
+}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
     LISTENERS,
@@ -12,6 +12,9 @@ import {
     percent,
     playCount,
     trackLine,
+    announcedOnHome,
+    newYearBurst,
+    rewindDoor,
 } from '../rewind'
 
 describe('listenerText', () => {
@@ -62,5 +65,43 @@ describe('words', () => {
         expect(names([{ name: 'RHCP' }, { name: 'Primus' }, { name: 'Tool' }])).toBe('RHCP, Primus and Tool')
         expect(names([{ name: 'RHCP' }])).toBe('RHCP')
         expect(names([])).toBe('')
+    })
+})
+
+describe('rewindDoor (#572)', () => {
+    it('opens the year that ended on January 1, if it has a Rewind', () => {
+        expect(rewindDoor('2026-01-01', [2024, 2025])).toBe(2025)
+        expect(rewindDoor('2026-01-01', [2024])).toBeNull()
+        expect(rewindDoor('2026-01-02', [2025])).toBeNull()
+        expect(rewindDoor('2025-12-01', [2024])).toBeNull()
+    })
+})
+
+describe('announcedOnHome (#572)', () => {
+    it('announces a fresh Rewind in January only', () => {
+        expect(announcedOnHome(2025, new Date(2026, 0, 1))).toBe(2025)
+        expect(announcedOnHome(2025, new Date(2026, 0, 31, 23))).toBe(2025)
+        expect(announcedOnHome(2025, new Date(2026, 1, 1))).toBeNull()
+        // Seen, or nothing to announce.
+        expect(announcedOnHome(null, new Date(2026, 0, 5))).toBeNull()
+        expect(announcedOnHome(undefined, new Date(2026, 0, 5))).toBeNull()
+    })
+})
+
+describe('newYearBurst (#572)', () => {
+    it('is due once per year on a device', () => {
+        localStorage.clear()
+        expect(newYearBurst(2025)).toBe(true)
+        expect(newYearBurst(2025)).toBe(false)
+        expect(newYearBurst(2026)).toBe(true)
+        localStorage.clear()
+    })
+
+    it('is never due when storage is blocked — better none than one on every visit', () => {
+        const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('blocked')
+        })
+        expect(newYearBurst(2025)).toBe(false)
+        get.mockRestore()
     })
 })
