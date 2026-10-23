@@ -305,10 +305,14 @@ def test_surprise_picks_an_album_from_the_library(home):
 
 
 def test_every_entry_has_a_place_in_the_order():
+    from aivinnet.lib.home.layout import COLLECTIONS, DEFAULT_ORDER
     from aivinnet.store.homepage import HomepageStore
 
-    ordered = HomepageStore.ORDER_BEFORE_PAGES + HomepageStore.ORDER_AFTER_PAGES
+    # The default order (lib/home/layout.py) names every row once, plus the
+    # block of collection pages: a row missing there would never be shown.
+    ordered = [key for key in DEFAULT_ORDER if key != COLLECTIONS]
     assert sorted(ordered) == sorted(HomepageStore.entries)
+    assert len(set(DEFAULT_ORDER)) == len(DEFAULT_ORDER)
 
 
 @pytest.mark.parametrize("playlist", ["onthisday", "becauseyoulistened", "mix1"])

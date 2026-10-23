@@ -1,5 +1,12 @@
 import json
 from dataclasses import asdict, dataclass, field
+from typing import Any
+
+# The key of `extra` that holds the user's Home layout (#532). The server's own:
+# `/nothome` reads it, and `todict()` leaves it out, or it would ride along in
+# every token and every `/auth/user*` answer — and go stale there on the next
+# save.
+HOME_LAYOUT_KEY = "home_layout"
 
 
 @dataclass(slots=True)
@@ -9,7 +16,7 @@ class User:
     password: str
     username: str
     roles: list[str]
-    extra: dict[str, str] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     # NOTE: roles: ['admin', 'user', 'curator']
     roles: list[str] = field(default_factory=lambda: ["user"])
@@ -23,6 +30,8 @@ class User:
         this_dict = asdict(self)
         del this_dict["password"]
         del this_dict["token_version"]
+        extra = this_dict["extra"]
+        this_dict["extra"] = {k: v for k, v in extra.items() if k != HOME_LAYOUT_KEY} if isinstance(extra, dict) else {}
 
         if type(this_dict["roles"]) is str:
             # INFO: this is an attempt to fix string roles!
@@ -37,5 +46,7 @@ class User:
         return {
             "id": self.id,
             "username": self.username,
-            "firstname": self.extra["firstname"] if self.extra else "",
+            # `extra` holds more than the first name (the Home layout, #532):
+            # a filled `extra` is no promise of one.
+            "firstname": (self.extra or {}).get("firstname", ""),
         }

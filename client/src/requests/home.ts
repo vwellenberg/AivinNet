@@ -36,3 +36,33 @@ export async function getSurpriseAlbum(): Promise<string | null> {
 
     return data?.albumhash ?? null
 }
+
+/** One Home row as the settings list it (#532). */
+export interface HomeLayoutRow {
+    key: string
+    title: string
+    description: string
+    visible: boolean
+    // Shown or hidden, never moved: "Continue listening" is drawn on top anyway.
+    pinned: boolean
+}
+
+/** The user's Home rows in their order, with which of them are shown. */
+export async function getHomeLayout() {
+    return await useAxios({
+        url: paths.api.home.layout,
+        method: 'GET',
+    })
+}
+
+/**
+ * Store the user's Home layout: every row key in order, and the hidden ones.
+ * The server answers with the layout as it kept it (unknown keys dropped).
+ */
+export async function setHomeLayout(order: string[], hidden: string[]) {
+    return await useAxios({
+        url: paths.api.home.layout,
+        method: 'PUT',
+        props: { order, hidden },
+    })
+}

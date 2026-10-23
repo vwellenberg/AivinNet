@@ -194,6 +194,8 @@ const CALLS: Record<string, unknown[]> = {
     'home/getRecentlyPlayed': [9],
     'home/getHomePageData': [9],
     'home/getSurpriseAlbum': [],
+    'home/getHomeLayout': [],
+    'home/setHomeLayout': [['continue_listening', 'recently_played'], ['rediscover']],
     'lyrics/getLyrics': ['/music/a.flac', 't1'],
     'lyrics/checkExists': ['/music/a.flac', 't1'],
     'metadata/pollJob': ['job1'],

@@ -101,6 +101,7 @@
                 <Accounts v-if="setting.type === SettingType.accounts" />
                 <About v-if="setting.type === SettingType.about" />
                 <Pairing v-if="setting.type === SettingType.pairing" />
+                <HomeRows v-if="setting.type === SettingType.home_rows" />
                 <BackupRestore
                     v-if="setting.type === SettingType.backup"
                     :title="setting.title"
@@ -132,6 +133,7 @@ import Switch from './Components/Switch.vue'
 
 import Profile from '../modals/settings/Profile.vue'
 import Accounts from '../modals/settings/custom/Accounts.vue'
+import HomeRows from '../modals/settings/custom/HomeRows.vue'
 import Pairing from '../modals/settings/custom/Pairing.vue'
 import About from './About.vue'
 import BackupRestore from './Components/BackupRestore.vue'
@@ -159,6 +161,7 @@ const PANEL_TYPES = [
     SettingType.root_dirs,
     SettingType.separators_input,
     SettingType.secretinput,
+    SettingType.home_rows,
 ]
 </script>
 

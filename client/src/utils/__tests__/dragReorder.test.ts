@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clampTravel, landingGap, landingIndex, makeRoomShift } from "../dragReorder";
+import { clampSlotTravel, clampTravel, landingGap, landingIndex, landingSlot, makeRoomShift, slotShift } from "../dragReorder";
 import { resolveMove } from "../playlistMove";
 
 // ---------------------------------------------------------------------------
@@ -131,5 +131,50 @@ describe("a move on screen, in the store's terms", () => {
     expect(landingGap(all, all, 1, 1)).toBeNull();
     expect(landingGap(all, all, 0, 5)).toBeNull();
     expect(landingGap(all, all, -1, 0)).toBeNull();
+  });
+});
+
+// Settings → Home: rows of different heights, as laid out when the drag began
+// (8px apart; a described row is taller, one that wraps taller still).
+describe("rows of different heights", () => {
+  const SLOTS = [
+    { top: 0, height: 44 }, // no description
+    { top: 52, height: 90 }, // a description over two lines
+    { top: 150, height: 44 },
+    { top: 202, height: 64 },
+  ];
+
+  it("keeps the row inside the list", () => {
+    expect(clampSlotTravel(SLOTS, 1, -500)).toBe(-52);
+    // Its bottom stops at the last row's bottom: 266 - 90 - 52.
+    expect(clampSlotTravel(SLOTS, 1, 500)).toBe(124);
+    expect(clampSlotTravel(SLOTS, 0, 20)).toBe(20);
+  });
+
+  it("lands once its leading edge passes the middle of the next row", () => {
+    // Row 0 going down: its bottom (44 + travel) passes row 1's middle at 97.
+    expect(landingSlot(SLOTS, 0, 52)).toBe(0);
+    expect(landingSlot(SLOTS, 0, 54)).toBe(1);
+    // ...and row 2's middle at 172 — a short row needs the full tall row.
+    expect(landingSlot(SLOTS, 0, 127)).toBe(1);
+    expect(landingSlot(SLOTS, 0, 129)).toBe(2);
+    // The tall row going up: its top (52 + travel) passes row 0's middle at 22.
+    expect(landingSlot(SLOTS, 1, -29)).toBe(1);
+    expect(landingSlot(SLOTS, 1, -31)).toBe(0);
+    expect(landingSlot(SLOTS, 3, -1000)).toBe(0);
+    expect(landingSlot(SLOTS, 0, 1000)).toBe(3);
+  });
+
+  it("moves the passed rows by the dragged row's height and a gap", () => {
+    // The tall row (90) moved down two: rows 2 and 3 step up by 98.
+    expect([0, 1, 2, 3].map((i) => slotShift(SLOTS, i, 1, 3))).toEqual([0, 0, -98, -98]);
+    // The last row (64) moved up three: the others step down by 72.
+    expect([0, 1, 2, 3].map((i) => slotShift(SLOTS, i, 3, 0))).toEqual([72, 72, 72, 0]);
+  });
+
+  it("stays put when there is no layout to read (jsdom)", () => {
+    const flat = SLOTS.map(() => ({ top: 0, height: 0 }));
+    expect(clampSlotTravel(flat, 2, 80)).toBe(0);
+    expect(landingSlot(flat, 2, 80)).toBe(2);
   });
 });

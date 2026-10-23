@@ -153,6 +153,33 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
 „you play Primus · never played“, „in 2 of your playlists“. Wer eine Empfehlungszeile baut,
 schreibt den Grund dorthin; ein eigenes „Warum?“-Element braucht es nicht (#524).
 
+**Welche Zeilen Home zeigt und in welcher Reihenfolge, entscheidet der User** (Settings → Home,
+#532; `GET`/`PUT /nothome/layout`). Gespeichert wird pro User in `UserTable.extra["home_layout"]`,
+gehalten im RAM (`HomepageStore.layouts`). Eine ausgeblendete Zeile setzt `GET /nothome` gar
+nicht erst zusammen und schickt sie nicht — ⚠️ ihre Routine **läuft aber weiter**: Die Crons
+rechnen pro Zeile, nicht pro User, und ein anderer User zeigt sie vielleicht. Wer eine teure Zeile
+nur für Ausblender sparen will, muss das in der Routine lösen. Die Regeln stehen in `lib/home/layout.py` (pur, strikt): `DEFAULT_ORDER` ist die
+Reihenfolge von Home ohne eigene Wahl, die Collections sind darin **ein** Block (`COLLECTIONS`),
+und „Continue listening“ lässt sich aus-, aber nicht verschieben (`PINNED` — der Client zeichnet
+sie ohnehin über allen Zeilen). ⚠️ **Eine neue Zeile gehört in `DEFAULT_ORDER`**, sonst baut Home
+sie nie (`test_every_entry_has_a_place_in_the_order` hält Store und Reihenfolge zusammen). Ein
+gespeichertes Layout, das sie noch nicht kennt, bekommt sie automatisch hinter die Zeile, der sie
+standardmäßig folgt; Schlüssel, die keine Zeile mehr sind, fallen weg. Der Client schickt immer
+die **ganze** Reihenfolge.
+
+Drei Dinge, die beim Bauen aufgefallen sind:
+
+- ⚠️ **`extra` ist ein geteilter Beutel, und `User.todict()` gibt ihn ganz heraus** — in jedes
+  Token und jede `/auth/user*`-Antwort. Das Layout bleibt deshalb dort draußen
+  (`models/user.HOME_LAYOUT_KEY`). Und wer `extra` liest, liest Schlüssel mit `.get()`: Ein
+  gefülltes `extra` versprach bis dahin einen Vornamen, und die Login-Liste antwortete 500, sobald
+  ein Konto ohne Vornamen sein erstes Layout speicherte.
+- **Settings nennt eine Zeile bei `entry.name`, nicht bei `entry.title`.** Eine Routine darf den
+  Titel umschreiben („For this time“ heißt stündlich nach dem Zeitfenster) — der Schalter darunter
+  sähe dann aus, als blende er nur den Abend aus.
+- **Das Gastkonto hat das Standard-Home:** Alle Gäste teilen *ein* Konto, also antwortet
+  `PUT /nothome/layout` dort 403, und der Client blendet Settings → Home aus.
+
 **Welche Zeile spielbar ist, sagt der Server:** Der Eintrag im `HomepageStore` trägt
 `playlist="<id>"`, und die Zeile schickt sie mit. Der Client baut daraus den Abspiel-Knopf und
 den Link des Titels (ein `url` des Servers geht vor — „Because you listened“ bleibt auf dem
