@@ -82,7 +82,7 @@ Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen
 Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores, strikt unter mypy), Routinen
 in `lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Your mixes** → **Because you
 listened** → **On repeat** → Recently played → **Your weekday evenings** → **Never played** → **Artists you might
-like** → **Forgotten favorites** → Rediscover → On this day → Collections → Recently added.
+like** → **Forgotten favorites** → Rediscover → **Almost complete** → On this day → Collections → Recently added.
 
 - **„Your mixes“** (alle 6 h, #526; Regeln in `lib/home/mixes.py`, ebenfalls pur und strikt):
   bis zu vier Playlist-Karten „Mix 1“ … aus den Sitzungen der letzten 180 Tage (ab 50 Plays).
@@ -162,6 +162,18 @@ like** → **Forgotten favorites** → Rediscover → On this day → Collection
   (`forgottenfavorites`, Reihenfolge der Zeile): „Play all“, der Titel öffnet sie. Die Routine
   behält bis zu `FAVORITE_PLAYLIST_LIMIT` (100) statt 15 — die Zeile zeigt so viele, wie passen
   (`?limit=`), „Play all“ spielt alle.
+
+- **„Almost complete“** (alle 6 h, #529; Regeln in `lib/home/almost_complete.py`, pur und
+  strikt): Alben mit mindestens 4 Tracks, von denen der User mindestens 60 % je gehört hat und
+  mindestens einen nie. **Die ganze Historie zählt**, anders als „Continue listening“, das nur
+  abgebrochene Sitzungen unter den letzten 200 Plays kennt. Die nächsten am Ziel zuerst (wenigste
+  fehlende, dann größerer Anteil), ungetaggte Alben nicht. Karte „3 songs to go“ mit Stempel
+  „3 · to go“. **„Play the rest“** spielt die erzeugte Playlist `almostcomplete`: genau die
+  nie gespielten Tracks, Album für Album in Album-Reihenfolge (`PlayableEntry.trackhashes`).
+  Sie steht in `DATED_PLAYLISTS`, denn wer sie spielt, macht ihre Tracks zu gehörten. Aus
+  demselben Grund zieht **jeder Scrobble** die Zeile im RAM nach (`almost_complete_played` →
+  `after_play`): sonst stünde nach „Play the rest“ bis zum nächsten Lauf „2 songs to go“ auf einem
+  durchgehörten Album, und der Knopf spielte dieselben Songs noch einmal.
 
 **Der Grund steht schon auf der Karte** — die Hilfezeile über dem Titel ist `help_text` plus
 `secondary_text` (beim Client `time`, `recover_items`): „2 sessions together · last March 2025“,

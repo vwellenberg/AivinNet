@@ -25,6 +25,7 @@ describe('playButtonLabel', () => {
     it('says what the row plays where "Play all" would be wrong', () => {
         expect(playButtonLabel('because_you_listened')).toBe('Play mix')
         expect(playButtonLabel('on_this_day')).toBe('Play that day')
+        expect(playButtonLabel('almost_complete')).toBe('Play the rest')
     })
 
     it('says "Play all" for every other playable row', () => {

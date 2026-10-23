@@ -91,6 +91,13 @@ class HomepageStore:
             title="Rediscover",
             description="You played these a lot — not lately",
         ),
+        # Per user: the cards, and the songs never played of them, album after
+        # album, for "Play the rest" (playlist "almostcomplete", #529).
+        "almost_complete": PlayableEntry(
+            title="Almost complete",
+            description="A few songs left on albums you have mostly heard",
+            playlist="almostcomplete",
+        ),
         # Per user: the date and a summary of that day as the description, and
         # the day's tracks for "Play that day" (playlist "onthisday").
         "on_this_day": PlayableEntry(

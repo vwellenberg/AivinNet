@@ -504,6 +504,7 @@ def test_every_row_playlist_is_one_the_server_generates():
         "on_repeat": "onrepeat",
         "forgotten_favorites": "forgottenfavorites",
         "on_this_day": "onthisday",
+        "almost_complete": "almostcomplete",
     }
     assert set(named.values()) <= set(GENERATED_PLAYLISTS)
 

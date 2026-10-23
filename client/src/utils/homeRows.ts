@@ -30,6 +30,8 @@ const PLAY_BUTTONS: Record<string, string> = {
     because_you_listened: 'Play mix',
     // The day a year ago in the order it was heard, not just its albums.
     on_this_day: 'Play that day',
+    // Only the songs never played, album after album (#529).
+    almost_complete: 'Play the rest',
 }
 
 export function playButtonLabel(rowKey: string | undefined): string {

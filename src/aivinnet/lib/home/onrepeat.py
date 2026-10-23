@@ -8,6 +8,8 @@ Home rows that are also playlists, served like "recentlyplayed":
 - "becauseyoulistened": one track per album of "Because you listened to …"
   — "Play mix".
 - "mix1" … "mix4": the cards of "Your mixes", by position.
+- "almostcomplete": the songs never played of "Almost complete", album after
+  album in album order — "Play the rest".
 
 Read from what the routines already computed (RAM), so a playlist and its row
 always agree.
@@ -61,6 +63,10 @@ def get_forgotten_favorites_playlist():
 
 def get_on_this_day_playlist():
     return _playable_playlist("on_this_day", "onthisday", "On this day")
+
+
+def get_almost_complete_playlist():
+    return _playable_playlist("almost_complete", "almostcomplete", "Almost complete")
 
 
 def get_because_playlist():

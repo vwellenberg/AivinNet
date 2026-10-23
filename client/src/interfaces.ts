@@ -79,8 +79,9 @@ export interface Album {
     help_text?: string
     time?: string
     // What a Home row draws on the card, per user: "Recently added" — not
-    // played yet (#533); "On this day" — the year that day was the first play (#534).
-    home?: { unheard?: boolean; first_heard?: number }
+    // played yet (#533); "On this day" — the year that day was the first play (#534);
+    // "Almost complete" — how many songs were never played (#529).
+    home?: { unheard?: boolean; first_heard?: number; missing?: number }
     is_favorite: boolean
     is_pinned?: boolean
     is_single?: boolean

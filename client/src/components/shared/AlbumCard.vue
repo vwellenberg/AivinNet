@@ -15,7 +15,8 @@
             <!-- What a Home row says about the album, per user: "Recently added"
                  stamps one not played yet (#533; "to you", because the line
                  under the cover says whether it is new to the library), "On this
-                 day" the day it was first heard (#534). -->
+                 day" the day it was first heard (#534), "Almost complete" the songs
+                 left (#529). -->
             <CardStamp v-if="stamp" :value="stamp.value" :caption="stamp.caption" :tone="stamp.tone" />
             <PlayBtn
                 :store="useAlbumStore"
@@ -102,6 +103,7 @@ function getVersions(ver1: string[], ver2: string[] = []) {
 const stamp = computed(() => {
     if (props.album.home?.unheard) return { value: 'NEW', caption: 'to you', tone: 'coral' as const }
     if (props.album.home?.first_heard) return { value: '1st', caption: 'time', tone: 'yellow' as const }
+    if (props.album.home?.missing) return { value: `${props.album.home.missing}`, caption: 'to go', tone: 'teal' as const }
     return null
 })
 

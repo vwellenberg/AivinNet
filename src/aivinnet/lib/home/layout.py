@@ -33,6 +33,7 @@ DEFAULT_ORDER: tuple[str, ...] = (
     "artists_you_might_like",
     "forgotten_favorites",
     "rediscover",
+    "almost_complete",
     "on_this_day",
     COLLECTIONS,
     "recently_added",

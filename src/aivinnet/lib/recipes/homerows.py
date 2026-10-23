@@ -1,7 +1,8 @@
 """
 Routines for the personal homepage rows "Rediscover", "On this day",
 "Because you listened to …", "On repeat", "Never played", "Your <weekday>
-<evenings>", "Artists you might like", "Forgotten favorites" and "Your mixes". The rules
+<evenings>", "Artists you might like", "Forgotten favorites", "Your mixes" and
+"Almost complete". The rules
 themselves live in `lib/home/homerows.py` and `lib/home/discover.py`.
 
 Scheduled by `crons/__init__.py` (`schedule.every(cls.hours)`), deliberately
@@ -18,7 +19,15 @@ import pendulum
 from pendulum.tz import local_timezone
 
 from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable
+from aivinnet.lib.albumslib import sort_by_track_no
 from aivinnet.lib.first_play_cache import first_plays_of
+from aivinnet.lib.home.almost_complete import (
+    AlbumTracks,
+    after_play,
+    almost_complete_item,
+    rank_almost_complete,
+    rest_of,
+)
 from aivinnet.lib.home.discover import (
     FAVORITE_PLAYLIST_LIMIT,
     ON_THIS_DAY_YEARS,
@@ -515,6 +524,72 @@ class ForgottenFavorites(HomepageRoutine):
                 log.info("forgotten-favorites: user %s played every favourite lately", userid)
 
             HomepageStore.entries[self.store_key].items[userid] = [forgotten_favorite_item(*r) for r in ranked]
+
+
+class AlmostComplete(HomepageRoutine):
+    """
+    "Almost complete" (#529): albums the user has heard at least 60 % of, with
+    a few songs never played. The whole history counts, grouped in SQL per
+    user. Every 6 hours, like the other library rows; the albums with their
+    tracks in album order are built once per run, for every user.
+    """
+
+    hours = 6
+    store_key = "almost_complete"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        entry = HomepageStore.entries[self.store_key]
+        albums = []
+        # A copy: a scan or tag edit on another thread changes the map meanwhile.
+        for albumhash, album in list(AlbumStore.albummap.items()):
+            # In the order the album page plays them.
+            tracks = sort_by_track_no(TrackStore.get_tracks_by_trackhashes(album.trackhashes))
+            albums.append(
+                AlbumTracks(
+                    albumhash,
+                    [t.trackhash for t in tracks],
+                    tuple(a["artisthash"] for a in album.album.albumartists),
+                )
+            )
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            heard = ScrobbleTable.heard_trackhashes_of(userid)
+            ranked = rank_almost_complete(albums, heard, exclude=UNKNOWN_ARTISTS.__contains__) if heard else []
+
+            if not heard:
+                log.info("almost-complete: user %s has no plays yet", userid)
+            elif not ranked:
+                log.info("almost-complete: no album is nearly heard through for user %s", userid)
+
+            # The playlist first, the cards last, like "On this day".
+            entry.trackhashes[userid] = rest_of(ranked)
+            entry.items[userid] = [almost_complete_item(a) for a in ranked]
+
+
+def almost_complete_played(userid: int, trackhash: str):
+    """
+    Keep "Almost complete" current after a play (`after_play`), from the
+    scrobble endpoint: RAM only, nothing to do unless the song was missing.
+    """
+    entry = HomepageStore.entries["almost_complete"]
+    rest = entry.trackhashes.get(userid, [])
+    if trackhash not in rest:
+        return
+
+    group = TrackStore.trackhashmap.get(trackhash)
+    if group is None or not group.tracks:
+        return
+    albumhash = group.tracks[0].albumhash
+    cards, left = after_play(entry.items.get(userid, []), rest, trackhash, albumhash)
+    entry.trackhashes[userid] = left
+    entry.items[userid] = cards
 
 
 def library_tracks_of(artisthash: str) -> list[str]:
