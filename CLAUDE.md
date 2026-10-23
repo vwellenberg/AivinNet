@@ -379,6 +379,13 @@ Der Backlog lebt **ausschließlich** in den GitHub-Issues dieses Repos:
 die frühere `ROADMAP.md` ist genau daran gescheitert (sie führte „Manuelle Metadaten-Bearbeitung" noch als
 offen, während das Feature längst live war).
 
+⚠️ **Issues und PRs im Chat immer als vollen Link nennen**
+(`[vwellenberg/AivinNet#532](https://github.com/vwellenberg/AivinNet/issues/532)`), nie als nacktes
+`#532`. Dieses Repo ist ein Fork: Die Claude-App löst eine nackte Nummer gegen das Upstream
+`swingmx/swingmusic` auf, und der Link zeigt dort auf ein fremdes Issue mit derselben Nummer
+(Nutzer, 2026-10-23). Innerhalb von GitHub (PR-Text, Commit, Issue-Kommentar) bleibt `#532`
+richtig — dort zeigt es aufs eigene Repo, und nur so schließt `Fixes #532`.
+
 ## Device Sync / Multiroom (Group Sessions)
 
 Geräte desselben Users spielen synchron, jedes kann steuern. **Der Server ist die Quelle der
