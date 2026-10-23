@@ -30,7 +30,7 @@ function shapeOf(icon: string) {
 describe('StatItem motif', () => {
     // The kinds /logger/stats really sends (Stats.test.ts), one shape each — a
     // row of five tiles reads as five, not as one texture repeated.
-    const KINDS = ['toptrack', 'streams', 'playtime', 'favorites', 'trackcount']
+    const KINDS = ['toptrack', 'streams', 'playtime', 'favorites', 'discoveries', 'trackcount']
 
     it('gives every kind its own shape, and the top tiles the same one', () => {
         const shapes = KINDS.map(shapeOf)
@@ -38,12 +38,13 @@ describe('StatItem motif', () => {
         expect(shapeOf('topalbum')).toBe(shapeOf('toptrack'))
     })
 
-    it('draws the shapes the mockup showed: disc, triangle, wave, zigzag, bar', () => {
+    it('draws the shapes the mockup showed: disc, triangle, wave, zigzag, bar — and a sparkle for what is new', () => {
         expect(shapeOf('toptrack')).toBe('circle')
         expect(shapeOf('streams')).toBe('polygon')
         expect(shapeOf('playtime')).toBe('path.line+rotated')
         expect(shapeOf('favorites')).toBe('path.line')
         expect(shapeOf('trackcount')).toBe('rect+rotated')
+        expect(shapeOf('discoveries')).toBe('path')
     })
 
     it('puts a kind nobody claimed on the zigzag', () => {
@@ -185,3 +186,39 @@ describe('StatItem count box', () => {
         })
     })
 })
+
+// "New artists · new albums" (#539) opens the list of them: the tile is one
+// button over its whole face. Every other tile stays no control.
+describe('StatItem that opens a list', () => {
+    const opener = (expanded: boolean, expandable = true) =>
+        mount(StatItem, {
+            props: {
+                icon: 'discoveries',
+                value: '7 artists · 12 albums',
+                text: 'new this week',
+                expandable,
+                expanded,
+                controls: 'list',
+            },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+
+    it('is a button that says whether it is open, and what it opens', async () => {
+        const w = opener(false)
+        const button = w.find('button.statexpand')
+
+        expect(button.attributes('aria-expanded')).toBe('false')
+        expect(button.attributes('aria-controls')).toBe('list')
+        expect(button.attributes('aria-label')).toBe('7 artists · 12 albums new this week')
+        expect(opener(true).find('button.statexpand').attributes('aria-expanded')).toBe('true')
+
+        await button.trigger('click')
+        expect(w.emitted('toggle')).toHaveLength(1)
+    })
+
+    it('leaves every other tile without one', () => {
+        expect(opener(false, false).find('button.statexpand').exists()).toBe(false)
+        expect(tile('streams').find('button.statexpand').exists()).toBe(false)
+    })
+})
+

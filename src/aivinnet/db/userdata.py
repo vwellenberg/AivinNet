@@ -40,6 +40,7 @@ from aivinnet.lib.playlist_maintenance import (
     record_added_at,
     remove_trackhashes,
 )
+from aivinnet.models.enums import FavType
 from aivinnet.utils.auth import get_current_userid, hash_password
 
 
@@ -456,6 +457,9 @@ class FavoritesTable(Base):
         result = cls.rows(
             select(func.count(cls.id))
             .where(cls.userid == get_current_userid())
+            # Favourites only: the table also holds the sidebar pins of albums
+            # (`pinned_album`), and each one counted as a "new favorite".
+            .where(cls.type.in_((FavType.track, FavType.album, FavType.artist)))
             .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
         )
 
@@ -577,6 +581,18 @@ class ScrobbleTable(Base):
         year = func.strftime("%Y", cls.timestamp, "unixepoch", "localtime")
         result = cls.rows(select(year).where(cls.userid == userid).where(cls.timestamp <= until).group_by(year))
         return sorted(int(row[0]) for row in result.all() if row[0])
+
+    @classmethod
+    def first_play_by_trackhash_of(cls, userid: int) -> dict[str, int]:
+        """
+        trackhash -> ONE user's earliest play of it (#539; `first_play_by_trackhash`
+        is every user's), grouped in SQL: one row per track ever played
+        instead of every play on the request thread.
+        """
+        rows = cls.rows(
+            select(cls.trackhash, func.min(cls.timestamp)).where(cls.userid == userid).group_by(cls.trackhash)
+        ).all()
+        return {trackhash: int(first) for trackhash, first in rows}
 
     @classmethod
     def change_marker(cls, userid: int | None = None) -> tuple[int, int]:

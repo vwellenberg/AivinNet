@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from aivinnet.api.apischemas import TrackHashSchema
 from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
+from aivinnet.lib.discoveries import FirstPlays, first_heard_in, first_plays
 from aivinnet.lib.extras import get_extra_info
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
@@ -41,8 +42,6 @@ from aivinnet.utils.dates import (
 from aivinnet.utils.stats import (
     calculate_album_trend,
     calculate_artist_trend,
-    calculate_new_albums,
-    calculate_new_artists,
     calculate_playlist_trend,
     calculate_scrobble_trend,
     calculate_track_trend,
@@ -271,7 +270,7 @@ def get_top_artists(query: ChartItemsQuery):
     current_period_artists = get_artists_in_period(start_time, end_time)
     previous_period_artists = get_artists_in_period(previous_start_time, start_time)
 
-    new_artists = calculate_new_artists(current_period_artists, start_time)
+    new_artists = len(discovered_in(get_current_userid(), start_time, end_time)[0])
     scrobble_trend = calculate_scrobble_trend(len(current_period_artists), len(previous_period_artists))
 
     sorted_artists = sort_artists(current_period_artists, query.order_by)
@@ -328,7 +327,7 @@ def get_top_albums(query: ChartItemsQuery):
     current_period_albums = get_albums_in_period(start_time, end_time)
     previous_period_albums = get_albums_in_period(previous_start_time, start_time)
 
-    new_albums = calculate_new_albums(current_period_albums, previous_period_albums)
+    new_albums = len(discovered_in(get_current_userid(), start_time, end_time)[1])
     scrobble_trend = calculate_scrobble_trend(len(current_period_albums), len(previous_period_albums))
 
     sorted_albums = sort_albums(current_period_albums, query.order_by)
@@ -617,6 +616,95 @@ SAID_PERIOD = {
 }
 
 
+# "New to you" (#539): each user's first play of every album and artist, kept
+# until their next play. The history is grouped in SQL, but every period of
+# the stats page and both chart captions ask for it. Like Rewind, a rescan that
+# moves tracks to other albums shows on the next play, not at once.
+_first_plays: dict[int, tuple[tuple[int, int], FirstPlays]] = {}
+
+
+def _resolve_track(trackhash: str) -> tuple[str, list[str]] | None:
+    """A track's album (as the album pages know it) and the artists on it, None once it left the library."""
+    group = TrackStore.trackhashmap.get(trackhash)
+    if group is None:
+        return None
+    track = group.tracks[0]
+    entry = AlbumStore.albummap.get(track.albumhash)
+    if entry is None:
+        return None
+    return entry.album.albumhash, [artist["artisthash"] for artist in track.artists]
+
+
+def first_plays_of(userid: int) -> FirstPlays:
+    marker = ScrobbleTable.change_marker(userid)
+    cached = _first_plays.get(userid)
+    if cached is None or cached[0] != marker:
+        first = ScrobbleTable.first_play_by_trackhash_of(userid)
+        cached = (marker, first_plays(first, _resolve_track, PLACEHOLDER_ARTIST_HASHES.__contains__))
+        _first_plays[userid] = cached
+    return cached[1]
+
+
+def discovered_in(userid: int, start: int, end: int) -> tuple[list[str], list[str]]:
+    """
+    The artists and albums first heard in the range, latest first — only
+    those still in the library, so the tile, the captions and the list behind
+    the tile count the same set.
+    """
+    found = first_plays_of(userid)
+    artists = [h for h in first_heard_in(found.artists, start, end) if ArtistStore.get_artist_by_hash(h) is not None]
+    albums = [h for h in first_heard_in(found.albums, start, end) if AlbumStore.get_album_by_hash(h) is not None]
+    return artists, albums
+
+
+def discoveries_text(artists: int, albums: int) -> str:
+    """ "7 artists · 12 albums" — the tile's caption says they are new."""
+    return f"{artists} {ngettext('artist', 'artists', artists)} · {albums} {ngettext('album', 'albums', albums)}"
+
+
+class DiscoveriesQuery(BaseModel):
+    period: StatsPeriod = Field("week", description="The period the discoveries are in")
+    limit: int = Field(100, ge=1, le=500, description="The most albums and the most artists to return")
+
+
+def _first_heard_text(timestamp: int) -> str:
+    when = pendulum.from_timestamp(timestamp, tz="local")
+    return f"first played {when.format('MMM D' if when.year == pendulum.now().year else 'MMM D, YYYY')}"
+
+
+@api.get("/discoveries")
+def get_discoveries(query: DiscoveriesQuery):
+    """
+    The artists and albums the user played for the first time in the period
+    (#539), the latest discovery first, as cards. What the "new artists · new
+    albums" tile counts.
+    """
+    start_time, end_time = get_date_range(query.period)
+    userid = get_current_userid()
+    found = first_plays_of(userid)
+    artisthashes, albumhashes = discovered_in(userid, start_time, end_time)
+
+    # Only the cards that go out are serialized; the totals count them all.
+    artists = []
+    for artisthash in artisthashes[: query.limit]:
+        card = serialize_for_card(ArtistStore.get_artist_by_hash(artisthash))
+        card["help_text"] = _first_heard_text(found.artists[artisthash])
+        artists.append({"type": "artist", "item": card})
+
+    albums = []
+    for albumhash in albumhashes[: query.limit]:
+        card = serialize_for_album_card(AlbumStore.get_album_by_hash(albumhash))
+        card["help_text"] = _first_heard_text(found.albums[albumhash])
+        albums.append({"type": "album", "item": card})
+
+    return {
+        "artists": artists,
+        "albums": albums,
+        "total": {"artists": len(artisthashes), "albums": len(albumhashes)},
+        "dates": format_date(start_time, end_time),
+    }, 200
+
+
 @api.get("/stats")
 def get_stats(query: StatsQuery):
     """
@@ -659,6 +747,15 @@ def get_stats(query: StatsQuery):
         (top.trackhash if top else None),
     )
 
+    new_artists, new_albums = discovered_in(get_current_userid(), start_time, end_time)
+    # "new" in the caption, not the value: "2 new artists · 2 new albums" ran
+    # past the tile's two lines. Over all time everything heard counts.
+    discoveries = StatItem(
+        "discoveries",
+        "heard all time" if period == "alltime" else f"new {said_period}",
+        discoveries_text(len(new_artists), len(new_albums)),
+    )
+
     fav_count = FavoritesTable.count_favs_in_period(start_time, end_time)
     # Every favorite is a new one over all time; "7  favorites" with the
     # empty word left a double space.
@@ -675,6 +772,7 @@ def get_stats(query: StatsQuery):
             playcount,
             playduration,
             favorites,
+            discoveries,
             total_tracks,
         ],
         "dates": format_date(start_time, end_time),

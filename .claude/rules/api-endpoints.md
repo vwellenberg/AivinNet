@@ -239,6 +239,16 @@ Kalender daneben: naive `datetime`s (`datetime(year, 1, 1).timestamp()`,
 Zeit vor 1970 und nach 3000, und `datetime(10000, 1, 1)` gibt es nirgends. Rewind fängt das in
 `_year_bounds` ab und antwortet für so ein Jahr leer statt mit 500.
 
+**„Neu entdeckt“ (#539) heißt: zum ersten Mal überhaupt gehört**, nicht „im Vorzeitraum nicht
+gehört“. Die Kachel („7 artists · 12 albums“ / „new this week“ — mit „new“ im Wert lief sie über ihre zwei
+Zeilen), die Liste dahinter
+(`GET /logger/discoveries`) und die Untertitel der Artist- und Album-Charts lesen dieselbe Rechnung
+(`lib/discoveries.py`, aus `ScrobbleTable.first_play_by_trackhash_of`, in SQL gruppiert, pro User
+bis zum nächsten Play gecacht). Vorher verglich der Album-Untertitel nur mit dem Vorzeitraum, der
+Artist-Untertitel mit der ganzen Historie: Ein Album von vor einem Monat war diese Woche „neu“.
+Platzhalter („Unknown“, „Various Artists“) zählen nicht als Artist. ⚠️ `first_play_by_trackhash`
+(ohne `_of`) ist **jeder** User — das braucht „Hinzugefügt“, nicht die Statistik.
+
 ⚠️ **Die Quelle eines Plays hat mehr Präfixe, als `TrackLog` kennt.** Der Client schickt
 `al:` `ar:` `fo:` `pl:` `pf:` `q:` `favorite` (`client/src/stores/tracker.ts::getSource`),
 `models/logger.TrackLog` ordnet aber nur `al/ar/fo/pl/favorite` zu — `pf:` (Playlist-Ordner) und

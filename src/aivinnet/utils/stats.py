@@ -211,37 +211,6 @@ def calculate_scrobble_trend(current_scrobbles: int, previous_scrobbles: int) ->
     )
 
 
-def calculate_new_artists(current_artists: list[dict[str, Any]], timestamp: int, userid: int | None = None):
-    """
-    Calculate the number of new artists based on the current and all previous scrobbles.
-    """
-    current_artists_set = set(artist["artisthash"] for artist in current_artists)
-    all_records = ScrobbleTable.get_all_in_period(0, timestamp, userid)
-    trackhashes = set(record.trackhash for record in all_records)
-
-    previous_artists_set = set()
-
-    for record in trackhashes:
-        entry = TrackStore.trackhashmap.get(record)
-        if not entry:
-            continue
-
-        entry = entry.tracks[0]
-
-        for artist in entry.artists:
-            artisthash = artist["artisthash"]
-            previous_artists_set.add(artisthash)
-
-    return len(current_artists_set - previous_artists_set)
-
-
-def calculate_new_albums(current_albums: list[Album], previous_albums: list[Album]):
-    current_albums_set = set(album.albumhash for album in current_albums)
-    previous_albums_set = set(album.albumhash for album in previous_albums)
-
-    return len(current_albums_set - previous_albums_set)
-
-
 def get_track_group_stats(tracks: list[Track], is_album: bool = False):
     if len(tracks) == 0:
         return []

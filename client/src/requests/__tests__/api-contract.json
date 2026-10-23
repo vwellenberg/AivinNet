@@ -249,6 +249,15 @@
   },
   "GET /img/user/{imgpath}": {},
   "GET /logger/calendar": {},
+  "GET /logger/discoveries": {
+    "query": {
+      "allowed": [
+        "limit",
+        "period"
+      ],
+      "required": []
+    }
+  },
   "GET /logger/rewind": {
     "query": {
       "allowed": [

@@ -32,6 +32,7 @@ repos:
           src/aivinnet/lib/date_added.py,
           src/aivinnet/lib/rewind.py,
           src/aivinnet/lib/home/layout.py,
+          src/aivinnet/lib/discoveries.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]
