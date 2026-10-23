@@ -205,8 +205,11 @@ onMounted(async () => {
 
         &.level-4 {
             background-color: $mem-teal;
-            // The busiest days get the ink edge every other plate has.
-            box-shadow: inset 0 0 0 $mem-ring-w $mem-ink;
+            // The busiest days get the edge every other plate has: the line,
+            // ink in light, grey in dark. Static ink vanished into the dark
+            // ground and took 2 px off every side, so the busiest squares
+            // looked the smallest (user, 2026-10-23).
+            box-shadow: inset 0 0 0 $mem-ring-w $mem-line;
         }
 
         &.is-future {
