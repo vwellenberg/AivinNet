@@ -1,28 +1,16 @@
 <template>
-    <!-- The way to Rewind (#527). A year opens on January 1 for the one that
-         ended, so the link appears once there is a finished year with music —
-         and names that year, not the one still running. -->
-    <RouterLink v-if="latest" class="rewind-link" :to="{ name: Routes.Rewind, params: { year: latest } }">
-        Your {{ latest }} Rewind
+    <!-- The way to Rewind (#527), while it is news (#572): the latest finished
+         year until it has been seen to the end. After that the link goes and
+         the square of January 1 in the calendar below is the way back. -->
+    <RouterLink v-if="fresh" class="rewind-link" :to="{ name: Routes.Rewind, params: { year: fresh } }">
+        Your {{ fresh }} Rewind
     </RouterLink>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-
-import { getRewindYears } from '@/requests/stats'
 import { Routes } from '@/router'
 
-const years = ref<number[]>([])
-const latest = computed(() => years.value[years.value.length - 1])
-
-let alive = true
-onUnmounted(() => (alive = false))
-
-onMounted(async () => {
-    const res = await getRewindYears()
-    if (alive && res.status === 200) years.value = res.data.years
-})
+defineProps<{ fresh: number | null | undefined }>()
 </script>
 
 <style lang="scss" scoped>

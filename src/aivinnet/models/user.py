@@ -7,6 +7,9 @@ from typing import Any
 # every token and every `/auth/user*` answer — and go stale there on the next
 # save.
 HOME_LAYOUT_KEY = "home_layout"
+# The Rewind years the user has seen to the end (#572), the same way.
+REWIND_SEEN_KEY = "rewind_seen"
+PRIVATE_EXTRA_KEYS = frozenset({HOME_LAYOUT_KEY, REWIND_SEEN_KEY})
 
 
 @dataclass(slots=True)
@@ -31,7 +34,9 @@ class User:
         del this_dict["password"]
         del this_dict["token_version"]
         extra = this_dict["extra"]
-        this_dict["extra"] = {k: v for k, v in extra.items() if k != HOME_LAYOUT_KEY} if isinstance(extra, dict) else {}
+        this_dict["extra"] = (
+            {k: v for k, v in extra.items() if k not in PRIVATE_EXTRA_KEYS} if isinstance(extra, dict) else {}
+        )
 
         if type(this_dict["roles"]) is str:
             # INFO: this is an attempt to fix string roles!

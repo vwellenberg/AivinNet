@@ -1,6 +1,8 @@
 <template>
     <div class="homepageview content-page" :style="{ background: brandGradient() }">
         <GenericHeader />
+        <!-- January's news first (#572): the year that ended has a Rewind. -->
+        <RewindCard />
         <!-- Up to three unfinished albums/playlists, newest first. How many
              show depends on the width of THIS area (container query below):
              one on a narrow window, two from ~1000px, three on an ultrawide. -->
@@ -83,6 +85,7 @@ import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
 import ContinueCard from '@/components/HomeView/ContinueCard.vue'
+import RewindCard from '@/components/HomeView/RewindCard.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
 import { notInterestedMenu } from '@/helpers/notInterested'

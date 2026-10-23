@@ -112,6 +112,15 @@ class UserTable(Base):
         return next(cls.execute(update(cls).where(cls.id == user["id"]).values(user), commit=True))
 
     @classmethod
+    def is_guest(cls, userid: int) -> bool:
+        """
+        The guest account, shared by every guest: what it saves (a Home layout,
+        a Rewind seen) would be every guest's. A user that is gone counts too.
+        """
+        user = cls.get_by_id(userid)
+        return user is None or "guest" in user.roles
+
+    @classmethod
     def get_extra(cls, userid: int) -> dict[str, Any]:
         """The user's `extra` JSON (first name, Home layout …); `{}` when unset."""
         extra = cls.rows(select(cls.extra).where(cls.id == userid)).scalar()

@@ -20,7 +20,11 @@ function prefersLessMotion(): boolean {
     return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export function celebrate(pieces = PIECES): void {
+/**
+ * One burst. `from` is the point it flies out of, in viewport pixels (the
+ * Rewind card on Home, #572); without one, the middle of the screen.
+ */
+export function celebrate(pieces = PIECES, from?: { x: number; y: number }): void {
     if (typeof document === 'undefined' || prefersLessMotion()) return
 
     const styles = getComputedStyle(document.documentElement)
@@ -33,6 +37,10 @@ export function celebrate(pieces = PIECES): void {
     for (let i = 0; i < pieces; i++) {
         const piece = document.createElement('span')
         piece.className = `confetti-piece confetti-${SHAPES[i % SHAPES.length]}`
+        if (from) {
+            piece.style.left = `${Math.round(from.x)}px`
+            piece.style.top = `${Math.round(from.y)}px`
+        }
         // A fan upwards, about 63 degrees either side of straight up.
         const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4
         const distance = 90 + Math.random() * 130

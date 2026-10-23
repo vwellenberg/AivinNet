@@ -12,8 +12,8 @@
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
         <!-- Rewind (#527) is a page of its own; this is the way there, under the
              tiles on every layout (the header's #right slot is hidden on phones). -->
-        <RewindLink />
-        <ListeningCalendar />
+        <RewindLink :fresh="rewind?.fresh" />
+        <ListeningCalendar :rewind-years="rewind?.years ?? []" />
     </div>
 </template>
 
@@ -22,6 +22,7 @@ import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
 import RewindLink from '@/components/Stats/RewindLink.vue'
+import useRewindYears from '@/composables/useRewindYears'
 import Stats from '@/components/Stats/Stats.vue'
 import useSettings from '@/stores/settings'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
@@ -29,6 +30,8 @@ import { normalizeStatsPeriod, statsPeriodPhrase } from '@/utils/statsPeriod'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 const settings = useSettings()
+// Asked once for both: the link while Rewind is news, the door in the calendar after.
+const rewind = useRewindYears()
 
 updatePageTitle('Stats')
 </script>

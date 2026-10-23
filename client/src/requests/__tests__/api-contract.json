@@ -770,6 +770,17 @@
       "type": "json"
     }
   },
+  "POST /logger/rewind/seen": {
+    "body": {
+      "allowed": [
+        "year"
+      ],
+      "required": [
+        "year"
+      ],
+      "type": "json"
+    }
+  },
   "POST /logger/track/log": {
     "body": {
       "allowed": [

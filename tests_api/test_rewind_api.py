@@ -24,6 +24,12 @@ def rewind_api(home, api_client, monkeypatch):  # noqa: F811 - the imported fixt
     monkeypatch.setattr(scrobble_api, "get_current_userid", lambda: api.userid)
     monkeypatch.setattr(scrobble_api, "_rewinds", {})
     monkeypatch.setattr(scrobble_api, "_rewind_years", {})
+    # The users outlive a test: what one saw, the next must not have seen.
+    from aivinnet.db.userdata import UserTable
+    from aivinnet.models.user import REWIND_SEEN_KEY
+
+    for userid in (1, 2):
+        UserTable.set_extra(userid, REWIND_SEEN_KEY, [])
     return api
 
 
@@ -103,7 +109,7 @@ def test_this_year_opens_on_new_years_day(rewind_api):
     assert res.get_json()["opens"] == f"{THIS + 1}-01-01"
     assert res.get_json()["years"] == [LAST]
     # Nor does it count as a year to open.
-    assert rewind_api.get("/logger/rewind/years").get_json() == {"years": [LAST]}
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST]
 
 
 def test_a_later_year_is_not_open_either(rewind_api):
@@ -137,7 +143,7 @@ def test_a_year_without_music_is_no_year_to_open(rewind_api):
     play(th(MILES, 1), local(LAST - 3, 5, 1))
     play(th(MILES, 1), local(LAST - 1, 5, 1))
 
-    assert rewind_api.get("/logger/rewind/years").get_json() == {"years": [LAST - 3, LAST - 1]}
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST - 3, LAST - 1]
 
 
 def test_without_any_music_it_is_last_year(rewind_api):
@@ -153,7 +159,7 @@ def test_the_years_are_the_finished_ones_with_music(rewind_api):
     play(th(MILES, 2), local(*THIS_YEAR))
     play(th(MILES, 2), pendulum.now().add(years=2))  # a clock running ahead
 
-    assert rewind_api.get("/logger/rewind/years").get_json() == {"years": [LAST - 1, LAST]}
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST - 1, LAST]
     assert rewind(rewind_api)["years"] == [LAST - 1, LAST]
 
 
@@ -171,11 +177,11 @@ def test_another_users_year_stays_theirs(rewind_api):
     play(th(RHCP, 1), local(LAST, 2, 2), userid=2)
 
     assert rewind(rewind_api, LAST)["plays"] == 0
-    assert rewind_api.get("/logger/rewind/years").get_json() == {"years": []}
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == []
 
     rewind_api.userid = 2
     assert rewind(rewind_api, LAST)["plays"] == 1
-    assert rewind_api.get("/logger/rewind/years").get_json() == {"years": [LAST]}
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST]
 
 
 def test_a_new_play_is_a_new_rewind(rewind_api):
@@ -218,3 +224,82 @@ def test_days_are_the_ones_the_calendar_counts_in(rewind_api, monkeypatch, zone)
         pendulum.set_local_timezone(before)
 
     assert list(calendar["days"]) == [body["busiest_day"]["date"]] == [f"{LAST}-12-31"]
+
+
+# Seen to the end (#572): the Rewind stops announcing itself until the next year.
+
+
+def years(api):
+    res = api.get("/logger/rewind/years")
+    assert res.status_code == 200, res.text
+    return res.get_json()
+
+
+def seen(api, year: int):
+    return api.post("/logger/rewind/seen", json={"year": year})
+
+
+def test_an_unseen_rewind_is_fresh_until_it_is_seen_to_the_end(rewind_api):
+    play(th(FNM, 1), local(LAST - 1, 3, 1))
+    play(th(RHCP, 1), local(LAST, 3, 1))
+
+    assert years(rewind_api) == {"years": [LAST - 1, LAST], "seen": [], "fresh": LAST}
+
+    res = seen(rewind_api, LAST)
+
+    assert res.status_code == 200, res.text
+    assert res.get_json() == {"seen": [LAST], "fresh": None}
+    assert years(rewind_api) == {"years": [LAST - 1, LAST], "seen": [LAST], "fresh": None}
+    # Twice is once.
+    assert seen(rewind_api, LAST).get_json()["seen"] == [LAST]
+
+
+def test_seeing_an_older_year_leaves_the_latest_fresh(rewind_api):
+    play(th(FNM, 1), local(LAST - 1, 3, 1))
+    play(th(RHCP, 1), local(LAST, 3, 1))
+
+    seen(rewind_api, LAST - 1)
+
+    assert years(rewind_api)["fresh"] == LAST
+
+
+def test_a_year_without_a_rewind_cannot_be_seen(rewind_api):
+    play(th(RHCP, 1), local(LAST, 3, 1))
+
+    # This year is still running; the year before had no music.
+    assert seen(rewind_api, THIS).status_code == 404
+    assert seen(rewind_api, LAST - 1).status_code == 404
+    assert seen(rewind_api, 1969).status_code == 422
+    assert years(rewind_api)["seen"] == []
+
+
+def test_seen_is_each_users_own_and_stays_out_of_the_token(rewind_api):
+    from aivinnet.db.userdata import UserTable
+
+    play(th(RHCP, 1), local(LAST, 3, 1))
+    play(th(RHCP, 1), local(LAST, 3, 1), userid=2)
+    seen(rewind_api, LAST)
+
+    rewind_api.userid = 2
+    assert years(rewind_api)["fresh"] == LAST
+    # `todict()` is what every token and `/auth/user*` answer carries.
+    assert "rewind_seen" not in UserTable.get_by_id(1).todict()["extra"]
+    assert UserTable.get_extra(1)["rewind_seen"] == [LAST]
+
+
+def test_the_guest_account_marks_nothing(rewind_api):
+    """One guest account is shared by every guest: what it saw, all of them would have."""
+    from aivinnet.db.userdata import UserTable
+
+    created = UserTable.get_by_username("guest") is None
+    if created:
+        UserTable.insert_guest_user()
+    rewind_api.userid = UserTable.get_by_username("guest").id
+    try:
+        play(th(RHCP, 1), local(LAST, 3, 1), userid=rewind_api.userid)
+
+        assert seen(rewind_api, LAST).status_code == 403
+        assert years(rewind_api)["fresh"] == LAST
+    finally:
+        if created:
+            UserTable.remove_by_username("guest")

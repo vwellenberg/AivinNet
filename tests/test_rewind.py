@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 from aivinnet.lib.home.discover import TrackFacts
 from aivinnet.lib.listening_sources import source_kind
-from aivinnet.lib.rewind import build_rewind, finished_years
+from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
 
 UTC = UTC
 
@@ -150,3 +150,19 @@ class TestRewind:
         assert numbers["busiest_day"] is None
         assert numbers["listener"] is None
         assert numbers["time_of_day"] is None
+
+
+def test_the_latest_year_is_fresh_until_seen():
+    assert fresh_year([2023, 2024, 2025], []) == 2025
+    assert fresh_year([2023, 2024, 2025], [2025]) is None
+    # An older year seen leaves the latest news.
+    assert fresh_year([2023, 2024, 2025], [2023, 2024]) == 2025
+    # On January 1 the next year opens, unseen: Rewind is loud again.
+    assert fresh_year([2024, 2025, 2026], [2025]) == 2026
+    assert fresh_year([], []) is None
+
+
+def test_seen_years_read_whatever_is_stored():
+    assert seen_years([2025, 2024, 2025]) == [2024, 2025]
+    assert seen_years(None) == [] and seen_years("2025") == [] and seen_years({"2025": True}) == []
+    assert seen_years([2025, "2024", True, 3.0]) == [2025]

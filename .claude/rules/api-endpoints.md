@@ -232,6 +232,20 @@ erscheint erst, wenn es ein solches Jahr gibt. Tests rechnen relativ zu `datetim
 legen Plays „dieses Jahr“ auf dessen erste Minute — `now - 5 min` liegt kurz nach Mitternacht an
 Neujahr noch im alten Jahr.
 
+**Rewind bleibt etwas Besonderes** (#572, Nutzer 2026-10-23): Laut ist nur das jüngste Jahr,
+solange es **ungesehen** ist (`fresh` in `GET /logger/rewind/years`, `lib/rewind.fresh_year`): dann
+steht der Link auf Stats, im **Januar** zusätzlich eine Karte ganz oben auf Home
+(`HomeView/RewindCard.vue`; außerhalb des Januars fragt sie den Server gar nicht erst). Beim ersten
+Erscheinen pro Jahr und Gerät fliegt Konfetti aus ihr (`utils/confetti.celebrate(…, from)`, gemerkt
+in `localStorage`; unter „weniger Bewegung“ keins). **Gesehen heißt: bis zum Ende angesehen**, nicht
+geöffnet — ein Sentinel hinter der letzten Platte (`.rewind-end`, IntersectionObserver) muss
+**2,5 s** im Bild bleiben, sonst zählte ein kurzes Jahr auf einem hohen Bildschirm schon beim
+Öffnen; dann `POST /logger/rewind/seen`, bei einem Fehler beim nächsten Mal erneut. Danach bleibt das
+Kalenderfeld vom 1. Januar die Tür zum Vorjahr (`utils/rewind.rewindDoor`; für die Tastatur ein
+Link, der erst beim Fokus erscheint). Am nächsten 1. Januar ist das neue Jahr ungesehen und wieder
+laut. Gespeichert in `UserTable.extra["rewind_seen"]`, das `User.todict()` wie das Home-Layout
+draußen lässt (`models/user.PRIVATE_EXTRA_KEYS`). Das Gastkonto markiert nichts (403).
+
 ⚠️ **Beide zählen Tage in der Zone der C-Bibliothek, nicht in pendulums** — der Kalender, weil er
 in SQL gruppiert (`database.md`), Rewind, damit „Your biggest day“ derselbe Tag ist wie im
 Kalender daneben: naive `datetime`s (`datetime(year, 1, 1).timestamp()`,

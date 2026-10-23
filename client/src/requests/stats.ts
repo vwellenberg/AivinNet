@@ -40,11 +40,30 @@ export async function getListeningCalendar() {
     })
 }
 
-/** The years a Rewind opens for: finished years with plays, oldest first (#527). */
+/**
+ * The years a Rewind opens for: finished years with plays, oldest first
+ * (#527); `seen`, the years seen to the end; `fresh`, the latest year while it
+ * is unseen (#572) — the one that announces itself.
+ */
+export interface RewindYears {
+    years: number[]
+    seen: number[]
+    fresh: number | null
+}
+
 export async function getRewindYears() {
     return await useAxios({
         url: paths.api.stats.base + '/rewind/years',
         method: 'GET',
+    })
+}
+
+/** A Rewind seen to the end (#572): it stops announcing itself. The guest account answers 403. */
+export async function markRewindSeen(year: number) {
+    return await useAxios({
+        url: paths.api.stats.base + '/rewind/seen',
+        method: 'POST',
+        props: { year },
     })
 }
 

@@ -7,11 +7,11 @@ const replace = vi.fn()
 
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace }) }))
 vi.mock('@/router', () => ({ Routes: { artist: 'ArtistView', album: 'AlbumView', Rewind: 'RewindView' } }))
-vi.mock('@/requests/stats', () => ({ getRewind: vi.fn() }))
+vi.mock('@/requests/stats', () => ({ getRewind: vi.fn(), markRewindSeen: vi.fn() }))
 vi.mock('@/utils/updatePageTitle', () => ({ default: vi.fn() }))
 
 import RewindView from '@/views/Rewind/main.vue'
-import { getRewind } from '@/requests/stats'
+import { getRewind, markRewindSeen } from '@/requests/stats'
 
 // As GET /logger/rewind sends it (#527).
 const year2026 = {
@@ -213,5 +213,97 @@ describe('Rewind', () => {
 
         expect(plates(w)).toEqual(['Rewind 2019'])
         expect(w.text()).toContain('No music in 2019')
+    })
+
+    // Seen to the end (#572): only reaching the last plate marks the year.
+    describe('seen to the end', () => {
+        // What the page hands the observer (the DOM type is unknown to this lint).
+        type Seen = (entries: { isIntersecting: boolean }[]) => void
+        let observed: { callback: Seen; el: Element | null }[] = []
+
+        beforeEach(() => {
+            observed = []
+            vi.mocked(markRewindSeen).mockReset()
+            vi.stubGlobal(
+                'IntersectionObserver',
+                class {
+                    entry: { callback: Seen; el: Element | null }
+                    constructor(callback: Seen) {
+                        this.entry = { callback, el: null }
+                        observed.push(this.entry)
+                    }
+                    observe(el: Element) {
+                        this.entry.el = el
+                    }
+                    disconnect() {
+                        this.entry.el = null
+                    }
+                }
+            )
+        })
+        afterEach(() => {
+            vi.unstubAllGlobals()
+        })
+
+        const scrollTo = (visible: boolean) =>
+            observed
+                .filter(o => o.el)
+                .forEach(o => o.callback([{ isIntersecting: visible }]))
+
+        it('is not marked on opening, only when the end stays in view — once', async () => {
+            vi.useFakeTimers()
+            vi.mocked(markRewindSeen).mockResolvedValue({ status: 200, data: {} } as any)
+            vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+            const w = page()
+            await flushPromises()
+
+            expect(observed.some(o => o.el === w.find('.rewind-end').element)).toBe(true)
+            // A glance at the end, gone again: no Rewind seen.
+            scrollTo(true)
+            await vi.advanceTimersByTimeAsync(1000)
+            scrollTo(false)
+            await vi.advanceTimersByTimeAsync(5000)
+            expect(markRewindSeen).not.toHaveBeenCalled()
+
+            scrollTo(true)
+            await vi.advanceTimersByTimeAsync(2600)
+            expect(markRewindSeen).toHaveBeenCalledTimes(1)
+            expect(markRewindSeen).toHaveBeenCalledWith(2026)
+            // Seen: the page stops watching.
+            expect(observed.filter(o => o.el)).toHaveLength(0)
+            vi.useRealTimers()
+        })
+
+        it('tries again when the server could not save it', async () => {
+            vi.useFakeTimers()
+            vi.mocked(markRewindSeen)
+                .mockResolvedValueOnce({ status: 500, data: null } as any)
+                .mockResolvedValue({ status: 200, data: {} } as any)
+            vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+            page()
+            await flushPromises()
+
+            scrollTo(true)
+            await vi.advanceTimersByTimeAsync(2600)
+            scrollTo(false)
+            scrollTo(true)
+            await vi.advanceTimersByTimeAsync(2600)
+
+            expect(markRewindSeen).toHaveBeenCalledTimes(2)
+            expect(observed.filter(o => o.el)).toHaveLength(0)
+            vi.useRealTimers()
+        })
+
+        it('has no end to reach when the year did not load', async () => {
+            vi.mocked(getRewind).mockResolvedValue({ status: 500, data: null } as any)
+
+            const w = page()
+            await flushPromises()
+
+            expect(w.find('.rewind-end').exists()).toBe(false)
+            expect(observed.filter(o => o.el)).toHaveLength(0)
+        })
     })
 })

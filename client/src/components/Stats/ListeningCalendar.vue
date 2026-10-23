@@ -31,17 +31,38 @@
                     </div>
                     <div class="calendar-days" aria-hidden="true">
                         <template v-for="(week, w) in weeks" :key="w">
-                            <span
-                                v-for="(day, d) in week"
-                                :key="d"
-                                class="calendar-day"
-                                :class="day ? `level-${day.level}` : 'is-future'"
-                                :title="day ? dayTitle(day) : undefined"
-                            ></span>
+                            <template v-for="(day, d) in week" :key="d">
+                                <!-- The hidden door (#572): January 1 opens the
+                                     Rewind of the year that ended. No mark of
+                                     its own; a pointer finds it, the link
+                                     after the grid serves the keyboard. -->
+                                <RouterLink
+                                    v-if="day && doorOf(day)"
+                                    class="calendar-day is-door"
+                                    :class="`level-${day.level}`"
+                                    :title="`${dayTitle(day)} · Rewind ${doorOf(day)}`"
+                                    :to="{ name: Routes.Rewind, params: { year: doorOf(day) } }"
+                                    tabindex="-1"
+                                />
+                                <span
+                                    v-else
+                                    class="calendar-day"
+                                    :class="day ? `level-${day.level}` : 'is-future'"
+                                    :title="day ? dayTitle(day) : undefined"
+                                ></span>
+                            </template>
                         </template>
                     </div>
                 </div>
             </div>
+
+            <RouterLink
+                v-if="doorYear"
+                class="rewind-door"
+                :to="{ name: Routes.Rewind, params: { year: doorYear } }"
+            >
+                Rewind {{ doorYear }}
+            </RouterLink>
 
             <div class="calendar-legend" aria-hidden="true">
                 <span>less</span>
@@ -56,7 +77,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 import { getListeningCalendar } from '@/requests/stats'
+import { Routes } from '@/router'
+import { rewindDoor } from '@/utils/rewind'
 import {
+    CalendarDay,
     CalendarPayload,
     activeDays,
     calendarWeeks,
@@ -66,11 +90,28 @@ import {
     streakRange,
 } from '@/utils/listeningCalendar'
 
+const props = withDefaults(defineProps<{ rewindYears?: number[] }>(), { rewindYears: () => [] })
+
 const calendar = ref<CalendarPayload | null>(null)
 const scroller = ref<HTMLElement | null>(null)
 
 const weeks = computed(() => (calendar.value ? calendarWeeks(calendar.value) : []))
 const months = computed(() => monthLabels(weeks.value))
+
+// The doors of the grid by date, worked out once per draw. 53 weeks can hold
+// two January 1sts; the keyboard link takes the newer year, the one that
+// just stopped announcing itself.
+const doors = computed(() => {
+    const found = new Map<string, number>()
+    for (const week of weeks.value)
+        for (const day of week) {
+            const year = day && rewindDoor(day.date, props.rewindYears)
+            if (day && year) found.set(day.date, year)
+        }
+    return found
+})
+const doorOf = (day: CalendarDay) => doors.value.get(day.date) ?? null
+const doorYear = computed(() => (doors.value.size ? Math.max(...doors.value.values()) : null))
 const longestRange = computed(() => (calendar.value ? streakRange(calendar.value.streaks.longest) : ''))
 
 // The grid is a picture to a screen reader; this is what it shows.
@@ -112,6 +153,8 @@ onMounted(async () => {
     // Text and squares on the doodled ground need a plate (styling.md,
     // `--mem-veil`). Not pressable, so no hatch and no role — a reading panel.
     .calendar-plate {
+        // Holds the keyboard door while it is off the page.
+        position: relative;
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -123,6 +166,26 @@ onMounted(async () => {
         border-radius: $candy-radius;
         @include candy-shadow;
         color: $mem-content-text;
+    }
+
+    // The door for the keyboard (#572): off the page until focused, then a pill.
+    .rewind-door {
+        @include btn-pill;
+        width: fit-content;
+
+        &:not(:focus-visible) {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+    }
+
+    // The door itself looks like every other day; only the pointer says it opens.
+    .calendar-day.is-door {
+        cursor: pointer;
     }
 
     .calendar-streaks {

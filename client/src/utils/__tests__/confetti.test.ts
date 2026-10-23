@@ -17,6 +17,17 @@ afterEach(() => {
 })
 
 describe('celebrate', () => {
+    it('flies out of a given point, or the middle of the screen without one', () => {
+        celebrate(3, { x: 420.4, y: 96.6 })
+        const placed = Array.from(document.querySelectorAll<HTMLElement>('.confetti-piece'))
+        expect(placed.map(p => [p.style.left, p.style.top])).toEqual(Array(3).fill(['420px', '97px']))
+
+        document.body.innerHTML = ''
+        celebrate(2)
+        // The stylesheet's 50% / 40% then.
+        expect(document.querySelector<HTMLElement>('.confetti-piece')?.style.left).toBe('')
+    })
+
     it('bursts once: a layer of pieces that is gone after its lifetime', () => {
         celebrate(12)
 
