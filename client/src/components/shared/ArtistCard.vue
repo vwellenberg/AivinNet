@@ -41,8 +41,9 @@ import { Routes } from '@/router'
 import { playSources } from '@/enums'
 import CardTypeLabel from './CardTypeLabel.vue'
 import PlayBtn from './PlayBtn.vue'
-import { ref } from 'vue'
+import { inject, ref } from 'vue'
 import { showArtistContextMenu } from '@/helpers/contextMenuHandler'
+import { CARD_MENU_EXTRAS } from '@/utils/cardMenu'
 import { isTypeEcho } from '@/utils/cardTypes'
 
 const imguri = paths.images.artist.medium
@@ -52,8 +53,12 @@ const props = defineProps<{
     artist: Artist
 }>()
 
+// A row's own entries ("Not interested" on Home, utils/cardMenu.ts).
+const menuExtras = inject(CARD_MENU_EXTRAS, null)
+
 const showContextMenu = (e: MouseEvent) => {
-    showArtistContextMenu(e, contextMenuFlag, props.artist.artisthash, props.artist.name)
+    const card = { type: 'artist' as const, hash: props.artist.artisthash, name: props.artist.name }
+    showArtistContextMenu(e, contextMenuFlag, props.artist.artisthash, props.artist.name, menuExtras?.(card))
 }
 </script>
 

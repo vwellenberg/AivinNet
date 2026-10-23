@@ -106,6 +106,8 @@ export interface HomePageItem {
     url?: string
     /** The generated playlist that plays this row ("onrepeat" …), if the server serves one. */
     playlist?: string
+    /** The kind of card this row lets the user mark "Not interested" (#531), if any. */
+    markable?: 'album' | 'artist'
 }
 
 export interface Artist {

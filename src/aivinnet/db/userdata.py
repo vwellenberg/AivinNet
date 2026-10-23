@@ -17,6 +17,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from aivinnet.db import Base
@@ -1108,3 +1109,68 @@ class DeviceTable(Base):
                 commit=True,
             )
         )
+
+
+class NotInterestedTable(Base):
+    """
+    What a user said "Not interested" to on Home (#531): albums in "Never
+    played", artists in "Artists you might like". Those rows draw from the
+    same best candidates every day, so without this an unwanted card came back
+    every few days.
+
+    Keyed by the album or artist hash, which follows the tags: a retag moves
+    the rows along (`reference_migration.migrate_identity_references`). Its
+    own table rather than `FavoritesTable` with another type: the favourites'
+    counters and their startup mapping read every row of theirs.
+    """
+
+    __tablename__ = "not_interested"
+    __table_args__ = (UniqueConstraint("type", "hash", "userid", name="uq_not_interested_type_hash_userid"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(String())
+    hash: Mapped[str] = mapped_column(String())
+    timestamp: Mapped[int] = mapped_column(Integer())
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+
+    @classmethod
+    def add(cls, userid: int, type: str, hash: str) -> None:
+        """Mark an item; marking it again is a no-op — one statement, so two at once cannot both insert."""
+        next(
+            cls.execute(
+                sqlite_insert(cls)
+                .values(userid=userid, type=type, hash=hash, timestamp=int(time.time()))
+                .on_conflict_do_nothing(index_elements=["type", "hash", "userid"]),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def remove(cls, userid: int, type: str, hash: str) -> None:
+        next(
+            cls.execute(
+                delete(cls).where(and_(cls.userid == userid, cls.type == type, cls.hash == hash)),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def of_user(cls, userid: int) -> list[tuple[str, str, int]]:
+        """`(type, hash, timestamp)` of everything the user marked, newest first."""
+        rows = next(
+            cls.execute(
+                select(cls.type, cls.hash, cls.timestamp)
+                .where(cls.userid == userid)
+                .order_by(cls.timestamp.desc(), cls.id.desc())
+            )
+        ).all()
+        return [(row.type, row.hash, row.timestamp) for row in rows]
+
+    @classmethod
+    def hashes(cls, userid: int) -> dict[str, set[str]]:
+        """The marked hashes of one user, by type. Read on every Home, so no sort."""
+        rows = next(cls.execute(select(cls.type, cls.hash).where(cls.userid == userid))).all()
+        marked: dict[str, set[str]] = {}
+        for row in rows:
+            marked.setdefault(row.type, set()).add(row.hash)
+        return marked

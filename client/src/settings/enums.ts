@@ -22,4 +22,6 @@ export enum SettingType {
   secretinput,
   // Settings → Home: show, hide and order the rows (#532).
   home_rows,
+  // Settings → Home: the albums and artists marked "Not interested" (#531).
+  home_not_interested,
 }

@@ -314,3 +314,20 @@ def test_a_picture_the_owner_removed_under_the_new_name_does_not_come_back(refer
     finally:
         for path in (folder / f"{OLD_ARTIST}.webp", folder / f"{NEW_ARTIST}.webp", user_set_dir() / NEW_ARTIST):
             path.unlink(missing_ok=True)
+
+
+def test_a_not_interested_mark_follows_the_renamed_artist(reference_db, tracks):
+    """A mark alone (no favourite, no collection) is reason enough to move (#531)."""
+    from aivinnet.db.userdata import NotInterestedTable
+    from aivinnet.lib.name_cleanup import carry_cleaned_names
+
+    NotInterestedTable.add(1, "artist", OLD_ARTIST)
+    try:
+        carry_cleaned_names(tracks)
+
+        assert NotInterestedTable.hashes(1) == {"artist": {NEW_ARTIST}}
+    finally:
+        # This fixture's cleanup knows nothing of the table.
+        NotInterestedTable.remove(1, "artist", OLD_ARTIST)
+        NotInterestedTable.remove(1, "artist", NEW_ARTIST)
+

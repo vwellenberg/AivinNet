@@ -24,6 +24,7 @@
             :play-source="playSources.track"
             :route="item.path"
             :see-all-text="item.seeAllText"
+            :card-menu="cardMenuOf(item)"
         >
             <template v-if="item.key === 'rediscover'" #actions>
                 <button class="btn-action btn-action-label surprise" :disabled="surprising" @click="surprise">
@@ -84,6 +85,8 @@ import Browse from '@/components/HomeView/Browse.vue'
 import ContinueCard from '@/components/HomeView/ContinueCard.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
+import { notInterestedMenu } from '@/helpers/notInterested'
+import { CardMenuExtras } from '@/utils/cardMenu'
 import { getSurpriseAlbum } from '@/requests/home'
 import { pickRowAlbum } from '@/utils/pickRowAlbum'
 import { chipItems, playButtonLabel } from '@/utils/homeRows'
@@ -113,6 +116,15 @@ const chipOf = reactive<Record<string, string | null>>({})
 
 function rowItems(item: HomePageItem) {
     return chipItems(item.items, item.chips, item.key ? (chipOf[item.key] ?? null) : null)
+}
+
+// One menu per row, kept: a new function per render would be a new prop for
+// every row on every change of Home.
+const cardMenus = new Map<string, CardMenuExtras | undefined>()
+function cardMenuOf(item: HomePageItem) {
+    const key = `${item.key}:${item.markable}`
+    if (!cardMenus.has(key)) cardMenus.set(key, notInterestedMenu(item.key, item.markable))
+    return cardMenus.get(key)
 }
 
 function playOne(items: Parameters<typeof pickRowAlbum>[0]) {

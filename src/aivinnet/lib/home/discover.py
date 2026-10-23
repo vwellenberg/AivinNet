@@ -17,7 +17,7 @@ mixes did.
 import math
 import random
 from collections import Counter
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Protocol
@@ -732,6 +732,7 @@ def rank_playlist_neighbours(
     top_days: int = LIKE_TOP_DAYS,
     max_plays: int = LIKE_MAX_PLAYS,
     limit: int = ROW_LIMIT,
+    exclude: Collection[str] = frozenset(),
 ) -> list[tuple[str, int, int]]:
     """
     Artists that share the user's own playlists (each a list of trackhashes)
@@ -741,6 +742,12 @@ def rank_playlist_neighbours(
     A playlist scores each such artist with 1/sqrt(number of other artists in
     it): a hand-made playlist of eight artists is a stronger hint than an
     "everything" list of three hundred.
+
+    `skip` artists do not exist for the row (placeholders, artists without a
+    page): a track of theirs counts for its other artists. `exclude` artists
+    (what the user said "Not interested" to, #531) exist but are no
+    candidates: their tracks stay theirs, so a guest on one of them does not
+    take their place.
 
     Returns `(artisthash, playlists_shared, plays)`, best first.
     """
@@ -777,7 +784,7 @@ def rank_playlist_neighbours(
 
         weight = 1 / math.sqrt(len(others))
         for artist in others:
-            if played[artist] < max_plays:
+            if played[artist] < max_plays and artist not in exclude:
                 score[artist] = score.get(artist, 0) + weight
                 shared[artist] += 1
 

@@ -1,8 +1,9 @@
-import { computed, reactive } from 'vue'
+import { computed, reactive, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 
 import { getHomePageData } from '@/requests/home'
 import { HomePageItem } from '@/interfaces'
+import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
 import { fetchCardCount, maxAbumCards } from './content-width'
 
 export default defineStore('homepage', () => {
@@ -41,7 +42,12 @@ export default defineStore('homepage', () => {
     let fetchedLimit = 0
     let inflight = false
 
+    // Counts the fetches, so a put-back (`dropCard`) can tell whether the
+    // server has answered since.
+    let fetches = 0
+
     async function fetchAll() {
+        fetches++
         const limit = fetchCardCount.value
         fetchedLimit = limit
         const data: { [key: string]: HomePageItem }[] = await getHomePageData(limit)
@@ -93,6 +99,38 @@ export default defineStore('homepage', () => {
     }
 
     /**
+     * Take one card out of a row and its chips at once — "Not interested"
+     * (#531) — and return how to put it back if the server refuses. Putting
+     * back puts back THIS card where it stood, so a second card marked in the
+     * meantime stays out; the chips come back as they were only while no
+     * other change touched them. After a fetch in between, nothing is put
+     * back: the server's answer is already there.
+     */
+    function dropCard(key: string, hash: string): () => void {
+        // @ts-ignore
+        const row: HomePageItem | undefined = homepageData[key]
+        if (!row) return () => {}
+
+        const index = row.items.findIndex(i => cardHash(i) === hash)
+        const card = index >= 0 ? toRaw(row.items[index]) : undefined
+        const chipsBefore = toRaw(row.chips)
+        const after = withoutCard(toRaw(row.items), chipsBefore, hash)
+        row.items = after.items
+        row.chips = after.chips
+        const fetched = fetches
+
+        return () => {
+            // @ts-ignore
+            const now: HomePageItem | undefined = homepageData[key]
+            if (!now || fetches !== fetched) return
+
+            if (card) now.items = withCardAt(toRaw(now.items), card, index)
+            // Read back through the store: the array is a reactive proxy of the one set.
+            if (toRaw(now.chips) === after.chips) now.chips = chipsBefore
+        }
+    }
+
+    /**
      * Fetch again if Home was fetched at all in this session — after a change
      * to the layout (Settings → Home, #532). Asked of the store, not of the
      * rows: a layout that hides every row leaves `homepageData` empty, and
@@ -109,5 +147,6 @@ export default defineStore('homepage', () => {
         fetchAll,
         refetchIfWider,
         refreshIfLoaded,
+        dropCard,
     }
 })

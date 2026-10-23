@@ -541,6 +541,15 @@ class TestPlaylistNeighbours:
 
         assert ranked == [("miles", 1, 0)]
 
+    def test_an_excluded_artist_is_no_candidate_but_keeps_its_tracks(self):
+        # "Not interested" in Primus (#531). The guest on one Primus track is
+        # not the album's artist: skipping Primus as if it had no page would
+        # credit the album to the guest, and Waits would take Primus' place.
+        playlists = [["rhcp1/1", "primus1/1", "primus1/2/waits"]]
+        assert self.rank(playlists) == [("primus", 1, 0)]
+
+        assert self.rank(playlists, exclude={"primus"}) == []
+
     def test_no_recent_plays_no_favourites(self):
         old = [Play("rhcp1/1", NOW - 200 * DAY)]
 
