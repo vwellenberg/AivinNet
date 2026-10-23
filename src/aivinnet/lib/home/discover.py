@@ -17,7 +17,7 @@ mixes did.
 import math
 import random
 from collections import Counter
-from collections.abc import Callable, Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Protocol
@@ -912,6 +912,7 @@ def rank_on_this_day(
     days: Sequence[tuple[int, Sequence[Play]]],
     facts_of: Callable[[str], TrackFacts | None],
     limit: int = ROW_LIMIT,
+    discovered: Mapping[str, int] | None = None,
 ) -> list[tuple[str, int, int]]:
     """
     The albums the user played on this calendar day in earlier years. `days`
@@ -920,17 +921,20 @@ def rank_on_this_day(
     The ALBUMS of the tracks, not where they were started from: a day spent
     in one playlist used to be a single playlist card. Within a year the most
     played album first; an album played in several years shows once, with its
-    most recent year.
+    most recent year — unless one of the days was its first play ever
+    (`discovered`: albumhash → that year, #534). Then it shows with that year:
+    the anniversary of a discovery outweighs a later replay on the same date.
 
     Returns `(albumhash, year, plays_that_day)`.
     """
     result: list[tuple[str, int, int]] = []
     seen: set[str] = set()
+    discovered = discovered or {}
 
     for year, plays in days:
         counts: Counter[str] = Counter(r.facts.albumhash for r in _resolve(plays, facts_of))
         for albumhash, count in sorted(counts.items(), key=lambda c: (-c[1], c[0])):
-            if albumhash in seen:
+            if albumhash in seen or discovered.get(albumhash, year) != year:
                 continue
 
             seen.add(albumhash)
@@ -941,8 +945,36 @@ def rank_on_this_day(
     return result
 
 
-def on_this_day_item(albumhash: str, year: int, plays: int) -> dict[str, Any]:
+def on_this_day_item(albumhash: str, year: int, plays: int, first_heard: bool = False) -> dict[str, Any]:
+    """
+    A card of "On this day". `first_heard`: that day was the user's first play
+    of the album ever (#534) — the anniversary of a discovery, which a release
+    date cannot be (the tag is often only a year, and without one the indexer
+    keeps the file's mtime). The card says so, and carries a stamp.
+    """
+    if first_heard:
+        return {
+            "type": "album",
+            "hash": albumhash,
+            "help_text": f"First heard · {year}",
+            "home": {"first_heard": year},
+        }
     return {"type": "album", "hash": albumhash, "help_text": f"{year} · {_plays(plays)}"}
+
+
+def discovered_on_this_day(first_plays: Mapping[str, int], days: Iterable[tuple[int, int, int]]) -> dict[str, int]:
+    """
+    The albums whose first play ever (`first_plays`: albumhash → timestamp)
+    falls in one of the `days` (`(year, start, end)`), with that year.
+    """
+    windows = list(days)
+    found: dict[str, int] = {}
+    for albumhash, first in first_plays.items():
+        for year, start, end in windows:
+            if start <= first <= end:
+                found[albumhash] = year
+                break
+    return found
 
 
 _BAND_PHRASES = {

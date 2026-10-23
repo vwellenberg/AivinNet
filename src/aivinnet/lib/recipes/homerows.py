@@ -18,6 +18,7 @@ import pendulum
 from pendulum.tz import local_timezone
 
 from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable
+from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.discover import (
     FAVORITE_PLAYLIST_LIMIT,
     ON_THIS_DAY_YEARS,
@@ -30,6 +31,7 @@ from aivinnet.lib.home.discover import (
     because_mix,
     day_playlist,
     day_summary,
+    discovered_on_this_day,
     for_this_time_item,
     forgotten_favorite_item,
     never_played_chips,
@@ -151,7 +153,17 @@ class OnThisDay(HomepageRoutine):
                 if plays:
                     days.append((year, label, plays))
 
-            ranked = rank_on_this_day([(year, plays) for year, _, plays in days], track_facts)
+            # Which album was first heard on one of these days (#534): its card
+            # shows that year. Only asked when there is a day to show; the
+            # first plays are cached per user until their next play.
+            discovered = (
+                discovered_on_this_day(
+                    first_plays_of(userid).albums, [(year, start, end) for year, start, end, _ in windows]
+                )
+                if days
+                else {}
+            )
+            ranked = rank_on_this_day([(year, plays) for year, _, plays in days], track_facts, discovered=discovered)
 
             # The newest year whose plays are still in the library is the day
             # "Play that day" plays and the summary describes; older years only
@@ -183,7 +195,10 @@ class OnThisDay(HomepageRoutine):
                 }
                 entry.trackhashes[userid] = tracks
 
-            entry.items[userid] = [on_this_day_item(*r) for r in ranked]
+            entry.items[userid] = [
+                on_this_day_item(albumhash, year, plays, first_heard=discovered.get(albumhash) == year)
+                for albumhash, year, plays in ranked
+            ]
 
 
 def track_facts(trackhash: str) -> TrackFacts | None:

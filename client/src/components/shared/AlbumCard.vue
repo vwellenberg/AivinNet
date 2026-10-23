@@ -10,12 +10,13 @@
         @click.capture="armCoverMorph(coverImg, $event)"
     >
         <CardTypeLabel type="album" />
-        <div class="with-img card-art no-scroll" :class="{ 'has-stamp': unheard }">
+        <div class="with-img card-art no-scroll" :class="{ 'has-stamp': stamp }">
             <img ref="coverImg" class="shadow-lg" :src="imguri + album.image" alt="" />
-            <!-- "Recently added": the user has not played a track of it (#533).
-                 "to you", because the line under the cover already says
-                 whether the album is new to the library. -->
-            <CardStamp v-if="unheard" value="NEW" caption="to you" tone="coral" />
+            <!-- What a Home row says about the album, per user: "Recently added"
+                 stamps one not played yet (#533; "to you", because the line
+                 under the cover says whether it is new to the library), "On this
+                 day" the day it was first heard (#534). -->
+            <CardStamp v-if="stamp" :value="stamp.value" :caption="stamp.caption" :tone="stamp.tone" />
             <PlayBtn
                 :store="useAlbumStore"
                 :source="playSources.album"
@@ -98,7 +99,11 @@ function getVersions(ver1: string[], ver2: string[] = []) {
     return ver1.slice(0, 1)
 }
 
-const unheard = computed(() => !!props.album.home?.unheard)
+const stamp = computed(() => {
+    if (props.album.home?.unheard) return { value: 'NEW', caption: 'to you', tone: 'coral' as const }
+    if (props.album.home?.first_heard) return { value: '1st', caption: 'time', tone: 'yellow' as const }
+    return null
+})
 
 const artists = computed(() => {
     const albumartists = props.artist_page

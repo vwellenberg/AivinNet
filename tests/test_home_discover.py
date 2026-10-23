@@ -19,6 +19,7 @@ from aivinnet.lib.home.discover import (
     because_mix,
     day_playlist,
     day_summary,
+    discovered_on_this_day,
     forgotten_favorite_item,
     is_burst,
     never_played_chips,
@@ -676,6 +677,31 @@ class TestOnThisDay:
 
     def test_item(self):
         assert on_this_day_item("dream", 2024, 1) == {"type": "album", "hash": "dream", "help_text": "2024 · 1 play"}
+
+    def test_item_of_a_first_play(self):
+        assert on_this_day_item("dream", 2023, 8, first_heard=True) == {
+            "type": "album",
+            "hash": "dream",
+            "help_text": "First heard · 2023",
+            "home": {"first_heard": 2023},
+        }
+
+    def test_discovered_on_this_day(self):
+        days = [(2025, 1000, 2000), (2024, 100, 200)]
+
+        found = discovered_on_this_day({"dream": 150, "syx": 1000, "cnc": 2001, "old": 99}, days)
+
+        # Both ends of a day count; heard before or between the days does not.
+        assert found == {"dream": 2024, "syx": 2025}
+
+    def test_an_album_discovered_years_ago_keeps_that_year(self):
+        last_year = [Play("dream/1", 1), Play("dream/2", 2), Play("syx/1", 3)]
+        two_years = [Play("dream/1", 0)]
+
+        # Without a discovery the newest year wins; with one, its year.
+        assert rank_on_this_day([(2025, last_year), (2024, two_years)], self.lib.facts)[0] == ("dream", 2025, 2)
+        ranked = rank_on_this_day([(2025, last_year), (2024, two_years)], self.lib.facts, discovered={"dream": 2024})
+        assert ranked == [("syx", 2025, 1), ("dream", 2024, 1)]
 
     def test_summary(self):
         evening = int(pendulum.datetime(2025, 10, 8, 20, 0).timestamp())

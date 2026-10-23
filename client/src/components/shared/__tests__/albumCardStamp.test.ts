@@ -55,4 +55,12 @@ describe('the NEW stamp on an album card', () => {
             expect(w.find('.card-art').classes()).not.toContain('has-stamp')
         }
     })
+
+    it('says "1st time" on the day an album was first heard ("On this day", #534)', () => {
+        const w = card({ ...ALBUM, help_text: 'First heard · 2023', home: { first_heard: 2023 } })
+
+        const stamp = w.findComponent(CardStamp)
+        expect(stamp.props()).toMatchObject({ value: '1st', caption: 'time', tone: 'yellow' })
+        expect(w.find('.card-art').classes()).toContain('has-stamp')
+    })
 })
