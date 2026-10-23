@@ -169,6 +169,12 @@ git fetch --prune && git branch -D <branch>
   `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
   in Markdown-Doku um.
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs. `Unit Tests` und `API Tests` sind eine Matrix und laufen mit demselben Befehl auch auf `windows-latest` (`… (Windows)`, waitress statt bjoern). ⚠️ Die Linux-Namen sind Pflicht-Checks: Ein Matrix-Job ohne festes `name` meldet sich als `Unit Tests (ubuntu-latest)`, und jeder PR wartet dann ewig auf einen Check, der nie kommt.
+- **Dependabot** (`.github/dependabot.yml`) öffnet jede Woche PRs für Actions, `uv.lock` (nur der
+  Lock, die Untergrenzen in `pyproject.toml` bleiben) und `client/yarn.lock`: Minor/Patch als ein
+  Sammel-PR pro Ökosystem, Majors einzeln, 7 Tage Cooldown. Sicherheits-PRs kommen sofort und
+  einzeln. ⚠️ Diese PRs mergen **nicht** von selbst — `--auto` setzt nur, wer es einschaltet.
+  Bis 2026-10-23 stand dort nur `github-actions`: Für Bibliotheken gab es Alerts, aber nie einen
+  PR, und Pillow lag 35 Advisories zurück (#573).
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen — und
   sonst **nichts**. ⚠️ Ein Pfad in `[tool.ruff] extend-exclude` fällt lautlos aus CI, Pre-commit und
   Hook (alle laufen mit `--force-exclude`): Bis 2026-10-17 stand dort ganz `src/aivinnet/lib`

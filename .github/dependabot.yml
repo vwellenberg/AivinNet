@@ -4,6 +4,13 @@
 # longer arrive by themselves: Dependabot opens one grouped PR a week with the
 # new SHAs and their version comments, CI checks it, and it is merged like any
 # other PR.
+#
+# The same goes for the libraries: without an entry here Dependabot only raises
+# alerts and never a PR, and Pillow sat 35 advisories behind until an audit
+# found it (#573). Minor and patch updates arrive as one grouped PR per
+# ecosystem, majors one at a time, because a major is the one that needs a look.
+# The cooldown keeps a release out until it is a week old (a hijacked release is
+# usually pulled within days); security updates skip it.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -15,3 +22,31 @@ updates:
         patterns: ["*"]
     commit-message:
       prefix: ci
+
+  # Backend. `lockfile-only`: the floors in pyproject.toml stay as they are and
+  # only uv.lock moves, which is what Docker, the AppImage and CI install from.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    versioning-strategy: lockfile-only
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: deps
+
+  # Client (yarn v1, the lockfile tells Dependabot which manager to run).
+  - package-ecosystem: npm
+    directory: /client
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      client:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: deps(client)
