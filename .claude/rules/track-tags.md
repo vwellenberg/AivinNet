@@ -200,6 +200,17 @@ Zeile.** Fehlt es, landet die Datei wieder als „neu“ auf Home. Grenze: Wird 
 bearbeitet und dann **außerhalb** der App verschoben, sieht der Scan eine fremde neue Datei, und
 `added` wird ihre (frische) mtime.
 
+**Dieselbe Falle eine Ebene höher: die mtime eines Verzeichnisses.** „Folder date“ in der
+Ordneransicht las sie bis 2026-10. Sie ändert sich mit jedem Eintrag, der im Ordner entsteht oder
+verschwindet, und solche Einträge legt die App selbst an: die `.bak` jedes Tag-Edits, eine `.lrc`
+vom Lyrics-Finder, ein Rename. Seitdem ist ein Ordner so neu wie die neueste Datei, die in ihn
+**hinzugefügt** wurde (`FolderStore.newest_added`, größtes `added` darunter, ohne Dateisystem).
+Gelesen wird aus `FolderStore.added` (Pfad → `added`), gebaut im selben Durchlauf wie `map`:
+Der Weg über `map` in den Track-Store kostete an der Wurzel von 200k Dateien 321 ms auf dem
+einzigen Request-Thread, das eigene Dict 55 ms. ⚠️ Wer `map` pflegt, pflegt `added` mit
+(`index_file(..., added)`, `move_filepath` nimmt es mit). Wer ein Datum für etwas Abgeleitetes
+braucht (Ordner, Album, Artist), nimmt es aus den `added` der Tracks, nie aus `os.stat`.
+
 ## Dateien umbenennen: der Hash bleibt, drei Stellen ziehen mit
 
 Ein Rename (`lib/track_rename.py`, #144) ändert **keinen** Hash — dafür alles, was den Pfad

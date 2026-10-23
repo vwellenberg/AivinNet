@@ -7,6 +7,9 @@
 - Sorting a folder by artist read `artists[0]`; a track whose artist tag
   split to nothing raised IndexError, and `/folder` answered 500. Sorting
   folders by date stat'ed each one; a folder gone meanwhile did the same.
+- That date was the directory's mtime, which every `.bak` of a tag edit
+  moves. It comes from the stores now (`FolderStore.newest_added`), so a
+  folder gone meanwhile is simply one without tracks.
 """
 
 import os
@@ -92,11 +95,88 @@ def test_tracks_without_a_value_sort_last_either_way(reverse):
     assert [t.title for t in sort_tracks(tracks, "bitrate", reverse)][-1] == "a"
 
 
-def test_sorting_folders_by_date_survives_a_folder_that_is_gone(tmp_path):
+LONG_AGO = 1_700_000_000
+LAST_WEEK = 1_790_000_000
+
+
+@pytest.fixture()
+def library(monkeypatch):
+    """Tracks in the stores the folder view reads, with when each came in."""
+    from aivinnet.config import UserConfig
+    from aivinnet.db.utils import track_to_dataclass
+    from aivinnet.store.folder import FolderStore
+    from aivinnet.store.tracks import TrackGroup, TrackStore
+
+    def stock(files: dict[str, int]):
+        tracks = []
+        for n, (filepath, added) in enumerate(files.items()):
+            folder, name = filepath.rsplit("/", 1)
+            row = {
+                "id": n,
+                "album": folder,
+                "albumartists": "Artist",
+                "albumhash": f"album{n:011d}",
+                "artists": "Artist",
+                "bitrate": 320,
+                "copyright": "",
+                "date": 0,
+                "disc": 1,
+                "duration": 100,
+                "filepath": filepath,
+                "folder": folder,
+                "genres": None,
+                "last_mod": added,
+                "added": added,
+                "title": name,
+                "track": 1,
+                "trackhash": "",
+                "extra": {},
+                "lastplayed": 0,
+                "playcount": 0,
+                "playduration": 0,
+            }
+            tracks.append(track_to_dataclass(row, UserConfig()))
+
+        monkeypatch.setattr(TrackStore, "trackhashmap", {t.trackhash: TrackGroup([t]) for t in tracks})
+        # Recorded first, so the teardown puts back what was there; then the
+        # real build, which is where `added` has to come from.
+        for name in ("filepaths", "map", "added"):
+            monkeypatch.setattr(FolderStore, name, getattr(FolderStore, name))
+        FolderStore.load_filepaths()
+
+    return stock
+
+
+def test_folder_date_is_when_music_came_in_not_the_directory_mtime(library, tmp_path):
+    """A tag edit leaves a `.bak` behind for a moment; the folder is no newer for it."""
+    from aivinnet.lib.folderslib import create_folder
+    from aivinnet.lib.sortlib import sort_folders
+
+    old, new = tmp_path / "100-Musicians", tmp_path / "New Album"
+    for folder in (old, new):
+        folder.mkdir()
+    library(
+        {
+            f"{old.resolve().as_posix()}/Band/01.mp3": LONG_AGO,
+            f"{old.resolve().as_posix()}/02.mp3": LONG_AGO,
+            f"{new.resolve().as_posix()}/01.mp3": LAST_WEEK,
+        }
+    )
+    os.utime(new, (LAST_WEEK, LAST_WEEK))
+    (old / "02.mp3.bak").write_bytes(b"")  # the edit: the directory's mtime is now
+
+    folders = [create_folder(str(old)), create_folder(str(new))]
+
+    assert [f.name for f in sort_folders(folders, "lastmod", reverse=True)] == ["New Album", "100-Musicians"]
+    assert [f.name for f in sort_folders(folders, "lastmod")] == ["100-Musicians", "New Album"]
+
+
+def test_a_folder_gone_since_it_was_listed_sorts_as_oldest(library, tmp_path):
     from aivinnet.lib.sortlib import sort_folders
 
     here = tmp_path / "here"
     here.mkdir()
+    library({f"{here.resolve().as_posix()}/01.mp3": LONG_AGO})
     folders = [SimpleNamespace(path=str(tmp_path / "gone"), name="gone"), SimpleNamespace(path=str(here), name="here")]
 
     assert [f.name for f in sort_folders(folders, "lastmod", reverse=True)] == ["here", "gone"]

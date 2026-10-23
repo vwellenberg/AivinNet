@@ -28,9 +28,10 @@ from aivinnet.store.tracks import TrackGroup, TrackStore  # noqa: E402
 
 
 class _Track:
-    def __init__(self, trackhash: str, filepath: str):
+    def __init__(self, trackhash: str, filepath: str, added: int = 1_700_000_000):
         self.trackhash = trackhash
         self.filepath = filepath
+        self.added = added
 
 
 class TestFolderStore:
@@ -39,6 +40,7 @@ class TestFolderStore:
         # sortedcontainers, and only membership matters here.
         FolderStore.filepaths = set()
         FolderStore.map = {}
+        FolderStore.added = {}
 
     def test_a_new_hash_replaces_the_stale_one(self):
         FolderStore.index_file("/m/a.mp3", "old")
@@ -47,10 +49,12 @@ class TestFolderStore:
         assert FolderStore.filepaths == {"/m/a.mp3"}
 
     def test_a_rename_leaves_nothing_behind_under_the_old_path(self):
-        FolderStore.index_file("/m/a.mp3", "h")
+        FolderStore.index_file("/m/a.mp3", "h", 1_700_000_000)
         FolderStore.move_filepath("/m/a.mp3", "/m/01 - A.mp3", "h")
         assert FolderStore.map == {"/m/01 - A.mp3": "h"}
         assert FolderStore.filepaths == {"/m/01 - A.mp3"}
+        # A rename is not new music: the "Folder date" keeps the old one.
+        assert FolderStore.added == {"/m/01 - A.mp3": 1_700_000_000}
 
     def test_the_view_finds_the_file_under_its_new_hash(self):
         track = _Track("new", "/m/a.mp3")
@@ -92,4 +96,4 @@ def test_a_tag_edit_tells_the_folder_view_the_new_hash(monkeypatch):
 
     track_edit._store_track("/m/a.mp3", _Track("fresh-hash", "/m/a.mp3"))
 
-    folder.index_file.assert_called_once_with("/m/a.mp3", "fresh-hash")
+    folder.index_file.assert_called_once_with("/m/a.mp3", "fresh-hash", 1_700_000_000)

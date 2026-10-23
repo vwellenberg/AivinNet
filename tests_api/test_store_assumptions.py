@@ -173,10 +173,11 @@ def test_the_folder_search_follows_a_renamed_folder(monkeypatch):
     from aivinnet.store.tracks import TrackStore
 
     def _row(path):
-        return SimpleNamespace(filepath=path, trackhash="h" + path)
+        return SimpleNamespace(filepath=path, trackhash="h" + path, added=0)
 
     monkeypatch.setattr(FolderStore, "_resolve_root_dirs", staticmethod(lambda: ["/music"]))
     monkeypatch.setattr(FolderStore, "map", {})
+    monkeypatch.setattr(FolderStore, "added", {})
     monkeypatch.setattr(FolderStore, "filepaths", SortedSet(["/music/Old Name/1.mp3", "/music/Old Name/2.mp3"]))
     monkeypatch.setattr(FolderStore, "_folder_index", [])
     assert [name for name, _ in FolderStore.get_folder_index()] == ["Old Name"]
