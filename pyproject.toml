@@ -35,6 +35,7 @@ dependencies = [
     "pystray>=0.19.5",
     "waitress>=3.0.2; sys_platform == 'win32'",
     "bjoern >=3.2.2; sys_platform != 'win32'",
+    "audioop-lts>=0.2.2 ; python_full_version >= '3.13'",
 ]
 
 [project.optional-dependencies]

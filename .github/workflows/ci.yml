@@ -121,12 +121,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Releases, Docker and the server all run 3.11, but `requires-python`
+        # lets anyone install on newer versions. 3.13 dropped `audioop`, which
+        # the vendored pydub needs, and the app failed to import there with
+        # every 3.11 check green (#574). The newest Python runs the full stack
+        # so the next removal shows up here first.
         include:
-          - { name: API Tests, os: ubuntu-latest }
-          - { name: API Tests (Windows), os: windows-latest }
+          - { name: API Tests, os: ubuntu-latest, python: "3.11" }
+          - { name: API Tests (Windows), os: windows-latest, python: "3.11" }
+          - { name: API Tests (Python 3.13), os: ubuntu-latest, python: "3.13" }
     defaults:
       run:
         shell: bash
+    # Every uv call below uses this interpreter, not whichever one it finds first.
+    env:
+      UV_PYTHON: ${{ matrix.python }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -136,7 +145,7 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.11
+        run: uv python install ${{ matrix.python }}
 
       # bjoern (WSGI server) is a hard dependency on Linux and needs libev to
       # build. Windows installs waitress instead (pyproject.toml), no libev.
