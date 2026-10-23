@@ -40,7 +40,18 @@ export async function getListeningCalendar() {
     })
 }
 
-/** AivinNet Rewind: one year of listening (#527); without a year, this one. */
+/** The years a Rewind opens for: finished years with plays, oldest first (#527). */
+export async function getRewindYears() {
+    return await useAxios({
+        url: paths.api.stats.base + '/rewind/years',
+        method: 'GET',
+    })
+}
+
+/**
+ * AivinNet Rewind: one year of listening (#527); without a year, the latest
+ * finished one. A year still running answers 404 — it opens on January 1.
+ */
 export async function getRewind(year?: number) {
     return await useAxios({
         url: paths.api.stats.base + '/rewind' + (year ? `?year=${year}` : ''),

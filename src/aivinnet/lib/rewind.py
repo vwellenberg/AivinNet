@@ -60,6 +60,15 @@ def source_kind(source: str, generated: Container[str] = frozenset()) -> str:
     return "other"
 
 
+def finished_years(years: Iterable[int], this_year: int) -> list[int]:
+    """
+    The years with plays a Rewind can be opened for, oldest first. A year
+    opens on January 1 of the next one — a look back at a year still running
+    would change every day, so this year never has one.
+    """
+    return sorted({year for year in years if year < this_year})
+
+
 def _top(counter: Counter[str], n: int = REWIND_TOP) -> list[tuple[str, int]]:
     """The `n` highest, ties by hash so a run does not depend on dict order."""
     return sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))[:n]

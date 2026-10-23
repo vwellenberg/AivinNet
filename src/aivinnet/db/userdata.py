@@ -546,14 +546,18 @@ class ScrobbleTable(Base):
         return [row[0] for row in result.all()]
 
     @classmethod
-    def timestamp_range(cls, userid: int | None = None) -> tuple[int | None, int | None]:
-        """The user's first and last play, or `(None, None)` without any."""
+    def years_with_plays(cls, until: int, userid: int | None = None) -> list[int]:
+        """
+        The years the user played anything in, up to the timestamp `until`
+        (a clock running ahead stamps plays in the future), oldest first.
+        Grouped in SQL, in the zone of `local_today` — Rewind's years.
+        """
         if userid is None:
             userid = get_current_userid()
 
-        result = cls.rows(select(func.min(cls.timestamp), func.max(cls.timestamp)).where(cls.userid == userid))
-        first, last = result.one()
-        return first, last
+        year = func.strftime("%Y", cls.timestamp, "unixepoch", "localtime")
+        result = cls.rows(select(year).where(cls.userid == userid).where(cls.timestamp <= until).group_by(year))
+        return sorted(int(row[0]) for row in result.all() if row[0])
 
     @classmethod
     def change_marker(cls, userid: int | None = None) -> tuple[int, int]:

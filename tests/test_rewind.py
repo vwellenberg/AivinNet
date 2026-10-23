@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from aivinnet.lib.home.discover import TrackFacts
-from aivinnet.lib.rewind import build_rewind, source_kind
+from aivinnet.lib.rewind import build_rewind, finished_years, source_kind
 
 UTC = UTC
 
@@ -48,6 +48,19 @@ class TestSources:
     def test_a_generated_playlist_is_home(self):
         assert source_kind("pl:mix1", generated={"mix1", "onrepeat"}) == "home"
         assert source_kind("pl:12", generated={"mix1"}) == "playlist"
+
+
+class TestFinishedYears:
+    def test_a_year_opens_on_new_years_day(self):
+        # Plays in 2023 to 2026, now in 2026: 2026 is still running.
+        assert finished_years([2023, 2024, 2025, 2026], this_year=2026) == [2023, 2024, 2025]
+
+    def test_a_first_year_still_running_is_none(self):
+        assert finished_years([2026], this_year=2026) == []
+
+    def test_only_years_with_music(self):
+        # A year without a single play has nothing to look back on.
+        assert finished_years([2025, 2019, 2021], this_year=2026) == [2019, 2021, 2025]
 
 
 class TestRewind:

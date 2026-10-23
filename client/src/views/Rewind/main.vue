@@ -21,6 +21,14 @@
                 </div>
             </div>
 
+            <!-- A year opens on January 1 for the one that ended (#527): a link
+                 or bookmark to a year still running lands here, not on a
+                 retry that can only fail again. -->
+            <section v-if="closedYear" class="rewind-plate rewind-hero">
+                <h2 class="section-title">Rewind {{ closedYear }}</h2>
+                <div class="rewind-sub">Opens on January 1, {{ closedYear + 1 }}, once the year is over.</div>
+            </section>
+
             <section v-if="failed" class="rewind-plate rewind-hero">
                 <h2 class="section-title">{{ shownYear ? `Rewind ${shownYear}` : 'Rewind' }}</h2>
                 <div class="rewind-sub">This year could not be loaded.</div>
@@ -35,7 +43,7 @@
                         <div class="rewind-label">minutes of music</div>
                         <div class="rewind-sub">{{ data.plays.toLocaleString('en') }} plays on {{ data.days }} days</div>
                     </template>
-                    <div v-else class="rewind-sub">No music in {{ data.year }} — yet.</div>
+                    <div v-else class="rewind-sub">No music in {{ data.year }}.</div>
                 </section>
 
                 <template v-if="data.plays">
@@ -87,7 +95,8 @@
                         <ol class="rewind-list is-numbered">
                             <li v-for="t in data.top_tracks" :key="t.trackhash">
                                 <span>{{ trackLine(t) }}</span>
-                                <span class="rewind-time">{{ playCount(t.plays ?? 0) }}</span>
+                                <!-- The measure they are ranked by, like the artists and albums beside them. -->
+                                <span class="rewind-time">{{ listened(t.seconds ?? 0) }}</span>
                             </li>
                         </ol>
                     </section>
@@ -166,6 +175,8 @@ const data = ref<RewindPayload | null>(null)
 // The years kept apart from the year's data, which a failed load clears.
 const years = ref<number[]>([])
 const failed = ref(false)
+// The year asked for when it is still running (404): it has no Rewind yet.
+const closedYear = ref<number | null>(null)
 const shownYear = computed(() => data.value?.year ?? (Number(route.params.year) || null))
 
 const topArtist = computed(() => data.value?.top_artists[0])
@@ -185,9 +196,15 @@ async function load() {
     if (!alive || mine !== seq) return
 
     const ok = res.status === 200
+    // Only the server's own answer says "not yet": a 404 from anything in
+    // between (an older backend, a proxy) is a failure to retry.
+    const notYet = res.status === 404 && Boolean(res.data?.opens)
     data.value = ok ? res.data : null
-    failed.value = !ok
-    if (ok) years.value = res.data.years
+    closedYear.value = notYet && year ? year : null
+    failed.value = !ok && !closedYear.value
+    // The "not yet" answer brings the years that are open: a bookmark to this
+    // year still finds the way to the last one.
+    if (ok || notYet) years.value = res.data.years ?? []
     updatePageTitle(data.value ? `Rewind ${data.value.year}` : 'Rewind')
 }
 
@@ -243,6 +260,9 @@ watch(
     // A reading plate on the doodled ground (styling.md, `--mem-veil`). Not
     // pressable, so no hatch and no role.
     .rewind-plate {
+        // A grid item sizes to its content by default; a long title would
+        // push the plate past its column.
+        min-width: 0;
         padding: 1.25rem;
         background-color: var(--mem-veil);
         border: $candy-border;
@@ -268,6 +288,7 @@ watch(
 
     .rewind-name {
         display: block;
+        overflow-wrap: anywhere;
         font-size: 1.4rem;
         font-weight: 900;
         line-height: 1.2;
@@ -315,6 +336,11 @@ watch(
         padding: 0;
         list-style: none;
         display: grid;
+        // One column that may be narrower than its longest row. The implicit
+        // track is `auto`, which grows to the longest unbroken title and
+        // pushed the rows past the plate (Rewind's top albums, 2026-10-23);
+        // the title's ellipsis only works inside a track that can shrink.
+        grid-template-columns: minmax(0, 1fr);
         gap: $small;
 
         &.is-numbered {
@@ -325,7 +351,9 @@ watch(
                 counter-increment: rank;
                 content: counter(rank) '.';
                 font-weight: 900;
-                margin-right: $small;
+                // Equal digits and one width, so the titles start on one line.
+                font-variant-numeric: tabular-nums;
+                min-width: 1.5em;
             }
         }
 

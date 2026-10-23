@@ -19,7 +19,7 @@ from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
-from aivinnet.lib.rewind import build_rewind
+from aivinnet.lib.rewind import build_rewind, finished_years
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
 from aivinnet.models.track import Track
@@ -455,13 +455,41 @@ def get_listening_calendar():
 
 
 class RewindQuery(BaseModel):
-    year: int | None = Field(None, ge=1970, le=9999, description="The year to look back on; this year by default")
+    year: int | None = Field(
+        None, ge=1970, le=9999, description="The year to look back on; the latest finished year by default"
+    )
 
 
 # The last Rewind each user opened, with the year and the plays it was built
 # from — a year is one read of every play in it on the request thread. One
-# per user, so switching through the years holds no more than one page.
-_rewinds: dict[int, tuple[int, tuple[int, int], dict]] = {}
+# per user, so switching through the years holds no more than one page. The
+# years a Rewind opens for are cached alongside: grouping every play by year
+# is a scan as well.
+_rewinds: dict[int, tuple[tuple[int, int, tuple[int, int]], dict]] = {}
+_rewind_years: dict[int, tuple[tuple[int, tuple[int, int]], list[int]]] = {}
+
+
+def _finished_years(userid: int, this_year: int, marker: tuple[int, int]) -> list[int]:
+    """The finished years the user has plays in (`lib/rewind.finished_years`)."""
+    # This year too: on January 1 a year opens without a new play.
+    key = (this_year, marker)
+    cached = _rewind_years.get(userid)
+    if cached is None or cached[0] != key:
+        played = ScrobbleTable.years_with_plays(int(time.time()), userid)
+        cached = (key, finished_years(played, this_year))
+        _rewind_years[userid] = cached
+
+    return cached[1]
+
+
+@api.get("/rewind/years")
+def get_rewind_years():
+    """
+    The years a Rewind can be opened for: finished years with plays, oldest
+    first. Cached, for the way to Rewind on the stats page.
+    """
+    userid = get_current_userid()
+    return {"years": _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))}, 200
 
 
 @api.get("/rewind")
@@ -471,19 +499,27 @@ def get_rewind(query: RewindQuery):
     tracks, the song of the summer, the first track, the busiest day, the new
     artists, how and when the user listens. Plus the years there are plays in.
 
-    Days and years are the C library's local time, like the listening calendar
-    on the same page (`ScrobbleTable.local_today`), not pendulum's zone.
+    A year opens on January 1 of the next one: this year and later answer 404
+    (with the years that are open). Days and years are the C library's local
+    time, like the listening calendar on the same page
+    (`ScrobbleTable.local_today`), not pendulum's zone.
     """
     userid = get_current_userid()
-    year = query.year or datetime.now().year
-
+    this_year = datetime.now().year
     marker = ScrobbleTable.change_marker(userid)
+    years = _finished_years(userid, this_year, marker)
+    year = query.year or (years[-1] if years else this_year - 1)
+    if year >= this_year:
+        opens = f"{year + 1}-01-01"
+        return {"error": f"Rewind {year} opens on January 1, {year + 1}", "opens": opens, "years": years}, 404
+
+    key = (this_year, year, marker)
     cached = _rewinds.get(userid)
-    if cached is None or cached[:2] != (year, marker):
-        cached = (year, marker, _build_rewind(userid, year))
+    if cached is None or cached[0] != key:
+        cached = (key, _build_rewind(userid, year, years))
         _rewinds[userid] = cached
 
-    return cached[2], 200
+    return cached[1], 200
 
 
 def _year_bounds(year: int) -> tuple[int, int] | None:
@@ -499,7 +535,7 @@ def _year_bounds(year: int) -> tuple[int, int] | None:
         return None
 
 
-def _build_rewind(userid: int, year: int) -> dict:
+def _build_rewind(userid: int, year: int, years: list[int]) -> dict:
     bounds = _year_bounds(year)
     plays: list = []
     heard_before: set[str] = set()
@@ -518,14 +554,6 @@ def _build_rewind(userid: int, year: int) -> dict:
         skip=PLACEHOLDER_ARTIST_HASHES.__contains__,
         generated=CUSTOM_PLAYLISTS,
     )
-
-    first, last = ScrobbleTable.timestamp_range(userid)
-    now = int(time.time())
-    years = []
-    if first is not None and last is not None and 0 <= first <= now:
-        # Clipped to now: a play stamped by a clock running ahead opens no year.
-        newest = datetime.fromtimestamp(min(last, now)).year
-        years = list(range(datetime.fromtimestamp(first).year, newest + 1))
 
     def track(trackhash: str) -> dict | None:
         found = TrackStore.get_tracks_by_trackhashes([trackhash])

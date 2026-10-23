@@ -218,6 +218,20 @@ nächsten Play (`ScrobbleTable.change_marker`: Anzahl + höchste ID; der Kalende
 zum nächsten Tag, Rewind nur das zuletzt geöffnete Jahr). Wer dort etwas ergänzt, rechnet es in
 den gecachten Payload hinein, nicht daneben.
 
+**Ein Rewind öffnet am 1. Januar für das Jahr, das endete** (Wunsch des Nutzers, 2026-10-23): Ein
+Rückblick auf ein laufendes Jahr ändert sich täglich. Das laufende und spätere Jahre antworten
+**404** mit `opens` und den offenen `years` (ein Lesezeichen findet so zum letzten Jahr). Die
+Jahresliste (`GET /logger/rewind/years`) kennt nur beendete Jahre **mit** Plays
+(`ScrobbleTable.years_with_plays`, in SQL gruppiert, dann `lib/rewind.finished_years`), und ohne
+`year` kommt das jüngste davon. ⚠️ Nicht die Spanne vom ersten bis zum letzten Play nehmen: Wer ein
+Jahr pausiert hat, landete sonst standardmäßig auf einem leeren Jahr (im Review gefunden). Beide
+Caches tragen auch das laufende Jahr im Schlüssel: Am 1. Januar öffnet ein Jahr, ohne dass ein Play
+dazukommt. Der Client glaubt einem 404 nur mit `opens`; jeder andere 404 (älteres Backend, Proxy)
+ist ein Fehler mit „Try again“. Der Link auf der Stats-Seite (`components/Stats/RewindLink.vue`)
+erscheint erst, wenn es ein solches Jahr gibt. Tests rechnen relativ zu `datetime.now().year` und
+legen Plays „dieses Jahr“ auf dessen erste Minute — `now - 5 min` liegt kurz nach Mitternacht an
+Neujahr noch im alten Jahr.
+
 ⚠️ **Beide zählen Tage in der Zone der C-Bibliothek, nicht in pendulums** — der Kalender, weil er
 in SQL gruppiert (`database.md`), Rewind, damit „Your biggest day“ derselbe Tag ist wie im
 Kalender daneben: naive `datetime`s (`datetime(year, 1, 1).timestamp()`,
