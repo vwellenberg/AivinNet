@@ -20,10 +20,11 @@ export async function reorderSidebarPlaylists(positions: { id: number; position:
 }
 
 /**
- * Tapping the "Playlist created" toast opens the new playlist. The router is
- * imported lazily: it pulls in the page stores, which import this module.
+ * Tapping a playlist toast ("Playlist created", "Added to …") opens that
+ * playlist. The router is imported lazily: it pulls in the page stores, which
+ * import this module.
  */
-function openCreatedPlaylist(pid: number) {
+function openPlaylist(pid: number) {
     return async () => {
         const { router, Routes } = await import('@/router')
         router.push({ name: Routes.playlist, params: { pid } })
@@ -43,7 +44,7 @@ export async function createNewPlaylist(playlist_name: string) {
     })
 
     if (status == 201) {
-        new Notification('Playlist created successfully!', NotifType.Success, undefined, openCreatedPlaylist(data.playlist.id))
+        new Notification('Playlist created successfully!', NotifType.Success, undefined, openPlaylist(data.playlist.id))
         // A playlist you just made is the one you are about to fill: it heads
         // the suggestions in "Add to playlist" (they only ever learned from
         // adds, so a new, empty playlist never showed up there).
@@ -125,7 +126,7 @@ export async function addItemToPlaylist(playlist: Playlist, props: {}) {
         return false
     }
 
-    new Notification('Added to ' + playlist.name)
+    new Notification('Added to ' + playlist.name, NotifType.Info, undefined, openPlaylist(playlist.id))
     recordRecentPlaylist(playlist.id)
     return true
 }
@@ -174,7 +175,7 @@ export async function saveItemAsPlaylist(itemtype: string, props: {}) {
     const store = useToast()
 
     if (status === 201) {
-        store.showNotification('Playlist created successfully!', NotifType.Success, undefined, openCreatedPlaylist(data.playlist.id))
+        store.showNotification('Playlist created successfully!', NotifType.Success, undefined, openPlaylist(data.playlist.id))
         // Same as createNewPlaylist: the newest playlist heads the suggestions.
         recordRecentPlaylist(data.playlist.id)
         return data.playlist as Playlist
