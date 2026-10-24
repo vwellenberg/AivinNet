@@ -69,6 +69,45 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A feature and fix release on top of 2026.10.4.
+
+- **Your mixes.** Home cuts mixes from your own listening sessions, no service
+  involved. *Almost complete* finds albums you have nearly heard through, with
+  *Play the rest*; *Forgotten favorites* and *Because you listened to …* play as
+  a mix with one tap.
+- **Home is yours to arrange.** Hide and reorder its rows in Settings → Home,
+  per user. *Not interested* takes a suggestion out of *Never played* and
+  *Artists you might like* (and survives a backup). *Recently added* marks what
+  is new to you, and *On this day* says when you first heard something.
+- **AivinNet Rewind.** A year of your listening in plates, opened at New Year.
+  Stats also get a listening calendar with streaks, a clock of when you listen
+  (weekday by hour), *How you listened* and *New to you* tiles, and the tiles
+  follow the chart period.
+- **A darker, quieter dark mode.** Grey frames instead of white, softer
+  shadows, deeper colours with black text that stays easy to read, dark rows on
+  the Continue card and a dark seek bar.
+- **On the phone.** The app icon sits in the top bar, tapping Home opens search,
+  and the dots around the top bar are even above and below. Tiles can be made
+  bigger or smaller in Settings.
+- **Playlists.** The library's [+] creates a playlist, a new playlist heads the
+  *Add to playlist* suggestions, and the "Added to …" message opens the playlist.
+- **Device sync.** A group no longer stops at the end of a song when the network
+  drops for a moment; mute and volume changes right before a song change are
+  kept; a muted microphone can no longer reset good calibration trims; what one
+  device passes on to the others is checked and bounded.
+- **Editing tags no longer pauses everyone.** A tag edit backs the file up
+  first, and on a big file that held up every other listener. It now runs in
+  the background.
+- **Fixed.** A rescan keeps favourites and playlist entries when a track's tags
+  changed outside the app; a folder's date is when music arrived; renamed files
+  and "save folder as playlist" find their files again; a track that cannot load
+  says why; playlists no longer vanish from the sidebar on a failed refresh.
+- **Under the hood.** The server starts on Python 3.13 too. Dependencies are up
+  to date (Pillow 13, Vite 6, Vue Router 5), with no known vulnerability open.
+
+<details>
+<summary>What v2026.10.4 brought</summary>
+
 A feature and fix release on top of 2026.10.3.
 
 - **Home has more to listen to, all from your own history.** *On this day* shows
@@ -87,6 +126,8 @@ A feature and fix release on top of 2026.10.3.
 - **Security.** What a client sends is length-checked before it is stored.
 - **Installer.** Stopping the AppImage stops the server, and release builds install
   exactly the locked dependency versions.
+
+</details>
 
 <details>
 <summary>What v2026.10.3 brought</summary>
