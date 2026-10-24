@@ -35,7 +35,7 @@
   "devDependencies": {
     "@nextcss/color-tools": "^1.0.7",
     "@types/node": "^18.11.18",
-    "@typescript-eslint/parser": "^6.3.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^8.46.0",
