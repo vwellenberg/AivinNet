@@ -83,9 +83,12 @@ const playlists = computed(() => pStore.playlists.filter(p => !p.pinned))
         // more than the dense library grids.
         gap: 3.5rem $card-col-gap;
 
+        // On the phone the shared card gaps, like the Favorites rows one tab
+        // over: with 1rem the tiles here were wider and closer together than
+        // there, and switching tabs made them jump (user, 2026-10-24).
         @include mediumPhones {
             grid-template-columns: repeat(auto-fill, minmax(var(--tile-min-phone, 8.5rem), 1fr));
-            gap: 1rem;
+            gap: $card-row-gap $card-col-gap;
         }
     }
 

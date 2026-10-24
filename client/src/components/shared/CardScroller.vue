@@ -202,11 +202,12 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
 
 <style lang="scss">
 .cardscroller {
-    // Abstände nach Stufe B der Mockup-Runde: 28px oben und unten ergeben
-    // 56px zwischen zwei Zeilen (vorher 48), 32px zwischen zwei Kacheln
-    // (vorher 20). Der spürbare Teil ist der Abstand ZWISCHEN den Objekten —
-    // innerhalb der Kachel reichen 16px (Global/cards.scss).
-    padding: 1.75rem 0;
+    // Abstände nach Stufe B der Mockup-Runde: je die Hälfte von $section-gap
+    // oben und unten ergibt 56px zwischen zwei Zeilen (vorher 48), 32px
+    // zwischen zwei Kacheln (vorher 20). Der spürbare Teil ist der Abstand
+    // ZWISCHEN den Objekten — innerhalb der Kachel reichen 16px
+    // (Global/cards.scss).
+    padding: calc(#{$section-gap} / 2) 0;
 
     .recentitems {
         gap: $card-row-gap $card-col-gap;
@@ -229,7 +230,7 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
         // next to the tiles' crisp ink frames that read as misaligned, not as
         // breathing room.
         // 24px von der Überschrift zur ersten Kachel (Stufe B).
-        margin-bottom: 1.5rem;
+        margin-bottom: $section-caption-gap;
 
         // The row's caption ("Recently played", "Artist mixes for you") and its
         // "SEE ALL" link are stickers: they sat free on the doodle ground,

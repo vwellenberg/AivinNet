@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 // Die Reihenfolge der Navigation IST eine Entscheidung, keine Laune.
 //
-// Sie gilt an zwei Stellen: `NavButtons.vue` rendert sie in der Seitenleiste
-// und — über `BottomBar.vue` — in der Navigationszeile am Telefon. Dort sind
-// `stats` und der Trenner per CSS ausgeblendet; sichtbar sind genau die fünf
-// Einträge davor. Eine Umsortierung entscheidet also mit, was am Telefon
-// überhaupt erscheint, und das sieht man dem Array nicht an.
+// Es gibt zwei Listen: `menus` für die Seitenleiste und `phoneMenus` für die
+// Navigationszeile am Telefon (`NavButtons.vue` wählt per `isMobile`). Bis
+// 2026-10-24 war das Telefon die Seitenleiste mit per CSS ausgeblendeten
+// Einträgen — eine Umsortierung dort entschied stillschweigend mit, was am
+// Telefon erscheint, und die Suche landete so auf Platz 4.
 //
 // Zwei Regeln stehen bisher nur als Kommentar in `navitems.ts` und sind damit
 // genau so haltbar wie die Aufmerksamkeit des Nächsten:
@@ -27,17 +27,11 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/stores/search', () => ({ default: () => ({ query: '' }) }))
 
-const { menus } = await import('../LeftSidebar/navitems')
+const { menus, phoneMenus } = await import('../LeftSidebar/navitems')
 
 /** Die Einträge ohne den Trenner, in Reihenfolge. */
 const eintraege = menus.filter(m => !m.separator)
-const namen = eintraege.map(m => m.name)
 const trennerIndex = menus.findIndex(m => m.separator)
-
-/** Was am Telefon wirklich zu sehen ist: alles vor `stats`, ohne Trenner. */
-// Albums und Artists (seit 2026-10-04) tragen `phoneHidden`, Stats fällt als
-// letzter Eintrag per CSS weg.
-const AM_TELEFON_AUSGEBLENDET = ['stats', ...menus.filter(m => m.phoneHidden).map(m => m.name)]
 
 describe('Navigation: Reihenfolge', () => {
     it('hat genau einen Trenner, und er trennt zwei Gruppen', () => {
@@ -62,15 +56,29 @@ describe('Navigation: Reihenfolge', () => {
         expect(werkzeuge).toEqual(['search', 'folders', 'stats'])
     })
 
-    it('lässt die häufigen Ziele am Telefon sichtbar', () => {
-        // Am Telefon fallen `stats` und der Trenner per CSS weg. Playlists und
-        // Favoriten MÜSSEN in den fünf Übrigen sein — sonst verschwindet ein
-        // Hauptziel dort vollständig, ohne dass es am Rechner auffiele.
-        const sichtbar = namen.filter(name => !AM_TELEFON_AUSGEBLENDET.includes(name as string))
+})
 
-        expect(sichtbar).toHaveLength(5)
-        expect(sichtbar).toContain('playlists')
-        expect(sichtbar).toContain('favorites')
+describe('Navigation: Telefon', () => {
+    const telefon = phoneMenus.map(m => m.name)
+
+    it('stellt die Suche direkt hinter Home', () => {
+        // Nutzerentscheidung 2026-10-24: am Telefon ist die Suche kein
+        // Werkzeug unter einem Trenner, sondern der zweite Weg hinein.
+        expect(telefon).toEqual(['home', 'search', 'favorites', 'playlists', 'folders'])
+    })
+
+    it('zeigt fünf Einträge ohne Trenner, alle aus der Seitenleiste', () => {
+        // Fünf passen in die Zeile (die Breiten-Rechnung steht in
+        // NavButtons.vue). Jeder Eintrag ist DERSELBE wie in der Seitenleiste,
+        // damit Route und Füllung an beiden Stellen gleich bleiben.
+        expect(phoneMenus).toHaveLength(5)
+        expect(phoneMenus.some(m => m.separator)).toBe(false)
+        for (const eintrag of phoneMenus) expect(menus).toContain(eintrag)
+    })
+
+    it('lässt die häufigen Ziele sichtbar', () => {
+        expect(telefon).toContain('playlists')
+        expect(telefon).toContain('favorites')
     })
 })
 
@@ -84,22 +92,29 @@ describe('Navigation: Farbfolge', () => {
         expect(new Set(eintraege.map(e => e.tint)).size).toBe(eintraege.length)
     })
 
-    it('hält Pink und Koralle auseinander', () => {
+    it.each([
+        ['Seitenleiste', eintraege],
+        ['Telefon', phoneMenus],
+    ])('hält Pink und Koralle auseinander (%s)', (_, liste) => {
         // Die beiden rötlichen Töne nebeneinander lesen sich als ein Farbfehler,
         // nicht als zwei Einträge. Geprüft über die GANZE Liste, nicht je
-        // Gruppe: der Trenner ist am Telefon unsichtbar, dort stehen die
-        // Nachbarn also direkt beieinander.
-        const toene = eintraege.map(e => e.tint)
+        // Gruppe, und für beide Listen: am Telefon steht die Koralle der Suche
+        // direkt hinter Home.
+        const toene = liste.map(e => e.tint)
+        const n = liste.map(e => e.name)
 
         for (let i = 0; i < toene.length - 1; i++) {
             const paar = [toene[i], toene[i + 1]]
             const roetlich = paar.filter(t => t === 'tint-pink' || t === 'tint-coral')
 
-            expect(roetlich.length, `${namen[i]} und ${namen[i + 1]} tragen beide einen Rotton`).toBeLessThan(2)
+            expect(roetlich.length, `${n[i]} und ${n[i + 1]} tragen beide einen Rotton`).toBeLessThan(2)
         }
     })
 
-    it('hält Nachbarn messbar auseinander', () => {
+    it.each([
+        ['Seitenleiste', eintraege],
+        ['Telefon', phoneMenus],
+    ])('hält Nachbarn messbar auseinander (%s)', (_, liste) => {
         // Zwei Nachbarn, die als Pastell zu ähnlich sind, liest man als EINE
         // Farbe (Grün über Teal tat genau das). Früher als Warm/Kühl-Wechsel
         // formuliert; seit Runde 3 der Palette (2026-10-04) direkt gemessen:
@@ -119,10 +134,11 @@ describe('Navigation: Farbfolge', () => {
             return pastel(hex(m![1]), hex('mem-paper'))
         }
 
-        const farben = eintraege.map(e => tint(e.tint as string))
+        const farben = liste.map(e => tint(e.tint as string))
+        const n = liste.map(e => e.name)
         for (let i = 0; i < farben.length - 1; i++) {
             const d = deltaE(farben[i], farben[i + 1])
-            expect(d, `${namen[i]} und ${namen[i + 1]} liegen nur ΔE ${d.toFixed(0)} auseinander`).toBeGreaterThanOrEqual(20)
+            expect(d, `${n[i]} und ${n[i + 1]} liegen nur ΔE ${d.toFixed(0)} auseinander`).toBeGreaterThanOrEqual(20)
         }
     })
 })

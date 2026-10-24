@@ -19,7 +19,11 @@ defineProps<{
 
 <style lang="scss">
 .playlistcardgroup {
-  margin-bottom: 4rem;
+  // The same section rhythm as CardScroller's rows ($section-gap,
+  // $section-caption-gap): Favorites and Playlists sit next to each other in
+  // the navigation, and with 64px/8px here against 56px/24px there the tiles
+  // jumped when switching between the two.
+  margin-bottom: $section-gap;
 
   // "Pinned" / "All playlists" are section captions on the memphis ground, so
   // they are stickers like every other one.
@@ -30,7 +34,7 @@ defineProps<{
     // Playing captions: the gap a bare word needed to the page edge is the
     // sticker's own padding now. Found by the census in
     // sectionCaptionSticker.test.ts.
-    margin: 0 0 $small;
+    margin: 0 0 $section-caption-gap;
     font-size: 1.15rem;
   }
 }
