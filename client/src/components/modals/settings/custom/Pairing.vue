@@ -71,7 +71,8 @@ async function buildQrCode(code: string) {
         margin: 20,
     })
     const svgBlob = await qrCode.getRawData('svg')
-    if (!svgBlob) throw new Error('QR code rendered empty')
+    // getRawData is typed `Blob | Buffer`; Buffer only exists under Node, never in the browser.
+    if (!(svgBlob instanceof Blob)) throw new Error('QR code rendered empty')
     return svgBlob
 }
 
