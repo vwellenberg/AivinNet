@@ -70,11 +70,11 @@ uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
 chmod +x run_mcp.sh
 ```
 
-⚠️ Install from `requirements.txt`, not a bare `mcp`: it pins `mcp<2`. mcp 2.x
-renamed `FastMCP` to `MCPServer` (`mcp.server.mcpserver`), so an unpinned install
-gets 2.x and `server.py` dies at import with `ModuleNotFoundError:
-mcp.server.fastmcp`. Moving to 2.x is a separate change
-([migration guide](https://py.sdk.modelcontextprotocol.io/v2/migration/)).
+⚠️ Install from `requirements.txt`, not a bare `mcp`: it pins `mcp>=2.3,<3`.
+`server.py` uses the 2.x API (`MCPServer` from `mcp.server.mcpserver`; 1.x called
+it `FastMCP`). An existing venv still on mcp 1.x dies at import with
+`ModuleNotFoundError: mcp.server.mcpserver` — re-run the install line above
+after pulling ([migration guide](https://py.sdk.modelcontextprotocol.io/v2/migration/)).
 
 ⚠️ Do **not** go back to `uv run --with mcp --with requests python server.py`.
 That re-resolves the dependencies on every start, which is slow enough to blow
