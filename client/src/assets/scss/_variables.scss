@@ -248,6 +248,13 @@ $cardwidth-phone: var(--tile-min-phone, 9rem);
 // utils/cardColumns.ts; the pair is tied together by cardGridGap.test.ts.
 $card-row-gap: 2.5rem;
 $card-col-gap: 2rem;
+// The rhythm of a captioned section on a page (Stufe B): 24px from the caption
+// sticker to the first tile, 56px from one section's last tile to the next
+// caption. CardScroller (Home, Favorites) and PlaylistCardGroup (Playlists)
+// both read these — they had drifted to 24/56 against 8/64, so switching
+// between Favorites and Playlists made the tiles jump (user, 2026-10-24).
+$section-caption-gap: 1.5rem;
+$section-gap: 3.5rem;
 $maxpadleft: 5rem;
 
 $alt_layout_pad: max(2rem, calc((100% - 1600px) / 2));

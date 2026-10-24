@@ -27,10 +27,6 @@ interface NavItem {
   query?: () => LocationQueryRaw;
   icon?: any;
   separator?: boolean;
-  // Sidebar only: the phone bar has room for five entries, so this one is
-  // left out there (it stays reachable through Home's Browse Library block,
-  // which phones keep for exactly this reason).
-  phoneHidden?: boolean;
   action?: () => void;
   // The entry's memphis fill. Declared HERE rather than as an `nth-child` rule
   // in the stylesheet: the list contains a separator, so a positional selector
@@ -110,7 +106,6 @@ const albums = {
   route_name: Routes.AlbumList,
   icon: AlbumSvg,
   tint: "tint-lavender",
-  phoneHidden: true,
 };
 
 const artists = {
@@ -118,7 +113,6 @@ const artists = {
   route_name: Routes.ArtistList,
   icon: ArtistSvg,
   tint: "tint-lime",
-  phoneHidden: true,
 };
 
 // ZIELE oben, WERKZEUGE unten — das ist die Bedeutung des Trenners.
@@ -130,11 +124,7 @@ const artists = {
 // playlists · stats`) — und Playlists, eines der häufigsten Ziele, lag an
 // fünfter Stelle hinter zwei Werkzeugen.
 //
-// ⚠️ Diese Reihenfolge gilt ZWEIMAL: `NavButtons.vue` rendert sie in der
-// Seitenleiste und — über `BottomBar.vue` — in der Navigationszeile am
-// Telefon. Dort sind `stats` und der Trenner per CSS ausgeblendet, sichtbar
-// sind also genau die fünf davor. Wer hier umsortiert, entscheidet mit, was am
-// Telefon überhaupt erscheint.
+// Diese Liste ist die SEITENLEISTE. Das Telefon hat seine eigene, unten.
 //
 // (`MobileNav.vue` liest diese Liste ebenfalls, hat aber keinen Aufrufer —
 // toter Code, der beim Suchen in die Irre führt.)
@@ -151,3 +141,23 @@ export const menus: NavItem[] = [
   folder,
   stats,
 ];
+
+// Die Navigationszeile am Telefon: fünf Plätze, eigene Reihenfolge
+// (Nutzerentscheidung 2026-10-24).
+//
+// Am Telefon gibt es keine Seitenleiste, die Suche ist also nicht „ein
+// Werkzeug unter dem Trenner", sondern der zweithäufigste Weg in die
+// Bibliothek — und stand dort bisher an vierter Stelle. Deshalb direkt hinter
+// Home, mittig unter dem Daumen. Albums, Artists und Stats haben hier keinen
+// Platz; Albums und Artists bleiben über Homes Browse-Library-Block
+// erreichbar, den das Telefon genau dafür behält.
+//
+// Früher war das keine eigene Liste, sondern `menus` mit per CSS
+// ausgeblendeten Einträgen (`phoneHidden`, `:last-child`). Damit hing die
+// Telefon-Reihenfolge an der Seitenleiste, und jede Umsortierung dort
+// entschied stillschweigend mit, was am Telefon erscheint.
+//
+// ⚠️ Auch hier gilt die Farbregel (navOrder.test.ts): Favoriten (Gold) steht
+// zwischen Suche (Koralle) und Playlists (Pink), damit die beiden Rottöne
+// sich nicht berühren.
+export const phoneMenus: NavItem[] = [home, search, favorites, playlists, folder];

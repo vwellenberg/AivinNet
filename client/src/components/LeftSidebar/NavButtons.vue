@@ -1,7 +1,7 @@
 <template>
   <div class="side-nav-container">
     <router-link
-      v-for="(menu, index) in menus"
+      v-for="(menu, index) in items"
       :key="index"
       :to="{
         name: menu.route_name || '',
@@ -13,7 +13,6 @@
         menu.tint,
         {
           separator: menu.separator,
-          'phone-hidden': menu.phoneHidden,
           active: $route.name === menu.route_name,
         },
       ]"
@@ -28,7 +27,14 @@
 </template>
 
 <script setup lang="ts">
-import { menus } from "./navitems";
+import { computed } from "vue";
+
+import { isMobile } from "@/stores/content-width";
+import { menus, phoneMenus } from "./navitems";
+
+// The phone bar is a list of its own, not the sidebar with entries hidden:
+// see `phoneMenus`. `isMobile` is the same 900px line as `allPhones` below.
+const items = computed(() => (isMobile.value ? phoneMenus : menus));
 </script>
 
 <style lang="scss">
@@ -246,13 +252,6 @@ import { menus } from "./navitems";
     }
 
     .separator {
-      display: none;
-    }
-  }
-
-  @include allPhones {
-    .nav-item:last-child,
-    .nav-item.phone-hidden {
       display: none;
     }
   }
