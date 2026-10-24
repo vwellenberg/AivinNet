@@ -234,8 +234,10 @@ Neujahr noch im alten Jahr.
 
 **Rewind bleibt etwas Besonderes** (#572, Nutzer 2026-10-23): Laut ist nur das jüngste Jahr,
 solange es **ungesehen** ist (`fresh` in `GET /logger/rewind/years`, `lib/rewind.fresh_year`): dann
-steht der Link **ganz oben** auf Stats, über den Charts (auf der Startlinie der Seite), im **Januar** zusätzlich eine Karte ganz oben auf Home
-(`HomeView/RewindCard.vue`; außerhalb des Januars fragt sie den Server gar nicht erst). Beim ersten
+steht im **Januar** eine Karte ganz oben auf Home (`HomeView/RewindCard.vue`; außerhalb des Januars
+fragt sie den Server gar nicht erst). **Auf Stats bleibt der Link immer**, gesehen oder nicht, ganz
+unten unter dem Hörkalender (`RewindLink`, jüngstes Jahr) — eine Zwischenfassung stellte ihn,
+solange er neu war, über die Charts, und am Handy klebte er dort bündig am Rahmen. Beim ersten
 Erscheinen pro Jahr und Gerät fliegt Konfetti aus ihr (`utils/confetti.celebrate(…, from)`, gemerkt
 in `localStorage`; unter „weniger Bewegung“ keins). **Gesehen heißt: bis zum Ende angesehen**, nicht
 geöffnet — ein Sentinel hinter der letzten Platte (`.rewind-end`, IntersectionObserver) muss
@@ -243,7 +245,7 @@ geöffnet — ein Sentinel hinter der letzten Platte (`.rewind-end`, Intersectio
 Öffnen; dann `POST /logger/rewind/seen`, bei einem Fehler beim nächsten Mal erneut. Danach bleibt das
 Kalenderfeld vom 1. Januar die Tür zum Vorjahr (`utils/rewind.rewindDoor`; für die Tastatur ein
 Link, der erst beim Fokus erscheint). Am nächsten 1. Januar ist das neue Jahr ungesehen und wieder
-laut. Gespeichert in `UserTable.extra["rewind_seen"]`, das `User.todict()` wie das Home-Layout
+laut (auf Home). Gespeichert in `UserTable.extra["rewind_seen"]`, das `User.todict()` wie das Home-Layout
 draußen lässt (`models/user.PRIVATE_EXTRA_KEYS`). Das Gastkonto markiert nichts (403).
 
 ⚠️ **Beide zählen Tage in der Zone der C-Bibliothek, nicht in pendulums** — der Kalender, weil er

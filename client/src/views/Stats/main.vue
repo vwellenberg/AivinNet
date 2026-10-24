@@ -1,9 +1,5 @@
 <template>
     <div class="content-page" style="height: 100%; overflow: auto" :style="{ background: brandGradient(BRAND_RED) }">
-        <!-- Rewind (#527) is a page of its own. While it is news (#572) the way
-             there is the first thing on the page, on every layout; seen to
-             the end, it is gone, and the page starts with the charts again. -->
-        <RewindLink :fresh="rewind?.fresh" />
         <Charts />
         <br><br>
         <!-- A SECTION heading, not the page title: it separates the weekly
@@ -15,10 +11,15 @@
         </GenericHeader>
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
         <ListeningCalendar :rewind-years="rewind?.years ?? []" />
+        <!-- Rewind (#527) is a page of its own; the way there stays at the very
+             bottom, seen or not (#572). The news is Home's January card. -->
+        <RewindLink :year="latestRewind" />
     </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
@@ -31,8 +32,10 @@ import { normalizeStatsPeriod, statsPeriodPhrase } from '@/utils/statsPeriod'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 const settings = useSettings()
-// Asked once for both: the link while Rewind is news, the door in the calendar after.
+// Asked once for both: the link at the bottom and the door in the calendar.
 const rewind = useRewindYears()
+// Oldest first from the server; the link names the newest.
+const latestRewind = computed(() => rewind.value?.years[rewind.value.years.length - 1] ?? null)
 
 updatePageTitle('Stats')
 </script>
