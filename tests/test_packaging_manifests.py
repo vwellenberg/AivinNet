@@ -532,5 +532,17 @@ class TestPinnedBuildInputs:
         }
         assert entries.get("uv") == "/"
         assert entries.get("npm") == "/client"
+        assert entries.get("pip") == "/mcp_server"
         assert (REPO_ROOT / "uv.lock").is_file()
         assert (REPO_ROOT / "client" / "yarn.lock").is_file()
+        assert (REPO_ROOT / "mcp_server" / "requirements.txt").is_file()
+
+    def test_dependabot_moves_the_backend_floors(self):
+        """GitHub raises its alerts from the ranges in pyproject.toml, not from uv.lock.
+
+        With `lockfile-only` the floors stayed behind (`pillow>=11.1.0`) and 43
+        alerts stood open while every locked version was already fixed.
+        """
+        config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        uv_entry = config.split("- package-ecosystem: uv", 1)[1].split("- package-ecosystem:", 1)[0]
+        assert "versioning-strategy: increase" in uv_entry

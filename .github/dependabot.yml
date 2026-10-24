@@ -23,13 +23,15 @@ updates:
     commit-message:
       prefix: ci
 
-  # Backend. `lockfile-only`: the floors in pyproject.toml stay as they are and
-  # only uv.lock moves, which is what Docker, the AppImage and CI install from.
+  # Backend. `increase`: the floors in pyproject.toml move with uv.lock. GitHub
+  # raises its security alerts from those ranges, not from the lock: with
+  # `lockfile-only` the floors stayed at pillow>=11.1.0 and friends, and 43
+  # alerts stood open while every installed version was already fixed.
   - package-ecosystem: uv
     directory: /
     schedule:
       interval: weekly
-    versioning-strategy: lockfile-only
+    versioning-strategy: increase
     cooldown:
       default-days: 7
     groups:
@@ -50,3 +52,17 @@ updates:
         update-types: ["minor", "patch"]
     commit-message:
       prefix: deps(client)
+
+  # The MCP server (mcp_server/) has its own requirements.txt and no lock.
+  - package-ecosystem: pip
+    directory: /mcp_server
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    cooldown:
+      default-days: 7
+    groups:
+      mcp-server:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: deps(mcp)

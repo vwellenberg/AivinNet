@@ -314,7 +314,8 @@ Deshalb vor Schritt 1 einmal **das Delta seit dem letzten Release** prüfen
   ganze Codebasis.
 - **Freigabe nur ohne Blocker:** Sicherheitslücke ohne Admin-Rechte, Datenverlust, Absturz oder
   Hänger auf einem üblichen Pfad, Regression im Delta. `high` ist behoben oder mit Begründung
-  akzeptiert. `pip-audit` auf `uv.lock` ohne offene Meldung, Changelog und `docs/privacy.md`
+  akzeptiert. `pip-audit` auf `uv.lock` ohne offene Meldung, die Dependabot-Alerts geschlossen
+  (die lesen die Bereiche in `pyproject.toml`, nicht den Lock), Changelog und `docs/privacy.md`
   aktuell.
 - **Funde gehören in den Release-PR bzw. das Release**, nicht in den Chat — sonst weiß der
   nächste Lauf nicht, was schon geprüft und angenommen ist.
