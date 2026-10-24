@@ -410,7 +410,8 @@ const SENDS_REQUESTS = /from\s+['"](?:axios|[^'"]*requests\/useAxios)['"]/
 
 describe('requests are sent from src/requests/ only', () => {
     const sources = import.meta.glob(['/src/**/*.ts', '/src/**/*.vue', '!/src/requests/**', '!/src/**/__tests__/**'], {
-        as: 'raw',
+        query: '?raw',
+        import: 'default',
         eager: true,
     }) as Record<string, string>
 

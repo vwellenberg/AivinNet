@@ -46,7 +46,7 @@ function scssFiles(dir: string): string[] {
 }
 
 const SOURCES: Record<string, string> = {
-    ...(import.meta.glob('/src/**/*.vue', { as: 'raw', eager: true }) as Record<string, string>),
+    ...(import.meta.glob('/src/**/*.vue', { query: '?raw', import: 'default', eager: true }) as Record<string, string>),
     ...Object.fromEntries(scssFiles('src').map(f => ['/' + f.split('\\').join('/'), readFileSync(f, 'utf-8')])),
 }
 

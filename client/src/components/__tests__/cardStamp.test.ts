@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 // rounded corners the clip used to cut. Neither half fails loudly: the stamp
 // just renders cut off, or the cover pokes square corners out of the frame.
 // ---------------------------------------------------------------------------
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const anatomy = readFileSync("src/assets/scss/Global/cards.scss", "utf8");
 
 describe("card stamp", () => {

@@ -139,7 +139,7 @@ describe("the fills under the ring", () => {
 // a new one has to be added here with its reason.
 const ALLOWED_HATCH_FALSE: string[] = [];
 
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 describe("label call sites", () => {
   it("found the component sources", () => {

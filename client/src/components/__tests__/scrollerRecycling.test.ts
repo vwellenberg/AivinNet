@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 // (a scroller block), not a file list, so the next list joins by existing.
 // ---------------------------------------------------------------------------
 
-const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<
+const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<
   string,
   string
 >;

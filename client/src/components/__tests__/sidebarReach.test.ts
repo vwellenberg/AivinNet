@@ -13,7 +13,7 @@ import { block, styleBlock } from "./scssBlocks";
 // custom property the panel takes back in that mode.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob("/src/components/LeftSidebar/*.vue", { as: "raw", eager: true }) as Record<
+const SOURCES = import.meta.glob("/src/components/LeftSidebar/*.vue", { query: "?raw", import: "default", eager: true }) as Record<
   string,
   string
 >;

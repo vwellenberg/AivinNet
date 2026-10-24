@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest'
 
 const SERVER_HOME_TYPES = ['album', 'artist', 'favorite', 'folder', 'playlist', 'track']
 
-const SOURCES = import.meta.glob('/src/components/shared/CardScroller.vue', { as: 'raw', eager: true }) as Record<
+const SOURCES = import.meta.glob('/src/components/shared/CardScroller.vue', { query: '?raw', import: 'default', eager: true }) as Record<
     string,
     string
 >

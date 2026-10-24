@@ -222,7 +222,7 @@ describe("the fetcher loads when it becomes visible", () => {
 // The other half: the hosts.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob("/src/**/*.{vue,ts}", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.{vue,ts}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 describe("the hosts give their fetcher a stable identity", () => {
     it("no item that carries a fetcher is keyed on a random number", () => {

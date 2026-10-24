@@ -185,7 +185,7 @@ def bundled(config, monkeypatch, tmp_path_factory):
     monkeypatch.setattr(AssetHandler, "bundled_zip_path", staticmethod(lambda: package / "client.zip"))
 
     def bundle(index_html: str, files: dict | None = None, date_time=(2026, 10, 4, 12, 0, 0)):
-        members = {"index.html": index_html, "assets/index.0123abcd.js": "console.log(1)", **(files or {})}
+        members = {"index.html": index_html, "assets/index-C-ks_dOF.js": "console.log(1)", **(files or {})}
         with zipfile.ZipFile(package / "client.zip", "w") as zf:
             for name, body in members.items():
                 zf.writestr(zipfile.ZipInfo(f"client/{name}", date_time=date_time), body)
@@ -209,7 +209,7 @@ class TestBundledClient:
         assert AssetHandler.extract_default_client(tmp) is True
 
         assert "bundled" in (client / "index.html").read_text()
-        assert (client / "assets" / "index.0123abcd.js").is_file()
+        assert (client / "assets" / "index-C-ks_dOF.js").is_file()
 
     def test_a_download_era_stamp_is_replaced_by_the_bundle(self, config, bundled):
         """
@@ -275,14 +275,14 @@ class TestBundledClient:
         tmp, client, _set = config
         (client / "assets").mkdir()
         (client / "assets" / "old.11111111.js").write_text("old")
-        (client / "assets" / "index.0123abcd.js.gz").write_bytes(b"old gzip")
+        (client / "assets" / "index-C-ks_dOF.js.gz").write_bytes(b"old gzip")
         (tmp / AssetHandler.CLIENT_STAMP_NAME).write_text(json.dumps({"requested": "2026.8.2"}))
         bundled("<!doctype html><title>new</title>")
 
         AssetHandler.setup_default_client()
 
         files = sorted(p.relative_to(client).as_posix() for p in client.rglob("*") if p.is_file())
-        assert files == ["assets/index.0123abcd.js", "index.html"]
+        assert files == ["assets/index-C-ks_dOF.js", "index.html"]
         # No staging or retired directories left in the config dir either.
         assert sorted(p.name for p in tmp.iterdir() if p.name.startswith(".client-")) == []
 

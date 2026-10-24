@@ -268,13 +268,14 @@ Seitdem baut das `Dockerfile` den Client in einer **Node-Stage** aus `client/` u
   Client endet der Start wie bisher.
 
 Die Node-Stage läuft mit `--platform=$BUILDPLATFORM` (statische Dateien, einmal nativ statt unter
-QEMU pro Architektur) auf dem **vollen** `node:22`-Image: `sharp` (Dev-Dep über
-`@vite-pwa/assets-generator`) fällt ohne Prebuilt auf node-gyp zurück und braucht dann
-python/make/g++. `.dockerignore` hält `node_modules`, `.git` und `.claude` (Worktrees!) aus dem
-Kontext, `client/` muss drin bleiben (`TestDockerfile` prüft beides). Der `Docker Smoke Test`
-schreibt deshalb **keinen Stub-Client** mehr, sondern prüft, dass `/` ein gebauter Client mit
-gehashtem `assets/index.*.js` ist, kein `Downloading from GitHub` im Log steht und der Stempel
-einen `bundle`-Digest trägt.
+QEMU pro Architektur) auf dem **vollen** `node:22`-Image. Grund war `sharp` (Dev-Dep über
+`@vite-pwa/assets-generator`), das ohne Prebuilt auf node-gyp zurückfällt und dann
+python/make/g++ braucht; seit #581 ist es weg, der Client hat keine native Abhängigkeit mehr.
+`.dockerignore` hält `node_modules`, `.git` und `.claude` (Worktrees!) aus dem Kontext,
+`client/` muss drin bleiben (`TestDockerfile` prüft beides). Der `Docker Smoke Test` schreibt
+deshalb **keinen Stub-Client** mehr, sondern prüft, dass `/` ein gebauter Client mit gehashtem
+`assets/index-*.js` ist (Vite 6: Bindestrich + base64url; Vite 3 hatte Punkt + Hex), kein
+`Downloading from GitHub` im Log steht und der Stempel einen `bundle`-Digest trägt.
 
 ## Der Client-Download aus dem Release (nur noch ohne gebündeltes Zip)
 

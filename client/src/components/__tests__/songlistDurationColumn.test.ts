@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 // 7.5rem. That is the shape of this bug — fixed where it was noticed, not where
 // it was caused — and it is exactly what a census can hold shut.
 //
-// ⚠️ Two of the four wrong grids live in a .scss, and `as: "raw"` on a .scss
+// ⚠️ Two of the four wrong grids live in a .scss, and `query: "?raw"` on a .scss
 // returns an EMPTY STRING under test (.claude/rules/testing.md). A single glob
 // over both extensions therefore reads the components and silently skips the
 // stylesheets — a census that passes on air. Vue files come through Vite,
@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest'
 // arrived with content.
 // ---------------------------------------------------------------------------
 
-const VUE_SOURCES = import.meta.glob('/src/**/*.vue', { as: 'raw', eager: true }) as Record<string, string>
+const VUE_SOURCES = import.meta.glob('/src/**/*.vue', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 
 function scssFiles(dir: string): string[] {
     const files: string[] = []

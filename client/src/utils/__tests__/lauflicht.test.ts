@@ -23,7 +23,7 @@ describe('lauflichtClasses', () => {
 // The class alone does nothing: the stylesheet has to pause BOTH pseudo
 // elements, and the reduced-motion exception must not restart them — it forces
 // `animation-duration` / `-iteration-count` with !important, never play-state.
-// Read with readFileSync: `import.meta.glob(..., { as: 'raw' })` returns '' for .scss.
+// Read with readFileSync: `import.meta.glob(..., { query: '?raw', import: 'default' })` returns '' for .scss.
 describe('lauflicht stylesheet', () => {
     const css = readFileSync('src/assets/scss/Global/lauflicht.scss', 'utf8')
     const policy = readFileSync('src/assets/scss/Global/motion-policy.scss', 'utf8')

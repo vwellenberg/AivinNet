@@ -22,9 +22,9 @@ import { block as blockOf, ownDeclarations, styleBlock } from "./scssBlocks";
 // not on the broken spelling, because the instance that slips through is always
 // the half-conforming one.
 // ---------------------------------------------------------------------------
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
-// `import.meta.glob(..., { as: "raw" })` hands back an EMPTY STRING for .scss —
+// `import.meta.glob(..., { query: "?raw" })` hands back an EMPTY STRING for .scss —
 // Vite runs stylesheets through the CSS pipeline, which is stubbed under test.
 // Read it off disk instead, relative to the runner's cwd (the project root).
 const GEOMETRY_FILE = "src/assets/scss/Global/_buttons.scss";

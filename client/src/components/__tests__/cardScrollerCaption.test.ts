@@ -17,7 +17,8 @@ import { block, styleBlock } from "./scssBlocks";
 // ---------------------------------------------------------------------------
 
 const SOURCES = import.meta.glob("/src/components/shared/CardScroller.vue", {
-  as: "raw",
+  query: "?raw",
+  import: "default",
   eager: true,
 }) as Record<string, string>;
 const SOURCE = SOURCES["/src/components/shared/CardScroller.vue"];

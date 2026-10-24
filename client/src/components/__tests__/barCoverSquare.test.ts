@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 // the rule from sliding back under a media query.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob('/src/components/BottomBar/*.vue', { as: 'raw', eager: true }) as Record<
+const SOURCES = import.meta.glob('/src/components/BottomBar/*.vue', { query: '?raw', import: 'default', eager: true }) as Record<
     string,
     string
 >

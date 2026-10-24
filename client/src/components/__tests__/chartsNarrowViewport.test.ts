@@ -28,7 +28,7 @@ import { blocks, ownDeclarations, styleBlock } from "./scssBlocks";
 // .claude/rules/testing.md), so every expectation below is paired with a guard
 // over its own input.
 //
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 // ⚠️ Read from disk, not through `import.meta.glob`: Vite runs stylesheets
 // through the CSS pipeline, which is stubbed under test, and hands back an
 // EMPTY STRING for .scss — every assertion below would pass on nothing.
@@ -77,7 +77,7 @@ function mixinBody(css: string, name: string): string {
 /**
  * Every global stylesheet, read from DISK.
  *
- * ⚠️ `import.meta.glob(..., { as: "raw" })` hands back an EMPTY STRING for
+ * ⚠️ `import.meta.glob(..., { query: "?raw", import: "default" })` hands back an EMPTY STRING for
  * .scss — Vite runs stylesheets through the CSS pipeline, which is stubbed
  * under test. A census that sweeps only `.vue` therefore cannot see
  * `Global/search-tabheaders.scss`, where half of the search chip row lives:

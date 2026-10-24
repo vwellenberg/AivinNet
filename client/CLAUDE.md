@@ -11,7 +11,7 @@ die Issue-Historie — Links dorthin bleiben gültig, neue Arbeit passiert hier.
 | | |
 |---|---|
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)), Client unter `client/` |
-| **Stack** | Vue 3, Pinia, TypeScript, SCSS, Vite 3, yarn |
+| **Stack** | Vue 3, Pinia, TypeScript, SCSS, Vite 6, yarn |
 | **Server** | Homeserver im LAN, Port 1970, systemd-Unit **`aivinnet`** — Host, Account und Key stehen in der globalen `~/.claude/CLAUDE.md` (nicht im Repo) |
 | **Checkout auf dem Server** | `~/AivinNet`, Client gebaut nach `~/.config/aivinnet/client/` |
 
@@ -283,7 +283,11 @@ Kurzfassung: Vue 3 + Pinia + Vite, **Hash-Routing** (Deeplinks brauchen `#`), Wi
   beim Hover. Wer ihm wieder eine Fläche gibt, holt sich das Problem aus #318 zurück: Ink als
   *Fläche* ist sonst nirgends in der App, und im Dark-Theme liegt sie auf der Panel-Farbe
   (#17171A auf #141416) — die Kachel verschwindet, nur der Rahmen bleibt.
-- **Vitest 0.x, nicht 1.x** — Vite-3-Kompatibilität.
+- **Vite 6.4 + Vitest 4.1** (seit #581). `vite` ist per `resolutions` in `package.json` festgenagelt:
+  vitest nimmt einen Bereich über mehrere Vite-Majors, und yarn legte ihm sonst die neueste davon
+  daneben — zwei Vites im Baum, und das fremde scheiterte am Sass 1.56
+  (`sass.initAsyncCompiler is not a function`, 47 Testdateien luden nicht). Die nächste Vite-Major
+  heißt `resolutions` mit anheben.
 
 Die bereichsgebundenen Regeln stehen in `.claude/rules/` und laden sich selbst, sobald eine
 passende Datei gelesen wird:
@@ -294,7 +298,7 @@ passende Datei gelesen wird:
 | `stores-and-state.md` | `src/stores/**`, `src/utils/playlistMove.ts`, `src/utils/dragReorder.ts`, `src/helpers/playlistTrackEdits.ts`, `src/utils/shufflePicker.ts`, `src/requests/**` | Playlist-Schreibpfade, optimistische Rollbacks, Zufall-im-Getter, virtualisierte Queue |
 | `device-sync.md` | `src/stores/devicesync.ts`, `src/utils/deviceSync/**`, `src/components/DeviceSync/**`, `src/components/modals/Devices.vue`, `src/views/PairView.vue` | Seams, Timing, Auto-Rejoin, Feld-Bugs |
 | `infinite-scroll.md` | `src/components/ArtistView/AlbumsFetcher.vue`, `src/components/shared/GenericTrackPagination.vue`, `src/views/AlbumListView/main.vue`, `src/views/FolderView.vue`, `src/views/SearchView/*.vue`, `src/stores/pages/itemlist.ts` | Sichtbarkeit statt Remount als Auslöser, Ketten-Bremse, `useAxios` löst bei Fehlern **auf**, Blättern übers Listenende |
-| `testing.md` | `src/**/__tests__/**`, `vite.config.ts` | Vitest-0.34-Fallen, Fixtures |
+| `testing.md` | `src/**/__tests__/**`, `vite.config.ts` | Vitest-Fallen, Fixtures |
 
 ⚠️ **Die „greift bei"-Spalte ist keine Prosa, sondern das `paths:`-Frontmatter der jeweiligen
 Datei — wortgleich.** Beides von Hand zu pflegen hat nicht funktioniert: Die Spalte nannte für
@@ -408,7 +412,7 @@ GitHub nichts.)
 ## Learnings / Gotchas (für alle Agents)
 
 - **⚠️ CODE-CURRENCY ZUERST PRÜFEN (vor jeder Analyse/Diagnose/Screenshot):** Immer verifizieren, dass auf dem **aktuellen** Code gearbeitet wird — an BEIDEN Stellen: (1) **Lokal**: `git fetch` + `git rev-list --left-right --count HEAD...origin/master`; bei Rückstand ff-syncen. (2) **Deployt/Live**: Server-Checkout-HEAD (`~/AivinNet-Client`) **und** deployter Build (`~/.config/aivinnet/client`) gegen `origin/master`. **Die Headless-Screenshot-Pipeline trifft die DEPLOYTE App** — die kann viele Commits hinterherhinken, auch wenn `master` aktuell ist (real passiert: Header an 6-Commits-alter App diagnostiziert, Pin noch rechts oben statt inline). Stale → erst syncen (lokal) bzw. aktuellen `master` deployen (mit User-OK), DANN diagnostizieren/screenshotten. Nie Mockups/Befunde von veraltetem Stand als „so ist es" präsentieren. **Und danach noch einmal prüfen** — hier deployen mehrere Sitzungen, der Stand kann sich mitten in einer Messreihe ändern (siehe *Mehrere Agents parallel*).
-- **⚠️ SERVICE WORKER / STALE CACHE (ZUERST LESEN):** Wenn der User sagt „Fix sieht man nicht / UI noch alt", obwohl der Deploy nachweislich korrekt auf dem Server liegt → **fast immer ein Service Worker**, der alte vorgecachte Assets ausliefert. **Strg+Shift+R und „Cache löschen" umgehen einen Service Worker NICHT.** Symptom: Headless-Screenshot (kein SW) zeigt den Fix korrekt, aber der User-Browser nicht. Diagnose: `ls ~/.config/aivinnet/client | grep -iE 'sw|workbox'` + im sw.js auf alte `index.*.js`-Hashes prüfen. **Status quo: PWA/SW ist via `selfDestroying: true` in [vite.config.ts](vite.config.ts) abgeschaltet** — nicht ohne triftigen Grund reaktivieren. Falls ein User noch einen alten SW stecken hat: Chrome DevTools (F12) → Application → Storage → „Clear site data" → Tab neu laden (das entfernt den SW; ein normaler Reload reicht nicht). Dieses Problem trat mehrfach auf — bitte SOFORT daran denken, bevor man stundenlang am CSS sucht.
+- **⚠️ SERVICE WORKER / STALE CACHE (ZUERST LESEN):** Wenn der User sagt „Fix sieht man nicht / UI noch alt", obwohl der Deploy nachweislich korrekt auf dem Server liegt → **fast immer ein Service Worker**, der alte vorgecachte Assets ausliefert. **Strg+Shift+R und „Cache löschen" umgehen einen Service Worker NICHT.** Symptom: Headless-Screenshot (kein SW) zeigt den Fix korrekt, aber der User-Browser nicht. Diagnose: `ls ~/.config/aivinnet/client | grep -iE 'sw|workbox'` + im sw.js auf alte `index-*.js`-Hashes prüfen. **Status quo: PWA/SW ist via `selfDestroying: true` in [vite.config.ts](vite.config.ts) abgeschaltet** — nicht ohne triftigen Grund reaktivieren. Falls ein User noch einen alten SW stecken hat: Chrome DevTools (F12) → Application → Storage → „Clear site data" → Tab neu laden (das entfernt den SW; ein normaler Reload reicht nicht). Dieses Problem trat mehrfach auf — bitte SOFORT daran denken, bevor man stundenlang am CSS sucht.
 - **⚠️ Ein fehlgeschlagener Seiten-Chunk bleibt fehlgeschlagen — bis zum Reload.** Jede Seite
   außer Home ist ein Lazy-Chunk; scheitert dessen Laden einmal (Netzaussetzer, oder ein Deploy
   bzw. `prune-serve-assets.sh` hat den gehashten Dateinamen unter einem offenen Tab entfernt),
@@ -434,7 +438,7 @@ GitHub nichts.)
   zweite gegen dasselbe `dist` wieder teal). Eigenen Checkout **von `~/AivinNet`** anlegen
   (`~/preview` ist seit dem Monorepo tot) und danach **am gebauten Artefakt** prüfen, dass die
   eigene Änderung wirklich drin ist. Rezept: [docs/verification.md](docs/verification.md).
-- **⚠️ Reine Refactors gegen den Content-Hash beweisen.** Vite benennt Assets nach ihrem Inhalt — wenn `dist/assets/index.<hash>.css` auf Branch und master **denselben** Namen trägt, ist das gebaute CSS byte-identisch und eine Rendering-Änderung ausgeschlossen, nicht bloß unwahrscheinlich. Vorgehen: beide Seiten mit `rm -rf dist` sauber bauen, Dateinamen vergleichen, mit `cmp` gegenprüfen. Genau dieser Vergleich hat einen Sass-Interpolationsfehler gefunden, den drei grüne Gates durchgelassen hatten.
+- **⚠️ Reine Refactors gegen den Content-Hash beweisen.** Vite benennt Assets nach ihrem Inhalt — wenn `dist/assets/index-<hash>.css` auf Branch und master **denselben** Namen trägt, ist das gebaute CSS byte-identisch und eine Rendering-Änderung ausgeschlossen, nicht bloß unwahrscheinlich. Vorgehen: beide Seiten mit `rm -rf dist` sauber bauen, Dateinamen vergleichen, mit `cmp` gegenprüfen. Genau dieser Vergleich hat einen Sass-Interpolationsfehler gefunden, den drei grüne Gates durchgelassen hatten.
 - **⚠️ Ein selbst geprägtes JWT braucht `sub` als Dict, nicht als JSON-String.** Sonst: HTTP 500
   auf jedem Endpoint, während die App-Shell weiter rendert — Chrome und Nav sind da, aber null
   Playlists und null Alben. Sieht nach kaputtem UI aus, ist ein kaputtes Token. Details und der

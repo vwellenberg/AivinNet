@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // server marks the image as its placeholder: no colours, the extractor does not
 // even run, and the store says so (`colors.placeholder`, read by the album head).
 
-const clear = vi.fn<[string], Promise<boolean>>()
+const clear = vi.fn<(url: string) => Promise<boolean>>()
 vi.mock('../placeholderCover', () => ({ coverIsPlaceholder: (url: string) => clear(url) }))
 
 const vibrantCalls: string[] = []

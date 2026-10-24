@@ -24,7 +24,7 @@ import { NOW_PLAYING_CLASS } from "@/utils/arrivalLatch";
 // `.vue` through Vite (the test then sees what the build sees), `.scss` through
 // `fs` — a raw glob returns an EMPTY string for stylesheets, which makes a
 // source-scanning test silently green (.claude/rules/testing.md).
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const CANDY_FILE = "src/assets/scss/_candy.scss";
 const MIXIN = "mem-now-playing-row";
 

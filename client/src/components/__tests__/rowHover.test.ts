@@ -20,7 +20,7 @@ import { stripPointerGates } from "./scssBlocks";
 // Read through Vite rather than `fs`, so the test sees exactly the files the
 // build sees. (`.scss` would come back EMPTY through this glob — see
 // .claude/rules/testing.md — hence every row host here is a .vue file.)
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 /** Every FLAT row list in the app, as file + the selector that owns the row. */
 const ROWS = [
