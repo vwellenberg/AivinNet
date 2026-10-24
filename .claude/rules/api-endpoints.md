@@ -218,6 +218,17 @@ nächsten Play (`ScrobbleTable.change_marker`: Anzahl + höchste ID; der Kalende
 zum nächsten Tag, Rewind nur das zuletzt geöffnete Jahr). Wer dort etwas ergänzt, rechnet es in
 den gecachten Payload hinein, nicht daneben.
 
+**Die Hör-Uhr** (`GET /logger/clock?period=…`, #535) folgt dagegen dem Zeitraum der Kacheln:
+Sekunden pro Wochentag × Stunde, in SQL gruppiert (`ScrobbleTable.seconds_by_weekday_hour`,
+höchstens 168 Zeilen), in derselben `localtime`-Zone wie der Kalender, Montag zuerst
+(`lib/listening_clock.py`). Eine Stunde nach Mitternacht gehört zum **Kalendertag** — anders als
+„Your weekday evenings“, wo sie zur Nacht davor zählt; der Client sagt das unter der Überschrift.
+Gecacht pro User mit Zeitraum, Startzeit und `change_marker`. Die Farbstufen teilt sie mit dem
+Kalender (`listening-shades` in `_candy.scss`), gestuft aber **relativ zur vollsten Stunde**: eine
+Zelle summiert jede Woche des Zeitraums, feste Minuten hießen bei „all time“ etwas anderes als
+bei „this week“. ⚠️ Am Handy steht das Raster **hochkant** (Tage als Spalten,
+`clockLayout(…, upright)`): 24 Spalten ergaben gemessen 8 px (390) bzw. 5 px (320) kleine Felder.
+
 **Ein Rewind öffnet am 1. Januar für das Jahr, das endete** (Wunsch des Nutzers, 2026-10-23): Ein
 Rückblick auf ein laufendes Jahr ändert sich täglich. Das laufende und spätere Jahre antworten
 **404** mit `opens` und den offenen `years` (ein Lesezeichen findet so zum letzten Jahr). Die

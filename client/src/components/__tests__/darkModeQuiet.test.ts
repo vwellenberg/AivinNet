@@ -28,8 +28,11 @@ describe('dark mode: darker and quieter', () => {
     it("the calendar's busiest days keep their size: their edge is the line, not static ink", () => {
         // An inset ring in ink is the ground's colour in dark mode: the square
         // lost 2 px a side and the busiest days looked the smallest.
-        const sfc = read('src/components/Stats/ListeningCalendar.vue')
-        const busiest = sfc.slice(sfc.indexOf('&.level-4 {'), sfc.indexOf('}', sfc.indexOf('&.level-4 {')))
+        // One scale for the calendar and the listening clock (#535).
+        expect(read('src/components/Stats/ListeningCalendar.vue')).toContain('@include listening-shades')
+        const candy = read('src/assets/scss/_candy.scss')
+        const shades = candy.slice(candy.indexOf('@mixin listening-shades'))
+        const busiest = shades.slice(shades.indexOf('&.level-4 {'), shades.indexOf('}', shades.indexOf('&.level-4 {')))
         expect(busiest, 'the level-4 block').toContain('box-shadow')
         expect(busiest).toMatch(/box-shadow: inset 0 0 0 \$mem-ring-w \$mem-line;/)
         expect(busiest).not.toContain('$mem-ink')

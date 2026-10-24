@@ -752,6 +752,39 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   font-size-adjust: inherit;
 }
 
+// The shades of the stats page's squares: the listening calendar (#525) and
+// the listening clock (#535) read one scale. Included on the square; the
+// classes `level-0` to `level-4` pick the shade.
+@mixin listening-shades {
+    background-color: mem-alpha($mem-ink, 0.08);
+
+    &.level-1 {
+        background-color: mem-alpha($mem-teal, 0.35);
+    }
+
+    &.level-2 {
+        background-color: mem-alpha($mem-teal, 0.6);
+    }
+
+    &.level-3 {
+        background-color: mem-alpha($mem-teal, 0.85);
+    }
+
+    &.level-4 {
+        background-color: $mem-teal;
+        // The busiest squares get the edge every other plate has: the line,
+        // ink in light, grey in dark. Static ink vanished into the dark
+        // ground and took 2 px off every side, so the busiest squares
+        // looked the smallest (user, 2026-10-23).
+        box-shadow: inset 0 0 0 $mem-ring-w $mem-line;
+    }
+
+    // Ink at 8 % disappears on the dark ground; paper is the faint square there.
+    @at-root body.theme-dark #{&}.level-0 {
+        background-color: mem-alpha($mem-paper, 0.1);
+    }
+}
+
 @mixin mem-sticker($radius: $candy-radius-sm, $pad: 0.3rem 0.7rem, $fill: null) {
   display: inline-block;
   width: fit-content;

@@ -569,6 +569,27 @@ class ScrobbleTable(Base):
         return [(row[0], row[1]) for row in result.all()]
 
     @classmethod
+    def seconds_by_weekday_hour(
+        cls, start_time: int, end_time: int, userid: int
+    ) -> list[tuple[str | None, str | None, int | None]]:
+        """
+        `(weekday, hour, seconds listened)` over one user's period — the
+        listening clock (#535, `lib/listening_clock`). Sunday is "0".
+
+        Grouped in SQL, in the zone of `seconds_per_day`, so at most 168 rows
+        cross into Python on the request thread.
+        """
+        weekday = func.strftime("%w", cls.timestamp, "unixepoch", "localtime")
+        hour = func.strftime("%H", cls.timestamp, "unixepoch", "localtime")
+        result = cls.rows(
+            select(weekday, hour, func.sum(cls.duration))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(weekday, hour)
+        )
+        return [(row[0], row[1], row[2]) for row in result.all()]
+
+    @classmethod
     def trackhashes_before(cls, timestamp: int, userid: int | None = None) -> list[str]:
         """Every track the user played before `timestamp`, once (Rewind's "new artists")."""
         if userid is None:

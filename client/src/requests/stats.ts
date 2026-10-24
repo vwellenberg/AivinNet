@@ -40,6 +40,29 @@ export async function getListeningCalendar() {
     })
 }
 
+/** The listening clock (#535): seconds per weekday (Monday first) and hour. */
+export interface ClockPeak {
+    day: number
+    hour: number
+    seconds: number
+}
+
+export interface ClockPayload {
+    days: number[][]
+    total: number
+    peak_hour: ClockPeak | null
+    peak_day: { day: number; seconds: number } | null
+    dates: string
+}
+
+/** When in the week the music plays, over the stats page's period (#535). */
+export async function getListeningClock(period: string) {
+    return await useAxios({
+        url: paths.api.stats.base + `/clock?period=${encodeURIComponent(period)}`,
+        method: 'GET',
+    })
+}
+
 /**
  * The years a Rewind opens for: finished years with plays, oldest first
  * (#527); `seen`, the years seen to the end; `fresh`, the latest year while it
