@@ -30,4 +30,11 @@ describe("section rhythm", () => {
     expect(scroller).toMatch(/\.cardscroller \{[^}]*padding: calc\(#\{\$section-gap\} \/ 2\) 0;/);
     expect(group).toMatch(/\.playlistcardgroup \{[^}]*margin-bottom: \$section-gap;/);
   });
+
+  it("spaces the playlist tiles on the phone like the Favorites rows", () => {
+    // Desktop keeps its roomier 3.5rem playlist rows on purpose; the phone had
+    // a literal 1rem, so the tiles there were wider and closer than one tab over.
+    const page = readFileSync("src/views/PlaylistList.vue", "utf-8");
+    expect(page).toMatch(/@include mediumPhones \{[^}]*gap: \$card-row-gap \$card-col-gap;/);
+  });
 });
