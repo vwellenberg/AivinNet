@@ -45,9 +45,9 @@ fi
 pruned=0
 kept=0
 
-# Vite names every asset <name>.<hash>.<ext>, so there is nothing here that
-# `ls` handles worse than `find` — and `comm` needs two sorted lists of bare
-# names, which `ls -1 | sort` gives directly.
+# Vite names every asset <name>-<hash>.<ext> (Vite 3: <name>.<hash>.<ext>), so
+# there is nothing here that `ls` handles worse than `find` — and `comm` needs
+# two sorted lists of bare names, which `ls -1 | sort` gives directly.
 # shellcheck disable=SC2012
 while IFS= read -r name; do
 	file="$SERVE_ASSETS/$name"

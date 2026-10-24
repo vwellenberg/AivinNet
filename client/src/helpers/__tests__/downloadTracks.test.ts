@@ -135,7 +135,7 @@ describe('downloadTracksIndividually', () => {
 // than as a second button in the row.
 // ---------------------------------------------------------------------------
 describe('download options', () => {
-    const MENUS = import.meta.glob('/src/context_menus/*.ts', { as: 'raw', eager: true }) as Record<string, string>
+    const MENUS = import.meta.glob('/src/context_menus/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 
     // The quoted LABEL, so the prose above these options in the source (which
     // has to say "ZIP" to explain itself) cannot satisfy the rule.

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type SpyInstance } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 const { Notification } = vi.hoisted(() => ({ Notification: vi.fn() }))
@@ -20,7 +20,7 @@ const SAFARI = new TypeError('Importing a module script failed.')
 const VITE_CSS = new Error('Unable to preload CSS for /assets/AlbumListView-9b1d0c44.css')
 
 let reload: ReturnType<typeof vi.fn>
-let replaceState: SpyInstance<Parameters<History['replaceState']>, void>
+let replaceState: MockInstance<History['replaceState']>
 let probe: ReturnType<typeof vi.fn>
 
 function setOnline(online: boolean) {

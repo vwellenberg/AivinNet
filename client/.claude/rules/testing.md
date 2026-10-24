@@ -9,7 +9,7 @@ paths:
 
 # Tests
 
-**Vitest 0.x, nicht 1.x** — wegen Vite-3-Kompatibilität. Tests liegen als `*.test.ts` in
+**Vitest 4.1 auf Vite 6.4** (bis #581: Vitest 0.34 auf Vite 3). Tests liegen als `*.test.ts` in
 `src/**/__tests__/`. `yarn test` (einmal), `yarn test:watch`.
 
 Getestet wird, wo Fehler teuer waren: Store-Logik, Request-Schichten, pure Utils
@@ -34,12 +34,12 @@ Vorbild: `dragTo()` in `LeftSidebar/NP/__tests__/Progress.test.ts`.
 
 ## ⚠️ `vi.resetModules()` ist mit Pinia unzuverlässig
 
-Vitest 0.34 teilt Modul-Instanzen, und der Store-State des Vortests überlebt über eine zweite
+Unter Vitest 0.34 geteilte Modul-Instanzen: Der Store-State des Vortests überlebte über eine zweite
 Pinia-Kopie. **Kein Registry-Reset.** Stattdessen exportiert der betroffene Store einen
 Test-Reset-Helper, der im `beforeEach` aufgerufen wird — Vorbild:
 `__resetDeviceSyncTestState()` in `stores/devicesync.ts`.
 
-## ⚠️ Quelltext-scannende Tests: `import.meta.glob(..., { as: "raw" })` liefert bei `.scss` LEER
+## ⚠️ Quelltext-scannende Tests: `import.meta.glob(..., { query: "?raw", import: "default" })` liefert bei `.scss` LEER
 
 Es gibt hier mehrere Tests, die den Quelltext selbst prüfen, weil Prosa die Regel nicht gehalten
 hat (`headerActionOrder`, `cardAnatomy`, `rowHover`, `queueSeamCensus`). Für `.vue` ist der Glob

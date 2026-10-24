@@ -70,7 +70,7 @@ if [[ -d "$SERVE/assets" ]]; then
 	echo "SERVE now holds $(du -sh "$SERVE/assets" | cut -f1) of assets against $(du -sh "$REPO/dist/assets" | cut -f1) in the build"
 fi
 
-curl -s http://localhost:1970/ | grep -oE "index\.[a-z0-9]+\.(js|css)" | head -2
+curl -s http://localhost:1970/ | grep -oE "index-[A-Za-z0-9_-]+\.(js|css)" | head -2
 
 # ---------------------------------------------------------------------------
 # Post-deploy gates. Both live HERE, not in Vitest, because jsdom has no layout

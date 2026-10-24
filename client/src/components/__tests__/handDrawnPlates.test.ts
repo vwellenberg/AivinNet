@@ -39,9 +39,9 @@ import { namedRules } from "./scssBlocks";
 // ---------------------------------------------------------------------------
 
 // Vue components through Vite, so the scan sees exactly what the build sees.
-// Stylesheets off disk: `as: "raw"` returns an EMPTY string for `.scss` under
+// Stylesheets off disk: `query: "?raw"` returns an EMPTY string for `.scss` under
 // test (.claude/rules/testing.md).
-const VUE = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const VUE = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 function scssFiles(dir: string): string[] {
   const files: string[] = [];

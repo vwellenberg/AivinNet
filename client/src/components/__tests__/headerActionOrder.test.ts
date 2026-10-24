@@ -16,7 +16,7 @@ type Slot = (typeof CANONICAL)[number];
 
 // Read through Vite rather than `fs`, so the test sees exactly the files the
 // build sees and needs no path arithmetic of its own.
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 const HEADERS = [
   "/src/components/AlbumView/Header/Buttons.vue",

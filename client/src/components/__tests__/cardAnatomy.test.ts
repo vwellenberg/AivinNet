@@ -14,11 +14,11 @@ import { describe, expect, it } from "vitest";
 // 16px radius instead of 14px and no offset shadow.
 // ---------------------------------------------------------------------------
 // Components come through Vite, so the test sees exactly the files the build
-// sees. The stylesheet cannot: `import.meta.glob(..., { as: "raw" })` on a
+// sees. The stylesheet cannot: `import.meta.glob(..., { query: "?raw" })` on a
 // `.scss` runs it through the CSS pipeline first, which is stubbed out under
 // test — it hands back an empty string, and every check below would pass
 // vacuously. Read it off disk instead (guarded by `it("reads the anatomy")`).
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 // Relative to the runner's cwd, which is the project root. The two anchors that
 // look more principled do not work here: `import.meta.url` is left in a shape
 // `fileURLToPath()` rejects (ERR_INVALID_ARG_TYPE), and `process.cwd()` trips

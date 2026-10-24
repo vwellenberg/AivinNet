@@ -189,7 +189,7 @@ nicht als String-Literal.
 
 ## Tests
 
-Vitest **0.x** (nicht 1.x — Vite-3-Kompatibilität), Tests liegen als `*.test.ts` in
+Vitest **4.1** auf Vite 6.4, Tests liegen als `*.test.ts` in
 `src/**/__tests__/`. Getestet wird das, wo Fehler teuer waren: Store-Logik, Request-Schichten,
 pure Utils (`playlistMove`, `shufflePicker`, Sync-Mathematik). Reines Markup/CSS wird stattdessen
 per Headless-Screenshot verifiziert.

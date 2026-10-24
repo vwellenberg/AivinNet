@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest'
 //    ob sie mitzieht — eine Platte ohne Nachzug fällt neben einer mit sofort auf.
 //
 // ⚠️ Stylesheets werden VON DER PLATTE gelesen, nicht über `import.meta.glob`:
-// `as: "raw"` liefert für `.scss` einen leeren String (.claude/rules/testing.md),
+// `query: "?raw"` liefert für `.scss` einen leeren String (.claude/rules/testing.md),
 // und die halbe Bewegungslogik liegt in .scss. Ein Glob über beide Endungen
 // prüft die Komponenten und überspringt die Stylesheets stillschweigend.
 // ---------------------------------------------------------------------------

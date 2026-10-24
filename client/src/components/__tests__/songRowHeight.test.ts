@@ -23,7 +23,7 @@ import { SONG_ROW_HEIGHT } from "@/utils/songItemMethods";
 // every fixed-size track scroller against the constant.
 // ---------------------------------------------------------------------------
 
-const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<
+const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<
   string,
   string
 >;

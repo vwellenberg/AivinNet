@@ -28,10 +28,10 @@ const GRID_MARKER = /repeat\(auto-fill,\s*minmax\(\$cardwidth/;
 const GAP_RULE = /gap:\s*(?:\$card-row-gap|[\d.]+rem)\s+\$card-col-gap/;
 
 // Vue components come through Vite, so the glob sees exactly the files the
-// build sees. Stylesheets cannot (`as: "raw"` on `.scss` returns an empty
+// build sees. Stylesheets cannot (`query: "?raw"` on `.scss` returns an empty
 // string under test — see .claude/rules/testing.md), so they are read off
 // disk, relative to the runner's cwd (the project root).
-const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<
+const VUE_SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<
   string,
   string
 >;

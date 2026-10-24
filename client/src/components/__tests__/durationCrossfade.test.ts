@@ -25,7 +25,7 @@ import { styleBlock } from "./scssBlocks";
 // `opacity` stays with the pair that crossfades on it.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 /** The one place the swap is allowed to be declared. */
 const OWNER = "/src/components/shared/SongItem/TrackDuration.vue";

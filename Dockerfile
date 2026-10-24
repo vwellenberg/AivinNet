@@ -10,10 +10,10 @@
 #
 # `--platform=$BUILDPLATFORM`: the output is static files, identical for every
 # target, so the multi-arch release build runs this stage once and natively
-# instead of under QEMU emulation. The full `node` image (not `-slim`) on
-# purpose: `sharp`'s install falls back to node-gyp when its prebuilt binary
-# cannot be fetched, and that needs python/make/g++ — the same toolchain the
-# GitHub runners that build the release client have.
+# instead of under QEMU emulation. The full `node` image (not `-slim`) was
+# chosen for `sharp`, whose install falls back to node-gyp (python/make/g++)
+# without a prebuilt binary. sharp left with `@vite-pwa/assets-generator`
+# (#581), so the client has no native dependency left; `-slim` would now do.
 # ---------------------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM node:22 AS client
 WORKDIR /client

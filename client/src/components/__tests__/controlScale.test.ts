@@ -23,9 +23,9 @@ import { blocks, ownDeclarations, styleBlock } from "./scssBlocks";
 // to the thing it corrects, so each one reads as deliberate, and only counting
 // them across files shows the component's own role was dead letter.
 // ---------------------------------------------------------------------------
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
-// `import.meta.glob(..., { as: "raw" })` hands back an EMPTY STRING for .scss —
+// `import.meta.glob(..., { query: "?raw" })` hands back an EMPTY STRING for .scss —
 // Vite runs stylesheets through the CSS pipeline, which is stubbed under test.
 const TOKEN_FILE = "src/assets/scss/Global/_buttons.scss";
 

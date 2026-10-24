@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 // ---------------------------------------------------------------------------
 
 const SOURCES = import.meta.glob(["/src/components/LeftSidebar/index.vue", "/src/components/nav/NavBar.vue"], {
-  as: "raw",
+  query: "?raw",
+  import: "default",
   eager: true,
 }) as Record<string, string>;
 

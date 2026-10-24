@@ -16,7 +16,7 @@ import { block, ownDeclarations, styleBlock } from "./scssBlocks";
 // Counting the groups rather than naming the broken one: a fifth group added
 // later fails here until it decides where its spacing comes from.
 // ---------------------------------------------------------------------------
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 /** Every bar group and the selector its spacing lives on. */
 const GROUPS: [file: string, selector: string, token: string, what: string][] = [

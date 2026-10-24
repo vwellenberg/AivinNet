@@ -30,10 +30,10 @@ import { describe, expect, it } from "vitest";
 const ANATOMY_FILE = "src/assets/scss/Global/cards.scss";
 
 // Components come through Vite, so the test sees the files the build sees. The
-// stylesheet cannot (`{ as: "raw" }` on a `.scss` runs it through the CSS
+// stylesheet cannot (`{ query: "?raw" }` on a `.scss` runs it through the CSS
 // pipeline, which is stubbed out under test and hands back an empty string) —
 // it is read off disk, guarded by `it("reads the anatomy")` below.
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 /** The stylesheet with its comments stripped, so prose cannot satisfy a check. */
 function anatomy(): string {

@@ -30,7 +30,7 @@ const ARRIVALS = [...ARRIVAL_ANIMATIONS]
 //    übrig bleibt eine Drehung, die bei 0,2 s niemand sieht. Genau daran ist
 //    die erste Fassung gescheitert — im Filmstreifen nachgemessen.
 //
-// ⚠️ Stylesheets von der Platte, nicht über `import.meta.glob`: `as: "raw"`
+// ⚠️ Stylesheets von der Platte, nicht über `import.meta.glob`: `query: "?raw"`
 // liefert für .scss einen leeren String, und alles hier liegt in .scss.
 // ---------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@ import { blocks, ownDeclarations, styleBlock } from "./scssBlocks";
 // .claude/rules/testing.md), so every expectation below is paired with a guard
 // over its own input.
 // ---------------------------------------------------------------------------
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 const BANNER = "/src/components/AlbumView/GenreBanner.vue";
 

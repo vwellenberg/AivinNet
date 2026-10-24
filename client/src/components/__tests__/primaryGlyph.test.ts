@@ -17,7 +17,7 @@ import { blocks, styleBlock } from "./scssBlocks";
 // `svg`. A caller that really needs another size passes `$glyph` to the mixin.
 // ---------------------------------------------------------------------------
 
-const SOURCES = import.meta.glob("/src/**/*.vue", { as: "raw", eager: true }) as Record<string, string>;
+const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 function primaryHosts(): { path: string; cls: string; style: string }[] {
   const out: { path: string; cls: string; style: string }[] = [];

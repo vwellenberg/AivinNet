@@ -361,8 +361,8 @@ einen Schleifendurchlauf.
   dagegen nur gegen die vorhandenen `node_modules`.
 
   Danach **am gebauten Artefakt** prüfen, dass die eigene Änderung wirklich drin ist:
-  `grep -o "<selektor>{[^}]*}" dist/assets/index.*.css` — und zwar gegen die CSS-Datei, die
-  `dist/index.html` auch tatsächlich lädt (es liegen mehrere `index.*.css` herum).
+  `grep -o "<selektor>{[^}]*}" dist/assets/index-*.css` — und zwar gegen die CSS-Datei, die
+  `dist/index.html` auch tatsächlich lädt (es liegen mehrere `index-*.css` herum).
 - **Dienste nie per `ssh host '… &'` detachen** — das hängt die Sitzung. Die `run*.sh` bündeln
   deshalb Proxy (Hintergrund) + Messung (Vordergrund) + `kill` in **einer** Sitzung.
 - **Die Queue im NowPlaying ist virtualisiert** — Zeilen zählen misst den Scroller, nicht die

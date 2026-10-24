@@ -239,9 +239,11 @@ jobs:
             echo "::error::image has no bundled client.zip, it downloaded a release client"; exit 1
           fi
           index=$(curl -sf http://127.0.0.1:1970/)
-          bundle=$(grep -oE 'assets/index\.[0-9a-f]+\.js' <<< "$index" | head -n1 || true)
+          # Vite 6 names the hash with a dash and base64url (`index-C-ksdOFb.js`),
+          # Vite 3 used a dot and hex (`index.3df4b0af.js`).
+          bundle=$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' <<< "$index" | head -n1 || true)
           if [ -z "$bundle" ]; then
-            echo "::error::'/' is not a built client (no hashed assets/index.*.js)"; echo "$index" | head -c 500; exit 1
+            echo "::error::'/' is not a built client (no hashed assets/index-*.js)"; echo "$index" | head -c 500; exit 1
           fi
           curl -sf -o /dev/null "http://127.0.0.1:1970/$bundle"
           # The stamp records the bundle's digest; a release download has none.

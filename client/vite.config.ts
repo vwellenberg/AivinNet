@@ -6,7 +6,6 @@ import vue from "@vitejs/plugin-vue";
 import svgLoader from "vite-svg-loader";
 import { VitePWA } from "vite-plugin-pwa";
 import viteCompression from "vite-plugin-compression";
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { sassPalettes } from "./src/utils/colortools/sassPalettes";
 
 const path = require("path");
@@ -120,9 +119,6 @@ export default defineConfig({
     }),
     viteCompression({
       threshold: 150,
-    }),
-    nodePolyfills({
-      include: ['crypto'],
     }),
   ],
   resolve: {

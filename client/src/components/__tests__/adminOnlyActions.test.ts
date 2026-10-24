@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest'
 // ---------------------------------------------------------------------------
 
 // Read through Vite rather than `fs`, so the test sees exactly what the build sees.
-const SOURCES = import.meta.glob('/src/**/*.{vue,ts}', { as: 'raw', eager: true }) as Record<string, string>
+const SOURCES = import.meta.glob('/src/**/*.{vue,ts}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
 
 /**
  * Request helpers whose endpoint the backend refuses for a non-admin.
