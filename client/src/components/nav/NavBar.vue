@@ -27,7 +27,16 @@
                         @animationend="logoSpinning = false"
                     />
                 </button>
-                {{ mobileTitle }}
+                <!-- On Home the word is a shortcut into search, focused. -->
+                <button
+                    v-if="route.name === Routes.Home"
+                    type="button"
+                    class="mobile-nav-title-text"
+                    @click="openSearch"
+                >
+                    {{ mobileTitle }}
+                </button>
+                <template v-else>{{ mobileTitle }}</template>
             </span>
             <RouterLink v-if="!isMobile" :to="{ name: Routes.Home }" class="nav-home" title="Home">
                 <HomeSvg />
@@ -50,8 +59,8 @@
 
 <script setup lang="ts">
 import { Routes } from '@/router'
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import useAuth from '@/stores/auth'
 import { content_width, isMobile } from '@/stores/content-width'
@@ -77,6 +86,16 @@ const route = useRoute()
 // (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
 // when the animation ends, so every tap can play it again.
 const logoSpinning = ref(false)
+
+const router = useRouter()
+
+// The search field only exists on the search route on a phone, so the push
+// comes first; the focus waits for the field to render.
+function openSearch() {
+    router
+        .push({ name: Routes.search, params: { page: 'top' } })
+        .then(() => nextTick(() => document.getElementById('globalsearch')?.focus()))
+}
 
 /**
  * On phones the top bar shows the page title, and swaps it for the search
@@ -273,6 +292,16 @@ const mobileTitle = computed(() => {
 
         .avatar {
             margin-left: 0;
+        }
+
+        .mobile-nav-title-text {
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .mobile-nav-title {
