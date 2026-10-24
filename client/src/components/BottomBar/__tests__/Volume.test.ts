@@ -67,8 +67,14 @@ const clickAt = async (w: ReturnType<typeof mount>, clientX: number, detail = 1)
     w.find('.volume-slider').element.dispatchEvent(new MouseEvent('click', { clientX, detail, bubbles: true }))
     await w.vm.$nextTick()
 }
-const hoverAt = (w: ReturnType<typeof mount>, clientX: number, pointerType = 'mouse') =>
-    w.find('.volume-wrap').trigger('pointermove', { pointerType, clientX })
+// jsdom 30 made MouseEvent.clientX a getter, which VTU's trigger() cannot overwrite:
+// build the event natively and attach the one field jsdom's MouseEvent lacks.
+const hoverAt = async (w: ReturnType<typeof mount>, clientX: number, pointerType = 'mouse') => {
+    const ev = new MouseEvent('pointermove', { clientX, bubbles: true })
+    Object.defineProperty(ev, 'pointerType', { value: pointerType })
+    w.find('.volume-wrap').element.dispatchEvent(ev)
+    await w.vm.$nextTick()
+}
 
 describe('volume bar preview', () => {
     it('fills to the level and paints no span while not hovered', () => {

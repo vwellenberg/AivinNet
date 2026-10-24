@@ -135,8 +135,14 @@ describe('seek bar hover preview', () => {
                 NaN
         )
 
-    const hoverAt = (w: ReturnType<typeof mount>, clientX: number) =>
-        w.find('.progress-wrap').trigger('pointermove', { pointerType: 'mouse', clientX })
+    // jsdom 30 made MouseEvent.clientX a getter, which VTU's trigger() cannot overwrite:
+    // build the event natively and attach the one field jsdom's MouseEvent lacks.
+    const hoverAt = async (w: ReturnType<typeof mount>, clientX: number) => {
+        const ev = new MouseEvent('pointermove', { clientX, bubbles: true })
+        Object.defineProperty(ev, 'pointerType', { value: 'mouse' })
+        w.find('.progress-wrap').element.dispatchEvent(ev)
+        await w.vm.$nextTick()
+    }
 
     it('paints only the stretch between the playhead and the cursor', async () => {
         const w = mount(Progress)
