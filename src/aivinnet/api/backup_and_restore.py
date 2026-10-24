@@ -10,7 +10,14 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.auth import admin_required
-from aivinnet.db.userdata import CollectionTable, FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
+from aivinnet.db.userdata import (
+    CollectionTable,
+    FavoritesTable,
+    NotInterestedTable,
+    PlaylistTable,
+    ScrobbleTable,
+    UserTable,
+)
 from aivinnet.lib.backups import get_backup_root
 from aivinnet.lib.index import index_everything
 from aivinnet.settings import Paths
@@ -130,7 +137,7 @@ def owner_resolver():
 @admin_required()
 def backup():
     """
-    Create a backup file of your favorites, playlists, scrobble data, and collections.
+    Create a backup file of your favorites, playlists, scrobble data, collections and "Not interested" marks.
     """
     backup_name = f"backup.{int(time())}"
     backup_dir = get_backup_root() / backup_name
@@ -143,7 +150,7 @@ def backup():
     # the same job without a second piece of state to keep in step.)
     img_folder = backup_dir / "images"
 
-    # EVERY user's rows, in all four sections. This endpoint is
+    # EVERY user's rows, in every section. This endpoint is
     # `@admin_required`, so it is an instance backup, not a personal one —
     # scoping it to the calling admin would leave every other user's data in no
     # backup at all, and they cannot make their own (same gate). Favorites were
@@ -196,11 +203,17 @@ def backup():
             del collection_copy["id"]
         collections_dicts.append(collection_copy)
     # !SECTION
+
+    # "Not interested" on Home (#531, #564): a convenience list, but without it
+    # a restore brings back every card each user had hidden.
+    not_interested = NotInterestedTable.everyone()
+
     data = {
         "favorites": favorites,
         "scrobbles": scrobbles,
         "playlists": playlist_dicts,
         "collections": collections_dicts,
+        "not_interested": not_interested,
     }
 
     with open(backup_file, "w") as f:
@@ -213,6 +226,7 @@ def backup():
         "favorites": len(favorites),
         "playlists": len(playlist_dicts),
         "collections": len(collections_dicts),
+        "not_interested": len(not_interested),
     }, 200
 
 
@@ -266,7 +280,7 @@ class RestoreBackup:
 
     def restore(self) -> dict[str, SectionReport]:
         """
-        Restore all four sections and report what happened to each.
+        Restore every section and report what happened to each.
 
         ⚠️ The work used to run in `__init__` while this method was an empty
         `pass` — both callers already did `RestoreBackup(dir).restore()`, so
@@ -279,6 +293,8 @@ class RestoreBackup:
             "playlist_images": self.restore_playlist_images(),
             "scrobbles": self.restore_scrobbles(self.data["scrobbles"]),
             "collections": self.restore_collections(self.data.get("collections", [])),
+            # Backups older than #564 have no such section.
+            "not_interested": self.restore_not_interested(self.data.get("not_interested", [])),
         }
 
     def restore_playlist_images(self) -> SectionReport:
@@ -493,6 +509,34 @@ class RestoreBackup:
 
         return report
 
+    def restore_not_interested(self, marks: list[dict]) -> SectionReport:
+        """
+        A mark is identified by **(owner, type, hash)** — the table's own unique
+        key (#564). The hash is restored as it stands, like a favourite's: after
+        a retag it may point at nothing, and then it hides nothing either.
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {(mark["userid"], mark["type"], mark["hash"]) for mark in NotInterestedTable.everyone()}
+
+        for mark in marks:
+            owner = resolve_owner(mark)
+            key = (owner, mark["type"], mark["hash"])
+
+            if key in existing:
+                report.skipped += 1
+                continue
+
+            try:
+                NotInterestedTable.add(owner, mark["type"], mark["hash"], timestamp=mark.get("timestamp"))
+                existing.add(key)
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("not interested", mark, error)
+
+        return report
+
 
 class RestoreBackupBody(BaseModel):
     backup_dir: str | None = Field(
@@ -506,7 +550,7 @@ class RestoreBackupBody(BaseModel):
 @admin_required()
 def restore(body: RestoreBackupBody):
     """
-    Restore your favorites, playlists, scrobble data, and collections from a specified backup or all backups.
+    Restore your favorites, playlists, scrobble data, collections and "Not interested" marks from a specified backup or all backups.
     """
     backup_base_dir = get_backup_root()
     backups = []
@@ -515,7 +559,7 @@ def restore(body: RestoreBackupBody):
     # to look like a complete one in the response.
     totals = {
         section: SectionReport()
-        for section in ("favorites", "playlists", "playlist_images", "scrobbles", "collections")
+        for section in ("favorites", "playlists", "playlist_images", "scrobbles", "collections", "not_interested")
     }
 
     def run(directory: Path):
@@ -597,11 +641,13 @@ def list_backups():
                 backup_info["favorites"] = len(data.get("favorites", []))
                 backup_info["playlists"] = len(data.get("playlists", []))
                 backup_info["collections"] = len(data.get("collections", []))
+                backup_info["not_interested"] = len(data.get("not_interested", []))
         else:
             backup_info["scrobbles"] = 0
             backup_info["favorites"] = 0
             backup_info["playlists"] = 0
             backup_info["collections"] = 0
+            backup_info["not_interested"] = 0
 
         backups.append(backup_info)
 

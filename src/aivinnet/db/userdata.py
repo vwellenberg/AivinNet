@@ -1176,12 +1176,19 @@ class NotInterestedTable(Base):
     userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
 
     @classmethod
-    def add(cls, userid: int, type: str, hash: str) -> None:
-        """Mark an item; marking it again is a no-op — one statement, so two at once cannot both insert."""
+    def add(cls, userid: int, type: str, hash: str, timestamp: int | None = None) -> None:
+        """
+        Mark an item; marking it again is a no-op — one statement, so two at once cannot both insert.
+
+        `timestamp` only for a restore (#564): the list under Settings → Home is
+        newest first, and a restore stamping everything "now" would reshuffle it.
+        """
         next(
             cls.execute(
                 sqlite_insert(cls)
-                .values(userid=userid, type=type, hash=hash, timestamp=int(time.time()))
+                .values(
+                    userid=userid, type=type, hash=hash, timestamp=int(time.time()) if timestamp is None else timestamp
+                )
                 .on_conflict_do_nothing(index_elements=["type", "hash", "userid"]),
                 commit=True,
             )
@@ -1207,6 +1214,12 @@ class NotInterestedTable(Base):
             )
         ).all()
         return [(row.type, row.hash, row.timestamp) for row in rows]
+
+    @classmethod
+    def everyone(cls) -> list[dict]:
+        """Every user's marks, for the instance backup (#564): `{userid, type, hash, timestamp}`."""
+        rows = next(cls.execute(select(cls.userid, cls.type, cls.hash, cls.timestamp).order_by(cls.id))).all()
+        return [{"userid": r.userid, "type": r.type, "hash": r.hash, "timestamp": r.timestamp} for r in rows]
 
     @classmethod
     def hashes(cls, userid: int) -> dict[str, set[str]]:

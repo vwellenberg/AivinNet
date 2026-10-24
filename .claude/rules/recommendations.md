@@ -228,6 +228,8 @@ macht, trägt sie in `NOT_INTERESTED_ROWS` ein — im Server (`store/homepage.py
 (`utils/homeRows.ts`); dazu der Filter in ihrer Routine. Im Client hängt der Menüeintrag über
 `CardScroller`s `cardMenu` (provide/inject, `utils/cardMenu.ts`) an genau den Karten dieser Zeilen,
 die Liste zum Zurücknehmen steht unter Settings → Home. Das Gastkonto markiert nicht (403).
+Im Backup steht die Tabelle als Abschnitt `not_interested` (#564, alle User, Datum bleibt erhalten);
+ein älteres Backup ohne ihn stellt wie vorher wieder her.
 
 **Welche Zeile spielbar ist, sagt der Server:** Der Eintrag im `HomepageStore` trägt
 `playlist="<id>"`, und die Zeile schickt sie mit. Der Client baut daraus den Abspiel-Knopf und
