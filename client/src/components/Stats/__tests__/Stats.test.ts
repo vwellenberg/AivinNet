@@ -1,6 +1,6 @@
 import { flushPromises, shallowMount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/requests/stats', () => ({ getStats: vi.fn(), getDiscoveries: vi.fn() }))
 
@@ -34,6 +34,59 @@ describe('Stats', () => {
         for (const tile of tiles) {
             expect(tile.element.parentElement).toBe(row)
         }
+    })
+
+    describe('arrows', () => {
+        // jsdom lays nothing out, so the row's geometry is stubbed: 200 px
+        // visible, 500 px of tiles.
+        // jsdom has these on Element.prototype and no scrollBy at all, so the
+        // stubs are installed there and removed again after each test.
+        const stubbed: string[] = []
+        const stub = (name: string, value: unknown) => {
+            const descriptor = typeof value === 'function' ? { value } : { get: () => value }
+            Object.defineProperty(Element.prototype, name, { configurable: true, ...descriptor })
+            stubbed.push(name)
+        }
+        const geometry = (scrollWidth: number, clientWidth: number) => {
+            stub('scrollWidth', scrollWidth)
+            stub('clientWidth', clientWidth)
+        }
+
+        afterEach(() => {
+            stubbed.splice(0).forEach(name => delete (Element.prototype as unknown as Record<string, unknown>)[name])
+        })
+
+        it('shows only the arrow that has tiles beyond it', async () => {
+            geometry(500, 200)
+            const w = shallowMount(Stats, { props: { items: ITEMS } })
+            await flushPromises()
+
+            expect(w.find('.statsnav.next').exists()).toBe(true)
+            expect(w.find('.statsnav.prev').exists()).toBe(false)
+            expect(w.find('.statshead').classes()).toEqual(['statshead', 'has-next'])
+            w.unmount()
+        })
+
+        it('shows no arrows when every tile fits', async () => {
+            geometry(200, 200)
+            const w = shallowMount(Stats, { props: { items: ITEMS } })
+            await flushPromises()
+
+            expect(w.find('.statsnav').exists()).toBe(false)
+            w.unmount()
+        })
+
+        it('scrolls the row natively by a page, not by a tile', async () => {
+            geometry(500, 200)
+            const scrollBy = vi.fn()
+            stub('scrollBy', scrollBy)
+            const w = shallowMount(Stats, { props: { items: ITEMS } })
+            await flushPromises()
+
+            await w.find('.statsnav.next').trigger('click')
+            expect(scrollBy).toHaveBeenCalledWith({ left: 160, behavior: 'smooth' })
+            w.unmount()
+        })
     })
 })
 
