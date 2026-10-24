@@ -39,15 +39,22 @@ describe('Stats', () => {
     describe('arrows', () => {
         // jsdom lays nothing out, so the row's geometry is stubbed: 200 px
         // visible, 500 px of tiles.
-        const spies: { mockRestore: () => void }[] = []
+        // jsdom has these on Element.prototype and no scrollBy at all, so the
+        // stubs are installed there and removed again after each test.
+        const stubbed: string[] = []
+        const stub = (name: string, value: unknown) => {
+            const descriptor = typeof value === 'function' ? { value } : { get: () => value }
+            Object.defineProperty(Element.prototype, name, { configurable: true, ...descriptor })
+            stubbed.push(name)
+        }
         const geometry = (scrollWidth: number, clientWidth: number) => {
-            spies.push(
-                vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(scrollWidth),
-                vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(clientWidth),
-            )
+            stub('scrollWidth', scrollWidth)
+            stub('clientWidth', clientWidth)
         }
 
-        afterEach(() => spies.splice(0).forEach(s => s.mockRestore()))
+        afterEach(() => {
+            stubbed.splice(0).forEach(name => delete (Element.prototype as unknown as Record<string, unknown>)[name])
+        })
 
         it('shows only the arrow that has tiles beyond it', async () => {
             geometry(500, 200)
@@ -72,8 +79,7 @@ describe('Stats', () => {
         it('scrolls the row natively by a page, not by a tile', async () => {
             geometry(500, 200)
             const scrollBy = vi.fn()
-            const scrollSpy = vi.spyOn(HTMLElement.prototype, 'scrollBy').mockImplementation(scrollBy)
-            spies.push(scrollSpy)
+            stub('scrollBy', scrollBy)
             const w = shallowMount(Stats, { props: { items: ITEMS } })
             await flushPromises()
 
