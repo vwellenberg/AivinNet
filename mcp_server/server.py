@@ -20,7 +20,7 @@ import os
 import time
 
 import requests
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 BASE = os.environ.get("AIVINNET_URL", "http://localhost:1970").rstrip("/")
 USER = os.environ.get("AIVINNET_USER")
@@ -29,7 +29,7 @@ PASS = os.environ.get("AIVINNET_PASS")
 _session = requests.Session()
 _token = os.environ.get("AIVINNET_TOKEN", "")
 
-mcp = FastMCP("aivinnet")
+mcp = MCPServer("aivinnet")
 
 
 def _login() -> bool:
