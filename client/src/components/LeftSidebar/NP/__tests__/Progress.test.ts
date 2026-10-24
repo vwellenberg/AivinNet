@@ -95,7 +95,10 @@ describe('seek bar hover preview', () => {
     // floor — reading it back off the element returns ''. Capture what the
     // component writes instead, which is the thing under test anyway.
     let lastBg = ''
-    const realBg = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'background')
+    // jsdom 30 hands out CSSStyleProperties, a subclass whose prototype shadows
+    // CSSStyleDeclaration's: patch what an element's style really inherits from.
+    const styleProto = Object.getPrototypeOf(document.createElement('div').style)
+    const realBg = Object.getOwnPropertyDescriptor(styleProto, 'background')
 
     beforeEach(() => {
         queue.duration.current = 40 // playhead at 20%
@@ -103,7 +106,7 @@ describe('seek bar hover preview', () => {
         lastBg = ''
         Element.prototype.getBoundingClientRect = () =>
             ({ ...BAR, right: BAR.width, bottom: BAR.height, x: 0, y: 0 } as DOMRect)
-        Object.defineProperty(CSSStyleDeclaration.prototype, 'background', {
+        Object.defineProperty(styleProto, 'background', {
             configurable: true,
             get: () => lastBg,
             set: (v: string) => {
@@ -117,7 +120,8 @@ describe('seek bar hover preview', () => {
     // trace later.
     afterEach(() => {
         Element.prototype.getBoundingClientRect = realRect
-        if (realBg) Object.defineProperty(CSSStyleDeclaration.prototype, 'background', realBg)
+        if (realBg) Object.defineProperty(styleProto, 'background', realBg)
+        else Reflect.deleteProperty(styleProto, 'background')
     })
 
     // The span is a background layer on the input, placed with hard colour

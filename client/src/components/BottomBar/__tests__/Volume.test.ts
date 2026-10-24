@@ -28,7 +28,10 @@ import Volume from '@/components/BottomBar/Volume.vue'
 // The bar's box: 200px wide from x=0, so clientX / 2 is the percentage.
 const BAR = { left: 0, top: 0, width: 200, height: 20 }
 const realRect = Element.prototype.getBoundingClientRect
-const realBg = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'background')
+// jsdom 30 hands out CSSStyleProperties, a subclass whose prototype shadows
+// CSSStyleDeclaration's: patch what an element's style really inherits from.
+const styleProto = Object.getPrototypeOf(document.createElement('div').style)
+const realBg = Object.getOwnPropertyDescriptor(styleProto, 'background')
 let lastBg = ''
 
 beforeEach(() => {
@@ -40,7 +43,7 @@ beforeEach(() => {
     Element.prototype.getBoundingClientRect = () =>
         ({ ...BAR, right: BAR.width, bottom: BAR.height, x: 0, y: 0 }) as DOMRect
     // jsdom drops the layered shorthand it cannot parse; keep what was written.
-    Object.defineProperty(CSSStyleDeclaration.prototype, 'background', {
+    Object.defineProperty(styleProto, 'background', {
         configurable: true,
         get: () => lastBg,
         set: (v: string) => {
@@ -51,7 +54,8 @@ beforeEach(() => {
 
 afterEach(() => {
     Element.prototype.getBoundingClientRect = realRect
-    if (realBg) Object.defineProperty(CSSStyleDeclaration.prototype, 'background', realBg)
+    if (realBg) Object.defineProperty(styleProto, 'background', realBg)
+    else Reflect.deleteProperty(styleProto, 'background')
 })
 
 const span = () => {
