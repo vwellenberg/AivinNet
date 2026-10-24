@@ -95,7 +95,10 @@ describe('seek bar hover preview', () => {
     // floor — reading it back off the element returns ''. Capture what the
     // component writes instead, which is the thing under test anyway.
     let lastBg = ''
-    const realBg = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'background')
+    // jsdom 30 hands out CSSStyleProperties, a subclass whose prototype shadows
+    // CSSStyleDeclaration's: patch what an element's style really inherits from.
+    const styleProto = Object.getPrototypeOf(document.createElement('div').style)
+    const realBg = Object.getOwnPropertyDescriptor(styleProto, 'background')
 
     beforeEach(() => {
         queue.duration.current = 40 // playhead at 20%
@@ -103,7 +106,7 @@ describe('seek bar hover preview', () => {
         lastBg = ''
         Element.prototype.getBoundingClientRect = () =>
             ({ ...BAR, right: BAR.width, bottom: BAR.height, x: 0, y: 0 } as DOMRect)
-        Object.defineProperty(CSSStyleDeclaration.prototype, 'background', {
+        Object.defineProperty(styleProto, 'background', {
             configurable: true,
             get: () => lastBg,
             set: (v: string) => {
@@ -117,7 +120,8 @@ describe('seek bar hover preview', () => {
     // trace later.
     afterEach(() => {
         Element.prototype.getBoundingClientRect = realRect
-        if (realBg) Object.defineProperty(CSSStyleDeclaration.prototype, 'background', realBg)
+        if (realBg) Object.defineProperty(styleProto, 'background', realBg)
+        else Reflect.deleteProperty(styleProto, 'background')
     })
 
     // The span is a background layer on the input, placed with hard colour
@@ -135,8 +139,14 @@ describe('seek bar hover preview', () => {
                 NaN
         )
 
-    const hoverAt = (w: ReturnType<typeof mount>, clientX: number) =>
-        w.find('.progress-wrap').trigger('pointermove', { pointerType: 'mouse', clientX })
+    // jsdom 30 made MouseEvent.clientX a getter, which VTU's trigger() cannot overwrite:
+    // build the event natively and attach the one field jsdom's MouseEvent lacks.
+    const hoverAt = async (w: ReturnType<typeof mount>, clientX: number) => {
+        const ev = new MouseEvent('pointermove', { clientX, bubbles: true })
+        Object.defineProperty(ev, 'pointerType', { value: 'mouse' })
+        w.find('.progress-wrap').element.dispatchEvent(ev)
+        await w.vm.$nextTick()
+    }
 
     it('paints only the stretch between the playhead and the cursor', async () => {
         const w = mount(Progress)
