@@ -252,28 +252,7 @@ onMounted(async () => {
         width: $cell;
         height: $cell;
         border-radius: $candy-radius-xs;
-        background-color: mem-alpha($mem-ink, 0.08);
-
-        &.level-1 {
-            background-color: mem-alpha($mem-teal, 0.35);
-        }
-
-        &.level-2 {
-            background-color: mem-alpha($mem-teal, 0.6);
-        }
-
-        &.level-3 {
-            background-color: mem-alpha($mem-teal, 0.85);
-        }
-
-        &.level-4 {
-            background-color: $mem-teal;
-            // The busiest days get the edge every other plate has: the line,
-            // ink in light, grey in dark. Static ink vanished into the dark
-            // ground and took 2 px off every side, so the busiest squares
-            // looked the smallest (user, 2026-10-23).
-            box-shadow: inset 0 0 0 $mem-ring-w $mem-line;
-        }
+        @include listening-shades;
 
         &.is-future {
             background-color: transparent;
@@ -296,10 +275,5 @@ onMounted(async () => {
             margin-left: 0.25rem;
         }
     }
-}
-
-// Ink at 8 % disappears on the dark ground; paper is the faint square there.
-body.theme-dark .listening-calendar .calendar-day.level-0 {
-    background-color: mem-alpha($mem-paper, 0.1);
 }
 </style>

@@ -16,6 +16,7 @@ from aivinnet.lib.extras import get_extra_info
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
+from aivinnet.lib.listening_clock import build_clock
 from aivinnet.lib.listening_sources import count_kinds, shares_text, source_shares
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
@@ -455,6 +456,35 @@ def get_listening_calendar():
         _calendars[userid] = cached
 
     return cached[1], 200
+
+
+class ClockQuery(BaseModel):
+    period: StatsPeriod = Field("week", description="The period the listening clock covers")
+
+
+# The last clock per user, with what it was built from: the period, where it
+# starts and the plays. A period's end is "now", so it is not in the key — a
+# revisit without a new play has nothing more to count.
+_clocks: dict[int, tuple[tuple[str, int, int, int], dict]] = {}
+
+
+@api.get("/clock")
+def get_listening_clock(query: ClockQuery):
+    """
+    The listening clock (#535): seconds listened per weekday and hour in the
+    period, Monday first, with the busiest hour and weekday. Server time; an
+    hour after midnight belongs to the day it falls on.
+    """
+    userid = get_current_userid()
+    start_time, end_time = get_date_range(query.period)
+    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+
+    cached = _clocks.get(userid)
+    if cached is None or cached[0] != key:
+        cached = (key, build_clock(ScrobbleTable.seconds_by_weekday_hour(start_time, end_time, userid)))
+        _clocks[userid] = cached
+
+    return {**cached[1], "dates": format_date(start_time, end_time)}, 200
 
 
 class RewindQuery(BaseModel):
