@@ -118,13 +118,18 @@ onMounted(browse.fetchArtists);
     @include candy-shadow;
   }
 
+  // One row that scrolls sideways. Wrapped, the 27 keys took five rows and
+  // about 270px on a phone, and the artist row under them started at y≈400.
+  // An overflow box clips shadows, so the row reserves the right and bottom
+  // edge for the offset shadow of its last key.
   .band {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 $small $small 0;
     // The offset shadow falls to the bottom and the right of every key, so the
-    // gap has to clear those 3px — otherwise a wrapped second row reads as
-    // touching the first. ($smaller + 3px would be a Sass unit error: rem and
-    // px do not add.)
+    // gap has to clear those 3px — otherwise neighbouring keys read as touching.
+    // ($smaller + 3px would be a Sass unit error: rem and px do not add.)
     gap: $small;
   }
 

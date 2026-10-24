@@ -31,16 +31,6 @@
         :icon="SearchSvg"
         :flag="noResults"
       />
-      <RecentItems
-        v-if="search.top_results.playlists.length"
-        :title="'Playlists'"
-        :items="
-          search.top_results.playlists.map((i) => ({
-            type: 'playlist',
-            item: i,
-          }))
-        "
-      />
       <div v-if="search.top_results.top_result && search.top_results.top_result.type" class="header">
         <div class="top">
           <h3 class="section-title">Top Result</h3>
@@ -56,6 +46,19 @@
           <TopTracks />
         </div>
       </div>
+      <!-- Below the top result and its tracks, not above them: on a phone the
+        playlist row filled the first screen, and the best matches started under
+        the player bar. -->
+      <RecentItems
+        v-if="search.top_results.playlists.length"
+        :title="'Playlists'"
+        :items="
+          search.top_results.playlists.map((i) => ({
+            type: 'playlist',
+            item: i,
+          }))
+        "
+      />
       <RecentItems
         v-if="search.top_results.artists.length"
         :title="'Artists'"
