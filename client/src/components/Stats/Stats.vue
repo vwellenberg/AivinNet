@@ -125,8 +125,13 @@ function page(dir: 1 | -1) {
     el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
 }
 
+// `load` runs during setup, before anything is mounted, so the first
+// measurement waits for mount; later batches of tiles are measured after render.
 watch(statItems, () => nextTick(syncEdges))
-onMounted(() => window.addEventListener('resize', syncEdges))
+onMounted(() => {
+    syncEdges()
+    window.addEventListener('resize', syncEdges)
+})
 onUnmounted(() => window.removeEventListener('resize', syncEdges))
 
 defineOptions({
