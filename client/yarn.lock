@@ -1512,10 +1512,10 @@
   resolved "https://registry.yarnpkg.com/@napi-rs/lzma-linux-x64-gnu/-/lzma-linux-x64-gnu-1.5.1.tgz#e57d4306966078662038094fb38eb9146dc3aea9"
   integrity sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==
 
-"@nextcss/color-tools@^1.0.7":
-  version "1.0.7"
-  resolved "https://registry.yarnpkg.com/@nextcss/color-tools/-/color-tools-1.0.7.tgz#ebd791fed5634a0be7d373e1a3b835457fab1f23"
-  integrity sha512-1rt18GXQHOF8JXN4Mm68/AI8CIQDdZOfSP0iZ0+/u7wZeM/PDC6ttBZcNvPX34a2Ksl07v0bH1IXgdQbfzgTcg==
+"@nextcss/color-tools@^2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@nextcss/color-tools/-/color-tools-2.0.0.tgz#f418e75bffdd351a341c168ded0af4f4e4576986"
+  integrity sha512-wLRCV5P2zveJeePrqaYJ1oNFy/TYfkuoOVgtjjNiXw/HjK9Ombj946JUf7YtB0Fig1sjs4wPxx/HpnVPXebd4g==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
