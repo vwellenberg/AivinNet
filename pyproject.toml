@@ -29,7 +29,7 @@ dependencies = [
     "sortedcontainers>=2.4.0",
     "xxhash>=3.4.1",
     "schedule>=1.2.2",
-    "flask-openapi3==3.0.2",
+    "flask-openapi3==4.3.2",
     "rapidfuzz==3.14.6",
     "pendulum>=3.0.0",
     "pystray>=0.19.5",
