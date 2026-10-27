@@ -5791,10 +5791,10 @@ vue-component-type-helpers@^3.0.0:
   resolved "https://registry.yarnpkg.com/vue-component-type-helpers/-/vue-component-type-helpers-3.3.2.tgz#c669b746c3bcecf0a5c3191ab28b200d8e44290f"
   integrity sha512-l4Z2Y34m7nFMlx8vrslJaVtXxUpzgDMSESC7TakG/c5kwjYT/do+E0NcT2/vWDzaoIhsShg/2OKwX7Q4nbzC0g==
 
-vue-debounce@^3.0.2:
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/vue-debounce/-/vue-debounce-3.1.1.tgz#8b3accba7bea8a81791e8476300b21481c9492e9"
-  integrity sha512-C0OXFl6DAn3qzoAd+3h+YVoygkqj16WrbFvT6S3BDYaMBXZa67VnfwNoaDz+V23vwDtrSp8aN8uNp7S30Q86PQ==
+vue-debounce@^5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/vue-debounce/-/vue-debounce-5.0.1.tgz#c619e5af05eb6382663aa52ec16917cae1674361"
+  integrity sha512-tJWEDhjHQ47MAUnr7EtZvClNQZJUlKlzd6TVxkSCzWXjeCH/rcKbCDzrd6FNEhvxDOBsTfJFbb9P4f5Xc26Iag==
 
 vue-demi@*:
   version "0.13.11"
