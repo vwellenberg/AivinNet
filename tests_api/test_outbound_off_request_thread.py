@@ -151,6 +151,31 @@ def test_a_refusal_is_an_outage(lyrics, monkeypatch):
     assert lyrics._is_down()
 
 
+def test_a_server_error_is_retried_once(lyrics, monkeypatch):
+    provider = lyrics.LyricsProvider()
+    answers = iter([SimpleNamespace(ok=False, status_code=503), SimpleNamespace(ok=True, status_code=200)])
+    monkeypatch.setattr(provider.session, "get", lambda *_a, **_k: next(answers))
+
+    assert provider._get("search", {"track_name": "Song"}) is not None
+    assert not lyrics._is_down()
+
+
+def test_a_server_error_pauses_briefly_a_refusal_for_long(lyrics, monkeypatch):
+    """LRCLIB answers a 503 now and then and the same search works a second
+    later; one of those must not switch lyrics off for five minutes."""
+    provider = lyrics.LyricsProvider()
+
+    for status, pause in ((503, lyrics.HICCUP_SECONDS), (429, lyrics.OUTAGE_SECONDS)):
+        monkeypatch.setattr(lyrics, "_down_until", 0.0)
+        monkeypatch.setattr(
+            provider.session, "get", lambda *_a, _s=status, **_k: SimpleNamespace(ok=False, status_code=_s)
+        )
+
+        provider._get("search", {"track_name": "Song"})
+
+        assert lyrics._down_until - time.monotonic() == pytest.approx(pause, abs=1)
+
+
 def test_lookups_resume_once_the_outage_is_over(lyrics, monkeypatch):
     monkeypatch.setattr(lyrics, "_down_until", time.monotonic() - 1)
 

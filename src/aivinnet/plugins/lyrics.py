@@ -22,6 +22,11 @@ log = logging.getLogger(__name__)
 # rediscovered per track.
 DEADLINE_SECONDS = 5
 OUTAGE_SECONDS = 300
+# A quick 5xx is the service saying "not right now", not a black hole: LRCLIB
+# answers one now and then and the same search succeeds a second later
+# (measured 2026-10-28). Five minutes without lyrics for everyone is too much
+# for that; the chain deadline already bounds what one such answer costs.
+HICCUP_SECONDS = 30
 
 _down_until = 0.0
 
@@ -30,10 +35,10 @@ def _is_down() -> bool:
     return time.monotonic() < _down_until
 
 
-def _mark_down(reason: str) -> None:
+def _mark_down(reason: str, seconds: int = OUTAGE_SECONDS) -> None:
     global _down_until
-    _down_until = time.monotonic() + OUTAGE_SECONDS
-    log.warning("LRCLIB: %s; no lyrics lookups for %s s", reason, OUTAGE_SECONDS)
+    _down_until = time.monotonic() + seconds
+    log.warning("LRCLIB: %s; no lyrics lookups for %s s", reason, seconds)
 
 
 def _within_deadline(work, default):
@@ -109,7 +114,7 @@ class LyricsProvider:
         # from here instead of asking the service a second time.
         self._found: dict[str, str] = {}
 
-    def _get(self, action: str, params: dict | None = None):
+    def _get(self, action: str, params: dict | None = None, retry: bool = True):
         # Once one call of a chain failed, the rest of it fails at once too.
         if _is_down():
             return None
@@ -123,10 +128,15 @@ class LyricsProvider:
         if response is not None and response.ok:
             return response
 
-        # A refusal or a broken server is an outage; "not found" is an answer.
+        # A refusal is an outage, a server error a hiccup; "not found" is an answer.
         status = getattr(response, "status_code", 0)
-        if status >= 500 or status in (401, 403, 429):
+        if status in (401, 403, 429):
             _mark_down(f"{action} answered HTTP {status}")
+        elif status >= 500 and retry:
+            # Once, at once: the hiccups measured cleared by the next call.
+            return self._get(action, params, retry=False)
+        elif status >= 500:
+            _mark_down(f"{action} answered HTTP {status}", HICCUP_SECONDS)
         return None
 
     def _search(self, title: str, artist: str) -> list[dict]:
