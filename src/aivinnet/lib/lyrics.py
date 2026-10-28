@@ -200,16 +200,15 @@ class Lyrics:
 
         for entry in time_tags:
             minutes = entry["minute"]
-            if "." in entry["seconds"]:
-                seconds = entry["seconds"].split(".")[0]
-                milli = entry["seconds"].split(".")[-1]
-            else:
-                seconds = entry["seconds"]
-                milli = "0"
+            # The digits after the dot are a FRACTION of a second: LRC writes
+            # hundredths (`[00:12.34]` is 12.34 s), some files thousandths.
+            # Read as a count of milliseconds, ".34" was 34 ms and every line
+            # landed up to 0.9 s early.
+            seconds, _, fraction = entry["seconds"].partition(".")
 
             minutes = int(minutes)
             seconds = int(seconds)
-            milli = int(milli)
+            milli = int(fraction[:3].ljust(3, "0")) if fraction else 0
 
             seconds = datetime.timedelta(minutes=minutes, seconds=seconds, milliseconds=milli).total_seconds()
 

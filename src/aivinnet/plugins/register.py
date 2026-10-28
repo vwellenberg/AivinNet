@@ -1,7 +1,7 @@
 """
 Registers the built-in plugins in the database.
 
-The lyrics finder ships OFF. It talks to Musixmatch, and opening the lyrics
+The lyrics finder ships OFF. It talks to LRCLIB, and opening the lyrics
 page would otherwise send the track title and artist there in the clear —
 on a self-hosted server, without anyone having asked for it. A listener who
 wants online lyrics turns the plugin on in the settings, and that switch also
