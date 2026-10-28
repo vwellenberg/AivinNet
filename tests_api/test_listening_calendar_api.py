@@ -4,6 +4,7 @@ Real request cycle and real `ScrobbleTable` rows: the per-day sums happen in
 SQL (`seconds_per_day`), so that is the part a fast-lane test cannot see.
 """
 
+import os
 import time
 from datetime import date
 
@@ -51,17 +52,17 @@ def libc_today() -> pendulum.DateTime:
     `mktime`, so `today.add(hours=9)` is 09:00 on the server's clock, DST
     included. This used to wrap a naive `datetime` in `pendulum.instance`,
     which reads it as UTC: midnight UTC, 01:00 in Berlin, and "yesterday
-    23:59" fell on today. CI runs in UTC and never saw it; every developer
-    east of UTC had a red test.
+    23:59" fell on today (west of UTC, "today 00:01" on yesterday). CI runs
+    in UTC and never saw it; every developer outside UTC had a red test.
     """
     today = date.today()
     return pendulum.naive(today.year, today.month, today.day)
 
 
 @pytest.fixture(params=["host", "Europe/Berlin", "America/Los_Angeles"])
-def libc_zone(request, monkeypatch):
+def libc_zone(request):
     """
-    The test in the host's zone, and on POSIX also east and west of UTC: CI
+    Every test in the host's zone, and on POSIX also east and west of UTC: CI
     runs in UTC, where a day in UTC and a day on the server's clock are the
     same day and no mix-up between the two can show.
     """
@@ -71,14 +72,23 @@ def libc_zone(request, monkeypatch):
     if not hasattr(time, "tzset"):
         pytest.skip("time.tzset is POSIX-only")
 
-    monkeypatch.setenv("TZ", request.param)
+    original = os.environ.get("TZ")
+    os.environ["TZ"] = request.param
     time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
+    try:
+        yield
+    finally:
+        if original is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = original
+        time.tzset()
 
 
-def test_plays_are_summed_per_server_day(calendar_api, libc_zone):
+pytestmark = pytest.mark.usefixtures("libc_zone")
+
+
+def test_plays_are_summed_per_server_day(calendar_api):
     today = libc_today()
     yesterday = today.subtract(days=1)
 
