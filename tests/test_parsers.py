@@ -7,6 +7,8 @@ from aivinnet.utils.parsers import (
     remove_prod,
     split_artists,
     strip_artist_credit,
+    strip_artist_credit_until_2026_10,
+    strip_artist_credits,
     strip_track_number,
     tag_int,
 )
@@ -267,3 +269,37 @@ class TestStripArtistCredit:
 
     def test_a_role_without_a_name_stays(self):
         assert strip_artist_credit("Composed by") == "Composed by"
+
+    def test_the_lyricist_loses_the_role_too(self):
+        # KCD2: "Composed by Jan Valta; Lyrics by John Comer" left "Lyrics by
+        # John Comer" standing as an artist of its own.
+        assert strip_artist_credit("Lyrics by John Comer") == "John Comer"
+        assert strip_artist_credit("Words by Tim Rice") == "Tim Rice"
+        assert strip_artist_credit("Lyrics Born") == "Lyrics Born"  # a rapper
+
+    def test_roles_joined_into_one_credit_go_together(self):
+        assert strip_artist_credit("Music and Lyrics by Jan Valta") == "Jan Valta"
+        assert strip_artist_credit("Words & Music by Jan Valta") == "Jan Valta"
+        assert strip_artist_credit("Composed, Arranged by Inon Zur") == "Inon Zur"
+
+    def test_the_rule_until_2026_10_is_kept_as_it_was(self):
+        # Rebuilds the hashes tracks had under it; it must not learn anything new.
+        assert strip_artist_credit_until_2026_10("Composed by Adam Sporka") == "Adam Sporka"
+        assert strip_artist_credit_until_2026_10("Lyrics by John Comer") == "Lyrics by John Comer"
+
+
+class TestStripArtistCredits:
+    def test_a_credit_the_separators_split_comes_back_as_one(self):
+        # "Composed & Lyrics by Jan Valta": "&" splits before any credit is seen.
+        assert strip_artist_credits(["Composed", "Lyrics by Jan Valta"]) == ["Jan Valta"]
+        assert strip_artist_credits(["Music", "Lyrics by Adam Sporka", "Band"]) == ["Adam Sporka", "Band"]
+
+    def test_each_name_loses_its_own_credit(self):
+        assert strip_artist_credits(["Composed by Jan Valta", "Lyrics by John Comer"]) == ["Jan Valta", "John Comer"]
+        assert strip_artist_credits(["Composed by Jan Valta", "Panychida"]) == ["Jan Valta", "Panychida"]
+
+    def test_a_role_word_without_a_credit_after_it_stays(self):
+        # Without a credited name to belong to, it may be a name after all.
+        assert strip_artist_credits(["Music", "Someone"]) == ["Music", "Someone"]
+        assert strip_artist_credits(["Lyrics"]) == ["Lyrics"]
+        assert strip_artist_credits(["Someone", "Composed"]) == ["Someone", "Composed"]

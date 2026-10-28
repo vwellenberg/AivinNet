@@ -13,11 +13,12 @@ from types import SimpleNamespace
 from aivinnet.lib.name_cleanup import legacy_artist_mapping, legacy_track_mapping
 
 
-def _track(path, new, legacy="", artists=(), legacy_artists=()):
+def _track(path, new, legacy="", artists=(), legacy_artists=(), previous=""):
     return SimpleNamespace(
         filepath=path,
         trackhash=new,
         _legacyhash=legacy,
+        _previoushash=previous,
         artists=[{"artisthash": a} for a in artists],
         albumartists=[],
         _legacy_artisthashes=tuple(legacy_artists),
@@ -26,6 +27,19 @@ def _track(path, new, legacy="", artists=(), legacy_artists=()):
 
 def test_a_renamed_track_moves_from_its_old_hash():
     assert legacy_track_mapping([_track("/a.mp3", "new1", "old1")]) == {"old1": "new1"}
+
+
+def test_a_track_moves_from_the_hash_of_the_release_before_too():
+    # A library that already ran the earlier cleanup holds its references
+    # under that hash, not under the raw tags.
+    track = _track("/a.mp3", "new1", "raw1", previous="prev1")
+    assert legacy_track_mapping([track]) == {"raw1": "new1", "prev1": "new1"}
+
+
+def test_a_previous_hash_another_track_still_carries_stays():
+    moved = _track("/a.mp3", "new1", "raw1", previous="shared")
+    holder = _track("/b.mp3", "shared")
+    assert legacy_track_mapping([moved, holder]) == {"raw1": "new1"}
 
 
 def test_a_track_the_cleanup_left_alone_moves_nothing():

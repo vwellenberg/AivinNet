@@ -56,7 +56,28 @@ def split_artists(src: str, config: UserConfig):
 # made of the whole string, the composer stood in the library twice: "Adam
 # Sporka" from one album, "Composed by Adam Sporka" from the next. Deliberately
 # no "written by" or "produced by": "Written by Wolves" is a band.
+#
+# "Lyrics by" and "Words by" came later (2026-10): KCD2 credits its songs
+# "Composed by Jan Valta; Lyrics by John Comer", and the lyricist stood in the
+# library as "Lyrics by John Comer". So did roles joined into one credit,
+# "Music and Lyrics by X".
+_ROLE = (
+    r"(?:(?:(?:original\s+)?(?:music|score)\s+)?(?:composed|arranged|orchestrated|conducted|performed)"
+    r"|(?:original\s+)?(?:music|score)|lyrics|words)"
+)
+_ROLES = rf"{_ROLE}(?:\s*(?:&|\band\b|/|,)\s*{_ROLE})*"
 _ARTIST_CREDIT = re.compile(
+    rf"^\s*{_ROLES}\s+by\s+(?=\S)|^\s*(?:komponiert|musik)\s+von\s+(?=\S)",
+    re.IGNORECASE,
+)
+# A name that is nothing but roles: what is left of "Composed & Lyrics by Jan
+# Valta" in front of the "&" once the artist separators have split it.
+_BARE_ROLES = re.compile(rf"^\s*{_ROLES}\s*$", re.IGNORECASE)
+
+# ⚠️ FROZEN: the rule the server applied until 2026-10. Not for cleaning
+# names — only to rebuild the hashes tracks had under it, so that their
+# references can follow the current rule (`Track.remember_legacy_identity`).
+_ARTIST_CREDIT_UNTIL_2026_10 = re.compile(
     r"^\s*(?:(?:(?:original\s+)?(?:music|score)\s+)?(?:composed|arranged|orchestrated|conducted|performed)"
     r"|(?:original\s+)?(?:music|score))\s+by\s+(?=\S)"
     r"|^\s*(?:komponiert|musik)\s+von\s+(?=\S)",
@@ -68,10 +89,36 @@ def strip_artist_credit(name: str) -> str:
     """
     `name` without a leading credit: "Composed by Adam Sporka" -> "Adam Sporka".
 
-    Applied to each name after the split, so "Composed by A; B" loses the role
-    on A and leaves B alone. A name that would be empty without it keeps it.
+    One name at a time, so "Composed by A; B" loses the role on A and leaves B
+    alone. A name that would be empty without it keeps it. For a list of names
+    as split from a tag, use `strip_artist_credits`.
     """
     stripped = _ARTIST_CREDIT.sub("", name, count=1).strip()
+    return stripped or name
+
+
+def strip_artist_credits(names: list[str]) -> list[str]:
+    """
+    The names split from one tag, each without its credit.
+
+    The separators split "Composed & Lyrics by Jan Valta" before any credit is
+    seen: "Composed" and "Lyrics by Jan Valta". A name that is only roles goes
+    when the next one carries a credit — together they were one credit.
+    """
+    cleaned = []
+
+    for i, name in enumerate(names):
+        following = names[i + 1] if i + 1 < len(names) else ""
+        if _BARE_ROLES.match(name) and _ARTIST_CREDIT.match(following):
+            continue
+        cleaned.append(strip_artist_credit(name))
+
+    return cleaned
+
+
+def strip_artist_credit_until_2026_10(name: str) -> str:
+    """`strip_artist_credit` as it was until 2026-10 — only for rebuilding old hashes."""
+    stripped = _ARTIST_CREDIT_UNTIL_2026_10.sub("", name, count=1).strip()
     return stripped or name
 
 

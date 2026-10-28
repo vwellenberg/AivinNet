@@ -52,15 +52,21 @@ def legacy_track_mapping(tracks: Iterable[Any]) -> dict[str, str]:
     The same rules as a rescan (`rescan_remap.remap_by_path`): an old hash that
     another track still carries keeps its references, and one that split into
     two new hashes cannot follow both.
+
+    A track can have had two old hashes — under its raw tags and under the
+    cleanup of the release before (`Track._previoushash`) — depending on which
+    release the library last ran. Each is mapped by the same rules.
     """
-    before: dict[str, str] = {}
-    after: dict[str, str] = {}
+    tracks = list(tracks)
+    after = {track.filepath: track.trackhash for track in tracks}
+    mapping: dict[str, str] = {}
 
-    for track in tracks:
-        before[track.filepath] = track._legacyhash or track.trackhash
-        after[track.filepath] = track.trackhash
+    for old_of in (lambda t: t._legacyhash, lambda t: t._previoushash):
+        before = {track.filepath: old_of(track) or track.trackhash for track in tracks}
+        for old, new in remap_by_path(before, after).items():
+            mapping.setdefault(old, new)
 
-    return remap_by_path(before, after)
+    return mapping
 
 
 def legacy_artist_mapping(tracks: Iterable[Any]) -> dict[str, str]:

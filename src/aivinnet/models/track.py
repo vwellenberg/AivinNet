@@ -10,6 +10,8 @@ from aivinnet.utils.parsers import (
     remove_prod,
     split_artists,
     strip_artist_credit,
+    strip_artist_credit_until_2026_10,
+    strip_artist_credits,
     strip_track_number,
 )
 
@@ -67,6 +69,10 @@ class Track:
     # the serializers leave them out of every response.
     _legacyhash: str = ""
     _legacy_artisthashes: tuple[tuple[str, str], ...] = ()
+    # The trackhash under the cleanup of the release before (credits as
+    # stripped until 2026-10), when it differs from both: a library that already
+    # ran that cleanup holds its references there, not under the raw tags.
+    _previoushash: str = ""
 
     @property
     def is_favorite(self):
@@ -148,12 +154,12 @@ class Track:
         Splits the artists and albumartists based on the given separators,
         and updates the artisthashes.
 
-        Returns the names as tagged, before `strip_artist_credit` took the role
+        Returns the names as tagged, before `strip_artist_credits` took the roles
         off them ("Composed by Adam Sporka" -> "Adam Sporka").
         """
 
         def named(names: list[str]):
-            return [{"name": a, "artisthash": create_hash(a, decode=True)} for a in map(strip_artist_credit, names)]
+            return [{"name": a, "artisthash": create_hash(a, decode=True)} for a in strip_artist_credits(names)]
 
         raw_names = split_artists(self.artists, config=self.config)
         raw_album_names = split_artists(self.albumartists, config=self.config)
@@ -255,27 +261,36 @@ class Track:
         }
         self._legacy_artisthashes = tuple(sorted(pairs))
 
-        title_changed = strip_track_number(self.og_title, self.track, self.disc, self.filepath) != self.og_title
-        if not title_changed and not pairs:
+        stripped_title = strip_track_number(self.og_title, self.track, self.disc, self.filepath)
+        if stripped_title == self.og_title and not pairs:
             return
 
-        old_title = self.og_title
-        old_artists = [(name, create_hash(name, decode=True)) for name in raw_names]
+        def hash_as(title: str, names: list[str]) -> str:
+            old_artists = [(name, create_hash(name, decode=True)) for name in names]
 
-        if self.config.extractFeaturedArtists:
-            feat, old_title = parse_feat_from_title(old_title, self.config)
-            known = {artisthash for _name, artisthash in old_artists}
-            old_artists += [(f, h) for f in feat if (h := create_hash(f, decode=True)) not in known]
-        if self.config.removeProdBy:
-            old_title = remove_prod(old_title)
-        if self.config.removeRemasterInfo:
-            old_title = clean_title(old_title)
+            if self.config.extractFeaturedArtists:
+                feat, title = parse_feat_from_title(title, self.config)
+                known = {artisthash for _name, artisthash in old_artists}
+                old_artists += [(f, h) for f in feat if (h := create_hash(f, decode=True)) not in known]
+            if self.config.removeProdBy:
+                title = remove_prod(title)
+            if self.config.removeRemasterInfo:
+                title = clean_title(title)
 
-        old_names = [name for name, _hash in dict.fromkeys(old_artists)]
-        legacy = create_hash(old_title, self.album, *old_names)
+            old_names = [name for name, _hash in dict.fromkeys(old_artists)]
+            return create_hash(title, self.album, *old_names)
 
+        # Before any cleanup: the tags as they are.
+        legacy = hash_as(self.og_title, raw_names)
         if legacy != self.trackhash:
             self._legacyhash = legacy
+
+        # Under the cleanup of the release before: a library that ran it holds
+        # its references here. Differs only where a credit is cleaned now that
+        # was not then ("Composed by A; Lyrics by B" was "A", "Lyrics by B").
+        previous = hash_as(stripped_title, [strip_artist_credit_until_2026_10(name) for name in raw_names])
+        if previous not in (legacy, self.trackhash):
+            self._previoushash = previous
 
     def recreate_trackhash(self):
         """
