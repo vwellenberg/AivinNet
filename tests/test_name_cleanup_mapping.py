@@ -36,6 +36,13 @@ def test_a_track_moves_from_the_hash_of_the_release_before_too():
     assert legacy_track_mapping([track]) == {"raw1": "new1", "prev1": "new1"}
 
 
+def test_an_old_hash_the_two_releases_send_to_different_tracks_follows_neither():
+    # Raw tags of one file and the earlier cleanup of another give one hash.
+    first = _track("/a.mp3", "new1", "same")
+    second = _track("/b.mp3", "new2", "raw2", previous="same")
+    assert legacy_track_mapping([first, second]) == {"raw2": "new2"}
+
+
 def test_a_previous_hash_another_track_still_carries_stays():
     moved = _track("/a.mp3", "new1", "raw1", previous="shared")
     holder = _track("/b.mp3", "shared")

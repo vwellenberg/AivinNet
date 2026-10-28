@@ -250,9 +250,12 @@ class Track:
         """
         Record the hashes this track had before the name cleanup, if it changed any.
 
-        The old trackhash is rebuilt the way the server built it until then: the
-        title as tagged through the same setting-driven cleanup, the performers
-        under their tagged names, featured ones added and duplicates dropped.
+        Two old trackhashes, each rebuilt the way the server built it then, with
+        the same setting-driven title cleanup, featured artists added and
+        duplicates dropped: `_legacyhash` from the tags as they are, and
+        `_previoushash` under the cleanup of the release before (only where it
+        differs from both). A stricter rule later freezes the current one next
+        to it (track-tags.md).
         """
         pairs = {
             (create_hash(name, decode=True), create_hash(clean, decode=True))
