@@ -283,7 +283,7 @@ wird jede neue Quelle eingetragen:
 
 | Wohin | Was | Wann |
 |---|---|---|
-| `apic-desktop.musixmatch.com` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (Neuinstallation: aus; Settings → Plugins) |
+| `lrclib.net` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (Neuinstallation: aus; Settings → Plugins). Bis 2026-10-28 Musixmatch |
 | `musicbrainz.org` / `coverartarchive.org` | Albumtitel + Album-Artist im Klartext | **nur auf Anforderung**: Cover holen, und seit #221 Titel/Nummern holen |
 | Deezer / Last.fm | Artist-Namen | nur mit `enableOnlineMetadata` (ab Werk **aus**) |
 

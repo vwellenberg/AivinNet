@@ -348,10 +348,15 @@ antwortete; „Your mixes“ ersetzt sie ohne Dienst. Externe Quellen dürfen nu
 Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
 
 **Externe Quelle beim Hören: der Lyrics-Finder (seit 2026-08-06).** Das Plugin `lyrics_finder`
-(Musixmatch, inoffizielle Desktop-API) ist bei **Neuinstallationen aus**; ältere Installationen
-behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen der Lyrics-Seite ohne
-lokale Lyrics **Titel + Artist im Klartext** an `apic-desktop.musixmatch.com`; gefundene Lyrics
-landen als `.lrc` neben der Audiodatei. Schalter: Settings → Plugins → Lyrics (`plugins/register.py`).
+fragt **LRCLIB** (`lrclib.net`, offene API, kein Token) und ist bei **Neuinstallationen aus**;
+ältere Installationen behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen
+der Lyrics-Seite ohne lokale Lyrics **Titel + Artist im Klartext** an `lrclib.net`; gefundene
+Lyrics (synchron bevorzugt, sonst Klartext) landen als `.lrc` neben der Audiodatei. Schalter:
+Settings → Plugins → Lyrics (`plugins/register.py`). ⚠️ Bis 2026-10-28 war es Musixmatchs
+inoffizielle Desktop-API, und die starb **ohne Fehler**: `token.get` antwortet 200 mit einem
+Token aus Nullen, danach ist jeder Untertitel 404 und jeder Liedtext verwürfelter Platzhalter —
+die App meldete schlicht „No lyrics found" für alles. Ein Dienst, der so stirbt, fällt nur an
+einer **Stichprobe mit einem bekannten Song** auf, nicht im Log.
 
 ⚠️ **Ein Config-Feld ohne Schalter im Client ist für den User nicht vorhanden.** Die
 Plugins-Seite flog im Mai 2026 wegen Last.fm raus und nahm den Lyrics-Schalter mit;
