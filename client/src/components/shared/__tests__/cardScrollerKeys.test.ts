@@ -57,6 +57,18 @@ describe('CardScroller keys', () => {
         expect(wrapper.findAll('.card')[1].text()).toBe('Mix, refreshed')
     })
 
+    it('keeps the neighbours when a card leaves the row ("Not interested")', async () => {
+        const wrapper = mountRow()
+        const before = wrapper.findAll('.card').map(c => c.element)
+
+        await wrapper.setProps({ items: row().filter((_, i) => i !== 1) })
+
+        const after = wrapper.findAll('.card').map(c => c.element)
+        // Identity, not equality: a rebuilt card looks the same.
+        expect(after).toHaveLength(3)
+        ;[before[0], before[2], before[3]].forEach((el, i) => expect(after[i], `card ${i} was rebuilt`).toBe(el))
+    })
+
     it('builds a card for an item that is new to the row', async () => {
         const wrapper = mountRow()
         const first = wrapper.findAll('.card')[0].element
@@ -81,7 +93,16 @@ describe('cardKeys', () => {
 
     it('keeps keys unique when a row holds the same card twice', () => {
         const twice = [row()[0], row()[0], row()[0]]
-        expect(cardKeys(twice)).toEqual(['album:a1', 'album:a1#1', 'album:a1#2'])
+        expect(cardKeys(twice)).toEqual(['album:a1', '#1 album:a1', '#2 album:a1'])
+    })
+
+    it('cannot collide with an id that looks like a count', () => {
+        const folders = [
+            { type: 'folder', item: { path: '/m/a' } },
+            { type: 'folder', item: { path: '/m/a' } },
+            { type: 'folder', item: { path: '/m/a#1' } },
+        ]
+        expect(new Set(cardKeys(folders)).size).toBe(3)
     })
 
     it('keys placeholders by their place', () => {

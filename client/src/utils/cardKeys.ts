@@ -10,7 +10,7 @@
  * identity, Vue patches the card in place and only a card that really changed
  * is rebuilt.
  *
- * The same entity twice in one row gets a running suffix, so keys stay unique.
+ * The same entity twice in one row gets a running count, so keys stay unique.
  */
 
 type RowCard = { type: string; item?: any }
@@ -41,10 +41,12 @@ export function cardKeys(cards: RowCard[]): string[] {
     return cards.map((card, index) => {
         const id = identity(card)
         // Placeholders and unknown shapes have nothing to be: their place is all.
-        const base = id === undefined || id === null || id === '' ? `${card.type}@${index}` : `${card.type}:${id}`
+        const base = id == null || id === '' ? `${card.type}@${index}` : `${card.type}:${id}`
         const n = seen.get(base) ?? 0
         seen.set(base, n + 1)
 
-        return n ? `${base}#${n}` : base
+        // The count goes in FRONT: a type never starts with "#", while an id
+        // (a folder path) may well end in "#1".
+        return n ? `#${n} ${base}` : base
     })
 }
