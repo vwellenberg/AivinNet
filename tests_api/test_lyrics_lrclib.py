@@ -96,30 +96,63 @@ class TestBareTitle:
 
 
 class TestPickBest:
-    def _r(self, title, album, synced):
-        return {"track_id": title + album, "title": title, "artist": "A", "album": album, "synced": synced}
+    def _r(self, title, album, synced, artist="Band"):
+        return {"track_id": title + album, "title": title, "artist": artist, "album": album, "synced": synced}
+
+    def test_the_right_song_in_plain_beats_a_neighbour_with_times(self, lyrics):
+        """The pick is saved as the track's .lrc for good: a wrong song costs more than no times."""
+        right = self._r("Song", "Album", synced=False)
+        neighbour = self._r("Song 2 (Reprise)", "Album", synced=True)
+
+        assert lyrics.pick_best([neighbour, right], "Song", "Band", "Album") is right
 
     def test_synced_beats_the_right_album_in_plain(self, lyrics):
         plain_same_album = self._r("Song", "Album", synced=False)
         synced_other = self._r("Song", "Best Of", synced=True)
 
-        assert lyrics.pick_best([plain_same_album, synced_other], "Song", "Album") is synced_other
+        assert lyrics.pick_best([plain_same_album, synced_other], "Song", "Band", "Album") is synced_other
 
     def test_the_right_album_wins_among_synced(self, lyrics):
         other = self._r("Song", "Best Of", synced=True)
         same = self._r("Song", "Album", synced=True)
 
-        assert lyrics.pick_best([other, same], "Song", "Album") is same
+        assert lyrics.pick_best([other, same], "Song", "Band", "Album") is same
+
+    def test_a_cut_off_title_matches_through_its_bare_form(self, lyrics):
+        bare = self._r("Stretch", "X", synced=False)
+        other = self._r("Stretch You Out", "Y", synced=True)
+
+        assert lyrics.pick_best([other, bare], "Stretch (My Friends B", "Band", "Z") is bare
+
+    def test_another_artist_is_never_picked(self, lyrics):
+        """'Black (Live)' by a small band, retried as 'Black', must not become Pearl Jam's."""
+        pearl_jam = self._r("Black", "Ten", synced=True, artist="Pearl Jam")
+
+        assert lyrics.pick_best([pearl_jam], "Black (Live)", "Small Band", "Live") is None
+
+    @pytest.mark.parametrize(
+        ("wanted", "found"),
+        [
+            ("Jan Valta and Adam Sporka", "Jan Valta"),
+            ("Glenn Stafford, Derek Duke", "Derek Duke"),
+            ("Red Hot Chili Peppers", "Red Hot Chili Peppers"),
+            ("Bjork", "Björk"),
+        ],
+    )
+    def test_the_same_act_under_another_spelling_passes(self, lyrics, wanted, found):
+        track = self._r("Song", "A", synced=True, artist=found)
+
+        assert lyrics.pick_best([track], "Song", wanted, "A") is track
 
     def test_the_service_ranking_decides_a_tie(self, lyrics):
         first = self._r("Song", "X", synced=True)
         second = self._r("Song", "Y", synced=True)
 
-        assert lyrics.pick_best([first, second], "Song", "Album") is first
+        assert lyrics.pick_best([first, second], "Song", "Band", "Album") is first
 
     def test_nothing_found_picks_nothing(self, lyrics):
-        assert lyrics.pick_best([], "Song", "Album") is None
-        assert lyrics.pick_best(None, "Song", "Album") is None
+        assert lyrics.pick_best([], "Song", "Band", "Album") is None
+        assert lyrics.pick_best(None, "Song", "Band", "Album") is None
 
 
 class TestSearch:
@@ -249,6 +282,30 @@ def test_plain_lyrics_come_back_unsynced_instead_of_failing(api, service, song):
     assert res.json["lyrics"] == ["Hello there", "Second line"]
 
 
+def test_plain_lyrics_never_replace_a_file_already_there(api, service, song):
+    """'Override unsynced' asks for TIMED lyrics; the listener's own plain file stays."""
+    own = song.with_suffix(".lrc")
+    own.write_text("my own words")
+    service.answers[("Stretch", "Red Hot Chili Peppers")] = [
+        _hit(9, "Stretch", "Red Hot Chili Peppers", "One Hot Minute", synced=None),
+    ]
+
+    res = api.post("/plugins/lyrics/search", json=_body(song))
+
+    assert res.json["synced"] is False
+    assert own.read_text() == "my own words"
+
+
+def test_synced_lyrics_do_replace_a_plain_file(api, service, song):
+    own = song.with_suffix(".lrc")
+    own.write_text("my own words")
+    service.answers[("Stretch", "Red Hot Chili Peppers")] = [_hit(9, "Stretch", "Red Hot Chili Peppers", "X")]
+
+    api.post("/plugins/lyrics/search", json=_body(song))
+
+    assert own.read_text() == SYNCED
+
+
 def test_nothing_found_is_an_empty_answer(api, service, song):
     res = api.post("/plugins/lyrics/search", json=_body(song, title="Unknown Song"))
 
@@ -283,3 +340,11 @@ class TestLrcTimestamps:
         from aivinnet.lib.lyrics import Lyrics
 
         assert Lyrics(f"{tag}line").format_synced_lyrics()[0]["time"] == millis
+
+    def test_one_files_offset_does_not_shift_the_next(self):
+        """`meta` was a class-level dict: an [offset:] stayed for every later file."""
+        from aivinnet.lib.lyrics import Lyrics
+
+        Lyrics("[offset:500]\n[00:01.00]shifted")
+
+        assert Lyrics("[00:01.00]line").format_synced_lyrics()[0]["time"] == 1000.0

@@ -8,6 +8,7 @@ import requests
 from unidecode import unidecode
 
 from aivinnet.db.userdata import PluginTable
+from aivinnet.lib.lyrics import Lyrics as LrcText
 from aivinnet.plugins import Plugin, plugin_method
 from aivinnet.utils.hashing import create_hash
 
@@ -70,24 +71,47 @@ def bare_title(title: str) -> str:
     return _TITLE_SUFFIX.sub("", title).strip()
 
 
-def pick_best(results: list[dict], title: str, album: str) -> dict | None:
+def _squash(text: str) -> str:
+    return "".join(c for c in unidecode(text).lower() if c.isalnum())
+
+
+def _same_artist(wanted: str, found: str) -> bool:
     """
-    The result to download. Synced lyrics beat plain ones — the lyrics page
-    follows the song only with time tags — and within that, the same title
-    beats a near one and the same album beats another release of it.
+    Loose on purpose: the client joins several artists with ", ", tags write
+    duos as "A and B", and LRCLIB lists them its own way. One containing the
+    other — for the whole credit or any single name in it — is the same act.
     """
-    if not results:
+    found = _squash(found)
+    names = [_squash(n) for n in [wanted, *wanted.split(", ")]]
+    return any(n and found and (n in found or found in n) for n in names)
+
+
+def pick_best(results: list[dict] | None, title: str, artist: str, album: str) -> dict | None:
+    """
+    The result to download, or None when nothing is by this artist.
+
+    ⚠️ The pick is written next to the track as its `.lrc` and never looked up
+    again, so a wrong song costs more than no song. LRCLIB's search is fuzzy —
+    the shortened-title retry even asks for less than the tag says — hence the
+    artist filter, and the same title ranks ABOVE synced: plain lyrics of the
+    right song beat timed lyrics of a neighbour. Then the same album beats
+    another release of it.
+    """
+    candidates = [r for r in results or [] if _same_artist(artist, r["artist"])]
+    if not candidates:
         return None
+
+    wanted = {create_hash(title), create_hash(bare_title(title) or title)}
 
     def score(track: dict) -> tuple[bool, bool, bool]:
         return (
+            create_hash(track["title"]) in wanted,
             bool(track["synced"]),
-            create_hash(track["title"]) == create_hash(title),
             create_hash(track["album"]) == create_hash(album),
         )
 
     # `max` keeps the first of equals, and the service ranks its own results.
-    return max(results, key=score)
+    return max(candidates, key=score)
 
 
 class LyricsProvider:
@@ -227,8 +251,13 @@ class Lyrics(Plugin):
             return None
 
         path = Path(path).with_suffix(".lrc")
-        if not path.exists():
-            path.touch()
+
+        # Only timed lyrics replace a file that is already there: that is what
+        # "override unsynced" asks for. Plain text over the listener's own
+        # plain file would trade their version for ours and gain nothing.
+        if path.exists() and not LrcText(lrc).is_synced:
+            return lrc
+
         path.write_text(lrc)
 
         return lrc

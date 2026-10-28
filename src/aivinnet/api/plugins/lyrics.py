@@ -48,7 +48,7 @@ def search_lyrics(body: LyricsSearchBody):
     finder = Lyrics()
     data = finder.search_lyrics_by_title_and_artist(title, artist)
 
-    best = pick_best(data, title, album)
+    best = pick_best(data, title, artist, album)
 
     if best is None:
         return {"trackhash": trackhash, "lyrics": None}

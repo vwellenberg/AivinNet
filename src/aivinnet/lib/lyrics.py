@@ -160,6 +160,9 @@ class Lyrics:
 
         lyrics = lyrics.replace("engdesc", "")
         self.lyrics = lyrics
+        # Per instance: the class-level `{}` was ONE dict for every file, so an
+        # `[offset:]` read once shifted all lyrics parsed after it.
+        self.meta = {}
 
         parsed = parse_lyrics_lines(lyrics)
 
