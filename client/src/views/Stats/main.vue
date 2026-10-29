@@ -12,6 +12,8 @@
         <Stats :period="normalizeStatsPeriod(settings.statsperiod)" />
         <!-- When in the week, over the same period as the tiles (#535). -->
         <ListeningClock :period="normalizeStatsPeriod(settings.statsperiod)" />
+        <!-- How often the tracks were skipped (#537), over the same period. -->
+        <SkipRate :period="normalizeStatsPeriod(settings.statsperiod)" />
         <ListeningCalendar :rewind-years="rewind?.years ?? []" />
         <!-- Rewind (#527) is a page of its own; the way there stays at the very
              bottom, seen or not (#572). The news is Home's January card. -->
@@ -27,6 +29,7 @@ import GenericHeader from '@/components/shared/GenericHeader.vue'
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
 import ListeningClock from '@/components/Stats/ListeningClock.vue'
 import RewindLink from '@/components/Stats/RewindLink.vue'
+import SkipRate from '@/components/Stats/SkipRate.vue'
 import useRewindYears from '@/composables/useRewindYears'
 import Stats from '@/components/Stats/Stats.vue'
 import useSettings from '@/stores/settings'
