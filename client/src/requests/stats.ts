@@ -55,6 +55,38 @@ export interface ClockPayload {
     dates: string
 }
 
+/**
+ * The skip quote (#537). `share` is the part of a track's plays that were
+ * skipped (under `rules.skip_below` of the track) or finished. The overall
+ * `rate` is a lower bound: plays under 5 s are never logged.
+ */
+export interface SkipRow {
+    trackhash: string
+    plays: number
+    share: number
+    track: { trackhash: string; title: string; artists: { name: string }[] }
+    skipped?: number
+    finished?: number
+}
+
+export interface SkipRatePayload {
+    plays: number
+    skipped: number
+    rate: number | null
+    most_skipped: SkipRow[]
+    to_the_end: SkipRow[]
+    rules: { skip_below: number; finished_from: number; min_plays: number; always: number }
+    dates: string
+}
+
+/** How often the period's tracks were skipped, and which were always played to the end (#537). */
+export async function getSkipRate(period: string) {
+    return await useAxios({
+        url: paths.api.stats.base + `/skips?period=${encodeURIComponent(period)}`,
+        method: 'GET',
+    })
+}
+
 /** When in the week the music plays, over the stats page's period (#535). */
 export async function getListeningClock(period: string) {
     return await useAxios({
@@ -97,6 +129,17 @@ export async function markRewindSeen(year: number) {
 export async function getRewind(year?: number) {
     return await useAxios({
         url: paths.api.stats.base + '/rewind' + (year ? `?year=${year}` : ''),
+        method: 'GET',
+    })
+}
+
+/**
+ * The records board (#540): the longest session, the day one track was played
+ * most, and the plays with a milestone number. Counted hourly on the server.
+ */
+export async function getRecords() {
+    return await useAxios({
+        url: paths.api.stats.base + '/records',
         method: 'GET',
     })
 }

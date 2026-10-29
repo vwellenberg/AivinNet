@@ -219,6 +219,18 @@ Falle, die der Abgleich beim ersten Lauf zweimal gefunden hat: **Ein Pydantic-`a
 Name auf dem Draht.** `AlbumLimitSchema.limit` heißt nach außen `albumlimit`; der Client schickte
 `limit`, das wurde still ignoriert und der Server nahm seinen Standardwert.
 
+## Rekorde und Meilensteine (#540, #545)
+
+`GET /logger/records` liest eine Tafel, die der stündliche Cron (`lib/recipes/records.py`) aus der
+ganzen Historie rechnet: längste Session, Obsession, Meilensteinplays inklusive Play #1. Der
+Request-Pfad rechnet nichts; die Regeln stehen rein in `lib/records.py` (Sitzungsgrenze wie bei
+„Because you listened“). Ein Play nach dem letzten Lauf fehlt bis zum nächsten Lauf in der Tafel.
+
+Der Meilenstein ist dagegen live: `ScrobbleTable.plays_of` zählt per SQL COUNT bei jedem Play, und
+`POST /logger/track/log` antwortet mit `plays` und `milestone` (nur bei 1 000, 1 337, 10 000 und
+100 000). Den Worker `public/workers/logtrack.js` lässt das nicht los: er reicht ein Milestone per
+`postMessage` an die Seite weiter, sonst nichts.
+
 ## Stats-Seite: Hörkalender und Rewind rechnen über die ganze Historie
 
 `GET /logger/calendar` (#525) und `GET /logger/rewind` (#527) lesen viele Plays im
@@ -302,3 +314,17 @@ this week“ brach auf zwei Zeilen und hob den Wert aus der Reihe. Gruppiert wir
 `q:` (Suche) landen dort als `track`. Rewind liest deshalb den rohen `source`-String
 (`lib/rewind.py::source_kind`), und eine erzeugte Playlist (`CUSTOM_PLAYLISTS`) zählt dort als
 „Home“. Wer eine neue Quelle im Client einführt, trägt sie an beiden Stellen ein.
+
+## Skip-Quote: Plays gegen die Länge aus der Bibliothek (#537)
+
+`GET /logger/skips?period=…` gruppiert in SQL nach Track **und** gehörter Länge
+(`ScrobbleTable.plays_by_trackhash_and_duration_in_period`). Die Länge steht nur im
+`TrackStore`, deshalb rechnet `lib/skip_rate.py` erst danach — gecacht pro User mit
+Zeitraum, Startzeit und `change_marker`, wie die Uhr. Der Cache kennt die Bibliothek nicht:
+eine Längenänderung ohne neuen Play wirkt erst beim nächsten Play; Tracks, die seither aus
+der Bibliothek fielen, verschwinden aus den Listen (`_with_tracks`), zählen aber in der Quote
+weiter, bis der nächste Play neu rechnet.
+
+⚠️ Die Quote ist eine **Untergrenze**: `log_track` verwirft Plays unter 5 s, die schnellsten
+Skips stehen gar nicht in der Datenbank. Der Client schreibt das in die Kachel; wer die Zahl
+anders darstellt, behält den Hinweis.

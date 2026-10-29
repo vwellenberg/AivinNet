@@ -635,6 +635,31 @@ class ScrobbleTable(Base):
         return int(count or 0), int(highest or 0)
 
     @classmethod
+    def plays_of(cls, userid: int) -> int:
+        """How many plays ONE user has (#545): one COUNT over their rows, read after every play."""
+        result = cls.rows(select(func.count(cls.id)).where(cls.userid == userid))
+        return int(result.scalar_one() or 0)
+
+    @classmethod
+    def records_rows(cls, userid: int) -> list[tuple[int, int, str, str]]:
+        """
+        `(timestamp, duration, trackhash, local day)` of every play, oldest
+        first, for the records board (#540, `lib/records.py`). The day is cut
+        in SQL, in the zone of `seconds_per_day`, so the board and the calendar
+        agree on which day a play fell on.
+        """
+        day = func.date(cls.timestamp, "unixepoch", "localtime")
+        result = cls.rows(
+            select(cls.timestamp, cls.duration, cls.trackhash, day)
+            .where(cls.userid == userid)
+            .order_by(cls.timestamp, cls.id)
+        )
+        return [
+            (int(timestamp), int(duration or 0), trackhash, day or "")
+            for timestamp, duration, trackhash, day in result.all()
+        ]
+
+    @classmethod
     def plays_by_trackhash_in_period(
         cls, start_time: int, end_time: int, userid: int | None = None
     ) -> list[tuple[str, int, int]]:
@@ -654,6 +679,29 @@ class ScrobbleTable(Base):
             .group_by(cls.trackhash)
         )
         return [(trackhash, int(plays), int(duration or 0)) for trackhash, plays, duration in result.all()]
+
+    @classmethod
+    def plays_by_trackhash_and_duration_in_period(
+        cls, start_time: int, end_time: int, userid: int | None = None
+    ) -> list[tuple[str, int, int]]:
+        """
+        `(trackhash, seconds listened, plays)` for one user's period, one row per
+        track and listened length (#537, `lib/skip_rate`).
+
+        The share of a track listened to needs its length, which is in the
+        library and not in SQL. So the rows are the distinct listened lengths
+        per track, not the plays: one request-thread read, cached per user.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(
+            select(cls.trackhash, cls.duration, func.count(cls.id))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(cls.trackhash, cls.duration)
+        )
+        return [(trackhash, int(seconds or 0), int(plays)) for trackhash, seconds, plays in result.all()]
 
     @classmethod
     def heard_trackhashes_of(cls, userid: int) -> set[str]:

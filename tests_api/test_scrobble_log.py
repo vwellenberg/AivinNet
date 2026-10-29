@@ -107,7 +107,8 @@ def test_a_played_track_is_recorded_and_counted(logger):
     res = log(logger.api)
 
     assert res.status_code == 201
-    assert res.json == {"msg": "recorded"}
+    # The play count is answered on every play; a milestone only on a round one (test_records_api).
+    assert res.json == {"msg": "recorded", "plays": 1, "milestone": None}
 
     (entry,) = scrobbles(logger.api)
     assert (entry.trackhash, entry.duration, entry.timestamp) == (HASH, 200, TIMESTAMP)

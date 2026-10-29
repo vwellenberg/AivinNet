@@ -266,6 +266,7 @@
       "required": []
     }
   },
+  "GET /logger/records": {},
   "GET /logger/rewind": {
     "query": {
       "allowed": [
@@ -275,6 +276,14 @@
     }
   },
   "GET /logger/rewind/years": {},
+  "GET /logger/skips": {
+    "query": {
+      "allowed": [
+        "period"
+      ],
+      "required": []
+    }
+  },
   "GET /logger/stats": {
     "query": {
       "allowed": [

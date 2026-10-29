@@ -19,6 +19,7 @@ from aivinnet.lib.recipes.homerows import (
     YourMixes,
 )
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
+from aivinnet.lib.recipes.records import refresh_records
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
 # setup_logger() runs and the imported name never picks up the reassignment.
@@ -138,6 +139,10 @@ def _run_cron_jobs():
             schedule.every().hour.at(":00").do(_guarded(routine))
         else:
             schedule.every(routine.hours).hours.do(_guarded(routine))
+
+    # The records board (#540) counts every user's whole history: hourly, and
+    # once at start through schedule.run_all() below.
+    schedule.every().hour.at(":00").do(_guarded(refresh_records))
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)
