@@ -89,7 +89,8 @@ def test_each_period_names_itself(stats_api, period, said):
     shown = tiles(stats_api, f"?period={period}")
 
     assert shown["streams"]["text"] == said
-    assert shown["playtime"]["text"] == said
+    # "listened" rides in the caption: in the value it took a third line.
+    assert shown["playtime"]["text"] == f"listened {said}"
     assert shown["toptrack"]["text"] == f"Top track {said}"
 
 
@@ -103,7 +104,7 @@ def test_a_play_from_last_year_counts_for_all_time_only(stats_api):
 
     alltime = tiles(stats_api, "?period=alltime")
     assert alltime["streams"]["value"] == "2 track plays"
-    assert alltime["playtime"]["value"] == "5 mins listened"
+    assert alltime["playtime"]["value"] == "5 mins"
 
 
 def test_all_time_counts_every_favorite_without_calling_it_new(stats_api):
@@ -139,7 +140,7 @@ def test_a_play_of_a_track_gone_from_the_library_is_a_play_but_no_time(stats_api
 
     assert shown["streams"]["value"] == "2 track plays"
     # 4 minutes, not 19: the orphan's 15 do not count.
-    assert shown["playtime"]["value"] == "4 mins listened"
+    assert shown["playtime"]["value"] == "4 mins"
     assert shown["toptrack"]["trackhash"] == HASH
 
 

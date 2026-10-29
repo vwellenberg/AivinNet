@@ -9,7 +9,7 @@ Two things can talk to the internet, and each is off until you turn it on:
 | Setting | What it sends, and to whom |
 |---|---|
 | **Online metadata** (Settings → Library → Artists) | During a library scan: every artist name to **Deezer** for artist images, and to **Last.fm** for similar artists. |
-| **Lyrics finder** (Settings → Plugins) | When you open the lyrics page: the track title and artist to **Musixmatch**. Found lyrics are saved as an `.lrc` file next to the track. |
+| **Lyrics finder** (Settings → Plugins) | When you open the lyrics page: the track title and artist to **LRCLIB** (lrclib.net). Found lyrics are saved as an `.lrc` file next to the track. |
 
 Some things happen without a setting, because you asked for them by clicking,
 and they run only on that click:

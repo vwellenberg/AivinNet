@@ -29,6 +29,7 @@
                 :icon="item.cssclass"
                 :image="item.image"
                 :trackhash="item.trackhash"
+                :detail="item.detail"
                 :expandable="opens(item)"
                 :expanded="opens(item) && showDiscoveries"
                 :controls="opens(item) ? 'stats-discoveries' : undefined"
@@ -68,6 +69,7 @@ interface StatItemData {
     text: string
     image?: string
     trackhash?: string
+    detail?: string | null
 }
 
 const props = defineProps<{

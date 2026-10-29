@@ -125,6 +125,8 @@ describe('the Colour scheme setting', () => {
     it('offers exactly the schemes this build knows', () => {
         // Same reason as for the looks: an unknown stored value would quietly
         // turn back into Memphis on the next load.
-        expect((setting?.options ?? []).map((o) => o.value)).toEqual([...PALETTES])
+        // `halloween` is known but seasonal only (utils/seasons.ts): the one
+        // scheme the date paints, never one the user picks.
+        expect((setting?.options ?? []).map((o) => o.value)).toEqual(PALETTES.filter((p) => p !== 'halloween'))
     })
 })

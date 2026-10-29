@@ -7,6 +7,7 @@ import os
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
+from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.lib import library_lock, mbjobs
 from aivinnet.lib.track_edit import AmbiguousTrackError, TrackNotFoundError, edit_track_tags_by_filepath, resolve_track
@@ -24,7 +25,7 @@ class TrackHashPath(BaseModel):
     trackhash: str = Field(..., description="The trackhash of the track to edit")
 
 
-class EditTagsBody(BaseModel):
+class EditTagsBody(JsonBodyModel):
     title: str | None = Field(None, description="New track title")
     album: str | None = Field(None, description="New album title")
     artists: list[str] | None = Field(None, description="New list of track artists")

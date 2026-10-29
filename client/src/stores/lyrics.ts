@@ -239,9 +239,9 @@ export default defineStore("lyrics", {
       const line = this.calculateCurrentLine();
       this.setCurrentLine(line);
     },
-    setLyrics(lyrics: LyricsLine[]) {
+    setLyrics(lyrics: LyricsLine[], synced = true) {
       this.lyrics = lyrics;
-      this.synced = true;
+      this.synced = synced;
       this.exists = true;
       this.currentTrack = useQueue().currenttrackhash;
 

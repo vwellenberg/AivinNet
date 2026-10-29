@@ -33,6 +33,9 @@ function sources(dir: string): string[] {
 const FILES = sources("src");
 const CANDY = "src/assets/scss/_candy.scss";
 const STREAM = "src/assets/scss/Global/_theme-stream.scss";
+// The snow sprinkle of the seasonal overlay (#543): an overlay on the Memphis
+// form, set only under html.season-christmas, not a look.
+const SEASONS = "src/assets/scss/Global/_seasons.scss";
 
 /** `line: text` for every line matching `re`, outside the owner file(s). */
 function offenders(re: RegExp, owner: string | string[] = CANDY): string[] {
@@ -145,7 +148,7 @@ describe("shape tokens", () => {
     // dead code and the pixel-equality argument of #198 void. The one file
     // allowed to set them are the look files, each only under its own class.
     // Same for the accent family `--look-*` (#199).
-    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, [STREAM])).toEqual([]);
+    expect(offenders(/^\s*--(shape|look)-[a-z-]+\s*:/, [STREAM, SEASONS])).toEqual([]);
   });
 
   // Each look sets its tokens only under its own selector (Stream: built on

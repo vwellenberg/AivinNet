@@ -48,7 +48,8 @@ describe('Home rows', () => {
         // Slicing the raw list is exactly the bug: an undrawable item eats a
         // slot and the row comes up short. The slice must run on the filtered
         // list.
-        expect(SCROLLER).toMatch(/v-for="[^"]*\brenderable\.slice\(0, columns\)"/)
+        expect(SCROLLER).toMatch(/const visible = computed\(\(\) => renderable\.value\.slice\(0, columns\.value\)\)/)
+        expect(SCROLLER).toMatch(/v-for="\(i, n\) in visible"/)
         expect(SCROLLER).not.toMatch(/v-for="[^"]*\bitemlist\.slice\(/)
     })
 

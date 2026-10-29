@@ -1,6 +1,6 @@
 """Real-database tests for the off-by-default lyrics finder.
 
-The plugin talks to Musixmatch, so the factory state is OFF. The interesting
+The plugin talks to LRCLIB, so the factory state is OFF. The interesting
 half is not the fresh install, though — it is the promise that an EXISTING row
 is never touched.
 
