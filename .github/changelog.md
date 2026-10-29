@@ -69,6 +69,31 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A feature release on top of 2026.10.6.
+
+- **Home.** A recap card heads Home on Mondays with your last week of
+  listening, and on the 1st with your last month. *Deep cuts* plays the tracks of your favourite artists you have
+  never heard.
+- **Stats.** A records board with your milestone plays. A skip rate shows your
+  most skipped songs and the ones you always hear to the end. Listening per
+  device, how much of your library you have explored, your longest nonstop
+  stretch and the formats you listen in.
+- **Rewind as a story image.** Save your Rewind as a picture to share.
+- **Subspace radio.** A dial that tunes between your mixes.
+- **Seasons.** From 24 to 31 October the app wears a Halloween palette, with
+  bats, ghosts, a pumpkin, a vampire, a zombie and Frankenstein's monster
+  crossing now and then. From 17 to 26 December it snows. Nothing moves when
+  your system asks for reduced motion.
+- **A few easter eggs.** Not telling where.
+- **Fixed.** Stats tiles keep their words on their line while they count up,
+  and "How you listened" and playtime fit their tile. The context menu no
+  longer leaves a stray listener behind when it closes.
+- **Under the hood.** Dependencies are up to date (flask-openapi3 4,
+  Vitest 5, pinia-plugin-persistedstate 4, vue-debounce 5).
+
+<details>
+<summary>What v2026.10.6 brought</summary>
+
 A fix release on top of 2026.10.5.
 
 - **Lyrics are found again.** The lyrics finder asked Musixmatch, whose
@@ -88,6 +113,8 @@ A fix release on top of 2026.10.5.
   ("Composed & Lyrics by …", "Music and Lyrics by …") come off the artist
   name, so a soundtrack no longer adds artists like "Composed" or "Lyrics by
   Jan Valta". Favourites, playlists and play counts follow.
+
+</details>
 
 <details>
 <summary>What v2026.10.5 brought</summary>
