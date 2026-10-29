@@ -1,5 +1,5 @@
 <template>
-  <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home" @click="onClick">
+  <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home" @click="registerClick">
     <div class="logo-orbit-wrapper">
       <img src="@/assets/icons/logos/logo-subspaceradio.png" alt="AivinNet" class="logo-img" />
       <span class="logo-orbit" aria-hidden="true">
@@ -12,86 +12,11 @@
 
 <script setup lang="ts">
 // Easter egg (#544): seven fast clicks send a pixel satellite once round the
-// orbit. The click itself is only observed here — RouterLink still navigates.
-import { onUnmounted, ref } from 'vue'
+// orbit (composables/useLogoSatellite.ts). The click itself is only observed
+// here — RouterLink still navigates.
+import { useLogoSatellite } from '@/composables/useLogoSatellite'
 
-import { useToast } from '@/stores/notification'
-
-const CLICKS_NEEDED = 7
-const CLICK_WINDOW_MS = 2000
-/** One lap. Must match the `logo-satellite-lap` duration in the stylesheet below. */
-const LAP_MS = 2400
-
-const toast = useToast()
-const flying = ref(false)
-let clicks: number[] = []
-let lapTimer: ReturnType<typeof setTimeout> | null = null
-
-function prefersLessMotion(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-function onClick() {
-  const now = Date.now()
-  clicks = [...clicks, now].slice(-CLICKS_NEEDED)
-  if (clicks.length < CLICKS_NEEDED || now - clicks[0] > CLICK_WINDOW_MS) return
-  clicks = []
-  launchSatellite()
-}
-
-function launchSatellite() {
-  if (prefersLessMotion()) {
-    // No motion, but the easter egg still answers: a line instead of a lap.
-    toast.showNotification('📡 Signal received')
-    return
-  }
-  if (flying.value) return
-  flying.value = true
-  playRadioHiss()
-  lapTimer = setTimeout(() => {
-    flying.value = false
-    lapTimer = null
-  }, LAP_MS)
-}
-
-/**
- * A short, quiet burst of radio hiss, generated with Web Audio (#544). Best
- * effort: without an AudioContext the satellite flies silently.
- */
-function playRadioHiss(seconds = 1.2, volume = 0.04) {
-  try {
-    const Ctx = window.AudioContext ?? (window as any).webkitAudioContext
-    if (!Ctx) return
-    const ctx: AudioContext = new Ctx()
-    const rate = ctx.sampleRate
-    const frames = Math.floor(rate * seconds)
-    const buffer = ctx.createBuffer(1, frames, rate)
-    const data = buffer.getChannelData(0)
-    const fadeIn = rate * 0.05
-    const fadeOut = rate * 0.3
-    for (let i = 0; i < frames; i++) {
-      const env = Math.min(1, i / fadeIn, (frames - i) / fadeOut)
-      data[i] = (Math.random() * 2 - 1) * env
-    }
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    const band = ctx.createBiquadFilter()
-    band.type = 'bandpass'
-    band.frequency.value = 2200
-    band.Q.value = 0.8
-    const gain = ctx.createGain()
-    gain.gain.value = volume
-    source.connect(band).connect(gain).connect(ctx.destination)
-    source.onended = () => void ctx.close()
-    source.start()
-  } catch {
-    // No audio is not an error: the satellite still flies.
-  }
-}
-
-onUnmounted(() => {
-  if (lapTimer) clearTimeout(lapTimer)
-})
+const { flying, registerClick } = useLogoSatellite()
 </script>
 
 <style lang="scss">
@@ -257,24 +182,27 @@ onUnmounted(() => {
 }
 
 // The satellite (#544): the ring-sized box turns once, the craft rides its top
-// edge exactly where the moon sits on the orbit. Transform and opacity only, and
-// it is removed by the script when the lap is over.
+// edge where the moon sits on the orbit. A 24×12 pixel craft — body, antenna,
+// two solar panels — so it cannot be mistaken for the 6px moon; the soft rim
+// keeps it on both themes. Transform and opacity only, and the script removes
+// it when the lap is over. Unscoped: NavBar.vue's phone icon flies it too.
 .logo-satellite {
   position: absolute;
   inset: -5px;
   pointer-events: none;
+  z-index: 1;
   animation: logo-satellite-lap 2.4s linear forwards;
 
   &::after {
     content: '';
     position: absolute;
-    top: -4px;
+    top: -6px;
     left: 50%;
-    margin-left: -3px;
-    width: 6px;
-    height: 6px;
-    background-color: $mem-teal;
-    border: $mem-hairline;
+    margin-left: -12px;
+    width: 24px;
+    height: 12px;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 12" shape-rendering="crispEdges"><rect x="0" y="3" width="8" height="6" fill="%2317171A"/><rect x="1" y="4" width="6" height="4" fill="%232E6FD8"/><rect x="4" y="4" width="1" height="4" fill="%2317171A"/><rect x="16" y="3" width="8" height="6" fill="%2317171A"/><rect x="17" y="4" width="6" height="4" fill="%232E6FD8"/><rect x="19" y="4" width="1" height="4" fill="%2317171A"/><rect x="8" y="5" width="1" height="2" fill="%2317171A"/><rect x="15" y="5" width="1" height="2" fill="%2317171A"/><rect x="9" y="3" width="6" height="7" fill="%2317171A"/><rect x="10" y="4" width="4" height="5" fill="%23D9D9D9"/><rect x="11" y="5" width="2" height="2" fill="%23F5C542"/><rect x="11" y="1" width="2" height="2" fill="%2317171A"/><rect x="12" y="0" width="1" height="1" fill="%23E2574C"/></svg>') center / contain no-repeat;
+    filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.5));
   }
 }
 
