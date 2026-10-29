@@ -14,11 +14,13 @@ import pytest
 
 from aivinnet.lib.home.discover import (
     AlbumFacts,
+    DeepCuts,
     TrackFacts,
     because_item,
     because_mix,
     day_playlist,
     day_summary,
+    deep_cut_item,
     discovered_on_this_day,
     forgotten_favorite_item,
     is_burst,
@@ -29,6 +31,7 @@ from aivinnet.lib.home.discover import (
     pick_seed_artist,
     playlist_neighbour_item,
     rank_because,
+    rank_deep_cuts,
     rank_for_this_time,
     rank_forgotten_favorites,
     rank_never_played,
@@ -74,6 +77,10 @@ class Library:
         artist, genre = self.albums[album]
         track_artist = parts[2] if len(parts) > 2 else artist
         return TrackFacts(albumhash=album, artists=(artist,), genres=(genre,), track_artists=(track_artist,))
+
+    def tracks_of(self, artist: str) -> list[str]:
+        """Three tracks on each album of the artist, in album order."""
+        return [f"{a}/{n}" for a, (by, _) in self.albums.items() if by == artist for n in (1, 2, 3)]
 
     def album_facts(self) -> list[AlbumFacts]:
         return [AlbumFacts(a, (artist,), (genre,)) for a, (artist, genre) in self.albums.items()]
@@ -636,6 +643,113 @@ class TestForgottenFavorites:
         item = forgotten_favorite_item("a/1", 10, NOW - 100 * DAY)
         assert item["help_text"].startswith("last ")
         assert item["secondary_text"] == "10 plays"
+
+
+class TestDeepCuts:
+    def rank(self, lib, plays, **kw):
+        return rank_deep_cuts(plays, lib.facts, lib.tracks_of, NOW, **kw)
+
+    def test_only_the_top_ten_artists_of_the_window_are_asked(self):
+        lib = Library()
+        plays = []
+        for i in range(11):
+            lib.add(f"al{i}", f"ar{i}")
+            # ar0 has one play in the window, ar10 eleven.
+            plays += [Play(f"al{i}/1", NOW - HOUR * (j + 1)) for j in range(i + 1)]
+
+        result = self.rank(lib, plays, limit=100)
+
+        assert result.artists == [f"ar{i}" for i in range(10, 0, -1)]
+        assert {t[1] for t in result.tracks} == set(result.artists)
+
+    def test_the_window_is_ninety_days(self):
+        lib = Library().add("old", "ar_old").add("edge", "ar_edge").add("late", "ar_late")
+        plays = [Play("old/1", NOW - 100 * DAY - i) for i in range(20)]
+        plays += [Play("edge/1", NOW - 90 * DAY)]  # exactly on the edge: counts
+        plays += [Play("late/1", NOW - 90 * DAY - 1) for _ in range(2)]  # a second too old
+
+        assert self.rank(lib, plays, top=1).artists == ["ar_edge"]
+
+    def test_a_track_played_anytime_is_no_deep_cut(self):
+        lib = Library().add("rhcp1", "rhcp").add("rhcp2", "rhcp")
+        plays = [Play("rhcp2/1", NOW - DAY), Play("rhcp1/1", NOW - 900 * DAY)]
+
+        tracks = {t[0] for t in self.rank(lib, plays).tracks}
+
+        assert tracks == {"rhcp1/2", "rhcp1/3", "rhcp2/2", "rhcp2/3"}
+
+    def test_at_most_two_per_album(self):
+        lib = Library().add("rhcp1", "rhcp").add("rhcp2", "rhcp")
+        plays = [Play("rhcp2/1", NOW - DAY)]
+
+        tracks = [t[0] for t in self.rank(lib, plays, limit=100).tracks]
+
+        assert len([t for t in tracks if t.startswith("rhcp1/")]) == 2
+        assert len([t for t in tracks if t.startswith("rhcp2/")]) == 2
+
+    def test_albums_the_user_plays_often_come_first(self):
+        lib = Library().add("alpha", "rhcp").add("zebra", "rhcp")
+        plays = [Play("zebra/1", NOW - (i + 1) * DAY) for i in range(5)]
+        plays += [Play("alpha/1", NOW - DAY)]
+
+        result = self.rank(lib, plays)
+
+        assert [t[0] for t in result.tracks] == ["zebra/2", "zebra/3", "alpha/2", "alpha/3"]
+        assert result.tracks[0] == ("zebra/2", "rhcp", 5)
+
+    def test_a_placeholder_artist_is_never_a_top_artist(self):
+        lib = Library().add("va1", "various").add("rhcp1", "rhcp")
+        plays = [Play("va1/1", NOW - DAY - i) for i in range(20)] + [Play("rhcp1/1", NOW - DAY)]
+
+        result = self.rank(lib, plays, skip=lambda a: a == "various")
+
+        assert result.artists == ["rhcp"]
+        assert {t[1] for t in result.tracks} == {"rhcp"}
+
+    def test_a_guest_on_another_artists_album_is_no_deep_cut(self):
+        lib = Library().add("fnm1", "fnm").add("rhcp1", "rhcp")
+        plays = [Play("rhcp1/1", NOW - DAY)]
+
+        def library_of(artisthash: str):
+            return lib.tracks_of(artisthash) + (["fnm1/2/rhcp"] if artisthash == "rhcp" else [])
+
+        result = rank_deep_cuts(plays, lib.facts, library_of, NOW, limit=100)
+
+        assert "fnm1/2/rhcp" not in [t[0] for t in result.tracks]
+
+    def test_the_same_history_gives_the_same_row(self):
+        lib = Library().add("zebra", "rhcp").add("alpha", "rhcp").add("fnm1", "fnm")
+        plays = [Play("zebra/1", NOW - DAY), Play("alpha/1", NOW - 2 * DAY), Play("fnm1/1", NOW - 3 * DAY)]
+
+        again = rank_deep_cuts(list(reversed(plays)), lib.facts, lambda a: list(reversed(lib.tracks_of(a))), NOW)
+
+        assert again == self.rank(lib, plays)
+
+    def test_the_row_is_capped(self):
+        lib = Library().add("rhcp1", "rhcp").add("rhcp2", "rhcp")
+        plays = [Play("rhcp2/1", NOW - DAY)]
+
+        assert len(self.rank(lib, plays, limit=2).tracks) == 2
+
+    def test_no_play_in_the_window_is_an_empty_result(self):
+        lib = Library().add("rhcp1", "rhcp")
+
+        assert self.rank(lib, [Play("rhcp1/1", NOW - 200 * DAY)]) == DeepCuts()
+
+    def test_every_track_of_the_top_artists_played_leaves_the_artists_only(self):
+        lib = Library().add("rhcp1", "rhcp")
+        plays = [Play(f"rhcp1/{n}", NOW - DAY) for n in (1, 2, 3)]
+
+        assert self.rank(lib, plays) == DeepCuts(artists=["rhcp"], tracks=[])
+
+    def test_items(self):
+        assert deep_cut_item("a/2", "you play Red Hot Chili Peppers") == {
+            "type": "track",
+            "hash": "a/2",
+            "help_text": "you play Red Hot Chili Peppers",
+            "secondary_text": "never played",
+        }
+        assert deep_cut_item("a/2", None) == {"type": "track", "hash": "a/2", "help_text": "never played"}
 
 
 @dataclass

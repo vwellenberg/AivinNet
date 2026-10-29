@@ -377,7 +377,7 @@ def test_every_entry_has_a_place_in_the_order():
     assert len(set(DEFAULT_ORDER)) == len(DEFAULT_ORDER)
 
 
-@pytest.mark.parametrize("playlist", ["onthisday", "becauseyoulistened", "mix1"])
+@pytest.mark.parametrize("playlist", ["onthisday", "becauseyoulistened", "deepcuts", "mix1"])
 def test_a_play_from_a_dated_playlist_makes_no_recently_played_card(home, playlist):
     """Its content is one day's (or one seed's): a card for it tomorrow would
     play another day, or another artist's mix under that artist's name."""

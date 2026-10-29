@@ -82,6 +82,12 @@ class HomepageStore:
             title="Artists you might like",
             description="In your playlists next to the ones you play most",
         ),
+        # Track cards by the routine (#528): "Play all" plays playlist "deepcuts".
+        "deep_cuts": GenericRecoverableEntry(
+            title="Deep cuts",
+            description="Tracks of your favourite artists you have never played",
+            playlist="deepcuts",
+        ),
         "forgotten_favorites": GenericRecoverableEntry(
             title="Forgotten favorites",
             description="Favorites you have not played in a while",

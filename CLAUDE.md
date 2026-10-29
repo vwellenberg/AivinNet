@@ -341,7 +341,7 @@ Workflows oder `settings.py`).
 Hörsitzung“. Home zeigt Continue listening, Your mixes (lokale Mixes aus den eigenen
 Sitzungen, #526), Because you listened, On repeat, Recently played,
 Your weekday evenings (Zeitfenster), Never played, Artists you might like (aus den eigenen
-Playlists), Forgotten favorites, Rediscover, Almost complete, On this day und Recently added. Welche davon und in
+Playlists), Deep cuts, Forgotten favorites, Rediscover, Almost complete, On this day und Recently added. Welche davon und in
 welcher Reihenfolge, wählt jeder User selbst (Settings → Home, #532). Die früheren Mixes (an
 `smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
 antwortete; „Your mixes“ ersetzt sie ohne Dienst. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.

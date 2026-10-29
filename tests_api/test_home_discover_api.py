@@ -483,6 +483,36 @@ def test_because_you_listened_plays_as_a_mix(home, history, monkeypatch):
     assert body["tracks"] == []
 
 
+def test_deep_cuts_are_unplayed_tracks_of_the_top_artist_and_a_playlist(home, monkeypatch):
+    """ "Deep cuts" (#528): the top artist's tracks never played, two per album;
+    "Play all" plays the row, and a play of it makes no "Recently played" card."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.lib.recipes.homerows import DeepCuts
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    listen(int(pendulum.now().timestamp()) - DAY, th(RHCP, 1), th(RHCP, 2))
+    DeepCuts()
+
+    data, _ = rows(home)
+    row = data["deep_cuts"]
+    assert row["title"] == "Deep cuts"
+    assert row["playlist"] == "deepcuts"
+    assert len(row["items"]) == 2  # three unplayed on the album, two per album
+    for card in row["items"]:
+        assert card["type"] == "track"
+        assert card["item"]["trackhash"] in {th(RHCP, 3), th(RHCP, 4), th(RHCP, 5)}
+        assert card["item"]["help_text"] == "you play Red Hot Chili Peppers"
+        assert card["item"]["time"] == "never played"
+
+    body = home.get("/playlists/deepcuts").get_json()
+    assert body["info"]["name"] == "Deep cuts"
+    assert [t["trackhash"] for t in body["tracks"]] == [i["item"]["trackhash"] for i in row["items"]]
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "deep_cuts" not in order
+
+
 def test_every_generated_playlist_is_known_by_name_too():
     """The registry and the name list must agree, see `generated_playlists`."""
     from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
@@ -505,6 +535,7 @@ def test_every_row_playlist_is_one_the_server_generates():
         "forgotten_favorites": "forgottenfavorites",
         "on_this_day": "onthisday",
         "almost_complete": "almostcomplete",
+        "deep_cuts": "deepcuts",
     }
     assert set(named.values()) <= set(GENERATED_PLAYLISTS)
 
