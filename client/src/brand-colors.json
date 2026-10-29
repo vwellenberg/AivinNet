@@ -194,13 +194,13 @@
         "ink": "#1D1326",
         "paper": "#FBF3E4",
         "teal": "#F5862A",
-        "yellow": "#FFD966",
+        "yellow": "#A6F03A",
         "coral": "#C7402B",
         "lavender": "#9B7BD4",
         "pink": "#E0508A",
         "blue": "#2F3F78",
         "kraft": "#7A4E26",
-        "lime": "#8BC34A",
+        "lime": "#6FD41C",
         "gold": "#F2B233",
         "sea": "#2A9D8F",
         "orchid": "#6E2E86",
@@ -223,7 +223,7 @@
         "#2E9E90": "#E0701F",
         "#35B5A5": "#F5862A",
         "#3E4890": "#5B2C6F",
-        "#3EBFAF": "#9B7BD4",
+        "#3EBFAF": "#8EE53F",
         "#5560BD": "#7A3E9D",
         "#5B67C9": "#8A4FB0",
         "#66C7B8": "#C9A0E0",
@@ -235,10 +235,10 @@
         "#E2574C": "#E0452E",
         "#EFA0C8": "#E0508A",
         "#F0A23C": "#FFB347",
-        "#F0A6B8": "#F7C9B0",
+        "#F0A6B8": "#C8F27A",
         "#F2A9C4": "#F5B5C8",
         "#F4F2ED": "#FBF3E4",
-        "#F5D547": "#FFD966"
+        "#F5D547": "#A6F03A"
       }
     }
   }
