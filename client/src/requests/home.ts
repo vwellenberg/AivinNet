@@ -105,3 +105,33 @@ export async function unmarkNotInterested(type: NotInterestedType, hash: string)
         props: { type, hash },
     })
 }
+
+/** The Home recap card (#530): the period's numbers, and the Stats tab it opens. */
+export interface WeeklyRecap {
+    // "week:2026-10-19" or "month:2026-10": what a dismissal stores.
+    key: string
+    kind: 'week' | 'month'
+    plays: number
+    // The listened time, as the Stats tiles word it ("14 hrs, 3 mins").
+    listened: string
+    top_artist: { artisthash: string; name: string } | null
+    new_albums: number
+    top_track: { trackhash: string; title: string; artist: string | null; image: string | null } | null
+}
+
+/** Last week on a Monday, last month on the 1st; `recap` is null when there is no card. */
+export async function getWeeklyRecap() {
+    return await useAxios({
+        url: paths.api.home.recap,
+        method: 'GET',
+    })
+}
+
+/** Close the recap card for its period: it is back when the next week or month is due. */
+export async function dismissWeeklyRecap(key: string) {
+    return await useAxios({
+        url: paths.api.home.recapDismiss,
+        method: 'POST',
+        props: { key },
+    })
+}

@@ -38,6 +38,7 @@ repos:
           src/aivinnet/lib/listening_sources.py,
           src/aivinnet/lib/home/almost_complete.py,
           src/aivinnet/lib/records.py,
+          src/aivinnet/lib/home/recap.py,
           --config-file, pyproject.toml,
         ]
         additional_dependencies: [xxhash, unidecode, pendulum]

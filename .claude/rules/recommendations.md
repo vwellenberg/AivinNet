@@ -40,6 +40,15 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
 - **„Continue listening“** (`lib/recipes/continuelistening.py`): bis zu drei Karten. Das sind die
   zuletzt gehörten, nicht beendeten Alben bzw. Playlists aus den neuesten 200 Scrobbles mit
   `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu.
+- **Rückblick-Karte** (#530, `api/home` `GET /nothome/recap`, Regeln in `lib/home/recap.py`, pur und strikt):
+  oben auf Home, **nicht** in der Reihenfolge (wie Rewind, nicht in `DEFAULT_ORDER`): am Montag
+  die letzte Woche, am 1. der letzte Monat (ein 1. auf einen Montag zeigt nur den Monat). Zeitraum
+  in der Server-Zone, Zahlen aus `utils/stats.py` (`summarize_tracks_in_period`,
+  `get_artists_in_period`, `discovered_in`), pro User einmal je Zeitraum gecacht. Keine Karte bei
+  leerem Zeitraum. Antippen setzt die Stats-Periode (`settings.setStatsPeriod`) und öffnet `/stats`.
+  Weggeklickt wird pro User in `UserTable.extra["recap_dismissed"]` (Schlüssel `week:<Montag>` bzw.
+  `month:<YYYY-MM>`, in `PRIVATE_EXTRA_KEYS`), bis der nächste Zeitraum dran ist. Das Gastkonto kann
+  nichts wegklicken (403).
 - **„Rediscover“**: Alben mit ≥ 5 Plays insgesamt und keinem in den letzten 60 Tagen, täglich.
   Dazu der Button „Surprise me“ (`GET /nothome/surprise`, zufälliges Album, RAM).
 - **„On this day“** (stündlich, Server-Zeitzone): derselbe Kalendertag in den letzten 15 Jahren.

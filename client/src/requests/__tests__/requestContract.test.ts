@@ -199,6 +199,8 @@ const CALLS: Record<string, unknown[]> = {
     'home/getNotInterested': [],
     'home/markNotInterested': ['album', 'a0000000000000pr'],
     'home/unmarkNotInterested': ['artist', 'b0000000000000mi'],
+    'home/getWeeklyRecap': [],
+    'home/dismissWeeklyRecap': ['week:2026-10-19'],
     'lyrics/getLyrics': ['/music/a.flac', 't1'],
     'lyrics/checkExists': ['/music/a.flac', 't1'],
     'metadata/pollJob': ['job1'],

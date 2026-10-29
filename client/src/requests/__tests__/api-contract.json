@@ -350,6 +350,7 @@
   },
   "GET /nothome/layout": {},
   "GET /nothome/not-interested": {},
+  "GET /nothome/recap": {},
   "GET /nothome/recents/added": {
     "query": {
       "allowed": [
@@ -933,6 +934,17 @@
       "required": [
         "hash",
         "type"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /nothome/recap/dismiss": {
+    "body": {
+      "allowed": [
+        "key"
+      ],
+      "required": [
+        "key"
       ],
       "type": "json"
     }
