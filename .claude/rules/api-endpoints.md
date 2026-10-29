@@ -117,6 +117,15 @@ dann `candidate.is_relative_to(root)`; zusätzlich die Basis **selbst** und leer
 weil beide auf etwas zeigen, das der Aufrufer nicht benannt hat. Bei Verstoß 400, nicht 404 —
 der Unterschied zwischen „gibt's nicht" und „darfst du nicht fragen" ist die Diagnose wert.
 
+## ⚠️ flask_openapi3 4.x: Formulare und Bodys ohne Inhalt
+
+4.x führt `json.loads` auf **jeden** Formwert aus, nicht nur auf Objekte. Ein Playlist-Name `2024`
+kam als int an und schlug mit 422 fehl, das `settings`-JSON nie durch. `api/formfields.py::FormModel`
+holt die `str`-Felder deshalb roh aus `request.form`; neue Multipart-Modelle davon ableiten.
+Ein Body-Modell, dessen Felder alle Defaults haben, bekommt ohne Body `None` statt `{}` und
+antwortete 422 (3.x: 200). `api/apischemas.py::JsonBodyModel` bildet das zurück; ein Modell mit
+Pflichtfeldern bleibt bei 422. Test: `tests_api/test_flask_openapi3_4_requests.py`.
+
 ## Auth
 
 `app_builder.check_auth_need()` ist die Allowlist — alles, was nicht dort steht, braucht ein
