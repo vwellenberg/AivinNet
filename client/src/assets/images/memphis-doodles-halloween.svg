@@ -174,31 +174,31 @@
     </g>
     <g id="barPink">
       <rect x="14" y="16" width="260" height="56" fill="#2D1F3A"/>
-      <rect width="260" height="56" fill="#F7C9B0"/>
+      <rect width="260" height="56" fill="#C8F27A"/>
       <rect y="42" width="260" height="14" fill="#E0452E"/>
     </g>
     <g id="barBeam">
       <rect x="14" y="16" width="260" height="56" fill="#2D1F3A"/>
       <rect width="260" height="56" fill="#FFB347"/>
-      <rect width="260" height="17" fill="#9B7BD4"/>
+      <rect width="260" height="17" fill="#8EE53F"/>
       <rect y="43" width="260" height="13" fill="#E0452E"/>
     </g>
     <g id="barCap">
       <rect x="14" y="16" width="260" height="56" fill="#2D1F3A"/>
-      <rect width="260" height="56" fill="#F7C9B0"/>
+      <rect width="260" height="56" fill="#C8F27A"/>
       <rect width="260" height="16" fill="#E0452E"/>
-      <rect x="226" width="34" height="56" fill="#9B7BD4"/>
+      <rect x="226" width="34" height="56" fill="#8EE53F"/>
     </g>
     <g id="barTeal">
       <rect x="14" y="16" width="260" height="56" fill="#2D1F3A"/>
-      <rect width="260" height="56" fill="#9B7BD4"/>
+      <rect width="260" height="56" fill="#8EE53F"/>
       <rect width="260" height="17" fill="#FFB347"/>
       <rect y="43" width="260" height="13" fill="#D9472B"/>
     </g>
     <g id="barYellow">
       <rect x="14" y="16" width="260" height="56" fill="#2D1F3A"/>
-      <rect width="260" height="56" fill="#FFD966"/>
-      <rect width="260" height="16" fill="#F7C9B0"/>
+      <rect width="260" height="56" fill="#A6F03A"/>
+      <rect width="260" height="16" fill="#C8F27A"/>
     </g>
 
     <!-- patterned slabs, base 380x88 -->
@@ -206,7 +206,7 @@
       <rect x="16" y="18" width="380" height="88" fill="#2D1F3A"/>
       <rect width="380" height="88" fill="#7A3E9D"/>
       <rect width="380" height="88" fill="url(#tz)"/>
-      <rect width="380" height="18" fill="#F7C9B0"/>
+      <rect width="380" height="18" fill="#C8F27A"/>
     </g>
     <g id="slabWhite">
       <rect x="16" y="18" width="380" height="88" fill="#2D1F3A"/>
@@ -216,7 +216,7 @@
     </g>
     <g id="slabPink">
       <rect x="16" y="18" width="380" height="88" fill="#2D1F3A"/>
-      <rect width="380" height="88" fill="#F7C9B0"/>
+      <rect width="380" height="88" fill="#C8F27A"/>
       <rect width="380" height="88" fill="url(#tzk)"/>
       <rect width="380" height="18" fill="#E0452E"/>
     </g>
@@ -224,7 +224,7 @@
       <rect x="16" y="18" width="380" height="88" fill="#2D1F3A"/>
       <rect width="380" height="88" fill="#E0873C"/>
       <rect width="380" height="88" fill="url(#tzk)"/>
-      <rect width="380" height="18" fill="#9B7BD4"/>
+      <rect width="380" height="18" fill="#8EE53F"/>
     </g>
 
     <!-- prisms, base 128x100 -->
@@ -265,7 +265,7 @@
       <rect x="18" y="20" width="310" height="180" fill="#2D1F3A"/>
       <rect width="150" height="180" fill="#F5862A" stroke="#2D1F3A" stroke-width="5"/>
       <rect width="150" height="180" fill="url(#spr)"/>
-      <rect x="150" width="160" height="180" fill="#9B7BD4" stroke="#2D1F3A" stroke-width="5"/>
+      <rect x="150" width="160" height="180" fill="#8EE53F" stroke="#2D1F3A" stroke-width="5"/>
     </g>
   </defs>
 
@@ -279,15 +279,15 @@
   <circle cx="800" cy="345" r="115" fill="#F5B5C8"/>
   <circle cx="985" cy="845" r="170" fill="#FFB347"/>
   <circle cx="1760" cy="255" r="140" fill="#F5B5C8"/>
-  <circle cx="2310" cy="700" r="165" fill="#FFD966"/>
+  <circle cx="2310" cy="700" r="165" fill="#A6F03A"/>
   <circle cx="2880" cy="205" r="130" fill="#E0508A"/>
   <circle cx="3480" cy="620" r="155" fill="#6B2C7F"/>
-  <circle cx="140" cy="1080" r="110" fill="#FFD966"/>
+  <circle cx="140" cy="1080" r="110" fill="#A6F03A"/>
   <circle cx="620" cy="1330" r="125" fill="#F5B5C8"/>
   <circle cx="1420" cy="1220" r="145" fill="#FFB347"/>
   <circle cx="2010" cy="1420" r="120" fill="#F5B5C8"/>
   <circle cx="2660" cy="1180" r="160" fill="#E0508A"/>
-  <circle cx="3300" cy="1400" r="135" fill="#FFD966"/>
+  <circle cx="3300" cy="1400" r="135" fill="#A6F03A"/>
 
   <!-- ================================================================
        Region 1 — the original reference composition (0..1500 x 0..960),
@@ -300,24 +300,24 @@
   <use href="#sqA" transform="translate(530,40)" color="#8A4FB0"/>
   <use href="#arc" transform="translate(840,95)" color="#FFB347"/>
   <use href="#barPink" transform="translate(1052,-30) rotate(14) scale(0.46,0.89)"/>
-  <use href="#sqB" transform="translate(1408,118) scale(1.1)" color="#9B7BD4"/>
+  <use href="#sqB" transform="translate(1408,118) scale(1.1)" color="#8EE53F"/>
   <use href="#barBeam" transform="translate(1120,208) rotate(12) scale(1.04,1.07)"/>
   <use href="#slabTz" transform="translate(-40,290) rotate(32) scale(1.1,1.09)"/>
   <use href="#zigStrip" transform="translate(676,292) rotate(-8)" color="#FCE3C4"/>
   <use href="#scribble" transform="translate(1000,420)" color="#D9472B"/>
   <use href="#ringO" transform="translate(1312,460)" color="#FFB347"/>
   <use href="#flag" transform="translate(580,462) rotate(10)" color="#FFB347"/>
-  <use href="#sqB" transform="translate(300,572)" color="#9B7BD4"/>
+  <use href="#sqB" transform="translate(300,572)" color="#8EE53F"/>
   <use href="#prismTz" transform="translate(490,680) rotate(-14)"/>
   <use href="#book" transform="translate(742,628) rotate(8)"/>
   <use href="#barCap" transform="translate(56,796) rotate(-8) scale(0.96,1.04)"/>
-  <use href="#sqB" transform="translate(382,776) scale(0.8)" color="#9B7BD4"/>
+  <use href="#sqB" transform="translate(382,776) scale(0.8)" color="#8EE53F"/>
   <use href="#zigStrip" transform="translate(1226,616) rotate(6) scale(0.8)" color="#FCE3C4"/>
   <use href="#sqA" transform="translate(1280,812) scale(0.85)" color="#E0508A"/>
   <!-- added with the widening, at the original composition's density -->
   <use href="#chev" transform="translate(268,182) rotate(16)" color="#D9472B"/>
-  <use href="#sqE" transform="translate(930,120) scale(0.9)" color="#FFD966"/>
-  <use href="#sqC" transform="translate(1180,60) scale(1.1)" color="#FFD966"/>
+  <use href="#sqE" transform="translate(930,120) scale(0.9)" color="#A6F03A"/>
+  <use href="#sqC" transform="translate(1180,60) scale(1.1)" color="#A6F03A"/>
   <use href="#cone" transform="translate(150,668) rotate(-12) scale(0.9)"/>
   <use href="#conePale" transform="translate(1080,560) rotate(9) scale(0.8)"/>
   <use href="#chev" transform="translate(862,548) rotate(-22)" color="#E0452E"/>
@@ -326,10 +326,10 @@
        Region 2 — right of the original canvas (1500..3840 x 0..960)
        ================================================================ -->
   <use href="#slabWhite" transform="translate(1560,-10) rotate(20) scale(1.05)"/>
-  <use href="#sqC" transform="translate(1560,180) scale(0.9)" color="#9B7BD4"/>
-  <use href="#sqD" transform="translate(1980,60) rotate(-6)" color="#FFD966"/>
+  <use href="#sqC" transform="translate(1560,180) scale(0.9)" color="#8EE53F"/>
+  <use href="#sqD" transform="translate(1980,60) rotate(-6)" color="#A6F03A"/>
   <use href="#triU" transform="translate(2140,40) scale(0.82)" color="#C9A0E0"/>
-  <use href="#ringO" transform="translate(2144,186) scale(0.75)" color="#FFD966"/>
+  <use href="#ringO" transform="translate(2144,186) scale(0.75)" color="#A6F03A"/>
   <use href="#chev" transform="translate(2470,88) rotate(28)" color="#D9472B"/>
   <use href="#barTeal" transform="translate(2560,150) rotate(-14) scale(0.92)"/>
   <use href="#sqE" transform="translate(3060,60) scale(0.95)" color="#8A4FB0"/>
@@ -341,17 +341,17 @@
   <use href="#ringO" transform="translate(2760,392) scale(0.9)" color="#D9472B"/>
   <use href="#sqA" transform="translate(2880,330) scale(0.8)" color="#E0508A"/>
   <use href="#barYellow" transform="translate(3320,420) rotate(18) scale(0.86)"/>
-  <use href="#flag" transform="translate(3700,300) rotate(-12) scale(0.9)" color="#FFD966"/>
-  <use href="#triD" transform="translate(1520,540) scale(0.75)" color="#9B7BD4"/>
+  <use href="#flag" transform="translate(3700,300) rotate(-12) scale(0.9)" color="#A6F03A"/>
+  <use href="#triD" transform="translate(1520,540) scale(0.75)" color="#8EE53F"/>
   <use href="#chev" transform="translate(2060,540) rotate(-30)" color="#E0452E"/>
-  <use href="#sqD" transform="translate(2600,580) scale(1.05)" color="#9B7BD4"/>
-  <use href="#arc" transform="translate(2900,500) scale(0.85)" color="#FFD966"/>
+  <use href="#sqD" transform="translate(2600,580) scale(1.05)" color="#8EE53F"/>
+  <use href="#arc" transform="translate(2900,500) scale(0.85)" color="#A6F03A"/>
   <use href="#conePale" transform="translate(3120,640) rotate(-8) scale(0.95)"/>
   <use href="#scribble" transform="translate(1900,700) scale(0.9)" color="#D9472B"/>
   <use href="#book" transform="translate(2160,690) rotate(-6) scale(0.9)"/>
   <use href="#slabBlue" transform="translate(2700,760) rotate(-24) scale(0.9)"/>
   <use href="#barGold" transform="translate(3380,760) rotate(10) scale(0.9)"/>
-  <use href="#sqD" transform="translate(1740,820) scale(0.85)" color="#FFD966"/>
+  <use href="#sqD" transform="translate(1740,820) scale(0.85)" color="#A6F03A"/>
   <use href="#sqC" transform="translate(2440,880) scale(0.95)" color="#E0508A"/>
   <use href="#chev" transform="translate(3020,880) rotate(20)" color="#FFB347"/>
   <use href="#prismTz" transform="translate(3560,880) rotate(12) scale(0.9)"/>
@@ -359,7 +359,7 @@
   <!-- ================================================================
        Region 3 — below the original canvas (0..3840 x 960..1600)
        ================================================================ -->
-  <use href="#sqE" transform="translate(60,1020) rotate(8)" color="#FFD966"/>
+  <use href="#sqE" transform="translate(60,1020) rotate(8)" color="#A6F03A"/>
   <use href="#barBeam" transform="translate(280,1120) rotate(-16) scale(0.9)"/>
   <use href="#chev" transform="translate(560,1060) rotate(-24)" color="#D9472B"/>
   <use href="#triU" transform="translate(700,1080) scale(0.7)" color="#C9A0E0"/>
@@ -376,15 +376,15 @@
   <use href="#flag" transform="translate(3320,1180) rotate(14)" color="#FFB347"/>
   <use href="#sqC" transform="translate(380,1240) scale(0.85)" color="#E0508A"/>
   <use href="#sqB" transform="translate(3660,1240) scale(1.0)" color="#E0508A"/>
-  <use href="#sqD" transform="translate(3080,1300) scale(0.8)" color="#9B7BD4"/>
+  <use href="#sqD" transform="translate(3080,1300) scale(0.8)" color="#8EE53F"/>
   <use href="#sqA" transform="translate(2140,1300) scale(0.9)" color="#8A4FB0"/>
   <use href="#arc" transform="translate(1200,1280) rotate(-6) scale(0.8)" color="#FFB347"/>
   <use href="#slabPink" transform="translate(160,1360) rotate(14) scale(0.92)"/>
-  <use href="#sqE" transform="translate(760,1380) scale(0.95)" color="#9B7BD4"/>
+  <use href="#sqE" transform="translate(760,1380) scale(0.95)" color="#8EE53F"/>
   <use href="#scribble" transform="translate(1140,1420) scale(0.85)" color="#E0452E"/>
   <use href="#ringO" transform="translate(1000,1440) scale(0.85)" color="#FFB347"/>
   <use href="#barCap" transform="translate(2480,1420) rotate(-10) scale(0.95)"/>
-  <use href="#sqC" transform="translate(2900,1420) scale(1.05)" color="#FFD966"/>
+  <use href="#sqC" transform="translate(2900,1420) scale(1.05)" color="#A6F03A"/>
   <use href="#chev" transform="translate(1880,1500) rotate(22)" color="#E0452E"/>
   <use href="#slabTz" transform="translate(2100,1500) rotate(-12) scale(0.9)"/>
   <use href="#prismTz" transform="translate(2760,1520) rotate(-14) scale(0.85)"/>
@@ -401,7 +401,7 @@
   <use href="#slabTz" transform="translate(3800,290) rotate(32) scale(1.1,1.09)"/>
   <!-- right-edge pieces reappear at the left -->
   <use href="#sqC" transform="translate(-280,90) scale(1.2)" color="#FFB347"/>
-  <use href="#flag" transform="translate(-140,300) rotate(-12) scale(0.9)" color="#FFD966"/>
+  <use href="#flag" transform="translate(-140,300) rotate(-12) scale(0.9)" color="#A6F03A"/>
   <use href="#prismTz" transform="translate(-280,880) rotate(12) scale(0.9)"/>
   <use href="#sqB" transform="translate(-180,1240) scale(1.0)" color="#E0508A"/>
   <use href="#triD" transform="translate(-460,1500) scale(0.72)" color="#C9A0E0"/>
@@ -416,9 +416,9 @@
   <use href="#prismTz" transform="translate(2760,-80) rotate(-14) scale(0.85)"/>
   <use href="#triD" transform="translate(3380,-100) scale(0.72)" color="#C9A0E0"/>
   <!-- circles that run off an edge -->
-  <circle cx="3980" cy="1080" r="110" fill="#FFD966"/>
+  <circle cx="3980" cy="1080" r="110" fill="#A6F03A"/>
   <circle cx="-360" cy="620" r="155" fill="#6B2C7F"/>
-  <circle cx="3300" cy="-200" r="135" fill="#FFD966"/>
+  <circle cx="3300" cy="-200" r="135" fill="#A6F03A"/>
   <circle cx="2010" cy="-180" r="120" fill="#F5B5C8"/>
   <circle cx="1760" cy="1855" r="140" fill="#F5B5C8"/>
   <circle cx="2880" cy="1805" r="130" fill="#E0508A"/>
