@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { onClickOutside } from "@vueuse/core";
-import { nextTick, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 
 import useContextStore from "@/stores/context";
 import { focusWhenVisible } from "@/utils/focusWhenVisible";
@@ -107,10 +107,16 @@ function onMenuKey(e: KeyboardEvent) {
 }
 
 let watcher: any = null;
+// The click-outside listener starts a moment after the menu opens (so the
+// opening click does not close it). An unmount inside that moment must cancel
+// it: fired afterwards it listens on a page that is gone.
+let pending: ReturnType<typeof setTimeout> | null = null;
 
 context.$subscribe((mutation, state) => {
   if (state.visible) {
-    setTimeout(() => {
+    if (pending !== null) clearTimeout(pending);
+    pending = setTimeout(() => {
+      pending = null;
       if (watcher !== null) {
         watcher();
       }
@@ -131,6 +137,13 @@ context.$subscribe((mutation, state) => {
   if (watcher !== null) {
     watcher();
   }
+});
+
+onBeforeUnmount(() => {
+  if (pending !== null) clearTimeout(pending);
+  pending = null;
+  if (watcher !== null) watcher();
+  watcher = null;
 });
 </script>
 

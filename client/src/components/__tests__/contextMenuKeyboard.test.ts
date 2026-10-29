@@ -138,3 +138,27 @@ describe('a submenu', () => {
         wrapper.unmount()
     })
 })
+
+describe('the click-outside listener', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+    })
+
+    it('is not started after the menu is unmounted', async () => {
+        vi.useFakeTimers()
+        try {
+            const wrapper = mount(ContextMenu, { attachTo: document.body })
+            const context = useContextStore()
+            context.visible = true
+            await nextTick()
+            wrapper.unmount()
+
+            // The listener starts 200 ms after opening; before this fix it then
+            // attached to a page torn down with the test file ("el.addEventListener
+            // is not a function" in CI). Now the unmount cancels it.
+            expect(vi.getTimerCount()).toBe(0)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+})
