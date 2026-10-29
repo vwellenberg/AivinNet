@@ -427,7 +427,22 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
 - **Eine Stat-Zahl hat immer zwei Zeilen Platz, der Text steht oben darin** (`min-height: 2lh`):
   Der Block steht unten in der Kachel, also begann eine einzeilige Zahl („12,671 tracks") eine
   ganze Zeile tiefer als ihre zweizeiligen Nachbarn (gemessen 116 gegen 85 px). Jetzt starten alle
-  Werte bei 85 px und alle Untertitel auf einer Linie; die laufende Zahl hängt oben (`top: 0`).
+  Werte bei 85 px und alle Untertitel auf einer Linie.
+- ⚠️ **Beim Hochzählen steht jede ZAHL in einem festen Platz, nicht der ganze Text.** Der Umbruch
+  folgte sonst der Zahl des Augenblicks: „12,420 tracks“ braucht zwei Zeilen, „1,234 tracks“ passt
+  auf eine, also sprang „tracks“ während des Zählens zwischen den Zeilen (gemeldet als „Text
+  zuckelt durch die Kachel“; gemessen 0 ↔ 31 px). Jede Zahl ist ein `inline-grid` mit dem
+  **breiteren Ende** des Zählens unsichtbar im `::before` (`data-slot`) und der laufenden Zahl in
+  derselben Zelle, **Tabellenziffern** (`tabular-nums`) — proportional war ein „10,888“ breiter
+  als ein „12,420“. Beim Hochzählen ist das der Endwert; beim Herunterzählen (Wechsel auf einen
+  kürzeren Zeitraum) hält der Platz die Breite des Startwerts und schrumpft erst beim Landen.
+  Brauchen alter und neuer Wert verschieden viele Zeilen, wechselt der Umbruch damit **einmal**,
+  am Ende — weniger geht nicht, und ein Platz in Endbreite ließe die breitere Zahl ihn sprengen.
+  Der Vorgänger maß per `offsetHeight < 1,5 × font-size`, ob der Endwert einzeilig ist; seit
+  `min-height: 2lh` ist die Box immer zwei Zeilen hoch, der Schutz griff also **nie** — ohne
+  Fehler, denn die Messung lieferte einfach „zweizeilig“. Wer ein Layout per Höhe misst, prüft,
+  ob eine `min-height` den Inhalt überdeckt. Gemessen am echten `StatItem` pro Frame (Space
+  Grotesk, Figtree): Wortposition über den ganzen Zählvorgang konstant.
 - **Am Handy punktet die Top-Bar UM die Pille herum, nicht in ihr** (Nutzer, 2026-10-15): Die
   ganze Nav-Zeile von der Bildschirmkante bis zum Inhalt, ohne Maske, die Pille bleibt weiß. Die
   Ebene malt das **Grid** (`#app-grid::before` mit `grid-area: nav`: ein positioniertes
