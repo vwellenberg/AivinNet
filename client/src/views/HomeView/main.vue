@@ -17,8 +17,9 @@
                 />
             </div>
         </div>
-        <!-- Subspace radio (#542): a dial over your mixes, shown only with mixes. -->
-        <RadioDial />
+        <!-- Subspace radio (#542) is hidden for now: with only the mixes as
+             stations it duplicates the "Your mixes" row. It comes back once the
+             genre and decade stations exist (components/HomeView/RadioDial.vue). -->
         <Browse class="browse-phones-only" />
         <PageItem
             v-for="item in home.homepageItems"
@@ -89,7 +90,6 @@ import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
 import ContinueCard from '@/components/HomeView/ContinueCard.vue'
-import RadioDial from '@/components/HomeView/RadioDial.vue'
 import RewindCard from '@/components/HomeView/RewindCard.vue'
 import WeeklyRecap from '@/components/HomeView/WeeklyRecap.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
