@@ -36,7 +36,7 @@
 // @libraries
 import { vElementSize } from "@vueuse/components";
 import { onStartTyping } from "@vueuse/core";
-import { onBeforeUnmount, onMounted, Ref, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, Ref, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { BalancerProvider } from "vue-wrap-balancer";
 
@@ -55,6 +55,7 @@ import useTracker from "@/stores/tracker";
 import handleShortcuts from "@/helpers/useKeyboard";
 import { lauflichtClasses } from "@/utils/lauflicht";
 import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
+import { activeSeason, paintedPalette } from "@/utils/seasons";
 import { applyTileSize } from "@/utils/tileSize";
 import { xl, xxl } from "./composables/useBreakpoints";
 
@@ -144,12 +145,22 @@ watch(
 // Colour scheme -> <html> class (utils/theme.ts, Global/_palettes.scss). On the
 // root element, not body: the tokens :root derives from the palette resolve
 // there. The look takes part because only Memphis wears a scheme.
+// The seasonal overlay (#543, utils/seasons.ts) paints over the stored scheme on
+// its days. The stored one is never written, so it comes back the next day.
+const today = ref(new Date());
+const season = computed(() => activeSeason(today.value, settings.look, settings.use_seasonal_schemes));
+// A date turns over at midnight with no click to watch for: re-read it each minute.
+const seasonTimer = setInterval(() => (today.value = new Date()), 60 * 1000);
+onBeforeUnmount(() => clearInterval(seasonTimer));
+
 watch(
-    () => [settings.look, settings.palette] as const,
-    ([look, palette]) => {
+    () => [settings.look, paintedPalette(settings.palette, season.value), season.value === "christmas"] as const,
+    ([look, palette, christmas]) => {
         for (const [cls, on] of Object.entries(paletteHtmlClasses(look, palette))) {
             document.documentElement.classList.toggle(cls, on);
         }
+        // Snow sprinkles instead of the Memphis ones (Global/_seasons.scss).
+        document.documentElement.classList.toggle("season-christmas", christmas);
     },
     { immediate: true }
 );

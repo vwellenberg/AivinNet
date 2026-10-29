@@ -48,6 +48,19 @@ const palette: Setting = {
 }
 
 /**
+ * The SEASONAL overlay (#543): on a few dates the Memphis look paints its
+ * colours (utils/seasons.ts). Off keeps the chosen scheme every day.
+ */
+const seasonal: Setting = {
+    title: 'Seasonal colours',
+    desc: 'Memphis only: pumpkin and violet on 31 October, snow sprinkles on 24–26 December. Off keeps your colour scheme every day.',
+    type: SettingType.binary,
+    state: () => settings().use_seasonal_schemes,
+    action: () => settings().toggleSeasonalSchemes(),
+    inactive: () => !lookHasPalettes(settings().look),
+}
+
+/**
  * The MODE: light or dark. App.vue turns look + mode into body classes
  * (utils/theme.ts), which flip the --mem-* custom properties
  * (Global/index.scss).
@@ -146,4 +159,4 @@ const auto_theme_dark_from: Setting = {
     inactive: autoInactive,
 }
 
-export default [look, palette, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
+export default [look, palette, seasonal, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
