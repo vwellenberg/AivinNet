@@ -42,6 +42,14 @@
                         <div class="rewind-big">{{ minutes(data.seconds) }}</div>
                         <div class="rewind-label">minutes of music</div>
                         <div class="rewind-sub">{{ data.plays.toLocaleString('en') }} plays on {{ data.days }} days</div>
+                        <div class="rewind-actions">
+                            <button type="button" class="btn-primary" :disabled="rendering" @click="saveImage(false)">
+                                <span class="text">Save as image</span>
+                            </button>
+                            <button v-if="canShare" type="button" class="btn-pill" :disabled="rendering" @click="saveImage(true)">
+                                Share image
+                            </button>
+                        </div>
                     </template>
                     <div v-else class="rewind-sub">No music in {{ data.year }}.</div>
                 </section>
@@ -157,6 +165,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { paths } from '@/config'
 import { getRewind, markRewindSeen } from '@/requests/stats'
 import { Routes } from '@/router'
+import { useToast } from '@/stores/notification'
 import { brandGradient, BRAND_RED } from '@/utils/colortools/pageGradient'
 import {
     RewindPayload,
@@ -172,6 +181,8 @@ import {
     playCount,
     trackLine,
 } from '@/utils/rewind'
+import { storyFilename } from '@/utils/rewindStory'
+import { canShareImage, renderStory, saveBlob, shareImage } from '@/utils/rewindStoryImage'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 const route = useRoute()
@@ -255,6 +266,27 @@ function showYear(year: number) {
     router.replace({ name: Routes.Rewind, params: { year } })
 }
 
+// The story card (#558): drawn here from the payload, never sent anywhere.
+const canShare = canShareImage()
+const rendering = ref(false)
+
+async function saveImage(share: boolean) {
+    const payload = data.value
+    if (!payload || rendering.value) return
+    rendering.value = true
+    try {
+        const blob = await renderStory(payload)
+        const name = storyFilename(payload.year)
+        if (share) await shareImage(blob, name, `AivinNet Rewind ${payload.year}`)
+        else saveBlob(blob, name)
+    } catch (e) {
+        // A share the listener closed is no failure.
+        if (!(e instanceof DOMException && e.name === 'AbortError')) useToast().showGenericError()
+    } finally {
+        rendering.value = false
+    }
+}
+
 onMounted(load)
 // Leaving the page clears the param too: that is not a year to load.
 watch(
@@ -289,6 +321,13 @@ watch(
     }
 
     .rewind-retry {
+        margin-top: $medium;
+    }
+
+    .rewind-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $small;
         margin-top: $medium;
     }
 
