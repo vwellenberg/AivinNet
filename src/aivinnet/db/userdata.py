@@ -681,6 +681,29 @@ class ScrobbleTable(Base):
         return [(trackhash, int(plays), int(duration or 0)) for trackhash, plays, duration in result.all()]
 
     @classmethod
+    def plays_by_trackhash_and_duration_in_period(
+        cls, start_time: int, end_time: int, userid: int | None = None
+    ) -> list[tuple[str, int, int]]:
+        """
+        `(trackhash, seconds listened, plays)` for one user's period, one row per
+        track and listened length (#537, `lib/skip_rate`).
+
+        The share of a track listened to needs its length, which is in the
+        library and not in SQL. So the rows are the distinct listened lengths
+        per track, not the plays: one request-thread read, cached per user.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        result = cls.rows(
+            select(cls.trackhash, cls.duration, func.count(cls.id))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(cls.trackhash, cls.duration)
+        )
+        return [(trackhash, int(seconds or 0), int(plays)) for trackhash, seconds, plays in result.all()]
+
+    @classmethod
     def heard_trackhashes_of(cls, userid: int) -> set[str]:
         """Every track ONE user has ever played ("Almost complete", #529), distinct in SQL."""
         result = cls.rows(select(cls.trackhash).where(cls.userid == userid).distinct())

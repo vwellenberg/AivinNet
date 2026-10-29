@@ -26,6 +26,7 @@ from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.lib.recipes.records import board_of
 from aivinnet.lib.records import celebrated
 from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
+from aivinnet.lib.skip_rate import build_skip_rate
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
 from aivinnet.models.track import Track
@@ -491,6 +492,54 @@ def get_listening_clock(query: ClockQuery):
         _clocks[userid] = cached
 
     return {**cached[1], "dates": format_date(start_time, end_time)}, 200
+
+
+class SkipsQuery(BaseModel):
+    period: StatsPeriod = Field("week", description="The period the skip quote covers")
+
+
+# The last skip quote per user, with what it was built from: the period, where
+# it starts and the plays. It holds trackhashes only; the tracks are looked up
+# per request, so a favourite set since the build still shows.
+_skips: dict[int, tuple[tuple[str, int, int, int], dict]] = {}
+
+
+def _with_tracks(rows: list[dict]) -> list[dict]:
+    """Each ranked row with its track as the library serializes it; a track gone since is left out."""
+    tracks = {
+        track.trackhash: track for track in TrackStore.get_tracks_by_trackhashes([row["trackhash"] for row in rows])
+    }
+    return [{**row, "track": serialize_track(tracks[row["trackhash"]])} for row in rows if row["trackhash"] in tracks]
+
+
+@api.get("/skips")
+def get_skip_rate(query: SkipsQuery):
+    """
+    The skip quote (#537): the plays skipped (under the share in
+    `lib/skip_rate.SKIP_BELOW` of their track), the tracks most skipped and the
+    tracks always played to the end, over the period. A lower bound: plays
+    under 5 s are never logged.
+    """
+    userid = get_current_userid()
+    start_time, end_time = get_date_range(query.period)
+    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+
+    cached = _skips.get(userid)
+    if cached is None or cached[0] != key:
+        rows = ScrobbleTable.plays_by_trackhash_and_duration_in_period(start_time, end_time, userid)
+        lengths = {
+            track.trackhash: track.duration for track in TrackStore.get_tracks_by_trackhashes({row[0] for row in rows})
+        }
+        cached = (key, build_skip_rate(rows, lengths))
+        _skips[userid] = cached
+
+    body = cached[1]
+    return {
+        **body,
+        "most_skipped": _with_tracks(body["most_skipped"]),
+        "to_the_end": _with_tracks(body["to_the_end"]),
+        "dates": format_date(start_time, end_time),
+    }, 200
 
 
 class RewindQuery(BaseModel):

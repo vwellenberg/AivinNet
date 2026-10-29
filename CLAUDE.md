@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/listening_clock.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py src/aivinnet/lib/home/layout.py src/aivinnet/lib/discoveries.py src/aivinnet/lib/listening_sources.py src/aivinnet/lib/home/almost_complete.py src/aivinnet/lib/records.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/listening_clock.py src/aivinnet/lib/skip_rate.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py src/aivinnet/lib/home/layout.py src/aivinnet/lib/discoveries.py src/aivinnet/lib/listening_sources.py src/aivinnet/lib/home/almost_complete.py src/aivinnet/lib/records.py --config-file pyproject.toml
 ```
 
 **Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`
@@ -95,6 +95,11 @@ Pro Aufgabe/Issue:
 - **CI gatet jetzt:** Branch Protection auf `master` erzwingt die **acht Linux-Checks** aus `ci.yml` (`strict:false`, kein Review-Zwang, `enforce_admins:false`), seit 2026-09-19 auch `Docker Smoke Test`. Die zwei Windows-Checks (#508) laufen mit, sind aber **kein** Gate. Ein direkter `--squash`-Merge vor grünem CI scheitert — deshalb `--auto` nutzen. ⚠️ **`--auto` wartet NUR auf Pflicht-Checks:** Ein neuer Job ist erst Gate, wenn er in der Branch Protection steht (#189 wurde gemergt, bevor der damals freiwillige Smoke-Test fertig war). Nachsehen: `gh api repos/vwellenberg/AivinNet/branches/master/protection/required_status_checks --jq .contexts`.
 - Danach **deployt der Server selbst**, sobald auf ihm der Timer läuft (siehe „Deploy“ unten; sonst von Hand, Befehl: `MAINTAINER.local.md`) — **verifizieren** bleibt Pflicht. Worktree entfernen — und am Rundenende **einmal die Leichen wegkehren** (siehe unten).
 - Kein `dev`-Branch. (Policy-Memory: `feedback-workflow-pr-worktree`.)
+- **Umsetzung mit Haiku** (Wunsch des Users, 2026-10-29, steht hier statt im Memory, weil
+  Cloud-Sessions keins behalten): Issues als Haiku-Subagenten bauen lassen, je einer pro Aufgabe
+  im eigenen Worktree, parallel, nur lokal committen. Die Hauptsession liest jeden Diff, bevor
+  sie pusht und den PR öffnet — das ersetzt nicht das Self-Review oben. Größere Umbauten (z. B.
+  ein Major-Bump mit API-Bruch) gehen auch an Haiku, mit Abbruchkriterium im Auftrag.
 
 ### Branch-Hygiene — `--delete-branch` räumt nur die HÄLFTE
 
