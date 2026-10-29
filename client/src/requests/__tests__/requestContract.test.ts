@@ -243,6 +243,7 @@ const CALLS: Record<string, unknown[]> = {
     'searchMusic/searchAlbums': ['blue', 0],
     'searchMusic/searchArtists': ['blue', 0],
     'searchMusic/searchFolders': ['blue', 0],
+    'searchMusic/getServerCard': [],
     'stats/getChartItem': ['tracks', 'week', 10, 'playduration', 0],
     'stats/getTopArtists': ['week', 10, 'playduration'],
     'stats/getTopAlbums': ['week', 10, 'playduration'],

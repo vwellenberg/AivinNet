@@ -25,6 +25,8 @@
     </div>
 
     <template v-else>
+      <!-- "aivin" opens the server's calling card above the results (#547). -->
+      <ServerCard :query="search.query" />
       <NoItems
         :title="'No results'"
         :description="'We can\'t find any results for your search.'"
@@ -94,6 +96,7 @@ import TopItem from "@/components/RightSideBar/Search/Top/TopItem.vue";
 import TopTracks from "@/components/RightSideBar/Search/Top/TopTracks.vue";
 import BrowseArtists from "@/components/SearchView/BrowseArtists.vue";
 import LibraryNumbers from "@/components/SearchView/LibraryNumbers.vue";
+import ServerCard from "@/components/SearchView/ServerCard.vue";
 import RecentItems from "@/components/shared/CardScroller.vue";
 import NoItems from "@/components/shared/NoItems.vue";
 import RecentSearches from "./RecentSearches.vue";

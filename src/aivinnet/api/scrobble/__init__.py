@@ -24,6 +24,7 @@ from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
+from aivinnet.lib.server_card import SERVER_TOTALS
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
 from aivinnet.models.track import Track
@@ -122,6 +123,8 @@ def log_track(body: LogTrackBody):
     # OR .... can we just write it to the backup file on demand?
     scrobble_data["extra"] = get_extra_info(trackhash, "track")
     ScrobbleTable.add(scrobble_data)
+    # The server card's totals, in RAM (lib/server_card.py): no read on this path.
+    SERVER_TOTALS.note_play(timestamp)
 
     # NOTE: Update the recently played homepage for this userid
     RecentlyPlayed(userid=scrobble_data["userid"])

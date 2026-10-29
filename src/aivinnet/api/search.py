@@ -2,6 +2,7 @@
 Contains all the search routes.
 """
 
+import time
 from typing import Any, Literal
 
 from flask_openapi3 import APIBlueprint, Tag
@@ -11,8 +12,11 @@ from unidecode import unidecode
 from aivinnet import models
 from aivinnet.api.apischemas import GenericLimitSchema
 from aivinnet.lib import searchlib
+from aivinnet.lib.server_card import SERVER_TOTALS, STARTED_AT, build_card
 from aivinnet.serializers.artist import serialize_for_cards
-from aivinnet.settings import Defaults
+from aivinnet.settings import Defaults, Metadata
+from aivinnet.store.albums import AlbumStore
+from aivinnet.store.artists import ArtistStore
 from aivinnet.store.tracks import TrackStore
 
 tag = Tag(name="Search", description="Search for tracks, albums and artists")
@@ -120,6 +124,33 @@ def search_items(query: SearchLoadMoreQuery):
         "results": results[query.start : query.start + query.limit],
         "more": len(results) > query.start + query.limit,
     }
+
+
+# Read once: `Metadata.version` opens the package metadata on every read, and the
+# card is answered on the request thread, RAM only (#547).
+SERVER_VERSION = Metadata.version
+
+
+@api.get("/server-card")
+def get_server_card():
+    """
+    The server's calling card, shown above the results of the search "aivin" (#547).
+
+    Numbers only, no names: the version, the uptime, what the library holds, the
+    plays of all users together, and the oldest play (since when this installation
+    runs). Everything is RAM; see `lib/server_card.py`.
+    """
+    plays, since = SERVER_TOTALS.snapshot()
+    return build_card(
+        version=SERVER_VERSION,
+        started_at=STARTED_AT,
+        now=time.time(),
+        tracks=len(TrackStore.trackhashmap),
+        albums=len(AlbumStore.albummap),
+        artists=len(ArtistStore.artistmap),
+        plays=plays,
+        since=since,
+    )
 
 
 # TODO: Rewrite this file using generators where possible
