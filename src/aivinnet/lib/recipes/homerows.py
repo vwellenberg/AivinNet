@@ -1,8 +1,8 @@
 """
 Routines for the personal homepage rows "Rediscover", "On this day",
 "Because you listened to …", "On repeat", "Never played", "Your <weekday>
-<evenings>", "Artists you might like", "Forgotten favorites", "Your mixes" and
-"Almost complete". The rules
+<evenings>", "Artists you might like", "Deep cuts", "Forgotten favorites",
+"Your mixes" and "Almost complete". The rules
 themselves live in `lib/home/homerows.py` and `lib/home/discover.py`.
 
 Scheduled by `crons/__init__.py` (`schedule.every(cls.hours)`), deliberately
@@ -29,6 +29,7 @@ from aivinnet.lib.home.almost_complete import (
     rest_of,
 )
 from aivinnet.lib.home.discover import (
+    DEEP_CUT_TOP_DAYS,
     FAVORITE_PLAYLIST_LIMIT,
     ON_THIS_DAY_YEARS,
     REPEAT_BASELINE_WEEKS,
@@ -40,6 +41,7 @@ from aivinnet.lib.home.discover import (
     because_mix,
     day_playlist,
     day_summary,
+    deep_cut_item,
     discovered_on_this_day,
     for_this_time_item,
     forgotten_favorite_item,
@@ -50,6 +52,7 @@ from aivinnet.lib.home.discover import (
     pick_seed_artist,
     playlist_neighbour_item,
     rank_because,
+    rank_deep_cuts,
     rank_for_this_time,
     rank_forgotten_favorites,
     rank_never_played,
@@ -479,6 +482,54 @@ class ArtistsYouMightLike(HomepageRoutine):
                 log.info("artists-you-might-like: nothing new next to the top artists of user %s", userid)
 
             HomepageStore.entries[self.store_key].items[userid] = [playlist_neighbour_item(*r) for r in ranked]
+
+
+class DeepCuts(HomepageRoutine):
+    """
+    "Deep cuts": tracks of the user's top album artists (last 90 days) that the
+    user has never played. Every 6 hours; reads the whole history per user, as
+    "Never played" does, since a play anywhere in it takes a track off the row.
+    """
+
+    hours = 6
+    store_key = "deep_cuts"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        now = pendulum.now().timestamp()
+        entry = HomepageStore.entries[self.store_key]
+
+        def name_of(artisthash: str) -> str | None:
+            artist = ArtistStore.artistmap.get(artisthash)
+            return artist.artist.name if artist else None
+
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            result = rank_deep_cuts(
+                scrobbles,
+                track_facts,
+                library_tracks_of,
+                now,
+                skip=PLACEHOLDER_ARTIST_HASHES.__contains__,
+            )
+
+            if not result.artists:
+                log.info("deep-cuts: user %s has no album artist played in the last %d days", userid, DEEP_CUT_TOP_DAYS)
+            elif not result.tracks:
+                log.info("deep-cuts: user %s has played every track of the top artists", userid)
+
+            items = []
+            for trackhash, artisthash, _ in result.tracks:
+                name = name_of(artisthash)
+                items.append(deep_cut_item(trackhash, f"you play {name}" if name else None))
+
+            entry.items[userid] = items
 
 
 class ForgottenFavorites(HomepageRoutine):

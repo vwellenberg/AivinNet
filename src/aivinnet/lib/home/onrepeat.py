@@ -3,6 +3,7 @@ Home rows that are also playlists, served like "recentlyplayed":
 
 - "onrepeat": the "On repeat" row — "Play all" plays it, its caption opens it.
 - "forgottenfavorites": the "Forgotten favorites" row, the same way.
+- "deepcuts": the "Deep cuts" row, the same way.
 - "onthisday": the day a year ago (or the most recent earlier year with
   plays) in the order it was heard — "Play that day".
 - "becauseyoulistened": one track per album of "Because you listened to …"
@@ -59,6 +60,10 @@ def get_on_repeat_playlist():
 
 def get_forgotten_favorites_playlist():
     return _row_playlist("forgotten_favorites", "forgottenfavorites", "Forgotten favorites")
+
+
+def get_deep_cuts_playlist():
+    return _row_playlist("deep_cuts", "deepcuts", "Deep cuts")
 
 
 def get_on_this_day_playlist():

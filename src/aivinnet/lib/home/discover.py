@@ -1,7 +1,7 @@
 """
 Pure rules behind the homepage rows "Because you listened to …", "On repeat",
 "Never played", "Your <weekday> <evenings>", "Artists you might like",
-"Forgotten favorites" and the albums and summary of "On this day" (#138).
+"Forgotten favorites", "Deep cuts" and the albums and summary of "On this day" (#138).
 
 Like `homerows.py`, deliberately free of database and store imports: the
 routines in `lib/recipes/homerows.py` read the scrobbles and resolve each
@@ -98,6 +98,12 @@ FAVORITE_PLAYLIST_LIMIT = 100
 PHASE_DAYS = 3
 PHASE_MIN_PLAYS = 10
 PHASE_MIN_SHARE = 0.3
+
+# "Deep cuts": tracks of the artists the user plays most lately, never played.
+# An artist already in the top ten is known; the row is for their B-sides.
+DEEP_CUT_TOP_ARTISTS = 10
+DEEP_CUT_TOP_DAYS = 90
+DEEP_CUT_MAX_PER_ALBUM = 2
 
 # "On this day": how many years back the row looks for the same calendar day.
 ON_THIS_DAY_YEARS = 15
@@ -900,6 +906,89 @@ def forgotten_favorite_item(
         "help_text": help_text,
         "secondary_text": _plays(plays),
     }
+
+
+@dataclass
+class DeepCuts:
+    # The top album artists of the window, most played first.
+    artists: list[str] = field(default_factory=list)
+    # (trackhash, artisthash it was found by, plays of its album), best first.
+    tracks: list[tuple[str, str, int]] = field(default_factory=list)
+
+
+def rank_deep_cuts(
+    plays: Iterable[Play],
+    facts_of: Callable[[str], TrackFacts | None],
+    library_of: Callable[[str], Iterable[str]],
+    now: float,
+    skip: Callable[[str], bool] = lambda artisthash: False,
+    top: int = DEEP_CUT_TOP_ARTISTS,
+    top_days: int = DEEP_CUT_TOP_DAYS,
+    max_per_album: int = DEEP_CUT_MAX_PER_ALBUM,
+    limit: int = ROW_LIMIT,
+) -> DeepCuts:
+    """
+    Tracks of the user's `top` album artists (by plays in the last `top_days`)
+    that the user has never played, in any play of the whole history.
+
+    `library_of` gives an artist's tracks and is asked only for the top
+    artists. Only the ALBUM artist counts: a guest on another artist's album
+    is not that artist's deep cut. `skip` artists (placeholders) are never top
+    artists.
+
+    Albums the user plays often come first, then album and trackhash, so the
+    same history always gives the same row. At most `max_per_album` per album.
+    """
+    resolved = _resolve(plays, facts_of)
+    cutoff = now - top_days * DAY
+    heard: set[str] = set()
+    album_plays: Counter[str] = Counter()
+    recent: Counter[str] = Counter()
+
+    for r in resolved:
+        heard.add(r.play.trackhash)
+        album_plays[r.facts.albumhash] += 1
+        if r.play.timestamp >= cutoff:
+            recent.update(a for a in set(r.facts.artists) if not skip(a))
+
+    result = DeepCuts(artists=sorted(recent, key=lambda a: (-recent[a], a))[:top])
+    if not result.artists:
+        return result
+
+    # trackhash -> (plays of its album, albumhash, artisthash it was found by)
+    candidates: dict[str, tuple[int, str, str]] = {}
+    for artisthash in result.artists:
+        for trackhash in library_of(artisthash):
+            if trackhash in heard or trackhash in candidates:
+                continue
+
+            facts = facts_of(trackhash)
+            if facts is None or artisthash not in facts.artists:
+                continue
+
+            candidates[trackhash] = (album_plays[facts.albumhash], facts.albumhash, artisthash)
+
+    per_album: Counter[str] = Counter()
+    for trackhash, (plays_of_album, albumhash, artisthash) in sorted(
+        candidates.items(), key=lambda c: (-c[1][0], c[1][1], c[0])
+    ):
+        if per_album[albumhash] >= max_per_album:
+            continue
+
+        per_album[albumhash] += 1
+        result.tracks.append((trackhash, artisthash, plays_of_album))
+        if len(result.tracks) >= limit:
+            break
+
+    return result
+
+
+def deep_cut_item(trackhash: str, reason: str | None) -> dict[str, Any]:
+    """`reason` is the text on the card: "you play Red Hot Chili Peppers"."""
+    if reason is None:
+        return {"type": "track", "hash": trackhash, "help_text": "never played"}
+
+    return {"type": "track", "hash": trackhash, "help_text": reason, "secondary_text": "never played"}
 
 
 class TimedPlay(Play, Protocol):
