@@ -71,7 +71,7 @@ requires-dist = [
     { name = "flask-compress", specifier = ">=1.13" },
     { name = "flask-cors", specifier = ">=6.0.0" },
     { name = "flask-jwt-extended", specifier = ">=4.6.0" },
-    { name = "flask-openapi3", specifier = "==3.0.2" },
+    { name = "flask-openapi3", specifier = "==4.3.2" },
     { name = "mutagen", specifier = ">=1.47.0" },
     { name = "pendulum", specifier = ">=3.0.0" },
     { name = "pillow", specifier = ">=13.0.0" },
@@ -924,15 +924,15 @@ wheels = [
 
 [[package]]
 name = "flask-openapi3"
-version = "3.0.2"
+version = "4.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/76/13631a2314824bc02e66d2a4a398c3bb6e96580b8562c7d16440ff6d0082/flask_openapi3-3.0.2.tar.gz", hash = "sha256:92e6a308c5b13692ad8aea04ee951ffbfabc6853b20bd3b678c2569dcb781916", size = 982723, upload-time = "2024-01-28T09:06:43.208Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/b3/37ccb1a3923193e35f226befd2f87c5284340b951ea2af731395f5d85398/flask_openapi3-4.3.2.tar.gz", hash = "sha256:a53a74bd71f07f5fa491c9cc928c7fc2c005a62f21e06b6aa27cfc11aa9ae1bc", size = 51480, upload-time = "2026-05-09T03:18:56.861Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/e0/3b4bd3890fef19b1248d272bc077002658c53d494bab3ba15319df99ffdc/flask_openapi3-3.0.2-py3-none-any.whl", hash = "sha256:e39359bf07da47d9abf30d4b370feaac4035bd805f03518ce65016958796c636", size = 988441, upload-time = "2024-01-28T09:06:41.521Z" },
+    { url = "https://files.pythonhosted.org/packages/86/6a/54cd42aaa14dff3e9f3206f0506e260d3294fc1c1c3b4be282344441f7bf/flask_openapi3-4.3.2-py3-none-any.whl", hash = "sha256:edf118061f4866b973df0810e75915d2f79403b1be9d333851ab5ebb44e85483", size = 46441, upload-time = "2026-05-09T03:18:58.065Z" },
 ]
 
 [[package]]

@@ -2,9 +2,28 @@
 Reusable Pydantic basic schemas for the API
 """
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
 
 from aivinnet.settings import Defaults
+
+
+class JsonBodyModel(BaseModel):
+    """
+    Base for JSON request bodies whose fields all have defaults.
+
+    flask_openapi3 3.x read a request without a body as `{}`, so such an endpoint
+    answered 200 with the defaults. 4.x passes `None` on, and pydantic rejects that
+    with 422 before the handler runs. Mapping `None` back to `{}` restores 3.x.
+    A model with required fields still answers 422 on an empty body, now with a
+    field error rather than a type error.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _missing_body_is_empty(cls, data: Any) -> Any:
+        return {} if data is None else data
 
 
 class AlbumHashSchema(BaseModel):

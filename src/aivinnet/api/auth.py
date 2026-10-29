@@ -22,6 +22,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field, GetCoreSchemaHandler
 from pydantic_core import core_schema
 
+from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.config import UserConfig
 from aivinnet.db.userdata import UserTable
 from aivinnet.lib import loginguard
@@ -273,7 +274,7 @@ def refresh():
     return create_new_token(user)
 
 
-class UpdateProfileBody(BaseModel):
+class UpdateProfileBody(JsonBodyModel):
     id: int = Field(0, description="The user id")
     email: str = Field("", description="The email")
     username: str = Field("", description="The username", example="user0")
