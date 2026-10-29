@@ -5,15 +5,15 @@
  */
 import type { Season } from './seasons'
 
-export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin'
+export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'vampire' | 'zombie' | 'frankenstein'
 
 export interface Particle {
     kind: ParticleKind
-    /** The emoji of a Halloween particle; a snowflake is drawn in CSS. */
+    /** The emoji of a Halloween particle; a snowflake and Frankenstein's monster are drawn in CSS. */
     glyph: string
     /** Start position, % of the viewport width (flakes, ghosts). */
     left: number
-    /** Height, % of the viewport (bats and pumpkins fly across at this height). */
+    /** Height, % of the viewport (everything that crosses does so at this height). */
     top: number
     /** Snowflake diameter, or emoji size, in px. */
     size: number
@@ -25,7 +25,7 @@ export interface Particle {
     drift: number
     /** Seconds per flutter or bob of an emoji. */
     wobble: number
-    /** Bats and pumpkins: 1 flies left to right, -1 right to left. */
+    /** Everything that crosses: 1 goes left to right, -1 right to left. */
     dir: 1 | -1
 }
 
@@ -40,6 +40,10 @@ const HALLOWEEN: { kind: ParticleKind; glyph: string; count: number }[] = [
     { kind: 'bat', glyph: '🦇', count: 3 },
     { kind: 'ghost', glyph: '👻', count: 2 },
     { kind: 'pumpkin', glyph: '🎃', count: 1 },
+    { kind: 'vampire', glyph: '🧛', count: 1 },
+    { kind: 'zombie', glyph: '🧟', count: 1 },
+    // No emoji for the monster: a pixel head in CSS (components/SeasonParticles.vue).
+    { kind: 'frankenstein', glyph: '', count: 1 },
 ]
 
 /** A value between `min` and `max`, from the random source. */
@@ -91,6 +95,28 @@ function halloweenParticle(random: () => number, kind: ParticleKind, glyph: stri
             duration,
             delay: -between(random, 0, duration),
             wobble: between(random, 3, 5),
+        }
+    }
+    if (kind === 'vampire') {
+        // Swoops across high up like the bats, only slower and less often.
+        return {
+            ...base,
+            top: between(random, 8, 35),
+            size: 32,
+            duration: between(random, 90, 120),
+            delay: between(random, 20, 60),
+            wobble: between(random, 1.6, 2.2),
+        }
+    }
+    if (kind === 'zombie' || kind === 'frankenstein') {
+        // Shamble along the bottom of the screen, now and then, one at a time.
+        return {
+            ...base,
+            top: between(random, 72, 84),
+            size: 34,
+            duration: between(random, 120, 160),
+            delay: between(random, kind === 'zombie' ? 10 : 50, kind === 'zombie' ? 40 : 90),
+            wobble: between(random, 0.7, 1),
         }
     }
     // The pumpkin: rare, a long wait, then a slow roll across the lower screen.
