@@ -96,6 +96,9 @@ export const paths = {
             get load() {
                 return this.base + '/loadmore'
             },
+            get serverCard() {
+                return this.base + '/server-card'
+            },
         },
         getall: {
             base: '/getall',

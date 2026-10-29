@@ -3,6 +3,7 @@ import threading
 
 import schedule
 
+from aivinnet.db.userdata import ScrobbleTable
 from aivinnet.lib.groupsession import manager as group_session_manager
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import (
@@ -20,10 +21,16 @@ from aivinnet.lib.recipes.homerows import (
 )
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 from aivinnet.lib.recipes.records import refresh_records
+from aivinnet.lib.server_card import SERVER_TOTALS
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
 # setup_logger() runs and the imported name never picks up the reassignment.
 log = logging.getLogger(__name__)
+
+
+def _refresh_server_totals():
+    """The server card's plays and oldest play, counted over every user (one grouped query)."""
+    SERVER_TOTALS.fill(*ScrobbleTable.totals())
 
 
 def _reap_group_sessions():
@@ -146,6 +153,11 @@ def _run_cron_jobs():
 
     # Multiroom group-session reaper: prune offline devices / empty sessions.
     schedule.every(2).seconds.do(_reap_group_sessions)
+
+    # The server card's plays and oldest play (lib/server_card.py). run_all()
+    # below fills them at startup; the hour keeps them honest about deletes and
+    # restores, which bypass the play counter.
+    schedule.every(1).hours.do(_guarded(_refresh_server_totals))
 
     # Trigger all CRON jobs when the app is started. This is what makes `hours`
     # on a CronJob an INTERVAL rather than a delay before the first run — the

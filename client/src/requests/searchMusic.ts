@@ -52,6 +52,32 @@ async function searchFolders(query: string, start: number = 0): Promise<{ result
     return searchItems('folders', start, query)
 }
 
-export { searchAlbums, searchArtists, searchFolders, searchTracks, searchTopResults }
+/**
+ * The server's calling card, shown above the results of the search "aivin" (#547).
+ * Numbers only: `plays` and `since` are null until the server has counted them.
+ */
+export interface ServerCard {
+    version: string
+    /** Seconds since the server process started. */
+    uptime: number
+    tracks: number
+    albums: number
+    artists: number
+    /** Plays of all users together. */
+    plays: number | null
+    /** Unix time of the oldest play: since when this installation runs. */
+    since: number | null
+}
+
+async function getServerCard(): Promise<ServerCard> {
+    const { data } = await useAxios({
+        url: paths.api.search.serverCard,
+        method: 'GET',
+    })
+
+    return data
+}
+
+export { getServerCard, searchAlbums, searchArtists, searchFolders, searchTracks, searchTopResults }
 
 // TODO: Rewrite this module using `useAxios` hook

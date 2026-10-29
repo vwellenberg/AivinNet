@@ -635,6 +635,12 @@ class ScrobbleTable(Base):
         return int(count or 0), int(highest or 0)
 
     @classmethod
+    def totals(cls) -> tuple[int, int | None]:
+        """`(plays, oldest play)` over ALL users — the server card (`lib/server_card.py`), not a user's figure."""
+        count, oldest = cls.rows(select(func.count(cls.id), func.min(cls.timestamp))).one()
+        return int(count or 0), (int(oldest) if oldest is not None else None)
+
+    @classmethod
     def plays_of(cls, userid: int) -> int:
         """How many plays ONE user has (#545): one COUNT over their rows, read after every play."""
         result = cls.rows(select(func.count(cls.id)).where(cls.userid == userid))

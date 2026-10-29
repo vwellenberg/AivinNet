@@ -404,6 +404,7 @@
       ]
     }
   },
+  "GET /search/server-card": {},
   "GET /search/top": {
     "query": {
       "allowed": [
