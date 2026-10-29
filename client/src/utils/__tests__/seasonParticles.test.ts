@@ -34,7 +34,7 @@ describe('particlesFor: the count is capped', () => {
     })
 
     it('a season with a few particles keeps every one of them', () => {
-        expect(particlesFor('halloween', MIDDLE)).toHaveLength(6)
+        expect(particlesFor('halloween', MIDDLE)).toHaveLength(9)
         expect(particlesFor('christmas', MIDDLE)).toHaveLength(18)
     })
 })
@@ -74,6 +74,29 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         expect(items.find((p) => p.kind === 'bat')?.glyph).toBe('🦇')
         expect(items.find((p) => p.kind === 'ghost')?.glyph).toBe('👻')
         expect(items.find((p) => p.kind === 'pumpkin')?.glyph).toBe('🎃')
+    })
+
+    it('adds one vampire, one zombie and Frankenstein\'s monster, drawn without an emoji', () => {
+        const items = particlesFor('halloween', MIDDLE)
+        const one = (kind: string) => items.filter((p) => p.kind === kind)
+        expect(one('vampire').map((p) => p.glyph)).toEqual(['🧛'])
+        expect(one('zombie').map((p) => p.glyph)).toEqual(['🧟'])
+        expect(one('frankenstein').map((p) => p.glyph)).toEqual([''])
+    })
+
+    it('lets zombie and monster shamble along the bottom, now and then, not together', () => {
+        for (const seed of [3, 7, 11]) {
+            const items = particlesFor('halloween', sequence(seed))
+            const zombie = items.find((p) => p.kind === 'zombie')!
+            const monster = items.find((p) => p.kind === 'frankenstein')!
+            for (const p of [zombie, monster]) {
+                expect(p.top).toBeGreaterThanOrEqual(70)
+                expect(p.delay).toBeGreaterThan(0)
+                expect(p.duration).toBeGreaterThanOrEqual(120)
+            }
+            // The monster waits longer than the zombie ever does.
+            expect(monster.delay).toBeGreaterThan(zombie.delay)
+        }
     })
 
     it('makes the pumpkin rare: it waits longer than the others and cycles slowest', () => {
