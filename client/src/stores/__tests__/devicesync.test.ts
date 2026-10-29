@@ -1912,6 +1912,10 @@ describe('devicesync store', () => {
         await settleMicrotasks()
         expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
 
+        // `ended` only fires when the audio really ends: at the booked end
+        // (anchor 100 000 + 4 500 ms), not at the moment the booking was sent.
+        vi.advanceTimersByTime(100_000 + 4_500 - Date.now())
+
         // `ended` on the booked anchor asks for the state first and waits…
         ds.onTrackEnded()
         expect(requestsMock.sendCommand).toHaveBeenCalledTimes(1)
