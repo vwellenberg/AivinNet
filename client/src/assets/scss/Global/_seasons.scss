@@ -1,10 +1,10 @@
 // ============================================================================
-// SEASONAL SCHEMES (#543): the snow sprinkle, 24–26 December.
+// SEASONAL SCHEMES (#543): the snow sprinkle, 17–26 December.
 //
 // The Memphis sprinkle (mem-sprinkle, _candy.scss) reads `--shape-sprinkle`
 // with its artwork as fallback. App.vue sets `html.season-christmas` only under
 // the Memphis look while the switch is on (utils/seasons.ts), so the snow is an
-// overlay on that form, not a look of its own. The 31 October palette needs no
+// overlay on that form, not a look of its own. The Halloween palette needs no
 // rule here: it is a `palettes` entry (`html.palette-halloween`).
 //
 // This file is the one Memphis-side owner of a `--shape-*` definition besides
