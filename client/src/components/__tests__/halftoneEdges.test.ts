@@ -125,6 +125,7 @@ describe('halftone at the ends', () => {
             'src/components/nav/NavBar.vue': 'surface', // the desktop top bar, a panel
             'src/components/LeftSidebar/index.vue': 'surface', // the sidebar plate, a panel
             'src/components/HomeView/ContinueCard.vue': 'accent', // a pastel, light in both themes
+            'src/components/HomeView/WeeklyRecap.vue': 'surface', // the recap plate, a panel
         }
         const walk = (dir: string): string[] =>
             readdirSync(dir).flatMap((e) => {

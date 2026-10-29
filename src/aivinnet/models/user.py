@@ -9,7 +9,9 @@ from typing import Any
 HOME_LAYOUT_KEY = "home_layout"
 # The Rewind years the user has seen to the end (#572), the same way.
 REWIND_SEEN_KEY = "rewind_seen"
-PRIVATE_EXTRA_KEYS = frozenset({HOME_LAYOUT_KEY, REWIND_SEEN_KEY})
+# The period key of the Home recap the user closed (#530), the same way.
+RECAP_DISMISSED_KEY = "recap_dismissed"
+PRIVATE_EXTRA_KEYS = frozenset({HOME_LAYOUT_KEY, REWIND_SEEN_KEY, RECAP_DISMISSED_KEY})
 
 
 @dataclass(slots=True)

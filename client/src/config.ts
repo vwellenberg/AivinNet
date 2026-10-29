@@ -140,6 +140,12 @@ export const paths = {
             get notInterested() {
                 return this.base + '/not-interested'
             },
+            get recap() {
+                return this.base + '/recap'
+            },
+            get recapDismiss() {
+                return this.base + '/recap/dismiss'
+            },
         },
         auth: {
             base: '/auth',
