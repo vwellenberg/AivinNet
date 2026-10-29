@@ -424,6 +424,13 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   Konzept auch für die **Schraffur** (Regel 3 im Schraffur-Abschnitt), mit derselben Stärke.
   Erste Anwenderin: die Continue-Karte (Textblock und „Up next"-Überschrift), am Desktop **und**
   am Handy — eine Punktebene für jede Breite, keine eigene Maske mehr.
+- ⚠️ **Zwei Zeilen sind die Obergrenze für den WERT — was nicht passt, gehört in den Untertitel
+  oder in `detail` (Tooltip), nicht in den Wert.** Bei 154 px und 1,55 rem fasst eine Zeile
+  rund zehn Zeichen: „56% playlists · 30% albums“ und „12 hrs, 49 mins listened“ brauchten
+  drei, `ellip2` schnitt sie als „…“ ab. Gemessen über jede Kombination der Anteile: 22 von 42
+  liefen über. Seitdem steht „listened“ im Untertitel (wie „new“ bei den Entdeckungen) und die
+  Quellen-Kachel zeigt nur den größten Anteil. Wer einen Wert verlängert, misst ihn am echten
+  `StatItem`, mit dem längsten Wort, beide Schriften.
 - **Eine Stat-Zahl hat immer zwei Zeilen Platz, der Text steht oben darin** (`min-height: 2lh`):
   Der Block steht unten in der Kachel, also begann eine einzeilige Zahl („12,671 tracks") eine
   ganze Zeile tiefer als ihre zweizeiligen Nachbarn (gemessen 116 gegen 85 px). Jetzt starten alle

@@ -279,7 +279,9 @@ Platzhalter („Unknown“, „Various Artists“) zählen nicht als Artist. ⚠
 **„How you listened“ (#538) und der Hörer-Typ in Rewind sind EINE Regel** (`lib/listening_sources.py`):
 `source_kind` ordnet die gespeicherte Quelle einer Art zu (erzeugte Playlists = „Home“),
 `source_shares` rechnet die Anteile **an allen Plays** und nennt „other“ (Einzeltrack, Queue)
-nie. Die Kachel zeigt die zwei größten („60% albums · 20% playlists“), Rewind die größte. Die
+nie. Die Kachel zeigt wie Rewind die größte („60% albums“), beide größten stehen in `detail`
+(Tooltip): „56% playlists“ füllt die zwei Zeilen der Kachel schon, ein zweiter Anteil wurde
+als „· …“ abgeschnitten. Die
 Stats-Kachel zählt jeden Play des Zeitraums wie die Play-Kachel, Rewind nur Plays von Tracks in
 der Bibliothek wie der Rest von Rewind. Der Untertitel ist nur der Zeitraum: „how you listened
 this week“ brach auf zwei Zeilen und hob den Wert aus der Reihe. Gruppiert wird in SQL über die volle Quelle

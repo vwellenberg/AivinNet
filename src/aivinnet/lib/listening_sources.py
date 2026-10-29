@@ -72,9 +72,10 @@ def source_shares(kinds: Counter[str]) -> list[tuple[str, float]]:
 
 def shares_text(shares: list[tuple[str, float]], named: int = 2) -> str:
     """
-    "62% albums · 25% playlists": the largest kinds, as the tile says it. A
-    kind after the first that rounds to 0% is left out: "100% albums · 0%
-    search" says nothing the first half did not.
+    "62% albums · 25% playlists": the largest kinds. The stats tile shows the
+    first only (`named=1`; a second share runs past its two lines) and this
+    whole text as its tooltip. A kind after the first that rounds to 0% is
+    left out: "100% albums · 0% search" says nothing the first half did not.
     """
     if not shares:
         return "—"

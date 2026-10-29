@@ -324,4 +324,7 @@ export interface StatItem {
     value: string
     text: string
     image?: string
+    trackhash?: string
+    // The whole answer where `value` is only its head: the tile's tooltip.
+    detail?: string | null
 }

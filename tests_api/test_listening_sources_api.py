@@ -50,7 +50,7 @@ def tile(api, period="week"):
     return next(t for t in res.get_json()["stats"] if t["cssclass"] == "sources")
 
 
-def test_the_two_largest_kinds_by_their_share_of_all_plays(stats):
+def test_the_largest_kind_on_the_tile_the_two_largest_in_its_tooltip(stats):
     play(f"al:{PRIMUS}", 5)
     play(f"al:{MILES}", 1)
     play("pl:7", 2)
@@ -59,7 +59,10 @@ def test_the_two_largest_kinds_by_their_share_of_all_plays(stats):
 
     shown = tile(stats)
 
-    assert shown["value"] == "60% albums · 20% playlists"
+    # The tile has two lines for its value, and "60% albums" fills them: the
+    # second share was cut off as "60% albums · …".
+    assert shown["value"] == "60% albums"
+    assert shown["detail"] == "60% albums · 20% playlists"
     assert shown["text"] == "this week"
 
 
@@ -68,7 +71,8 @@ def test_a_generated_playlist_is_home(stats):
     play("pl:mix1", 2)
     play("pl:7", 1)
 
-    assert tile(stats)["value"] == "83% Home · 17% playlists"
+    assert tile(stats)["value"] == "83% Home"
+    assert tile(stats)["detail"] == "83% Home · 17% playlists"
 
 
 def test_only_the_period_counts(stats):
@@ -76,7 +80,10 @@ def test_only_the_period_counts(stats):
     play(f"al:{PRIMUS}", 1)
 
     assert tile(stats)["value"] == "100% albums"
-    assert tile(stats, "alltime")["value"] == "80% playlists · 20% albums"
+    # Nothing beyond the value: no tooltip that repeats it.
+    assert tile(stats)["detail"] is None
+    assert tile(stats, "alltime")["value"] == "80% playlists"
+    assert tile(stats, "alltime")["detail"] == "80% playlists · 20% albums"
     assert tile(stats, "alltime")["text"] == "all time"
 
 
@@ -84,6 +91,7 @@ def test_each_user_on_their_own(stats):
     play("pl:7", 3, userid=2)
 
     assert tile(stats)["value"] == "—"
+    assert tile(stats)["detail"] is None
     stats.userid = 2
     assert tile(stats)["value"] == "100% playlists"
 
