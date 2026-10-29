@@ -102,6 +102,17 @@ export async function getRewind(year?: number) {
 }
 
 /**
+ * The records board (#540): the longest session, the day one track was played
+ * most, and the plays with a milestone number. Counted hourly on the server.
+ */
+export async function getRecords() {
+    return await useAxios({
+        url: paths.api.stats.base + '/records',
+        method: 'GET',
+    })
+}
+
+/**
  * The artists and albums first heard in the period (#539), the latest
  * discovery first, as cards — what the stats page's "new" tile counts.
  */

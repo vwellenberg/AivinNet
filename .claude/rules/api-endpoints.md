@@ -219,6 +219,18 @@ Falle, die der Abgleich beim ersten Lauf zweimal gefunden hat: **Ein Pydantic-`a
 Name auf dem Draht.** `AlbumLimitSchema.limit` heißt nach außen `albumlimit`; der Client schickte
 `limit`, das wurde still ignoriert und der Server nahm seinen Standardwert.
 
+## Rekorde und Meilensteine (#540, #545)
+
+`GET /logger/records` liest eine Tafel, die der stündliche Cron (`lib/recipes/records.py`) aus der
+ganzen Historie rechnet: längste Session, Obsession, Meilensteinplays inklusive Play #1. Der
+Request-Pfad rechnet nichts; die Regeln stehen rein in `lib/records.py` (Sitzungsgrenze wie bei
+„Because you listened“). Ein Play nach dem letzten Lauf fehlt bis zum nächsten Lauf in der Tafel.
+
+Der Meilenstein ist dagegen live: `ScrobbleTable.plays_of` zählt per SQL COUNT bei jedem Play, und
+`POST /logger/track/log` antwortet mit `plays` und `milestone` (nur bei 1 000, 1 337, 10 000 und
+100 000). Den Worker `public/workers/logtrack.js` lässt das nicht los: er reicht ein Milestone per
+`postMessage` an die Seite weiter, sonst nichts.
+
 ## Stats-Seite: Hörkalender und Rewind rechnen über die ganze Historie
 
 `GET /logger/calendar` (#525) und `GET /logger/rewind` (#527) lesen viele Plays im

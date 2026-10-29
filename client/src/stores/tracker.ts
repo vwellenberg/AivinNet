@@ -6,6 +6,7 @@ import useDeviceSync from "./devicesync";
 import { audioSource } from "./player";
 import { FromOptions } from "@/enums";
 import useTracklist, { From } from "@/stores/queue/tracklist";
+import { celebrateMilestone, type Milestone } from "@/utils/milestones";
 
 let enableCall = true;
 let throttleTimeout: number = 1000;
@@ -60,6 +61,8 @@ export function sendLogData(
 
   if (window.Worker) {
     const worker = new Worker("/workers/logtrack.js");
+    // Only a milestone play (#545) comes back from the worker.
+    worker.onmessage = (e: MessageEvent<Milestone>) => celebrateMilestone(e.data);
 
     const source = getSource(from);
     worker.postMessage({ trackhash, duration: seconds, source, timestamp });

@@ -13,6 +13,8 @@
         <!-- When in the week, over the same period as the tiles (#535). -->
         <ListeningClock :period="normalizeStatsPeriod(settings.statsperiod)" />
         <ListeningCalendar :rewind-years="rewind?.years ?? []" />
+        <!-- The records of the whole history (#540): not tied to the period. -->
+        <RecordsBoard />
         <!-- Rewind (#527) is a page of its own; the way there stays at the very
              bottom, seen or not (#572). The news is Home's January card. -->
         <RewindLink :year="latestRewind" />
@@ -26,6 +28,7 @@ import Charts from '@/components/Stats/Charts.vue'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import ListeningCalendar from '@/components/Stats/ListeningCalendar.vue'
 import ListeningClock from '@/components/Stats/ListeningClock.vue'
+import RecordsBoard from '@/components/Stats/RecordsBoard.vue'
 import RewindLink from '@/components/Stats/RewindLink.vue'
 import useRewindYears from '@/composables/useRewindYears'
 import Stats from '@/components/Stats/Stats.vue'

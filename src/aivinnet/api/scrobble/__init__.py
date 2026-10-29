@@ -23,6 +23,8 @@ from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
+from aivinnet.lib.recipes.records import board_of
+from aivinnet.lib.records import celebrated
 from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
 from aivinnet.models.album import Album
 from aivinnet.models.stats import StatItem
@@ -152,7 +154,11 @@ def log_track(body: LogTrackBody):
     ):
         lastfm.scrobble(trackentry.tracks[0], timestamp)
 
-    return {"msg": "recorded"}, 201
+    # #545: the play's number in the user's own history, counted on every play.
+    # A milestone names its track, so the page can say which play it was.
+    plays = ScrobbleTable.plays_of(scrobble_data["userid"])
+    milestone = {"number": plays, "track": track.title} if celebrated(plays) else None
+    return {"msg": "recorded", "plays": plays, "milestone": milestone}, 201
 
 
 class ChartItemsQuery(BaseModel):
@@ -678,6 +684,40 @@ SAID_PERIOD = {
     "year": "this year",
     "alltime": "all time",
 }
+
+
+@api.get("/records")
+def get_records():
+    """
+    The records board on the stats page (#540): the longest listening session,
+    the day one track was played most, and the plays with a milestone number.
+
+    Counted hourly by the cron (`lib/recipes/records.py`), not here. A user the
+    cron has not counted yet sees an empty board.
+    """
+    board = board_of(get_current_userid())
+    if board is None:
+        return {"plays": 0, "longest_session": None, "obsession": None, "milestones": []}, 200
+
+    def track(trackhash: str) -> dict | None:
+        found = TrackStore.get_tracks_by_trackhashes([trackhash])
+        return serialize_track(found[0]) if found else None
+
+    session, obsession = board.longest_session, board.obsession
+    return {
+        "plays": board.plays,
+        "longest_session": (
+            {"start": session.start, "end": session.end, "seconds": session.end - session.start, "plays": session.plays}
+            if session
+            else None
+        ),
+        "obsession": (
+            {"track": track(obsession.trackhash), "day": obsession.day, "plays": obsession.plays} if obsession else None
+        ),
+        "milestones": [
+            {"number": m.number, "timestamp": m.timestamp, "track": track(m.trackhash)} for m in board.milestones
+        ],
+    }, 200
 
 
 def discovered_in(userid: int, start: int, end: int) -> tuple[list[str], list[str]]:
