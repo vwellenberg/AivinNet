@@ -9,9 +9,16 @@ vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replac
 vi.mock('@/router', () => ({ Routes: { artist: 'ArtistView', album: 'AlbumView', Rewind: 'RewindView' } }))
 vi.mock('@/requests/stats', () => ({ getRewind: vi.fn(), markRewindSeen: vi.fn() }))
 vi.mock('@/utils/updatePageTitle', () => ({ default: vi.fn() }))
+vi.mock('@/utils/rewindStoryImage', () => ({
+    canShareImage: vi.fn(() => false),
+    renderStory: vi.fn(async () => new Blob(['png'], { type: 'image/png' })),
+    saveBlob: vi.fn(),
+    shareImage: vi.fn(async () => {}),
+}))
 
 import RewindView from '@/views/Rewind/main.vue'
 import { getRewind, markRewindSeen } from '@/requests/stats'
+import { canShareImage, renderStory, saveBlob, shareImage } from '@/utils/rewindStoryImage'
 
 // As GET /logger/rewind sends it (#527).
 const year2026 = {
@@ -109,6 +116,47 @@ describe('Rewind', () => {
         const row = w.find('.rewind-list.is-numbered li')
         expect(row.text()).toContain('Blue — The Artist')
         expect(row.find('.rewind-time').text()).toBe('3 h 5 min')
+    })
+
+    it('saves the year as a story image, drawn from the page it shows', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+        vi.mocked(saveBlob).mockClear()
+        vi.mocked(shareImage).mockClear()
+
+        const w = page()
+        await flushPromises()
+        const save = w.findAll('button').find(b => b.text() === 'Save as image')
+        expect(save, 'Save as image button').toBeDefined()
+        await save!.trigger('click')
+        await flushPromises()
+
+        expect(renderStory).toHaveBeenCalledWith(year2026)
+        expect(saveBlob).toHaveBeenCalledWith(expect.any(Blob), 'aivinnet-rewind-2026.png')
+        expect(shareImage).not.toHaveBeenCalled()
+    })
+
+    it('offers the share sheet only where the browser can share a file', async () => {
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+        vi.mocked(saveBlob).mockClear()
+        vi.mocked(shareImage).mockClear()
+        vi.mocked(canShareImage).mockReturnValue(false)
+        const hidden = page()
+        await flushPromises()
+        expect(hidden.findAll('button').some(b => b.text() === 'Share image')).toBe(false)
+        hidden.unmount()
+        mounted.splice(mounted.indexOf(hidden), 1)
+
+        vi.mocked(canShareImage).mockReturnValue(true)
+        const shown = page()
+        await flushPromises()
+        const share = shown.findAll('button').find(b => b.text() === 'Share image')
+        expect(share, 'Share image button').toBeDefined()
+        await share!.trigger('click')
+        await flushPromises()
+
+        expect(shareImage).toHaveBeenCalledWith(expect.any(Blob), 'aivinnet-rewind-2026.png', 'AivinNet Rewind 2026')
+        expect(saveBlob).not.toHaveBeenCalled()
+        vi.mocked(canShareImage).mockReturnValue(false)
     })
 
     it('says when a year still running opens, and keeps the way to the open ones', async () => {
