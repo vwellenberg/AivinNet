@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Logo from '@/components/Logo.vue'
 import { useToast } from '@/stores/notification'
 
-// Easter egg (#544): seven clicks within ~2 s send a satellite round the logo.
+// Easter egg (#544): seven clicks within ~3 s send a satellite round the logo.
 // The logo is still a link, so every click has to navigate as before.
-const LAP_MS = 2400
+import { CLICK_WINDOW_MS, LAP_MS } from '@/composables/useLogoSatellite'
 
 function makeRouter() {
     const page = { render: () => null }
@@ -58,6 +58,9 @@ describe('logo satellite easter egg', () => {
 
         await click(wrapper, 7, 200)
         expect(satellite(wrapper).exists()).toBe(true)
+        // The toast comes with the flight: a satellite in the corner of the eye
+        // is easy to miss.
+        expect(useToast().notifs.map(n => n.text)).toEqual(['📡 Signal received'])
 
         vi.advanceTimersByTime(LAP_MS)
         await wrapper.vm.$nextTick()
@@ -71,10 +74,21 @@ describe('logo satellite easter egg', () => {
         expect(satellite(wrapper).exists()).toBe(false)
     })
 
-    it('seven slow clicks do not launch it: the window is about 2 s, these span 3 s', async () => {
+    it('the window is 3 s: 2 s was too tight to hit on purpose', () => {
+        expect(CLICK_WINDOW_MS).toBe(3000)
+    })
+
+    it('seven clicks spread over 2.4 s still launch it', async () => {
         const { wrapper } = await mountLogo()
 
-        await click(wrapper, 7, 500)
+        await click(wrapper, 7, 400)
+        expect(satellite(wrapper).exists()).toBe(true)
+    })
+
+    it('seven slow clicks do not launch it: these span 3.6 s', async () => {
+        const { wrapper } = await mountLogo()
+
+        await click(wrapper, 7, 600)
         expect(satellite(wrapper).exists()).toBe(false)
     })
 
@@ -83,7 +97,7 @@ describe('logo satellite easter egg', () => {
 
         // Six fast, a pause, then one more: the old six have expired.
         await click(wrapper, 6, 200)
-        vi.advanceTimersByTime(2000)
+        vi.advanceTimersByTime(CLICK_WINDOW_MS)
         await click(wrapper, 1, 0)
         expect(satellite(wrapper).exists()).toBe(false)
     })
