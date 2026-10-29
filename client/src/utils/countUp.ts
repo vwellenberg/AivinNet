@@ -59,13 +59,36 @@ export function formatCount(n: number, separator: string): string {
     return separator ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator) : digits
 }
 
-/** The text with each counted number replaced by its figure at this moment. */
-export function renderCounts(raw: string, tokens: CountToken[], figures: number[]): string {
-    let out = ''
+/** A run of a stat's text: plain words, or a counted figure with the text that sizes its slot. */
+export interface CountPart {
+    text: string
+    slot?: string
+}
+
+/**
+ * The text split into words and counted figures. Each figure carries `slot`,
+ * the widest text it stands for during the count (`widest[i]`, grouped like
+ * the value), so the tile can hold that room for it and the words around it
+ * stay where they are.
+ */
+export function countParts(raw: string, tokens: CountToken[], figures: number[], widest: number[]): CountPart[] {
+    const parts: CountPart[] = []
     let cursor = 0
     tokens.forEach((token, i) => {
-        out += raw.slice(cursor, token.start) + formatCount(figures[i], token.separator)
+        if (token.start > cursor) parts.push({ text: raw.slice(cursor, token.start) })
+        parts.push({
+            text: formatCount(figures[i], token.separator),
+            slot: formatCount(widest[i], token.separator),
+        })
         cursor = token.end
     })
-    return out + raw.slice(cursor)
+    if (cursor < raw.length) parts.push({ text: raw.slice(cursor) })
+    return parts
+}
+
+/** The text with each counted number replaced by its figure at this moment. */
+export function renderCounts(raw: string, tokens: CountToken[], figures: number[]): string {
+    return countParts(raw, tokens, figures, figures)
+        .map(part => part.text)
+        .join('')
 }

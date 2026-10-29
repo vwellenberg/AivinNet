@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/router', () => ({ Routes: { album: 'album' } }))
 const playAlbumAt = vi.fn()
@@ -116,30 +116,80 @@ describe('StatItem count box', () => {
             global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
         })
 
-    // The count-up showed figures with wider digits than the final one ("12,671"
-    // is mostly narrow 1s), so a figure mid-count wrapped onto a second line and
-    // the tile jumped. The box is sized by the final value instead.
-    it('sizes a counted value by its final text, whatever figure is showing', () => {
-        const count = counted().find('.count')
-        expect(count.classes()).toContain('counting')
-        expect(count.attributes('data-final')).toBe('12,671 tracks')
-        expect(count.find('.count-live').exists()).toBe(true)
+    // The count-up let the line break wherever the figure of the moment
+    // allowed: "12,420 tracks" needs two lines, "1,234 tracks" fits on one, so
+    // "tracks" jumped between the lines while the number rose. Each figure
+    // stands in a slot as wide as the wider end of its count instead.
+    describe('while counting', () => {
+        beforeEach(() => {
+            vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
+        })
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it('keeps the slot at the final figure while the live one rises', async () => {
+            const w = counted()
+            vi.advanceTimersByTime(100)
+            await w.vm.$nextTick()
+            const num = w.find('.count .countnum')
+            const live = num.find('.count-live').text()
+            expect(live).not.toBe('0')
+            expect(live).not.toBe('12,671')
+            expect(num.attributes('data-slot')).toBe('12,671')
+            // Mid-count, the word is outside the slot and unchanged.
+            expect(w.find('.count').text()).toBe(`${live} tracks`)
+
+            vi.advanceTimersByTime(1000)
+            await w.vm.$nextTick()
+            expect(num.find('.count-live').text()).toBe('12,671')
+            expect(num.attributes('data-slot')).toBe('12,671')
+            w.unmount()
+        })
+
+        // Counting down (a shorter period's smaller value) passes through wider
+        // figures than it lands on: the slot keeps the start's room until it
+        // lands, so the line break changes once, at the end, not on the way.
+        it('holds the wider start while counting down, then shrinks to the value', async () => {
+            const w = counted()
+            vi.advanceTimersByTime(1000)
+            await w.setProps({ value: '1,234 tracks' })
+            vi.advanceTimersByTime(100)
+            await w.vm.$nextTick()
+            expect(w.find('.count-live').text()).not.toBe('1,234')
+            expect(w.find('.countnum').attributes('data-slot')).toBe('12,671')
+
+            vi.advanceTimersByTime(1000)
+            await w.vm.$nextTick()
+            expect(w.find('.countnum').attributes('data-slot')).toBe('1,234')
+            expect(w.find('.count').text()).toBe('1,234 tracks')
+            w.unmount()
+        })
     })
 
-    it('draws the final text invisibly and keeps the live figure out of the flow', () => {
+    it('gives every figure of a value its own slot and leaves the words as text', () => {
+        const w = mount(StatItem, {
+            props: { icon: 'playtime', value: '12 hrs, 49 mins listened', text: 'this week' },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+        expect(w.findAll('.countnum').map(n => n.attributes('data-slot'))).toEqual(['12', '49'])
+        expect(w.find('.count').text()).toMatch(/^\d+ hrs, \d+ mins listened$/)
+        w.unmount()
+    })
+
+    it('draws the slot text invisibly in the same grid cell, with tabular digits', () => {
         const css = read('src/components/Stats/StatItem.vue')
-        expect(css).toMatch(/&::before\s*\{[^}]*content:\s*attr\(data-final\)[^}]*visibility:\s*hidden/s)
-        expect(css).toMatch(/\.count-live\s*\{[^}]*position:\s*absolute[^}]*white-space:\s*nowrap/s)
+        expect(css).toMatch(/\.countnum \{[^}]*display: inline-grid;[^}]*font-variant-numeric: tabular-nums;/s)
+        expect(css).toMatch(/&::before\s*\{[^}]*content:\s*attr\(data-slot\)[^}]*visibility:\s*hidden/s)
+        expect(css).toMatch(/&::before,\s*\.count-live\s*\{[^}]*grid-area: 1 \/ 1;/s)
     })
 
     // A one-line value started a line lower than a two-line one (116 vs 85px):
     // the text block stands at the bottom of the tile. Two lines of room, text
-    // at the top of it, and the live figure anchored where that text starts.
+    // at the top of it.
     it('starts every value at the same line, one line or two', () => {
         const css = read('src/components/Stats/StatItem.vue')
         expect(css).toMatch(/\.count \{[^{}]*min-height: 2lh;/)
-        expect(css).toMatch(/\.count-live\s*\{[^}]*top:\s*0;/)
-        expect(css).not.toMatch(/\.count-live\s*\{[^}]*bottom:\s*0;/)
     })
 
     it('leaves a value that is not counted (top tiles) as plain text', () => {
