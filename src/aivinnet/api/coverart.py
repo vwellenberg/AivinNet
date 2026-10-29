@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet import models
 from aivinnet.api.auth import admin_required
-from aivinnet.api.formfields import FileStorage
+from aivinnet.api.formfields import FileStorage, FormModel
 from aivinnet.db.userdata import PlaylistTable
 from aivinnet.lib import album_cover_edit, artist_image, playlistlib
 from aivinnet.lib import coverart as coverartlib
@@ -158,7 +158,7 @@ def remove_album_cover(body: AlbumHashBody):
     return {"success": True}
 
 
-class UploadAlbumCoverForm(BaseModel):
+class UploadAlbumCoverForm(FormModel):
     albumhash: str = Field(..., description="The album hash")
     # Plain FileStorage, never a union — see api/formfields.py.
     image: FileStorage = Field(..., description="The cover image file")
@@ -202,7 +202,7 @@ def upload_album_cover(form: UploadAlbumCoverForm):
     return {"success": True, "image": filename}
 
 
-class UploadArtistImageForm(BaseModel):
+class UploadArtistImageForm(FormModel):
     artisthash: str = Field(..., description="The artist hash")
     # Plain FileStorage, never a union — see api/formfields.py.
     image: FileStorage = Field(..., description="The image file")

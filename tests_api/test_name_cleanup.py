@@ -136,6 +136,56 @@ def test_a_track_the_cleanup_leaves_alone_remembers_nothing():
     assert plain._legacy_artisthashes == ()
 
 
+def test_a_credit_the_separators_split_leaves_one_name():
+    # "Composed & Lyrics by Jan Valta": the "&" made it "Composed" and
+    # "Lyrics by Jan Valta", two artists that do not exist.
+    track = _track(4, "The Sad Maiden", "Composed & Lyrics by Jan Valta", "6-036 The Sad Maiden.mp3", 36)
+
+    assert [a["name"] for a in track.artists] == ["Jan Valta"]
+    assert [a["name"] for a in track.albumartists] == ["Jan Valta"]
+    assert track._legacyhash == create_hash("The Sad Maiden", ALBUM, "Composed", "Lyrics by Jan Valta")
+    # The release before cleaned nothing here: one old hash is all there was.
+    assert track._previoushash == ""
+
+
+def test_a_lyricist_cleaned_now_remembers_the_hash_of_the_release_before():
+    track = _track(5, "Ode to Henry", "Composed by Jan Valta; Lyrics by John Comer", "1-124 Ode to Henry.mp3", 124)
+
+    assert [a["name"] for a in track.artists] == ["Jan Valta", "John Comer"]
+    assert track._legacyhash == create_hash("Ode to Henry", ALBUM, "Composed by Jan Valta", "Lyrics by John Comer")
+    assert track._previoushash == create_hash("Ode to Henry", ALBUM, "Jan Valta", "Lyrics by John Comer")
+    assert (create_hash("Lyrics by John Comer", decode=True), create_hash("John Comer", decode=True)) in (
+        track._legacy_artisthashes
+    )
+
+
+def test_references_under_the_hash_of_the_release_before_follow(reference_db):
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import FavoritesTable, ScrobbleTable
+    from aivinnet.lib.name_cleanup import carry_cleaned_names, current_trackhash
+
+    track = _track(5, "Ode to Henry", "Composed by Jan Valta; Lyrics by John Comer", "1-124 Ode to Henry.mp3", 124)
+    previous = create_hash("Ode to Henry", ALBUM, "Jan Valta", "Lyrics by John Comer")
+    lyricist = create_hash("Lyrics by John Comer", decode=True)
+    with DbEngine.manager(commit=True) as session:
+        session.execute(
+            insert(FavoritesTable).values(hash=f"track_{previous}", type="track", timestamp=1, userid=1, extra={})
+        )
+        session.execute(
+            insert(FavoritesTable).values(hash=f"artist_{lyricist}", type="artist", timestamp=1, userid=1, extra={})
+        )
+        session.execute(
+            insert(ScrobbleTable).values(trackhash=previous, duration=120, timestamp=1, source="", userid=1, extra={})
+        )
+
+    carry_cleaned_names([track])
+
+    refs = _references()
+    assert refs["favorites"] == sorted([f"track_{track.trackhash}", f"artist_{create_hash('John Comer', decode=True)}"])
+    assert refs["scrobbles"] == [track.trackhash]
+    assert current_trackhash(previous) == track.trackhash
+
+
 def test_every_reference_follows_the_cleaned_names(reference_db, tracks):
     from aivinnet.lib.name_cleanup import carry_cleaned_names
 
@@ -330,4 +380,3 @@ def test_a_not_interested_mark_follows_the_renamed_artist(reference_db, tracks):
         # This fixture's cleanup knows nothing of the table.
         NotInterestedTable.remove(1, "artist", OLD_ARTIST)
         NotInterestedTable.remove(1, "artist", NEW_ARTIST)
-

@@ -36,8 +36,8 @@
         <div ref="grid" class="recentitems">
             <component
                 :is="getComponent(i.type)"
-                v-for="i in renderable.slice(0, columns)"
-                :key="i"
+                v-for="(i, n) in visible"
+                :key="keys[n]"
                 class="hlistitem"
                 v-bind="getProps(i)"
                 @playThis="() => $emit('playThis', itemlist.indexOf(i))"
@@ -53,6 +53,7 @@ import useCardGridColumns from '@/helpers/useCardGridColumns'
 
 import { computed, provide, ref } from 'vue'
 import { CARD_MENU_EXTRAS, CardMenuExtras } from '@/utils/cardMenu'
+import { cardKeys } from '@/utils/cardKeys'
 import PlaylistCard from '../PlaylistsList/PlaylistCard.vue'
 import SeeAll from '../shared/SeeAll.vue'
 import AlbumCard from './AlbumCard.vue'
@@ -140,6 +141,11 @@ const itemlist = computed(() => {
  * client does not know costs nothing but itself.
  */
 const renderable = computed(() => itemlist.value.filter(i => getComponent(i.type) !== undefined))
+const visible = computed(() => renderable.value.slice(0, columns.value))
+// By what a card shows, never by the item object: a refetch hands out new
+// objects for the same cards, and keyed by object every card was rebuilt
+// (utils/cardKeys.ts).
+const keys = computed(() => cardKeys(visible.value))
 
 function getComponent(type: string) {
     if (type == 'placeholder') {

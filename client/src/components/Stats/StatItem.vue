@@ -31,20 +31,17 @@
             <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
         </svg>
         <div class="itemcontent">
-            <!-- While counting, the box is sized by the FINAL value (data-final, drawn
-                 invisibly by ::before) and the live figure floats in it, so a wider
-                 intermediate figure cannot wrap onto a second line. -->
-            <div
-                v-if="tokens.length"
-                ref="countEl"
-                class="count counting ellip2"
-                :class="{ oneline }"
-                :title="formattedValue"
-                :data-final="props.value"
-            >
-                <span class="count-live">{{ formattedValue }}</span>
+            <!-- Each counted figure stands in a slot as wide as the widest text it
+                 stands for (data-slot, drawn invisibly by ::before), so the words
+                 around it break onto the same lines in every frame. -->
+            <div v-if="tokens.length" class="count counting ellip2" :title="tooltip">
+                <template v-for="(part, i) in parts" :key="i"
+                    ><span v-if="part.slot !== undefined" class="countnum" :data-slot="part.slot"
+                        ><span class="count-live">{{ part.text }}</span></span
+                    ><template v-else>{{ part.text }}</template></template
+                >
             </div>
-            <div v-else class="count ellip2" :title="formattedValue">{{ formattedValue }}</div>
+            <div v-else class="count ellip2" :title="tooltip">{{ formattedValue }}</div>
             <div class="title">{{ text }}</div>
         </div>
 
@@ -87,9 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { countTokens, countUpAt, renderCounts } from '@/utils/countUp'
+import { countParts, countTokens, countUpAt } from '@/utils/countUp'
 
 import StopWatchSvg from '@/assets/icons/timer.svg'
 import HeadphoneSvg from '@/assets/icons/headphones.svg'
@@ -117,6 +114,9 @@ const props = defineProps<{
     // Whether its list is open, and the id of that list.
     expanded?: boolean
     controls?: string
+    // The whole answer where the value is only its head ("56% playlists ·
+    // 30% albums" on a tile that shows "56% playlists"): its tooltip.
+    detail?: string | null
 }>()
 
 const emit = defineEmits<{ toggle: [] }>()
@@ -162,6 +162,9 @@ const icon = computed(() => {
 const COUNT_MS = 900
 const tokens = computed(() => (props.icon.startsWith('top') ? [] : countTokens(props.value)))
 const figures = ref<number[]>(tokens.value.map(() => 0))
+// The widest figure each number passes through: the larger end of the count.
+// Counting down (a shorter period's smaller value) starts wider than it ends.
+const widest = ref<number[]>(tokens.value.map(token => token.value))
 let frame = 0
 
 function prefersLessMotion() {
@@ -173,13 +176,17 @@ function countTo(targets: number[]) {
     const from = figures.value.length === targets.length ? [...figures.value] : targets.map(() => 0)
     if (typeof requestAnimationFrame !== 'function' || prefersLessMotion()) {
         figures.value = targets
+        widest.value = targets
         return
     }
+    widest.value = targets.map((to, i) => Math.max(from[i], to))
     const start = performance.now()
     const step = (now: number) => {
         const elapsed = now - start
         figures.value = targets.map((to, i) => countUpAt(from[i], to, elapsed, COUNT_MS))
         if (elapsed < COUNT_MS) frame = requestAnimationFrame(step)
+        // Landed: the slot shrinks to the value it now shows.
+        else widest.value = targets
     }
     frame = requestAnimationFrame(step)
 }
@@ -188,41 +195,31 @@ function startCount() {
     cancelAnimationFrame(frame)
     if (tokens.value.length === 0) {
         figures.value = []
+        widest.value = []
         return
     }
     countTo(tokens.value.map(token => token.value))
 }
 
-// Whether the final value fits on one line: only then may the live figure refuse
-// to wrap. A value that wraps anyway ("12 hrs, 49 mins listened") keeps wrapping.
-const countEl = ref<HTMLElement | null>(null)
-const oneline = ref(true)
-function measureLines() {
-    const el = countEl.value
-    if (!el) return
-    const size = parseFloat(getComputedStyle(el).fontSize) || 0
-    oneline.value = !size || el.offsetHeight < size * 1.5
-}
-
-onMounted(() => {
-    measureLines()
-    startCount()
-})
-watch(
-    () => props.value,
-    () => {
-        startCount()
-        nextTick(measureLines)
-    }
-)
+onMounted(startCount)
+watch(() => props.value, startCount)
 onUnmounted(() => cancelAnimationFrame(frame))
 
-const formattedValue = computed(() => {
-    // Between a new value and its watcher the figures still belong to the old
-    // one: show the value as it arrived rather than a mix of the two.
-    if (figures.value.length !== tokens.value.length) return props.value
-    return renderCounts(props.value, tokens.value, figures.value)
+// Between a new value and its watcher the figures still belong to the old one:
+// show the value as it arrived rather than a mix of the two.
+const settled = computed(
+    () => figures.value.length === tokens.value.length && widest.value.length === tokens.value.length
+)
+
+const parts = computed(() => {
+    const targets = tokens.value.map(token => token.value)
+    return settled.value
+        ? countParts(props.value, tokens.value, figures.value, widest.value)
+        : countParts(props.value, tokens.value, targets, targets)
 })
+
+const formattedValue = computed(() => parts.value.map(part => part.text).join(''))
+const tooltip = computed(() => props.detail || formattedValue.value)
 
 // Flat memphis tile colour, cycled by stat type across the palette
 // [blush, lavender, teal, yellow]. The design is flat, so every route
@@ -367,24 +364,26 @@ const tileStyle = computed(() => ({
             // stands on one line too.
             min-height: 2lh;
 
-            // Only for a value that fits on one line. A value that wraps anyway
-            // stays in the flow: floating it would clip a line the box has no
-            // room for.
-            &.counting.oneline {
-                position: relative;
+            // A counted figure in a slot as wide as the widest text it shows
+            // during the count. Without it the line broke wherever the figure
+            // of the moment allowed: "1,234 tracks" fits on one line where
+            // "12,420 tracks" needs two, so the word jumped up and down while
+            // the number rose. Tabular digits keep every figure of the same
+            // length exactly as wide as the slot; proportional ones made a
+            // mid-count "10,888" wider than the final "12,420".
+            .countnum {
+                display: inline-grid;
+                justify-items: start;
+                font-variant-numeric: tabular-nums;
 
                 &::before {
-                    content: attr(data-final);
-                    display: block;
+                    content: attr(data-slot);
                     visibility: hidden;
                 }
 
-                // Anchored to the top, like the text it stands in for.
+                &::before,
                 .count-live {
-                    position: absolute;
-                    left: 0;
-                    right: 0;
-                    top: 0;
+                    grid-area: 1 / 1;
                     white-space: nowrap;
                 }
             }

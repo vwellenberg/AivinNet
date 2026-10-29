@@ -47,5 +47,6 @@ GENERATED_PLAYLISTS = {
     "forgottenfavorites": _row("get_forgotten_favorites_playlist"),
     "becauseyoulistened": _row("get_because_playlist"),
     "almostcomplete": _row("get_almost_complete_playlist"),
+    "deepcuts": _row("get_deep_cuts_playlist"),
     **{playlistid: _mix(position) for position, playlistid in enumerate(MIX_PLAYLIST_IDS)},
 }

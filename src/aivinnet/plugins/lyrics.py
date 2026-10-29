@@ -1,5 +1,5 @@
-import json
 import logging
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -8,19 +8,26 @@ import requests
 from unidecode import unidecode
 
 from aivinnet.db.userdata import PluginTable
+from aivinnet.lib.lyrics import Lyrics as LrcText
 from aivinnet.plugins import Plugin, plugin_method
-from aivinnet.settings import Paths
+from aivinnet.utils.hashing import create_hash
 
 log = logging.getLogger(__name__)
 
 # ⚠️ The lookups run inside a request, and the server answers ONE request at a
 # time: every listener's playback waits for them (#295). `timeout=10` bounds a
-# single call, not the chain — a token fetch, a search and its non-ASCII retry
-# are three calls, 30 s and more while Musixmatch black-holes packets, on every
-# track change with the lyrics view open. Hence a deadline over the whole
-# chain, and an outage that is remembered instead of rediscovered per track.
+# single call, not the chain — a search, its shortened-title retry and its
+# non-ASCII retry are three calls, 30 s and more while the service black-holes
+# packets, on every track change with the lyrics view open. Hence a deadline
+# over the whole chain, and an outage that is remembered instead of
+# rediscovered per track.
 DEADLINE_SECONDS = 5
 OUTAGE_SECONDS = 300
+# A quick 5xx is the service saying "not right now", not a black hole: LRCLIB
+# answers one now and then and the same search succeeds a second later
+# (measured 2026-10-28). Five minutes without lyrics for everyone is too much
+# for that; the chain deadline already bounds what one such answer costs.
+HICCUP_SECONDS = 30
 
 _down_until = 0.0
 
@@ -29,10 +36,10 @@ def _is_down() -> bool:
     return time.monotonic() < _down_until
 
 
-def _mark_down(reason: str) -> None:
+def _mark_down(reason: str, seconds: int = OUTAGE_SECONDS) -> None:
     global _down_until
-    _down_until = time.monotonic() + OUTAGE_SECONDS
-    log.warning("Musixmatch: %s; no lyrics lookups for %s s", reason, OUTAGE_SECONDS)
+    _down_until = time.monotonic() + seconds
+    log.warning("LRCLIB: %s; no lyrics lookups for %s s", reason, seconds)
 
 
 def _within_deadline(work, default):
@@ -52,75 +59,92 @@ def _within_deadline(work, default):
         pool.shutdown(wait=False, cancel_futures=True)
 
 
-class LRCProvider:
+# A trailing "(…)", "[…]" or " - …" is an edition note more often than part of
+# the name ("Song (Remastered 2009)", "Song - Live"), and a cut-off tag leaves
+# an unclosed one ("Stretch (My Friends B"). The search matches the whole
+# title, so either kind finds nothing.
+_TITLE_SUFFIX = re.compile(r"\s*(?:[(\[].*|\s-\s.*)$")
+
+
+def bare_title(title: str) -> str:
+    """The title without a trailing bracket or dash suffix, or "" if that is all of it."""
+    return _TITLE_SUFFIX.sub("", title).strip()
+
+
+def _squash(text: str) -> str:
+    return "".join(c for c in unidecode(text).lower() if c.isalnum())
+
+
+def _same_artist(wanted: str, found: str) -> bool:
     """
-    Base class for all of the synced (LRC format) lyrics providers.
+    Loose on purpose: the client joins several artists with ", ", tags write
+    duos as "A and B", and LRCLIB lists them its own way. One containing the
+    other — for the whole credit or any single name in it — is the same act.
     """
+    found = _squash(found)
+    names = [_squash(n) for n in [wanted, *wanted.split(", ")]]
+    return any(n and found and (n in found or found in n) for n in names)
+
+
+def pick_best(results: list[dict] | None, title: str, artist: str, album: str) -> dict | None:
+    """
+    The result to download, or None when nothing is by this artist.
+
+    ⚠️ The pick is written next to the track as its `.lrc` and never looked up
+    again, so a wrong song costs more than no song. LRCLIB's search is fuzzy —
+    the shortened-title retry even asks for less than the tag says — hence the
+    artist filter, and the same title ranks ABOVE synced: plain lyrics of the
+    right song beat timed lyrics of a neighbour. Then the same album beats
+    another release of it.
+    """
+    candidates = [r for r in results or [] if _same_artist(artist, r["artist"])]
+    if not candidates:
+        return None
+
+    wanted = {create_hash(title), create_hash(bare_title(title) or title)}
+
+    def score(track: dict) -> tuple[bool, bool, bool]:
+        return (
+            create_hash(track["title"]) in wanted,
+            bool(track["synced"]),
+            create_hash(track["album"]) == create_hash(album),
+        )
+
+    # `max` keeps the first of equals, and the service ranks its own results.
+    return max(candidates, key=score)
+
+
+class LyricsProvider:
+    """
+    LRCLIB (https://lrclib.net): an open, community-run lyrics database with a
+    documented API, no account and no token.
+
+    It replaced Musixmatch's unofficial desktop API, which since 2026 hands out
+    an all-zero user token: with it, `track.subtitle.get` answers 404 for every
+    track, and `track.lyrics.get` returns scrambled placeholder text.
+    """
+
+    ROOT_URL = "https://lrclib.net/api/"
+
+    # LRCLIB asks clients to name themselves instead of posing as a browser.
+    USER_AGENT = "AivinNet (https://github.com/vwellenberg/AivinNet)"
 
     session = requests.Session()
 
     def __init__(self) -> None:
-        self.session.headers.update(
-            {
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
-            }
-        )
+        self.session.headers.update({"user-agent": self.USER_AGENT})
 
-    def get_lrc_by_id(self, track_id: str) -> str | None:
-        """
-        Returns the synced lyrics of the song in lrc.
+        # A search already carries the lyrics. Downloading the pick reads them
+        # from here instead of asking the service a second time.
+        self._found: dict[str, str] = {}
 
-        ### Arguments
-        - track_id: The ID of the track defined in the provider database. e.g. a streaming service's track ID
-        """
-        raise NotImplementedError
-
-    def get_lrc(self, search_term: str) -> str | None:
-        """
-        Returns the synced lyrics of the song in lrc.
-        """
-        raise NotImplementedError
-
-
-class LyricsProvider(LRCProvider):
-    """
-    Musixmatch provider class
-    """
-
-    ROOT_URL = "https://apic-desktop.musixmatch.com/ws/1.1/"
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.token = None
-        self.session.headers.update(
-            {
-                "authority": "apic-desktop.musixmatch.com",
-                "cookie": "AWSELBCORS=0; AWSELB=0",
-            }
-        )
-
-    def _get(self, action: str, query: list[tuple]):
+    def _get(self, action: str, params: dict | None = None, retry: bool = True):
         # Once one call of a chain failed, the rest of it fails at once too.
         if _is_down():
             return None
 
-        if action != "token.get" and self.token is None:
-            self._get_token()
-
-        query.append(("app_id", "web-desktop-app-v1.0"))
-        if self.token is not None:
-            query.append(("usertoken", self.token))
-
-        t = str(int(time.time() * 1000))
-        query.append(("t", t))
-
         try:
-            url = self.ROOT_URL + action
-        except TypeError:
-            return None
-
-        try:
-            response = self.session.get(url, params=query, timeout=10)
+            response = self.session.get(self.ROOT_URL + action, params=params, timeout=10)
         except Exception as e:
             _mark_down(f"{action} failed ({e.__class__.__name__})")
             return None
@@ -128,123 +152,76 @@ class LyricsProvider(LRCProvider):
         if response is not None and response.ok:
             return response
 
-        # A refusal or a broken server is an outage; "not found" is an answer.
+        # A refusal is an outage, a server error a hiccup; "not found" is an answer.
         status = getattr(response, "status_code", 0)
-        if status >= 500 or status in (401, 403, 429):
+        if status in (401, 403, 429):
             _mark_down(f"{action} answered HTTP {status}")
+        elif status >= 500 and retry:
+            # Once, at once: the hiccups measured cleared by the next call.
+            return self._get(action, params, retry=False)
+        elif status >= 500:
+            _mark_down(f"{action} answered HTTP {status}", HICCUP_SECONDS)
         return None
 
-    def _get_token(self):
-        # Check if token is cached and not expired
-        plugin_path = Paths().lyrics_plugins_path
-        token_path = plugin_path / "token.json"
-
-        current_time = int(time.time())
-
-        if token_path.exists():
-            with token_path.open(mode="r", encoding="utf-8") as token_file:
-                cached_token_data: dict = json.load(token_file)
-
-            cached_token = cached_token_data.get("token")
-            expiration_time = cached_token_data.get("expiration_time")
-
-            if cached_token and expiration_time and current_time < expiration_time:
-                self.token = cached_token
-                return
-
-        # Token not cached or expired, fetch a new token
-        res = self._get("token.get", [("user_language", "en")])
-
-        if res is None:
-            return
-
-        res = res.json()
-        if res["message"]["header"]["status_code"] == 401:
-            # ⚠️ This used to `time.sleep(13)` and then call itself, with no
-            # depth limit — inside a request handler, on a server that serves
-            # ONE request at a time. Musixmatch answers 401 precisely when it is
-            # rate-limiting, so the condition that triggers the retry is the one
-            # that keeps triggering it: every listener, playback included, was
-            # frozen 13 seconds per round until Python's recursion limit
-            # eventually gave up hours later.
-            #
-            # Nothing is retried here now. Sleeping in a handler is never the
-            # answer on this server (same reasoning as lib/loginguard.py); the
-            # caller treats a missing token as "no lyrics available", which is
-            # the truth while we are being rate-limited.
-            _mark_down("rate-limited (401)")
-            return None
-
-        new_token = res["message"]["body"]["user_token"]
-        expiration_time = current_time + 600  # 10 minutes expiration
-
-        # Cache the new token
-        self.token = new_token
-        token_data = {"token": new_token, "expiration_time": expiration_time}
-
-        plugin_path.mkdir(parents=True, exist_ok=True)
-        with token_path.open("w", encoding="utf-8") as token_file:
-            json.dump(token_data, token_file)
-
-    def get_lrc_by_id(self, track_id: str) -> str | None:
-        res = self._get("track.subtitle.get", [("track_id", track_id), ("subtitle_format", "lrc")])
+    def _search(self, title: str, artist: str) -> list[dict]:
+        res = self._get("search", {"track_name": title, "artist_name": artist})
 
         try:
-            res = res.json()
-            body = res["message"]["body"]
-        except AttributeError:
-            return None
-
-        if not body:
-            return None
-
-        return body["subtitle"]["subtitle_body"]
-
-    def get_lrc(self, title: str, artist: str):
-        res = self._get(
-            "track.search",
-            [
-                ("q_track", title),
-                ("q_artist", artist),
-                ("page_size", "5"),
-                ("page", "1"),
-                ("f_has_lyrics", "1"),
-                ("s_track_rating", "desc"),
-                ("quorum_factor", "1.0"),
-            ],
-        )
-
-        try:
-            body = res.json()["message"]["body"]
-        except AttributeError:
+            tracks = res.json()
+        except (AttributeError, ValueError):
             return []
 
-        try:
-            tracks = body["track_list"]
-        except TypeError:
+        if not isinstance(tracks, list):
             return []
+
+        results = []
+        for t in tracks:
+            lyrics = t.get("syncedLyrics") or t.get("plainLyrics")
+            if not lyrics or t.get("instrumental"):
+                continue
+
+            track_id = str(t["id"])
+            self._found[track_id] = lyrics
+            results.append(
+                {
+                    "track_id": track_id,
+                    "title": t.get("trackName") or "",
+                    "artist": t.get("artistName") or "",
+                    "album": t.get("albumName") or "",
+                    "synced": bool(t.get("syncedLyrics")),
+                }
+            )
+
+        return results
+
+    def get_lrc(self, title: str, artist: str) -> list[dict]:
+        tracks = self._search(title, artist)
+
+        if not tracks:
+            bare = bare_title(title)
+            if bare and bare != title:
+                tracks = self._search(bare, artist)
 
         if not tracks:
             # if the artist name contains non-ascii characters, try to decode it
             decoded = unidecode(artist)
+            if decoded != artist:
+                return self.get_lrc(title, decoded)
 
-            # if the decoded artist name is the same as the original, return an empty list
-            if decoded == artist:
-                return []
+        return tracks
 
-            # if the decoded artist name is different, retry!
-            return self.get_lrc(title, decoded)
+    def get_lrc_by_id(self, track_id: str) -> str | None:
+        if track_id in self._found:
+            return self._found[track_id]
 
-        return [
-            {
-                "track_id": t["track"]["track_id"],
-                "title": t["track"]["track_name"],
-                "artist": t["track"]["artist_name"],
-                "album": t["track"]["album_name"],
-                "image": t["track"]["album_coverart_100x100"],
-            }
-            for t in tracks
-        ]
+        res = self._get(f"get/{track_id}")
+
+        try:
+            track = res.json()
+        except (AttributeError, ValueError):
+            return None
+
+        return track.get("syncedLyrics") or track.get("plainLyrics") or None
 
 
 class Lyrics(Plugin):
@@ -255,7 +232,7 @@ class Lyrics(Plugin):
             return
 
         name = plugin.name
-        super().__init__(name, "Musixmatch lyrics finder")
+        super().__init__(name, "LRCLIB lyrics finder")
 
         self.provider = LyricsProvider()
 
@@ -274,8 +251,13 @@ class Lyrics(Plugin):
             return None
 
         path = Path(path).with_suffix(".lrc")
-        if not path.exists():
-            path.touch()
+
+        # Only timed lyrics replace a file that is already there: that is what
+        # "override unsynced" asks for. Plain text over the listener's own
+        # plain file would trade their version for ours and gain nothing.
+        if path.exists() and not LrcText(lrc).is_synced:
+            return lrc
+
         path.write_text(lrc)
 
         return lrc

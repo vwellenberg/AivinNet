@@ -1,5 +1,5 @@
 """
-Off means nothing goes to Musixmatch — enforced by the server, not the client.
+Off means nothing goes to LRCLIB — enforced by the server, not the client.
 
 Regression: the client decided on its own whether to look lyrics up, from its
 copy of the plugin's sub-options (`auto_download`). Those are loaded whether the
@@ -21,7 +21,7 @@ BODY = {
 
 @pytest.fixture()
 def finder_calls(monkeypatch):
-    """Record what would have gone to Musixmatch instead of sending it."""
+    """Record what would have gone to LRCLIB instead of sending it."""
     import aivinnet.api.plugins.lyrics as lyrics_api
 
     calls = []

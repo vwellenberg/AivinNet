@@ -69,6 +69,29 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A fix release on top of 2026.10.5.
+
+- **Lyrics are found again.** The lyrics finder asked Musixmatch, whose
+  desktop interface stopped answering — every song came back without lyrics.
+  It now asks [LRCLIB](https://lrclib.net), a free, open lyrics database:
+  synced lyrics where it has them, plain text otherwise. It tries the title
+  without additions like "(Remastered)" too, never takes lyrics of another
+  artist, and does not replace a `.lrc` you already have with plain text.
+  **Privacy:** while the lyrics finder is on (Settings → Plugins → Lyrics,
+  off on new installs), opening the lyrics of a song without local lyrics
+  sends its title and artist to `lrclib.net` instead of Musixmatch.
+- **Synced lyrics keep time.** Lines came up to 0.9 s early, and a timing
+  offset in one `.lrc` file shifted every lyrics file read after it.
+- **Home no longer flickers** when you come back to it: the cards stay in
+  place instead of being rebuilt, artwork and all, when the rows refresh.
+- **Credits in artist tags.** "Lyrics by …", "Words by …" and joined roles
+  ("Composed & Lyrics by …", "Music and Lyrics by …") come off the artist
+  name, so a soundtrack no longer adds artists like "Composed" or "Lyrics by
+  Jan Valta". Favourites, playlists and play counts follow.
+
+<details>
+<summary>What v2026.10.5 brought</summary>
+
 A feature and fix release on top of 2026.10.4.
 
 - **Your mixes.** Home cuts mixes from your own listening sessions, no service
@@ -104,6 +127,8 @@ A feature and fix release on top of 2026.10.4.
   says why; playlists no longer vanish from the sidebar on a failed refresh.
 - **Under the hood.** The server starts on Python 3.13 too. Dependencies are up
   to date (Pillow 13, Vite 6, Vue Router 5), with no known vulnerability open.
+
+</details>
 
 <details>
 <summary>What v2026.10.4 brought</summary>

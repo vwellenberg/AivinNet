@@ -730,10 +730,6 @@ class Paths(metaclass=Singleton):
         return self.config_dir / "plugins"
 
     @property
-    def lyrics_plugins_path(self) -> pathlib.Path:
-        return self.plugins_path / "lyrics"
-
-    @property
     def config_file_path(self) -> pathlib.Path:
         return self.config_dir / "settings.json"
 

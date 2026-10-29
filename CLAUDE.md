@@ -341,17 +341,22 @@ Workflows oder `settings.py`).
 Hörsitzung“. Home zeigt Continue listening, Your mixes (lokale Mixes aus den eigenen
 Sitzungen, #526), Because you listened, On repeat, Recently played,
 Your weekday evenings (Zeitfenster), Never played, Artists you might like (aus den eigenen
-Playlists), Forgotten favorites, Rediscover, Almost complete, On this day und Recently added. Welche davon und in
+Playlists), Deep cuts, Forgotten favorites, Rediscover, Almost complete, On this day und Recently added. Welche davon und in
 welcher Reihenfolge, wählt jeder User selbst (Settings → Home, #532). Die früheren Mixes (an
 `smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
 antwortete; „Your mixes“ ersetzt sie ohne Dienst. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.
 Das Last.fm-Plugin ist reiner Scrobble-Export, keine Empfehlungsquelle.
 
 **Externe Quelle beim Hören: der Lyrics-Finder (seit 2026-08-06).** Das Plugin `lyrics_finder`
-(Musixmatch, inoffizielle Desktop-API) ist bei **Neuinstallationen aus**; ältere Installationen
-behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen der Lyrics-Seite ohne
-lokale Lyrics **Titel + Artist im Klartext** an `apic-desktop.musixmatch.com`; gefundene Lyrics
-landen als `.lrc` neben der Audiodatei. Schalter: Settings → Plugins → Lyrics (`plugins/register.py`).
+fragt **LRCLIB** (`lrclib.net`, offene API, kein Token) und ist bei **Neuinstallationen aus**;
+ältere Installationen behalten, was sie hatten (dort war es ab Werk an). Aktiv gehen beim Öffnen
+der Lyrics-Seite ohne lokale Lyrics **Titel + Artist im Klartext** an `lrclib.net`; gefundene
+Lyrics (synchron bevorzugt, sonst Klartext) landen als `.lrc` neben der Audiodatei. Schalter:
+Settings → Plugins → Lyrics (`plugins/register.py`). ⚠️ Bis 2026-10-28 war es Musixmatchs
+inoffizielle Desktop-API, und die starb **ohne Fehler**: `token.get` antwortet 200 mit einem
+Token aus Nullen, danach ist jeder Untertitel 404 und jeder Liedtext verwürfelter Platzhalter —
+die App meldete schlicht „No lyrics found" für alles. Ein Dienst, der so stirbt, fällt nur an
+einer **Stichprobe mit einem bekannten Song** auf, nicht im Log.
 
 ⚠️ **Ein Config-Feld ohne Schalter im Client ist für den User nicht vorhanden.** Die
 Plugins-Seite flog im Mai 2026 wegen Last.fm raus und nahm den Lyrics-Schalter mit;
