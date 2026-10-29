@@ -257,6 +257,14 @@
       "required": []
     }
   },
+  "GET /logger/devices": {
+    "query": {
+      "allowed": [
+        "period"
+      ],
+      "required": []
+    }
+  },
   "GET /logger/discoveries": {
     "query": {
       "allowed": [
@@ -803,6 +811,7 @@
   "POST /logger/track/log": {
     "body": {
       "allowed": [
+        "device_id",
         "duration",
         "source",
         "timestamp",

@@ -590,6 +590,25 @@ class ScrobbleTable(Base):
         return [(row[0], row[1], row[2]) for row in result.all()]
 
     @classmethod
+    def seconds_by_device_in_period(cls, start_time: int, end_time: int, userid: int) -> list[tuple[str | None, int]]:
+        """
+        `(device id, seconds listened)` for one user's period: "Listening per
+        device" (#541, `lib/listening_devices`). The id is `extra["device_id"]`;
+        plays from before #541 have none and come back as `None`.
+
+        Grouped in SQL, one row per device, so only a few rows cross into
+        Python on the request thread.
+        """
+        device = func.json_extract(cls.extra, "$.device_id")
+        result = cls.rows(
+            select(device, func.sum(cls.duration))
+            .where(cls.userid == userid)
+            .where(and_(cls.timestamp >= start_time, cls.timestamp <= end_time))
+            .group_by(device)
+        )
+        return [(device_id, int(seconds or 0)) for device_id, seconds in result.all()]
+
+    @classmethod
     def trackhashes_before(cls, timestamp: int, userid: int | None = None) -> list[str]:
         """Every track the user played before `timestamp`, once (Rewind's "new artists")."""
         if userid is None:

@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FromOptions } from '@/enums'
+import { getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 
 // ---------------------------------------------------------------------------
 // The play tracker is the only thing that writes listening history, and
@@ -106,8 +107,17 @@ describe('sendLogData — the wire format the backend parses', () => {
                 duration: 5,
                 source: 'al:alb1',
                 timestamp: 1790000000,
+                deviceId: getOrCreateDeviceId(),
             },
         ])
+    })
+
+    it('tells the worker which device played (#541): the id the device-sync registry knows this browser by', () => {
+        localStorage.setItem('aivinnet.device_id', 'device-phone-1')
+
+        sendLogData('t1', 60_000, ALBUM as any, 1)
+
+        expect(posted[0].deviceId).toBe('device-phone-1')
     })
 
     it('drops plays the server would reject as skips (under 5 s after rounding)', () => {

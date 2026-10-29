@@ -9,7 +9,8 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import TrackHashSchema
-from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
+from aivinnet.api.devicesync import DEVICE_ID_MAX_LENGTH
+from aivinnet.db.userdata import DeviceTable, FavoritesTable, PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.discoveries import first_heard_in
 from aivinnet.lib.extras import get_extra_info
@@ -17,6 +18,7 @@ from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
 from aivinnet.lib.listening_calendar import build_calendar
 from aivinnet.lib.listening_clock import build_clock
+from aivinnet.lib.listening_devices import build_devices
 from aivinnet.lib.listening_sources import count_kinds, shares_text, source_shares
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
@@ -88,6 +90,13 @@ class LogTrackBody(TrackHashSchema):
             ]
         },
     )
+    # #541: the device that played it, its id from the device-sync registry. Bounded like
+    # that registry: stored with every play. Optional, and an empty id counts as none.
+    device_id: str | None = Field(
+        None,
+        max_length=DEVICE_ID_MAX_LENGTH,
+        description="The id of the device that played the track",
+    )
 
 
 def format_date(start: float, end: float):
@@ -122,9 +131,14 @@ def log_track(body: LogTrackBody):
         return {"msg": "Track not found."}, 404
 
     scrobble_data = {**dict(body), "trackhash": trackhash}
+    device_id = scrobble_data.pop("device_id", None) or None
     # REVIEW: Do we need to store the extra info in the database?
     # OR .... can we just write it to the backup file on demand?
-    scrobble_data["extra"] = get_extra_info(trackhash, "track")
+    # The device goes beside the track's tags, not over them (backup and restore read both).
+    scrobble_data["extra"] = {
+        **get_extra_info(trackhash, "track"),
+        **({"device_id": device_id} if device_id else {}),
+    }
     ScrobbleTable.add(scrobble_data)
     # The server card's totals, in RAM (lib/server_card.py): no read on this path.
     SERVER_TOTALS.note_play(timestamp)
@@ -543,6 +557,36 @@ def get_skip_rate(query: SkipsQuery):
         "to_the_end": _with_tracks(body["to_the_end"]),
         "dates": format_date(start_time, end_time),
     }, 200
+
+
+class DevicesQuery(BaseModel):
+    period: StatsPeriod = Field("week", description="The period the devices cover")
+
+
+# The last per-device sums per user, with what they were built from: the period,
+# where it starts and the plays. Only the sums are cached; the names come from
+# the registry on every request, so a rename shows without a new play.
+_devices: dict[int, tuple[tuple[str, int, int, int], list[tuple[str | None, int]]]] = {}
+
+
+@api.get("/devices")
+def get_listening_devices(query: DevicesQuery):
+    """
+    Listening per device (#541): the share of the time listened each of the
+    user's devices played over the period. A device since deleted is "other
+    device"; plays from before devices were recorded are "no device recorded".
+    """
+    userid = get_current_userid()
+    start_time, end_time = get_date_range(query.period)
+    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+
+    cached = _devices.get(userid)
+    if cached is None or cached[0] != key:
+        cached = (key, ScrobbleTable.seconds_by_device_in_period(start_time, end_time, userid))
+        _devices[userid] = cached
+
+    registry = {device["device_id"]: device["name"] for device in DeviceTable.get_all_for_user(userid)}
+    return {**build_devices(cached[1], registry), "dates": format_date(start_time, end_time)}, 200
 
 
 class RewindQuery(BaseModel):
