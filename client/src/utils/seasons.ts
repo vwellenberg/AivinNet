@@ -1,6 +1,7 @@
 /**
  * SEASONAL SCHEMES (#543). On a few dates the Memphis look changes its
- * colours: pumpkin and violet on 31 October, snow sprinkles on 24–26 December.
+ * colours: pumpkin and violet in the week up to Halloween (24–31 October), snow
+ * sprinkles from a week before Christmas Eve to Boxing Day (17–26 December).
  *
  * The date only paints OVER the user's choice. The stored colour scheme
  * (utils/theme.ts) is never written here, so it comes back the next day, and
@@ -20,8 +21,8 @@ const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween
 export function seasonOn(now: Date = new Date()): Season | null {
     const month = now.getMonth()
     const day = now.getDate()
-    if (month === 9 && day === 31) return 'halloween'
-    if (month === 11 && day >= 24 && day <= 26) return 'christmas'
+    if (month === 9 && day >= 24) return 'halloween'
+    if (month === 11 && day >= 17 && day <= 26) return 'christmas'
     return null
 }
 

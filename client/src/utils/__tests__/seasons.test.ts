@@ -24,34 +24,37 @@ const NOV = 10
 const DEC = 11
 
 describe('seasonOn: the calendar dates (local time)', () => {
-    it('Oct 30 and Nov 1 are no season, Oct 31 is Halloween', () => {
-        expect(seasonOn(at(2026, OCT, 30, 23, 59, 59, 999))).toBeNull()
+    it('Oct 23 and Nov 1 are no season, Oct 24 to 31 are Halloween', () => {
+        expect(seasonOn(at(2026, OCT, 23, 23, 59, 59, 999))).toBeNull()
+        expect(seasonOn(at(2026, OCT, 24, 0, 0, 0, 0))).toBe('halloween')
+        expect(seasonOn(at(2026, OCT, 29))).toBe('halloween')
         expect(seasonOn(at(2026, OCT, 31))).toBe('halloween')
         expect(seasonOn(at(2026, NOV, 1, 0, 0, 0, 0))).toBeNull()
     })
 
-    it('Halloween covers the whole local day, from its first to its last millisecond', () => {
+    it('Halloween covers its last day, to the last millisecond', () => {
         expect(seasonOn(at(2026, OCT, 31, 0, 0, 0, 0))).toBe('halloween')
         expect(seasonOn(at(2026, OCT, 31, 23, 59, 59, 999))).toBe('halloween')
     })
 
-    it('Dec 23 is no season, Dec 24 to 26 are Christmas, Dec 27 is no season', () => {
-        expect(seasonOn(at(2026, DEC, 23, 23, 59, 59, 999))).toBeNull()
-        expect(seasonOn(at(2026, DEC, 24, 0, 0, 0, 0))).toBe('christmas')
+    it('Dec 16 is no season, Dec 17 to 26 are Christmas, Dec 27 is no season', () => {
+        expect(seasonOn(at(2026, DEC, 16, 23, 59, 59, 999))).toBeNull()
+        expect(seasonOn(at(2026, DEC, 17, 0, 0, 0, 0))).toBe('christmas')
+        expect(seasonOn(at(2026, DEC, 24))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 25))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 26, 23, 59, 59, 999))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 27, 0, 0, 0, 0))).toBeNull()
     })
 
-    it('reads the local calendar day (00:30 on 31 Oct is Halloween)', () => {
+    it('reads the local calendar day (00:30 on 24 Oct is Halloween)', () => {
         // The Date is built from local parts, so this holds in any zone the suite
         // runs in; the code must read getMonth()/getDate(), not the UTC ones.
-        expect(seasonOn(at(2026, OCT, 31, 0, 30))).toBe('halloween')
+        expect(seasonOn(at(2026, OCT, 24, 0, 30))).toBe('halloween')
     })
 
     it('ignores the year', () => {
         expect(seasonOn(at(2031, OCT, 31))).toBe('halloween')
-        expect(seasonOn(at(2031, OCT, 30))).toBeNull()
+        expect(seasonOn(at(2031, OCT, 23))).toBeNull()
     })
 })
 
