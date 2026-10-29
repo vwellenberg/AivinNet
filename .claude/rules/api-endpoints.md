@@ -315,6 +315,16 @@ this week“ brach auf zwei Zeilen und hob den Wert aus der Reihe. Gruppiert wir
 (`lib/rewind.py::source_kind`), und eine erzeugte Playlist (`CUSTOM_PLAYLISTS`) zählt dort als
 „Home“. Wer eine neue Quelle im Client einführt, trägt sie an beiden Stellen ein.
 
+## Hören pro Gerät (#541)
+
+Die Geräte-ID eines Plays steht in `scrobble.extra["device_id"]`; `POST /logger/track/log` nimmt
+sie optional entgegen, Plays davor haben keine (Bucket „no device recorded"). ⚠️ `extra` trägt
+daneben die Track-Tags (`lib/extras.py`, Backup und Restore lesen beides): die ID **hinzumischen,
+nie `extra` ersetzen**. `GET /logger/devices` summiert in SQL per `json_extract`, gecacht pro User
+bis zum nächsten Play; die **Namen** kommen bei jedem Request aus `DeviceTable`, damit eine
+Umbenennung ohne neuen Play wirkt. Eine ID, die die Registry nicht kennt (gelöschtes Gerät), ist
+„other device" — gezählt wird sie, nur nicht mit Namen.
+
 ## Skip-Quote: Plays gegen die Länge aus der Bibliothek (#537)
 
 `GET /logger/skips?period=…` gruppiert in SQL nach Track **und** gehörter Länge

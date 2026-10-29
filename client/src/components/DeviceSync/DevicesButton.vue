@@ -1,6 +1,7 @@
 <template>
     <button class="devices-btn" :class="{ 'ds-joined': ds.joined }" :title="title" @click="modal.showDevicesModal()">
         <DevicesSvg />
+        <span v-if="ds.partyActive" class="devices-party-sticker">PARTY</span>
     </button>
 </template>
 
@@ -73,5 +74,22 @@ const title = computed(() => (ds.joined ? 'Devices — group playback active' : 
     &.ds-joined {
         @include btn-toggle-on($fill: $brand-green, $glyph-color: $mem-ink);
     }
+
+    // The sticker is a host for the PARTY label (#548), so the button is its
+    // containing block.
+    position: relative;
+}
+
+// PARTY (#548): three or more devices in the group stick a label to the corner.
+// A label, not a control: it takes the sticker role and no hatching
+// (styling.md — hatching means "you can press this").
+.devices-party-sticker {
+    @include mem-sticker($radius: $candy-radius-xs, $pad: 0 0.35rem);
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    font-size: 0.6rem;
+    line-height: 1.2;
+    pointer-events: none;
 }
 </style>
