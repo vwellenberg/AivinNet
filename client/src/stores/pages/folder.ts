@@ -119,7 +119,7 @@ export default defineStore('FolderDirs&Tracks', {
         },
     },
     persist: {
-        paths: ['trackSortBy', 'trackSortReverse', 'folderSortBy', 'folderSortReverse'],
+        pick: ['trackSortBy', 'trackSortReverse', 'folderSortBy', 'folderSortReverse'],
         storage: localStorage,
     }
 })

@@ -113,7 +113,7 @@ const state = () => {
     }
 }
 
-const afterRestore = (context: any) => {
+const afterHydrate = (context: any) => {
     context.store.$state.items = []
     context.store.$state.total = 0
     context.store.$state.latestIndex = 0
@@ -122,12 +122,12 @@ const afterRestore = (context: any) => {
 
 export const useAlbumList = defineStore('albumlistpage', state, {
     persist: {
-        afterRestore: afterRestore,
+        afterHydrate,
     },
 })
 
 export const useArtistList = defineStore('artistlistpage', state, {
     persist: {
-        afterRestore: afterRestore,
+        afterHydrate,
     },
 })
