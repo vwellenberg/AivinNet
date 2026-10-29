@@ -39,7 +39,9 @@ export default defineStore("lyricsplugin", {
             throw new TrackChangedError();
           }
           if (data && data.lyrics) {
-            return lyrics.setLyrics(data.lyrics);
+            // Plain lyrics come back as lines without times (`synced: false`).
+            // An older server never says, and only ever sent synced ones.
+            return lyrics.setLyrics(data.lyrics, data.synced ?? true);
           }
 
           throw new Error("No lyrics found!");

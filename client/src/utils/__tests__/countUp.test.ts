@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { countTokens, countUpAt, formatCount, renderCounts } from '@/utils/countUp'
+import { countParts, countTokens, countUpAt, formatCount, renderCounts } from '@/utils/countUp'
 
 // The values below are the shapes the stats page really sends: a count with a
 // unit (`408 track plays`), a count split over two units, a grouped figure, and
 // the top tiles' titles, where a number is part of a name.
 const STAT_VALUES = [
     '408 track plays',
-    '12 hrs, 49 mins listened',
+    '12 hrs, 49 mins',
     '30 new favorites',
     '1,248 streams',
     '1.234.567 bytes',
@@ -47,7 +47,7 @@ describe('countTokens', () => {
     })
 
     it('counts every number of a multi-unit value', () => {
-        const tokens = countTokens('12 hrs, 49 mins listened')
+        const tokens = countTokens('12 hrs, 49 mins')
         expect(tokens.map(t => t.value)).toEqual([12, 49])
     })
 
@@ -63,8 +63,8 @@ describe('countTokens', () => {
 
 describe('renderCounts', () => {
     it('puts the figures into the text and keeps the words', () => {
-        const raw = '12 hrs, 49 mins listened'
-        expect(renderCounts(raw, countTokens(raw), [3, 7])).toBe('3 hrs, 7 mins listened')
+        const raw = '12 hrs, 49 mins'
+        expect(renderCounts(raw, countTokens(raw), [3, 7])).toBe('3 hrs, 7 mins')
     })
 
     it('renders the target figures back to the value as it arrived', () => {
@@ -81,5 +81,35 @@ describe('formatCount', () => {
         expect(formatCount(1234567, '.')).toBe('1.234.567')
         expect(formatCount(999, ' ')).toBe('999')
         expect(formatCount(1248, '')).toBe('1248')
+    })
+})
+
+describe('countParts', () => {
+    const parts = (raw: string, figures: number[], widest = countTokens(raw).map(t => t.value)) =>
+        countParts(raw, countTokens(raw), figures, widest)
+
+    // The slot is what keeps "tracks" on its line: it is the final figure, not
+    // the one showing, so it does not change while the number rises.
+    it('gives each figure the final text as its slot, grouped like the value', () => {
+        expect(parts('12,420 tracks', [1234])).toEqual([{ text: '1,234', slot: '12,420' }, { text: ' tracks' }])
+        expect(parts('12 hrs, 49 mins', [3, 7])).toEqual([
+            { text: '3', slot: '12' },
+            { text: ' hrs, ' },
+            { text: '7', slot: '49' },
+            { text: ' mins' },
+        ])
+    })
+
+    // Counting down (a shorter period's smaller value) passes through wider
+    // figures than it lands on: the slot is the widest of the two ends.
+    it('sizes the slot by the widest figure it is given', () => {
+        expect(parts('419 track plays', [9000], [12000])).toEqual([
+            { text: '9000', slot: '12000' },
+            { text: ' track plays' },
+        ])
+    })
+
+    it('leaves text without counted numbers as one run', () => {
+        expect(parts('02. Auf Den Strassen', [])).toEqual([{ text: '02. Auf Den Strassen' }])
     })
 })

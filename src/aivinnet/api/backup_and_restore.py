@@ -9,6 +9,7 @@ import sqlalchemy.exc
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
+from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.db.userdata import (
     CollectionTable,
@@ -538,7 +539,7 @@ class RestoreBackup:
         return report
 
 
-class RestoreBackupBody(BaseModel):
+class RestoreBackupBody(JsonBodyModel):
     backup_dir: str | None = Field(
         default=None,
         description="The name of the backup directory to restore from. If not provided, all backups will be restored.",

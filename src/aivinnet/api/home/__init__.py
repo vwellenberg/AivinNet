@@ -4,7 +4,7 @@ from typing import Literal
 from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
-from aivinnet.api.apischemas import GenericLimitSchema
+from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
 from aivinnet.db.userdata import NotInterestedTable, UserTable
 from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
@@ -79,7 +79,7 @@ def get_home_layout():
     return _layout_rows(HomepageStore.get_layout(get_current_userid()))
 
 
-class HomeLayoutBody(BaseModel):
+class HomeLayoutBody(JsonBodyModel):
     # Bounded: what is stored is the normalized layout, but the request is
     # parsed before that.
     order: list[str] = Field(default_factory=list, max_length=100, description="Row keys in display order")

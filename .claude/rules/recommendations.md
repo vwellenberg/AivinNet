@@ -82,7 +82,7 @@ Store-Imports, damit sie in der schnellen Testbahn testbar bleiben. Die Routinen
 Regeln in `lib/home/discover.py` (ebenfalls frei von DB und Stores, strikt unter mypy), Routinen
 in `lib/recipes/homerows.py`. Reihenfolge auf Home: Continue → **Your mixes** → **Because you
 listened** → **On repeat** → Recently played → **Your weekday evenings** → **Never played** → **Artists you might
-like** → **Forgotten favorites** → Rediscover → **Almost complete** → On this day → Collections → Recently added.
+like** → **Deep cuts** → **Forgotten favorites** → Rediscover → **Almost complete** → On this day → Collections → Recently added.
 
 - **„Your mixes“** (alle 6 h, #526; Regeln in `lib/home/mixes.py`, ebenfalls pur und strikt):
   bis zu vier Playlist-Karten „Mix 1“ … aus den Sitzungen der letzten 180 Tage (ab 50 Plays).
@@ -151,6 +151,13 @@ like** → **Forgotten favorites** → Rediscover → **Almost complete** → On
   5-mal gespielt hat. Gewicht pro Playlist 1/√(Zahl der anderen Artists) — eine Handvoll-Playlist
   zählt mehr als eine „alles“-Liste. Bei Samplern zählen die Track-Artists statt „Various
   Artists“ (`TrackFacts.track_artists`). Ohne Playlists keine Zeile.
+- **„Deep cuts“** (alle 6 h, #528; `rank_deep_cuts` in `lib/home/discover.py`): Tracks der 10
+  meistgehörten Album-Artists der letzten 90 Tage, die der User **nie** gespielt hat (Scrobbles
+  ohne Bibliothekstrack zählen nicht). Nur der Album-Artist zählt: ein Gast auf fremdem Album ist
+  kein Deep Cut. Alben, die der User oft hört, zuerst; höchstens 2 pro Album; Platzhalter nie.
+  „Play all“ spielt die erzeugte Playlist `deepcuts`, die in `DATED_PLAYLISTS` steht — ein Play
+  macht ihre Tracks zu gehörten, wie bei „Almost complete“. Keine „Not interested“-Markierung:
+  die gibt es nur für Alben und Artists (`NOT_INTERESTED_ROWS`).
 - **„Forgotten favorites“** (alle 6 h): Favoriten-Tracks ohne Play in den letzten 60 Tagen (oder
   nie). Zuerst kommen die mit einem **Burst** (`strongest_phase`: die meisten Plays in einem
   3-Tage-Fenster, `is_burst`: mindestens 10 davon und mindestens 30 % aller Plays des Tracks). Die
@@ -283,7 +290,7 @@ wird jede neue Quelle eingetragen:
 
 | Wohin | Was | Wann |
 |---|---|---|
-| `apic-desktop.musixmatch.com` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (Neuinstallation: aus; Settings → Plugins) |
+| `lrclib.net` | Titel + Artist im Klartext | Lyrics-Seite ohne lokale Lyrics (Neuinstallation: aus; Settings → Plugins). Bis 2026-10-28 Musixmatch |
 | `musicbrainz.org` / `coverartarchive.org` | Albumtitel + Album-Artist im Klartext | **nur auf Anforderung**: Cover holen, und seit #221 Titel/Nummern holen |
 | Deezer / Last.fm | Artist-Namen | nur mit `enableOnlineMetadata` (ab Werk **aus**) |
 

@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // The numbers a stat tile counts up to their value.
 //
-// A tile's value is text, not a number: `408 track plays`, `12 hrs, 49 mins
-// listened`. So the numbers inside it count, and the words around them stay.
+// A tile's value is text, not a number: `408 track plays`, `12 hrs, 49 mins`.
+// So the numbers inside it count, and the words around them stay.
 // Ease-out, so the count arrives softly and the last step does not lag behind
 // the figure. Each figure is a whole number: a fraction would flicker through
 // the tile on every frame.
@@ -59,13 +59,36 @@ export function formatCount(n: number, separator: string): string {
     return separator ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator) : digits
 }
 
-/** The text with each counted number replaced by its figure at this moment. */
-export function renderCounts(raw: string, tokens: CountToken[], figures: number[]): string {
-    let out = ''
+/** A run of a stat's text: plain words, or a counted figure with the text that sizes its slot. */
+export interface CountPart {
+    text: string
+    slot?: string
+}
+
+/**
+ * The text split into words and counted figures. Each figure carries `slot`,
+ * the widest text it stands for during the count (`widest[i]`, grouped like
+ * the value), so the tile can hold that room for it and the words around it
+ * stay where they are.
+ */
+export function countParts(raw: string, tokens: CountToken[], figures: number[], widest: number[]): CountPart[] {
+    const parts: CountPart[] = []
     let cursor = 0
     tokens.forEach((token, i) => {
-        out += raw.slice(cursor, token.start) + formatCount(figures[i], token.separator)
+        if (token.start > cursor) parts.push({ text: raw.slice(cursor, token.start) })
+        parts.push({
+            text: formatCount(figures[i], token.separator),
+            slot: formatCount(widest[i], token.separator),
+        })
         cursor = token.end
     })
-    return out + raw.slice(cursor)
+    if (cursor < raw.length) parts.push({ text: raw.slice(cursor) })
+    return parts
+}
+
+/** The text with each counted number replaced by its figure at this moment. */
+export function renderCounts(raw: string, tokens: CountToken[], figures: number[]): string {
+    return countParts(raw, tokens, figures, figures)
+        .map(part => part.text)
+        .join('')
 }

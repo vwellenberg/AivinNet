@@ -13,6 +13,7 @@ from pydantic_core import core_schema
 
 from aivinnet import models
 from aivinnet.api.apischemas import GenericLimitSchema
+from aivinnet.api.formfields import FormModel
 from aivinnet.db.userdata import PlaylistTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.albumslib import sort_by_track_no
@@ -275,7 +276,7 @@ class FileStorage(_FileStorage):
         return core_schema.with_info_plain_validator_function(cls.validate)
 
 
-class UpdatePlaylistForm(BaseModel):
+class UpdatePlaylistForm(FormModel):
     # Optional via the None default ONLY — the annotation must stay a plain
     # FileStorage: with a `FileStorage | None` union, flask_openapi3 no longer
     # recognises the field as a file field and never maps it from

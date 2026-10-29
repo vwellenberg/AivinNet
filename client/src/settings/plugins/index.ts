@@ -15,7 +15,7 @@ export default <SettingCategory>{
         {
             title: 'Lyrics',
             icon: LyricsSvg,
-            desc: 'Look up missing lyrics on Musixmatch. Sends the title and artist of the track you are viewing.',
+            desc: 'Look up missing lyrics on LRCLIB (lrclib.net). Sends the title and artist of the track you are viewing.',
             settings: lyrics,
         },
     ],

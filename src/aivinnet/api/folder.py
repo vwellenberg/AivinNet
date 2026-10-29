@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from showinfm import show_in_file_manager
 
 from aivinnet import settings
+from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
 from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
@@ -47,7 +48,7 @@ def is_path_within_root_dirs(filepath: str) -> bool:
     return False
 
 
-class FolderTree(BaseModel):
+class FolderTree(JsonBodyModel):
     folder: str = Field("$home", description="The folder to things from")
     sorttracksby: str = Field(
         "default",
@@ -176,7 +177,7 @@ def get_all_drives(is_win: bool = False):
     return drives
 
 
-class DirBrowserBody(BaseModel):
+class DirBrowserBody(JsonBodyModel):
     folder: str = Field(
         "$root",
         description="The folder to list directories from",

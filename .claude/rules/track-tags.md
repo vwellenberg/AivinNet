@@ -86,6 +86,11 @@ Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den
 - **Eine Rolle vor dem Interpreten** (`strip_artist_credit`): „Composed by Adam Sporka" → „Adam
   Sporka" (auch „Music by", „Original Score by", „Arranged/Performed/… by", „Komponiert von").
   Bewusst **nicht** „Written by" (es gibt die Band „Written by Wolves") und „Produced by".
+  Seit 2026-10 auch „Lyrics by"/„Words by" und verbundene Rollen („Music and Lyrics by X").
+  ⚠️ **Die Trenner schneiden vor der Rolle:** „Composed & Lyrics by Jan Valta" wurde an `&`
+  zu „Composed" + „Lyrics by Jan Valta", zwei Artists, die es nicht gibt. Deshalb läuft die
+  Bereinigung über die **Liste** (`strip_artist_credits`): Ein Name, der nur aus Rollen
+  besteht, fällt weg, wenn der nächste eine Rolle trägt.
 
 Weil beides in `trackhash` (Titel, Interpreten) und `artisthash` (Name) eingeht, ändern sich die
 Hashes **ohne** Scan und ohne Dateiänderung — beim ersten Start mit dem neuen Code. Jeder Track
@@ -130,7 +135,15 @@ Was daraus folgt:
   Umzug danach durch `carry_cleaned_names` läuft — Migrationen laufen vor dem Laden.
 
 Ein neuer Bereinigungsschritt im Modell braucht dasselbe: den alten Hash in
-`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos. Und er darf
+`remember_legacy_identity` mitschreiben, sonst verwaisen die Referenzen lautlos.
+
+⚠️ **Eine VERSCHÄRFTE Regel hat zwei alte Hashes, nicht einen.** `_legacyhash` ist der Hash der
+Rohtags. Eine Bibliothek, die die bisherige Regel schon lief, hat ihre Referenzen aber längst
+unter deren Ergebnis: Bei „Composed by A; Lyrics by B" war das „A" + „Lyrics by B", weder roh
+noch neu. Deshalb bleibt die alte Regel **eingefroren** daneben stehen
+(`strip_artist_credit_until_2026_10`), der Track merkt sich deren Hash als `_previoushash`, und
+`legacy_track_mapping` zieht beide um. Wer die Regel wieder verschärft, friert die jetzige ein,
+statt sie zu ändern. Und er darf
 nur den **Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-Hash). Tests:
 `tests/test_parsers.py` (Regeln), `tests/test_name_cleanup_mapping.py` (was umzieht, Verdrahtung),
 `tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in

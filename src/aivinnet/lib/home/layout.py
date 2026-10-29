@@ -31,6 +31,7 @@ DEFAULT_ORDER: tuple[str, ...] = (
     "for_this_time",
     "never_played",
     "artists_you_might_like",
+    "deep_cuts",
     "forgotten_favorites",
     "rediscover",
     "almost_complete",

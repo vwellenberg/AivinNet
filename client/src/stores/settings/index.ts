@@ -107,6 +107,9 @@ export default defineStore('settings', {
          * utils/colortools/pageGradient.ts.
          */
         use_page_gradient: true,
+        // Seasonal overlay on the Memphis look (#543): pumpkin and violet on
+        // 31 October, snow sprinkles 24–26 December. Read in utils/seasons.ts.
+        use_seasonal_schemes: true,
         // Now Playing Lauflicht intensity. Defaults to the subtler level.
         np_lauflicht_level: <'off' | 'subtle' | 'normal'>'subtle',
         use_sidebar: false,
@@ -197,6 +200,9 @@ export default defineStore('settings', {
         },
         togglePageGradient() {
             this.use_page_gradient = !this.use_page_gradient
+        },
+        toggleSeasonalSchemes() {
+            this.use_seasonal_schemes = !this.use_seasonal_schemes
         },
         // now playing 👇
         setNpLauflichtLevel(level: 'off' | 'subtle' | 'normal') {

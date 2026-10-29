@@ -1,7 +1,7 @@
 """Lookups at other services must not hold the one request thread (#295).
 
 The server answers one request at a time, so a handler that waits on
-musicbrainz.org or Musixmatch stops playback for every listener. The cover
+musicbrainz.org or LRCLIB stops playback for every listener. The cover
 fetch now runs as a job the client polls; the lyrics lookups get one deadline
 over their whole chain and remember an outage instead of rediscovering it on
 every track change.
@@ -102,7 +102,6 @@ def lyrics(monkeypatch, tmp_path):
 
     monkeypatch.setattr(lyrics, "_down_until", 0.0)
     monkeypatch.setattr(lyrics, "DEADLINE_SECONDS", 0.2)
-    monkeypatch.setattr(lyrics, "Paths", lambda: SimpleNamespace(lyrics_plugins_path=tmp_path))
     return lyrics
 
 
@@ -128,7 +127,6 @@ def test_during_an_outage_no_call_leaves_the_server(lyrics, monkeypatch):
         raise ConnectionError("black hole")
 
     monkeypatch.setattr(provider.session, "get", unreachable)
-    provider.token = "t"
 
     assert provider.get_lrc("Title", "Ärtist") == []  # the failed search marks the outage
     assert calls == [1], "the non-ASCII retry went out although the first call had failed"
@@ -139,20 +137,43 @@ def test_during_an_outage_no_call_leaves_the_server(lyrics, monkeypatch):
 
 def test_not_found_is_an_answer_not_an_outage(lyrics, monkeypatch):
     provider = lyrics.LyricsProvider()
-    provider.token = "t"
     monkeypatch.setattr(provider.session, "get", lambda *_a, **_k: SimpleNamespace(ok=False, status_code=404))
 
-    assert provider._get("track.subtitle.get", []) is None
+    assert provider._get("get/1") is None
     assert not lyrics._is_down()
 
 
 def test_a_refusal_is_an_outage(lyrics, monkeypatch):
     provider = lyrics.LyricsProvider()
-    provider.token = "t"
     monkeypatch.setattr(provider.session, "get", lambda *_a, **_k: SimpleNamespace(ok=False, status_code=503))
 
-    assert provider._get("track.search", []) is None
+    assert provider._get("search", {"track_name": "Song"}) is None
     assert lyrics._is_down()
+
+
+def test_a_server_error_is_retried_once(lyrics, monkeypatch):
+    provider = lyrics.LyricsProvider()
+    answers = iter([SimpleNamespace(ok=False, status_code=503), SimpleNamespace(ok=True, status_code=200)])
+    monkeypatch.setattr(provider.session, "get", lambda *_a, **_k: next(answers))
+
+    assert provider._get("search", {"track_name": "Song"}) is not None
+    assert not lyrics._is_down()
+
+
+def test_a_server_error_pauses_briefly_a_refusal_for_long(lyrics, monkeypatch):
+    """LRCLIB answers a 503 now and then and the same search works a second
+    later; one of those must not switch lyrics off for five minutes."""
+    provider = lyrics.LyricsProvider()
+
+    for status, pause in ((503, lyrics.HICCUP_SECONDS), (429, lyrics.OUTAGE_SECONDS)):
+        monkeypatch.setattr(lyrics, "_down_until", 0.0)
+        monkeypatch.setattr(
+            provider.session, "get", lambda *_a, _s=status, **_k: SimpleNamespace(ok=False, status_code=_s)
+        )
+
+        provider._get("search", {"track_name": "Song"})
+
+        assert lyrics._down_until - time.monotonic() == pytest.approx(pause, abs=1)
 
 
 def test_lookups_resume_once_the_outage_is_over(lyrics, monkeypatch):

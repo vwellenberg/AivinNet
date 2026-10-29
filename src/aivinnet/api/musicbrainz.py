@@ -7,9 +7,9 @@ Closes: https://github.com/vwellenberg/AivinNet-Client/issues/3
 import logging
 
 from flask_openapi3 import APIBlueprint, Tag
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from aivinnet.api.apischemas import AlbumHashSchema
+from aivinnet.api.apischemas import AlbumHashSchema, JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.lib import mbjobs
 from aivinnet.lib.coverart import fetch_verified_cover, save_album_cover_bytes
@@ -137,7 +137,7 @@ def fetch_cover(body: FetchCoverBody):
     return {"job": job_id}
 
 
-class FetchMissingBody(BaseModel):
+class FetchMissingBody(JsonBodyModel):
     limit: int = Field(
         default=0,
         ge=0,
