@@ -85,6 +85,7 @@ const modal = useModal();
 const lyrics = useLyrics();
 const router = useRouter();
 const settings = useSettings();
+const deviceSync = useDeviceSync();
 // The playlist edit mode takes the whole screen on a phone (app-grid.scss).
 const playlistPage = usePlaylistPage();
 useTracker();
@@ -112,9 +113,9 @@ watch(
 // `subtle` dims it (body.lauflicht-subtle), `normal` is full strength (no class).
 // While nothing plays it is paused (body.lauflicht-idle) — see utils/lauflicht.ts.
 watch(
-    () => [settings.np_lauflicht_level, queue.playing] as const,
-    ([level, playing]) => {
-        for (const [cls, on] of Object.entries(lauflichtClasses(level, playing))) {
+    () => [settings.np_lauflicht_level, queue.playing, deviceSync.partyActive] as const,
+    ([level, playing, party]) => {
+        for (const [cls, on] of Object.entries(lauflichtClasses(level, playing, party))) {
             document.body.classList.toggle(cls, on);
         }
     },

@@ -130,6 +130,22 @@ body.lauflicht-subtle .lauflicht-rim {
     }
 }
 
+// Party (#548): three or more devices in one group run the comet a notch faster
+// than their level says. The subtle level keeps its calmer glimmer and only
+// speeds up its comet. Reduced motion still wins: its !important duration in
+// motion-policy.scss is not overridden here.
+body.lauflicht-party .lauflicht-rim {
+    &::before {
+        animation-duration: 8s;
+    }
+}
+
+body.lauflicht-party.lauflicht-subtle .lauflicht-rim {
+    &::before {
+        animation-duration: 12s;
+    }
+}
+
 // The Lauflicht is an explicit opt-in brand accent (`np_lauflicht_level`,
 // default on), so the user's choice wins over the OS hint: it keeps running under
 // reduced-motion — just slower and calmer. Without this the comet froze outright
