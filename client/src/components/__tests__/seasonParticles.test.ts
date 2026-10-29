@@ -57,6 +57,14 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-glyph').map((g) => g.text())).toContain('🦇')
     })
 
+    it('draws the vampire and zombie as emoji and the monster as a pixel head', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
+        const glyphs = wrapper.findAll('.season-glyph').map((g) => g.text())
+        expect(glyphs).toContain('🧛')
+        expect(glyphs).toContain('🧟')
+        expect(wrapper.findAll('.season-frankenstein .season-monster-face')).toHaveLength(1)
+    })
+
     it('is hidden from assistive technology: the layer is decoration', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
         expect(wrapper.find('.season-particles').attributes('aria-hidden')).toBe('true')

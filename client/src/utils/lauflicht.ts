@@ -11,10 +11,16 @@
  */
 export type LauflichtLevel = 'off' | 'subtle' | 'normal'
 
-export function lauflichtClasses(level: LauflichtLevel, playing: boolean): Record<string, boolean> {
+export function lauflichtClasses(
+    level: LauflichtLevel,
+    playing: boolean,
+    party: boolean = false,
+): Record<string, boolean> {
     return {
         'lauflicht-off': level === 'off',
         'lauflicht-subtle': level === 'subtle',
         'lauflicht-idle': !playing,
+        // A group of three or more devices runs the light a notch faster (#548).
+        'lauflicht-party': party,
     }
 }

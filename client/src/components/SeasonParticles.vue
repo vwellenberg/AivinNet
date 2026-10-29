@@ -13,6 +13,7 @@
             :style="varsOf(p)"
         >
             <span v-if="p.glyph" class="season-glyph">{{ p.glyph }}</span>
+            <span v-else-if="p.kind === 'frankenstein'" class="season-glyph season-monster-face"></span>
         </span>
     </div>
 </template>
@@ -57,9 +58,10 @@ function varsOf(p: Particle): Record<string, string> {
 
 <style lang="scss">
 // ============================================================================
-// SEASONAL PARTICLES: snow at Christmas, bats, ghosts and a pumpkin at
-// Halloween. Mounted once in App.vue, shown only while a season is active
-// (utils/seasons.ts) and never under "reduce motion" (the component above).
+// SEASONAL PARTICLES: snow at Christmas, bats, ghosts, a pumpkin, a vampire, a
+// zombie and Frankenstein's monster at Halloween. Mounted once in App.vue,
+// shown only while a season is active (utils/seasons.ts) and never under
+// "reduce motion" (the component above).
 //
 // One fixed layer, above the page and below the bottom bar (z-index 50), the
 // modal (60) and the menus (1000). Pointer events are off, so nothing here can
@@ -123,7 +125,10 @@ function varsOf(p: Particle): Record<string, string> {
 }
 
 .season-bat .season-glyph,
-.season-pumpkin .season-glyph {
+.season-pumpkin .season-glyph,
+.season-vampire .season-glyph,
+.season-zombie .season-glyph,
+.season-frankenstein .season-glyph {
     animation: season-bob var(--season-wobble) ease-in-out infinite alternate;
 }
 
@@ -171,7 +176,11 @@ function varsOf(p: Particle): Record<string, string> {
 }
 
 // Pumpkin: rare. It waits a long while, then rolls along the lower screen.
-.season-pumpkin {
+// The vampire swoops like a bat; zombie and monster shamble along the bottom.
+.season-pumpkin,
+.season-vampire,
+.season-zombie,
+.season-frankenstein {
     animation: season-cross var(--season-dur) linear var(--season-delay) infinite backwards;
 }
 
@@ -179,6 +188,13 @@ function varsOf(p: Particle): Record<string, string> {
     display: block;
     font-size: var(--season-size);
     line-height: 1;
+}
+
+// Frankenstein's monster has no emoji: a pixel head, flat black hair, bolts.
+.season-monster-face {
+    width: var(--season-size);
+    height: var(--season-size);
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 15" shape-rendering="crispEdges"><rect x="2" y="2" width="10" height="11" fill="%237FB069"/><rect x="2" y="0" width="10" height="3" fill="%2317171A"/><rect x="2" y="3" width="1" height="1" fill="%2317171A"/><rect x="5" y="3" width="1" height="1" fill="%2317171A"/><rect x="8" y="3" width="1" height="1" fill="%2317171A"/><rect x="11" y="3" width="1" height="1" fill="%2317171A"/><rect x="4" y="5" width="6" height="1" fill="%23C8E0B4"/><rect x="5" y="4" width="1" height="3" fill="%2317171A" opacity=".55"/><rect x="7" y="4" width="1" height="3" fill="%2317171A" opacity=".55"/><rect x="3" y="7" width="3" height="1" fill="%2317171A"/><rect x="8" y="7" width="3" height="1" fill="%2317171A"/><rect x="4" y="8" width="1" height="1" fill="%23FFFFFF"/><rect x="9" y="8" width="1" height="1" fill="%23FFFFFF"/><rect x="4" y="11" width="6" height="1" fill="%2317171A"/><rect x="5" y="10" width="1" height="3" fill="%2317171A"/><rect x="8" y="10" width="1" height="3" fill="%2317171A"/><rect x="0" y="10" width="2" height="2" fill="%239AA0A6"/><rect x="12" y="10" width="2" height="2" fill="%239AA0A6"/><rect x="4" y="13" width="6" height="2" fill="%235E8B4A"/></svg>') center / contain no-repeat;
 }
 
 @keyframes season-bob {

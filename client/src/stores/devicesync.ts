@@ -26,6 +26,7 @@ import { ClockOffsetEstimator } from '@/utils/deviceSync/clockSync'
 import { detectDeviceName, detectDeviceType, getOrCreateDeviceId } from '@/utils/deviceSync/deviceId'
 import { expectedPositionMs } from '@/utils/deviceSync/expectedPosition'
 import { learnLatency, loadLatency, saveLatency, type LatencyKind } from '@/utils/deviceSync/latency'
+import { isParty } from '@/utils/deviceSync/party'
 import { resolveQueueMove } from '@/utils/queueMove'
 import { pickShuffleIndex } from '@/utils/shufflePicker'
 import { shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
@@ -460,6 +461,10 @@ export default defineStore('devicesync', {
         },
         others(state): DeviceSummary[] {
             return state.devices.filter(d => d.device_id !== state.deviceId)
+        },
+        /** Three or more devices in the group: the PARTY sticker and the faster Lauflicht (#548). */
+        partyActive(state): boolean {
+            return isParty(state.devices)
         },
     },
 
