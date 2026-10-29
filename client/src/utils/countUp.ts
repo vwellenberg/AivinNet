@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // The numbers a stat tile counts up to their value.
 //
-// A tile's value is text, not a number: `408 track plays`, `12 hrs, 49 mins
-// listened`. So the numbers inside it count, and the words around them stay.
+// A tile's value is text, not a number: `408 track plays`, `12 hrs, 49 mins`.
+// So the numbers inside it count, and the words around them stay.
 // Ease-out, so the count arrives softly and the last step does not lag behind
 // the figure. Each figure is a whole number: a fraction would flicker through
 // the tile on every frame.

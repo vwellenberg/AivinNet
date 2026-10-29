@@ -13,10 +13,10 @@ import { getStats } from '@/requests/stats'
 const ITEMS = [
     { cssclass: 'toptrack', text: 'Top track this week', value: '19. Rittersleut - Unknown', image: 'abc.webp' },
     { cssclass: 'streams', text: 'this week', value: '139 track plays' },
-    { cssclass: 'playtime', text: 'this week', value: '5 hrs, 54 mins listened' },
+    { cssclass: 'playtime', text: 'listened this week', value: '5 hrs, 54 mins' },
     { cssclass: 'favorites', text: 'this week', value: '7 new favorites' },
     { cssclass: 'discoveries', text: 'new this week', value: '2 artists · 2 albums' },
-    { cssclass: 'sources', text: 'this week', value: '62% albums · 25% playlists' },
+    { cssclass: 'sources', text: 'this week', value: '62% albums', detail: '62% albums · 25% playlists' },
     { cssclass: 'trackcount', text: 'in your library', value: '12,560 tracks' },
 ]
 
@@ -34,6 +34,17 @@ describe('Stats', () => {
         for (const tile of tiles) {
             expect(tile.element.parentElement).toBe(row)
         }
+    })
+
+    // "How you listened" shows its largest share; the rest did not fit the
+    // tile's two lines and was cut off. The whole answer reaches the tile.
+    it('hands a tile the whole answer behind its value', async () => {
+        const w = shallowMount(Stats, { props: { items: ITEMS } })
+        await nextTick()
+
+        const sources = w.findAllComponents(StatItem).find(t => t.props('icon') === 'sources')!
+        expect(sources.props('value')).toBe('62% albums')
+        expect(sources.props('detail')).toBe('62% albums · 25% playlists')
     })
 
     describe('arrows', () => {

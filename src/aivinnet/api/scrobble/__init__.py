@@ -767,10 +767,13 @@ def get_stats(query: StatsQuery):
         f"{plays} track {ngettext('play', 'plays', plays)}",
     )
 
+    # "listened" in the caption, not the value: "12 hrs, 49 mins listened"
+    # needs three lines, the tile has two (the album and artist summaries say
+    # "listened all time" the same way).
     playduration = StatItem(
         "playtime",
-        said_period,
-        f"{seconds_to_time_string(listened)} listened",
+        f"listened {said_period}",
+        seconds_to_time_string(listened),
     )
 
     # The top track of the period, by time listened (like the charts)
@@ -796,8 +799,13 @@ def get_stats(query: StatsQuery):
     # every play counted like the plays tile. The rule is Rewind's listener.
     kinds = count_kinds(ScrobbleTable.plays_by_source_in_period(start_time, end_time, userid), CUSTOM_PLAYLISTS)
     # The caption is the period like the plays tile: "how you listened this
-    # week" ran onto a second line and lifted the value out of the row.
-    sources = StatItem("sources", said_period, shares_text(source_shares(kinds)))
+    # week" ran onto a second line and lifted the value out of the row. The
+    # value is the largest kind only: "56% playlists" fills both of the tile's
+    # lines, so a second share was cut off ("56% playlists · …"). Both are in
+    # the tooltip.
+    shares = source_shares(kinds)
+    shown, whole = shares_text(shares, named=1), shares_text(shares)
+    sources = StatItem("sources", said_period, shown, detail=whole if whole != shown else None)
 
     fav_count = FavoritesTable.count_favs_in_period(start_time, end_time)
     # Every favorite is a new one over all time; "7  favorites" with the

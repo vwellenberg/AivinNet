@@ -34,14 +34,14 @@
             <!-- Each counted figure stands in a slot as wide as the widest text it
                  stands for (data-slot, drawn invisibly by ::before), so the words
                  around it break onto the same lines in every frame. -->
-            <div v-if="tokens.length" class="count counting ellip2" :title="formattedValue">
+            <div v-if="tokens.length" class="count counting ellip2" :title="tooltip">
                 <template v-for="(part, i) in parts" :key="i"
                     ><span v-if="part.slot !== undefined" class="countnum" :data-slot="part.slot"
                         ><span class="count-live">{{ part.text }}</span></span
                     ><template v-else>{{ part.text }}</template></template
                 >
             </div>
-            <div v-else class="count ellip2" :title="formattedValue">{{ formattedValue }}</div>
+            <div v-else class="count ellip2" :title="tooltip">{{ formattedValue }}</div>
             <div class="title">{{ text }}</div>
         </div>
 
@@ -114,6 +114,9 @@ const props = defineProps<{
     // Whether its list is open, and the id of that list.
     expanded?: boolean
     controls?: string
+    // The whole answer where the value is only its head ("56% playlists ·
+    // 30% albums" on a tile that shows "56% playlists"): its tooltip.
+    detail?: string | null
 }>()
 
 const emit = defineEmits<{ toggle: [] }>()
@@ -216,6 +219,7 @@ const parts = computed(() => {
 })
 
 const formattedValue = computed(() => parts.value.map(part => part.text).join(''))
+const tooltip = computed(() => props.detail || formattedValue.value)
 
 // Flat memphis tile colour, cycled by stat type across the palette
 // [blush, lavender, teal, yellow]. The design is flat, so every route

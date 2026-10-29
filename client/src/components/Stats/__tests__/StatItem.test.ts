@@ -169,11 +169,11 @@ describe('StatItem count box', () => {
 
     it('gives every figure of a value its own slot and leaves the words as text', () => {
         const w = mount(StatItem, {
-            props: { icon: 'playtime', value: '12 hrs, 49 mins listened', text: 'this week' },
+            props: { icon: 'playtime', value: '12 hrs, 49 mins', text: 'listened this week' },
             global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
         })
         expect(w.findAll('.countnum').map(n => n.attributes('data-slot'))).toEqual(['12', '49'])
-        expect(w.find('.count').text()).toMatch(/^\d+ hrs, \d+ mins listened$/)
+        expect(w.find('.count').text()).toMatch(/^\d+ hrs, \d+ mins$/)
         w.unmount()
     })
 
@@ -190,6 +190,25 @@ describe('StatItem count box', () => {
     it('starts every value at the same line, one line or two', () => {
         const css = read('src/components/Stats/StatItem.vue')
         expect(css).toMatch(/\.count \{[^{}]*min-height: 2lh;/)
+    })
+
+    it('shows the whole answer as the tooltip where the value is only its head', () => {
+        const w = mount(StatItem, {
+            props: { icon: 'sources', value: '56% playlists', text: 'this month', detail: '56% playlists · 30% albums' },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+        expect(w.find('.count').attributes('title')).toBe('56% playlists · 30% albums')
+        w.unmount()
+    })
+
+    it('keeps the value as the tooltip when there is nothing more to it', () => {
+        const w = mount(StatItem, {
+            props: { icon: 'sources', value: '100% albums', text: 'this month', detail: null },
+            global: { stubs: { 'router-link': { template: '<a><slot /></a>' } } },
+        })
+        // Mid-count the title follows the figure; the words are the value's.
+        expect(w.find('.count').attributes('title')).toMatch(/^\d+% albums$/)
+        w.unmount()
     })
 
     it('leaves a value that is not counted (top tiles) as plain text', () => {

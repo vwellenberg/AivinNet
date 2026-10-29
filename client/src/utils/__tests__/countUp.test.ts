@@ -7,7 +7,7 @@ import { countParts, countTokens, countUpAt, formatCount, renderCounts } from '@
 // the top tiles' titles, where a number is part of a name.
 const STAT_VALUES = [
     '408 track plays',
-    '12 hrs, 49 mins listened',
+    '12 hrs, 49 mins',
     '30 new favorites',
     '1,248 streams',
     '1.234.567 bytes',
@@ -47,7 +47,7 @@ describe('countTokens', () => {
     })
 
     it('counts every number of a multi-unit value', () => {
-        const tokens = countTokens('12 hrs, 49 mins listened')
+        const tokens = countTokens('12 hrs, 49 mins')
         expect(tokens.map(t => t.value)).toEqual([12, 49])
     })
 
@@ -63,8 +63,8 @@ describe('countTokens', () => {
 
 describe('renderCounts', () => {
     it('puts the figures into the text and keeps the words', () => {
-        const raw = '12 hrs, 49 mins listened'
-        expect(renderCounts(raw, countTokens(raw), [3, 7])).toBe('3 hrs, 7 mins listened')
+        const raw = '12 hrs, 49 mins'
+        expect(renderCounts(raw, countTokens(raw), [3, 7])).toBe('3 hrs, 7 mins')
     })
 
     it('renders the target figures back to the value as it arrived', () => {
@@ -92,11 +92,11 @@ describe('countParts', () => {
     // the one showing, so it does not change while the number rises.
     it('gives each figure the final text as its slot, grouped like the value', () => {
         expect(parts('12,420 tracks', [1234])).toEqual([{ text: '1,234', slot: '12,420' }, { text: ' tracks' }])
-        expect(parts('12 hrs, 49 mins listened', [3, 7])).toEqual([
+        expect(parts('12 hrs, 49 mins', [3, 7])).toEqual([
             { text: '3', slot: '12' },
             { text: ' hrs, ' },
             { text: '7', slot: '49' },
-            { text: ' mins listened' },
+            { text: ' mins' },
         ])
     })
 
