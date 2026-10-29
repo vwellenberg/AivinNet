@@ -302,3 +302,17 @@ this week“ brach auf zwei Zeilen und hob den Wert aus der Reihe. Gruppiert wir
 `q:` (Suche) landen dort als `track`. Rewind liest deshalb den rohen `source`-String
 (`lib/rewind.py::source_kind`), und eine erzeugte Playlist (`CUSTOM_PLAYLISTS`) zählt dort als
 „Home“. Wer eine neue Quelle im Client einführt, trägt sie an beiden Stellen ein.
+
+## Skip-Quote: Plays gegen die Länge aus der Bibliothek (#537)
+
+`GET /logger/skips?period=…` gruppiert in SQL nach Track **und** gehörter Länge
+(`ScrobbleTable.plays_by_trackhash_and_duration_in_period`). Die Länge steht nur im
+`TrackStore`, deshalb rechnet `lib/skip_rate.py` erst danach — gecacht pro User mit
+Zeitraum, Startzeit und `change_marker`, wie die Uhr. Der Cache kennt die Bibliothek nicht:
+eine Längenänderung ohne neuen Play wirkt erst beim nächsten Play; Tracks, die seither aus
+der Bibliothek fielen, verschwinden aus den Listen (`_with_tracks`), zählen aber in der Quote
+weiter, bis der nächste Play neu rechnet.
+
+⚠️ Die Quote ist eine **Untergrenze**: `log_track` verwirft Plays unter 5 s, die schnellsten
+Skips stehen gar nicht in der Datenbank. Der Client schreibt das in die Kachel; wer die Zahl
+anders darstellt, behält den Hinweis.
