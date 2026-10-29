@@ -87,6 +87,31 @@ export async function getSkipRate(period: string) {
     })
 }
 
+/**
+ * The library tiles (#536). `explored` is the user's share of the library heard
+ * at least once; the rest is the library itself. `share` is null for an empty
+ * library, and `mean_bitrate` is null when no file has a known bitrate.
+ */
+export interface LibraryStatsPayload {
+    explored: {
+        tracks: { heard: number; total: number; share: number | null }
+        albums: { heard: number; total: number; share: number | null }
+    }
+    nonstop_seconds: number
+    files: number
+    formats: { format: string; files: number; share: number }[]
+    mean_bitrate: number | null
+    hires: { files: number; share: number | null }
+}
+
+/** The library's shares and lengths, not tied to a period (#536). */
+export async function getLibraryStats() {
+    return await useAxios({
+        url: paths.api.stats.base + '/library',
+        method: 'GET',
+    })
+}
+
 /** When in the week the music plays, over the stats page's period (#535). */
 export async function getListeningClock(period: string) {
     return await useAxios({

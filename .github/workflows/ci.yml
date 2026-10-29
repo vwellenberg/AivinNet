@@ -47,6 +47,7 @@ jobs:
           src/aivinnet/lib/listening_calendar.py
           src/aivinnet/lib/listening_clock.py
           src/aivinnet/lib/listening_devices.py
+          src/aivinnet/lib/library_stats.py
           src/aivinnet/lib/skip_rate.py
           src/aivinnet/lib/date_added.py
           src/aivinnet/lib/rewind.py

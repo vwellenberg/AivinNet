@@ -274,6 +274,7 @@
       "required": []
     }
   },
+  "GET /logger/library": {},
   "GET /logger/records": {},
   "GET /logger/rewind": {
     "query": {

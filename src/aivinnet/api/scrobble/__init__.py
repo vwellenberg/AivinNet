@@ -1,5 +1,6 @@
 import locale
 import time
+from collections.abc import Iterator
 from datetime import date, datetime
 from gettext import ngettext
 from typing import Literal
@@ -16,6 +17,7 @@ from aivinnet.lib.discoveries import first_heard_in
 from aivinnet.lib.extras import get_extra_info
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CUSTOM_PLAYLISTS
+from aivinnet.lib.library_stats import LibraryFile, explored, library_file, library_totals
 from aivinnet.lib.listening_calendar import build_calendar
 from aivinnet.lib.listening_clock import build_clock
 from aivinnet.lib.listening_devices import build_devices
@@ -557,6 +559,47 @@ def get_skip_rate(query: SkipsQuery):
         "to_the_end": _with_tracks(body["to_the_end"]),
         "dates": format_date(start_time, end_time),
     }, 200
+
+
+def _library_files() -> Iterator[LibraryFile]:
+    """Every file in the library, as the library tiles count them (#536)."""
+    for track in TrackStore.get_flat_list():
+        yield library_file(track.trackhash, track.albumhash, track.duration, track.bitrate, track.filepath, track.extra)
+
+
+# The library's own numbers (nonstop length, formats, bitrate, hi-res), once per
+# library: keyed on the store's generation, so a rescan or a tag edit rebuilds them.
+_library_totals: tuple[int, dict] | None = None
+# Each user's explored share, with what it was counted from: the library and the
+# user's plays. The heard set is one SQL read, so it is rebuilt only after a play.
+_explored: dict[int, tuple[tuple[int, int, int], dict]] = {}
+
+
+@api.get("/library")
+def get_library_stats():
+    """
+    The library tiles (#536): the share of the library the user has heard at
+    least once (tracks and albums), the nonstop length of the library, its
+    formats, mean bitrate and hi-res share. Not tied to a period.
+    """
+    global _library_totals
+
+    userid = get_current_userid()
+    # The generation is read before the tracks: a change in between can only
+    # leave a cache that rebuilds again on the next request.
+    generation = TrackStore.generation
+
+    if _library_totals is None or _library_totals[0] != generation:
+        _library_totals = (generation, library_totals(_library_files()))
+
+    key = (generation, *ScrobbleTable.change_marker(userid))
+    cached = _explored.get(userid)
+    if cached is None or cached[0] != key:
+        heard = ScrobbleTable.heard_trackhashes_of(userid)
+        cached = (key, explored(_library_files(), heard))
+        _explored[userid] = cached
+
+    return {"explored": cached[1], **_library_totals[1]}, 200
 
 
 class DevicesQuery(BaseModel):
