@@ -62,9 +62,14 @@ export function themeBodyClasses(look: Look, mode: Mode): Record<ThemeClass, boo
  * has a ground of its own, so under it the stored choice waits, exactly as the
  * mode does (see `paletteHtmlClasses`).
  */
-export type Palette = 'memphis' | 'lagune' | 'terrakotta' | 'eierschale'
+export type Palette = 'memphis' | 'lagune' | 'terrakotta' | 'eierschale' | 'halloween'
 
-export const PALETTES: readonly Palette[] = ['memphis', 'lagune', 'terrakotta', 'eierschale']
+/**
+ * Every scheme this build knows. `halloween` is the seasonal overlay's
+ * (utils/seasons.ts): it is known here and painted by the date, but Settings
+ * does not offer it.
+ */
+export const PALETTES: readonly Palette[] = ['memphis', 'lagune', 'terrakotta', 'eierschale', 'halloween']
 
 /** A stored scheme this build knows, or Memphis. */
 export function normalizePalette(palette: unknown): Palette {
