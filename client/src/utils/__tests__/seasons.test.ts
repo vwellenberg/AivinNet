@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The settings store reads the requests, the router, the player and device
 // sync. None of that matters for the season logic, so they are stubbed as in
@@ -15,13 +15,18 @@ vi.mock('@/router', () => ({ router: { currentRoute: { value: { name: 'other' } 
 import useSettings from '@/stores/settings'
 import appearance from '@/settings/general/theme'
 import { PALETTES } from '@/utils/theme'
-import { activeSeason, paintedPalette, seasonOn } from '@/utils/seasons'
+import { activeSeason, paintedPalette, seasonOn, seasonPreview, setSeasonPreview } from '@/utils/seasons'
 
 // Local wall-clock dates. Month is 0-based in the Date constructor.
 const at = (y: number, m: number, d: number, h = 12, min = 0, s = 0, ms = 0) => new Date(y, m, d, h, min, s, ms)
 const OCT = 9
 const NOV = 10
 const DEC = 11
+
+// The preview is module state: it must not leak from one case into the next.
+afterEach(() => {
+    setSeasonPreview(null)
+})
 
 describe('seasonOn: the calendar dates (local time)', () => {
     it('Oct 23 and Nov 1 are no season, Oct 24 to 31 are Halloween', () => {
@@ -148,6 +153,79 @@ describe('the store: the switch and the stored scheme', () => {
         expect(row).toBeDefined()
         expect(row?.inactive?.()).toBe(false)
 
+        settings.setLook('stream')
+        expect(row?.inactive?.()).toBe(true)
+    })
+})
+
+describe('the preview: a season forced for this tab, in place of the date', () => {
+    const PLAIN = at(2026, NOV, 1)
+
+    it('starts with no preview, so the date decides', () => {
+        expect(seasonPreview.value).toBeNull()
+        expect(activeSeason(PLAIN, 'memphis', true)).toBeNull()
+    })
+
+    it('beats the date, both ways: a season on a plain day, and the other season on its own day', () => {
+        setSeasonPreview('christmas')
+        expect(activeSeason(PLAIN, 'memphis', true)).toBe('christmas')
+        expect(activeSeason(at(2026, OCT, 31), 'memphis', true)).toBe('christmas')
+    })
+
+    it('does not wait for the seasonal switch: the preview is the explicit request', () => {
+        setSeasonPreview('halloween')
+        expect(activeSeason(PLAIN, 'memphis', false)).toBe('halloween')
+    })
+
+    it('resets to null, and the date decides again', () => {
+        setSeasonPreview('halloween')
+        setSeasonPreview(null)
+        expect(seasonPreview.value).toBeNull()
+        expect(activeSeason(PLAIN, 'memphis', true)).toBeNull()
+        expect(activeSeason(at(2026, DEC, 25), 'memphis', true)).toBe('christmas')
+    })
+
+    it('still requires the Memphis look', () => {
+        setSeasonPreview('halloween')
+        expect(activeSeason(PLAIN, 'stream', true)).toBeNull()
+    })
+
+    it('drives the palette, so a Halloween preview paints the Halloween scheme over the stored one', () => {
+        setSeasonPreview('halloween')
+        const painted = paintedPalette('lagune', activeSeason(PLAIN, 'memphis', true))
+        expect(painted).toBe('halloween')
+    })
+
+    it('never touches the stored scheme', () => {
+        const settings = useSettings()
+        settings.setPalette('terrakotta')
+        setSeasonPreview('halloween')
+        expect(settings.palette).toBe('terrakotta')
+    })
+
+    it('the Settings row is a select that sets and clears the preview', () => {
+        setActivePinia(createPinia())
+        const settings = useSettings()
+        const row = appearance.find((s) => s.title === 'Preview season')
+        expect(row).toBeDefined()
+        expect(row?.options?.map((o) => o.value)).toEqual(['off', 'halloween', 'christmas'])
+        expect(row?.state?.()).toBe('off')
+
+        row?.action('christmas')
+        expect(seasonPreview.value).toBe('christmas')
+        expect(row?.state?.()).toBe('christmas')
+        expect(activeSeason(PLAIN, settings.look, settings.use_seasonal_schemes)).toBe('christmas')
+
+        row?.action('off')
+        expect(seasonPreview.value).toBeNull()
+        expect(row?.state?.()).toBe('off')
+    })
+
+    it('the preview row is inactive under Boring, like its neighbours', () => {
+        setActivePinia(createPinia())
+        const settings = useSettings()
+        const row = appearance.find((s) => s.title === 'Preview season')
+        expect(row?.inactive?.()).toBe(false)
         settings.setLook('stream')
         expect(row?.inactive?.()).toBe(true)
     })

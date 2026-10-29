@@ -4,6 +4,7 @@ import { Setting } from '@/interfaces/settings'
 import useSettingsStore from '@/stores/settings'
 import { availableTimeZones, deviceTimeZone, DEVICE_TIME_ZONE, formatHour } from '@/utils/autoTheme'
 import { lookHasModes, lookHasPalettes, type Look, type Palette } from '@/utils/theme'
+import { seasonPreview, setSeasonPreview, type Season } from '@/utils/seasons'
 
 const settings = useSettingsStore
 
@@ -57,6 +58,24 @@ const seasonal: Setting = {
     type: SettingType.binary,
     state: () => settings().use_seasonal_schemes,
     action: () => settings().toggleSeasonalSchemes(),
+    inactive: () => !lookHasPalettes(settings().look),
+}
+
+/**
+ * The PREVIEW: shows a season now, whatever the date. This tab only: it is not
+ * stored, and a reload clears it. Off follows the calendar again.
+ */
+const seasonPreviewRow: Setting = {
+    title: 'Preview season',
+    desc: 'Memphis only: look at a season now, whatever the date. Lasts until you reload. Off follows the date.',
+    type: SettingType.select,
+    options: [
+        { title: 'Off', value: 'off' },
+        { title: 'Halloween', value: 'halloween' },
+        { title: 'Christmas', value: 'christmas' },
+    ],
+    state: () => seasonPreview.value ?? 'off',
+    action: (value: 'off' | Season) => setSeasonPreview(value === 'off' ? null : value),
     inactive: () => !lookHasPalettes(settings().look),
 }
 
@@ -159,4 +178,4 @@ const auto_theme_dark_from: Setting = {
     inactive: autoInactive,
 }
 
-export default [look, palette, seasonal, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
+export default [look, palette, seasonal, seasonPreviewRow, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
