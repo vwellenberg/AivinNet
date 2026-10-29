@@ -7,9 +7,20 @@
  * (utils/theme.ts) is never written here, so it comes back the next day, and
  * the switch in Settings → Appearance turns the whole overlay off.
  */
+import { ref } from 'vue'
 import { lookHasPalettes, type Look, type Palette } from './theme'
 
 export type Season = 'halloween' | 'christmas'
+
+/**
+ * The season Settings → Appearance forces for this tab, in place of the date.
+ * Never stored: a reload clears it, and the stored scheme is not touched.
+ */
+export const seasonPreview = ref<Season | null>(null)
+
+export function setSeasonPreview(season: Season | null): void {
+    seasonPreview.value = season
+}
 
 /**
  * The palette a season paints. Christmas keeps the chosen scheme and only
@@ -28,10 +39,13 @@ export function seasonOn(now: Date = new Date()): Season | null {
 
 /**
  * The season that paints the app now, or null. Only the Memphis look wears
- * one, as it does a colour scheme, and only while the switch is on.
+ * one, as it does a colour scheme. A preview stands in for the date and does
+ * not wait for the switch: choosing a season there is the explicit request.
  */
 export function activeSeason(now: Date, look: Look, enabled: boolean): Season | null {
-    return enabled && lookHasPalettes(look) ? seasonOn(now) : null
+    if (!lookHasPalettes(look)) return null
+    if (seasonPreview.value) return seasonPreview.value
+    return enabled ? seasonOn(now) : null
 }
 
 /** The scheme to paint: the season's own, or the stored choice. */
