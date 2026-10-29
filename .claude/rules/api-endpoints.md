@@ -328,3 +328,12 @@ weiter, bis der nächste Play neu rechnet.
 ⚠️ Die Quote ist eine **Untergrenze**: `log_track` verwirft Plays unter 5 s, die schnellsten
 Skips stehen gar nicht in der Datenbank. Der Client schreibt das in die Kachel; wer die Zahl
 anders darstellt, behält den Hinweis.
+
+## Bibliotheks-Kacheln: Cache am Store-Generation-Zähler (#536)
+
+`GET /logger/library` (Anteil gehört, Länge am Stück, Formate, Bitrate, Hi-Res) rechnet aus dem
+RAM-Store, ohne Zeitraum. Die Bibliothekswerte liegen einmal pro Bibliothek im Cache, gekeyt auf
+`TrackStore.generation`; der Anteil pro User gekeyt auf dieselbe Generation plus `change_marker`.
+Wer eine Stelle baut, die den Store ändert, muss `generation` **nach** der Änderung erhöhen (Swap in
+`load_all_tracks`, `add_track`, `remove_track`, `remove_tracks_by_filepaths`). Sonst liefert der Cache
+bis zum nächsten Play bzw. Scan veraltete Zahlen, ohne dass ein Test rot wird.

@@ -89,6 +89,12 @@ class TrackStore:
     # none of the many places that mutate the store has to keep it in step.
     _by_filepath: dict[str, list[Track]] = dict()
 
+    # Bumped by every change to the library (a swap, an add, a removal), so a
+    # cache of library-wide numbers knows when to rebuild (the stats tiles, #536).
+    # Bumped AFTER the change: a reader takes the number first and the tracks
+    # second, so a change in between can only make the cache rebuild again.
+    generation: int = 0
+
     @classproperty
     def tracks(cls) -> list[Track]:
         return cls.get_flat_list()
@@ -131,6 +137,7 @@ class TrackStore:
                 trackhashmap[track.trackhash].append(track)
 
         cls.trackhashmap = trackhashmap
+        cls.generation += 1
         print("Done!")
 
     @classmethod
@@ -141,9 +148,11 @@ class TrackStore:
         group = cls.trackhashmap.get(track.trackhash, None)
 
         if group:
-            return group.append(track)
+            group.append(track)
+        else:
+            cls.trackhashmap[track.trackhash] = TrackGroup([track])
 
-        cls.trackhashmap[track.trackhash] = TrackGroup([track])
+        cls.generation += 1
 
     @classmethod
     def add_tracks(cls, tracks: list[Track]):
@@ -166,6 +175,8 @@ class TrackStore:
 
             if len(group) == 0:
                 del cls.trackhashmap[track.trackhash]
+
+            cls.generation += 1
 
     @classmethod
     def remove_track_by_filepath(cls, filepath: str):
@@ -197,6 +208,7 @@ class TrackStore:
                         del cls.trackhashmap[trackhash]
 
                     filecount -= 1
+                    cls.generation += 1
 
                 if filecount == 0:
                     break

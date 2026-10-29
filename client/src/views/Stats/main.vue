@@ -14,6 +14,8 @@
         <ListeningClock :period="normalizeStatsPeriod(settings.statsperiod)" />
         <!-- How often the tracks were skipped (#537), over the same period. -->
         <SkipRate :period="normalizeStatsPeriod(settings.statsperiod)" />
+        <!-- What of the library the user has explored, and what it is made of (#536). -->
+        <LibraryTiles />
         <ListeningCalendar :rewind-years="rewind?.years ?? []" />
         <!-- The records of the whole history (#540): not tied to the period. -->
         <RecordsBoard />
@@ -33,6 +35,7 @@ import ListeningClock from '@/components/Stats/ListeningClock.vue'
 import RecordsBoard from '@/components/Stats/RecordsBoard.vue'
 import RewindLink from '@/components/Stats/RewindLink.vue'
 import SkipRate from '@/components/Stats/SkipRate.vue'
+import LibraryTiles from '@/components/Stats/LibraryTiles.vue'
 import useRewindYears from '@/composables/useRewindYears'
 import Stats from '@/components/Stats/Stats.vue'
 import useSettings from '@/stores/settings'
