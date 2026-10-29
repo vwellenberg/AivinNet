@@ -1,5 +1,5 @@
 onmessage = (e) => {
-  const { trackhash, duration, source, timestamp } = e.data;
+  const { trackhash, duration, source, timestamp, deviceId } = e.data;
 
   const is_dev = location.port === "5173";
   const protocol = location.protocol.replace(':', '');
@@ -11,7 +11,8 @@ onmessage = (e) => {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ trackhash, duration, source, timestamp }),
+    // #541: the device that played it (its registry id). Omitted when unknown.
+    body: JSON.stringify({ trackhash, duration, source, timestamp, device_id: deviceId }),
     credentials: "include"
   })
     .then((res) => (res.ok ? res.json() : null))

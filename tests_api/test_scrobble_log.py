@@ -247,3 +247,53 @@ def test_a_source_longer_than_any_path_is_refused(logger):
 
     assert res.status_code == 422
     assert scrobbles(logger.api) == []
+
+
+# #541: which device played. The id rides in `extra`, beside the track's tags.
+DEVICE = "2f6c1f0e-7a1b-4c1d-9e2a-000000000001"  # 36 chars, a client UUID
+
+
+def test_the_device_that_played_is_stored_beside_the_track_tags(logger, monkeypatch):
+    import aivinnet.api.scrobble as scrobble_api
+
+    monkeypatch.setattr(scrobble_api, "get_extra_info", lambda *_: {"title": "Blue"})
+
+    assert log(logger.api, device_id=DEVICE).status_code == 201
+
+    (entry,) = scrobbles(logger.api)
+    assert entry.extra == {"title": "Blue", "device_id": DEVICE}
+
+
+def test_a_play_without_a_device_id_records_no_device(logger):
+    # The client without an id, and every client before #541, send no field at all.
+    assert log(logger.api).status_code == 201
+    assert log(logger.api, device_id=None, timestamp=TIMESTAMP + 1).status_code == 201
+
+    first, second = scrobbles(logger.api)
+    assert "device_id" not in first.extra
+    assert "device_id" not in second.extra
+
+
+def test_an_empty_device_id_counts_as_none_and_does_not_refuse_the_play(logger):
+    assert log(logger.api, device_id="").status_code == 201
+
+    (entry,) = scrobbles(logger.api)
+    assert "device_id" not in entry.extra
+
+
+def test_an_unknown_device_id_is_stored_as_given(logger):
+    # Not in this account's registry (a device since deleted, or another install):
+    # the stats name it "other device"; the scrobble itself is kept.
+    assert log(logger.api, device_id="deleted-device").status_code == 201
+
+    (entry,) = scrobbles(logger.api)
+    assert entry.extra["device_id"] == "deleted-device"
+
+
+def test_an_overlong_device_id_is_refused_and_writes_nothing(logger):
+    # Stored with every play, and any account can post one (#297): bounded like the registry.
+    res = log(logger.api, device_id="d" * 65)
+
+    assert res.status_code == 422
+    assert scrobbles(logger.api) == []
+    assert logger.track.playcount == 0

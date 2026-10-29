@@ -7,6 +7,7 @@ import { audioSource } from "./player";
 import { FromOptions } from "@/enums";
 import useTracklist, { From } from "@/stores/queue/tracklist";
 import { celebrateMilestone, type Milestone } from "@/utils/milestones";
+import { getOrCreateDeviceId } from "@/utils/deviceSync/deviceId";
 
 let enableCall = true;
 let throttleTimeout: number = 1000;
@@ -65,7 +66,10 @@ export function sendLogData(
     worker.onmessage = (e: MessageEvent<Milestone>) => celebrateMilestone(e.data);
 
     const source = getSource(from);
-    worker.postMessage({ trackhash, duration: seconds, source, timestamp });
+    // #541: the same id the device-sync registry knows this browser by. In a group only
+    // the scrobble leader gets here, so the play is attributed to the leader's device.
+    const deviceId = getOrCreateDeviceId();
+    worker.postMessage({ trackhash, duration: seconds, source, timestamp, deviceId });
   }
 }
 

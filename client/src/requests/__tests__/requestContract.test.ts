@@ -256,6 +256,7 @@ const CALLS: Record<string, unknown[]> = {
     'stats/getSkipRate': ['month'],
     'stats/getRewind': [2025],
     'stats/getDiscoveries': ['month'],
+    'stats/getListeningDevices': ['month'],
     'stats/getRecords': [],
     'stats/getRewindYears': [],
     'stats/markRewindSeen': [2025],
@@ -446,9 +447,10 @@ describe('the scrobble worker', () => {
 
     const path = source.match(/url\s*=\s*base_url\s*\+\s*"([^"]+)"/)?.[1]
     const method = source.match(/method:\s*"(\w+)"/)?.[1]
+    // A field is `name` or `wire: variable` (the device id goes out as `device_id`, #541).
     const fields = (source.match(/JSON\.stringify\(\{([^}]*)\}\)/)?.[1] ?? '')
         .split(',')
-        .map(field => field.trim())
+        .map(field => field.split(':')[0].trim())
         .filter(Boolean)
 
     it('reads the worker (guards this parser)', () => {

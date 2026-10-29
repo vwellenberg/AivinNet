@@ -154,3 +154,29 @@ export async function getDiscoveries(period: string) {
         method: 'GET',
     })
 }
+
+/**
+ * Listening per device (#541): each device's share of the time listened over
+ * the period. `kind` is "device" (named from the registry), "other" (a device
+ * since deleted) or "none" (plays from before devices were recorded).
+ */
+export interface DeviceRow {
+    device_id: string | null
+    name: string
+    kind: 'device' | 'other' | 'none'
+    seconds: number
+    share: number
+}
+
+export interface DevicesPayload {
+    total: number
+    devices: DeviceRow[]
+    dates: string
+}
+
+export async function getListeningDevices(period: string) {
+    return await useAxios({
+        url: paths.api.stats.base + `/devices?period=${encodeURIComponent(period)}`,
+        method: 'GET',
+    })
+}
