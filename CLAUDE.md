@@ -177,11 +177,17 @@ git fetch --prune && git branch -D <branch>
 - **Dependabot** (`.github/dependabot.yml`) öffnet jede Woche PRs für Actions, `uv.lock`,
   `client/yarn.lock` und `mcp_server/requirements.txt`: Minor/Patch als ein Sammel-PR pro
   Ökosystem, Majors einzeln, 7 Tage Cooldown. Sicherheits-PRs kommen sofort und einzeln.
-  ⚠️ **GitHubs Alerts lesen die Versionsbereiche, nicht den Lock:** `pillow>=11.1.0` in
-  `pyproject.toml` hielt 43 Alerts offen, obwohl `uv.lock` längst Pillow 13 hatte. Deshalb hebt
-  Dependabot die Untergrenzen mit (`versioning-strategy: increase`), und `pip-audit` gehört auch
-  gegen die Untergrenzen, nicht nur gegen den Lock — sonst meldet das Audit „sauber" und GitHub
-  rot. ⚠️ Diese PRs mergen **nicht** von selbst — `--auto` setzt nur, wer es einschaltet.
+  **Was GitHub für die Alerts sieht, zeigt die SBOM** (`gh api
+  repos/vwellenberg/AivinNet/dependency-graph/sbom`; die Alert-API selbst gibt Cloud-Sessions
+  403): `uv.lock` und `client/yarn.lock` löst sie **exakt** auf (2026-10-29: `pillow` 13.0.0),
+  nur `mcp_server/requirements.txt` ohne Lock steht dort als Bereich ohne Version. ⚠️ Hier stand
+  bis dahin „GitHub liest die Bereiche, nicht den Lock" — eine Vermutung aus #594, die die SBOM
+  widerlegt; warum am 2026-10-24 trotzdem 43 Alerts offen waren, ist nicht belegt (am selben Tag
+  kamen auch die Client-Fixe aus #592). Audit also auf **jedes** Manifest: `uv.lock`,
+  `client/yarn.lock` **und** `mcp_server/requirements.txt` — Letzteres hatte vor #594 niemand
+  geprüft. Die Untergrenzen hebt Dependabot trotzdem mit (`versioning-strategy: increase`),
+  damit `pyproject.toml` nicht hinter dem Lock zurückbleibt. ⚠️ Diese PRs mergen **nicht** von
+  selbst — `--auto` setzt nur, wer es einschaltet.
   Bis 2026-10-23 stand dort nur `github-actions`: Für Bibliotheken gab es Alerts, aber nie einen
   PR, und Pillow lag 35 Advisories zurück (#573).
 - **Vendored Code:** `src/aivinnet/lib/pydub/` ist Third-Party, von Linting/Mypy ausgeschlossen — und

@@ -538,10 +538,10 @@ class TestPinnedBuildInputs:
         assert (REPO_ROOT / "mcp_server" / "requirements.txt").is_file()
 
     def test_dependabot_moves_the_backend_floors(self):
-        """GitHub raises its alerts from the ranges in pyproject.toml, not from uv.lock.
+        """The floors in pyproject.toml follow uv.lock.
 
-        With `lockfile-only` the floors stayed behind (`pillow>=11.1.0`) and 43
-        alerts stood open while every locked version was already fixed.
+        With `lockfile-only` they stayed behind (`pillow>=11.1.0` while the lock
+        had 13.0.0), so the declared ranges admitted versions with known holes.
         """
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         uv_entry = config.split("- package-ecosystem: uv", 1)[1].split("- package-ecosystem:", 1)[0]

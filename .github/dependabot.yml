@@ -23,10 +23,10 @@ updates:
     commit-message:
       prefix: ci
 
-  # Backend. `increase`: the floors in pyproject.toml move with uv.lock. GitHub
-  # raises its security alerts from those ranges, not from the lock: with
-  # `lockfile-only` the floors stayed at pillow>=11.1.0 and friends, and 43
-  # alerts stood open while every installed version was already fixed.
+  # Backend. `increase`: the floors in pyproject.toml move with uv.lock, so the
+  # declared ranges never admit a version the lock has long left behind (they
+  # stood at pillow>=11.1.0 while uv.lock had 13.0.0). GitHub's alerts resolve
+  # uv.lock exactly (see its SBOM); the floors are about honesty, not alerts.
   - package-ecosystem: uv
     directory: /
     schedule:
