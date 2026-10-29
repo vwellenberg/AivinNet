@@ -14,6 +14,12 @@ onmessage = (e) => {
     body: JSON.stringify({ trackhash, duration, source, timestamp }),
     credentials: "include"
   })
+    .then((res) => (res.ok ? res.json() : null))
+    // Only a milestone play (#545) is passed on: the page celebrates it. The
+    // rest of the answer is not used.
+    .then((body) => {
+      if (body && body.milestone) postMessage(body.milestone);
+    })
     .catch(() => {})
     // A dedicated worker lives until it closes itself or the page goes away.
     // One is started per play, so a long session piled up hundreds of idle

@@ -266,6 +266,7 @@
       "required": []
     }
   },
+  "GET /logger/records": {},
   "GET /logger/rewind": {
     "query": {
       "allowed": [

@@ -96,9 +96,11 @@ def test_for_this_time_runs_on_the_hour(crons, monkeypatch):
     crons.start_cron_jobs()
     time.sleep(0.3)
 
+    # The records board runs on the hour too (#540): pick this routine's job out by the class it wraps.
     on_the_hour = [j for j in crons.schedule.jobs if j.unit == "hours" and j.at_time is not None]
-    assert len(on_the_hour) == 1
-    assert on_the_hour[0].at_time.minute == 0
+    ours = [j for j in on_the_hour if any(cell.cell_contents is stand_in for cell in j.job_func.func.__closure__ or ())]
+    assert len(ours) == 1
+    assert ours[0].at_time.minute == 0
 
 
 def test_an_edit_that_leaves_the_old_hash_to_another_file_carries_no_favourites(monkeypatch):

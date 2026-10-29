@@ -23,13 +23,19 @@ vi.mock('@/stores/queue', () => ({ default: () => queueMock }))
 vi.mock('@/stores/queue/tracklist', () => ({ default: () => tracklistMock }))
 // player.ts builds real <audio> elements at import — stub it.
 vi.mock('@/stores/player', () => ({ audioSource: audioSourceMock }))
+const { celebrateMilestone } = vi.hoisted(() => ({ celebrateMilestone: vi.fn() }))
+vi.mock('@/utils/milestones', () => ({ celebrateMilestone }))
 
 import useTracker, { sendLogData } from '@/stores/tracker'
 
 /** Stands in for the Worker behind sendLogData; records what would be POSTed. */
 const posted: any[] = []
 class FakeWorker {
-    constructor(public url: string) {}
+    static last: FakeWorker | undefined
+    onmessage: ((e: { data: any }) => void) | null = null
+    constructor(public url: string) {
+        FakeWorker.last = this
+    }
     postMessage(data: any) {
         posted.push({ url: this.url, ...data })
     }
@@ -111,6 +117,16 @@ describe('sendLogData — the wire format the backend parses', () => {
 
         sendLogData('t1', 4500, ALBUM as any, 1) // rounds to 5: accepted
         expect(posted).toHaveLength(1)
+    })
+
+    it('celebrates a milestone play the worker passes back (#545)', () => {
+        celebrateMilestone.mockClear()
+        sendLogData('t1', 60_000, ALBUM as any, 1)
+
+        const milestone = { number: 1000, track: 'Blue' }
+        FakeWorker.last?.onmessage?.({ data: milestone })
+
+        expect(celebrateMilestone).toHaveBeenCalledWith(milestone)
     })
 
     it('does nothing (and does not throw) without Worker support', () => {

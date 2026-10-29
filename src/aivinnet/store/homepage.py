@@ -3,6 +3,7 @@ from aivinnet.lib import first_play_cache
 from aivinnet.lib.home.discover import NEVER_CHIP_MIN
 from aivinnet.lib.home.layout import COLLECTIONS, Layout, make_layout
 from aivinnet.lib.pagelib import recover_page_items
+from aivinnet.lib.recipes import records
 from aivinnet.models.user import HOME_LAYOUT_KEY
 from aivinnet.store.homepageentries import (
     ChipsEntry,
@@ -133,6 +134,7 @@ class HomepageStore:
         """
         cls.layouts.pop(userid, None)
         first_play_cache.forget(userid)
+        records.forget(userid)
 
     @classmethod
     def add_new_user(cls, userid: int):
