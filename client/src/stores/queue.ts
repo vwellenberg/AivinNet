@@ -473,7 +473,7 @@ export default defineStore('Queue', {
         },
     },
     persist: {
-        afterRestore: context => {
+        afterHydrate: context => {
             let store = context.store
             store.duration.current = 0
             store.playing = false

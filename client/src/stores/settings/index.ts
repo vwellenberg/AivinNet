@@ -510,7 +510,7 @@ export default defineStore('settings', {
         },
     },
     persist: {
-        afterRestore: context => {
+        afterHydrate: context => {
             let store = context.store
             store.root_dirs = []
             store.root_dir_set = false
