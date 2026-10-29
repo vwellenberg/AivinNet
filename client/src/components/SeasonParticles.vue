@@ -94,6 +94,8 @@ function varsOf(p: Particle): Record<string, string> {
     height: var(--season-size);
     background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><path fill="none" stroke="%23FFFFFF" stroke-width="1.6" stroke-linecap="round" d="M9 1V17M1.5 5L16.5 13M1.5 13L16.5 5"/></svg>') center / contain no-repeat;
     opacity: 0.9;
+    // White alone vanishes on the light paper; a soft dark rim keeps it on both modes.
+    filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.45));
     animation: season-snow var(--season-dur) linear var(--season-delay) infinite backwards;
 }
 
