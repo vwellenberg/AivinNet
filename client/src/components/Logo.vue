@@ -1,15 +1,97 @@
 <template>
-  <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home">
+  <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home" @click="onClick">
     <div class="logo-orbit-wrapper">
       <img src="@/assets/icons/logos/logo-subspaceradio.png" alt="AivinNet" class="logo-img" />
       <span class="logo-orbit" aria-hidden="true">
         <i class="logo-orbit-spin"><i class="logo-moon"></i></i>
       </span>
+      <span v-if="flying" class="logo-satellite" aria-hidden="true"></span>
     </div>
   </router-link>
 </template>
 
 <script setup lang="ts">
+// Easter egg (#544): seven fast clicks send a pixel satellite once round the
+// orbit. The click itself is only observed here — RouterLink still navigates.
+import { onUnmounted, ref } from 'vue'
+
+import { useToast } from '@/stores/notification'
+
+const CLICKS_NEEDED = 7
+const CLICK_WINDOW_MS = 2000
+/** One lap. Must match the `logo-satellite-lap` duration in the stylesheet below. */
+const LAP_MS = 2400
+
+const toast = useToast()
+const flying = ref(false)
+let clicks: number[] = []
+let lapTimer: ReturnType<typeof setTimeout> | null = null
+
+function prefersLessMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function onClick() {
+  const now = Date.now()
+  clicks = [...clicks, now].slice(-CLICKS_NEEDED)
+  if (clicks.length < CLICKS_NEEDED || now - clicks[0] > CLICK_WINDOW_MS) return
+  clicks = []
+  launchSatellite()
+}
+
+function launchSatellite() {
+  if (prefersLessMotion()) {
+    // No motion, but the easter egg still answers: a line instead of a lap.
+    toast.showNotification('📡 Signal received')
+    return
+  }
+  if (flying.value) return
+  flying.value = true
+  playRadioHiss()
+  lapTimer = setTimeout(() => {
+    flying.value = false
+    lapTimer = null
+  }, LAP_MS)
+}
+
+/**
+ * A short, quiet burst of radio hiss, generated with Web Audio (#544). Best
+ * effort: without an AudioContext the satellite flies silently.
+ */
+function playRadioHiss(seconds = 1.2, volume = 0.04) {
+  try {
+    const Ctx = window.AudioContext ?? (window as any).webkitAudioContext
+    if (!Ctx) return
+    const ctx: AudioContext = new Ctx()
+    const rate = ctx.sampleRate
+    const frames = Math.floor(rate * seconds)
+    const buffer = ctx.createBuffer(1, frames, rate)
+    const data = buffer.getChannelData(0)
+    const fadeIn = rate * 0.05
+    const fadeOut = rate * 0.3
+    for (let i = 0; i < frames; i++) {
+      const env = Math.min(1, i / fadeIn, (frames - i) / fadeOut)
+      data[i] = (Math.random() * 2 - 1) * env
+    }
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    const band = ctx.createBiquadFilter()
+    band.type = 'bandpass'
+    band.frequency.value = 2200
+    band.Q.value = 0.8
+    const gain = ctx.createGain()
+    gain.gain.value = volume
+    source.connect(band).connect(gain).connect(ctx.destination)
+    source.onended = () => void ctx.close()
+    source.start()
+  } catch {
+    // No audio is not an error: the satellite still flies.
+  }
+}
+
+onUnmounted(() => {
+  if (lapTimer) clearTimeout(lapTimer)
+})
 </script>
 
 <style lang="scss">
@@ -171,6 +253,47 @@
 @keyframes logo-orbit-turn {
   to {
     transform: rotate(360deg);
+  }
+}
+
+// The satellite (#544): the ring-sized box turns once, the craft rides its top
+// edge exactly where the moon sits on the orbit. Transform and opacity only, and
+// it is removed by the script when the lap is over.
+.logo-satellite {
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  animation: logo-satellite-lap 2.4s linear forwards;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    margin-left: -3px;
+    width: 6px;
+    height: 6px;
+    background-color: $mem-teal;
+    border: $mem-hairline;
+  }
+}
+
+// Fades in on the way round and out just before it returns to the start, so the
+// craft is never seen to snap back.
+@keyframes logo-satellite-lap {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+
+  8%,
+  92% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(360deg);
+    opacity: 0;
   }
 }
 
