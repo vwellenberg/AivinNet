@@ -66,6 +66,18 @@ class TrackTable(Base):
             session.execute(update(cls).where(cls.added.is_(None)).values(added=cls.last_mod))
 
     @classmethod
+    def set_extras(cls, values: dict[int, dict[str, Any]]) -> None:
+        """Replace `extra` by row id, in one transaction. A row deleted meanwhile is skipped."""
+        if not values:
+            return
+        with DbEngine.manager(commit=True) as session:
+            table = cls.__table__
+            session.connection().execute(
+                update(table).where(table.c.id == bindparam("rowid")).values(extra=bindparam("value")),
+                [{"rowid": rowid, "value": extra} for rowid, extra in values.items()],
+            )
+
+    @classmethod
     def get_all(cls):
         with DbEngine.manager() as conn:
             config = UserConfig()

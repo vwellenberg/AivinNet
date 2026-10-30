@@ -7,6 +7,7 @@ from dataclasses import asdict
 from time import time
 
 from aivinnet.config import UserConfig
+from aivinnet.lib import replaygain
 from aivinnet.lib.artist_image import user_set_dir
 from aivinnet.lib.backups import adopt_container_backups
 from aivinnet.lib.date_added import backfill_added
@@ -73,3 +74,5 @@ def load_into_mem():
     map_favorites()
     map_artist_colors()
     map_album_colors()
+    # Reads files, so in the background and only for rows never read (#643).
+    replaygain.start_backfill()

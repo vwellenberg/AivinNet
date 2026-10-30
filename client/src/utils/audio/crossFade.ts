@@ -40,20 +40,25 @@ export function cancelFade(audio: HTMLAudioElement) {
  * @param duration - The duration of the cross-fade in milliseconds. Default is 1000ms.
  * @param start_volume - The starting volume of the audio. Default is 0.
  * @param then_destroy - Specifies whether to destroy the audio element after the cross-fade ends. Default is false.
+ * @param target - The full volume of this element: the fade-in ends there, the fade-out starts there. Default is the volume setting; the player passes the element's own (with duck and ReplayGain, #643).
  */
 export function crossFade({
   audio,
   duration = 1000,
   start_volume = 0,
   then_destroy = false,
+  target,
 }: {
   audio: HTMLAudioElement;
   duration?: number;
   start_volume?: number;
   then_destroy?: boolean;
+  target?: number;
 }) {
   let interval: any = null;
-  const { volume, use_crossfade } = useSettings();
+  const settings = useSettings();
+  const use_crossfade = settings.use_crossfade;
+  const volume = target ?? settings.volume;
 
   // ⚠️ One fade per element. With two elements taking turns, a quick second
   // skip hands the element still fading OUT (and due to be released at the
