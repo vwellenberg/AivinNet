@@ -19,8 +19,9 @@ import {
     fromSearch,
     Track,
 } from '@/interfaces'
+import { confirmWithoutUndo, offerQueueUndo, trackKey, undoAvailable } from '@/helpers/queueUndo'
 import { resolveQueueMove } from '@/utils/queueMove'
-import { shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
+import { shiftAfterInsert, shiftAfterRemove, successorOnRemove } from '@/utils/shuffleIndexes'
 
 export type From =
     | fromFolder
@@ -260,8 +261,18 @@ export default defineStore('tracklist', {
         clearList() {
             this.tracklist = []
             this.from = {} as From
+
+            // The shuffle indexes named rows of the list that is gone. Dropping
+            // them here (as setNewList does) keeps a later restore from shifting
+            // stale numbers into place.
+            const queue = useQueue()
+            queue.shuffleRecent = []
+            queue.shuffleNextIndex = null
         },
         removeByIndex(index: number) {
+            // Kept for the toast (#644), taken before anything is spliced.
+            const removed = this.tracklist[index]
+
             // Group mode: same seam as insertAt. A local splice would leave the
             // server queue untouched, so its queue_id never changes, nothing
             // re-mirrors — and the mirrored currentindex then points at the
@@ -269,6 +280,8 @@ export default defineStore('tracklist', {
             const ds = useDeviceSync()
             if (ds.joined && !ds.applying) {
                 ds.intercept('removeTracks', index)
+                // Confirmed, but no Undo: the change is a broadcast (undoAvailable).
+                if (removed) confirmWithoutUndo(`Removed “${removed.title}”`)
                 return
             }
 
@@ -277,7 +290,17 @@ export default defineStore('tracklist', {
             const player = usePlayer()
 
             if (this.tracklist.length == 1) {
-                return this.clearList()
+                const from = this.from
+                this.clearList()
+                if (removed && undoAvailable()) {
+                    offerQueueUndo({
+                        text: `Removed “${removed.title}”`,
+                        after: trackKey(this.tracklist),
+                        read: () => trackKey(this.tracklist),
+                        restore: () => this.restoreCleared([removed], from, currentindex),
+                    })
+                }
+                return
             }
 
             // Same reasoning as insertAt: read the track, not the index. Taken
@@ -345,6 +368,47 @@ export default defineStore('tracklist', {
             if (this.tracklist[queue.nextindex] !== nextBefore) {
                 player.clearNextAudio()
             }
+
+            if (removed && undoAvailable()) {
+                offerQueueUndo({
+                    text: `Removed “${removed.title}”`,
+                    after: trackKey(this.tracklist),
+                    read: () => trackKey(this.tracklist),
+                    restore: () => this.restoreRemoved(removed, index),
+                })
+            }
+        },
+        /**
+         * Undo of `removeByIndex` (#644): the row goes back into its slot.
+         *
+         * `insertAt` does the splice and the shuffle shift. The playing track
+         * keeps playing — only its index moves, to where it sits in the restored
+         * list (the same arithmetic as the insert itself). Nothing is loaded or
+         * started here.
+         */
+        restoreRemoved(track: Track, index: number) {
+            const queue = useQueue()
+            const playingIndex = queue.currentindex
+
+            this.insertAt([track], index)
+            queue.setCurrentIndex(shiftAfterInsert(playingIndex, index, 1))
+        },
+        /**
+         * Undo of a clear (#644, and of removing the last row): the whole list
+         * comes back, with its source and the index that was playing. The clear
+         * never stopped the audio, so the index is the same track again.
+         *
+         * Shuffle is re-rolled, not restored: the pre-clear targets were cleared
+         * with the list (`clearList`) and nothing in the restored list can be
+         * pointed at without guessing.
+         */
+        restoreCleared(tracks: Track[], from: From, currentindex: number) {
+            this.insertAt(tracks, 0)
+            this.from = from
+
+            const queue = useQueue()
+            queue.setCurrentIndex(currentindex)
+            queue.rollShuffleNext()
         },
         // Apply a favourite flip to every copy of the track in the queue. By
         // hash and idempotent by value — see helpers/favoriteHandler.ts, the
