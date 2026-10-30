@@ -176,6 +176,13 @@ Track-Wechsel gehört an `moveForward()` genauso wie an `play()`** — und was e
 („next ist nie der laufende Track"), wird zusätzlich im Getter abgesichert, weil der
 Gruppen-Mirror `currentindex` bewusst direkt schreibt.
 
+**Ein Stopp am Trackwechsel (Sleep-Timer „Ende des Songs/Albums“, #641)** hängt an derselben
+Stelle: `useSleepTimer().takeStopAt(current, next)` in `moveLoadedForward()` und `onAudioEnded`
+(Gruppe: `bookNextTrack` / `onTrackEnded`). Der nächste Track wird eingereiht, aber **nicht**
+gestartet, danach `queue.playPause()`. Die Reihenfolge ist der Punkt: pausiert man, während das
+`play()`-Promise noch läuft, meldet der Player einen AbortError-Toast. Und `playPause()` auf einer
+**pausierten** Queue startet sie — deshalb in `moveLoadedForward` nur `if (stop && queue.playing)`.
+
 ## ⚠️ Scrubbing braucht einen eigenen Drag-State
 
 Der Range-Input ist an den Playhead gebunden, der mehrmals pro Sekunde tickt — ohne lokalen
