@@ -347,6 +347,14 @@ sichtbar als `Cannot read properties of undefined (reading 'image')`.
 Zahlen aus `extra` immer über
 `utils/parsers.py::tag_int()` lesen; Vorbilder für Strings: `Track.explicit`, `Lyrics.__init__`.
 
+**ReplayGain liest der Client aus `extra`** (#643, `client/src/utils/replayGain.ts`):
+`replaygain_track_gain`/`_album_gain` („-6.54 dB“) und Opus' `r128_track_gain` (1/256 dB bei
+−23 LUFS). Weil der Scan eine Datei nur bei geänderter mtime neu liest, fehlten sie allen Zeilen
+von vor tinytag 2. `lib/replaygain.py::backfill` liest jede solche Datei **einmal** im Hintergrund
+nach (nach `load_into_mem`, Stopp über `WRITERS`) und markiert jede gelesene Zeile mit
+`replaygain_read`, mit oder ohne Fund; neue Zeilen markiert der Indexer selbst. Eine nicht lesbare
+Datei bleibt unmarkiert und wird beim nächsten Start erneut versucht.
+
 ## Was der Indexer stillschweigend überspringt
 
 Beides erzeugt Musik, die auf der Platte liegt und in der Bibliothek fehlt — ohne Fehlermeldung

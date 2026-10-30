@@ -21,6 +21,7 @@ import {
 import { normalizeLook, normalizePalette, type Look, type Palette } from '@/utils/theme'
 import { normalizeTileSize, TILE_DEFAULT } from '@/utils/tileSize'
 import { normalizeUiFont, type UiFont } from '@/utils/uiFont'
+import { REPLAYGAIN_MODES, type ReplayGainMode } from '@/utils/replayGain'
 
 export default defineStore('settings', {
     state: () => ({
@@ -80,6 +81,8 @@ export default defineStore('settings', {
         use_silence_skip: true,
         use_crossfade: false,
         crossfade_duration: 1000, // milliseconds
+        // Even out loudness from the files' ReplayGain tags (#643), per device.
+        replaygain: <ReplayGainMode>'off',
 
         // layout
         // The LOOK (form language) and the MODE are two settings — see
@@ -371,6 +374,9 @@ export default defineStore('settings', {
         },
         setCrossfadeDuration(duration: number) {
             this.crossfade_duration = duration * 1000
+        },
+        setReplayGain(mode: ReplayGainMode) {
+            this.replaygain = REPLAYGAIN_MODES.includes(mode) ? mode : 'off'
         },
 
         async genericToggleSetting(key: string, value: any, prop: string) {

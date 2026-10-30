@@ -82,6 +82,20 @@ describe('crossFade', () => {
         expect(audio.volume).toBeCloseTo(0.8, 6)
     })
 
+    // ReplayGain (#643): the player hands over each element's own full volume.
+    it('a fade-in ends at the target it is given, not at the volume setting', () => {
+        const audio = playingElement()
+        crossFade({ audio, duration: 2000, start_volume: 0, target: 0.4 })
+        vi.advanceTimersByTime(5000)
+        expect(audio.volume).toBeCloseTo(0.4, 6)
+    })
+
+    it('without a fade it jumps straight to the target', () => {
+        const audio = playingElement()
+        crossFade({ audio, duration: 500, start_volume: 0, target: 0.3 })
+        expect(audio.volume).toBeCloseTo(0.3, 6)
+    })
+
     it('cancelFade without a running fade reports false', () => {
         expect(cancelFade(playingElement())).toBe(false)
     })
