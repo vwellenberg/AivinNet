@@ -6,14 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Logo from '@/components/Logo.vue'
 import { useToast } from '@/stores/notification'
 
-// Easter egg (#544): seven clicks within ~3 s launch the satellite flyby.
+// Easter egg (#544): seven clicks within ~3 s send the signal.
 // The logo is still a link, so every click has to navigate as before.
-import {
-    __resetSatelliteTestState,
-    CLICK_WINDOW_MS,
-    FLIGHT_MS,
-    useSatelliteFlight,
-} from '@/composables/useLogoSatellite'
+import { __resetSignalTestState, BURST_MS, CLICK_WINDOW_MS, useSignalBurst } from '@/composables/useLogoSignal'
 
 function makeRouter() {
     const page = { render: () => null }
@@ -42,15 +37,15 @@ async function click(wrapper: ReturnType<typeof mount>, count: number, gapMs: nu
     }
 }
 
-/** Is a flight on? The app-wide layer (SatelliteFlyby.vue) draws it. */
-function flying() {
-    return useSatelliteFlight().value !== null
+/** Is a burst on? The app-wide layer (SignalBurst.vue) draws it. */
+function signalling() {
+    return useSignalBurst().value !== null
 }
 
-describe('logo satellite easter egg', () => {
+describe('logo signal easter egg', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        __resetSatelliteTestState()
+        __resetSignalTestState()
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     })
 
@@ -60,25 +55,24 @@ describe('logo satellite easter egg', () => {
         delete (window as any).AudioContext
     })
 
-    it('seven fast clicks launch the satellite, and it is gone after the flight', async () => {
+    it('seven fast clicks send the signal, and it is gone after the burst', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
-        expect(flying()).toBe(true)
-        // The toast comes with the flight: a satellite in the corner of the eye
-        // is easy to miss.
+        expect(signalling()).toBe(true)
+        // The toast comes with the burst too: it names what just happened.
         expect(useToast().notifs.map(n => n.text)).toEqual(['📡 Signal received'])
 
-        vi.advanceTimersByTime(FLIGHT_MS)
+        vi.advanceTimersByTime(BURST_MS)
         await wrapper.vm.$nextTick()
-        expect(flying()).toBe(false)
+        expect(signalling()).toBe(false)
     })
 
     it('six fast clicks do not launch it', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 6, 200)
-        expect(flying()).toBe(false)
+        expect(signalling()).toBe(false)
     })
 
     it('the window is 3 s: 2 s was too tight to hit on purpose', () => {
@@ -89,14 +83,14 @@ describe('logo satellite easter egg', () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 400)
-        expect(flying()).toBe(true)
+        expect(signalling()).toBe(true)
     })
 
     it('seven slow clicks do not launch it: these span 3.6 s', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 600)
-        expect(flying()).toBe(false)
+        expect(signalling()).toBe(false)
     })
 
     it('needs seven clicks inside the window, not seven clicks in total', async () => {
@@ -106,17 +100,17 @@ describe('logo satellite easter egg', () => {
         await click(wrapper, 6, 200)
         vi.advanceTimersByTime(CLICK_WINDOW_MS)
         await click(wrapper, 1, 0)
-        expect(flying()).toBe(false)
+        expect(signalling()).toBe(false)
     })
 
-    it('under reduced motion it shows a toast instead of flying', async () => {
+    it('under reduced motion it shows a toast instead of the burst', async () => {
         window.matchMedia = vi.fn(() => ({ matches: true })) as any
         const { wrapper } = await mountLogo()
         const toast = useToast()
 
         await click(wrapper, 7, 200)
 
-        expect(flying()).toBe(false)
+        expect(signalling()).toBe(false)
         expect(toast.notifs.map(n => n.text)).toEqual(['📡 Signal received'])
     })
 
@@ -132,10 +126,10 @@ describe('logo satellite easter egg', () => {
         await click(wrapper, 7, 200)
         await flushPromises()
         expect(router.currentRoute.value.name).toBe('Home')
-        expect(flying()).toBe(true)
+        expect(signalling()).toBe(true)
     })
 
-    it('plays a short generated hiss with the satellite when Web Audio exists', async () => {
+    it('plays a short generated hiss with the signal when Web Audio exists', async () => {
         const contexts: Array<{ started: number }> = []
         class FakeAudioContext {
             sampleRate = 8000
@@ -179,19 +173,19 @@ describe('logo satellite easter egg', () => {
         expect(contexts[0].started).toBe(1)
     })
 
-    it('starts the flight at the centre of the planet', async () => {
+    it('starts the burst at the centre of the planet', async () => {
         const { wrapper } = await mountLogo()
         const planet = wrapper.find('.logo-orbit-wrapper').element
         planet.getBoundingClientRect = () => ({ left: 20, top: 12, width: 44, height: 44 }) as DOMRect
 
         await click(wrapper, 7, 200)
-        expect(useSatelliteFlight().value).toMatchObject({ x: 42, y: 34 })
+        expect(useSignalBurst().value).toMatchObject({ x: 42, y: 34 })
     })
 
-    it('without Web Audio the satellite still flies, silently', async () => {
+    it('without Web Audio the signal still shows, silently', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
-        expect(flying()).toBe(true)
+        expect(signalling()).toBe(true)
     })
 })

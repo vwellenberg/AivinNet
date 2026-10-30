@@ -4,8 +4,8 @@
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" />
-    <!-- The logo's satellite easter egg (components/SatelliteFlyby.vue, #544). -->
-    <SatelliteFlyby />
+    <!-- The logo's signal easter egg (components/SignalBurst.vue, #544). -->
+    <SignalBurst />
     <div id="drag-img" class="ellip2" style=""></div>
     <section
         id="app-grid"
@@ -68,7 +68,7 @@ import ContextMenu from "@/components/ContextMenu.vue";
 import Modal from "@/components/modal.vue";
 import Notification from "@/components/Notification.vue";
 import SeasonParticles from "@/components/SeasonParticles.vue";
-import SatelliteFlyby from "@/components/SatelliteFlyby.vue";
+import SignalBurst from "@/components/SignalBurst.vue";
 
 // @app-grid-components
 import BottomBar from "@/components/BottomBar/BottomBar.vue";

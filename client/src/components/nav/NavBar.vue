@@ -70,7 +70,7 @@ import { xl } from './../../composables/useBreakpoints'
 
 import SearchInput from '../RightSideBar/SearchInput.vue'
 import Logo from '@/components/Logo.vue'
-import { useLogoSatellite } from '@/composables/useLogoSatellite'
+import { useLogoSignal } from '@/composables/useLogoSignal'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
@@ -87,8 +87,8 @@ const route = useRoute()
 // (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
 // when the animation ends, so every tap can play it again.
 const logoSpinning = ref(false)
-// The phone has no other logo, so the satellite easter egg (#544) lives here too.
-const { registerClick } = useLogoSatellite()
+// The phone has no other logo, so the signal easter egg (#544) lives here too.
+const { registerClick } = useLogoSignal()
 
 function onLogoTap(e: MouseEvent) {
     logoSpinning.value = true

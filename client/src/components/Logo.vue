@@ -10,15 +10,15 @@
 </template>
 
 <script setup lang="ts">
-// Easter egg (#544): seven fast clicks launch the satellite flyby
-// (composables/useLogoSatellite.ts, drawn by SatelliteFlyby.vue). The click
-// itself is only observed here — RouterLink still navigates.
+// Easter egg (#544): seven fast clicks send a signal out of the planet
+// (composables/useLogoSignal.ts, drawn by SignalBurst.vue). The click itself
+// is only observed here — RouterLink still navigates.
 import { ref } from 'vue'
 
-import { useLogoSatellite } from '@/composables/useLogoSatellite'
+import { useLogoSignal } from '@/composables/useLogoSignal'
 
 const planet = ref<HTMLElement | null>(null)
-const { registerClick } = useLogoSatellite()
+const { registerClick } = useLogoSignal()
 </script>
 
 <style lang="scss">
