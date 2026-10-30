@@ -72,22 +72,35 @@ function snowflake(random: () => number): Particle {
     }
 }
 
+/**
+ * How much rarer than the first cut the crossers come by (user, 2026-10-30:
+ * "a little less often"). Their cycles are this much longer, and the crossing
+ * takes that much less of a cycle (`season-cross` in SeasonParticles.vue, 8 %
+ * instead of 12 %), so each one crosses as fast as before, only less often.
+ */
+export const HALLOWEEN_RARITY = 1.5
+
 function halloweenParticle(random: () => number, kind: ParticleKind, glyph: string): Particle {
     const base = { kind, glyph, left: 0, top: 0, drift: 0, wobble: 0, dir: sign(random) }
+    const rare = HALLOWEEN_RARITY
     if (kind === 'bat') {
-        // Crosses in about a tenth of its cycle, then is gone for a minute or so.
+        // Crosses in a short part of its cycle, then is gone for a while. Always
+        // right to left: the 🦇 emoji faces left, and one flying backwards looked
+        // wrong (user, 2026-10-30).
         return {
             ...base,
+            dir: -1,
             top: between(random, 10, 70),
             size: 24,
-            duration: between(random, 60, 90),
+            duration: between(random, 60, 90) * rare,
             delay: between(random, 0, 40),
             wobble: between(random, 0.9, 1.4),
         }
     }
     if (kind === 'ghost') {
-        // Floats up the whole time, slowly.
-        const duration = between(random, 45, 60)
+        // Floats up in the first half of its cycle (`season-rise`), slowly, then
+        // stays away for as long again: half as often as when it never stopped.
+        const duration = between(random, 45, 60) * 2
         return {
             ...base,
             left: between(random, 5, 95),
@@ -103,7 +116,7 @@ function halloweenParticle(random: () => number, kind: ParticleKind, glyph: stri
             ...base,
             top: between(random, 8, 35),
             size: 32,
-            duration: between(random, 90, 120),
+            duration: between(random, 90, 120) * rare,
             delay: between(random, 20, 60),
             wobble: between(random, 1.6, 2.2),
         }
@@ -114,7 +127,7 @@ function halloweenParticle(random: () => number, kind: ParticleKind, glyph: stri
             ...base,
             top: between(random, 72, 84),
             size: 34,
-            duration: between(random, 120, 160),
+            duration: between(random, 120, 160) * rare,
             delay: between(random, kind === 'zombie' ? 10 : 50, kind === 'zombie' ? 40 : 90),
             wobble: between(random, 0.7, 1),
         }
@@ -124,7 +137,7 @@ function halloweenParticle(random: () => number, kind: ParticleKind, glyph: stri
         ...base,
         top: between(random, 55, 80),
         size: 30,
-        duration: between(random, 150, 200),
+        duration: between(random, 150, 200) * rare,
         delay: between(random, 30, 90),
         wobble: between(random, 1.5, 2),
     }
