@@ -98,19 +98,25 @@ onMounted(async () => {
     .records-list {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-        gap: $small;
+        // Room for the plates' offset shadows between and below them.
+        gap: $medium;
         margin: 0;
-        padding: 0;
+        padding: 0 4px 4px 0;
         list-style: none;
     }
 
+    // Each record is a reading plate like its neighbours on Stats (skip rate,
+    // devices, calendar, clock): veil, frame, offset shadow. Without the frame
+    // the veil alone read as a box with its edge missing.
     .record {
         display: flex;
         flex-direction: column;
         gap: 0.2rem;
         padding: $small $medium;
-        border-radius: $candy-radius-sm;
         background-color: var(--mem-veil);
+        border: $candy-border;
+        border-radius: $candy-radius;
+        @include candy-shadow;
     }
 
     .record-label {
