@@ -22,7 +22,7 @@
                     <img
                         class="mobile-nav-logo"
                         :class="{ 'logo-spin-once': logoSpinning }"
-                        src="@/assets/icons/logos/logo-subspaceradio.png"
+                        :src="logoSrc"
                         alt=""
                         @animationend="logoSpinning = false"
                     />
@@ -71,6 +71,7 @@ import { xl } from './../../composables/useBreakpoints'
 import SearchInput from '../RightSideBar/SearchInput.vue'
 import Logo from '@/components/Logo.vue'
 import { useLogoSignal } from '@/composables/useLogoSignal'
+import { useSeasonLogo } from '@/utils/seasonLogo'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
@@ -89,6 +90,8 @@ const route = useRoute()
 const logoSpinning = ref(false)
 // The phone has no other logo, so the signal easter egg (#544) lives here too.
 const { registerClick } = useLogoSignal()
+// The same seasonal dress as the desktop logo (utils/seasonLogo.ts).
+const logoSrc = useSeasonLogo()
 
 function onLogoTap(e: MouseEvent) {
     logoSpinning.value = true

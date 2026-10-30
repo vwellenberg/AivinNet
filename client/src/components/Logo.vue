@@ -1,7 +1,7 @@
 <template>
   <router-link class="aivinnet-logo" :to="{ name: 'Home' }" title="Home" @click="registerClick(planet)">
     <div ref="planet" class="logo-orbit-wrapper">
-      <img src="@/assets/icons/logos/logo-subspaceradio.png" alt="AivinNet" class="logo-img" />
+      <img :src="logoSrc" alt="AivinNet" class="logo-img" />
       <span class="logo-orbit" aria-hidden="true">
         <i class="logo-orbit-spin"><i class="logo-moon"></i></i>
       </span>
@@ -16,9 +16,12 @@
 import { ref } from 'vue'
 
 import { useLogoSignal } from '@/composables/useLogoSignal'
+import { useSeasonLogo } from '@/utils/seasonLogo'
 
 const planet = ref<HTMLElement | null>(null)
 const { registerClick } = useLogoSignal()
+// Pumpkin at Halloween, bauble at Christmas (utils/seasonLogo.ts).
+const logoSrc = useSeasonLogo()
 </script>
 
 <style lang="scss">
