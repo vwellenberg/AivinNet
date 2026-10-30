@@ -30,6 +30,7 @@
             />
         </template>
         <LyricsButton />
+        <SleepTimerButton />
         <DevicesButton />
         <Volume v-if="!hideVolume" />
     </div>
@@ -46,6 +47,7 @@ import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import DevicesButton from '../DeviceSync/DevicesButton.vue'
 import HeartSvg from '../shared/HeartSvg.vue'
 import LyricsButton from '../shared/LyricsButton.vue'
+import SleepTimerButton from '../shared/SleepTimerButton.vue'
 import Volume from './Volume.vue'
 
 const queue = useQueue()
@@ -85,10 +87,11 @@ defineEmits<{
     // $bar-control / $bar-glyph the centre transport reads, so the two halves
     // of the bar cannot drift apart again.
     //
-    // Two exclusions, both because they bring their own complete anatomy:
-    // HeartSvg (it takes its own role, plus a teal favourited state) and the
+    // Three exclusions, all because they bring their own complete anatomy:
+    // HeartSvg (it takes its own role, plus a teal favourited state), the
     // devices button (plate at rest, green toggle box when joined — the whole
-    // thing owned by DevicesButton.vue). Spelled out rather than left to
+    // thing owned by DevicesButton.vue) and the sleep timer (widens to carry
+    // its label; SleepTimerButton.vue). Spelled out rather than left to
     // specificity luck.
     //
     // ⚠️ The devices exclusion used to read `:not(.ds-joined)`, i.e. it carved
@@ -102,7 +105,7 @@ defineEmits<{
     // match the row. It takes `btn_role="bar"` at the call site now, which
     // reads the SAME `$bar-control` this rule does — the carve-out is about
     // colour and state, not about size.
-    > button:not(.heart-button):not(.devices-btn) {
+    > button:not(.heart-button):not(.devices-btn):not(.sleep-timer-btn) {
         @include btn-action($size: $bar-control);
         // The control glyphs are currentColor (filled bodies, stroked details)
         // — colour them through `color`, never `fill`, or the stroked ones

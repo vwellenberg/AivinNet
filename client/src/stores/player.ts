@@ -7,6 +7,7 @@ import useDeviceSync from './devicesync'
 import useLyrics from './lyrics'
 import { NotifType, useToast } from './notification'
 import useQueue from './queue'
+import useSleepTimer from './sleepTimer'
 import useTracklist from './queue/tracklist'
 import useSettings from './settings'
 import useTracker from './tracker'
@@ -555,6 +556,10 @@ export const usePlayer = defineStore('player', () => {
         const { submitData } = tracker
         submitData()
 
+        // Sleep timer "end of song / album": the track that just ended is the
+        // one it was waiting for. The next one is advanced to, but not started.
+        const stop = useSleepTimer().takeStopAt(tracklist.tracklist[queue.currentindex], queue.next)
+
         if (stopsAtQueueEnd(settings.repeat, settings.shuffle, tracklist.length)) {
             queue.playPause()
             queue.moveForward()
@@ -562,9 +567,10 @@ export const usePlayer = defineStore('player', () => {
         }
 
         // INFO: if next audio is not loaded, manually move forward
-        if (nextAudioData.loaded === false) {
+        if (nextAudioData.loaded === false || stop) {
             clearNextAudioData()
             queue.playNext()
+            if (stop) queue.playPause()
         }
     }
 
@@ -672,18 +678,27 @@ export const usePlayer = defineStore('player', () => {
 
         audioSource.switchSources()
 
+        // Sleep timer "end of song / album": the next track is queued but not
+        // started, so there is no play() to race the pause below (a pause
+        // landing on a pending play() is an AbortError toast).
+        const stop = useSleepTimer().takeStopAt(tracklist.tracklist[queue.currentindex], queue.next)
+
         // INFO: Set stuff
         audio = audioSource.playingSource
         audio.currentTime = nextAudioData.silence.starting_file / 1000
         currentAudioData.silence = nextAudioData.silence
         currentAudioData.filepath = nextAudioData.filepath
         maxSeekPercent.value = 0
-        audioSource.playPlayingSource(nextAudioData.silence)
+        if (!stop) audioSource.playPlayingSource(nextAudioData.silence)
 
         clearNextAudioData()
         queue.moveForward()
         assignEventHandlers(audio)
         tracker.changeKey()
+
+        // Only a playing queue has something to pause: `playPause()` on a paused
+        // one would start it.
+        if (stop && queue.playing) queue.playPause()
     }
 
     const initLoadingNextTrackAudio = () => {

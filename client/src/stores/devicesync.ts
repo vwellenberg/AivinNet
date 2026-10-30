@@ -56,6 +56,7 @@ import type { Track } from '@/interfaces'
 import { NotifType, useToast } from '@/stores/notification'
 import { audioSource, usePlayer } from '@/stores/player'
 import useQueue from '@/stores/queue'
+import useSleepTimer from '@/stores/sleepTimer'
 import type { From } from '@/stores/queue/tracklist'
 import useTracklist from '@/stores/queue/tracklist'
 import useSettings from '@/stores/settings'
@@ -1834,7 +1835,15 @@ export default defineStore('devicesync', {
             // and nothing may be marked booked, or `ended` would stand down.
             if (next === null) return
             bookedFor = key
-            void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true }, undefined, endsAt)
+            // A sleep timer "end of song / album" (set on this leader) keeps the
+            // group paused on the next track instead of playing it.
+            const stop = useSleepTimer().takeStopAt(track, useTracklist().tracklist[next])
+            void this.sendCmd(
+                'track_change',
+                { index: next, position_ms: 0, playing: !stop },
+                undefined,
+                endsAt
+            )
         },
 
         /** Audio ended in group mode: only the scrobble leader advances the group. */
@@ -1873,7 +1882,9 @@ export default defineStore('devicesync', {
                 void this.sendCmd('pause', {})
                 return
             }
-            void this.sendCmd('track_change', { index: next, position_ms: 0, playing: true })
+            const queueNow = useTracklist().tracklist
+            const stop = useSleepTimer().takeStopAt(queueNow[useQueue().currentindex], queueNow[next])
+            void this.sendCmd('track_change', { index: next, position_ms: 0, playing: !stop })
         },
     },
 })
