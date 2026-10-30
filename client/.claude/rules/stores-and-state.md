@@ -162,6 +162,19 @@ Und die Preload-Frage wird über den **Track** entschieden, nie über den Index:
 stimmt nur in sequenzieller Reihenfolge. Muster: Track an `nextindex` vor dem Splice merken,
 danach vergleichen.
 
+## Entfernen und Leeren der Queue sind rückgängig zu machen (#644)
+
+`removeByIndex` und `clearQueue` bieten 6 s lang „Undo“ an (`helpers/queueUndo.ts`, der
+Aktions-Toast). Rückgängig heißt **wiederherstellen über dieselben Actions** (`restoreRemoved`
+→ `insertAt` + Index-Verschiebung, `restoreCleared`), nicht einen Schnappschuss zurückschreiben:
+so laufen Shuffle-Indizes und Preload-Prüfung mit. Zwei Sperren, beide tragend:
+
+- **Nur gegen genau den Stand, den die Löschung hinterließ** (`trackKey`): Kam danach etwas
+  hinzu oder wurde verschoben, rät ein Restore die Position. Dann passiert nichts.
+- **Im Gruppenmodus kein Undo**, nur der Hinweis-Toast: Die Löschung ging als Broadcast raus,
+  ein Restore müsste ebenfalls einer sein, und die Position kennt nur dieses Gerät. Der Spiegel
+  (`ds.applying`) zeigt gar keinen Toast.
+
 ## ⚠️ Ein ausgespielter Track geht NICHT durch `play()`
 
 Der reale Auto-Übergang ist der lückenlose: der Player hat das nächste Audio-Element vorgeladen,
