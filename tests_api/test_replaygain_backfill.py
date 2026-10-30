@@ -6,6 +6,7 @@ file once, writes the tags into `extra` in the database and onto the loaded
 track, and marks every row it read so the next start reads nothing.
 """
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -28,7 +29,8 @@ def _mp3(path, gain: str | None) -> str:
 
 
 def _row(filepath: str, extra: dict) -> dict:
-    folder, name = filepath.rsplit("/", 1)
+    # Not rsplit("/"): on Windows tmp_path is a backslash path (tests.md).
+    folder, name = str(Path(filepath).parent), Path(filepath).name
     return {
         "album": "Album",
         "albumartists": "Artist",
@@ -64,7 +66,7 @@ def _extras() -> dict[str, dict]:
 
     with DbEngine.manager() as session:
         rows = session.execute(select(TrackTable.filepath, TrackTable.extra)).all()
-    return {path.rsplit("/", 1)[1]: extra for path, extra in rows}
+    return {Path(path).name: extra for path, extra in rows}
 
 
 @pytest.fixture()
