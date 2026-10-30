@@ -40,7 +40,7 @@
 // @libraries
 import { vElementSize } from "@vueuse/components";
 import { onStartTyping } from "@vueuse/core";
-import { computed, onBeforeUnmount, onMounted, Ref, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, provide, Ref, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { BalancerProvider } from "vue-wrap-balancer";
 
@@ -60,6 +60,7 @@ import handleShortcuts from "@/helpers/useKeyboard";
 import { lauflichtClasses } from "@/utils/lauflicht";
 import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
 import { activeSeason, paintedPalette } from "@/utils/seasons";
+import { SEASON_KEY } from "@/utils/seasonLogo";
 import { applyTileSize } from "@/utils/tileSize";
 import { xl, xxl } from "./composables/useBreakpoints";
 
@@ -156,6 +157,8 @@ watch(
 // its days. The stored one is never written, so it comes back the next day.
 const today = ref(new Date());
 const season = computed(() => activeSeason(today.value, settings.look, settings.use_seasonal_schemes));
+// The logos dress up for it too (utils/seasonLogo.ts).
+provide(SEASON_KEY, season);
 // A date turns over at midnight with no click to watch for: re-read it each minute.
 const seasonTimer = setInterval(() => (today.value = new Date()), 60 * 1000);
 onBeforeUnmount(() => clearInterval(seasonTimer));
