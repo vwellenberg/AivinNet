@@ -7,6 +7,7 @@ import usePlaylist from '@/stores/pages/playlist'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import useSettingsStore from '@/stores/settings'
+import useSmartPlaylistPage from '@/stores/pages/smartPlaylist'
 
 import { Track } from '@/interfaces'
 import { getAlbumTracks } from '@/requests/album'
@@ -14,6 +15,8 @@ import { getArtistTracks } from '@/requests/artists'
 import { getFavTracks } from '@/requests/favorite'
 import { getFiles } from '@/requests/folders'
 import { getPlaylist } from '@/requests/playlists'
+import { getSmartPlaylist } from '@/requests/smartPlaylists'
+import { shuffledCopy } from '@/utils/shuffleCopy'
 
 export async function utilPlayFromArtist(index: number = 0) {
     const queue = useQueue()
@@ -167,6 +170,37 @@ export async function playFromPlaylist(id: string, track?: Track) {
     }
 }
 
+/**
+ * A smart playlist from the top, or in a shuffled order. The server evaluates
+ * the rules again for this, so what plays is what they hold now, not what the
+ * page showed a while ago.
+ */
+export async function playFromSmartPlaylist(id: number | string, track?: Track, shuffle = false) {
+    const queue = useQueue()
+    const tracklist = useTracklist()
+    const data = await getSmartPlaylist(id, 0, -1)
+
+    if (!data) return
+
+    if (data.tracks.length === 0) {
+        useToast().showNotification('No tracks match this smart playlist', NotifType.Error)
+        return
+    }
+
+    const tracks = shuffle ? shuffledCopy(data.tracks) : data.tracks
+    tracklist.setFromSmartPlaylist(data.info.name, data.info.id, tracks)
+
+    // A row was picked: play exactly that one.
+    if (track) {
+        queue.play(Math.max(0, tracks.findIndex(t => t.trackhash === track.trackhash)))
+        return
+    }
+
+    // Shuffled, the order is already the random one: play its first row.
+    if (shuffle) queue.play(0)
+    else queue.playSource()
+}
+
 export const playFrom = async (source: playSources) => {
     const queue = useQueue()
     const tracklist = useTracklist()
@@ -195,6 +229,11 @@ export const playFrom = async (source: playSources) => {
 
             break
         }
+
+        case playSources.smartPlaylist:
+            // The page the button sits on: its store knows which playlist it is.
+            playFromSmartPlaylist(useSmartPlaylistPage().info.id)
+            break
 
         case playSources.artist:
             utilPlayFromArtist(0)

@@ -18,6 +18,9 @@ export enum ModalOptions {
     fetchMetadata,
     devices,
     libraryAudit,
+    smartPlaylistEditor,
+    saveSmartPlaylist,
+    deleteSmartPlaylist,
 }
 
 export default defineStore('newModal', {
@@ -81,6 +84,16 @@ export default defineStore('newModal', {
         },
         showFetchMetadataModal(props: { albumhash: string; albumTitle: string; startWith?: 'tags' }) {
             this.showModal(ModalOptions.fetchMetadata, props)
+        },
+        /** The rule editor (#642): an empty one, or `playlist` to edit. */
+        showSmartPlaylistEditor(props: { playlist?: unknown } = {}) {
+            this.showModal(ModalOptions.smartPlaylistEditor, props)
+        },
+        showSaveSmartPlaylistModal(smartid: number, name: string) {
+            this.showModal(ModalOptions.saveSmartPlaylist, { smartid, name })
+        },
+        showDeleteSmartPlaylistModal(smartid: number) {
+            this.showModal(ModalOptions.deleteSmartPlaylist, { smartid })
         },
         showDeletePlaylistModal(pid: number) {
             const props = {

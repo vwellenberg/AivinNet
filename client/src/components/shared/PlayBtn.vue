@@ -12,6 +12,7 @@ import {
   playFromFavorites,
   playFromFolderCard,
   playFromPlaylist,
+  playFromSmartPlaylist,
 } from "@/helpers/usePlayFrom";
 import { Playlist, Track } from "@/interfaces";
 
@@ -66,6 +67,9 @@ function handlePlay() {
       break;
     case playSources.playlist:
       playFromPlaylist(props.playlist as string);
+      break;
+    case playSources.smartPlaylist:
+      playFromSmartPlaylist(props.playlist as string);
       break;
 
     default:

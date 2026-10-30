@@ -277,6 +277,8 @@ describe('queue seam census', () => {
                 'setFromPlaylist',
                 'setFromPlaylistFolder',
                 'setFromSearch',
+                // A smart playlist (#642): the same replace, then play() as the caller.
+                'setFromSmartPlaylist',
                 // Carries its own seam.
                 'clearQueue',
             ].sort()

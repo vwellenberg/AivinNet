@@ -42,14 +42,17 @@
                 <HomeSvg />
             </RouterLink>
             <SearchInput v-if="!isMobile || onSearchRoute" :on_nav="true" />
-            <button
-                v-if="isMobile && headerAction"
-                class="mobile-header-action"
-                :title="headerAction.title"
-                @click="headerAction.handler"
-            >
-                <component :is="headerAction.icon" />
-            </button>
+            <template v-if="isMobile">
+                <button
+                    v-for="action in headerActions"
+                    :key="action.title"
+                    class="mobile-header-action"
+                    :title="action.title"
+                    @click="action.handler"
+                >
+                    <component :is="action.icon" />
+                </button>
+            </template>
             <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
             <ThemeToggle v-if="lookHasModes(settings.look)" />
             <AvatarWithDropdown />
@@ -74,6 +77,7 @@ import { useLogoSignal } from '@/composables/useLogoSignal'
 import { useSeasonLogo } from '@/utils/seasonLogo'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
+import SparklesSvg from '@/assets/icons/sparkles.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import useModal from '@/stores/modal'
@@ -118,14 +122,18 @@ function openSearch() {
  */
 const onSearchRoute = computed(() => route.name === Routes.search || route.path.startsWith('/search'))
 
-// Per-route action shown on the right of the mobile top bar, filling the empty
-// space next to the avatar. Playlists → New Playlist (replaces the old FAB).
-const headerAction = computed(() => {
+// Per-route actions shown on the right of the mobile top bar, filling the empty
+// space next to the avatar. Playlists → New Playlist (replaces the old FAB), and
+// the smart playlist beside it (#642).
+const headerActions = computed(() => {
     switch (route.name) {
         case Routes.playlists:
-            return { icon: PlusSvg, title: 'New playlist', handler: () => modal.showNewPlaylistModal() }
+            return [
+                { icon: PlusSvg, title: 'New playlist', handler: () => modal.showNewPlaylistModal() },
+                { icon: SparklesSvg, title: 'New smart playlist', handler: () => modal.showSmartPlaylistEditor() },
+            ]
         default:
-            return null
+            return []
     }
 })
 

@@ -17,6 +17,7 @@ import {
     fromPlaylist,
     fromPlaylistFolder,
     fromSearch,
+    fromSmartPlaylist,
     Track,
 } from '@/interfaces'
 import { confirmWithoutUndo, offerQueueUndo, trackKey, undoAvailable } from '@/helpers/queueUndo'
@@ -31,6 +32,7 @@ export type From =
     | fromSearch
     | fromArtist
     | fromFav
+    | fromSmartPlaylist
 
 /** One file the metadata dialog changed, keyed by the path it HAD. */
 export interface FileChange {
@@ -148,6 +150,15 @@ export default defineStore('tracklist', {
         setFromFav(tracks: Track[]) {
             this.from = <fromFav>{
                 type: FromOptions.favorite,
+            }
+
+            this.setNewList(tracks)
+        },
+        setFromSmartPlaylist(name: string, id: number, tracks: Track[]) {
+            this.from = <fromSmartPlaylist>{
+                type: FromOptions.smartPlaylist,
+                name,
+                id,
             }
 
             this.setNewList(tracks)

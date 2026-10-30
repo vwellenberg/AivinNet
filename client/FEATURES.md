@@ -38,6 +38,12 @@ with upstream.
 - 🆕 **Download a playlist as a ZIP** — button next to Play on the playlist header.
 - ⬆️ **Delete UX** — confirmation modal, instant removal from the sidebar, and it
   only navigates away if you were viewing the deleted playlist.
+- 🆕 **Smart playlists** (#642) — a set of rules (genre, artist, year, play count,
+  date added, last played, favorite) evaluated against the library on every
+  visit. Shown as their own section on the playlists page; the page lists the
+  tracks they hold, plays or shuffles them, and edits the rules. "Save as
+  playlist" freezes the current tracks into a normal playlist. There is no add,
+  remove or reorder on a smart playlist.
 
 > Creating, renaming, and adding tracks to playlists are inherited from upstream
 > swingmusic.

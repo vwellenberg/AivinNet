@@ -2,7 +2,12 @@
   <div class="playlistcardgroup">
     <h3>{{ title }}</h3>
     <div class="grid">
-      <PlaylistCard v-for="p in playlists" :key="p.id" :playlist="p" />
+      <!-- The tiles default to the playlists given; a section of another kind
+           of tile (smart playlists, #642) passes its own through the slot, and
+           gets this caption and grid for free. -->
+      <slot>
+        <PlaylistCard v-for="p in playlists" :key="p.id" :playlist="p" />
+      </slot>
     </div>
   </div>
 </template>
@@ -11,10 +16,13 @@
 import PlaylistCard from "@/components/PlaylistsList/PlaylistCard.vue";
 import { Playlist } from "@/interfaces";
 
-defineProps<{
-  playlists: Playlist[];
-  title: string;
-}>();
+withDefaults(
+  defineProps<{
+    playlists?: Playlist[];
+    title: string;
+  }>(),
+  { playlists: () => [] }
+);
 </script>
 
 <style lang="scss">
