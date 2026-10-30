@@ -11,6 +11,7 @@ either 404s on its own page or vanishes from "Recently played".
 from aivinnet.lib.home.mixes import MIX_PLAYLIST_IDS
 from aivinnet.lib.home.recentlyadded import get_recently_added_playlist
 from aivinnet.lib.home.recentlyplayed import get_recently_played_playlist
+from aivinnet.lib.home.stations import STATION_PLAYLIST_IDS
 
 
 def _row(getter: str):
@@ -39,6 +40,17 @@ def _mix(position: int):
     return handler
 
 
+def _station(playlistid: str):
+    """A genre or decade station of the radio, by its playlist id (`store/stations.py`)."""
+
+    def handler():
+        from aivinnet.lib.home import onrepeat
+
+        return onrepeat.get_station_playlist(playlistid)
+
+    return handler
+
+
 GENERATED_PLAYLISTS = {
     "recentlyadded": get_recently_added_playlist,
     "recentlyplayed": get_recently_played_playlist,
@@ -49,4 +61,5 @@ GENERATED_PLAYLISTS = {
     "almostcomplete": _row("get_almost_complete_playlist"),
     "deepcuts": _row("get_deep_cuts_playlist"),
     **{playlistid: _mix(position) for position, playlistid in enumerate(MIX_PLAYLIST_IDS)},
+    **{playlistid: _station(playlistid) for playlistid in STATION_PLAYLIST_IDS},
 }

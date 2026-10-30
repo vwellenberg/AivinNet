@@ -28,7 +28,7 @@ import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radi
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 
-const station = (id: string, name = id) => ({ id, name, kind: 'mix' as const })
+const station = (id: string, name = id, kind: 'mix' | 'genre' | 'decade' = 'mix') => ({ id, name, kind })
 const track = (hash: string): any => ({ trackhash: hash, filepath: `/music/${hash}.mp3`, title: hash, duration: 1 })
 const playlistOf = (id: string, hashes: string[]) => ({
     info: { id, name: `Playlist ${id}` },
@@ -89,6 +89,28 @@ describe('the radio tuner', () => {
 
         await tune(station('mix2'))
 
+        expect(dsMock.intercept).toHaveBeenCalledWith('play', 0)
+        expect(useQueue().playing).toBe(false)
+    })
+
+    it('a genre station plays through the same path as a mix: its playlist, then the queue', async () => {
+        getPlaylist.mockResolvedValue(playlistOf('genre1', ['r1', 'r2']))
+
+        await tune(station('genre1', 'rock', 'genre'))
+
+        expect(getPlaylist).toHaveBeenCalledWith('genre1', false, 0, -1)
+        expect(useTracklist().tracklist.map(t => t.trackhash)).toEqual(['r1', 'r2'])
+        expect(useQueue().playing).toBe(true)
+        expect(useQueue().currentindex).toBe(0)
+    })
+
+    it('a decade station in a group goes through the group seam, as a mix does', async () => {
+        dsMock.joined = true
+        getPlaylist.mockResolvedValue(playlistOf('decade1', ['d1', 'd2']))
+
+        await tune(station('decade1', '1990s', 'decade'))
+
+        expect(getPlaylist).toHaveBeenCalledWith('decade1', false, 0, -1)
         expect(dsMock.intercept).toHaveBeenCalledWith('play', 0)
         expect(useQueue().playing).toBe(false)
     })

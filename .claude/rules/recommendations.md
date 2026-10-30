@@ -292,6 +292,28 @@ Datenschutz-Versprechen. Die Quelle gehört dann unten in die Tabelle und in die
 (Abschnitt „Empfehlungen / Home“). Muster für den Weg nach draußen: Host-Allowlist
 (`ALLOWED_HOST_SUFFIXES` in `lib/coverart.py`), harte Deadline, nur im Cron, nie im Request-Pfad.
 
+## Radio-Stationen: Genre und Jahrzehnt (#640)
+
+Der Dial (`client/src/components/HomeView/RadioDial.vue`, #542) stimmt zwischen **Mixes, Genres,
+Jahrzehnten** ab. Die Liste liefert `GET /nothome/stations` (`api/home`): `{id, kind, name}` in
+Dial-Reihenfolge, nur belegte Plätze. Jeder Eintrag ist eine erzeugte Playlist mit derselben Id.
+
+- **Regeln** in `lib/home/stations.py` (pur, strikt): Genre = meistgespielte Genres der letzten 180
+  Tage (ab 3 Plays), Jahrzehnt = meistgespielte Jahrzehnte aus dem Erscheinungsjahr. Beides ab 20
+  Bibliothekstracks, höchstens 4 je Art. Ein Track zieht bekannte und nie gespielte im Wechsel,
+  höchstens 3 pro Album, 30 insgesamt; die Auswahl ist pro Tag neu (Seed = Tag + Station).
+- **Routine** `RadioStations` (`lib/recipes/stations.py`, alle 6 h, pro User) füllt
+  `StationStore` (`store/stations.py`, RAM). Plätze wie bei „Your mixes“: ein Station behält
+  ihren Platz (`genre2` bleibt Rock), solange ihr Schlüssel bleibt.
+- **Ids** `genre1…genre4`, `decade1…decade4` — in `GENERATED_PLAYLISTS` **und**
+  `homerows.CUSTOM_PLAYLISTS` und `DATED_PLAYLISTS` (Inhalt ändert sich täglich). Spielen geht über
+  denselben Weg wie ein Mix (`helpers/radio.ts::tuneStation` → Queue → Gruppen-Seam).
+
+⚠️ **Das Erscheinungsjahr ist nur dort eines, wo ein Tag steht.** `taglib.py` schreibt die mtime
+als `track.date`, wenn die Datei kein Jahr trägt. `track_facts` setzt `TrackFacts.release` deshalb
+auf 0, sobald `date == last_mod` ist — sonst bekäme jedes untaggte Album das Jahrzehnt seiner
+Dateidatum. Wer das Jahr anders liest, übernimmt diese Ausnahme.
+
 ## Ausgehende Verbindungen im Überblick
 
 Damit „sonst nichts“ nachprüfbar bleibt, steht hier die vollständige Liste. In diese Tabelle

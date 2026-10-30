@@ -13,12 +13,14 @@ from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
 from aivinnet.lib.home.recap import RECAP_KEY_PATTERN, RecapPeriod, has_plays, is_news, recap_period
 from aivinnet.lib.home.recentlyadded import get_recently_added_items
+from aivinnet.lib.home.stations import station_listing
 from aivinnet.lib.placeholder_artists import is_placeholder_artist
 from aivinnet.models.user import RECAP_DISMISSED_KEY
 from aivinnet.settings import Defaults
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
 from aivinnet.store.homepage import HomepageStore
+from aivinnet.store.stations import StationStore
 from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import seconds_to_time_string
 from aivinnet.utils.stats import get_artists_in_period, summarize_tracks_in_period
@@ -202,6 +204,19 @@ def surprise_album():
     albumhashes = list(AlbumStore.albummap)
 
     return {"albumhash": random.choice(albumhashes) if albumhashes else None}
+
+
+@api.get("/stations")
+def get_stations():
+    """
+    The radio's stations of the user, in dial order (#640, #542): the mixes
+    ("mix1" …), then the genres and the decades, each as its playlist id,
+    `kind` ("mix" | "genre" | "decade") and `name`. RAM only; `[]` when the
+    user has none yet.
+    """
+    userid = get_current_userid()
+    mixes = HomepageStore.entries["your_mixes"].mixes.get(userid, [])
+    return station_listing(mixes, StationStore.of(userid))
 
 
 # SECTION: THE RECAP CARD (#530)

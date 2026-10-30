@@ -1,10 +1,12 @@
 /**
- * Subspace radio (#542): the dial between stations. Pure, so the component and
- * the tuner share one answer and the tests can pin it without a DOM.
+ * Subspace radio (#542, #640): the dial between stations. Pure, so the
+ * component and the tuner share one answer and the tests can pin it without a
+ * DOM.
  *
- * A station is a generated playlist. Today those are the local mixes
- * ("Your mixes", `mix1` … `mix4`); genre and decade stations have no playlist
- * on the server yet, so the caller passes none.
+ * A station is a generated playlist: the local mixes ("Your mixes", `mix1` …
+ * `mix4`), the genre stations (`genre1` …) and the decade stations (`decade1`
+ * …). The server lists the ones a user has (`GET /nothome/stations`), and only
+ * those are on the dial.
  */
 
 export type StationKind = 'mix' | 'genre' | 'decade'
@@ -16,22 +18,24 @@ export interface Station {
     kind: StationKind
 }
 
-/** A card of a home row as the client keeps it (`HomePageItem.items`). */
-export interface PlaylistCard {
-    type: string
-    item?: { id?: string | number; name?: string; count?: number }
+/** One station as `GET /nothome/stations` lists it. */
+export interface StationEntry {
+    id: string
+    kind: StationKind
+    name: string
 }
 
-const MIX_ID = /^mix\d+$/
+/**
+ * The stations the server lists, on the dial in dial order: mixes, genres,
+ * decades (`buildStations`), whatever order the list came in.
+ */
+export function stationsFromList(entries: StationEntry[]): Station[] {
+    const stations = entries.map(entry => ({ id: entry.id, name: entry.name || entry.id, kind: entry.kind }))
 
-/** The stations of "Your mixes": playlist cards whose id is a mix slot. */
-export function stationsFromMixes(cards: PlaylistCard[]): Station[] {
-    return cards.flatMap(card => {
-        const id = card.item?.id
-        if (card.type !== 'playlist' || typeof id !== 'string' || !MIX_ID.test(id)) return []
-        // A slot with no tracks is no station to tune to.
-        if (card.item?.count === 0) return []
-        return [{ id, name: card.item?.name || id, kind: 'mix' }]
+    return buildStations({
+        mixes: stations.filter(station => station.kind === 'mix'),
+        genres: stations.filter(station => station.kind === 'genre'),
+        decades: stations.filter(station => station.kind === 'decade'),
     })
 }
 

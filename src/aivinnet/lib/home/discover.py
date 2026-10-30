@@ -134,6 +134,9 @@ class TrackFacts:
     # The track's own artists. Used where the album artist says nothing: a
     # "Various Artists" compilation is not an artist to recommend, its tracks are.
     track_artists: tuple[str, ...] = ()
+    # The release date tag as a timestamp (`utils.dates.tag_year` reads its
+    # year), 0 when there is none. Decade stations read it (`stations.py`).
+    release: int = 0
 
 
 @dataclass(frozen=True)

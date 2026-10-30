@@ -1,4 +1,5 @@
 import { paths } from '@/config'
+import type { StationEntry } from '@/utils/radioDial'
 import useAxios from './useAxios'
 
 export async function getRecents(path: string, limit: number) {
@@ -25,6 +26,16 @@ export async function getHomePageData(limit: number) {
     })
 
     return data
+}
+
+/** The user's radio stations in dial order: mixes, genres, decades (#640). */
+export async function getStations(): Promise<StationEntry[]> {
+    const { data } = await useAxios({
+        url: paths.api.home.stations,
+        method: 'GET',
+    })
+
+    return Array.isArray(data) ? data : []
 }
 
 /** A random album from the whole library, for Home's "Surprise me". */
