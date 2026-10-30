@@ -17,7 +17,7 @@
                     type="button"
                     class="mobile-nav-logo-btn"
                     aria-label="App icon"
-                    @click="onLogoTap"
+                    @click="onLogoTap($event)"
                 >
                     <img
                         class="mobile-nav-logo"
@@ -26,7 +26,6 @@
                         alt=""
                         @animationend="logoSpinning = false"
                     />
-                    <span v-if="satelliteFlying" class="logo-satellite" aria-hidden="true"></span>
                 </button>
                 <!-- On Home the word is a shortcut into search, focused. -->
                 <button
@@ -71,7 +70,7 @@ import { xl } from './../../composables/useBreakpoints'
 
 import SearchInput from '../RightSideBar/SearchInput.vue'
 import Logo from '@/components/Logo.vue'
-import { useLogoSatellite } from '@/composables/useLogoSatellite'
+import { useLogoSignal } from '@/composables/useLogoSignal'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
@@ -88,12 +87,12 @@ const route = useRoute()
 // (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
 // when the animation ends, so every tap can play it again.
 const logoSpinning = ref(false)
-// The phone has no other logo, so the satellite easter egg (#544) lives here too.
-const { flying: satelliteFlying, registerClick } = useLogoSatellite()
+// The phone has no other logo, so the signal easter egg (#544) lives here too.
+const { registerClick } = useLogoSignal()
 
-function onLogoTap() {
+function onLogoTap(e: MouseEvent) {
     logoSpinning.value = true
-    registerClick()
+    registerClick(e.currentTarget as Element | null)
 }
 
 const router = useRouter()
@@ -328,8 +327,6 @@ const mobileTitle = computed(() => {
 
         // The tap target for the spin: a bare wrapper, the planet is its own look.
         .mobile-nav-logo-btn {
-            // The satellite's orbit is laid out against the button.
-            position: relative;
             display: flex;
             flex-shrink: 0;
             padding: 0;
