@@ -25,6 +25,7 @@ from aivinnet.api import (
     scrobble,
     search,
     settings,
+    smartplaylists,
     stream,
     track,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "scrobble",
     "search",
     "settings",
+    "smartplaylists",
     "stream",
     "track",
 ]
