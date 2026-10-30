@@ -114,8 +114,22 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         }
     })
 
-    it('gives each flying particle a travel direction, both ways', () => {
-        const dirs = new Set(particlesFor('halloween', sequence(13)).map((p) => p.dir))
+    it('flies every bat right to left, so its head points where it goes', () => {
+        for (const seed of [1, 5, 9, 13]) {
+            const bats = particlesFor('halloween', sequence(seed)).filter((p) => p.kind === 'bat')
+            expect(bats.length).toBeGreaterThan(0)
+            for (const b of bats) expect(b.dir).toBe(-1)
+        }
+    })
+
+    it('lets the other crossers go both ways', () => {
+        const dirs = new Set(
+            [1, 5, 9, 13].flatMap((seed) =>
+                particlesFor('halloween', sequence(seed))
+                    .filter((p) => p.kind !== 'bat')
+                    .map((p) => p.dir)
+            )
+        )
         expect(dirs).toEqual(new Set([1, -1]))
     })
 })

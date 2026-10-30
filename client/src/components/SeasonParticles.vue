@@ -113,7 +113,7 @@ function varsOf(p: Particle): Record<string, string> {
     }
 }
 
-// Bats: fly across the screen now and then, flutter in place as they go.
+// Bats: fly across the screen now and then, right to left, flutter in place as they go.
 // `translate` and `transform` are separate properties, so the crossing and the
 // flutter run side by side on one element.
 //
@@ -132,26 +132,29 @@ function varsOf(p: Particle): Record<string, string> {
     animation: season-bob var(--season-wobble) ease-in-out infinite alternate;
 }
 
+// The crossing takes 8 % of the cycle and the rest is waiting: the cycles are
+// HALLOWEEN_RARITY (1.5) times longer than the first cut's 12 %, so a crosser
+// is as fast as before and only comes by less often (utils/seasonParticles.ts).
 @keyframes season-cross {
     0% {
         translate: var(--season-from) 0;
         opacity: 0;
     }
-    2% {
+    1.3% {
         opacity: 1;
     }
-    12% {
+    8% {
         translate: var(--season-to) 0;
         opacity: 1;
     }
-    13%,
+    8.7%,
     100% {
         translate: var(--season-to) 0;
         opacity: 0;
     }
 }
 
-// Ghosts: float up the whole time, slowly.
+// Ghosts: float up slowly, then stay away for a while.
 .season-ghost {
     animation: season-rise var(--season-dur) linear var(--season-delay) infinite backwards;
 }
@@ -160,15 +163,18 @@ function varsOf(p: Particle): Record<string, string> {
     animation: season-bob var(--season-wobble) ease-in-out infinite alternate;
 }
 
+// The rise takes the first half of the cycle, then the ghost stays away for
+// as long again (the cycle is twice the old one, so it rises as slowly).
 @keyframes season-rise {
     0% {
         transform: translate3d(0, 105vh, 0);
         opacity: 0;
     }
-    10%,
-    90% {
+    5%,
+    45% {
         opacity: 0.85;
     }
+    50%,
     100% {
         transform: translate3d(0, -10vh, 0);
         opacity: 0;
