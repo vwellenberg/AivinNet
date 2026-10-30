@@ -6,7 +6,7 @@
     :aria-label="title"
     @click="openMenu"
   >
-    <MoonSvg />
+    <SleepSvg />
     <span v-if="sleep.active" class="sleep-timer-label">{{ sleep.label }}</span>
   </button>
 </template>
@@ -21,7 +21,7 @@ import useDeviceSync from '@/stores/devicesync'
 import useSleepTimer from '@/stores/sleepTimer'
 import { SLEEP_MINUTES } from '@/utils/sleepTimer'
 
-import MoonSvg from '@/assets/icons/moon.svg'
+import SleepSvg from '@/assets/icons/sleep.svg'
 
 const sleep = useSleepTimer()
 const ds = useDeviceSync()

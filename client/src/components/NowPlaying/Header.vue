@@ -37,12 +37,6 @@
             <div v-if="isSmallPhone" class="below-progress">
                 <Buttons :hide-heart="true" :hide-volume="true" @handleFav="() => {}" />
             </div>
-            <div v-if="isMobile" class="np-devices">
-                <!-- On mobile the bottom bar swaps the aux group for navigation,
-                     so this is the only place a phone can reach group playback.
-                     Small phones already get the full aux group above. -->
-                <DevicesButton v-if="!isSmallPhone" />
-            </div>
             <!-- `isMobile`, not `isSmallPhone`: this is the only volume SLIDER
                  a phone has (the one in the bar is hidden there), and gating it
                  at 660px meant turning the device to landscape — ~900px — took
@@ -288,11 +282,6 @@ function handleFav() {
             touch-action: none;
         }
     }
-
-    // (Group playback, mobile-only. The button's box used to be written out
-    // here — 44px, radius, glyph size, but no ROLE, so it rendered as a bare
-    // glyph on this screen too. Footprint and look both come from
-    // DevicesButton.vue now; `.np-devices` only places it.)
 
     .centered {
         margin: 0 auto;
