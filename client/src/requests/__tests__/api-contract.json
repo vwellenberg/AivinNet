@@ -376,6 +376,7 @@
       "required": []
     }
   },
+  "GET /nothome/stations": {},
   "GET /nothome/surprise": {},
   "GET /notsettings": {},
   "GET /notsettings/get-root-dirs": {},

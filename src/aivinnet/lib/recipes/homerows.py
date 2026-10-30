@@ -229,6 +229,9 @@ def track_facts(trackhash: str) -> TrackFacts | None:
         genres=tuple(track.genrehashes),
         other_albums=tuple({t.albumhash for t in entry.tracks[1:]} - {track.albumhash}),
         track_artists=tuple(a["artisthash"] for a in track.artists),
+        # The scanner falls back to the file's mtime when a file has no year
+        # tag (`taglib.py`): then date == last_mod, and it is no release date.
+        release=0 if track.date == track.last_mod else track.date,
     )
 
 

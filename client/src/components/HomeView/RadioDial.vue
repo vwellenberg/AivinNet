@@ -47,31 +47,36 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
+import { getStations } from '@/requests/home'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
 import {
-  buildStations,
   dragPosition,
   keyTarget,
   prefersReducedMotion,
   snapIndex,
   stationFraction,
-  stationsFromMixes,
+  stationsFromList,
   wheelSteps,
 } from '@/utils/radioDial'
-import type { PlaylistCard, Station } from '@/utils/radioDial'
+import type { Station } from '@/utils/radioDial'
 
-// INFO: Subspace radio (#542), a dial on Home between the continue cards and
-// the rows. A station is a generated playlist: the local mixes for now (the
-// "Your mixes" row). Genre and decade stations need playlists the server does
-// not generate yet, so they are not built here.
+// INFO: Subspace radio (#542, #640), a dial on Home between the continue cards
+// and the rows. A station is a generated playlist, and the server lists the
+// ones the user has in dial order: the mixes, the genre stations and the
+// decade stations (`GET /nothome/stations`). Home's refresh asks again.
 
 const home = useHome()
+const stations = ref<Station[]>([])
 
-const stations = computed<Station[]>(() => {
-  const row = home.homepageItems.find(item => item.key === 'your_mixes')
-  return buildStations({ mixes: stationsFromMixes((row?.items ?? []) as PlaylistCard[]) })
-})
+async function loadStations() {
+  try {
+    stations.value = stationsFromList(await getStations())
+  } catch {
+    // The dial is an extra on Home: when the list cannot be had, there is no dial.
+    stations.value = []
+  }
+}
 
 const dial = ref<HTMLElement>()
 const scale = ref<HTMLElement>()
@@ -87,7 +92,13 @@ const still = ref(false)
 
 onMounted(() => {
   still.value = prefersReducedMotion()
+  void loadStations()
 })
+
+watch(
+  () => home.homepageItems,
+  () => void loadStations()
+)
 
 watch(
   () => stations.value.length,

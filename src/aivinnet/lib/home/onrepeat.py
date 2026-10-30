@@ -9,6 +9,7 @@ Home rows that are also playlists, served like "recentlyplayed":
 - "becauseyoulistened": one track per album of "Because you listened to …"
   — "Play mix".
 - "mix1" … "mix4": the cards of "Your mixes", by position.
+- "genre1" … "genre4" and "decade1" … "decade4": the subspace radio's stations (#640).
 - "almostcomplete": the songs never played of "Almost complete", album after
   album in album order — "Play the rest".
 
@@ -19,6 +20,7 @@ always agree.
 from aivinnet.lib.playlistlib import get_first_4_images
 from aivinnet.models.playlist import Playlist
 from aivinnet.store.homepage import HomepageStore
+from aivinnet.store.stations import StationStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.auth import get_current_userid
 
@@ -88,3 +90,16 @@ def get_mix_playlist(position: int):
     if mix is None:
         mix = {"name": f"Mix {position + 1}", "trackhashes": []}
     return _playlist(f"mix{position + 1}", mix["name"], mix["trackhashes"])
+
+
+def get_station_playlist(playlistid: str):
+    """
+    A station of the radio ("genre1", "decade2"; `store/stations.py`). A slot
+    the user has no station for is an empty playlist with its own name, not a
+    404, as a mix slot is.
+    """
+    station = StationStore.get(get_current_userid(), playlistid)
+    if station is None:
+        prefix = playlistid.rstrip("0123456789")
+        station = {"name": f"{prefix.capitalize()} {playlistid[len(prefix) :]}", "trackhashes": []}
+    return _playlist(playlistid, station["name"], station["trackhashes"])

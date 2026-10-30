@@ -7,50 +7,43 @@ import {
     prefersReducedMotion,
     snapIndex,
     stationFraction,
-    stationsFromMixes,
+    stationsFromList,
     wheelSteps,
 } from '@/utils/radioDial'
 
-// The home row as the server sends it: "Your mixes" cards, one per mix slot.
-const mixCard = (id: string, name: string, count = 30) => ({
-    type: 'playlist',
-    item: { id, name, count },
-})
-
-describe('stationsFromMixes', () => {
-    it('makes one station per mix card, in row order, keeping the playlist id', () => {
-        const stations = stationsFromMixes([mixCard('mix2', 'Mix 2'), mixCard('mix1', 'Mix 1')])
+describe('stationsFromList', () => {
+    it('makes one station per listed entry, keeping the playlist id and the kind', () => {
+        const stations = stationsFromList([
+            { id: 'mix1', kind: 'mix', name: 'Mix 1' },
+            { id: 'genre1', kind: 'genre', name: 'rock' },
+            { id: 'decade1', kind: 'decade', name: '1990s' },
+        ])
 
         expect(stations).toEqual([
-            { id: 'mix2', name: 'Mix 2', kind: 'mix' },
             { id: 'mix1', name: 'Mix 1', kind: 'mix' },
+            { id: 'genre1', name: 'rock', kind: 'genre' },
+            { id: 'decade1', name: '1990s', kind: 'decade' },
         ])
     })
 
-    it('leaves out cards that are not mix playlists', () => {
-        const stations = stationsFromMixes([
-            { type: 'album', item: { id: 'mix1', name: 'Not a playlist' } },
-            mixCard('becauseyoulistened', 'Because you listened'),
-            mixCard('mix9', 'Mix 9'),
-            { type: 'playlist', item: { id: 'mixed', name: 'Mixed tapes' } },
+    it('runs mixes, then genres, then decades, whatever order the server listed them in', () => {
+        const stations = stationsFromList([
+            { id: 'decade2', kind: 'decade', name: '1980s' },
+            { id: 'genre2', kind: 'genre', name: 'jazz' },
+            { id: 'mix3', kind: 'mix', name: 'Mix 3' },
+            { id: 'genre1', kind: 'genre', name: 'rock' },
+            { id: 'mix1', kind: 'mix', name: 'Mix 1' },
         ])
 
-        // mix9 is a valid slot shape; only the non-mix ids and other types drop out.
-        expect(stations.map(s => s.id)).toEqual(['mix9'])
+        // Each kind keeps the order the server listed it in; the kinds run mixes, genres, decades.
+        expect(stations.map(s => s.id)).toEqual(['mix3', 'mix1', 'genre2', 'genre1', 'decade2'])
     })
 
-    it('leaves out an empty slot, and falls back to the id when a name is missing', () => {
-        const stations = stationsFromMixes([
-            mixCard('mix3', 'Mix 3', 0),
-            { type: 'playlist', item: { id: 'mix4', count: 12 } },
+    it('falls back to the id when a name is missing, and reads an empty list as no stations', () => {
+        expect(stationsFromList([{ id: 'genre3', kind: 'genre', name: '' }])).toEqual([
+            { id: 'genre3', name: 'genre3', kind: 'genre' },
         ])
-
-        expect(stations).toEqual([{ id: 'mix4', name: 'mix4', kind: 'mix' }])
-    })
-
-    it('reads a row without items as no stations', () => {
-        expect(stationsFromMixes([])).toEqual([])
-        expect(stationsFromMixes([{ type: 'playlist' }])).toEqual([])
+        expect(stationsFromList([])).toEqual([])
     })
 })
 

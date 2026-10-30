@@ -21,6 +21,7 @@ from aivinnet.lib.recipes.homerows import (
 )
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
 from aivinnet.lib.recipes.records import refresh_records
+from aivinnet.lib.recipes.stations import RadioStations
 from aivinnet.lib.server_card import SERVER_TOTALS
 
 # NOTE: do not use `from aivinnet.logger import log` — that global is None until
@@ -141,6 +142,7 @@ def _run_cron_jobs():
         ForgottenFavorites,
         YourMixes,
         AlmostComplete,
+        RadioStations,
     ):
         if getattr(routine, "on_the_hour", False):
             schedule.every().hour.at(":00").do(_guarded(routine))

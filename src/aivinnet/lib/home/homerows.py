@@ -16,6 +16,7 @@ from typing import Any, Protocol
 import pendulum
 
 from aivinnet.lib.home.mixes import MIX_PLAYLIST_IDS
+from aivinnet.lib.home.stations import STATION_PLAYLIST_IDS
 
 
 class ScrobbleLike(Protocol):
@@ -57,6 +58,7 @@ CUSTOM_PLAYLISTS = {
     "almostcomplete",
     "deepcuts",
     *MIX_PLAYLIST_IDS,
+    *STATION_PLAYLIST_IDS,
 }
 
 # Generated playlists whose content belongs to the moment they were played: one
@@ -64,7 +66,14 @@ CUSTOM_PLAYLISTS = {
 # slot can change hands), the songs still missing and the deep cuts (playing
 # them makes them heard). A "Recently played" card for one would play whatever
 # it is when it is clicked, under the old name, so none is made.
-DATED_PLAYLISTS = {"onthisday", "becauseyoulistened", "almostcomplete", "deepcuts", *MIX_PLAYLIST_IDS}
+DATED_PLAYLISTS = {
+    "onthisday",
+    "becauseyoulistened",
+    "almostcomplete",
+    "deepcuts",
+    *MIX_PLAYLIST_IDS,
+    *STATION_PLAYLIST_IDS,
+}
 
 
 def parse_playlist_id(src: str) -> int | None:

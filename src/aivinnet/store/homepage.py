@@ -14,6 +14,7 @@ from aivinnet.store.homepageentries import (
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
 )
+from aivinnet.store.stations import StationStore
 from aivinnet.utils.auth import get_current_userid
 
 # The rows whose cards can be marked "Not interested" (#531), and what kind
@@ -133,6 +134,7 @@ class HomepageStore:
         under it.
         """
         cls.layouts.pop(userid, None)
+        StationStore.forget_user(userid)
         first_play_cache.forget(userid)
         records.forget(userid)
 
