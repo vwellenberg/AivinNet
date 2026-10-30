@@ -37,7 +37,9 @@ vi.mock('@/stores/interface', () => ({ default: () => ({ focusCurrentInSidebar: 
 vi.mock('@/stores/lyrics', () => ({ default: () => ({ setCurrentLine: vi.fn(), calculateCurrentLine: () => 0 }) }))
 vi.mock('@/stores/notification', () => ({
     NotifType: { Success: 0, Error: 1, Info: 2 },
-    useToast: () => ({ showNotification: vi.fn() }),
+    // `dismiss` too: removing a row offers an undo toast, which replaces any
+    // earlier one (#644).
+    useToast: () => ({ showNotification: vi.fn(), dismiss: vi.fn() }),
 }))
 vi.mock('@/stores/pages/playlists', () => ({ default: () => ({ playlists: [] }) }))
 vi.mock('@/helpers/mediaNotification', () => ({ default: vi.fn() }))

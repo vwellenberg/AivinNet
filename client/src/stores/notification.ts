@@ -9,7 +9,12 @@ const useToast = defineStore("notification", {
     notifs: <Notif[]>[],
   }),
   actions: {
-    showNotification(new_text: string, new_type?: NotifType, action?: NotifAction, onClick?: () => void) {
+    /**
+     * `durationMs` overrides the lifetime. It exists for toasts whose action has
+     * a fixed window of its own (the queue undo, 6 s) — the action must not
+     * outlive the toast carrying it, nor the other way round.
+     */
+    showNotification(new_text: string, new_type?: NotifType, action?: NotifAction, onClick?: () => void, durationMs?: number) {
       const id = nextNotifId++;
       this.notifs.push(<Notif>{
         id,
@@ -25,7 +30,7 @@ const useToast = defineStore("notification", {
         () => {
           this.notifs = this.notifs.filter((n) => n.id !== id);
         },
-        action || onClick ? 8000 : 3000
+        durationMs ?? (action || onClick ? 8000 : 3000)
       );
 
       return id;

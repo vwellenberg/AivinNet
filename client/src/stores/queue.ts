@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 
 import { favType } from '@/enums'
 import updateMediaNotif from '@/helpers/mediaNotification'
+import { confirmWithoutUndo, offerQueueUndo, trackKey, undoAvailable } from '@/helpers/queueUndo'
 import { Track } from '@/interfaces'
 import { isFavorite } from '@/requests/favorite'
 import useFavorites from './favorites'
@@ -364,13 +365,32 @@ export default defineStore('Queue', {
             // sit on an empty list while the group plays on.
             const ds = useDeviceSync()
             if (ds.joined && !ds.applying) {
+                const hadTracks = useTracklist().tracklist.length > 0
                 ds.intercept('clearQueue')
+                // Confirmed, but no Undo: the clear is a broadcast (undoAvailable).
+                if (hadTracks) confirmWithoutUndo('Queue cleared')
                 return
             }
 
+            // Snapshot for the undo (#644), taken before the list is gone. The
+            // audio is not touched by a clear, so the playing index is the same
+            // track again once the list is back.
             const store = useTracklist()
+            const tracks = [...store.tracklist]
+            const from = store.from
+            const playingIndex = this.currentindex
+
             store.clearList()
             this.currentindex = 0
+
+            if (tracks.length > 0 && undoAvailable()) {
+                offerQueueUndo({
+                    text: 'Queue cleared',
+                    after: trackKey(store.tracklist),
+                    read: () => trackKey(store.tracklist),
+                    restore: () => store.restoreCleared(tracks, from, playingIndex),
+                })
+            }
         },
     },
     getters: {
