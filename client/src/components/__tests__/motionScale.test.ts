@@ -56,7 +56,7 @@ const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
     'src/assets/scss/Global/confetti.scss': { values: ['0.9s'], why: 'one-off celebration burst (a character piece)' },
     // (The three spinners turn at `$motion-spin` now — one speed, no literal.)
     'src/components/shared/CardContent.vue': { values: ['1.7s'], why: 'skeleton pulse loop' },
-    'src/components/Logo.vue': { values: ['0.7s', '3s', '2.4s'], why: 'planet spin, orbit loop, satellite lap (#544)' },
+    'src/components/Logo.vue': { values: ['0.7s', '3s'], why: 'planet spin, orbit loop' },
     // The equaliser bars run at DIFFERENT speeds so they never fall into step.
     // Pulling them onto one scale value would kill the effect they exist for.
     'src/components/shared/PlayingMeter.vue': {
