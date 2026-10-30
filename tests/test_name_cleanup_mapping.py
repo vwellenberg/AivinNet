@@ -13,12 +13,12 @@ from types import SimpleNamespace
 from aivinnet.lib.name_cleanup import legacy_artist_mapping, legacy_track_mapping
 
 
-def _track(path, new, legacy="", artists=(), legacy_artists=(), previous=""):
+def _track(path, new, legacy="", artists=(), legacy_artists=(), previous=()):
     return SimpleNamespace(
         filepath=path,
         trackhash=new,
         _legacyhash=legacy,
-        _previoushash=previous,
+        _previoushashes=tuple(previous),
         artists=[{"artisthash": a} for a in artists],
         albumartists=[],
         _legacy_artisthashes=tuple(legacy_artists),
@@ -32,19 +32,19 @@ def test_a_renamed_track_moves_from_its_old_hash():
 def test_a_track_moves_from_the_hash_of_the_release_before_too():
     # A library that already ran the earlier cleanup holds its references
     # under that hash, not under the raw tags.
-    track = _track("/a.mp3", "new1", "raw1", previous="prev1")
+    track = _track("/a.mp3", "new1", "raw1", previous=["prev1"])
     assert legacy_track_mapping([track]) == {"raw1": "new1", "prev1": "new1"}
 
 
 def test_an_old_hash_the_two_releases_send_to_different_tracks_follows_neither():
     # Raw tags of one file and the earlier cleanup of another give one hash.
     first = _track("/a.mp3", "new1", "same")
-    second = _track("/b.mp3", "new2", "raw2", previous="same")
+    second = _track("/b.mp3", "new2", "raw2", previous=["same"])
     assert legacy_track_mapping([first, second]) == {"raw2": "new2"}
 
 
 def test_a_previous_hash_another_track_still_carries_stays():
-    moved = _track("/a.mp3", "new1", "raw1", previous="shared")
+    moved = _track("/a.mp3", "new1", "raw1", previous=["shared"])
     holder = _track("/b.mp3", "shared")
     assert legacy_track_mapping([moved, holder]) == {"raw1": "new1"}
 
@@ -98,3 +98,22 @@ def test_both_load_paths_carry_the_cleaned_names_before_the_references_are_mappe
         carried = body.index("carry_cleaned_names()")
         mapped = min(body.index("map_favorites()"), body.index("map_scrobble_data()"))
         assert loaded < carried < mapped, path
+
+
+def test_a_track_moves_from_every_release_before():
+    # Raw tags, credits as cleaned until 2026-10, and names before the mojibake
+    # repair: a library may hold its references under any of them.
+    track = _track("/a.mp3", "new1", "raw1", previous=["until2026", "unrepaired"])
+    assert legacy_track_mapping([track]) == {"raw1": "new1", "until2026": "new1", "unrepaired": "new1"}
+
+
+def test_tracks_with_fewer_old_hashes_sit_next_to_ones_with_more():
+    many = _track("/a.mp3", "new1", "raw1", previous=["prev1", "prev2"])
+    one = _track("/b.mp3", "new2", "raw2")
+    untouched = _track("/c.mp3", "same")
+    assert legacy_track_mapping([many, one, untouched]) == {
+        "raw1": "new1",
+        "prev1": "new1",
+        "prev2": "new1",
+        "raw2": "new2",
+    }

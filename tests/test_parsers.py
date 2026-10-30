@@ -5,6 +5,7 @@ from aivinnet.utils.parsers import (
     get_base_album_title,
     parse_feat_from_title,
     remove_prod,
+    repair_mojibake,
     split_artists,
     strip_artist_credit,
     strip_artist_credit_until_2026_10,
@@ -303,3 +304,68 @@ class TestStripArtistCredits:
         assert strip_artist_credits(["Music", "Someone"]) == ["Music", "Someone"]
         assert strip_artist_credits(["Lyrics"]) == ["Lyrics"]
         assert strip_artist_credits(["Someone", "Composed"]) == ["Someone", "Composed"]
+
+
+class TestRepairMojibake:
+    """UTF-8 a tagger had read as Windows-1252 (or Latin-1) and saved that way."""
+
+    def test_the_reported_titles(self):
+        # The Star Trek soundtrack as it stood in the list.
+        assert (
+            repair_mojibake("Suite From Heroes and Demons: Whereâ€™s Freya / To the Rescue")
+            == "Suite From Heroes and Demons: Where\u2019s Freya / To the Rescue"
+        )
+        assert (
+            repair_mojibake("Suite From Heart of Glory: A Klingonâ€™s Feelings / Letâ€™s Make a Phaser")
+            == "Suite From Heart of Glory: A Klingon\u2019s Feelings / Let\u2019s Make a Phaser"
+        )
+
+    def test_latin_1_reading_with_invisible_controls(self):
+        # UTF-8 in an ID3 frame that declares Latin-1: the controls stay in the string.
+        assert repair_mojibake("Whereâ\x80\x99s") == "Where\u2019s"
+        assert repair_mojibake("Ã\x81lvaro") == "Álvaro"
+
+    def test_umlauts_signs_and_dashes(self):
+        assert repair_mojibake("Ã¼ber MÃ¼ller StraÃŸe") == "über Müller Straße"
+        assert repair_mojibake("Â© 2020") == "© 2020"
+        assert repair_mojibake("Aâ€”B â€œquotedâ€\x9d") == "A—B “quoted”"
+
+    def test_cyrillic(self):
+        assert repair_mojibake("Ð¡Ð¿Ð»Ð\xb8Ð½") == "Сплин"
+
+    def test_twice_mangled(self):
+        assert repair_mojibake("Letâ€™s Ã¢â\u201a¬â„¢") == "Let\u2019s \u2019"
+
+    def test_mixed_with_text_that_cannot_be_encoded(self):
+        assert repair_mojibake("Ã©tÃ© 東京") == "été 東京"
+
+    def test_real_text_stays(self):
+        for text in (
+            "Café",
+            "Björk",
+            "Sigur Rós",
+            "Pokémon",
+            "fiancé\u2019s",
+            "Beyoncé — Halo",
+            "東京",
+            "Mötley Crüe",
+            "Œuvre",
+            "",
+        ):
+            assert repair_mojibake(text) == text
+
+    def test_emoji_and_latin_1_cjk(self):
+        assert repair_mojibake("ðŸŽµ Song") == "\U0001f3b5 Song"
+        assert repair_mojibake("æ\x9d±äº¬") == "東京"
+
+    def test_real_french_and_spanish_typography_stays(self):
+        # A Latin letter in front of a no-break space and a guillemet is a
+        # three-byte sequence, and real; so is one "Ñ" in front of an ellipsis.
+        assert repair_mojibake("Voilà\u00a0» fin") == "Voilà\u00a0» fin"
+        assert repair_mojibake("ESPAÑ… tour") == "ESPAÑ… tour"
+
+    def test_an_ambiguous_pair_alone_stays(self):
+        # A capital umlaut in front of a quote or a dash could be a byte pair,
+        # and could be real text. With nothing sure next to it, it is real.
+        assert repair_mojibake("ÜBERÜ“") == "ÜBERÜ“"
+        assert repair_mojibake("L'ÉTÉ…") == "L'ÉTÉ…"
