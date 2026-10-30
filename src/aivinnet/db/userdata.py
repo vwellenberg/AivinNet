@@ -535,6 +535,20 @@ class ScrobbleTable(Base):
         return [tuple(row) for row in result.all()]
 
     @classmethod
+    def plays_by_trackhash_of(cls, userid: int) -> dict[str, tuple[int, int]]:
+        """
+        trackhash -> `(plays, last timestamp)` of ONE user, grouped in SQL: one
+        row per track ever played. The smart playlists' rules read it
+        (`lib/smart_playlist_tracks.py`), cached until the user's next play.
+        """
+        result = cls.rows(
+            select(cls.trackhash, func.count(cls.id), func.max(cls.timestamp))
+            .where(cls.userid == userid)
+            .group_by(cls.trackhash)
+        )
+        return {trackhash: (int(plays), int(last)) for trackhash, plays, last in result.all()}
+
+    @classmethod
     def first_play_by_trackhash(cls) -> dict[str, int]:
         """trackhash -> its earliest play, over ALL users (`lib/date_added.py`)."""
         result = cls.rows(select(cls.trackhash, func.min(cls.timestamp)).group_by(cls.trackhash))
@@ -988,6 +1002,69 @@ class PlaylistTable(Base):
                 commit=True,
             )
         )
+
+
+class SmartPlaylistTable(Base):
+    """
+    Smart playlists: the rules only, never the tracks. They are evaluated
+    when read (`lib/smart_playlist_tracks.py`), so nothing here goes stale.
+
+    Every method takes its owner: the id alone is no permission (see the
+    PlaylistTable delete that matched on the id).
+    """
+
+    __tablename__ = "smart_playlist"
+    __table_args__ = (UniqueConstraint("name", "userid"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String())
+    # The canonical definition (`smart_playlists.definition_to_json`).
+    rules: Mapped[dict[str, Any]] = mapped_column(JSON())
+    created: Mapped[int] = mapped_column(Integer())
+    updated: Mapped[int] = mapped_column(Integer())
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+
+    @classmethod
+    def list_of(cls, userid: int) -> list[dict[str, Any]]:
+        result = cls.rows(
+            select(cls.id, cls.name, cls.rules, cls.created, cls.updated).where(cls.userid == userid).order_by(cls.name)
+        )
+        return [dict(row._mapping) for row in result.all()]
+
+    @classmethod
+    def get_of(cls, id: int, userid: int) -> dict[str, Any] | None:
+        result = cls.rows(
+            select(cls.id, cls.name, cls.rules, cls.created, cls.updated).where((cls.id == id) & (cls.userid == userid))
+        )
+        row = result.first()
+        return dict(row._mapping) if row is not None else None
+
+    @classmethod
+    def name_taken(cls, userid: int, name: str, exclude_id: int | None = None) -> bool:
+        stmt = select(cls.id).where((cls.userid == userid) & (cls.name == name))
+        if exclude_id is not None:
+            stmt = stmt.where(cls.id != exclude_id)
+        return cls.rows(stmt).first() is not None
+
+    @classmethod
+    def add_one(cls, userid: int, name: str, rules: dict[str, Any], now: int) -> int:
+        result = cls.insert_one({"userid": userid, "name": name, "rules": rules, "created": now, "updated": now})
+        return result.lastrowid
+
+    @classmethod
+    def update_of(cls, id: int, userid: int, values: dict[str, Any]) -> bool:
+        result = next(
+            cls.execute(
+                update(cls).where((cls.id == id) & (cls.userid == userid)).values(values),
+                commit=True,
+            )
+        )
+        return result.rowcount > 0
+
+    @classmethod
+    def remove_of(cls, id: int, userid: int) -> bool:
+        result = next(cls.execute(delete(cls).where((cls.id == id) & (cls.userid == userid)), commit=True))
+        return result.rowcount > 0
 
 
 class LibDataTable(Base):

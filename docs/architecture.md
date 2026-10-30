@@ -162,6 +162,7 @@ nicht durchgehend dem Modulnamen:
 |---|---|---|
 | `/album` `/artist` `/track` `/folder` | gleichnamig | Detailansichten |
 | `/playlists` `/playlistfolders` `/favorites` | gleichnamig | Bibliotheks-Mutationen |
+| `/smartplaylists` | gleichnamig | Regel-Playlists: Regeln gespeichert, Titel beim Lesen ausgewertet (`lib/smart_playlists.py`) |
 | `/search` `/getall` | gleichnamig | Suche, paginierte Listen |
 | `/file` | `stream.py` | Audio-Auslieferung |
 | `/img` | `imgserver.py` | Cover, Artist-, Playlist- und Nutzerbilder |

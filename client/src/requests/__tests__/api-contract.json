@@ -38,6 +38,7 @@
   "DELETE /playlistfolders/{folder_id}": {},
   "DELETE /playlists/{playlistid}/delete": {},
   "DELETE /playlists/{playlistid}/remove-img": {},
+  "DELETE /smartplaylists/{smartid}/delete": {},
   "GET /album/pinned": {},
   "GET /album/similar": {
     "query": {
@@ -426,6 +427,16 @@
       "required": [
         "q"
       ]
+    }
+  },
+  "GET /smartplaylists": {},
+  "GET /smartplaylists/{smartid}": {
+    "query": {
+      "allowed": [
+        "limit",
+        "start"
+      ],
+      "required": []
     }
   },
   "POST /album": {
@@ -1128,6 +1139,33 @@
       "type": "json"
     }
   },
+  "POST /smartplaylists/new": {
+    "body": {
+      "allowed": [
+        "limit",
+        "match",
+        "name",
+        "rules",
+        "sort"
+      ],
+      "required": [
+        "name",
+        "rules"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /smartplaylists/{smartid}/save-as-playlist": {
+    "body": {
+      "allowed": [
+        "name"
+      ],
+      "required": [
+        "name"
+      ],
+      "type": "json"
+    }
+  },
   "PUT /auth/profile/image": {
     "body": {
       "allowed": [
@@ -1238,6 +1276,22 @@
         "settings"
       ],
       "type": "multipart"
+    }
+  },
+  "PUT /smartplaylists/{smartid}/update": {
+    "body": {
+      "allowed": [
+        "limit",
+        "match",
+        "name",
+        "rules",
+        "sort"
+      ],
+      "required": [
+        "name",
+        "rules"
+      ],
+      "type": "json"
     }
   },
   "PUT /track/{trackhash}/tags": {
