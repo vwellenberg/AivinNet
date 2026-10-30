@@ -49,6 +49,11 @@ export interface Track extends AlbumDisc {
     added_at?: number | null
     /** What a Home row draws on the card beyond the shared fields ("On repeat"). */
     home?: { weeks?: number[]; factor?: number | null }
+    /**
+     * The file's other tags, as the server read them (tinytag 2: lists of
+     * strings). The player reads the ReplayGain ones (utils/replayGain.ts).
+     */
+    extra?: Record<string, unknown>
 }
 
 export interface Folder {

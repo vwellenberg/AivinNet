@@ -71,7 +71,7 @@ außen** zieht nur Track-Referenzen um (`_carry_references`), nichts davon.
 ## ⚠️ Der Server bereinigt Titel und Interpreten beim LADEN — die Dateien bleiben, wie sie sind
 
 Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den Namen ab
-(`utils/parsers.py`):
+und repariert ein drittes (`utils/parsers.py`):
 
 - **Eine Tracknummer vor dem Titel** (`strip_track_number`): „049 Saint Wenceslaus Theme" →
   „Saint Wenceslaus Theme", „6-001 Fistcuffs" (CD-Präfix) → „Fistcuffs". Nur mit **zweitem
@@ -91,6 +91,18 @@ Seit 2026-10 nimmt `models/track.py` beim Aufbau jedes Tracks zwei Dinge von den
   zu „Composed" + „Lyrics by Jan Valta", zwei Artists, die es nicht gibt. Deshalb läuft die
   Bereinigung über die **Liste** (`strip_artist_credits`): Ein Name, der nur aus Rollen
   besteht, fällt weg, wenn der nächste eine Rolle trägt.
+- **Mojibake in Titel, Album und Interpreten** (`repair_mojibake`, 2026-10-30): „Whereâ€™s
+  Freya" → „Where’s Freya". Ein Tagger hatte UTF-8 als Windows-1252 gelesen und so
+  zurückgeschrieben — das steht **in der Datei**, tinytag liest es korrekt. Dieselbe Form
+  entsteht, wenn ein ID3-Frame Latin-1 deklariert und UTF-8 enthält (dann mit unsichtbaren
+  C1-Steuerzeichen, `â\x80\x99`). Angefasst wird nur ein String mit einem **sicheren** Zeichen
+  (`_SURE`: Â/Ã + Fortsetzung, `â€…`/`â„…`, Vier-Byte-Folge, C1-Steuerzeichen; Kyrillisch erst ab
+  zwei Ð/Ñ-Paaren), darin dann jede als UTF-8 gültige Folge. ⚠️ **Nicht jede Drei-Byte-Folge ist
+  sicher:** „Voilà\u00a0»" (à + geschütztes Leerzeichen + ») ist echtes Französisch und war im
+  ersten Entwurf „repariert" — genauso „ESPAÑ…". Polnisch ohne sicheres Zeichen („Å‚") bleibt
+  kaputt. Der **Album-Hash** unter `mergeAlbums` rechnet mit dem Album, wie es in der Datei
+  steht — sonst verwaisten Cover und Album-Favoriten. Featured Artists aus dem Titel bekommen
+  ihr Artist-Hash-Paar mit.
 
 Weil beides in `trackhash` (Titel, Interpreten) und `artisthash` (Name) eingeht, ändern sich die
 Hashes **ohne** Scan und ohne Dateiänderung — beim ersten Start mit dem neuen Code. Jeder Track
@@ -141,13 +153,16 @@ Ein neuer Bereinigungsschritt im Modell braucht dasselbe: den alten Hash in
 Rohtags. Eine Bibliothek, die die bisherige Regel schon lief, hat ihre Referenzen aber längst
 unter deren Ergebnis: Bei „Composed by A; Lyrics by B" war das „A" + „Lyrics by B", weder roh
 noch neu. Deshalb bleibt die alte Regel **eingefroren** daneben stehen
-(`strip_artist_credit_until_2026_10`), der Track merkt sich deren Hash als `_previoushash`, und
-`legacy_track_mapping` zieht beide um. Wer die Regel wieder verschärft, friert die jetzige ein,
-statt sie zu ändern. Und er darf
-nur den **Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-Hash). Tests:
+(`strip_artist_credit_until_2026_10`), der Track merkt sich jeden solchen Hash in
+`_previoushashes` (ein Tupel, je Release einer: die Credit-Regel bis 2026-10, dann der Stand vor
+`repair_mojibake`), und `legacy_track_mapping` zieht alle um. Dasselbe für Artists: In
+`_legacy_artisthashes` steht pro Name roh → neu **und** „Credit ab, noch kaputt" → neu. Wer die
+Regel wieder verschärft, friert die jetzige ein, statt sie zu ändern. Und er darf nur den
+**Titel** ändern, nie den Albumnamen einer Single (der hängt am Album-Hash). Tests:
 `tests/test_parsers.py` (Regeln), `tests/test_name_cleanup_mapping.py` (was umzieht, Verdrahtung),
-`tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen), `tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in
-`e2e/make_library.py`.
+`tests_api/test_name_cleanup.py` (Umzug gegen die echten Tabellen),
+`tests_api/test_mojibake_repair.py` (Mojibake, Album-Hash, Umzug),
+`tests_api/test_search_word_ranking.py` (die Suche), e2e: der Soundtrack in `e2e/make_library.py`.
 
 **Die Suche rangiert in Stufen** (`lib/searchlib.py::_rank`): exakt (100) > die Anfrage beginnt
 ein **Wort** (90–99) > sie steckt irgendwo drin (80–89) > nur ähnlich (WRatio, unter 80). Vorher
@@ -346,6 +361,14 @@ schreibt das standardmäßig): `POST /album` antwortete für ganze Bibliotheken 
 sichtbar als `Cannot read properties of undefined (reading 'image')`.
 Zahlen aus `extra` immer über
 `utils/parsers.py::tag_int()` lesen; Vorbilder für Strings: `Track.explicit`, `Lyrics.__init__`.
+
+**ReplayGain liest der Client aus `extra`** (#643, `client/src/utils/replayGain.ts`):
+`replaygain_track_gain`/`_album_gain` („-6.54 dB“) und Opus' `r128_track_gain` (1/256 dB bei
+−23 LUFS). Weil der Scan eine Datei nur bei geänderter mtime neu liest, fehlten sie allen Zeilen
+von vor tinytag 2. `lib/replaygain.py::backfill` liest jede solche Datei **einmal** im Hintergrund
+nach (nach `load_into_mem`, Stopp über `WRITERS`) und markiert jede gelesene Zeile mit
+`replaygain_read`, mit oder ohne Fund; neue Zeilen markiert der Indexer selbst. Eine nicht lesbare
+Datei bleibt unmarkiert und wird beim nächsten Start erneut versucht.
 
 ## Was der Indexer stillschweigend überspringt
 

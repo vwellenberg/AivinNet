@@ -145,7 +145,7 @@ def test_a_credit_the_separators_split_leaves_one_name():
     assert [a["name"] for a in track.albumartists] == ["Jan Valta"]
     assert track._legacyhash == create_hash("The Sad Maiden", ALBUM, "Composed", "Lyrics by Jan Valta")
     # The release before cleaned nothing here: one old hash is all there was.
-    assert track._previoushash == ""
+    assert track._previoushashes == ()
 
 
 def test_a_lyricist_cleaned_now_remembers_the_hash_of_the_release_before():
@@ -153,7 +153,7 @@ def test_a_lyricist_cleaned_now_remembers_the_hash_of_the_release_before():
 
     assert [a["name"] for a in track.artists] == ["Jan Valta", "John Comer"]
     assert track._legacyhash == create_hash("Ode to Henry", ALBUM, "Composed by Jan Valta", "Lyrics by John Comer")
-    assert track._previoushash == create_hash("Ode to Henry", ALBUM, "Jan Valta", "Lyrics by John Comer")
+    assert track._previoushashes == (create_hash("Ode to Henry", ALBUM, "Jan Valta", "Lyrics by John Comer"),)
     assert (create_hash("Lyrics by John Comer", decode=True), create_hash("John Comer", decode=True)) in (
         track._legacy_artisthashes
     )

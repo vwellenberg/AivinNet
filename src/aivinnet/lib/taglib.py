@@ -10,6 +10,7 @@ from PIL import Image, UnidentifiedImageError
 from tinytag import TinyTag
 
 from aivinnet.config import UserConfig
+from aivinnet.lib import replaygain
 from aivinnet.lib.albumhash import album_hash, album_title
 from aivinnet.settings import Defaults, Paths
 from aivinnet.utils.hashing import create_hash
@@ -457,6 +458,10 @@ def get_tags(filepath: str, config: UserConfig) -> dict:
 
     for key in to_pop:
         extra.pop(key, None)
+
+    # The ReplayGain tags are in `extra` already (tinytag reads them); the mark
+    # says this file has been read for them, so the backfill skips it.
+    extra[replaygain.CHECKED_KEY] = ["1"]
 
     metadata["extra"] = extra
     return metadata
