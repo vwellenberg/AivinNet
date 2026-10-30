@@ -356,3 +356,65 @@ def tag_int(value: object, default: int) -> int:
             return int(value)
 
     return default
+
+
+def _bytes_as_read(low: int, high: int) -> str:
+    """A regex class of the characters bytes `low`..`high` become when read as cp1252 or Latin-1."""
+    chars = {chr(b) for b in range(low, high)} | {bytes([b]).decode("cp1252", "ignore") for b in range(low, high)}
+    return "[" + re.escape("".join(sorted(chars - {""}))) + "]"
+
+
+# A UTF-8 continuation byte (0x80-0xBF) read as Windows-1252, or as Latin-1
+# (which keeps 0x80-0x9F as C1 controls, as do readers that meet the five bytes
+# cp1252 leaves undefined).
+_CONT = _bytes_as_read(0x80, 0xC0)
+# Any UTF-8 character read that way: a lead byte and as many continuations as it
+# announces.
+_MOJIBAKE = re.compile(rf"[\xc2-\xdf]{_CONT}|[\xe0-\xef]{_CONT}{{2}}|[\xf0-\xf4]{_CONT}{{3}}")
+# What real text never holds. Â/Ã in front of a sign lead every Latin-1 letter
+# ("Ã¼" is ü, "Â©" is ©); â with 0x80-0x87 leads punctuation, currency and ™
+# ("â€™" is the apostrophe U+2019); a four-byte lead is an emoji; a C1 control
+# is Latin-1 reading. Not any three-byte lead: French puts "à\u00a0»" in real
+# titles. And not a lone Ð/Ñ: "ESPAÑ…" is Spanish, so Cyrillic needs two.
+_SURE = re.compile(rf"[\xc2\xc3]{_CONT}|\xe2{_bytes_as_read(0x80, 0x88)}{_CONT}|[\xf0-\xf4]{_CONT}{{3}}|[\x80-\x9f]")
+_CYRILLIC = re.compile(rf"[\xd0\xd1]{_CONT}")
+
+
+def _utf8_again(match: re.Match[str]) -> str:
+    text = match.group(0)
+    raw = bytes(ord(c) if ord(c) < 0x100 else c.encode("cp1252")[0] for c in text)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return text
+
+
+def repair_mojibake(text: str) -> str:
+    """
+    `text` with UTF-8 that was read as Windows-1252 read again as UTF-8.
+
+    "Where\u2019s Freya" stored as UTF-8 and decoded as cp1252 is "Whereâ€™s Freya",
+    and that is what stood in the tags of whole albums: a tagger had read the
+    bytes the wrong way once and saved what it saw. Latin-1 instead of cp1252
+    gives the same with invisible controls ("Whereâ\\x80\\x99s"), which is what a
+    reader makes of UTF-8 in an ID3 frame that declares Latin-1.
+
+    Only a string with at least one sign that cannot be real text (`_SURE`, or
+    two Cyrillic pairs) is touched, and in it every sequence that decodes as
+    UTF-8 — a tagger mangles a whole string, not one letter of it. Mojibake with
+    no sure sign stays, Polish ("Å\u201a" alone) for one. Twice-mangled text
+    ("Ã¢â\u201a¬â„¢") is undone twice.
+    """
+    # Runs on every name of every track at each start: most are plain ASCII.
+    if not text or text.isascii():
+        return text
+
+    for _ in range(3):
+        if not _SURE.search(text) and len(_CYRILLIC.findall(text)) < 2:
+            break
+        repaired = _MOJIBAKE.sub(_utf8_again, text)
+        if repaired == text:
+            break
+        text = repaired
+
+    return text

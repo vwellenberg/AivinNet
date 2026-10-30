@@ -2,9 +2,10 @@
 Carry references over to the names the server cleans when it loads the library.
 
 The server takes a track number off the front of a title ("049 Saint Wenceslaus
-Theme") and a role off the front of an artist ("Composed by Adam Sporka") —
-`utils/parsers.py::strip_track_number` and `strip_artist_credit`, applied in
-`models/track.py`. The files keep their tags. But a trackhash is made of title,
+Theme") and a role off the front of an artist ("Composed by Adam Sporka"), and
+reads UTF-8 that a tagger had read as Windows-1252 again ("Whereâ€™s" ->
+"Where\u2019s") — `utils/parsers.py::strip_track_number`, `strip_artist_credit` and
+`repair_mojibake`, applied in `models/track.py`. The files keep their tags. But a trackhash is made of title,
 album and artists, and an artisthash of the name, so both change: favourites,
 playlists, scrobbles and homepage collections still hold the old hashes and
 would point at nothing.
@@ -53,17 +54,19 @@ def legacy_track_mapping(tracks: Iterable[Any]) -> dict[str, str]:
     another track still carries keeps its references, and one that split into
     two new hashes cannot follow both.
 
-    A track can have had two old hashes — under its raw tags and under the
-    cleanup of the release before (`Track._previoushash`) — depending on which
-    release the library last ran. Each is mapped by the same rules, and an old
-    hash the two send to different tracks follows neither.
+    A track can have had several old hashes — under its raw tags and under the
+    cleanups of the releases before (`Track._previoushashes`, one place per
+    release, "" where it adds nothing) — depending on which release the library
+    last ran. Each release is mapped by the same rules, and an old hash two of
+    them send to different tracks follows neither.
     """
     tracks = list(tracks)
     after = {track.filepath: track.trackhash for track in tracks}
+    olds = {track.filepath: (track._legacyhash, *track._previoushashes) for track in tracks}
     targets: dict[str, set[str]] = {}
 
-    for old_of in (lambda t: t._legacyhash, lambda t: t._previoushash):
-        before = {track.filepath: old_of(track) or track.trackhash for track in tracks}
+    for slot in range(max(map(len, olds.values()), default=0)):
+        before = {path: (old[slot] if slot < len(old) else "") or after[path] for path, old in olds.items()}
         for old, new in remap_by_path(before, after).items():
             targets.setdefault(old, set()).add(new)
 

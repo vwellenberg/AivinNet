@@ -1,12 +1,13 @@
 import { router, Routes } from '@/router'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import useColors from './colors'
 import useDeviceSync from './devicesync'
 import useLyrics from './lyrics'
 import { NotifType, useToast } from './notification'
 import useQueue from './queue'
+import useSleepTimer from './sleepTimer'
 import useTracklist from './queue/tracklist'
 import useSettings from './settings'
 import useTracker from './tracker'
@@ -22,6 +23,7 @@ import { cancelFade, crossFade, isFading } from '@/utils/audio/crossFade'
 import { stopsAtQueueEnd } from '@/utils/playbackAdvance'
 import { createSkipGuard, MAX_FAILED_IN_A_ROW } from '@/utils/skipGuard'
 import { describeMediaError } from '@/utils/mediaError'
+import { replayGainFactor } from '@/utils/replayGain'
 
 class AudioSource {
     private sources: HTMLAudioElement[] = []
@@ -35,6 +37,12 @@ class AudioSource {
      * persisted and shown in the device list.
      */
     duck = 1
+    /**
+     * The track each element holds, for its ReplayGain (#643). Per element:
+     * during a crossfade or a prepared group cut the two elements play two
+     * different tracks, each at its own gain.
+     */
+    private tracks = new WeakMap<HTMLAudioElement, Track>()
 
     constructor() {
         this.sources = [new Audio(), new Audio()]
@@ -55,20 +63,41 @@ class AudioSource {
         return this.sources[this.playingSourceIndex]
     }
 
-    preloadWithUri(uri: string) {
+    preloadWithUri(uri: string, track?: Track) {
         const audio = this.standbySource
         if (!this.settings) return audio
         this.reclaimStandby()
+        if (track) this.setTrack(audio, track)
         audio.src = uri
         audio.muted = this.settings.mute
-        audio.volume = this.musicVolume()
+        audio.volume = this.musicVolume(audio)
         audio.load()
         return audio
     }
 
-    /** The volume the music plays at: the setting, turned down while ducked. */
-    musicVolume() {
-        return (this.settings?.volume ?? 1) * this.duck
+    /** Record which track `audio` holds, so its volume carries that track's gain. */
+    setTrack(audio: HTMLAudioElement, track: Track) {
+        this.tracks.set(audio, track)
+    }
+
+    /** The ReplayGain factor of the track on `audio` (1 when off or unknown). */
+    gainOf(audio: HTMLAudioElement) {
+        return replayGainFactor(this.tracks.get(audio)?.extra, this.settings?.replaygain ?? 'off')
+    }
+
+    /**
+     * The volume the music plays at on `audio`: the setting, turned down while
+     * ducked, times the ReplayGain of the track it holds.
+     */
+    musicVolume(audio: HTMLAudioElement = this.playingSource) {
+        return (this.settings?.volume ?? 1) * this.duck * this.gainOf(audio)
+    }
+
+    /** Re-apply each element's volume, e.g. after the ReplayGain mode changed. A fade keeps its own. */
+    applyVolumes() {
+        this.sources.forEach(audio => {
+            if (!isFading(audio)) audio.volume = this.musicVolume(audio)
+        })
     }
 
     /**
@@ -86,14 +115,15 @@ class AudioSource {
     /** `volume` is the new setting, applied before the setting changes (so not musicVolume()). */
     setVolume(volume: number) {
         this.sources.forEach(audio => {
-            if (audio === this.playingSource || !isFading(audio)) audio.volume = volume * this.duck
+            if (audio === this.playingSource || !isFading(audio))
+                audio.volume = volume * this.duck * this.gainOf(audio)
         })
     }
 
     /** Turn the music down to `gain` of its volume (1 = back up) — both elements. */
     setDuck(gain: number) {
         this.duck = gain
-        this.sources.forEach(audio => (audio.volume = this.musicVolume()))
+        this.sources.forEach(audio => (audio.volume = this.musicVolume(audio)))
     }
 
     switchSources() {
@@ -102,7 +132,8 @@ class AudioSource {
         crossFade({
             audio: this.playingSource,
             duration: this.settings.crossfade_duration,
-            start_volume: this.settings.volume,
+            start_volume: this.musicVolume(this.playingSource),
+            target: this.musicVolume(this.playingSource),
             then_destroy: true,
         })
 
@@ -128,7 +159,7 @@ class AudioSource {
      */
     reclaimStandby() {
         if (cancelFade(this.standbySource)) {
-            this.standbySource.volume = this.musicVolume()
+            this.standbySource.volume = this.musicVolume(this.standbySource)
         }
     }
 
@@ -136,7 +167,7 @@ class AudioSource {
         this.settings = settings
         this.sources.forEach(audio => {
             audio.muted = settings.mute
-            audio.volume = this.musicVolume()
+            audio.volume = this.musicVolume(audio)
         })
     }
 
@@ -210,6 +241,11 @@ export const usePlayer = defineStore('player', () => {
     const skipGuard = createSkipGuard()
 
     audioSource.assignSettings(settings)
+    // A new ReplayGain mode applies at once, to both elements (#643).
+    watch(
+        () => settings.replaygain,
+        () => audioSource.applyVolumes(),
+    )
 
     let currentAudioData = {
         filepath: '',
@@ -372,7 +408,8 @@ export const usePlayer = defineStore('player', () => {
         el.pause()
         el.playbackRate = 1
         el.muted = settings.mute
-        el.volume = audioSource.musicVolume()
+        audioSource.setTrack(el, track)
+        el.volume = audioSource.musicVolume(el)
 
         // Idempotent: a state re-delivered for the same transition (another
         // member joined meanwhile) must not restart a load or a seek that is
@@ -509,6 +546,7 @@ export const usePlayer = defineStore('player', () => {
                 audio,
                 duration: settings.crossfade_duration,
                 start_volume: 0,
+                target: audioSource.musicVolume(audio),
             })
         }
 
@@ -555,6 +593,10 @@ export const usePlayer = defineStore('player', () => {
         const { submitData } = tracker
         submitData()
 
+        // Sleep timer "end of song / album": the track that just ended is the
+        // one it was waiting for. The next one is advanced to, but not started.
+        const stop = useSleepTimer().takeStopAt(tracklist.tracklist[queue.currentindex], queue.next)
+
         if (stopsAtQueueEnd(settings.repeat, settings.shuffle, tracklist.length)) {
             queue.playPause()
             queue.moveForward()
@@ -562,9 +604,10 @@ export const usePlayer = defineStore('player', () => {
         }
 
         // INFO: if next audio is not loaded, manually move forward
-        if (nextAudioData.loaded === false) {
+        if (nextAudioData.loaded === false || stop) {
             clearNextAudioData()
             queue.playNext()
+            if (stop) queue.playPause()
         }
     }
 
@@ -662,7 +705,7 @@ export const usePlayer = defineStore('player', () => {
         if (nextAudioData.filepath === queue.next.filepath) return
 
         const uri = getUrl(queue.next.filepath, queue.next.trackhash)
-        nextAudioData.audio = audioSource.preloadWithUri(uri)
+        nextAudioData.audio = audioSource.preloadWithUri(uri, queue.next)
         nextAudioData.filepath = queue.next.filepath
         nextAudioData.audio.oncanplay = handleNextAudioCanPlay
     }
@@ -672,18 +715,27 @@ export const usePlayer = defineStore('player', () => {
 
         audioSource.switchSources()
 
+        // Sleep timer "end of song / album": the next track is queued but not
+        // started, so there is no play() to race the pause below (a pause
+        // landing on a pending play() is an AbortError toast).
+        const stop = useSleepTimer().takeStopAt(tracklist.tracklist[queue.currentindex], queue.next)
+
         // INFO: Set stuff
         audio = audioSource.playingSource
         audio.currentTime = nextAudioData.silence.starting_file / 1000
         currentAudioData.silence = nextAudioData.silence
         currentAudioData.filepath = nextAudioData.filepath
         maxSeekPercent.value = 0
-        audioSource.playPlayingSource(nextAudioData.silence)
+        if (!stop) audioSource.playPlayingSource(nextAudioData.silence)
 
         clearNextAudioData()
         queue.moveForward()
         assignEventHandlers(audio)
         tracker.changeKey()
+
+        // Only a playing queue has something to pause: `playPause()` on a paused
+        // one would start it.
+        if (stop && queue.playing) queue.playPause()
     }
 
     const initLoadingNextTrackAudio = () => {
@@ -782,6 +834,8 @@ export const usePlayer = defineStore('player', () => {
         const { currenttrack: track } = queue
         const uri = getUrl(track.filepath, track.trackhash)
 
+        audioSource.setTrack(audio, track)
+        if (!isFading(audio)) audio.volume = audioSource.musicVolume(audio)
         audio.src = uri
         audio.load() // on safari, audio won't play without load()
 

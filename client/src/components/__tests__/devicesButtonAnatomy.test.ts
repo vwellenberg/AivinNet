@@ -37,10 +37,14 @@ const COMPONENT = "/src/components/DeviceSync/DevicesButton.vue";
  * failure mode this file exists for. The three below are only the guard that
  * the sweep is looking at something real.
  */
+// `NowPlaying/Header.vue` was the third, and it never imported the button:
+// Vue rendered the tag as a plain element, so between 660 and 900 px it showed
+// nothing, while the bar below already carried the devices button there. The
+// dead slot is gone (#641); `templateComponentsImported.test.ts` now catches
+// a tag nobody imports.
 const KNOWN_HOSTS = [
   "/src/components/BottomBar/Left.vue",
   "/src/components/BottomBar/Right.vue",
-  "/src/components/NowPlaying/Header.vue",
 ];
 
 /**
@@ -93,7 +97,7 @@ describe("devices button anatomy", () => {
     );
   });
 
-  it("is hosted by the three screens this census knows about", () => {
+  it("is hosted by the screens this census knows about", () => {
     const hosts = Object.keys(SOURCES).filter(path => path !== COMPONENT && SOURCES[path].includes("DevicesButton"));
     // Not an exact-match assertion — a fourth host is allowed, it just has to
     // pass the sweep below like the others. What this rules out is the sweep
