@@ -12,8 +12,13 @@
             :class="`season-${p.kind}`"
             :style="varsOf(p)"
         >
-            <span v-if="p.glyph" class="season-glyph">{{ p.glyph }}</span>
-            <span v-else-if="p.kind === 'frankenstein'" class="season-glyph season-monster-face"></span>
+            <span
+                v-for="(g, j) in p.group"
+                :key="j"
+                class="season-glyph"
+                :style="{ '--season-i': String(j) }"
+            >{{ g }}</span>
+            <span v-if="p.kind === 'frankenstein'" class="season-glyph season-monster-face"></span>
         </span>
     </div>
 </template>
@@ -59,7 +64,7 @@ function varsOf(p: Particle): Record<string, string> {
 <style lang="scss">
 // ============================================================================
 // SEASONAL PARTICLES: snow at Christmas, bats, ghosts, a pumpkin, a vampire, a
-// zombie and Frankenstein's monster at Halloween. Mounted once in App.vue,
+// chase (a runner and two zombies) and Frankenstein's monster at Halloween. Mounted once in App.vue,
 // shown only while a season is active (utils/seasons.ts) and never under
 // "reduce motion" (the component above).
 //
@@ -127,9 +132,26 @@ function varsOf(p: Particle): Record<string, string> {
 .season-bat .season-glyph,
 .season-pumpkin .season-glyph,
 .season-vampire .season-glyph,
-.season-zombie .season-glyph,
+.season-chase .season-glyph,
 .season-frankenstein .season-glyph {
-    animation: season-bob var(--season-wobble) ease-in-out infinite alternate;
+    // The delay is the glyph's index times a quarter bob cycle, so the glyphs of a
+    // group bob out of step. It sits IN the shorthand: the shorthand resets the
+    // delay (styling.md), and a single glyph has index 0, i.e. no delay at all.
+    animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -1 / 4) infinite alternate;
+}
+
+// The chase: its glyphs sit side by side in one row, the runner in front (the
+// first span of the group, the leftmost), the zombies a gap behind it.
+.season-chase {
+    display: flex;
+    align-items: flex-end;
+    gap: calc(var(--season-size) * 0.2);
+}
+
+// The 🏃 emoji faces right; the runner goes left, so it is turned to face its
+// way of travel. `scale` is its own property, so the bob's transform keeps working.
+.season-chase .season-glyph:first-child {
+    scale: -1 1;
 }
 
 // The crossing takes 8 % of the cycle and the rest is waiting: the cycles are
@@ -182,10 +204,10 @@ function varsOf(p: Particle): Record<string, string> {
 }
 
 // Pumpkin: rare. It waits a long while, then rolls along the lower screen.
-// The vampire swoops like a bat; zombie and monster shamble along the bottom.
+// The vampire swoops like a bat; the chase and the monster shamble along the bottom.
 .season-pumpkin,
 .season-vampire,
-.season-zombie,
+.season-chase,
 .season-frankenstein {
     animation: season-cross var(--season-dur) linear var(--season-delay) infinite backwards;
 }

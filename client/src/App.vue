@@ -4,6 +4,9 @@
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" />
+    <!-- Halloween on the page: emoji on the cover tiles, and the vampire peeking over one. -->
+    <SeasonTileEmojis v-if="season === 'halloween'" />
+    <SeasonVampire v-if="season === 'halloween'" />
     <!-- The logo's signal easter egg (components/SignalBurst.vue, #544). -->
     <SignalBurst />
     <div id="drag-img" class="ellip2" style=""></div>
@@ -69,6 +72,8 @@ import ContextMenu from "@/components/ContextMenu.vue";
 import Modal from "@/components/modal.vue";
 import Notification from "@/components/Notification.vue";
 import SeasonParticles from "@/components/SeasonParticles.vue";
+import SeasonTileEmojis from "@/components/SeasonTileEmojis.vue";
+import SeasonVampire from "@/components/SeasonVampire.vue";
 import SignalBurst from "@/components/SignalBurst.vue";
 
 // @app-grid-components
@@ -164,13 +169,21 @@ const seasonTimer = setInterval(() => (today.value = new Date()), 60 * 1000);
 onBeforeUnmount(() => clearInterval(seasonTimer));
 
 watch(
-    () => [settings.look, paintedPalette(settings.palette, season.value), season.value === "christmas"] as const,
-    ([look, palette, christmas]) => {
+    () =>
+        [
+            settings.look,
+            paintedPalette(settings.palette, season.value),
+            season.value === "christmas",
+            season.value === "halloween",
+        ] as const,
+    ([look, palette, christmas, halloween]) => {
         for (const [cls, on] of Object.entries(paletteHtmlClasses(look, palette))) {
             document.documentElement.classList.toggle(cls, on);
         }
         // Snow sprinkles instead of the Memphis ones (Global/_seasons.scss).
         document.documentElement.classList.toggle("season-christmas", christmas);
+        // The Halloween cover emoji and their rules (Global/_seasons.scss).
+        document.documentElement.classList.toggle("season-halloween", halloween);
     },
     { immediate: true }
 );

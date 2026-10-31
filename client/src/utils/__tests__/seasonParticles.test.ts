@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_PARTICLES, particlesFor } from '@/utils/seasonParticles'
+import { CHASE_GROUP, MAX_PARTICLES, particlesFor } from '@/utils/seasonParticles'
 
 // A fixed random source: every value lands mid-range, so the layout is the same
 // on every run. The ranges themselves are checked below with a spread of values.
@@ -43,7 +43,7 @@ describe('particlesFor: Christmas is snow', () => {
     it('makes only snowflakes, with a few sizes', () => {
         const flakes = particlesFor('christmas', sequence(7))
         expect(flakes.every((p) => p.kind === 'flake')).toBe(true)
-        expect(flakes.every((p) => p.glyph === '')).toBe(true)
+        expect(flakes.every((p) => p.group.length === 0)).toBe(true)
 
         const sizes = new Set(flakes.map((p) => Math.round(p.size)))
         expect(sizes.size).toBeGreaterThan(2)
@@ -71,31 +71,60 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         expect(count('ghost')).toBe(2)
         expect(count('pumpkin')).toBe(1)
 
-        expect(items.find((p) => p.kind === 'bat')?.glyph).toBe('🦇')
-        expect(items.find((p) => p.kind === 'ghost')?.glyph).toBe('👻')
-        expect(items.find((p) => p.kind === 'pumpkin')?.glyph).toBe('🎃')
+        expect(items.find((p) => p.kind === 'bat')?.group).toEqual(['🦇'])
+        expect(items.find((p) => p.kind === 'ghost')?.group).toEqual(['👻'])
+        expect(items.find((p) => p.kind === 'pumpkin')?.group).toEqual(['🎃'])
     })
 
-    it('adds one vampire, one zombie and Frankenstein\'s monster, drawn without an emoji', () => {
+    it('adds one vampire and Frankenstein\'s monster, and one chase; the monster is drawn without an emoji', () => {
         const items = particlesFor('halloween', MIDDLE)
         const one = (kind: string) => items.filter((p) => p.kind === kind)
-        expect(one('vampire').map((p) => p.glyph)).toEqual(['🧛'])
-        expect(one('zombie').map((p) => p.glyph)).toEqual(['🧟'])
-        expect(one('frankenstein').map((p) => p.glyph)).toEqual([''])
+        expect(one('vampire').map((p) => p.group)).toEqual([['🧛']])
+        expect(one('chase')).toHaveLength(1)
+        expect(one('frankenstein').map((p) => p.group)).toEqual([[]])
+        // The lone zombie is gone: the chase replaces it.
+        expect(items.some((p) => (p.kind as string) === 'zombie')).toBe(false)
     })
 
-    it('lets zombie and monster shamble along the bottom, now and then, not together', () => {
+    it('draws the chase as a runner in front and two zombies behind, person first', () => {
+        const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
+        expect(chase.group).toHaveLength(3)
+        expect(chase.group[0]).toBe('🏃')
+        expect(chase.group.slice(1)).toEqual(['\u{1F9DF}', '\u{1F9DF}\u200D\u2642\uFE0F'])
+        expect(chase.group).toEqual(CHASE_GROUP)
+    })
+
+    it('makes the chase always go right to left, for any seed', () => {
+        for (let seed = 1; seed <= 25; seed++) {
+            const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
+            expect(chase.dir).toBe(-1)
+        }
+    })
+
+    it('keeps the chase as rare as the old zombie: same rhythm, same rarity factor', () => {
+        // The lone zombie cycled 120-160 s, times HALLOWEEN_RARITY (1.5).
+        for (const seed of [3, 7, 11]) {
+            const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
+            expect(chase.top).toBeGreaterThanOrEqual(72)
+            expect(chase.top).toBeLessThanOrEqual(84)
+            expect(chase.delay).toBeGreaterThan(0)
+            expect(chase.duration).toBeGreaterThanOrEqual(120 * 1.5)
+            expect(chase.duration).toBeLessThanOrEqual(160 * 1.5)
+        }
+    })
+
+    it('lets the monster shamble along the bottom, now and then, after the chase', () => {
         for (const seed of [3, 7, 11]) {
             const items = particlesFor('halloween', sequence(seed))
-            const zombie = items.find((p) => p.kind === 'zombie')!
+            const chase = items.find((p) => p.kind === 'chase')!
             const monster = items.find((p) => p.kind === 'frankenstein')!
-            for (const p of [zombie, monster]) {
+            for (const p of [chase, monster]) {
                 expect(p.top).toBeGreaterThanOrEqual(70)
                 expect(p.delay).toBeGreaterThan(0)
                 expect(p.duration).toBeGreaterThanOrEqual(120)
             }
-            // The monster waits longer than the zombie ever does.
-            expect(monster.delay).toBeGreaterThan(zombie.delay)
+            // The monster waits longer than the chase ever does.
+            expect(monster.delay).toBeGreaterThan(chase.delay)
         }
     })
 
@@ -126,7 +155,7 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         const dirs = new Set(
             [1, 5, 9, 13].flatMap((seed) =>
                 particlesFor('halloween', sequence(seed))
-                    .filter((p) => p.kind !== 'bat')
+                    .filter((p) => p.kind !== 'bat' && p.kind !== 'chase')
                     .map((p) => p.dir)
             )
         )
