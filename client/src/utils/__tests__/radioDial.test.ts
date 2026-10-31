@@ -4,13 +4,20 @@ import {
     buildStations,
     dialIsWorthShowing,
     dragPosition,
+    FM_HIGH_MHZ,
+    FM_LOW_MHZ,
+    frequencyLabelWidth,
     keyTarget,
+    labelEvery,
     prefersReducedMotion,
     snapIndex,
     stationFraction,
+    stationFrequency,
+    stationReadout,
     stationsFromList,
     wheelSteps,
 } from '@/utils/radioDial'
+import type { Station } from '@/utils/radioDial'
 
 describe('stationsFromList', () => {
     it('makes one station per listed entry, keeping the playlist id and the kind', () => {
@@ -183,5 +190,99 @@ describe('prefersReducedMotion', () => {
     it('counts a browser without matchMedia as "no preference"', () => {
         expect(prefersReducedMotion({} as Window)).toBe(false)
         expect(prefersReducedMotion(undefined)).toBe(false)
+    })
+})
+
+describe('stationFrequency (the FM dial)', () => {
+    it('puts the first station at 87.5 and the last at 108.0', () => {
+        expect(stationFrequency(0, 4)).toBe('87.5')
+        expect(stationFrequency(3, 4)).toBe('108.0')
+        expect(FM_LOW_MHZ).toBe(87.5)
+        expect(FM_HIGH_MHZ).toBe(108.0)
+    })
+
+    it('spreads the stations evenly between, to one decimal', () => {
+        // 4 stations: 87.5, 94.33 …, 101.17 …, 108.0
+        expect([0, 1, 2, 3].map(i => stationFrequency(i, 4))).toEqual(['87.5', '94.3', '101.2', '108.0'])
+    })
+
+    it('always prints one decimal, and the frequencies strictly rise', () => {
+        for (const count of [2, 3, 5, 8, 12]) {
+            const values = Array.from({ length: count }, (_, i) => stationFrequency(i, count))
+
+            for (const value of values) expect(value).toMatch(/^\d{2,3}\.\d$/)
+            const numbers = values.map(Number)
+            expect(numbers[0]).toBeGreaterThanOrEqual(FM_LOW_MHZ)
+            expect(numbers[count - 1]).toBeLessThanOrEqual(FM_HIGH_MHZ)
+            for (let i = 1; i < count; i++) expect(numbers[i]).toBeGreaterThan(numbers[i - 1])
+        }
+    })
+
+    it('puts a lone station in the middle of the band', () => {
+        expect(stationFrequency(0, 1)).toBe('97.8')
+    })
+})
+
+describe('stationReadout', () => {
+    const jazz: Station = { id: 'genre1', name: 'Jazz', kind: 'genre' }
+
+    it('names the station, its kind and its frequency', () => {
+        expect(stationReadout(jazz, 0, 4)).toEqual({
+            name: 'Jazz',
+            kind: 'GENRE · 87.5 FM',
+            valueText: 'Jazz, 87.5 FM',
+        })
+    })
+
+    it('names the kind of a mix and of a decade', () => {
+        expect(stationReadout({ id: 'mix1', name: 'Mix 1', kind: 'mix' }, 3, 4).kind).toBe('MIX · 108.0 FM')
+        expect(stationReadout({ id: 'decade1', name: '1990s', kind: 'decade' }, 1, 4)).toEqual({
+            name: '1990s',
+            kind: 'DECADE · 94.3 FM',
+            valueText: '1990s, 94.3 FM',
+        })
+    })
+})
+
+describe('frequencyLabelWidth', () => {
+    it('estimates a label in em of its font, rounded up', () => {
+        expect(frequencyLabelWidth(12)).toBe(36)
+        expect(frequencyLabelWidth(13)).toBe(39)
+    })
+})
+
+describe('labelEvery (which stations carry a frequency label)', () => {
+    it('labels every station when the scale is wide enough', () => {
+        expect(labelEvery(600, 4, 36)).toBe(1)
+    })
+
+    it('labels every k-th station when the scale is too narrow for all', () => {
+        // 280 px for 12 stations: 25 px apart, a label needs 36 + 8 = 44 px: every second.
+        expect(labelEvery(280, 12, 36)).toBe(2)
+        // 120 px for 4 stations: 40 px apart, so every second.
+        expect(labelEvery(120, 4, 36)).toBe(2)
+    })
+
+    it('never shows two labels that would overlap, at any width', () => {
+        for (const count of [2, 4, 8, 12]) {
+            for (let width = 40; width <= 900; width += 13) {
+                const every = labelEvery(width, count, 36)
+                // One label left (the first): nothing next to it to overlap.
+                if (every >= count) continue
+                const spacing = width / (count - 1)
+                // Labels sit on every `every`-th station: their centres are `every` apart.
+                expect(every * spacing).toBeGreaterThanOrEqual(36 + 8 - 1e-9)
+            }
+        }
+    })
+
+    it('shows only the first label while the width is not known', () => {
+        expect(labelEvery(0, 4, 36)).toBe(4)
+        expect(labelEvery(Number.NaN, 4, 36)).toBe(4)
+    })
+
+    it('labels a lone station, and never asks for more steps than there are stations', () => {
+        expect(labelEvery(300, 1, 36)).toBe(1)
+        expect(labelEvery(1, 3, 36)).toBe(3)
     })
 })
