@@ -158,6 +158,9 @@ export const paths = {
             get recapDismiss() {
                 return this.base + '/recap/dismiss'
             },
+            get advent() {
+                return this.base + '/advent'
+            },
         },
         auth: {
             base: '/auth',

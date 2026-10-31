@@ -5,6 +5,8 @@
         <RewindCard />
         <!-- The recap of last week (Mondays) or last month (the 1st), #530. -->
         <WeeklyRecap />
+        <!-- The Advent calendar, 1 to 24 December (server-decided; no card the rest of the year). -->
+        <AdventCalendar />
         <!-- Up to three unfinished albums/playlists, newest first. How many
              show depends on the width of THIS area (container query below):
              one on a narrow window, two from ~1000px, three on an ultrawide. -->
@@ -94,6 +96,7 @@ import ContinueCard from '@/components/HomeView/ContinueCard.vue'
 import RadioDial from '@/components/HomeView/RadioDial.vue'
 import RewindCard from '@/components/HomeView/RewindCard.vue'
 import WeeklyRecap from '@/components/HomeView/WeeklyRecap.vue'
+import AdventCalendar from '@/components/HomeView/AdventCalendar.vue'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
 import { notInterestedMenu } from '@/helpers/notInterested'

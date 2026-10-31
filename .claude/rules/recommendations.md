@@ -318,6 +318,25 @@ als `track.date`, wenn die Datei kein Jahr trägt. `track_facts` setzt `TrackFac
 auf 0, sobald `date == last_mod` ist — sonst bekäme jedes untaggte Album das Jahrzehnt seiner
 Dateidatum. Wer das Jahr anders liest, übernimmt diese Ausnahme.
 
+## Der Advent-Kalender (1.–24. Dezember)
+
+Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
+blendet sie nicht aus). `GET /nothome/advent` (`api/home`) liefert `{day, doors}`: `day` ist 0 außerhalb
+des Fensters, sonst die Tür von heute, `doors` die Türen 1 bis heute mit je einem Album (Karten-Form wie
+„Recently played“). Regeln in `lib/home/advent.py` (pur, strikt): Reihenfolge eines Jahres ist quiet
+(≥ 180 Tage nicht gehört), dann nie gehört, dann der Rest; die ersten beiden Stufen seeded nach
+(Nutzer, Jahr). Nie zwei Türen mit demselben Album, solange die Bibliothek eines hergibt.
+
+⚠️ **Eine einmal entschiedene Tür bleibt stehen.** Die Reihenfolge hängt am Hörstand, und ein Album,
+das heute gespielt wird, wandert aus „nie gehört“ heraus — rechnete man jede Antwort neu, sprang die
+heutige Tür beim Reload auf ein anderes Album. `lib/home/advent_calendar.py` hält die Entscheidungen je
+Nutzer und Jahr im RAM (`_made`) und entscheidet nur die fehlenden Türen neu; eine Tür, deren Album die
+Bibliothek verlassen hat, wird neu entschieden. Nach einem Neustart rechnet es wieder, und dann kann
+sich eine frühere Tür ändern, wenn inzwischen gespielt wurde — bewusst nicht persistiert.
+
+Die Hörhistorie kommt aus `ScrobbleTable.plays_by_trackhash_of` (eine gruppierte Abfrage pro Nutzer,
+gecacht bis zum nächsten Play), nie pro Album.
+
 ## Ausgehende Verbindungen im Überblick
 
 Damit „sonst nichts“ nachprüfbar bleibt, steht hier die vollständige Liste. In diese Tabelle

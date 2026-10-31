@@ -11,6 +11,9 @@ from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.dates import timestamp_to_time_passed
 
+# What a Home album card leaves out of the album: the card needs none of it.
+HOME_ALBUM_OMIT = frozenset({"genres", "date", "count", "duration", "albumartists_hashes", "og_title"})
+
 
 def recover_items(items: list[dict]):
     recovered = []
@@ -23,17 +26,7 @@ def recover_items(items: list[dict]):
             if album is None:
                 continue
 
-            album = album_serializer(
-                album,
-                to_remove={
-                    "genres",
-                    "date",
-                    "count",
-                    "duration",
-                    "albumartists_hashes",
-                    "og_title",
-                },
-            )
+            album = album_serializer(album, to_remove=set(HOME_ALBUM_OMIT))
 
             recovered_item = {
                 "type": "album",

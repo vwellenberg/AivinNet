@@ -46,6 +46,8 @@ PROTECTED = [
     "/auth/user",
     "/notsettings",
     "/playlists",
+    # The Advent calendar: the user's own plays and library, never public.
+    "/nothome/advent",
     "/file/aaaa/legacy",
     # Cover art and — the part that matters — every user's profile picture.
     "/img/thumbnail/small/anything.webp",
