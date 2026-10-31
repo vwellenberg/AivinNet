@@ -8,6 +8,7 @@ export enum playSources {
   track,
   recentlyAdded,
   recentlyPlayed,
+  smartPlaylist,
 }
 
 export enum NotifType {
@@ -27,6 +28,7 @@ export enum FromOptions {
   artist = "artist",
   albumCard = "albumCard",
   favorite = "favorite",
+  smartPlaylist = "smartPlaylist",
 }
 
 export enum ContextSrc {
@@ -72,6 +74,7 @@ export enum dropSources {
   search = "search",
   artist = "artist",
   favorite = "favorite",
+  smartPlaylist = "smartPlaylist",
 }
 
 interface Plugin {

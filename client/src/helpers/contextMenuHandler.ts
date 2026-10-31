@@ -3,7 +3,7 @@ import { Ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { ContextSrc } from '@/enums'
-import { Album, Option, Playlist, Track } from '@/interfaces'
+import { Album, Option, Playlist, SmartPlaylist, Track } from '@/interfaces'
 import useContextStore from '@/stores/context'
 
 import albumContextItems from '@/context_menus/album'
@@ -12,6 +12,7 @@ import folderContextItems from '@/context_menus/folder'
 import trackContextItems from '@/context_menus/track'
 import queueContextItems from '@/context_menus/queue'
 import playlistContextItems from '@/context_menus/playlist'
+import smartPlaylistContextItems from '@/context_menus/smartPlaylist'
 import { separator } from '@/context_menus/utils'
 
 let stop_prev_watcher = () => {}
@@ -33,6 +34,16 @@ function flagWatcher(menu: Store, flag: Ref<boolean>) {
         //@ts-ignore
         flag.value = state.visible
     })
+}
+
+/** A smart playlist's card or page menu (#642): edit the rules, save as playlist, delete. */
+export const showSmartPlaylistContextMenu = (e: MouseEvent, smart: SmartPlaylist, flag: Ref<boolean>) => {
+    const menu = useContextStore()
+
+    const options = () => smartPlaylistContextItems(smart)
+    menu.showContextMenu(e, options, ContextSrc.PHeader)
+
+    flagWatcher(menu, flag)
 }
 
 export const showTrackContextMenu = (e: MouseEvent, track: Track, flag: Ref<boolean>) => {

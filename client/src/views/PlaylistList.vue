@@ -10,9 +10,17 @@
                 <button v-if="!isMobile" class="playlist-button" @click="showNewPlaylistModal()">
                     <PlusSvg /> New Playlist
                 </button>
+                <!-- A set of rules instead of a list of tracks (#642). On a phone the
+                     top bar carries both actions (see NavBar headerActions). -->
+                <button v-if="!isMobile" class="playlist-button" @click="showSmartPlaylistEditor()">
+                    <SparklesSvg /> New smart playlist
+                </button>
             </template>
         </Header>
 
+        <PlaylistCardGroup v-if="smartPlaylists.length" :title="'Smart playlists'">
+            <SmartPlaylistCard v-for="p in smartPlaylists" :key="p.id" :playlist="p" />
+        </PlaylistCardGroup>
         <PlaylistCardGroup v-if="pinnedPlaylists.length" :playlists="pinnedPlaylists" :title="'Pinned'" />
         <PlaylistCardGroup
             v-if="playlists.length"
@@ -20,7 +28,7 @@
             :title="`${pinnedPlaylists.length ? 'Other' : 'All'} Playlists`"
         />
         <NoItems
-            :flag="!(playlists.length + pinnedPlaylists.length)"
+            :flag="!(playlists.length + pinnedPlaylists.length + smartPlaylists.length)"
             :icon="PlaylistSvg"
             :title="'No playlists found'"
             :description="description"
@@ -32,19 +40,25 @@
 import { computed, onMounted } from 'vue'
 
 import usePStore from '@/stores/pages/playlists'
+import useSmartPlaylistsStore from '@/stores/pages/smartPlaylists'
 import { isMobile } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import PlaylistSvg from '@/assets/icons/playlist-1.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
+import SparklesSvg from '@/assets/icons/sparkles.svg'
 import PlaylistCardGroup from '@/components/PlaylistsList/PlaylistCardGroup.vue'
+import SmartPlaylistCard from '@/components/PlaylistsList/SmartPlaylistCard.vue'
 import Header from '@/components/shared/GenericHeader.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
 import NoItems from '@/components/shared/NoItems.vue'
 import useModalStore from '@/stores/modal'
 
 const pStore = usePStore()
-const { showNewPlaylistModal } = useModalStore()
+const smartStore = useSmartPlaylistsStore()
+const { showNewPlaylistModal, showSmartPlaylistEditor } = useModalStore()
+
+const smartPlaylists = computed(() => smartStore.playlists)
 
 const description = `You can create a playlist by right clicking on a track and selecting the
         "Add to Playlist" option`

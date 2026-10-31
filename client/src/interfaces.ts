@@ -241,6 +241,45 @@ export interface fromFav {
     type: FromOptions.favorite
 }
 
+export interface fromSmartPlaylist {
+    type: FromOptions.smartPlaylist
+    name: string
+    id: number
+}
+
+// Smart playlists (#642): a set of rules the server evaluates on every read.
+// The shapes mirror `SmartPlaylistBody` in api/smartplaylists.py.
+export type SmartPlaylistValue = string | number | boolean | [number, number] | null
+
+export interface SmartPlaylistRule {
+    field: string
+    op: string
+    value: SmartPlaylistValue
+}
+
+export type SmartPlaylistSort = 'random' | { field: string; order: 'asc' | 'desc' }
+
+export interface SmartPlaylistBody {
+    name: string
+    match: 'all' | 'any'
+    rules: SmartPlaylistRule[]
+    limit: number
+    sort: SmartPlaylistSort
+}
+
+/** A smart playlist as the list and the header show it. */
+export interface SmartPlaylist extends Omit<SmartPlaylistBody, 'name'> {
+    id: number
+    name: string
+    created: number
+    updated: number
+}
+
+/** The detail answer: the rules plus how many tracks they hold right now. */
+export interface SmartPlaylistDetail extends SmartPlaylist {
+    count: number
+}
+
 export interface subPath {
     name: string
     path: string

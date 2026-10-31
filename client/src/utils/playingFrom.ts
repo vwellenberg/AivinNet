@@ -13,6 +13,7 @@ import BookmarkSvg from '@/assets/icons/bookmark.fill.svg'
 import PlaylistSvg from '@/assets/icons/playlist.svg'
 import SearchSvg from '@/assets/icons/search.svg'
 import RadioSvg from '@/assets/icons/radio.svg'
+import SparklesSvg from '@/assets/icons/sparkles.svg'
 
 interface PlayingFrom {
     /**
@@ -134,6 +135,20 @@ export default (source: From): PlayingFrom => {
                 icon: BookmarkSvg,
                 location: {
                     name: Routes.favoriteTracks,
+                },
+                image: '',
+            }
+
+        case FromOptions.smartPlaylist:
+            return {
+                type: 'Smart playlist',
+                name: source.name,
+                icon: SparklesSvg,
+                location: {
+                    name: Routes.smartPlaylist,
+                    params: {
+                        smartid: source.id,
+                    },
                 },
                 image: '',
             }

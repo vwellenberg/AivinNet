@@ -24,6 +24,8 @@ function getQueueName(from: From) {
       return `Search results for ${from.query}`;
     case FromOptions.favorite:
       return `Favorites`;
+    case FromOptions.smartPlaylist:
+      return from.name;
     default:
       return "";
   }

@@ -5,6 +5,8 @@ import useAlbumPageStore from '@/stores/pages/album'
 import useFolderPageStore from '@/stores/pages/folder'
 import usePlaylistPageStore from '@/stores/pages/playlist'
 import usePlaylistListPageStore from '@/stores/pages/playlists'
+import useSmartPlaylistListStore from '@/stores/pages/smartPlaylists'
+import useSmartPlaylistPageStore from '@/stores/pages/smartPlaylist'
 import useArtistPageStore from '@/stores/pages/artist'
 import useSettingsStore from '@/stores/settings'
 import { installChunkReload } from '@/utils/chunkReload'
@@ -25,6 +27,7 @@ const ArtistTracksView = () => import('@/views/ArtistTracks.vue')
 const PlaylistListView = () => import('@/views/PlaylistList.vue')
 const FavoriteTracks = () => import('@/views/FavoriteTracks.vue')
 const PlaylistView = () => import('@/views/PlaylistView/index.vue')
+const SmartPlaylistView = () => import('@/views/SmartPlaylistView.vue')
 const ArtistDiscographyView = () => import('@/views/ArtistDiscography.vue')
 const FavoriteCardScroller = () => import('@/views/FavoriteCardScroller.vue')
 const StatsView = () => import('@/views/Stats/main.vue')
@@ -57,11 +60,9 @@ const playlists = {
     component: PlaylistListView,
     beforeEnter: async () => {
         state.loading.value = true
-        await usePlaylistListPageStore()
-            .fetchAll()
-            .then(() => {
-                state.loading.value = false
-            })
+        await Promise.all([usePlaylistListPageStore().fetchAll(), useSmartPlaylistListStore().fetchAll()]).then(() => {
+            state.loading.value = false
+        })
     },
 }
 
@@ -73,6 +74,21 @@ const playlistView = {
         state.loading.value = true
         await usePlaylistPageStore()
             .fetchAll(to.params.pid)
+            .then(() => {
+                state.loading.value = false
+            })
+    },
+}
+
+// A smart playlist (#642): its rules and the tracks they hold right now.
+const smartPlaylistView = {
+    path: '/smartplaylist/:smartid',
+    name: 'SmartPlaylistView',
+    component: SmartPlaylistView,
+    beforeEnter: async (to: any) => {
+        state.loading.value = true
+        await useSmartPlaylistPageStore()
+            .fetchPage(Number(to.params.smartid), true)
             .then(() => {
                 state.loading.value = false
             })
@@ -220,6 +236,7 @@ const routes = [
     folder,
     playlists,
     playlistView,
+    smartPlaylistView,
     albumView,
     artistView,
     artistDiscography,
@@ -244,6 +261,7 @@ const Routes = {
     folder: folder.name,
     playlists: playlists.name,
     playlist: playlistView.name,
+    smartPlaylist: smartPlaylistView.name,
     album: albumView.name,
     artist: artistView.name,
     artistDiscography: artistDiscography.name,

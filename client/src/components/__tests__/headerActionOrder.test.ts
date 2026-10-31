@@ -22,6 +22,8 @@ const HEADERS = [
   "/src/components/AlbumView/Header/Buttons.vue",
   "/src/components/ArtistView/HeaderComponents/Buttons.vue",
   "/src/components/PlaylistView/Header/Info.vue",
+  // A smart playlist (#642): play, shuffle, then the overflow menu.
+  "/src/components/SmartPlaylistView/Header.vue",
 ];
 
 interface Tag {

@@ -79,6 +79,12 @@ export const paths = {
                 return this.base + '/new'
             },
         },
+        smartPlaylists: {
+            base: '/smartplaylists',
+            get new() {
+                return this.base + '/new'
+            },
+        },
         search: {
             base: '/search',
             get top() {

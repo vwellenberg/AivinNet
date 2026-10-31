@@ -241,6 +241,32 @@ const CALLS: Record<string, unknown[]> = {
     'playlists/removeBannerImage': [7],
     'playlists/movePlaylistTrack': [7, 't1', 't2'],
     'playlists/pinUnpinPlaylist': [7],
+    'smartPlaylists/getSmartPlaylists': [],
+    'smartPlaylists/getSmartPlaylist': [7, 0, 50],
+    'smartPlaylists/createSmartPlaylist': [
+        {
+            name: 'Jazz from the 90s',
+            match: 'all',
+            rules: [
+                { field: 'genre', op: 'is', value: 'Jazz' },
+                { field: 'year', op: 'between', value: [1990, 1999] },
+            ],
+            limit: 100,
+            sort: { field: 'playcount', order: 'desc' },
+        },
+    ],
+    'smartPlaylists/updateSmartPlaylist': [
+        7,
+        {
+            name: 'Jazz from the 90s',
+            match: 'any',
+            rules: [{ field: 'favorite', op: 'is', value: true }],
+            limit: 50,
+            sort: 'random',
+        },
+    ],
+    'smartPlaylists/deleteSmartPlaylist': [7],
+    'smartPlaylists/saveSmartPlaylistAsPlaylist': [7, 'Jazz from the 90s'],
     'searchMusic/searchTopResults': ['blue', 5],
     'searchMusic/searchTracks': ['blue', 0],
     'searchMusic/searchAlbums': ['blue', 0],

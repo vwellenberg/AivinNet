@@ -3,7 +3,7 @@
  * label) and by the tiles (which decide whether their help text still says
  * anything the label has not already said).
  */
-export type CardType = 'album' | 'artist' | 'favorite' | 'folder' | 'playlist' | 'track'
+export type CardType = 'album' | 'artist' | 'favorite' | 'folder' | 'playlist' | 'smartPlaylist' | 'track'
 
 export const CARD_TYPE_LABELS: Record<CardType, string> = {
     album: 'Album',
@@ -11,6 +11,7 @@ export const CARD_TYPE_LABELS: Record<CardType, string> = {
     favorite: 'Favorites',
     folder: 'Folder',
     playlist: 'Playlist',
+    smartPlaylist: 'Smart playlist',
     track: 'Track',
 }
 

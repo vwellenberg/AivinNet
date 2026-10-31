@@ -67,6 +67,25 @@
                     :confirm-action="deletePlaylist"
                 />
             </div>
+            <SmartPlaylistEditor
+                v-if="modal.component == modal.options.smartPlaylistEditor"
+                v-bind="modal.props"
+                @hideModal="hideModal"
+                @setTitle="setTitle"
+            />
+            <SaveSmartPlaylist
+                v-if="modal.component == modal.options.saveSmartPlaylist"
+                v-bind="modal.props"
+                @hideModal="hideModal"
+                @setTitle="setTitle"
+            />
+            <div v-if="modal.component == modal.options.deleteSmartPlaylist">
+                <ConfirmModal
+                    :text="'Delete this smart playlist? Its rules go; a playlist saved from it stays.'"
+                    :cancel-action="modal.hideModal"
+                    :confirm-action="deleteSmartPlaylist"
+                />
+            </div>
             <SetRootDirs v-if="modal.component == modal.options.setRootDirs" @hideModal="hideModal" />
             <RootDirsPrompt v-if="modal.component == modal.options.rootDirsPrompt" @hideModal="hideModal" />
             <Settings
@@ -81,6 +100,8 @@
 
 <script setup lang="ts">
 import { deletePlaylist as delPlaylist } from '@/requests/playlists'
+import { deleteSmartPlaylist as delSmartPlaylist } from '@/requests/smartPlaylists'
+import useSmartPlaylistsStore from '@/stores/pages/smartPlaylists'
 import useModalStore, { ModalOptions } from '@/stores/modal'
 import usePlaylistsStore from '@/stores/pages/playlists'
 import { useRouter } from 'vue-router'
@@ -100,6 +121,8 @@ import LibraryAudit from './modals/LibraryAudit.vue'
 import SetRootDirs from './modals/SetRootDirs.vue'
 import Settings from './modals/Settings.vue'
 import UpdatePlaylist from './modals/updatePlaylist.vue'
+import SmartPlaylistEditor from './modals/SmartPlaylistEditor.vue'
+import SaveSmartPlaylist from './modals/SaveSmartPlaylist.vue'
 
 const modal = useModalStore()
 const router = useRouter()
@@ -119,6 +142,8 @@ const modalWidth = computed(() => {
     if (modal.component == ModalOptions.setRootDirs) return '56rem'
     if (modal.component == ModalOptions.fetchMetadata) return '44rem'
     if (modal.component == ModalOptions.libraryAudit) return '44rem'
+    // Three pickers and a value per rule need the room a settings row does not.
+    if (modal.component == ModalOptions.smartPlaylistEditor) return '36rem'
     return '30rem'
 })
 
@@ -176,6 +201,21 @@ function deletePlaylist() {
         .then(() => modal.hideModal())
         .then(() => {
             if (onDeletedPage) router.back()
+        })
+}
+
+// A smart playlist's page goes to the list once its rules are gone: back would
+// land on a page that no longer exists.
+function deleteSmartPlaylist() {
+    const smartid = modal.props.smartid as number
+    const route = router.currentRoute.value
+    const onDeletedPage = route.name === 'SmartPlaylistView' && Number(route.params.smartid) === smartid
+    delSmartPlaylist(smartid)
+        .then(ok => {
+            if (!ok) return
+            useSmartPlaylistsStore().remove(smartid)
+            modal.hideModal()
+            if (onDeletedPage) router.push({ name: 'PlaylistList' })
         })
 }
 </script>
