@@ -358,6 +358,7 @@
       "required": []
     }
   },
+  "GET /nothome/advent": {},
   "GET /nothome/layout": {},
   "GET /nothome/not-interested": {},
   "GET /nothome/recap": {},

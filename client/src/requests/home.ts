@@ -1,4 +1,5 @@
 import { paths } from '@/config'
+import type { Album } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
 import useAxios from './useAxios'
 
@@ -144,5 +145,25 @@ export async function dismissWeeklyRecap(key: string) {
         url: paths.api.home.recapDismiss,
         method: 'POST',
         props: { key },
+    })
+}
+
+/** One door of the Advent calendar: its day, and that day's album as a Home card. */
+export interface AdventDoor {
+    day: number
+    album: Album
+}
+
+/** The calendar on Home: `day` is 1 to 24 in December, 0 outside it; `doors` are the doors up to today. */
+export interface AdventCalendar {
+    day: number
+    doors: AdventDoor[]
+}
+
+/** The Advent calendar's doors up to today (Dec 1–24); `day` 0 means no calendar. */
+export async function getAdvent() {
+    return await useAxios({
+        url: paths.api.home.advent,
+        method: 'GET',
     })
 }

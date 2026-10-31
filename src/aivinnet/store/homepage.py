@@ -133,10 +133,14 @@ class HomepageStore:
         next one created after its deletion, and both would still be cached
         under it.
         """
+        from aivinnet.lib.home.advent_calendar import forget as forget_advent_calendar
+
+        # Imported here: the calendar's routines import this module (see `crons`).
         cls.layouts.pop(userid, None)
         StationStore.forget_user(userid)
         first_play_cache.forget(userid)
         records.forget(userid)
+        forget_advent_calendar(userid)
 
     @classmethod
     def add_new_user(cls, userid: int):

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
 from aivinnet.api.scrobble import discovered_in
 from aivinnet.db.userdata import NotInterestedTable, UserTable
+from aivinnet.lib.home.advent_calendar import advent_calendar
 from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
 from aivinnet.lib.home.recap import RECAP_KEY_PATTERN, RecapPeriod, has_plays, is_news, recap_period
@@ -327,3 +328,17 @@ def dismiss_recap(body: RecapDismissBody):
 
     UserTable.set_extra(userid, RECAP_DISMISSED_KEY, body.key)
     return {"msg": "Dismissed"}, 200
+
+
+# SECTION: THE ADVENT CALENDAR
+
+
+@api.get("/advent")
+def get_advent():
+    """
+    The Advent calendar on Home: from 1 to 24 December, the doors up to today,
+    each with that day's album of the user's library (an album not heard in a
+    long time, or never). `day` is 0 outside December 1 to 24, and then there
+    are no doors. The same door gives the same album for the rest of the day.
+    """
+    return advent_calendar(get_current_userid(), recap_today())
