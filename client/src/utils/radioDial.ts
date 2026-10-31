@@ -39,6 +39,15 @@ export function stationsFromList(entries: StationEntry[]): Station[] {
     })
 }
 
+/**
+ * Whether Home shows the dial at all. Mixes alone would only repeat the
+ * "Your mixes" row right below it (why #646 hid it), so it takes at least one
+ * genre or decade station to be worth a place.
+ */
+export function dialIsWorthShowing(stations: Station[]): boolean {
+    return stations.some(station => station.kind !== 'mix')
+}
+
 /** Mixes, then genres, then decades: the order the dial runs in. No station twice. */
 export function buildStations(lists: { mixes?: Station[]; genres?: Station[]; decades?: Station[] }): Station[] {
     const seen = new Set<string>()

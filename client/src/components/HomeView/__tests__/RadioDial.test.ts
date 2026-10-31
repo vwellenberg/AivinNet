@@ -23,7 +23,10 @@ vi.mock('@/helpers/radio', () => ({ tuneStation, resumeMusic, muteForTuning, cra
 
 import RadioDial from '@/components/HomeView/RadioDial.vue'
 
-// The stations the server lists (`GET /nothome/stations`), in its order.
+// The stations the server lists (`GET /nothome/stations`), in its order. They
+// are listed as genre stations: a dial of mixes alone stays hidden
+// (utils/radioDial.ts::dialIsWorthShowing), and these tests are about the dial.
+const dialOf = (ids: string[]) => ids.map((id, i) => ({ id, kind: 'genre', name: `Mix ${i + 1}` }))
 const mixes = (ids: string[]) => ids.map((id, i) => ({ id, kind: 'mix', name: `Mix ${i + 1}` }))
 
 const dial = (w: ReturnType<typeof mount>) => w.get('[role="slider"]')
@@ -68,15 +71,21 @@ describe('RadioDial', () => {
         expect(w.find('.radio-card').exists()).toBe(false)
     })
 
+    it('shows nothing with mixes alone: the "Your mixes" row below already has them', async () => {
+        const w = await mountWith(mixes(['mix1', 'mix2']))
+
+        expect(w.find('.radio-card').exists()).toBe(false)
+    })
+
     it('shows nothing when the station list cannot be had', async () => {
         stationsMock.fail = true
-        const w = await mountWith(mixes(['mix1']))
+        const w = await mountWith(dialOf(['mix1']))
 
         expect(w.find('.radio-card').exists()).toBe(false)
     })
 
     it('is a slider over the stations, naming the station in aria-valuetext', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2', 'mix3']))
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
 
         const el = dial(w)
         expect(el.attributes('role')).toBe('slider')
@@ -102,7 +111,7 @@ describe('RadioDial', () => {
     })
 
     it('steps with the arrow keys and tunes each station in', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2', 'mix3']))
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
 
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
 
@@ -127,7 +136,7 @@ describe('RadioDial', () => {
     })
 
     it('jumps to the ends with Home and End, and stops at them', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2', 'mix3']))
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
 
         await dial(w).trigger('keydown', { key: 'End' })
         expect(dial(w).attributes('aria-valuetext')).toBe('Mix 3')
@@ -140,7 +149,7 @@ describe('RadioDial', () => {
     })
 
     it('a key that lands on the station already playing resumes the music instead', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2']))
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
 
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
         tuneStation.mockClear()
@@ -151,7 +160,7 @@ describe('RadioDial', () => {
     })
 
     it('the wheel steps one station per notch once the dial is focused', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2', 'mix3']), { attachTo: document.body })
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']), { attachTo: document.body })
         ;(dial(w).element as HTMLElement).focus()
 
         // 50 px is one notch (WHEEL_PX_PER_STATION); 120 px would be two stations.
@@ -163,7 +172,7 @@ describe('RadioDial', () => {
     })
 
     it('a wheel passing over an unfocused dial scrolls the page instead', async () => {
-        const w = await mountWith(mixes(['mix1', 'mix2', 'mix3']), { attachTo: document.body })
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']), { attachTo: document.body })
 
         const event = new WheelEvent('wheel', { deltaY: 50, cancelable: true, bubbles: true })
         dial(w).element.dispatchEvent(event)
@@ -176,10 +185,10 @@ describe('RadioDial', () => {
     })
 
     it('reads the list again when Home refreshes its rows', async () => {
-        const w = await mountWith(mixes(['mix1']))
+        const w = await mountWith(dialOf(['mix1']))
         expect(getStations).toHaveBeenCalledTimes(1)
 
-        stationsMock.list = mixes(['mix1', 'mix2'])
+        stationsMock.list = dialOf(['mix1', 'mix2'])
         homeMock.homepageItems = [{ key: 'your_mixes', items: [] }]
         await flushPromises()
 
@@ -189,7 +198,7 @@ describe('RadioDial', () => {
 
     it('under reduced motion the needle does not animate', async () => {
         vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }))
-        const w = await mountWith(mixes(['mix1', 'mix2']))
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
         await w.vm.$nextTick()
 
         expect(dial(w).classes()).toContain('is-still')
@@ -197,7 +206,7 @@ describe('RadioDial', () => {
 
     it('without the preference the needle keeps its movement', async () => {
         vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }))
-        const w = await mountWith(mixes(['mix1', 'mix2']))
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
         await w.vm.$nextTick()
 
         expect(dial(w).classes()).not.toContain('is-still')
