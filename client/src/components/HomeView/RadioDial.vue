@@ -2,6 +2,9 @@
   <section v-if="dialIsWorthShowing(stations)" class="radio-card">
     <div class="radio-title"><b>AivinNet FM</b></div>
 
+    <!-- Display and scale side by side, like a car radio: the readout on the
+         left, the band on the right. On a phone they stack. -->
+    <div class="radio-body">
     <!-- The readout: the station under the needle, big. It follows a drag, and
          the scale names no station, so nothing on it can overlap. -->
     <div class="radio-display" aria-hidden="true">
@@ -46,7 +49,9 @@
         <span class="radio-needle" :style="{ left: pct(position) }"></span>
       </div>
     </div>
+    </div>
 
+    <!-- For screen readers: the display already says it on screen. -->
     <p class="radio-status" aria-live="polite">{{ statusText }}</p>
   </section>
 </template>
@@ -264,22 +269,36 @@ function onUp(event: PointerEvent) {
     }
   }
 
-  // The readout above the dial: the tuned station, big, on its own plate. The
-  // same plate as the dial, so it reads as part of the same set.
+  // Readout beside the band (user, 2026-10-31: a full-width readout left a
+  // long empty plate on a desktop). Both rows share the dial's 4rem height.
+  .radio-body {
+    display: grid;
+    grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: stretch;
+
+    @include allPhones {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  // The readout: the tuned station, big, on its own plate. The same plate as
+  // the dial, so it reads as part of the same set.
   .radio-display {
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
     @include candy-raised(3px, 3px, $press: false);
     display: flex;
     flex-direction: column;
+    justify-content: center;
     min-width: 0;
-    margin-bottom: 0.75rem;
-    padding: 0.6rem 1rem 0.7rem;
+    min-height: 4rem;
+    padding: 0.4rem 1rem;
   }
 
   .radio-display-name {
     min-width: 0;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
     line-height: 1.2;
     white-space: nowrap;
@@ -362,10 +381,17 @@ function onUp(event: PointerEvent) {
     transition: none;
   }
 
+  // Read out to screen readers only: on screen the display says the same.
   .radio-status {
-    margin-top: 0.5rem;
-    font-size: $medium;
-    color: $mem-content-text;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 </style>
