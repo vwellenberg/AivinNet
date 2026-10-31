@@ -1,5 +1,5 @@
 <template>
-  <section v-if="stations.length" class="radio-card">
+  <section v-if="dialIsWorthShowing(stations)" class="radio-card">
     <div class="radio-title"><b>Subspace radio</b></div>
 
     <div
@@ -56,6 +56,7 @@ import {
   prefersReducedMotion,
   snapIndex,
   stationFraction,
+  dialIsWorthShowing,
   stationsFromList,
   wheelSteps,
 } from '@/utils/radioDial'

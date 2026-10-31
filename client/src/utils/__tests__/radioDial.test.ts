@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
     buildStations,
+    dialIsWorthShowing,
     dragPosition,
     keyTarget,
     prefersReducedMotion,
@@ -44,6 +45,22 @@ describe('stationsFromList', () => {
             { id: 'genre3', name: 'genre3', kind: 'genre' },
         ])
         expect(stationsFromList([])).toEqual([])
+    })
+})
+
+describe('dialIsWorthShowing', () => {
+    const mix = { id: 'mix1', name: 'Mix 1', kind: 'mix' as const }
+    const genre = { id: 'genre1', name: 'Jazz', kind: 'genre' as const }
+    const decade = { id: 'decade1', name: '1990s', kind: 'decade' as const }
+
+    it('stays away with mixes alone: the "Your mixes" row already shows them', () => {
+        expect(dialIsWorthShowing([])).toBe(false)
+        expect(dialIsWorthShowing([mix, { ...mix, id: 'mix2', name: 'Mix 2' }])).toBe(false)
+    })
+
+    it('comes with a genre or a decade station', () => {
+        expect(dialIsWorthShowing([mix, genre])).toBe(true)
+        expect(dialIsWorthShowing([decade])).toBe(true)
     })
 })
 
