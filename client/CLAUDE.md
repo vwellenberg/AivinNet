@@ -11,7 +11,7 @@ die Issue-Historie — Links dorthin bleiben gültig, neue Arbeit passiert hier.
 | | |
 |---|---|
 | **Repo** | `vwellenberg/AivinNet` (Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic)), Client unter `client/` |
-| **Stack** | Vue 3, Pinia, TypeScript, SCSS, Vite 6, yarn |
+| **Stack** | Vue 3, Pinia, TypeScript, SCSS, Vite 8, yarn |
 | **Server** | Homeserver im LAN, Port 1970, systemd-Unit **`aivinnet`** — Host, Account und Key stehen in der globalen `~/.claude/CLAUDE.md` (nicht im Repo) |
 | **Checkout auf dem Server** | `~/AivinNet`, Client gebaut nach `~/.config/aivinnet/client/` |
 
@@ -283,11 +283,23 @@ Kurzfassung: Vue 3 + Pinia + Vite, **Hash-Routing** (Deeplinks brauchen `#`), Wi
   beim Hover. Wer ihm wieder eine Fläche gibt, holt sich das Problem aus #318 zurück: Ink als
   *Fläche* ist sonst nirgends in der App, und im Dark-Theme liegt sie auf der Panel-Farbe
   (#17171A auf #141416) — die Kachel verschwindet, nur der Rahmen bleibt.
-- **Vite 6.4 + Vitest 4.1** (seit #581). `vite` ist per `resolutions` in `package.json` festgenagelt:
+- **Vite 8.3 + Vitest 5.0** (Vite 8 seit #655; davor Vite 6.4 + Vitest 4.1 seit #581).
+  `vite` ist per `resolutions` in `package.json` festgenagelt:
   vitest nimmt einen Bereich über mehrere Vite-Majors, und yarn legte ihm sonst die neueste davon
   daneben — zwei Vites im Baum, und das fremde scheiterte am Sass 1.56
   (`sass.initAsyncCompiler is not a function`, 47 Testdateien luden nicht). Die nächste Vite-Major
   heißt `resolutions` mit anheben.
+- **Node:** Vite 8 verlangt `^20.19 || >=22.12`, Vitest 5 `^22.12 || ^24 || >=26`. CI, Dockerfile
+  und Release-Build nehmen Node 22 (aktuelles 22.x). Der Server-Node muss ebenfalls passen, sonst
+  bricht `yarn build` ab.
+- **Bekannte Build-Warnung seit Vite 8:** „Your Vite config uses features that are unsupported by
+  `configLoader: 'native'`". Sie entsteht, weil `client/package.json` kein `"type": "module"` hat:
+  `vite.config.ts` und `src/utils/colortools/sassPalettes.ts` laufen dann als CJS. Die Warnung
+  abzustellen ist keine Kleinigkeit: `"type": "module"` macht `.eslintrc.js` und die Gate-Skripte
+  `scripts/{overflow-check,edge-audit,menu-label-fit}.js` (von `scripts/deploy-client.sh`
+  aufgerufen) zu ESM-Fehlern, dazu kommen `.ts`-Endungen und JSON-Import-Attribute in der Config.
+  Wer sie loswerden will, fasst diese Kette gemeinsam an. `VITE_CONFIG_NATIVE_IGNORE_WARNING` zu
+  setzen unterdrückt die Warnung nur.
 
 Die bereichsgebundenen Regeln stehen in `.claude/rules/` und laden sich selbst, sobald eine
 passende Datei gelesen wird:
