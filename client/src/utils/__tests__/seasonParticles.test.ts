@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHASE_GROUP, MAX_PARTICLES, particlesFor } from '@/utils/seasonParticles'
+import { CHASE_GROUP, MAX_PARTICLES, SPIDER_GLYPH, particlesFor } from '@/utils/seasonParticles'
 
 // A fixed random source: every value lands mid-range, so the layout is the same
 // on every run. The ranges themselves are checked below with a spread of values.
@@ -34,7 +34,7 @@ describe('particlesFor: the count is capped', () => {
     })
 
     it('a season with a few particles keeps every one of them', () => {
-        expect(particlesFor('halloween', MIDDLE)).toHaveLength(9)
+        expect(particlesFor('halloween', MIDDLE)).toHaveLength(8)
         expect(particlesFor('christmas', MIDDLE)).toHaveLength(18)
     })
 })
@@ -76,28 +76,39 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         expect(items.find((p) => p.kind === 'pumpkin')?.group).toEqual(['🎃'])
     })
 
-    it('adds one vampire and Frankenstein\'s monster, and one chase; the monster is drawn without an emoji', () => {
-        const items = particlesFor('halloween', MIDDLE)
-        const one = (kind: string) => items.filter((p) => p.kind === kind)
-        expect(one('vampire').map((p) => p.group)).toEqual([['🧛']])
-        expect(one('chase')).toHaveLength(1)
-        expect(one('frankenstein').map((p) => p.group)).toEqual([[]])
-        // The lone zombie is gone: the chase replaces it.
-        expect(items.some((p) => (p.kind as string) === 'zombie')).toBe(false)
+    it('has no flying grave and no flying vampire: no crosser of those kinds at all', () => {
+        for (const seed of [1, 4, 8, 15, 23]) {
+            const kinds = particlesFor('halloween', sequence(seed)).map((p) => p.kind as string)
+            expect(kinds).not.toContain('vampire')
+            expect(kinds).not.toContain('frankenstein')
+            expect(kinds).not.toContain('zombie')
+            // Every emoji of every particle is one of the allowed ones.
+            const glyphs = particlesFor('halloween', sequence(seed)).flatMap((p) => p.group)
+            expect(glyphs).not.toContain('🧛')
+            expect(glyphs).not.toContain('🪦')
+        }
     })
 
-    it('draws the chase as a runner in front and two zombies behind, person first', () => {
+    it('adds one chase and one spider, and nothing else', () => {
+        const items = particlesFor('halloween', MIDDLE)
+        expect(items.filter((p) => p.kind === 'chase')).toHaveLength(1)
+        expect(items.filter((p) => p.kind === 'spider')).toHaveLength(1)
+        expect(new Set(items.map((p) => p.kind))).toEqual(new Set(['bat', 'ghost', 'pumpkin', 'chase', 'spider']))
+    })
+
+    it('draws the chase as two zombies and the runner last, the runner leading', () => {
         const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
         expect(chase.group).toHaveLength(3)
-        expect(chase.group[0]).toBe('🏃')
-        expect(chase.group.slice(1)).toEqual(['\u{1F9DF}', '\u{1F9DF}\u200D\u2642\uFE0F'])
         expect(chase.group).toEqual(CHASE_GROUP)
+        expect(chase.group.slice(0, 2)).toEqual(['\u{1F9DF}', '\u{1F9DF}‍♂️'])
+        // The runner is the last, the rightmost span: it leads a left-to-right chase.
+        expect(chase.group[chase.group.length - 1]).toBe('🏃')
     })
 
-    it('makes the chase always go right to left, for any seed', () => {
-        for (let seed = 1; seed <= 25; seed++) {
+    it('makes the chase always go left to right (dir +1), for any seed', () => {
+        for (let seed = 1; seed <= 40; seed++) {
             const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
-            expect(chase.dir).toBe(-1)
+            expect(chase.dir, `seed ${seed}`).toBe(1)
         }
     })
 
@@ -105,26 +116,18 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         // The lone zombie cycled 120-160 s, times HALLOWEEN_RARITY (1.5).
         for (const seed of [3, 7, 11]) {
             const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
-            expect(chase.top).toBeGreaterThanOrEqual(72)
-            expect(chase.top).toBeLessThanOrEqual(84)
             expect(chase.delay).toBeGreaterThan(0)
             expect(chase.duration).toBeGreaterThanOrEqual(120 * 1.5)
             expect(chase.duration).toBeLessThanOrEqual(160 * 1.5)
         }
     })
 
-    it('lets the monster shamble along the bottom, now and then, after the chase', () => {
-        for (const seed of [3, 7, 11]) {
-            const items = particlesFor('halloween', sequence(seed))
-            const chase = items.find((p) => p.kind === 'chase')!
-            const monster = items.find((p) => p.kind === 'frankenstein')!
-            for (const p of [chase, monster]) {
-                expect(p.top).toBeGreaterThanOrEqual(70)
-                expect(p.delay).toBeGreaterThan(0)
-                expect(p.duration).toBeGreaterThanOrEqual(120)
-            }
-            // The monster waits longer than the chase ever does.
-            expect(monster.delay).toBeGreaterThan(chase.delay)
+    it('runs the chase on the ground lane, lifted above the player bar, never in the sky', () => {
+        for (const seed of [3, 7, 11, 19]) {
+            const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
+            expect(chase.ground).toBe(true)
+            expect(chase.lift).toBeGreaterThanOrEqual(2.5)
+            expect(chase.lift).toBeLessThanOrEqual(6)
         }
     })
 
@@ -134,6 +137,22 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         const bats = items.filter((p) => p.kind === 'bat')
         expect(pumpkin.delay).toBeGreaterThan(0)
         expect(pumpkin.duration).toBeGreaterThan(Math.max(...bats.map((b) => b.duration)))
+    })
+
+    it('puts the pumpkin on the ground lane too, above the bar', () => {
+        for (const seed of [2, 6, 10]) {
+            const pumpkin = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'pumpkin')!
+            expect(pumpkin.ground).toBe(true)
+            expect(pumpkin.lift).toBeGreaterThanOrEqual(4)
+            expect(pumpkin.lift).toBeLessThanOrEqual(10)
+        }
+    })
+
+    it('keeps the bats and ghosts in the sky, not on the ground', () => {
+        for (const p of particlesFor('halloween', sequence(9)).filter((p) => p.kind === 'bat' || p.kind === 'ghost')) {
+            expect(p.ground).toBe(false)
+            expect(p.lift).toBe(0)
+        }
     })
 
     it('makes bats cross occasionally: they wait before their first crossing', () => {
@@ -151,15 +170,51 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         }
     })
 
-    it('lets the other crossers go both ways', () => {
+    it('lets the pumpkin go both ways', () => {
         const dirs = new Set(
             [1, 5, 9, 13].flatMap((seed) =>
                 particlesFor('halloween', sequence(seed))
-                    .filter((p) => p.kind !== 'bat' && p.kind !== 'chase')
+                    .filter((p) => p.kind === 'pumpkin')
                     .map((p) => p.dir)
             )
         )
         expect(dirs).toEqual(new Set([1, -1]))
+    })
+})
+
+describe('particlesFor: the spider on its thread', () => {
+    it('is one spider, drawn with the spider emoji (U+1F577 with the emoji selector)', () => {
+        const spiders = particlesFor('halloween', sequence(6)).filter((p) => p.kind === 'spider')
+        expect(spiders).toHaveLength(1)
+        expect(spiders[0].group).toEqual([SPIDER_GLYPH])
+        expect(SPIDER_GLYPH).toBe('\u{1F577}️')
+    })
+
+    it('hangs from the top edge: no sky lane, and it lets itself down a part of the screen', () => {
+        for (const seed of [2, 6, 10, 14]) {
+            const spider = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'spider')!
+            expect(spider.top).toBe(0)
+            expect(spider.ground).toBe(false)
+            expect(spider.drop).toBeGreaterThanOrEqual(25)
+            expect(spider.drop).toBeLessThanOrEqual(55)
+        }
+    })
+
+    it('is rare: it waits, and each cycle is longer than a crosser\'s', () => {
+        for (const seed of [2, 6, 10]) {
+            const spider = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'spider')!
+            expect(spider.delay).toBeGreaterThan(0)
+            expect(spider.duration).toBeGreaterThanOrEqual(80 * 1.5)
+            expect(spider.duration).toBeLessThanOrEqual(100 * 1.5)
+        }
+    })
+
+    it('sits somewhere across the width, for any seed', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const spider = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'spider')!
+            expect(spider.left).toBeGreaterThanOrEqual(5)
+            expect(spider.left).toBeLessThanOrEqual(95)
+        }
     })
 })
 

@@ -18,8 +18,9 @@
 // A vampire rises from behind the top edge of a card cover, pauses, puffs into
 // a bat and flies off up and to the left. Mounted in App.vue only while the
 // season is Halloween. It draws nothing under "reduce motion", nothing while the
-// tab is hidden, and a peek ends early when the page scrolls or the route changes
-// (the overlay is fixed, so it would otherwise float away from its card).
+// tab is hidden. A scroll or a route change ends a peek that is still behind its
+// card (the overlay is fixed, so it would otherwise float away from it); once the
+// bat has taken off it flies off the screen on its own, and the peek ends there.
 //
 // The timing and the choice of card are in utils/vampirePeek.ts; this component
 // only runs the clock and draws the overlay.
@@ -33,9 +34,11 @@ import { useRoute } from "vue-router";
 import { COVER_SELECTOR } from "@/utils/seasonTileEmojis";
 import {
     PEEK_DURATION_MS,
+    PEEK_LAUNCH_FRACTION,
     PEEK_SIZE_PX,
     nextPeekDelayMs,
     peekAnchor,
+    peekExit,
     pickPeekTarget,
 } from "@/utils/vampirePeek";
 
@@ -43,6 +46,9 @@ interface Peek {
     key: number;
     x: number;
     y: number;
+    /** Where the bat flies to, relative to the anchor (utils/vampirePeek.ts::peekExit). */
+    exitX: number;
+    exitY: number;
 }
 
 const lessMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -53,6 +59,7 @@ const peek = ref<Peek | null>(null);
 let seq = 0;
 let nextTimer: ReturnType<typeof setTimeout> | undefined;
 let endTimer: ReturnType<typeof setTimeout> | undefined;
+let launchTimer: ReturnType<typeof setTimeout> | undefined;
 
 // The CSS reads these; the durations are custom properties, not literals.
 const peekStyle = computed(() =>
@@ -60,11 +67,24 @@ const peekStyle = computed(() =>
         ? {
               "--peek-x": `${peek.value.x}px`,
               "--peek-y": `${peek.value.y}px`,
+              "--peek-exit-x": `${peek.value.exitX}px`,
+              "--peek-exit-y": `${peek.value.exitY}px`,
               "--peek-size": `${PEEK_SIZE_PX}px`,
               "--peek-dur": `${PEEK_DURATION_MS}ms`,
           }
         : {}
 );
+
+/**
+ * A scroll takes the peek away while the vampire is still behind its card. Once
+ * the bat has taken off it is left to fly off screen (it no longer rides the
+ * card), so the scroll listener goes at the launch.
+ */
+function unhookScroll(): void {
+    if (launchTimer !== undefined) clearTimeout(launchTimer);
+    launchTimer = undefined;
+    window.removeEventListener("scroll", endPeek, { capture: true });
+}
 
 function clearNext(): void {
     if (nextTimer !== undefined) clearTimeout(nextTimer);
@@ -91,17 +111,20 @@ function tryPeek(): void {
         schedule();
         return;
     }
-    const { x, y } = peekAnchor(rects[index]);
-    peek.value = { key: ++seq, x, y };
+    const anchor = peekAnchor(rects[index]);
+    const exit = peekExit(anchor);
+    peek.value = { key: ++seq, x: anchor.x, y: anchor.y, exitX: exit.x, exitY: exit.y };
     window.addEventListener("scroll", endPeek, { capture: true, passive: true });
+    launchTimer = setTimeout(unhookScroll, PEEK_DURATION_MS * PEEK_LAUNCH_FRACTION);
+    // The whole peek: the bat has flown off the screen by the end of it.
     endTimer = setTimeout(endPeek, PEEK_DURATION_MS);
 }
 
-/** Ends the peek (on time, or early on scroll or a route change) and books the next one. */
+/** Ends the peek (on time, or early on a scroll before the launch, or a route change) and books the next one. */
 function endPeek(): void {
     if (endTimer !== undefined) clearTimeout(endTimer);
     endTimer = undefined;
-    window.removeEventListener("scroll", endPeek, { capture: true });
+    unhookScroll();
     peek.value = null;
     schedule();
 }
@@ -114,9 +137,13 @@ watch(visibility, (state) => {
     }
 });
 
+// A route change ends a peek that is still behind its card. Once the bat has
+// taken off (no launch timer left) it flies on to its end, like a scroll does.
 watch(
     () => route.fullPath,
-    () => endPeek()
+    () => {
+        if (launchTimer !== undefined) endPeek();
+    }
 );
 
 onMounted(schedule);
@@ -125,7 +152,7 @@ onBeforeUnmount(() => {
     clearNext();
     if (endTimer !== undefined) clearTimeout(endTimer);
     endTimer = undefined;
-    window.removeEventListener("scroll", endPeek, { capture: true });
+    unhookScroll();
     peek.value = null;
 });
 </script>
@@ -229,7 +256,10 @@ onBeforeUnmount(() => {
     }
 }
 
-// The bat leaves from the puff, up and to the left, fading as it goes.
+// The bat leaves from the puff and flies up and to the left at full opacity, all
+// the way off the screen: `--peek-exit-x/y` is the offset to a point past both
+// edges (utils/vampirePeek.ts::peekExit), so it is gone before the peek ends
+// and never fades out in view.
 @keyframes season-peek-bat {
     0%,
     50% {
@@ -241,8 +271,8 @@ onBeforeUnmount(() => {
         transform: translate3d(-50%, -50%, 0);
     }
     100% {
-        opacity: 0;
-        transform: translate3d(calc(-50% - 10rem), calc(-50% - 12rem), 0);
+        opacity: 1;
+        transform: translate3d(calc(-50% + var(--peek-exit-x, 0px)), calc(-50% + var(--peek-exit-y, 0px)), 0);
     }
 }
 </style>

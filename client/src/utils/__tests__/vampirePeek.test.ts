@@ -4,9 +4,11 @@ import {
     PEEK_DELAY_MAX_MS,
     PEEK_DELAY_MIN_MS,
     PEEK_DURATION_MS,
+    PEEK_LAUNCH_FRACTION,
     PEEK_SIZE_PX,
     nextPeekDelayMs,
     peekAnchor,
+    peekExit,
     pickPeekTarget,
     type PeekRect,
 } from '@/utils/vampirePeek'
@@ -84,3 +86,38 @@ describe('peekAnchor and the whole peek', () => {
         expect(PEEK_DURATION_MS).toBe(3200)
     })
 })
+
+describe('peekExit: the bat flies off the screen, it does not fade', () => {
+    /** Where the bat's centre ends up, and whether its glyph is clear of the viewport on both edges. */
+    function endsOffScreen(anchor: { x: number; y: number }, vp = VP): boolean {
+        const exit = peekExit(anchor)
+        const cx = anchor.x + exit.x
+        const cy = anchor.y + exit.y
+        const half = PEEK_SIZE_PX / 2
+        return cx + half < 0 && cy + half < 0 && cx - half < vp.width && cy - half < vp.height
+    }
+
+    it('flies up and to the left: both offsets are negative', () => {
+        const exit = peekExit({ x: 500, y: 300 })
+        expect(exit.x).toBeLessThan(0)
+        expect(exit.y).toBeLessThan(0)
+    })
+
+    it('ends past both the left and the top edge, for any anchor a peek can have', () => {
+        // A peek needs a cover with room above it (pickPeekTarget): top >= PEEK_SIZE_PX.
+        for (const x of [0, 40, 320, 999, 1400]) {
+            for (const y of [PEEK_SIZE_PX, 120, 400, 790]) {
+                expect(endsOffScreen({ x, y }), `anchor ${x},${y}`).toBe(true)
+            }
+        }
+    })
+
+    it('is measured from the anchor, so the same offset lands off screen on a phone', () => {
+        expect(endsOffScreen({ x: 195, y: 260 }, { width: 390, height: 844 })).toBe(true)
+    })
+
+    it('takes off after the puff: the scroll listener is released at the launch, half way', () => {
+        expect(PEEK_LAUNCH_FRACTION).toBe(0.5)
+    })
+})
+

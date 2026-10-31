@@ -57,23 +57,42 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-glyph').map((g) => g.text())).toContain('🦇')
     })
 
-    it('draws the vampire as emoji and the monster as a pixel head', () => {
+    it('draws no vampire and no monster: those crossers are gone from the sky and the ground', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
         const glyphs = wrapper.findAll('.season-glyph').map((g) => g.text())
-        expect(glyphs).toContain('🧛')
-        expect(wrapper.findAll('.season-frankenstein .season-monster-face')).toHaveLength(1)
+        expect(glyphs).not.toContain('🧛')
+        expect(wrapper.findAll('.season-vampire')).toHaveLength(0)
+        expect(wrapper.findAll('.season-frankenstein')).toHaveLength(0)
+        expect(wrapper.findAll('.season-monster-face')).toHaveLength(0)
     })
 
-    it('draws the chase as one group: the runner first, then the two zombies, each with its own glyph span', () => {
+    it('draws the chase as one group: two zombies, then the runner last, each with its own glyph span', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
         const chases = wrapper.findAll('.season-particle.season-chase')
         expect(chases).toHaveLength(1)
         const spans = chases[0].findAll('.season-glyph')
-        expect(spans.map((g) => g.text())).toEqual(['🏃', '🧟', '🧟‍♂️'])
+        expect(spans.map((g) => g.text())).toEqual(['🧟', '🧟‍♂️', '🏃'])
         // Each glyph carries its index, which staggers its bob.
         expect(spans.map((g) => (g.element as HTMLElement).style.getPropertyValue('--season-i'))).toEqual(['0', '1', '2'])
         // No lone zombie anywhere else on the page.
         expect(wrapper.findAll('.season-particle').filter((p) => p.classes().includes('season-zombie'))).toHaveLength(0)
+    })
+
+    it('anchors the ground lane to the player bar: the chase and the pumpkin carry is-ground, the sky does not', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
+        expect(wrapper.findAll('.season-particle.is-ground')).toHaveLength(2)
+        expect(wrapper.find('.season-chase').classes()).toContain('is-ground')
+        expect(wrapper.find('.season-pumpkin').classes()).toContain('is-ground')
+        expect(wrapper.find('.season-bat').classes()).not.toContain('is-ground')
+        expect(wrapper.find('.season-ghost').classes()).not.toContain('is-ground')
+    })
+
+    it('draws one spider, with its emoji, and gives it the lift-free drop variable', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
+        const spider = wrapper.find('.season-particle.season-spider')
+        expect(spider.exists()).toBe(true)
+        expect(spider.find('.season-glyph').text()).toBe('🕷️')
+        expect((spider.element as HTMLElement).style.getPropertyValue('--season-drop')).toMatch(/^\d+(\.\d+)?vh$/)
     })
 
     it('is hidden from assistive technology: the layer is decoration', () => {

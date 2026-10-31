@@ -5,19 +5,22 @@
  */
 import type { Season } from './seasons'
 
-export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'vampire' | 'chase' | 'frankenstein'
+export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'chase' | 'spider'
 
 export interface Particle {
     kind: ParticleKind
     /**
      * The emoji of a Halloween particle, one span each, in order. A chase has
-     * several (the runner first). Empty for a snowflake and for Frankenstein's
-     * monster, which are drawn in CSS.
+     * several, the runner LAST (it leads, on the right). Empty for a snowflake.
      */
     group: string[]
-    /** Start position, % of the viewport width (flakes, ghosts). */
+    /** Start position, % of the viewport width (flakes, ghosts, spiders). */
     left: number
-    /** Height, % of the viewport (everything that crosses does so at this height). */
+    /**
+     * Height, % of the viewport, for the sky lanes (bats, flakes). Zero for the
+     * ground lane (`ground`), which is anchored to the player bar instead, and
+     * for spiders, which hang from the top edge.
+     */
     top: number
     /** Snowflake diameter, or emoji size, in px. */
     size: number
@@ -31,6 +34,16 @@ export interface Particle {
     wobble: number
     /** Everything that crosses: 1 goes left to right, -1 right to left. */
     dir: 1 | -1
+    /**
+     * The ground lane: the group stands on the player bar's top edge, lifted
+     * by `lift` rem above it, so no part of it is ever drawn under the bar
+     * (components/SeasonParticles.vue, `bottom` from the bar's own tokens).
+     */
+    ground: boolean
+    /** Ground lane only: rem above the player bar's top edge. */
+    lift: number
+    /** Spider only: how far the thread lets it down, % of the viewport height. */
+    drop: number
 }
 
 /** The most particles on screen at once. Each one is a DOM element with a running animation. */
@@ -40,20 +53,22 @@ export const MAX_PARTICLES = 25
 const SNOWFLAKES = 18
 
 /**
- * The chase: a person running in front, the zombies a little behind. Person
- * first, so the leftmost span is the runner (the chase crosses right to left).
+ * The chase: two zombies, then the runner in front. The runner is the LAST span,
+ * the rightmost, because the chase always goes left to right (`dir` is +1 for
+ * every chase) and the 🏃 emoji faces right: it runs the way it looks.
  */
-export const CHASE_GROUP = ['🏃', '\u{1F9DF}', '\u{1F9DF}\u200D\u2642\uFE0F']
+export const CHASE_GROUP = ['\u{1F9DF}', '\u{1F9DF}‍♂️', '🏃']
+
+/** The spider, on its thread: U+1F577 and the emoji presentation selector. */
+export const SPIDER_GLYPH = '\u{1F577}️'
 
 /** Halloween: a few, and most of them only now and then. */
 const HALLOWEEN: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'bat', group: ['🦇'], count: 3 },
     { kind: 'ghost', group: ['👻'], count: 2 },
     { kind: 'pumpkin', group: ['🎃'], count: 1 },
-    { kind: 'vampire', group: ['🧛'], count: 1 },
     { kind: 'chase', group: CHASE_GROUP, count: 1 },
-    // No emoji for the monster: a pixel head in CSS (components/SeasonParticles.vue).
-    { kind: 'frankenstein', group: [], count: 1 },
+    { kind: 'spider', group: [SPIDER_GLYPH], count: 1 },
 ]
 
 /** A value between `min` and `max`, from the random source. */
@@ -79,6 +94,9 @@ function snowflake(random: () => number): Particle {
         drift: between(random, -40, 40),
         wobble: 0,
         dir: 1,
+        ground: false,
+        lift: 0,
+        drop: 0,
     }
 }
 
@@ -91,7 +109,7 @@ function snowflake(random: () => number): Particle {
 export const HALLOWEEN_RARITY = 1.5
 
 function halloweenParticle(random: () => number, kind: ParticleKind, group: string[]): Particle {
-    const base = { kind, group, left: 0, top: 0, drift: 0, wobble: 0, dir: sign(random) }
+    const base = { kind, group, left: 0, top: 0, drift: 0, wobble: 0, dir: sign(random), ground: false, lift: 0, drop: 0 }
     const rare = HALLOWEEN_RARITY
     if (kind === 'bat') {
         // Crosses in a short part of its cycle, then is gone for a while. Always
@@ -120,48 +138,43 @@ function halloweenParticle(random: () => number, kind: ParticleKind, group: stri
             wobble: between(random, 3, 5),
         }
     }
-    if (kind === 'vampire') {
-        // Swoops across high up like the bats, only slower and less often.
-        return {
-            ...base,
-            top: between(random, 8, 35),
-            size: 32,
-            duration: between(random, 90, 120) * rare,
-            delay: between(random, 20, 60),
-            wobble: between(random, 1.6, 2.2),
-        }
-    }
     if (kind === 'chase') {
-        // The runner and the zombies cross the bottom band, now and then, as one
-        // group. Always right to left: the runner faces the way it runs, and the
-        // zombies follow it. The timing is the old lone zombie's, so the chase is
-        // no more frequent than the zombie was.
+        // The runner and the zombies cross the bottom lane now and then, as one
+        // group, left to right: the runner leads, so it faces the way it runs.
+        // The timing is the old lone zombie's, so the chase is no more frequent
+        // than the zombie was.
         return {
             ...base,
-            dir: -1,
-            top: between(random, 72, 84),
+            dir: 1,
+            ground: true,
+            lift: between(random, 2.5, 6),
             size: 34,
             duration: between(random, 120, 160) * rare,
             delay: between(random, 10, 40),
             wobble: between(random, 0.7, 1),
         }
     }
-    if (kind === 'frankenstein') {
-        // Shamble along the bottom of the screen, now and then, one at a time,
-        // and after the chase: the monster waits longer than the chase does.
+    if (kind === 'spider') {
+        // A spider lets itself down on its thread from the top edge, hangs and
+        // sways, and climbs back up. Rare: only a short part of each cycle is
+        // visible (season-spider in SeasonParticles.vue).
         return {
             ...base,
-            top: between(random, 72, 84),
-            size: 34,
-            duration: between(random, 120, 160) * rare,
-            delay: between(random, 50, 90),
-            wobble: between(random, 0.7, 1),
+            dir: 1,
+            left: between(random, 5, 95),
+            drop: between(random, 25, 55),
+            size: 26,
+            duration: between(random, 80, 100) * rare,
+            delay: between(random, 10, 60),
+            wobble: between(random, 1.6, 2.2),
         }
     }
-    // The pumpkin: rare, a long wait, then a slow roll across the lower screen.
+    // The pumpkin: rare, a long wait, then a slow roll along the lower screen,
+    // on the ground lane above the player bar.
     return {
         ...base,
-        top: between(random, 55, 80),
+        ground: true,
+        lift: between(random, 4, 10),
         size: 30,
         duration: between(random, 150, 200) * rare,
         delay: between(random, 30, 90),
