@@ -1,5 +1,6 @@
 /**
- * The Halloween emoji on the cover tiles (components/SeasonTileEmojis.vue).
+ * The seasonal emoji on the cover tiles (components/SeasonTileEmojis.vue): Halloween
+ * graves and pumpkins, Christmas presents and snowmen (`tileEmojiWeightsFor`).
  *
  * Each emoji STANDS ON the top edge of a cover, like a sprite on a platform in a
  * 2D game: its feet on the frame, at a horizontal spot along that edge. (Not on
@@ -20,6 +21,8 @@
  *    (`html.season-scrolled`) and the settle clears it.
  */
 
+import type { Season } from './seasons'
+
 /** The attribute with the emoji the cover carries. */
 export const ATTR_EMOJI = 'data-season-emoji'
 /** The attribute with the emoji's x, in % of the cover's width (from the left). */
@@ -38,16 +41,22 @@ export const COVER_SELECTOR = '.card-art, .continue-card .cover'
  */
 export const TILE_OBSTACLE_SELECTOR = '.card-type-label, .card-stamp'
 
+/** An emoji a tile can carry, with its weight in the random pick. */
+export interface TileEmoji {
+    emoji: string
+    weight: number
+}
+
 /**
- * The emoji of a tile, each with its weight: graves and pumpkins come up most
- * often ("zb gräber oder kürbisse", user, 2026-10-31); the rest now and then.
+ * Halloween: graves and pumpkins come up most often ("zb gräber oder kürbisse",
+ * user, 2026-10-31); the rest now and then.
  *
  * No zombies and no bats: those are creatures that MOVE across the screen
  * (utils/seasonParticles.ts), and standing still on a tile they read as a
  * glitch of the crossing ("bitte keine fledermäuse und zombies auf den
  * kacheln", user, 2026-10-31).
  */
-export const TILE_EMOJI_WEIGHTS: readonly { emoji: string; weight: number }[] = [
+const HALLOWEEN_TILE_EMOJI: readonly TileEmoji[] = [
     { emoji: '🪦', weight: 3 },
     { emoji: '🎃', weight: 3 },
     { emoji: '👻', weight: 1 },
@@ -56,7 +65,34 @@ export const TILE_EMOJI_WEIGHTS: readonly { emoji: string; weight: number }[] = 
     { emoji: '\u{1F577}️', weight: 1 },
 ]
 
-/** Every emoji a tile can carry, once each. */
+/**
+ * Christmas: presents, cookies, stars and the tree most often; the snowman and a
+ * little snow now and then (the snowman also peeks, components/SeasonVampire.vue).
+ */
+const CHRISTMAS_TILE_EMOJI: readonly TileEmoji[] = [
+    { emoji: '🎁', weight: 3 },
+    { emoji: '🍪', weight: 3 },
+    { emoji: '⭐', weight: 2 },
+    { emoji: '🎄', weight: 2 },
+    { emoji: '⛄', weight: 2 },
+    { emoji: '❄️', weight: 1 },
+    { emoji: '\u{1F328}️', weight: 1 },
+]
+
+const TILE_EMOJI_BY_SEASON: Record<Season, readonly TileEmoji[]> = {
+    halloween: HALLOWEEN_TILE_EMOJI,
+    christmas: CHRISTMAS_TILE_EMOJI,
+}
+
+/** The weighted emoji of one season's tiles. */
+export function tileEmojiWeightsFor(season: Season): readonly TileEmoji[] {
+    return TILE_EMOJI_BY_SEASON[season]
+}
+
+/** The Halloween weights, under the name the first version used. */
+export const TILE_EMOJI_WEIGHTS: readonly TileEmoji[] = HALLOWEEN_TILE_EMOJI
+
+/** Every Halloween emoji a tile can carry, once each. */
 export const TILE_EMOJIS: readonly string[] = TILE_EMOJI_WEIGHTS.map((e) => e.emoji)
 
 /** Where along the top edge a glyph may stand, in % of the cover's width. */
@@ -105,9 +141,13 @@ export function pickTileTarget<T extends { hasEmoji: boolean }>(cards: T[], rand
  * next-door covers rarely match. If the avoid list covers every emoji, any one
  * is returned: a repeat beats none.
  */
-export function pickTileEmoji(avoid: readonly string[], random: () => number): string {
-    const free = TILE_EMOJI_WEIGHTS.filter((e) => !avoid.includes(e.emoji))
-    const pool = free.length > 0 ? free : TILE_EMOJI_WEIGHTS
+export function pickTileEmoji(
+    avoid: readonly string[],
+    random: () => number,
+    weights: readonly TileEmoji[] = TILE_EMOJI_WEIGHTS
+): string {
+    const free = weights.filter((e) => !avoid.includes(e.emoji))
+    const pool = free.length > 0 ? free : weights
     // A weighted pick: each emoji takes as many slices as its weight.
     const total = pool.reduce((sum, e) => sum + e.weight, 0)
     let at = random() * total
@@ -248,7 +288,8 @@ export function addOneTile(
     root: Document | Element,
     random: () => number,
     vp: ViewportSize = { width: window.innerWidth, height: window.innerHeight },
-    bounds: TileBounds = tileBounds(root)
+    bounds: TileBounds = tileBounds(root),
+    weights: readonly TileEmoji[] = TILE_EMOJI_WEIGHTS
 ): HTMLElement | null {
     const covers = tileCovers(root)
     const visible = covers.filter((el) => mostlyInView(el.getBoundingClientRect(), vp))
@@ -278,7 +319,7 @@ export function addOneTile(
         .map((el) => el?.getAttribute(ATTR_EMOJI))
         .filter((e): e is string => !!e)
 
-    target.el.setAttribute(ATTR_EMOJI, pickTileEmoji(avoid, random))
+    target.el.setAttribute(ATTR_EMOJI, pickTileEmoji(avoid, random, weights))
     target.el.setAttribute(ATTR_X, String(placed.get(target.el)))
     return target.el
 }

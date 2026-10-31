@@ -3,27 +3,33 @@
         v-if="peek && !lessMotion"
         :key="peek.key"
         class="season-peek"
+        :class="`season-peek-${season}`"
         :style="peekStyle"
         aria-hidden="true"
     >
         <span class="season-peek-clip">
-            <span class="season-peek-vampire">🧛</span>
+            <span class="season-peek-figure">{{ spec.figure }}</span>
         </span>
-        <span class="season-peek-puff">💨</span>
-        <span class="season-peek-bat">🦇</span>
+        <!-- Only the Halloween peek puffs into a bat (utils/vampirePeek.ts::PEEK_SPECS). -->
+        <template v-if="spec.launches">
+            <span class="season-peek-puff">💨</span>
+            <span class="season-peek-bat">🦇</span>
+        </template>
     </div>
 </template>
 
 <script setup lang="ts">
-// A vampire rises from behind the top edge of a card cover, pauses, puffs into
-// a bat and flies off up and to the left. Mounted in App.vue only while the
-// season is Halloween. It draws nothing under "reduce motion", nothing while the
-// tab is hidden. A scroll or a route change ends a peek that is still behind its
-// card (the overlay is fixed, so it would otherwise float away from it); once the
-// bat has taken off it flies off the screen on its own, and the peek ends there.
+// A figure rises from behind the top edge of a card cover. At Halloween it is a
+// vampire: it pauses, puffs into a bat and flies off up and to the left. At
+// Christmas it is a snowman: it rises, waits and sinks back down (no puff, no bat).
+// Mounted in App.vue while a season is active, with that season as the prop. It
+// draws nothing under "reduce motion", nothing while the tab is hidden. A scroll
+// or a route change ends a peek that is still behind its card (the overlay is
+// fixed, so it would otherwise float away from it); a launched bat is left to fly
+// off the screen on its own, and the peek ends there.
 //
-// The timing and the choice of card are in utils/vampirePeek.ts; this component
-// only runs the clock and draws the overlay.
+// The timing, the choice of card and the per-season figure are in
+// utils/vampirePeek.ts; this component only runs the clock and draws the overlay.
 
 // @libraries
 import { useDocumentVisibility, useMediaQuery } from "@vueuse/core";
@@ -32,15 +38,20 @@ import { useRoute } from "vue-router";
 
 // @utils
 import { COVER_SELECTOR } from "@/utils/seasonTileEmojis";
+import type { Season } from "@/utils/seasons";
 import {
-    PEEK_DURATION_MS,
     PEEK_LAUNCH_FRACTION,
     PEEK_SIZE_PX,
+    PEEK_SPECS,
     nextPeekDelayMs,
     peekAnchor,
     peekExit,
     pickPeekTarget,
 } from "@/utils/vampirePeek";
+
+// Without a season the peek is the Halloween vampire, as it was before the Christmas one.
+const props = withDefaults(defineProps<{ season?: Season }>(), { season: "halloween" });
+const spec = computed(() => PEEK_SPECS[props.season]);
 
 interface Peek {
     key: number;
@@ -70,15 +81,16 @@ const peekStyle = computed(() =>
               "--peek-exit-x": `${peek.value.exitX}px`,
               "--peek-exit-y": `${peek.value.exitY}px`,
               "--peek-size": `${PEEK_SIZE_PX}px`,
-              "--peek-dur": `${PEEK_DURATION_MS}ms`,
+              "--peek-dur": `${spec.value.durationMs}ms`,
           }
         : {}
 );
 
 /**
- * A scroll takes the peek away while the vampire is still behind its card. Once
- * the bat has taken off it is left to fly off screen (it no longer rides the
- * card), so the scroll listener goes at the launch.
+ * A scroll takes the peek away while the figure is still behind its card. Once
+ * a bat has taken off it is left to fly off screen (it no longer rides the
+ * card), so the scroll listener goes at the launch. A snowman never launches,
+ * so its listener stays until the peek ends.
  */
 function unhookScroll(): void {
     if (launchTimer !== undefined) clearTimeout(launchTimer);
@@ -115,9 +127,11 @@ function tryPeek(): void {
     const exit = peekExit(anchor);
     peek.value = { key: ++seq, x: anchor.x, y: anchor.y, exitX: exit.x, exitY: exit.y };
     window.addEventListener("scroll", endPeek, { capture: true, passive: true });
-    launchTimer = setTimeout(unhookScroll, PEEK_DURATION_MS * PEEK_LAUNCH_FRACTION);
+    if (spec.value.launches) {
+        launchTimer = setTimeout(unhookScroll, spec.value.durationMs * PEEK_LAUNCH_FRACTION);
+    }
     // The whole peek: the bat has flown off the screen by the end of it.
-    endTimer = setTimeout(endPeek, PEEK_DURATION_MS);
+    endTimer = setTimeout(endPeek, spec.value.durationMs);
 }
 
 /** Ends the peek (on time, or early on a scroll before the launch, or a route change) and books the next one. */
@@ -139,11 +153,19 @@ watch(visibility, (state) => {
 
 // A route change ends a peek that is still behind its card. Once the bat has
 // taken off (no launch timer left) it flies on to its end, like a scroll does.
+// A figure that never launches is always behind its card, so it ends here.
 watch(
     () => route.fullPath,
     () => {
-        if (launchTimer !== undefined) endPeek();
+        if (peek.value && (!spec.value.launches || launchTimer !== undefined)) endPeek();
     }
+);
+
+// The season can change while mounted (the Appearance preview): the peek in
+// progress belongs to the old figure, so it ends and the next one is booked.
+watch(
+    () => props.season,
+    () => endPeek()
 );
 
 onMounted(schedule);
@@ -190,7 +212,7 @@ onBeforeUnmount(() => {
     overflow: hidden;
 }
 
-.season-peek-vampire,
+.season-peek-figure,
 .season-peek-puff,
 .season-peek-bat {
     position: absolute;
@@ -201,11 +223,16 @@ onBeforeUnmount(() => {
 }
 
 // Hidden at rest: the animation's end state is the hidden one, and with no fill
-// the base style is what shows after it.
-.season-peek-vampire {
+// the base style is what shows after it. The figure takes its season's rise.
+.season-peek-figure {
     left: 50%;
     transform: translate3d(-50%, 100%, 0);
     animation: season-peek-rise var(--peek-dur) $motion-curve-settle backwards;
+}
+
+// The snowman: up in the first quarter, wait, and back down by 70 % (no puff, no bat).
+.season-peek-christmas .season-peek-figure {
+    animation: season-peek-snowman var(--peek-dur) $motion-curve-settle backwards;
 }
 
 .season-peek-puff {
@@ -218,6 +245,21 @@ onBeforeUnmount(() => {
     left: 0;
     opacity: 0;
     animation: season-peek-bat var(--peek-dur) ease-out backwards;
+}
+
+// The snowman: rises by 22 %, stands for a while, sinks out of sight by 70 %.
+@keyframes season-peek-snowman {
+    0% {
+        transform: translate3d(-50%, 100%, 0);
+    }
+    22%,
+    58% {
+        transform: translate3d(-50%, 0, 0);
+    }
+    70%,
+    100% {
+        transform: translate3d(-50%, 100%, 0);
+    }
 }
 
 // The percentages are of PEEK_DURATION_MS (4000 ms) and keep the vampire's and

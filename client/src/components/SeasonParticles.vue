@@ -28,7 +28,7 @@ import { useDocumentVisibility, useMediaQuery } from "@vueuse/core";
 import { computed } from "vue";
 
 // @utils
-import { particlesFor, type Particle } from "@/utils/seasonParticles";
+import { crossing, particlesFor, type Particle } from "@/utils/seasonParticles";
 import type { Season } from "@/utils/seasons";
 
 const props = defineProps<{ season: Season | null }>();
@@ -45,6 +45,7 @@ const visibility = useDocumentVisibility();
 const particles = computed(() => particlesFor(props.season));
 
 function varsOf(p: Particle): Record<string, string> {
+    const { from, to } = crossing(p);
     return {
         "--season-left": `${p.left}%`,
         "--season-top": `${p.top}%`,
@@ -53,9 +54,9 @@ function varsOf(p: Particle): Record<string, string> {
         "--season-delay": `${p.delay}s`,
         "--season-drift": `${p.drift}px`,
         "--season-wobble": `${p.wobble}s`,
-        // Off the left edge to off the right edge, or the other way round.
-        "--season-from": `${p.dir > 0 ? -12 : 112}vw`,
-        "--season-to": `${p.dir > 0 ? 112 : -12}vw`,
+        // Off the left edge to off the right edge, or the other way round (utils/seasonParticles.ts::crossing).
+        "--season-from": from,
+        "--season-to": to,
         // The ground lane: rem above the player bar. The spider: how far it lets itself down.
         "--season-lift": `${p.lift}rem`,
         "--season-drop": `${p.drop}vh`,
@@ -65,8 +66,9 @@ function varsOf(p: Particle): Record<string, string> {
 
 <style lang="scss">
 // ============================================================================
-// SEASONAL PARTICLES: snow at Christmas; at Halloween bats, ghosts, a pumpkin,
-// a chase (a runner and two zombies, right to left) and a spider on its thread.
+// SEASONAL PARTICLES: snow at Christmas, and now and then a sleigh (two reindeer,
+// the sled and Santa, right to left across the upper sky); at Halloween bats, ghosts,
+// a pumpkin, a chase (a runner and two zombies, right to left) and a spider on its thread.
 // Mounted once in App.vue, shown only while a season is active
 // (utils/seasons.ts) and never under "reduce motion" (the component above).
 //
@@ -151,6 +153,7 @@ function varsOf(p: Particle): Record<string, string> {
 .season-bat .season-glyph,
 .season-pumpkin .season-glyph,
 .season-chase .season-glyph,
+.season-sleigh .season-glyph,
 .season-spider .season-glyph {
     // The delay is the glyph's index times a quarter bob cycle, so the glyphs of a
     // group bob out of step. It sits IN the shorthand: the shorthand resets the
@@ -161,14 +164,18 @@ function varsOf(p: Particle): Record<string, string> {
 // The chase: its glyphs sit side by side in one row, the runner first and the
 // zombies behind it, so the runner is the one in front: the group always goes
 // right to left (utils/seasonParticles.ts), and the 🏃 emoji faces that way.
-.season-chase {
+.season-chase,
+.season-sleigh {
     display: flex;
     align-items: flex-end;
     gap: calc(var(--season-size) * 0.2);
 }
 
+// The sleigh: the same row, reindeer first, so the reindeer lead right to left
+// (utils/seasonParticles.ts, SLEIGH_GROUP). Its glyphs face left by default, unmirrored.
+
 // The crossing takes 8 % of the cycle and the rest is waiting: the cycles are
-// HALLOWEEN_RARITY (1.5) times longer than the first cut's 12 %, so a crosser
+// CROSSER_RARITY (1.5) times longer than the first cut's 12 %, so a crosser
 // is as fast as before and only comes by less often (utils/seasonParticles.ts).
 @keyframes season-cross {
     0% {
@@ -219,7 +226,8 @@ function varsOf(p: Particle): Record<string, string> {
 // Pumpkin and chase: rare. They wait a long while, then roll or run along the
 // ground lane above the player bar.
 .season-pumpkin,
-.season-chase {
+.season-chase,
+.season-sleigh {
     animation: season-cross var(--season-dur) linear var(--season-delay) infinite backwards;
 }
 

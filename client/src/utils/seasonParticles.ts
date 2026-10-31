@@ -5,7 +5,7 @@
  */
 import type { Season } from './seasons'
 
-export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'chase' | 'spider'
+export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'chase' | 'spider' | 'sleigh'
 
 export interface Particle {
     kind: ParticleKind
@@ -68,6 +68,13 @@ export const CHASE_GROUP = ['🏃', '\u{1F9DF}', '\u{1F9DF}‍♂️']
 /** The spider, on its thread: U+1F577 and the emoji presentation selector. */
 export const SPIDER_GLYPH = '\u{1F577}️'
 
+/**
+ * The sleigh, left to right on screen: two reindeer, the sled, Santa at the back.
+ * It always flies right to left (`dir` -1), so the reindeer are in front, on the
+ * left, and the 🦌 emoji faces left by default: it looks the way it flies.
+ */
+export const SLEIGH_GROUP = ['🦌', '🦌', '🛷', '🎅']
+
 /** Halloween: a few, and most of them only now and then. */
 const HALLOWEEN: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'bat', group: ['🦇'], count: 3 },
@@ -75,6 +82,11 @@ const HALLOWEEN: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'pumpkin', group: ['🎃'], count: 1 },
     { kind: 'chase', group: CHASE_GROUP, count: 1 },
     { kind: 'spider', group: [SPIDER_GLYPH], count: 1 },
+]
+
+/** Christmas: the snowflakes, and now and then the sleigh across the upper sky. */
+const CHRISTMAS: { kind: ParticleKind; group: string[]; count: number }[] = [
+    { kind: 'sleigh', group: SLEIGH_GROUP, count: 1 },
 ]
 
 /** A value between `min` and `max`, from the random source. */
@@ -112,11 +124,11 @@ function snowflake(random: () => number): Particle {
  * takes that much less of a cycle (`season-cross` in SeasonParticles.vue, 8 %
  * instead of 12 %), so each one crosses as fast as before, only less often.
  */
-export const HALLOWEEN_RARITY = 1.5
+export const CROSSER_RARITY = 1.5
 
-function halloweenParticle(random: () => number, kind: ParticleKind, group: string[]): Particle {
+function crosserParticle(random: () => number, kind: ParticleKind, group: string[]): Particle {
     const base = { kind, group, left: 0, top: 0, drift: 0, wobble: 0, dir: sign(random), ground: false, lift: 0, drop: 0 }
-    const rare = HALLOWEEN_RARITY
+    const rare = CROSSER_RARITY
     if (kind === 'bat') {
         // Crosses in a short part of its cycle, then is gone for a while. Always
         // right to left: the 🦇 emoji faces left, and one flying backwards looked
@@ -161,6 +173,20 @@ function halloweenParticle(random: () => number, kind: ParticleKind, group: stri
             wobble: between(random, 0.7, 1),
         }
     }
+    if (kind === 'sleigh') {
+        // Across the upper sky, now and then, always right to left: the reindeer
+        // lead. Same rhythm as the chase, so it is exactly as rare; the flight is
+        // measured from the group's own width (`crossing`), so it leaves whole.
+        return {
+            ...base,
+            dir: -1,
+            top: between(random, 14, 32),
+            size: 28,
+            duration: between(random, 120, 160) * rare,
+            delay: between(random, 10, 60),
+            wobble: between(random, 0.8, 1.2),
+        }
+    }
     if (kind === 'spider') {
         // A spider lets itself down on its thread from the top edge, hangs and
         // sways, and climbs back up. Rare: only a short part of each cycle is
@@ -190,6 +216,24 @@ function halloweenParticle(random: () => number, kind: ParticleKind, group: stri
 }
 
 /**
+ * Where a crosser starts and ends its `translate`, as CSS lengths
+ * (SeasonParticles.vue). A single glyph goes from one side of the screen to the
+ * other, 12 vw past each edge. A group — the sleigh, the chase — is a whole row
+ * of glyphs, wider than that margin at a phone's width (the chase is ~115 px
+ * against 47 px of margin at 390 px, so it popped in and out at the edges), so
+ * it is measured from its own width instead (`%` in `translate` is the
+ * element's own box): it starts and ends fully off screen.
+ */
+export function crossing(p: Particle): { from: string; to: string } {
+    if (p.kind === 'sleigh' || p.kind === 'chase') {
+        const off = 'calc(-100% - 1rem)'
+        const past = '100vw'
+        return p.dir > 0 ? { from: off, to: past } : { from: past, to: off }
+    }
+    return p.dir > 0 ? { from: '-12vw', to: '112vw' } : { from: '112vw', to: '-12vw' }
+}
+
+/**
  * The particles for one season, at most MAX_PARTICLES. No season, no particles.
  * `random` returns values in [0, 1); tests pass a fixed one.
  */
@@ -197,9 +241,12 @@ export function particlesFor(season: Season | null, random: () => number = Math.
     const out: Particle[] = []
     if (season === 'christmas') {
         for (let i = 0; i < SNOWFLAKES; i++) out.push(snowflake(random))
+        for (const { kind, group, count } of CHRISTMAS) {
+            for (let i = 0; i < count; i++) out.push(crosserParticle(random, kind, group))
+        }
     } else if (season === 'halloween') {
         for (const { kind, group, count } of HALLOWEEN) {
-            for (let i = 0; i < count; i++) out.push(halloweenParticle(random, kind, group))
+            for (let i = 0; i < count; i++) out.push(crosserParticle(random, kind, group))
         }
     }
     return out.slice(0, MAX_PARTICLES)

@@ -125,3 +125,62 @@ describe('the spider hangs on a thread', () => {
         expect(keyframes).not.toMatch(/\d+(\.\d+)?m?s\b/)
     })
 })
+
+describe('Christmas: the tile emoji sink while they fade', () => {
+    const seasons = read(SEASONS)
+
+    it('reads the seasons stylesheet (parser guard)', () => {
+        expect(seasons).toContain('html.season-christmas.season-scrolled')
+    })
+
+    it('drops a little on scroll, and fades on the same scrolled state', () => {
+        const sink = blockAfter(seasons, 'html.season-christmas.season-scrolled .season-tile-emoji')
+        expect(sink).toMatch(/transform:\s*translateY\(1rem\)/)
+        expect(blockAfter(seasons, '&.season-scrolled .season-tile-emoji')).toContain('opacity: 0')
+    })
+
+    it('moves with the motion tokens, not a literal duration', () => {
+        const base = blockAfter(seasons, '.season-tile-emoji')
+        expect(base).toContain('transform $motion-settle $motion-curve')
+        expect(base).toContain('opacity $motion-move $motion-curve')
+        expect(base).not.toMatch(/\d(\.\d+)?m?s\b/)
+    })
+})
+
+describe('Christmas: the fairy lights on the top bar', () => {
+    const seasons = read(SEASONS)
+    const navbar = read('src/components/nav/NavBar.vue')
+
+    it('reads the lights markup and stylesheet (parser guard)', () => {
+        expect(navbar).toContain('class="topnav-lights"')
+        expect(seasons).toContain('@keyframes season-light-twinkle')
+    })
+
+    it('is decoration: hidden from assistive tech, and takes no pointer', () => {
+        expect(navbar).toMatch(/class="topnav-lights"\s+aria-hidden="true"/)
+        expect(blockAfter(seasons, '.topnav > .topnav-lights')).toContain('pointer-events: none')
+        expect(blockAfter(seasons, 'html.season-christmas .topnav > .topnav-lights')).toContain('display: block')
+    })
+
+    it('sits absolutely in the bar, so it takes no room and shifts no layout', () => {
+        const lights = blockAfter(seasons, '.topnav > .topnav-lights')
+        expect(lights).toContain('position: absolute')
+        expect(lights).toContain('height: 0')
+    })
+
+    it('twinkles on a staggered phase, with motion tokens only', () => {
+        const dot = blockAfter(seasons, 'html.season-christmas .topnav > .topnav-lights {')
+        expect(dot).toContain('--light-i')
+        expect(dot).toMatch(/animation-delay:\s*calc\(var\(--light-i\)/)
+        expect(dot).toMatch(/\$motion-settle\s*\*\s*8/)
+        expect(dot).not.toMatch(/\d(\.\d+)?m?s\b/)
+    })
+
+    it('stays lit under "reduce motion" without a rule of its own: its end frame is fully lit', () => {
+        // The global policy (motion-policy.scss) runs every animation straight to its
+        // end frame, so the twinkle's 100 % frame is what the lights show then.
+        const twinkle = blockAfter(seasons, '@keyframes season-light-twinkle')
+        expect(twinkle).toMatch(/100%\s*\{\s*opacity:\s*1;?\s*\}/)
+        expect(seasons).not.toMatch(/prefers-reduced-motion[^}]*\{[^}]*topnav-lights/)
+    })
+})

@@ -4,9 +4,10 @@
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" />
-    <!-- Halloween on the page: emoji on the cover tiles, and the vampire peeking over one. -->
-    <SeasonTileEmojis v-if="season === 'halloween'" />
-    <SeasonVampire v-if="season === 'halloween'" />
+    <!-- The season on the page: emoji on the cover tiles, and a figure peeking over one
+         (the vampire at Halloween, the snowman at Christmas). -->
+    <SeasonTileEmojis v-if="season" :season="season" />
+    <SeasonVampire v-if="season" :season="season" />
     <!-- The logo's signal easter egg (components/SignalBurst.vue, #544). -->
     <SignalBurst />
     <div id="drag-img" class="ellip2" style=""></div>
