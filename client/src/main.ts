@@ -20,6 +20,7 @@ import vTip from "./directives/vTip";
 import { installArrivalLatch } from "./utils/arrivalLatch";
 import { TypedDynamicScroller } from "./utils/typedScroller";
 import { installTouchActive } from "./utils/touchActive";
+import { installImageRetry } from "./utils/imageRetry";
 
 import "./assets/scss/index.scss";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
@@ -62,6 +63,10 @@ installArrivalLatch();
 // The press is the touch feedback of every button role, and iOS Safari only
 // shows `:active` when <body> listens for touches. See utils/touchActive.ts.
 installTouchActive();
+
+// A cover that failed during a server restart loads again once it is back,
+// instead of staying a broken-image icon. See utils/imageRetry.ts.
+installImageRetry();
 
 app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);
