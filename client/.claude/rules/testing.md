@@ -9,7 +9,7 @@ paths:
 
 # Tests
 
-**Vitest 4.1 auf Vite 6.4** (bis #581: Vitest 0.34 auf Vite 3). Tests liegen als `*.test.ts` in
+**Vitest 5.0 auf Vite 8.3** (bis #655: Vitest 4.1 auf Vite 6.4; bis #581: Vitest 0.34 auf Vite 3). Tests liegen als `*.test.ts` in
 `src/**/__tests__/`. `yarn test` (einmal), `yarn test:watch`.
 
 Getestet wird, wo Fehler teuer waren: Store-Logik, Request-Schichten, pure Utils
