@@ -105,14 +105,17 @@ html.season-christmas .topnav > .topnav-lights {
 
     i {
         position: absolute;
-        bottom: $mem-hairline-w * 4;
+        // Hung ON the bar's lower edge, half above and half below it, like a
+        // garland: inside the bar they ran into the controls on a phone, where
+        // the bar is a pill and its buttons reach down to the edge.
+        bottom: 0;
         // Kept off the rounded ends of the phone pill: the ends are curved.
         left: calc(8% + var(--light-i) * 7.6%);
-        width: $mem-hairline-w * 8;
-        height: $mem-hairline-w * 8;
+        width: $mem-hairline-w * 9;
+        height: $mem-hairline-w * 9;
         border-radius: 50%;
         border: $mem-hairline;
-        translate: -50% 0;
+        translate: -50% 50%;
         opacity: 1;
         animation: season-light-twinkle ($motion-settle * 8) ease-in-out infinite;
         animation-delay: calc(var(--light-i) * #{$motion-stagger} * -5);

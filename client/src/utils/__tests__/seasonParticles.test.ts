@@ -267,11 +267,18 @@ describe('particlesFor: the sleigh crosses the upper sky, right to left', () => 
         expect(crossing(sleighOf(5)).from).not.toBe('112vw')
     })
 
-    it('keeps the Halloween crossings exactly as before', () => {
-        const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
-        expect(crossing(chase)).toEqual({ from: '-12vw', to: '112vw' })
+    it('keeps the single-glyph Halloween crossings as before', () => {
         const bat = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'bat')!
         expect(crossing(bat)).toEqual({ from: '112vw', to: '-12vw' })
+    })
+})
+
+// The chase is three glyphs wide (~115 px), more than 12 vw at a phone's width:
+// with the fixed margin it appeared and vanished half way through the edge.
+describe('crossing: a group starts and ends fully off screen', () => {
+    it('measures the chase from its own width, right to left', () => {
+        const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
+        expect(crossing(chase)).toEqual({ from: '100vw', to: 'calc(-100% - 1rem)' })
     })
 })
 

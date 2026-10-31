@@ -217,13 +217,15 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
 
 /**
  * Where a crosser starts and ends its `translate`, as CSS lengths
- * (SeasonParticles.vue). The Halloween ones go from one side of the screen to the
- * other, 12 vw past each edge. A sleigh is a whole row of glyphs, wider than that
- * margin at a phone's width, so it is measured from its own width instead (`%`
- * in `translate` is the element's own box): it starts and ends fully off screen.
+ * (SeasonParticles.vue). A single glyph goes from one side of the screen to the
+ * other, 12 vw past each edge. A group — the sleigh, the chase — is a whole row
+ * of glyphs, wider than that margin at a phone's width (the chase is ~115 px
+ * against 47 px of margin at 390 px, so it popped in and out at the edges), so
+ * it is measured from its own width instead (`%` in `translate` is the
+ * element's own box): it starts and ends fully off screen.
  */
 export function crossing(p: Particle): { from: string; to: string } {
-    if (p.kind === 'sleigh') {
+    if (p.kind === 'sleigh' || p.kind === 'chase') {
         const off = 'calc(-100% - 1rem)'
         const past = '100vw'
         return p.dir > 0 ? { from: off, to: past } : { from: past, to: off }
