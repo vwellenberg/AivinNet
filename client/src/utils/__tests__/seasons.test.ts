@@ -30,11 +30,22 @@ afterEach(() => {
 
 describe('seasonOn: the calendar dates (local time)', () => {
     it('Oct 23 and Nov 1 are no season, Oct 24 to 31 are Halloween', () => {
-        expect(seasonOn(at(2026, OCT, 23, 23, 59, 59, 999))).toBeNull()
-        expect(seasonOn(at(2026, OCT, 24, 0, 0, 0, 0))).toBe('halloween')
-        expect(seasonOn(at(2026, OCT, 29))).toBe('halloween')
-        expect(seasonOn(at(2026, OCT, 31))).toBe('halloween')
-        expect(seasonOn(at(2026, NOV, 1, 0, 0, 0, 0))).toBeNull()
+        // 2027: Nov 1 is a Monday.
+        expect(seasonOn(at(2027, OCT, 23, 23, 59, 59, 999))).toBeNull()
+        expect(seasonOn(at(2027, OCT, 24, 0, 0, 0, 0))).toBe('halloween')
+        expect(seasonOn(at(2027, OCT, 29))).toBe('halloween')
+        expect(seasonOn(at(2027, OCT, 31))).toBe('halloween')
+        expect(seasonOn(at(2027, NOV, 1, 0, 0, 0, 0))).toBeNull()
+    })
+
+    it('keeps the Sunday after a Saturday Halloween, and only that day', () => {
+        // 2026: Halloween is a Saturday, Nov 1 a Sunday.
+        expect(new Date(2026, OCT, 31).getDay()).toBe(6)
+        expect(seasonOn(at(2026, NOV, 1, 0, 0, 0, 0))).toBe('halloween')
+        expect(seasonOn(at(2026, NOV, 1, 23, 59, 59, 999))).toBe('halloween')
+        expect(seasonOn(at(2026, NOV, 2, 0, 0, 0, 0))).toBeNull()
+        // 2025: Nov 1 is a Saturday, so it is not added.
+        expect(seasonOn(at(2025, NOV, 1))).toBeNull()
     })
 
     it('Halloween covers its last day, to the last millisecond', () => {
@@ -66,7 +77,7 @@ describe('seasonOn: the calendar dates (local time)', () => {
 describe('activeSeason: only Memphis, only while the switch is on', () => {
     const HALLOWEEN = at(2026, OCT, 31)
     const CHRISTMAS = at(2026, DEC, 25)
-    const PLAIN = at(2026, NOV, 1)
+    const PLAIN = at(2026, NOV, 2)
 
     it('paints the season under Memphis with the switch on', () => {
         expect(activeSeason(HALLOWEEN, 'memphis', true)).toBe('halloween')
@@ -159,7 +170,7 @@ describe('the store: the switch and the stored scheme', () => {
 })
 
 describe('the preview: a season forced for this tab, in place of the date', () => {
-    const PLAIN = at(2026, NOV, 1)
+    const PLAIN = at(2026, NOV, 2)
 
     it('starts with no preview, so the date decides', () => {
         expect(seasonPreview.value).toBeNull()

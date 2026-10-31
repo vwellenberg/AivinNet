@@ -54,7 +54,7 @@ const palette: Setting = {
  */
 const seasonal: Setting = {
     title: 'Seasonal colours',
-    desc: 'Memphis only: pumpkin and violet from 24 to 31 October, snow sprinkles from 17 to 26 December. Off keeps your colour scheme every day.',
+    desc: 'Memphis only: pumpkin and violet from 24 to 31 October (and 1 November when it is a Sunday), snow sprinkles from 17 to 26 December. Off keeps your colour scheme every day.',
     type: SettingType.binary,
     state: () => settings().use_seasonal_schemes,
     action: () => settings().toggleSeasonalSchemes(),
