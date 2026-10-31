@@ -1,9 +1,13 @@
 /**
- * The vampire that peeks over a cover (components/SeasonVampire.vue): when it
+ * The figure that peeks over a cover (components/SeasonVampire.vue): when it
  * comes, which cover it takes, and how long the whole peek lasts. Pure: the
  * random source is passed in, so a test can pin it. The motion is CSS.
+ *
+ * One peek per season (`PEEK_SPECS`): the Halloween vampire puffs into a bat that
+ * flies off; the Christmas snowman just rises and sinks back down.
  */
 import type { ViewportSize } from './seasonTileEmojis'
+import type { Season } from './seasons'
 
 /** Gap between two peeks, in ms: random in [MIN, MAX). */
 export const PEEK_DELAY_MIN_MS = 40000
@@ -24,6 +28,27 @@ export const PEEK_SIZE_PX = 56
  * 2.4 s instead of 1.6 s.
  */
 export const PEEK_DURATION_MS = 4000
+
+/**
+ * The snowman's peek, in ms: it rises, waits, and sinks back down, with no puff
+ * and no bat, so it is shorter than the vampire's.
+ */
+export const SNOWMAN_PEEK_DURATION_MS = 2400
+
+/** What one season's peek shows and how it ends. */
+export interface PeekSpec {
+    /** The figure that rises from behind the cover. */
+    figure: string
+    /** Whether it puffs into a bat that flies off (the Halloween peek only). */
+    launches: boolean
+    /** The whole peek, in ms (the CSS keyframes are percentages of it). */
+    durationMs: number
+}
+
+export const PEEK_SPECS: Record<Season, PeekSpec> = {
+    halloween: { figure: '🧛', launches: true, durationMs: PEEK_DURATION_MS },
+    christmas: { figure: '⛄', launches: false, durationMs: SNOWMAN_PEEK_DURATION_MS },
+}
 
 /** Milliseconds until the next peek, from the random source. */
 export function nextPeekDelayMs(random: () => number): number {

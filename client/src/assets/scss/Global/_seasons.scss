@@ -29,7 +29,10 @@
     pointer-events: none;
 }
 
-html.season-halloween {
+// The Halloween and Christmas tiles share one drawing; they differ only in how
+// they leave (below).
+html.season-halloween,
+html.season-christmas {
     .season-tile-emoji {
         position: fixed;
         left: 0;
@@ -43,7 +46,9 @@ html.season-halloween {
         line-height: 1;
         opacity: 0.92;
         white-space: nowrap;
-        transition: opacity $motion-move $motion-curve;
+        transition:
+            opacity $motion-move $motion-curve,
+            transform $motion-settle $motion-curve;
         animation: season-tile-fade $motion-settle $motion-curve backwards;
     }
 
@@ -59,6 +64,12 @@ html.season-halloween {
     }
 }
 
+// Christmas: the presents and the snowman do not just vanish when the page
+// scrolls, they sink a little while they fade (motion tokens: the transition above).
+html.season-christmas.season-scrolled .season-tile-emoji {
+    transform: translateY(1rem);
+}
+
 // The appearance: a gentle drop-in and a tiny settle from 85 % size. No overshoot,
 // no tilt, so it reads as a quiet detail on the cover.
 @keyframes season-tile-fade {
@@ -69,6 +80,68 @@ html.season-halloween {
     to {
         opacity: 0.92;
         transform: translateY(0) scale(1);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Christmas, the top bar: fairy lights along its lower edge. Twelve small lights
+// (markup in components/nav/NavBar.vue, `.topnav-lights`) in the Memphis accents,
+// each twinkling on its own phase (`--light-i` staggers the delay). They are drawn
+// absolutely inside the bar, so they take no room and no pointer. Under "reduce
+// motion" the global policy (motion-policy.scss) runs each twinkle straight to its
+// end frame, which is fully lit (opacity 1): static lights, with no rule of their own.
+// ----------------------------------------------------------------------------
+
+.topnav > .topnav-lights {
+    display: none;
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 0;
+    pointer-events: none;
+}
+
+html.season-christmas .topnav > .topnav-lights {
+    display: block;
+
+    i {
+        position: absolute;
+        bottom: $mem-hairline-w * 4;
+        // Kept off the rounded ends of the phone pill: the ends are curved.
+        left: calc(8% + var(--light-i) * 7.6%);
+        width: $mem-hairline-w * 8;
+        height: $mem-hairline-w * 8;
+        border-radius: 50%;
+        border: $mem-hairline;
+        translate: -50% 0;
+        opacity: 1;
+        animation: season-light-twinkle ($motion-settle * 8) ease-in-out infinite;
+        animation-delay: calc(var(--light-i) * #{$motion-stagger} * -5);
+    }
+
+    i:nth-child(5n + 1) {
+        background: $mem-coral;
+    }
+    i:nth-child(5n + 2) {
+        background: $mem-yellow;
+    }
+    i:nth-child(5n + 3) {
+        background: $mem-teal;
+    }
+    i:nth-child(5n + 4) {
+        background: $mem-blue;
+    }
+    i:nth-child(5n + 5) {
+        background: $mem-pink;
+    }
+}
+
+@keyframes season-light-twinkle {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.35;
     }
 }
 

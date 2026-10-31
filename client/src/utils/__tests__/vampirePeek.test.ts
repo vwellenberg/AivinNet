@@ -6,6 +6,8 @@ import {
     PEEK_DURATION_MS,
     PEEK_LAUNCH_FRACTION,
     PEEK_SIZE_PX,
+    PEEK_SPECS,
+    SNOWMAN_PEEK_DURATION_MS,
     nextPeekDelayMs,
     peekAnchor,
     peekExit,
@@ -30,6 +32,29 @@ function sequence(seed: number): () => number {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296
     }
 }
+
+describe('PEEK_SPECS: one figure per season', () => {
+    it('keeps the Halloween vampire: it puffs into a bat that flies off, over the whole peek', () => {
+        expect(PEEK_SPECS.halloween).toEqual({ figure: '🧛', launches: true, durationMs: PEEK_DURATION_MS })
+    })
+
+    it('gives Christmas a snowman that has no bat phase', () => {
+        expect(PEEK_SPECS.christmas.figure).toBe('⛄')
+        expect(PEEK_SPECS.christmas.launches).toBe(false)
+    })
+
+    it('makes the snowman peek shorter than the vampire, on its own duration', () => {
+        expect(PEEK_SPECS.christmas.durationMs).toBe(SNOWMAN_PEEK_DURATION_MS)
+        expect(SNOWMAN_PEEK_DURATION_MS).toBeLessThan(PEEK_DURATION_MS)
+    })
+
+    it('draws the same card choice and delay for both: the rules of the peek are shared', () => {
+        // The snowman uses the same pickPeekTarget and nextPeekDelayMs as the vampire.
+        const rects = [rect(100, 10), rect(100, 200)]
+        expect(pickPeekTarget(rects, VP, () => 0.99)).toBe(1)
+        expect(nextPeekDelayMs(() => 0)).toBe(PEEK_DELAY_MIN_MS)
+    })
+})
 
 describe('nextPeekDelayMs: every 40 to 80 seconds', () => {
     it('spans the range from the random source', () => {

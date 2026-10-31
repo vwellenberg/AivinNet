@@ -27,6 +27,7 @@ import {
     pickTileX,
     tileAnchor,
     tileCap,
+    tileEmojiWeightsFor,
     type TileBounds,
 } from '@/utils/seasonTileEmojis'
 
@@ -69,6 +70,47 @@ describe('tileCap: how many emoji may be on the page', () => {
             const cap = tileCap(n)
             expect(cap).toBeGreaterThanOrEqual(last)
             last = cap
+        }
+    })
+})
+
+describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
+    it('keeps Halloween exactly as it was: graves and pumpkins most often', () => {
+        const halloween = tileEmojiWeightsFor('halloween')
+        expect(halloween).toBe(TILE_EMOJI_WEIGHTS)
+        expect(halloween.map((e) => e.emoji)).toEqual(TILE_EMOJIS)
+        expect(halloween.find((e) => e.emoji === '🪦')?.weight).toBe(3)
+        expect(halloween.find((e) => e.emoji === '🎃')?.weight).toBe(3)
+    })
+
+    it('gives Christmas presents, cookies, stars, the tree and the snowman, and a little snow', () => {
+        const emojis = tileEmojiWeightsFor('christmas').map((e) => e.emoji)
+        expect(emojis).toEqual(
+            expect.arrayContaining(['🎁', '🍪', '⭐', '🎄', '⛄', '❄️', '\u{1F328}️'])
+        )
+        // None of the Halloween ones.
+        for (const halloween of TILE_EMOJIS) expect(emojis).not.toContain(halloween)
+    })
+
+    it('weights the Christmas presents and cookies most, the snow least', () => {
+        const weight = (emoji: string) => tileEmojiWeightsFor('christmas').find((e) => e.emoji === emoji)!.weight
+        expect(weight('🎁')).toBe(3)
+        expect(weight('🍪')).toBe(3)
+        expect(weight('❄️')).toBe(1)
+        expect(weight('\u{1F328}️')).toBe(1)
+    })
+
+    it('draws a Christmas tile only from the Christmas set', () => {
+        const christmas = tileEmojiWeightsFor('christmas')
+        const picked = new Set<string>()
+        for (let seed = 1; seed <= 200; seed++) picked.add(pickTileEmoji([], sequence(seed), christmas))
+        expect(picked).toEqual(new Set(christmas.map((e) => e.emoji)))
+    })
+
+    it('still avoids the neighbour\'s emoji with a Christmas set', () => {
+        const christmas = tileEmojiWeightsFor('christmas')
+        for (let seed = 1; seed <= 40; seed++) {
+            expect(pickTileEmoji(['🎁'], sequence(seed), christmas)).not.toBe('🎁')
         }
     })
 })

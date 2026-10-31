@@ -4,7 +4,7 @@ import { routeLocationKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SeasonVampire from '@/components/SeasonVampire.vue'
-import { PEEK_DELAY_MIN_MS, PEEK_DURATION_MS } from '@/utils/vampirePeek'
+import { PEEK_DELAY_MIN_MS, PEEK_DURATION_MS, SNOWMAN_PEEK_DURATION_MS } from '@/utils/vampirePeek'
 
 // The clock and the overlay. The choice of card and the timing are unit-tested in
 // utils/__tests__/vampirePeek.test.ts; here: it peeks, it ends, it books the next
@@ -140,6 +140,58 @@ describe('SeasonVampire: no timer outlives the component', () => {
         await advance(PEEK_DELAY_MIN_MS)
         expect(wrapper.find('.season-peek').exists()).toBe(true)
 
+        wrapper.unmount()
+        expect(vi.getTimerCount()).toBe(0)
+    })
+})
+
+describe('SeasonVampire: the snowman at Christmas', () => {
+    function mountFor(season: 'halloween' | 'christmas') {
+        return mount(SeasonVampire, {
+            props: { season },
+            global: { provide: { [routeLocationKey as symbol]: reactive({ fullPath: '/' }) } },
+            attachTo: document.body,
+        })
+    }
+
+    it('rises as a snowman, with no puff and no bat', async () => {
+        coverInView()
+        const wrapper = mountFor('christmas')
+        await advance(PEEK_DELAY_MIN_MS)
+        expect(wrapper.find('.season-peek-christmas').exists()).toBe(true)
+        expect(wrapper.find('.season-peek-figure').text()).toBe('⛄')
+        expect(wrapper.find('.season-peek-puff').exists()).toBe(false)
+        expect(wrapper.find('.season-peek-bat').exists()).toBe(false)
+        wrapper.unmount()
+    })
+
+    it('ends on its own, on its shorter clock, and books the next one', async () => {
+        coverInView()
+        const wrapper = mountFor('christmas')
+        await advance(PEEK_DELAY_MIN_MS)
+        expect(wrapper.find('.season-peek').exists()).toBe(true)
+
+        await advance(SNOWMAN_PEEK_DURATION_MS)
+        expect(wrapper.find('.season-peek').exists()).toBe(false)
+        await advance(PEEK_DELAY_MIN_MS)
+        expect(wrapper.find('.season-peek').exists()).toBe(true)
+        wrapper.unmount()
+    })
+
+    it('still shows the vampire, with its puff and bat, at Halloween', async () => {
+        coverInView()
+        const wrapper = mountFor('halloween')
+        await advance(PEEK_DELAY_MIN_MS)
+        expect(wrapper.find('.season-peek-figure').text()).toBe('🧛')
+        expect(wrapper.find('.season-peek-puff').exists()).toBe(true)
+        expect(wrapper.find('.season-peek-bat').exists()).toBe(true)
+        wrapper.unmount()
+    })
+
+    it('leaves no timer behind when it unmounts mid-peek', async () => {
+        coverInView()
+        const wrapper = mountFor('christmas')
+        await advance(PEEK_DELAY_MIN_MS)
         wrapper.unmount()
         expect(vi.getTimerCount()).toBe(0)
     })

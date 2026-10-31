@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHASE_GROUP, MAX_PARTICLES, SPIDER_GLYPH, particlesFor } from '@/utils/seasonParticles'
+import { CHASE_GROUP, MAX_PARTICLES, SLEIGH_GROUP, SPIDER_GLYPH, crossing, particlesFor } from '@/utils/seasonParticles'
 
 // A fixed random source: every value lands mid-range, so the layout is the same
 // on every run. The ranges themselves are checked below with a spread of values.
@@ -35,22 +35,25 @@ describe('particlesFor: the count is capped', () => {
 
     it('a season with a few particles keeps every one of them', () => {
         expect(particlesFor('halloween', MIDDLE)).toHaveLength(8)
-        expect(particlesFor('christmas', MIDDLE)).toHaveLength(18)
+        // 18 snowflakes and the one sleigh.
+        expect(particlesFor('christmas', MIDDLE)).toHaveLength(19)
     })
 })
 
-describe('particlesFor: Christmas is snow', () => {
-    it('makes only snowflakes, with a few sizes', () => {
-        const flakes = particlesFor('christmas', sequence(7))
-        expect(flakes.every((p) => p.kind === 'flake')).toBe(true)
+describe('particlesFor: Christmas is snow, and now and then a sleigh', () => {
+    it('makes snowflakes with a few sizes, and one sleigh among them', () => {
+        const all = particlesFor('christmas', sequence(7))
+        const flakes = all.filter((p) => p.kind === 'flake')
+        expect(flakes).toHaveLength(18)
         expect(flakes.every((p) => p.group.length === 0)).toBe(true)
+        expect(all.filter((p) => p.kind !== 'flake').map((p) => p.kind)).toEqual(['sleigh'])
 
         const sizes = new Set(flakes.map((p) => Math.round(p.size)))
         expect(sizes.size).toBeGreaterThan(2)
     })
 
     it('starts the flakes part-way through their fall, so the screen is not empty at first', () => {
-        for (const p of particlesFor('christmas', sequence(3))) {
+        for (const p of particlesFor('christmas', sequence(3)).filter((p) => p.kind === 'flake')) {
             expect(p.delay).toBeLessThanOrEqual(0)
             expect(-p.delay).toBeLessThanOrEqual(p.duration)
         }
@@ -116,7 +119,7 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
     })
 
     it('keeps the chase as rare as the old zombie: same rhythm, same rarity factor', () => {
-        // The lone zombie cycled 120-160 s, times HALLOWEEN_RARITY (1.5).
+        // The lone zombie cycled 120-160 s, times CROSSER_RARITY (1.5).
         for (const seed of [3, 7, 11]) {
             const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
             expect(chase.delay).toBeGreaterThan(0)
@@ -218,6 +221,57 @@ describe('particlesFor: the spider on its thread', () => {
             expect(spider.left).toBeGreaterThanOrEqual(5)
             expect(spider.left).toBeLessThanOrEqual(95)
         }
+    })
+})
+
+describe('particlesFor: the sleigh crosses the upper sky, right to left', () => {
+    const sleighOf = (seed: number) => particlesFor('christmas', sequence(seed)).find((p) => p.kind === 'sleigh')!
+
+    it('is one sleigh: two reindeer in front, the sled, Santa at the back', () => {
+        expect(SLEIGH_GROUP).toEqual(['🦌', '🦌', '🛷', '🎅'])
+        expect(sleighOf(3).group).toEqual(SLEIGH_GROUP)
+    })
+
+    it('always flies right to left (dir -1), for any seed, so the reindeer lead', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            expect(sleighOf(seed).dir, `seed ${seed}`).toBe(-1)
+        }
+    })
+
+    it('flies in the upper part of the screen, never on the ground lane', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            const sleigh = sleighOf(seed)
+            expect(sleigh.ground, `seed ${seed}`).toBe(false)
+            expect(sleigh.lift).toBe(0)
+            expect(sleigh.top).toBeGreaterThanOrEqual(14)
+            expect(sleigh.top).toBeLessThanOrEqual(32)
+        }
+    })
+
+    it('is as rare as the chase: a long cycle, a crossing in a short part of it', () => {
+        for (const seed of [3, 7, 11]) {
+            const sleigh = sleighOf(seed)
+            expect(sleigh.delay).toBeGreaterThan(0)
+            expect(sleigh.duration).toBeGreaterThanOrEqual(120 * 1.5)
+            expect(sleigh.duration).toBeLessThanOrEqual(160 * 1.5)
+        }
+    })
+
+    it('crosses from fully off the right edge to fully off the left, measured from its own width', () => {
+        const sleigh = sleighOf(5)
+        expect(crossing(sleigh)).toEqual({ from: '100vw', to: 'calc(-100% - 1rem)' })
+    })
+
+    it('never uses the fixed 12 vw margin, which a wide group would stick out of', () => {
+        expect(crossing(sleighOf(5)).to).not.toBe('-12vw')
+        expect(crossing(sleighOf(5)).from).not.toBe('112vw')
+    })
+
+    it('keeps the Halloween crossings exactly as before', () => {
+        const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
+        expect(crossing(chase)).toEqual({ from: '-12vw', to: '112vw' })
+        const bat = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'bat')!
+        expect(crossing(bat)).toEqual({ from: '112vw', to: '-12vw' })
     })
 })
 

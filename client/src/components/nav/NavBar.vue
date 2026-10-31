@@ -6,6 +6,8 @@
             use_sidebar: settings.use_sidebar && isSmall,
         }"
     >
+        <!-- Christmas: fairy lights along the bar's lower edge, drawn in CSS only (Global/_seasons.scss). -->
+        <span class="topnav-lights" aria-hidden="true"><i v-for="n in FAIRY_LIGHTS" :key="n" :style="{ '--light-i': String(n) }" /></span>
         <div class="left">
             <Logo v-if="!isMobile" class="nav-logo" />
         </div>
@@ -70,6 +72,9 @@ import { content_width, isMobile } from '@/stores/content-width'
 import useSettings from '@/stores/settings'
 import { lookHasModes } from '@/utils/theme'
 import { xl } from './../../composables/useBreakpoints'
+
+// The fairy lights of the Christmas season: one per index, staggered in the CSS.
+const FAIRY_LIGHTS = Array.from({ length: 12 }, (_, i) => i)
 
 import SearchInput from '../RightSideBar/SearchInput.vue'
 import Logo from '@/components/Logo.vue'

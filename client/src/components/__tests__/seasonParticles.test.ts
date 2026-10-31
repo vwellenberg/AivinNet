@@ -49,6 +49,17 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-particle.season-bat')).toHaveLength(0)
     })
 
+    it('draws one sleigh at Christmas, reindeer first, and gives it a right-to-left crossing', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const sleighs = wrapper.findAll('.season-particle.season-sleigh')
+        expect(sleighs).toHaveLength(1)
+        expect(sleighs[0].findAll('.season-glyph').map((g) => g.text())).toEqual(['🦌', '🦌', '🛷', '🎅'])
+        expect(sleighs[0].classes()).not.toContain('is-ground')
+        const style = (sleighs[0].element as HTMLElement).style
+        expect(style.getPropertyValue('--season-from')).toBe('100vw')
+        expect(style.getPropertyValue('--season-to')).toBe('calc(-100% - 1rem)')
+    })
+
     it('draws the bats, ghosts and pumpkin at Halloween, each with its emoji', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
         expect(wrapper.findAll('.season-bat')).toHaveLength(3)
