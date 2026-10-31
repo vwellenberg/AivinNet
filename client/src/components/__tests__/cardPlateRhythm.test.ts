@@ -240,4 +240,34 @@ describe("card plate rhythm", () => {
         `line it does reach ends up aligned differently from the ones next to it.`
     ).toEqual([]);
   });
+
+  // ⚠️ The help row is the line a Home row SWAPS on hover: CardScroller hides
+  // the help text and shows the time in its place. A mix's help text is its
+  // artist list, which wrapped to two lines on a narrow tile while the time
+  // never does — so that tile stood taller than its neighbours and snapped
+  // back on hover, rocking the row. One line, truncated, is the only height
+  // both halves of the swap can promise.
+  it("keeps both halves of the help row to one line", () => {
+    const row = ruleBody(scss, /\.rhelp\s*\{/);
+    expect(row, `${ANATOMY_FILE} has no .rhelp rule inside the plate`).not.toBeNull();
+    expect(row, "the help row is not a flex line — its spans cannot truncate").toMatch(/display:\s*flex/);
+
+    const spans = ruleBody(scss, /\.rhelp \.help,\s*\.rhelp \.time\s*\{/);
+    expect(spans, `${ANATOMY_FILE} has no shared rule for .rhelp .help / .rhelp .time`).not.toBeNull();
+    for (const decl of [/white-space:\s*nowrap/, /overflow:\s*hidden/, /text-overflow:\s*ellipsis/, /min-width:\s*0/]) {
+      expect(
+        spans,
+        `the help row's spans lack ${decl.source}. A help text that wraps makes its plate taller ` +
+          `than its neighbours, and the hover swap to the one-line time makes the row wobble.`
+      ).toMatch(decl);
+    }
+  });
+
+  it("swaps help and time on hover only in rows that the rule above covers", () => {
+    // The guard on the premise: if the swap moves elsewhere, the check above
+    // may be guarding the wrong line.
+    const scroller = SOURCES["/src/components/shared/CardScroller.vue"];
+    expect(scroller, "CardScroller.vue not found").toBeTruthy();
+    expect(scroller).toMatch(/&:hover\s*\{[\s\S]*?\.rhelp \.help\s*\{\s*display:\s*none/);
+  });
 });
