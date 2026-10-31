@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { paths } from '@/config'
-import { installImageRetry, isRetryableImage, RETRY_DELAYS_MS } from '@/utils/imageRetry'
+import { installImageRetry, isRetryableImage, JITTER, RETRY_DELAYS_MS } from '@/utils/imageRetry'
 
 // ---------------------------------------------------------------------------
 // A cover that failed once stayed broken until the tab reloaded. The server
@@ -28,6 +28,9 @@ function mountImg(src: string) {
 function fail(img: HTMLImageElement) {
     img.dispatchEvent(new Event('error'))
 }
+
+/** The longest a retry can wait, jitter included. */
+const longest = (delay: number) => delay * (1 + JITTER)
 
 describe('isRetryableImage', () => {
     it('covers album, artist and playlist images', () => {
@@ -73,9 +76,12 @@ describe('installImageRetry', () => {
         srcSet.mockClear()
 
         fail(img)
+        // Never sooner than the first wait…
+        vi.advanceTimersByTime(RETRY_DELAYS_MS[0] - 1)
         expect(srcSet).not.toHaveBeenCalled()
 
-        vi.advanceTimersByTime(RETRY_DELAYS_MS[0])
+        // …and never later than the first wait plus its jitter.
+        vi.advanceTimersByTime(longest(RETRY_DELAYS_MS[0]))
         expect(srcSet).toHaveBeenCalledWith(COVER)
     })
 
@@ -85,7 +91,7 @@ describe('installImageRetry', () => {
 
         for (const delay of RETRY_DELAYS_MS) {
             fail(img)
-            vi.advanceTimersByTime(delay)
+            vi.advanceTimersByTime(longest(delay))
         }
         expect(srcSet).toHaveBeenCalledTimes(RETRY_DELAYS_MS.length)
 
@@ -97,13 +103,13 @@ describe('installImageRetry', () => {
     it('starts over after a success', () => {
         const img = mountImg(COVER)
         fail(img)
-        vi.advanceTimersByTime(RETRY_DELAYS_MS[0])
+        vi.advanceTimersByTime(longest(RETRY_DELAYS_MS[0]))
         img.dispatchEvent(new Event('load'))
         srcSet.mockClear()
 
         // The next outage gets the full budget again, starting with the short wait.
         fail(img)
-        vi.advanceTimersByTime(RETRY_DELAYS_MS[0])
+        vi.advanceTimersByTime(longest(RETRY_DELAYS_MS[0]))
         expect(srcSet).toHaveBeenCalledTimes(1)
     })
 
@@ -119,8 +125,29 @@ describe('installImageRetry', () => {
         gone.remove()
         srcSet.mockClear()
 
-        vi.advanceTimersByTime(RETRY_DELAYS_MS[0])
+        vi.advanceTimersByTime(longest(RETRY_DELAYS_MS[0]))
         expect(srcSet).not.toHaveBeenCalled()
+    })
+
+    it('tries a spent image again when the user comes back', () => {
+        // An outage longer than the budget — laptop asleep, phone off the
+        // network — must not bring the permanent broken icon back.
+        const img = mountImg(COVER)
+        for (const delay of RETRY_DELAYS_MS) {
+            fail(img)
+            vi.advanceTimersByTime(longest(delay))
+        }
+        fail(img)
+        srcSet.mockClear()
+
+        document.dispatchEvent(new Event('visibilitychange'))
+        expect(srcSet).toHaveBeenCalledWith(COVER)
+
+        // With a fresh budget: the next failure is retried again.
+        srcSet.mockClear()
+        fail(img)
+        vi.advanceTimersByTime(longest(RETRY_DELAYS_MS[0]))
+        expect(srcSet).toHaveBeenCalledTimes(1)
     })
 
     it('ignores avatars and other elements', () => {
