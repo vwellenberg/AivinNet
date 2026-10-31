@@ -29,23 +29,13 @@ afterEach(() => {
 })
 
 describe('seasonOn: the calendar dates (local time)', () => {
-    it('Oct 23 and Nov 1 are no season, Oct 24 to 31 are Halloween', () => {
-        // 2027: Nov 1 is a Monday.
+    it('Halloween runs from Oct 24 to Nov 7, a week either side', () => {
         expect(seasonOn(at(2027, OCT, 23, 23, 59, 59, 999))).toBeNull()
         expect(seasonOn(at(2027, OCT, 24, 0, 0, 0, 0))).toBe('halloween')
-        expect(seasonOn(at(2027, OCT, 29))).toBe('halloween')
         expect(seasonOn(at(2027, OCT, 31))).toBe('halloween')
-        expect(seasonOn(at(2027, NOV, 1, 0, 0, 0, 0))).toBeNull()
-    })
-
-    it('keeps the Sunday after a Saturday Halloween, and only that day', () => {
-        // 2026: Halloween is a Saturday, Nov 1 a Sunday.
-        expect(new Date(2026, OCT, 31).getDay()).toBe(6)
-        expect(seasonOn(at(2026, NOV, 1, 0, 0, 0, 0))).toBe('halloween')
-        expect(seasonOn(at(2026, NOV, 1, 23, 59, 59, 999))).toBe('halloween')
-        expect(seasonOn(at(2026, NOV, 2, 0, 0, 0, 0))).toBeNull()
-        // 2025: Nov 1 is a Saturday, so it is not added.
-        expect(seasonOn(at(2025, NOV, 1))).toBeNull()
+        expect(seasonOn(at(2027, NOV, 1))).toBe('halloween')
+        expect(seasonOn(at(2027, NOV, 7, 23, 59, 59, 999))).toBe('halloween')
+        expect(seasonOn(at(2027, NOV, 8, 0, 0, 0, 0))).toBeNull()
     })
 
     it('Halloween covers its last day, to the last millisecond', () => {
@@ -53,13 +43,13 @@ describe('seasonOn: the calendar dates (local time)', () => {
         expect(seasonOn(at(2026, OCT, 31, 23, 59, 59, 999))).toBe('halloween')
     })
 
-    it('Dec 16 is no season, Dec 17 to 26 are Christmas, Dec 27 is no season', () => {
-        expect(seasonOn(at(2026, DEC, 16, 23, 59, 59, 999))).toBeNull()
-        expect(seasonOn(at(2026, DEC, 17, 0, 0, 0, 0))).toBe('christmas')
+    it('Dec 9 is no season, Dec 10 to 30 are Christmas, New Year\'s Eve is free', () => {
+        expect(seasonOn(at(2026, DEC, 9, 23, 59, 59, 999))).toBeNull()
+        expect(seasonOn(at(2026, DEC, 10, 0, 0, 0, 0))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 24))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 25))).toBe('christmas')
-        expect(seasonOn(at(2026, DEC, 26, 23, 59, 59, 999))).toBe('christmas')
-        expect(seasonOn(at(2026, DEC, 27, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2026, DEC, 30, 23, 59, 59, 999))).toBe('christmas')
+        expect(seasonOn(at(2026, DEC, 31, 0, 0, 0, 0))).toBeNull()
     })
 
     it('reads the local calendar day (00:30 on 24 Oct is Halloween)', () => {
@@ -77,7 +67,7 @@ describe('seasonOn: the calendar dates (local time)', () => {
 describe('activeSeason: only Memphis, only while the switch is on', () => {
     const HALLOWEEN = at(2026, OCT, 31)
     const CHRISTMAS = at(2026, DEC, 25)
-    const PLAIN = at(2026, NOV, 2)
+    const PLAIN = at(2026, NOV, 15)
 
     it('paints the season under Memphis with the switch on', () => {
         expect(activeSeason(HALLOWEEN, 'memphis', true)).toBe('halloween')
@@ -170,7 +160,7 @@ describe('the store: the switch and the stored scheme', () => {
 })
 
 describe('the preview: a season forced for this tab, in place of the date', () => {
-    const PLAIN = at(2026, NOV, 2)
+    const PLAIN = at(2026, NOV, 15)
 
     it('starts with no preview, so the date decides', () => {
         expect(seasonPreview.value).toBeNull()

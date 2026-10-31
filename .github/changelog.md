@@ -80,9 +80,9 @@ A feature release on top of 2026.10.6.
   stretch and the formats you listen in.
 - **Rewind as a story image.** Save your Rewind as a picture to share.
 - **Subspace radio.** A dial that tunes between your mixes.
-- **Seasons.** From 24 to 31 October the app wears a Halloween palette, with
+- **Seasons.** From 24 October to 7 November the app wears a Halloween palette, with
   bats, ghosts, a pumpkin, a vampire, a zombie and Frankenstein's monster
-  crossing now and then. From 17 to 26 December it snows. Nothing moves when
+  crossing now and then. From 10 to 30 December it snows. Nothing moves when
   your system asks for reduced motion.
 - **A few easter eggs.** Not telling where.
 - **Fixed.** Stats tiles keep their words on their line while they count up,
