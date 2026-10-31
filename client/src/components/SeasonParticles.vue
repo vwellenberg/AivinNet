@@ -206,6 +206,13 @@ function glyphVars(p: Particle, j: number): Record<string, string> {
     animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -2 / var(--season-n, 1)) infinite alternate;
 }
 
+// The runner, a third bigger: 🏃 is a whole small figure in its em box while 🧟 is
+// a bust that fills it, so at the same font size the runner looked like a child in
+// front of the horde (measured in the headless preview, 2026-10-31).
+.season-chase .season-glyph:first-child {
+    font-size: calc(var(--season-size) * 1.3);
+}
+
 // The sleigh: the same row, reindeer first, so the reindeer lead right to left
 // (utils/seasonParticles.ts, SLEIGH_GROUP). Its glyphs face left by default, unmirrored.
 

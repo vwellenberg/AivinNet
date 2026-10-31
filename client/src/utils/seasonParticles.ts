@@ -104,6 +104,12 @@ const HORDE_ROWS = 3
 const HORDE_COLUMN_STEP = 0.75
 const HORDE_ROW_RISE = 0.45
 const HORDE_JITTER = 0.15
+/**
+ * The runner's lead over the horde, in glyph sizes: it runs AHEAD of them. Without
+ * it the first column stood on the runner's heels and half covered it (the runner
+ * is drawn a third bigger, SeasonParticles.vue).
+ */
+const HORDE_LEAD = 0.6
 
 /** A whole number in [0, n), from the random source. */
 function pick(random: () => number, n: number): number {
@@ -136,7 +142,7 @@ export function chaseHorde(random: () => number): ChaseHorde {
         const row = j % HORDE_ROWS
         const stagger = row % 2 === 1 ? HORDE_COLUMN_STEP / 2 : 0
         offsets.push({
-            x: column * HORDE_COLUMN_STEP + stagger + (random() * 2 - 1) * HORDE_JITTER,
+            x: HORDE_LEAD + column * HORDE_COLUMN_STEP + stagger + (random() * 2 - 1) * HORDE_JITTER,
             // Never positive: a zombie rises from the ground lane, it does not sink into the bar.
             y: -row * HORDE_ROW_RISE - random() * HORDE_JITTER,
         })
