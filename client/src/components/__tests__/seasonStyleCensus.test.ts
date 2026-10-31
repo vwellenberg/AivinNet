@@ -114,9 +114,29 @@ describe('the spider hangs on a thread', () => {
     const seasonParticles = read(PARTICLES)
 
     it('draws the thread in the theme\'s line colour, a 1 px line', () => {
-        const thread = blockAfter(seasonParticles, '.season-spider::before')
+        const thread = blockAfter(seasonParticles, '.season-spider .season-glyph::before')
         expect(thread).toContain('var(--mem-line)')
         expect(thread).toContain('width: 1px')
+    })
+
+    // "da geht der faden nicht bis zur spinne" (user, 2026-10-31): the thread hung
+    // on the particle from the top of the glyph's box while the glyph bobbed and
+    // tilted under it, so there was air between thread and spider.
+    it('hangs the thread on the glyph and runs it into the body, so no air shows', () => {
+        expect(seasonParticles).not.toContain('.season-spider::before')
+        const thread = blockAfter(seasonParticles, '.season-spider .season-glyph::before')
+        expect(thread).toMatch(/bottom:\s*50%/)
+        expect(thread).toMatch(/z-index:\s*-1/)
+    })
+
+    it('bounces the spider straight up and down: a tilt would swing the thread', () => {
+        const glyph = blockAfter(seasonParticles, '.season-spider .season-glyph {')
+        expect(glyph).toContain('season-spider-bob')
+        const bob = seasonParticles.slice(seasonParticles.indexOf('@keyframes season-spider-bob'))
+        expect(bob.slice(0, bob.indexOf('\n}'))).not.toMatch(/rotate\(/)
+        // The shared bob (with its tilt) is not applied to the spider.
+        const shared = seasonParticles.slice(0, seasonParticles.indexOf('animation: season-bob'))
+        expect(shared.slice(shared.lastIndexOf('}'))).not.toContain('.season-spider')
     })
 
     it('lets the spider down and back up within one cycle, with motion tokens only', () => {

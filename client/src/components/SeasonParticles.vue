@@ -153,8 +153,7 @@ function varsOf(p: Particle): Record<string, string> {
 .season-bat .season-glyph,
 .season-pumpkin .season-glyph,
 .season-chase .season-glyph,
-.season-sleigh .season-glyph,
-.season-spider .season-glyph {
+.season-sleigh .season-glyph {
     // The delay is the glyph's index times a quarter bob cycle, so the glyphs of a
     // group bob out of step. It sits IN the shorthand: the shorthand resets the
     // delay (styling.md), and a single glyph has index 0, i.e. no delay at all.
@@ -232,20 +231,45 @@ function varsOf(p: Particle): Record<string, string> {
 }
 
 // The spider: its thread is a 1 px line in the theme's line colour, from the
-// spider up past the top edge. The particle travels with the spider, so the
-// thread is always exactly as long as the drop.
+// spider's body up past the top edge.
+//
+// ⚠️ The thread hangs on the GLYPH, not on the particle, and ends at the body's
+// centre (`bottom: 50%`), behind the spider. It used to hang on the particle
+// from the top of the glyph's box, and that left a visible gap of air: the
+// glyph bobbed ±6 px and tilted ±8° under a thread that stayed put, and the
+// spider is drawn a few px below the top of its em box anyway (user,
+// 2026-10-31: "da geht der faden nicht bis zur spinne"). On the glyph, the
+// thread moves with every bob. The spider bounces on its thread, straight up
+// and down: a tilt would swing a 100vh-long thread through the whole sky.
 .season-spider {
     animation: season-spider var(--season-dur) linear var(--season-delay) infinite backwards;
 }
 
-.season-spider::before {
+.season-spider .season-glyph {
+    position: relative;
+    animation: season-spider-bob var(--season-wobble) ease-in-out infinite alternate;
+}
+
+.season-spider .season-glyph::before {
     content: '';
     position: absolute;
     left: 50%;
-    bottom: 100%;
+    bottom: 50%;
     width: 1px;
     height: 100vh;
     background: var(--mem-line);
+    // Behind the spider's body: the glyph is its own stacking context (it is
+    // animated with a transform), so -1 stays inside it, above the page.
+    z-index: -1;
+}
+
+@keyframes season-spider-bob {
+    from {
+        transform: translate3d(0, -4px, 0);
+    }
+    to {
+        transform: translate3d(0, 4px, 0);
+    }
 }
 
 // One cycle, rare: the spider is hidden (above the top edge, thread and all) for
