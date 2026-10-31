@@ -308,6 +308,10 @@ Dial-Reihenfolge, nur belegte Plätze. Jeder Eintrag ist eine erzeugte Playlist 
 - **Ids** `genre1…genre4`, `decade1…decade4` — in `GENERATED_PLAYLISTS` **und**
   `homerows.CUSTOM_PLAYLISTS` und `DATED_PLAYLISTS` (Inhalt ändert sich täglich). Spielen geht über
   denselben Weg wie ein Mix (`helpers/radio.ts::tuneStation` → Queue → Gruppen-Seam).
+- **Anzeige** („AivinNet FM“, `RadioDial.vue`): Die Skala zeigt Frequenzen, keine Namen
+  (`utils/radioDial.ts::stationFrequency`, 87,5–108,0 MHz nach Platz). Den Namen zeigt das Display
+  darüber, auch während eines Drags. Jede k-te Frequenz trägt die Skala (`labelEvery`, aus der
+  gemessenen Breite), damit sich nie zwei überlappen; Breite unbekannt heißt nur die erste.
 
 ⚠️ **Das Erscheinungsjahr ist nur dort eines, wo ein Tag steht.** `taglib.py` schreibt die mtime
 als `track.date`, wenn die Datei kein Jahr trägt. `track_facts` setzt `TrackFacts.release` deshalb

@@ -79,7 +79,7 @@ A feature release on top of 2026.10.6.
   device, how much of your library you have explored, your longest nonstop
   stretch and the formats you listen in.
 - **Rewind as a story image.** Save your Rewind as a picture to share.
-- **Subspace radio.** A dial that tunes between your mixes.
+- **AivinNet FM.** A dial that tunes between your mixes, genres and decades, with a readout of the station under the needle.
 - **Seasons.** From 24 October to 7 November the app wears a Halloween palette, with
   bats, ghosts, a pumpkin, a vampire, a zombie and Frankenstein's monster
   crossing now and then. From 10 to 30 December it snows. Nothing moves when

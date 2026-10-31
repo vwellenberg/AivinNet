@@ -1,6 +1,13 @@
 <template>
   <section v-if="dialIsWorthShowing(stations)" class="radio-card">
-    <div class="radio-title"><b>Subspace radio</b></div>
+    <div class="radio-title"><b>AivinNet FM</b></div>
+
+    <!-- The readout: the station under the needle, big. It follows a drag, and
+         the scale names no station, so nothing on it can overlap. -->
+    <div class="radio-display" aria-hidden="true">
+      <span class="radio-display-name">{{ readout.name }}</span>
+      <span class="radio-display-kind">{{ readout.kind }}</span>
+    </div>
 
     <div
       ref="dial"
@@ -8,7 +15,7 @@
       :class="{ 'is-still': still, 'is-dragging': drag !== null }"
       role="slider"
       tabindex="0"
-      aria-label="Subspace radio"
+      aria-label="AivinNet FM"
       :aria-valuemin="1"
       :aria-valuemax="stations.length"
       :aria-valuenow="index + 1"
@@ -30,12 +37,12 @@
           :style="{ left: pct(i) }"
         ></span>
         <span
-          v-for="(station, i) in stations"
-          :key="'label-' + station.id"
+          v-for="i in labelled"
+          :key="'label-' + stations[i].id"
           class="radio-label"
           :class="{ 'is-tuned': i === tuned }"
-          :style="{ left: pct(i), transform: `translateX(${labelShift(i)})` }"
-        >{{ station.name }}</span>
+          :style="{ left: pct(i) }"
+        >{{ frequencyOf(i) }}</span>
         <span class="radio-needle" :style="{ left: pct(position) }"></span>
       </div>
     </div>
@@ -50,19 +57,24 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { getStations } from '@/requests/home'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
+import { useElementSize } from '@vueuse/core'
 import {
   dragPosition,
+  frequencyLabelWidth,
   keyTarget,
+  labelEvery,
   prefersReducedMotion,
   snapIndex,
   stationFraction,
+  stationFrequency,
+  stationReadout,
   dialIsWorthShowing,
   stationsFromList,
   wheelSteps,
 } from '@/utils/radioDial'
 import type { Station } from '@/utils/radioDial'
 
-// INFO: Subspace radio (#542, #640), a dial on Home between the continue cards
+// INFO: AivinNet FM (#542, #640), a dial on Home between the continue cards
 // and the rows. A station is a generated playlist, and the server lists the
 // ones the user has in dial order: the mixes, the genre stations and the
 // decade stations (`GET /nothome/stations`). Home's refresh asks again.
@@ -81,6 +93,8 @@ async function loadStations() {
 
 const dial = ref<HTMLElement>()
 const scale = ref<HTMLElement>()
+// The scale's width decides how many frequency labels fit (`labelEvery`).
+const { width: scaleWidth } = useElementSize(scale)
 // The station the needle rests on, and the station that is playing.
 const index = ref(0)
 const tuned = ref(-1)
@@ -110,24 +124,43 @@ watch(
   }
 )
 
-const valueText = computed(() => stations.value[index.value]?.name ?? '')
+const valueText = computed(() => {
+  const station = stations.value[index.value]
+  return station ? stationReadout(station, index.value, stations.value.length).valueText : ''
+})
 
 const statusText = computed(() => {
   const station = stations.value[tuned.value]
-  return station ? `Tuned in: ${station.name}` : 'Turn the dial to tune in'
+  return station
+    ? `Tuned in: ${stationReadout(station, tuned.value, stations.value.length).valueText}`
+    : 'Turn the dial to tune in'
+})
+
+// The display shows the station under the needle: the one tuned in, or the
+// one a drag is passing over.
+const readout = computed(() => {
+  const count = stations.value.length
+  const at = snapIndex(position.value, count)
+  const station = stations.value[at]
+  return station ? stationReadout(station, at, count) : { name: '', kind: '', valueText: '' }
 })
 
 function pct(i: number): string {
   return `${stationFraction(i, stations.value.length) * 100}%`
 }
 
-function labelShift(i: number): string {
-  const count = stations.value.length
-  if (count <= 1) return '-50%'
-  if (i === 0) return '0'
-  if (i === count - 1) return '-100%'
-  return '-50%'
+function frequencyOf(i: number): string {
+  return stationFrequency(i, stations.value.length)
 }
+
+// The stations that carry a frequency label: every k-th, so the labels that are
+// shown never overlap at this width. The scale's font is the label's font.
+const labelled = computed(() => {
+  const count = stations.value.length
+  const fontPx = parseFloat(scale.value ? getComputedStyle(scale.value).fontSize : '') || 12
+  const every = labelEvery(scaleWidth.value, count, frequencyLabelWidth(fontPx))
+  return stations.value.map((_, i) => i).filter(i => i % every === 0)
+})
 
 /** Move the needle to station `to` and tune it in, unless it already plays. */
 function land(to: number) {
@@ -231,13 +264,48 @@ function onUp(event: PointerEvent) {
     }
   }
 
+  // The readout above the dial: the tuned station, big, on its own plate. The
+  // same plate as the dial, so it reads as part of the same set.
+  .radio-display {
+    --row-fill: #{$mem-panel};
+    @include candy-box(var(--row-fill), $candy-radius-sm);
+    @include candy-raised(3px, 3px, $press: false);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 1rem 0.7rem;
+  }
+
+  .radio-display-name {
+    min-width: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: $mem-content-text;
+  }
+
+  .radio-display-kind {
+    margin-top: 0.15rem;
+    font-size: $medium;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    color: $mem-content-text;
+  }
+
   // The scale spans the dial between 1.5rem gutters; stations sit on it in %.
+  // Its font is the frequency labels' font.
   .radio-scale {
     position: absolute;
     left: 1.5rem;
     right: 1.5rem;
     top: 0;
     bottom: 0;
+    font-size: $medium;
   }
 
   .radio-line {
@@ -262,11 +330,13 @@ function onUp(event: PointerEvent) {
     }
   }
 
+  // Centred on its tick: a label is as wide as its estimate (`frequencyLabelWidth`).
   .radio-label {
     position: absolute;
     top: 2.1rem;
-    font-size: $medium;
+    transform: translateX(-50%);
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
     color: $mem-content-text;
 

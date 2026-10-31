@@ -1,5 +1,5 @@
 /**
- * Subspace radio (#542, #640): the dial between stations. Pure, so the
+ * The radio, AivinNet FM (#542, #640): the dial between stations. Pure, so the
  * component and the tuner share one answer and the tests can pin it without a
  * DOM.
  *
@@ -114,4 +114,63 @@ export function stationFraction(index: number, count: number): number {
 /** Whether the user asked for less motion. No `matchMedia` (jsdom, old browsers) counts as no. */
 export function prefersReducedMotion(win: Window | undefined = typeof window === 'undefined' ? undefined : window): boolean {
     return !!win && typeof win.matchMedia === 'function' && win.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+// SECTION: THE FM DIAL (the frequencies, the labels, the readout)
+
+/** The bottom and the top of the FM band, in MHz. */
+export const FM_LOW_MHZ = 87.5
+export const FM_HIGH_MHZ = 108.0
+
+/**
+ * The frequency of a station by its place on the dial, one decimal: the first
+ * station sits at 87.5, the last at 108.0, the rest spread evenly between
+ * (`stationFraction`, so the scale ticks and the frequencies agree). Strictly
+ * increasing up to about 200 stations, which the dial never comes near.
+ */
+export function stationFrequency(index: number, count: number): string {
+    const mhz = FM_LOW_MHZ + (FM_HIGH_MHZ - FM_LOW_MHZ) * stationFraction(index, count)
+    return (Math.round(mhz * 10) / 10).toFixed(1)
+}
+
+/** The kind of a station as the readout names it. */
+const KIND_NAME: Record<StationKind, string> = { mix: 'MIX', genre: 'GENRE', decade: 'DECADE' }
+
+/**
+ * What the display shows for a station: its name, the kind line
+ * ("GENRE · 91.3 FM") and the value the dial announces ("Jazz, 91.3 FM").
+ */
+export function stationReadout(station: Station, index: number, count: number): { name: string; kind: string; valueText: string } {
+    const frequency = `${stationFrequency(index, count)} FM`
+
+    return {
+        name: station.name,
+        kind: `${KIND_NAME[station.kind]} · ${frequency}`,
+        valueText: `${station.name}, ${frequency}`,
+    }
+}
+
+/** Gap kept clear between two frequency labels on the scale, px. */
+export const FREQUENCY_LABEL_GAP_PX = 8
+
+/** A frequency label ("108.0") in em of its font size: a little generous, the face is bold and tabular. */
+export const FREQUENCY_LABEL_EM = 3
+
+/** The width of a frequency label at a font size, px (an estimate, the label is centred on its tick). */
+export function frequencyLabelWidth(fontPx: number): number {
+    return Math.ceil(FREQUENCY_LABEL_EM * fontPx)
+}
+
+/**
+ * Every how many stations the scale gets a frequency label, so that no two
+ * shown labels overlap. A label is centred on its tick. An unknown width (not
+ * measured yet, or a hidden dial) shows only the first label: never a pile.
+ */
+export function labelEvery(scaleWidth: number, count: number, labelWidth: number, gap = FREQUENCY_LABEL_GAP_PX): number {
+    if (count <= 1) return 1
+    if (!(scaleWidth > 0)) return count
+
+    const spacing = scaleWidth / (count - 1)
+    const need = (labelWidth > 0 ? labelWidth : 0) + gap
+    return Math.min(count, Math.max(1, Math.ceil(need / spacing)))
 }
