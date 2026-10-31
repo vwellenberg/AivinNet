@@ -5,33 +5,35 @@
     <section v-if="calendar" class="advent-card" aria-labelledby="advent-title">
         <div class="advent-head">
             <h2 id="advent-title" class="advent-title">Advent calendar</h2>
-            <p class="advent-sub">{{ today }} of {{ ADVENT_DOORS }} doors open</p>
+            <p class="advent-sub">Door {{ today }} of {{ ADVENT_DOORS }}</p>
         </div>
-        <ol class="advent-doors">
-            <li v-for="door in doors" :key="door">
-                <button
-                    type="button"
-                    class="advent-door"
-                    :class="{
-                        'is-today': door === today,
-                        'is-open': isOpened(door),
-                        'is-locked': door > today,
-                        'is-selected': selected === door,
-                    }"
-                    :disabled="door > today"
-                    :aria-pressed="selected === door"
-                    :aria-label="doorLabel(door)"
-                    @click="openDoor(door)"
-                >
-                    <span class="advent-door-back" aria-hidden="true">♪</span>
-                    <span class="advent-door-leaf" aria-hidden="true">
-                        <span class="advent-door-number">{{ door }}</span>
-                    </span>
-                </button>
-            </li>
-        </ol>
-        <div v-if="selectedDoor" :key="selectedDoor.day" class="advent-stage">
-            <AlbumCard :album="selectedDoor.album" />
+        <div class="advent-body" :class="{ 'has-stage': selectedDoor }">
+            <ol class="advent-doors">
+                <li v-for="door in doors" :key="door">
+                    <button
+                        type="button"
+                        class="advent-door"
+                        :class="{
+                            'is-today': door === today,
+                            'is-open': isOpened(door),
+                            'is-locked': door > today,
+                            'is-selected': selected === door,
+                        }"
+                        :disabled="door > today"
+                        :aria-pressed="selected === door"
+                        :aria-label="doorLabel(door)"
+                        @click="openDoor(door)"
+                    >
+                        <span class="advent-door-back" aria-hidden="true">♪</span>
+                        <span class="advent-door-leaf" aria-hidden="true">
+                            <span class="advent-door-number">{{ door }}</span>
+                        </span>
+                    </button>
+                </li>
+            </ol>
+            <div v-if="selectedDoor" :key="selectedDoor.day" class="advent-stage">
+                <AlbumCard :album="selectedDoor.album" />
+            </div>
         </div>
     </section>
 </template>
@@ -122,21 +124,25 @@ onMounted(async () => {
 
     .advent-doors {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        // Eight by three on a wide screen, six by four on a phone: the card sits
+        // above "Continue listening" for 24 days and must not push Home's rows
+        // below the fold (the first cut was six by four everywhere at 4.25rem,
+        // ~300px of doors on a 1280px window).
+        grid-template-columns: repeat(8, minmax(0, 1fr));
         gap: $small;
         margin: 0;
         padding: 0;
         list-style: none;
 
         @include allPhones {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
         }
     }
 
     // The door is the button: its role gives the plate, the shadow and the
     // 44-px target. The leaf turns away on the hinge to show the back.
     .advent-door {
-        @include btn-pill($h: 4.25rem, $radius: $candy-radius-sm);
+        @include btn-pill($h: 3rem, $radius: $candy-radius-sm);
         position: relative;
         display: block;
         width: 100%;
@@ -184,8 +190,20 @@ onMounted(async () => {
         font-variant-numeric: tabular-nums;
     }
 
+    // The album stands BESIDE the doors on a wide screen: under them it was a
+    // 14rem card in a 900px-wide plate, with the rest of the row empty.
+    .advent-body.has-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 11rem;
+        align-items: start;
+        gap: 1rem;
+
+        @include allPhones {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
     .advent-stage {
-        margin-top: 1rem;
         max-width: 14rem;
     }
 }
