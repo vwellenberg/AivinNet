@@ -1,0 +1,27 @@
+// The hover hint of `v-tip` (directives/vTip.ts): one element on <body>,
+// placed by the directive. Same look as the progress bar's time tooltip
+// (Progress.vue), so the app has one tooltip, not two.
+.hover-tip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 10000;
+    pointer-events: none;
+    padding: 2px 6px;
+    border-radius: $candy-radius-sm;
+    background: $candy-white;
+    border: $mem-hairline;
+    color: $candy-text;
+    font-size: $medium;
+    line-height: 1.2;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity $motion-tint $motion-curve;
+
+    &.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+}

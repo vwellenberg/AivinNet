@@ -16,6 +16,7 @@ import App from "./App.vue";
 import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
 import vContextMenu from "./directives/vContextMenu";
+import vTip from "./directives/vTip";
 import { installArrivalLatch } from "./utils/arrivalLatch";
 import { TypedDynamicScroller } from "./utils/typedScroller";
 import { installTouchActive } from "./utils/touchActive";
@@ -48,6 +49,8 @@ app.use(VWave as Plugin, {
 });
 
 app.directive("tooltip", vTooltip);
+// Hover hints in the app's look for icon-only buttons (directives/vTip.ts).
+app.directive("tip", vTip);
 // Right-click, the context-menu key AND a touch long-press — iOS fires no
 // `contextmenu` for a touch. See directives/vContextMenu.ts.
 app.directive("context-menu", vContextMenu);

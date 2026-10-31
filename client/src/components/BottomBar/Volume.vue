@@ -5,9 +5,9 @@
              from here they are the same thing, and one tap gets sound back
              either way. The title says so. -->
         <button
+            v-tip="settings.is_silent ? 'Unmute' : 'Mute'"
             class="speaker-icon"
             :class="{ silent: settings.is_silent }"
-            :title="settings.is_silent ? 'Unmute' : 'Mute'"
             @click="settings.toggleMute"
         >
             <VolumeMuteSvg v-if="level === 'mute'" />

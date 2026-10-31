@@ -2,29 +2,29 @@
     <div class="hotkeys">
         <button
             v-if="!isMobile"
+            v-tip="settings.shuffle ? 'Shuffle: random next track' : 'Shuffle off'"
             class="aux shuffle"
             :class="{ 'aux-off': !settings.shuffle }"
-            :title="settings.shuffle ? 'Shuffle: random next track' : 'Shuffle off'"
             @click.prevent="queue.toggleShuffle"
         >
             <ShuffleSvg />
         </button>
-        <button class="skip skip-prev" @click.prevent="queue.playPrev">
+        <button v-tip="'Previous'" class="skip skip-prev" @click.prevent="queue.playPrev">
             <PrevSvg />
         </button>
-        <button class="play mem-glyph-swap" @click.prevent="queue.playPause">
+        <button v-tip="queue.playing ? 'Pause' : 'Play'" class="play mem-glyph-swap" @click.prevent="queue.playPause">
             <Spinner v-if="buffering && queue.playing" />
             <PauseSvg v-else-if="queue.playing" />
-            <PlaySvg class="playsvg" v-else />
+            <PlaySvg v-else class="playsvg" />
         </button>
-        <button class="skip" @click.prevent="queue.playNext">
+        <button v-tip="'Next'" class="skip" @click.prevent="queue.playNext">
             <NextSvg />
         </button>
         <button
             v-if="!isMobile"
+            v-tip="settings.repeat === 'all' ? 'Repeat all' : settings.repeat === 'one' ? 'Repeat one' : 'No repeat'"
             class="aux repeat"
             :class="{ 'aux-off': settings.repeat === 'none' }"
-            :title="settings.repeat === 'all' ? 'Repeat all' : settings.repeat === 'one' ? 'Repeat one' : 'No repeat'"
             @click.prevent="settings.toggleRepeatMode"
         >
             <RepeatOneSvg v-if="settings.repeat === 'one'" />
