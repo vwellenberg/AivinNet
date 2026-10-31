@@ -11,6 +11,63 @@
 // the look file; shapeTokens.test.ts lists it with this reason.
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// Halloween: an emoji on the corner of a cover tile (components/SeasonTileEmojis.vue
+// sets `data-season-emoji` and `data-season-corner` on `.card-art`). The `::after`
+// of the cover is free: the stamp hangs over the top-right corner and the play
+// button sits bottom-right, so the emoji takes the two left corners only.
+//
+// It fades out while the page scrolls (`html.season-scrolled`, utils/seasonScrolled.ts)
+// and is removed when the scroll settles. Hidden on phones narrower than 460px.
+// ----------------------------------------------------------------------------
+
+html.season-halloween {
+    .card-art[data-season-emoji]::after {
+        content: attr(data-season-emoji);
+        position: absolute;
+        top: 0.35rem;
+        left: 0.35rem;
+        font-size: 1.5rem;
+        line-height: 1;
+        pointer-events: none;
+        z-index: 2;
+        transition: opacity $motion-move $motion-curve;
+        animation: season-tile-pop $motion-settle $motion-curve-settle backwards;
+    }
+
+    .card-art[data-season-corner="bl"]::after {
+        top: auto;
+        bottom: 0.35rem;
+    }
+
+    &.season-scrolled .card-art[data-season-emoji]::after {
+        opacity: 0;
+    }
+
+    @media (max-width: 459px) {
+        .card-art[data-season-emoji]::after {
+            display: none;
+        }
+    }
+}
+
+// The pop: a small overshoot, then rest. Tilted a little so the glyphs do not sit
+// square on the corner.
+@keyframes season-tile-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.3) rotate(-25deg);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.15) rotate(6deg);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) rotate(-6deg);
+    }
+}
+
 html.season-christmas {
     // Four small snowflakes in a 46px tile, white on the fills the sprinkle
     // lies over (teal, yellow, the progress fill).
