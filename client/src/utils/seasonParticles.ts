@@ -53,11 +53,17 @@ export const MAX_PARTICLES = 25
 const SNOWFLAKES = 18
 
 /**
- * The chase: two zombies, then the runner in front. The runner is the LAST span,
- * the rightmost, because the chase always goes left to right (`dir` is +1 for
- * every chase) and the 🏃 emoji faces right: it runs the way it looks.
+ * The chase: the runner in front, then two zombies. The runner is the FIRST
+ * span, the leftmost, because the chase always goes right to left (`dir` is -1
+ * for every chase) and the 🏃 emoji faces LEFT: it runs the way it looks.
+ *
+ * ⚠️ It went left to right once, on the claim that 🏃 faces right. It faces
+ * left — Unicode 15.1 added "person running facing right" (🏃‍➡️) precisely
+ * because the plain one does not — and in the running app the runner ran
+ * backwards behind the zombies (user, 2026-10-31). Not 🏃‍➡️ either: a font
+ * without the 15.1 sequence draws it as 🏃 plus an arrow.
  */
-export const CHASE_GROUP = ['\u{1F9DF}', '\u{1F9DF}‍♂️', '🏃']
+export const CHASE_GROUP = ['🏃', '\u{1F9DF}', '\u{1F9DF}‍♂️']
 
 /** The spider, on its thread: U+1F577 and the emoji presentation selector. */
 export const SPIDER_GLYPH = '\u{1F577}️'
@@ -119,7 +125,8 @@ function halloweenParticle(random: () => number, kind: ParticleKind, group: stri
             ...base,
             dir: -1,
             top: between(random, 10, 70),
-            size: 24,
+            // 32, up from 24: "bisserl größer" (user, 2026-10-31).
+            size: 32,
             duration: between(random, 60, 90) * rare,
             delay: between(random, 0, 40),
             wobble: between(random, 0.9, 1.4),
@@ -140,12 +147,12 @@ function halloweenParticle(random: () => number, kind: ParticleKind, group: stri
     }
     if (kind === 'chase') {
         // The runner and the zombies cross the bottom lane now and then, as one
-        // group, left to right: the runner leads, so it faces the way it runs.
+        // group, right to left: the runner leads, so it faces the way it runs.
         // The timing is the old lone zombie's, so the chase is no more frequent
         // than the zombie was.
         return {
             ...base,
-            dir: 1,
+            dir: -1,
             ground: true,
             lift: between(random, 2.5, 6),
             size: 34,

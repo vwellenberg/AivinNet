@@ -113,9 +113,20 @@ describe('pickTileTarget: only a card without an emoji', () => {
     })
 })
 
+// Zombies and bats are crossers (utils/seasonParticles.ts). Standing still on a
+// tile they looked like a crossing that got stuck ("bitte keine fledermäuse und
+// zombies auf den kacheln", user, 2026-10-31).
+describe('tile emoji: nothing that belongs to the crossings', () => {
+    it('never stands a zombie or a bat on a tile', () => {
+        const banned = ['🧟', '🧟‍♂️', '🧟‍♀️', '🦇']
+        for (const emoji of banned) expect(TILE_EMOJIS, emoji).not.toContain(emoji)
+        for (let seed = 1; seed <= 200; seed++) expect(banned).not.toContain(pickTileEmoji([], sequence(seed)))
+    })
+})
+
 describe("pickTileEmoji: a themed emoji, not the neighbours' one", () => {
     it('only ever returns an emoji from the list', () => {
-        expect(TILE_EMOJIS).toHaveLength(8)
+        expect(TILE_EMOJIS).toHaveLength(6)
         expect(TILE_EMOJIS).toContain('🪦')
         expect(TILE_EMOJIS).toContain('🎃')
         for (let seed = 1; seed <= 30; seed++) {

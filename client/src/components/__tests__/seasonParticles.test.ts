@@ -66,12 +66,12 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-monster-face')).toHaveLength(0)
     })
 
-    it('draws the chase as one group: two zombies, then the runner last, each with its own glyph span', () => {
+    it('draws the chase as one group: the runner first, then two zombies, each with its own glyph span', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
         const chases = wrapper.findAll('.season-particle.season-chase')
         expect(chases).toHaveLength(1)
         const spans = chases[0].findAll('.season-glyph')
-        expect(spans.map((g) => g.text())).toEqual(['🧟', '🧟‍♂️', '🏃'])
+        expect(spans.map((g) => g.text())).toEqual(['🏃', '🧟', '🧟‍♂️'])
         // Each glyph carries its index, which staggers its bob.
         expect(spans.map((g) => (g.element as HTMLElement).style.getPropertyValue('--season-i'))).toEqual(['0', '1', '2'])
         // No lone zombie anywhere else on the page.

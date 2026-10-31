@@ -96,19 +96,22 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         expect(new Set(items.map((p) => p.kind))).toEqual(new Set(['bat', 'ghost', 'pumpkin', 'chase', 'spider']))
     })
 
-    it('draws the chase as two zombies and the runner last, the runner leading', () => {
+    it('draws the chase as the runner first and two zombies behind it, the runner leading', () => {
         const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
         expect(chase.group).toHaveLength(3)
         expect(chase.group).toEqual(CHASE_GROUP)
-        expect(chase.group.slice(0, 2)).toEqual(['\u{1F9DF}', '\u{1F9DF}‍♂️'])
-        // The runner is the last, the rightmost span: it leads a left-to-right chase.
-        expect(chase.group[chase.group.length - 1]).toBe('🏃')
+        // The runner is the first, the leftmost span: it leads a right-to-left chase.
+        expect(chase.group[0]).toBe('🏃')
+        expect(chase.group.slice(1)).toEqual(['\u{1F9DF}', '\u{1F9DF}‍♂️'])
     })
 
-    it('makes the chase always go left to right (dir +1), for any seed', () => {
+    // 🏃 faces LEFT (Unicode 15.1 added 🏃‍➡️ because it does), so the chase must
+    // run that way: going left to right, the runner ran backwards behind the
+    // zombies (user, 2026-10-31).
+    it('makes the chase always go right to left (dir -1), the way the runner faces, for any seed', () => {
         for (let seed = 1; seed <= 40; seed++) {
             const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
-            expect(chase.dir, `seed ${seed}`).toBe(1)
+            expect(chase.dir, `seed ${seed}`).toBe(-1)
         }
     })
 
