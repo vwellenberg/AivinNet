@@ -52,3 +52,19 @@ export function pickPeekTarget(rects: readonly PeekRect[], vp: ViewportSize, ran
 export function peekAnchor(r: Pick<PeekRect, 'top' | 'left' | 'width'>): { x: number; y: number } {
     return { x: r.left + r.width / 2, y: r.top }
 }
+
+/**
+ * The fraction of one peek at which the bat takes off (the puff is done): from
+ * here on it flies, and a scroll no longer takes the peek away.
+ */
+export const PEEK_LAUNCH_FRACTION = 0.5
+
+/**
+ * Where the bat flies to, relative to the anchor, in px: past BOTH viewport
+ * edges on the top-left, with a glyph's width to spare, whatever the anchor.
+ * The bat keeps full opacity all the way, so it must leave the screen rather
+ * than fade (SeasonVampire.vue, `--peek-exit-x` / `--peek-exit-y`).
+ */
+export function peekExit(anchor: { x: number; y: number }): { x: number; y: number } {
+    return { x: -(anchor.x + PEEK_SIZE_PX), y: -(anchor.y + PEEK_SIZE_PX) }
+}

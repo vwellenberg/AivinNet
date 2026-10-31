@@ -9,7 +9,7 @@
             v-for="(p, i) in particles"
             :key="i"
             class="season-particle"
-            :class="`season-${p.kind}`"
+            :class="[`season-${p.kind}`, { 'is-ground': p.ground }]"
             :style="varsOf(p)"
         >
             <span
@@ -18,7 +18,6 @@
                 class="season-glyph"
                 :style="{ '--season-i': String(j) }"
             >{{ g }}</span>
-            <span v-if="p.kind === 'frankenstein'" class="season-glyph season-monster-face"></span>
         </span>
     </div>
 </template>
@@ -57,16 +56,19 @@ function varsOf(p: Particle): Record<string, string> {
         // Off the left edge to off the right edge, or the other way round.
         "--season-from": `${p.dir > 0 ? -12 : 112}vw`,
         "--season-to": `${p.dir > 0 ? 112 : -12}vw`,
+        // The ground lane: rem above the player bar. The spider: how far it lets itself down.
+        "--season-lift": `${p.lift}rem`,
+        "--season-drop": `${p.drop}vh`,
     };
 }
 </script>
 
 <style lang="scss">
 // ============================================================================
-// SEASONAL PARTICLES: snow at Christmas, bats, ghosts, a pumpkin, a vampire, a
-// chase (a runner and two zombies) and Frankenstein's monster at Halloween. Mounted once in App.vue,
-// shown only while a season is active (utils/seasons.ts) and never under
-// "reduce motion" (the component above).
+// SEASONAL PARTICLES: snow at Christmas; at Halloween bats, ghosts, a pumpkin,
+// a chase (two zombies and a runner, left to right) and a spider on its thread.
+// Mounted once in App.vue, shown only while a season is active
+// (utils/seasons.ts) and never under "reduce motion" (the component above).
 //
 // One fixed layer, above the page and below the bottom bar (z-index 50), the
 // modal (60) and the menus (1000). Pointer events are off, so nothing here can
@@ -86,6 +88,23 @@ function varsOf(p: Particle): Record<string, string> {
     position: absolute;
     top: var(--season-top, 0%);
     left: var(--season-left, 0%);
+}
+
+// The ground lane (the pumpkin, the chase) stands on the player bar's top edge:
+// `bottom` from the bar's own row height, per breakpoint (_variables.scss), so it
+// clears the bar on every layout. The lift keeps the bob and the emoji's own
+// line box above the bar's edge.
+.season-particle.is-ground {
+    top: auto;
+    bottom: calc(#{$bottombarheight} + var(--season-lift, 0rem));
+
+    @include allPhones {
+        bottom: calc(#{$bottombarheight-phone} + var(--season-lift, 0rem));
+    }
+
+    @include shortViewport {
+        bottom: calc(#{$bottombarheight-short} + var(--season-lift, 0rem));
+    }
 }
 
 // Paused, not removed, when the tab is hidden: the layer keeps its layout.
@@ -131,27 +150,21 @@ function varsOf(p: Particle): Record<string, string> {
 
 .season-bat .season-glyph,
 .season-pumpkin .season-glyph,
-.season-vampire .season-glyph,
 .season-chase .season-glyph,
-.season-frankenstein .season-glyph {
+.season-spider .season-glyph {
     // The delay is the glyph's index times a quarter bob cycle, so the glyphs of a
     // group bob out of step. It sits IN the shorthand: the shorthand resets the
     // delay (styling.md), and a single glyph has index 0, i.e. no delay at all.
     animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -1 / 4) infinite alternate;
 }
 
-// The chase: its glyphs sit side by side in one row, the runner in front (the
-// first span of the group, the leftmost), the zombies a gap behind it.
+// The chase: its glyphs sit side by side in one row, the zombies first and the
+// runner last, so the runner is the one in front: the group always goes left to
+// right (utils/seasonParticles.ts), and the 🏃 emoji faces that way.
 .season-chase {
     display: flex;
     align-items: flex-end;
     gap: calc(var(--season-size) * 0.2);
-}
-
-// The 🏃 emoji faces right; the runner goes left, so it is turned to face its
-// way of travel. `scale` is its own property, so the bob's transform keeps working.
-.season-chase .season-glyph:first-child {
-    scale: -1 1;
 }
 
 // The crossing takes 8 % of the cycle and the rest is waiting: the cycles are
@@ -203,26 +216,56 @@ function varsOf(p: Particle): Record<string, string> {
     }
 }
 
-// Pumpkin: rare. It waits a long while, then rolls along the lower screen.
-// The vampire swoops like a bat; the chase and the monster shamble along the bottom.
+// Pumpkin and chase: rare. They wait a long while, then roll or run along the
+// ground lane above the player bar.
 .season-pumpkin,
-.season-vampire,
-.season-chase,
-.season-frankenstein {
+.season-chase {
     animation: season-cross var(--season-dur) linear var(--season-delay) infinite backwards;
+}
+
+// The spider: its thread is a 1 px line in the theme's line colour, from the
+// spider up past the top edge. The particle travels with the spider, so the
+// thread is always exactly as long as the drop.
+.season-spider {
+    animation: season-spider var(--season-dur) linear var(--season-delay) infinite backwards;
+}
+
+.season-spider::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    width: 1px;
+    height: 100vh;
+    background: var(--mem-line);
+}
+
+// One cycle, rare: the spider is hidden (above the top edge, thread and all) for
+// most of it. It lets itself down in the first 4 %, hangs for 5 % (the glyph's
+// bob sways it), climbs back up over the next 4 %, and is gone.
+@keyframes season-spider {
+    0%,
+    100% {
+        translate: 0 -6rem;
+        animation-timing-function: ease-in-out;
+    }
+    4% {
+        translate: 0 var(--season-drop);
+        animation-timing-function: ease-in-out;
+    }
+    9% {
+        translate: 0 var(--season-drop);
+        animation-timing-function: ease-in-out;
+    }
+    13% {
+        translate: 0 -6rem;
+    }
 }
 
 .season-glyph {
     display: block;
     font-size: var(--season-size);
     line-height: 1;
-}
-
-// Frankenstein's monster has no emoji: a pixel head, flat black hair, bolts.
-.season-monster-face {
-    width: var(--season-size);
-    height: var(--season-size);
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 15" shape-rendering="crispEdges"><rect x="2" y="2" width="10" height="11" fill="%237FB069"/><rect x="2" y="0" width="10" height="3" fill="%2317171A"/><rect x="2" y="3" width="1" height="1" fill="%2317171A"/><rect x="5" y="3" width="1" height="1" fill="%2317171A"/><rect x="8" y="3" width="1" height="1" fill="%2317171A"/><rect x="11" y="3" width="1" height="1" fill="%2317171A"/><rect x="4" y="5" width="6" height="1" fill="%23C8E0B4"/><rect x="5" y="4" width="1" height="3" fill="%2317171A" opacity=".55"/><rect x="7" y="4" width="1" height="3" fill="%2317171A" opacity=".55"/><rect x="3" y="7" width="3" height="1" fill="%2317171A"/><rect x="8" y="7" width="3" height="1" fill="%2317171A"/><rect x="4" y="8" width="1" height="1" fill="%23FFFFFF"/><rect x="9" y="8" width="1" height="1" fill="%23FFFFFF"/><rect x="4" y="11" width="6" height="1" fill="%2317171A"/><rect x="5" y="10" width="1" height="3" fill="%2317171A"/><rect x="8" y="10" width="1" height="3" fill="%2317171A"/><rect x="0" y="10" width="2" height="2" fill="%239AA0A6"/><rect x="12" y="10" width="2" height="2" fill="%239AA0A6"/><rect x="4" y="13" width="6" height="2" fill="%235E8B4A"/></svg>') center / contain no-repeat;
 }
 
 @keyframes season-bob {

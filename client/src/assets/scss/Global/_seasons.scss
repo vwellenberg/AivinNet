@@ -12,59 +12,60 @@
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Halloween: an emoji on the corner of a cover tile (components/SeasonTileEmojis.vue
-// sets `data-season-emoji` and `data-season-corner` on `.card-art`). The `::after`
-// of the cover is free: the stamp hangs over the top-right corner and the play
-// button sits bottom-right, so the emoji takes the two left corners only.
+// Halloween: an emoji STANDS ON the top edge of a cover tile, like a sprite on a
+// platform (components/SeasonTileEmojis.vue draws them into `.season-tile-layer`,
+// placed from the cover's measured rect, utils/seasonTileEmojis.ts). The layer is
+// fixed over the page, so no cover's `overflow: hidden` clips the glyph.
 //
-// It fades out while the page scrolls (`html.season-scrolled`, utils/seasonScrolled.ts)
-// and is removed when the scroll settles. Hidden on phones narrower than 460px.
+// The glyph's feet sit 1 px into the frame. It fades while the page scrolls
+// (`html.season-scrolled`, utils/seasonScrolled.ts), and is removed when the scroll
+// settles. It shows on phones too, a little smaller.
 // ----------------------------------------------------------------------------
 
+.season-tile-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 41;
+    pointer-events: none;
+}
+
 html.season-halloween {
-    .card-art[data-season-emoji]::after {
-        content: attr(data-season-emoji);
-        position: absolute;
-        top: 0.35rem;
-        left: 0.35rem;
-        font-size: 1.5rem;
+    .season-tile-emoji {
+        position: fixed;
+        left: 0;
+        top: 0;
+        // The anchor is the cover's top edge; the glyph's bottom sits on it (1 px in the frame).
+        translate: -50% calc(-100% + 1px);
+        font-size: 1.25rem;
         line-height: 1;
-        pointer-events: none;
-        z-index: 2;
+        opacity: 0.92;
+        white-space: nowrap;
         transition: opacity $motion-move $motion-curve;
-        animation: season-tile-pop $motion-settle $motion-curve-settle backwards;
+        animation: season-tile-fade $motion-settle $motion-curve backwards;
     }
 
-    .card-art[data-season-corner="bl"]::after {
-        top: auto;
-        bottom: 0.35rem;
-    }
-
-    &.season-scrolled .card-art[data-season-emoji]::after {
+    &.season-scrolled .season-tile-emoji {
         opacity: 0;
     }
 
+    // Phones: the same emoji, a little smaller.
     @media (max-width: 459px) {
-        .card-art[data-season-emoji]::after {
-            display: none;
+        .season-tile-emoji {
+            font-size: 1.15rem;
         }
     }
 }
 
-// The pop: a small overshoot, then rest. Tilted a little so the glyphs do not sit
-// square on the corner.
-@keyframes season-tile-pop {
+// The appearance: a gentle drop-in and a tiny settle from 85 % size. No overshoot,
+// no tilt, so it reads as a quiet detail on the cover.
+@keyframes season-tile-fade {
     from {
         opacity: 0;
-        transform: scale(0.3) rotate(-25deg);
-    }
-    60% {
-        opacity: 1;
-        transform: scale(1.15) rotate(6deg);
+        transform: translateY(-3px) scale(0.85);
     }
     to {
-        opacity: 1;
-        transform: scale(1) rotate(-6deg);
+        opacity: 0.92;
+        transform: translateY(0) scale(1);
     }
 }
 
