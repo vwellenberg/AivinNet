@@ -125,16 +125,24 @@ export const TILE_GLYPH_PX = 28
 export const TILE_PER_COVER_MAX = 3
 
 /** Never more than this many glyphs on the page at once, however many covers are visible. */
-export const TILE_CAP_MAX = 24
+export const TILE_CAP_MAX = 10
 /**
- * Glyphs per visible cover, rounded up: one and a half, so the page fills with
- * several to a cover ("mehr nebeneinander", user, 2026-10-31).
+ * Glyphs per visible cover: one, on average. Side by side still happens (any
+ * cover with room may get the next one), but the page no longer fills up.
+ *
+ * ⚠️ Rarity is the point: "bitte seltener, dass emojis auftauchen. es soll
+ * 'besonders' bleiben" (user, 2026-10-31). The round before had 1.5 per cover,
+ * up to 24, one every 1.2–7 s, and a Home page was covered within a minute.
  */
-export const TILE_CAP_SHARE = 1.5
+export const TILE_CAP_SHARE = 1
 
-/** Gap between two new glyphs, in ms: random in [MIN, MAX). Irregular on purpose. */
-export const TILE_DELAY_MIN_MS = 1200
-export const TILE_DELAY_MAX_MS = 7000
+/**
+ * Gap between two new glyphs, in ms: random in [MIN, MAX). Irregular on purpose,
+ * and long: on average one every ~22 s, so a glyph turns up now and then rather
+ * than the page filling while one looks at it (see TILE_CAP_SHARE).
+ */
+export const TILE_DELAY_MIN_MS = 10000
+export const TILE_DELAY_MAX_MS = 35000
 
 /** How many glyphs may be on screen, given how many covers are visible. */
 export function tileCap(visibleCount: number): number {
