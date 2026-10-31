@@ -16,7 +16,7 @@
                 v-for="(g, j) in p.group"
                 :key="j"
                 class="season-glyph"
-                :style="{ '--season-i': String(j) }"
+                :style="glyphVars(p, j)"
             >{{ g }}</span>
         </span>
     </div>
@@ -60,7 +60,27 @@ function varsOf(p: Particle): Record<string, string> {
         // The ground lane: rem above the player bar. The spider: how far it lets itself down.
         "--season-lift": `${p.lift}rem`,
         "--season-drop": `${p.drop}vh`,
+        // The chase's cluster: its box, in glyph sizes (utils/seasonParticles.ts, chaseHorde).
+        "--season-w": String(p.extent.w),
+        "--season-h": String(p.extent.h),
     };
+}
+
+/**
+ * One glyph's variables. Every glyph gets its index and the group's length (the
+ * bob's stagger). A cluster glyph also gets its own offset from the runner, and a
+ * z-index: the runner (index 0) is in front, the zombies behind it, the front row
+ * over the rows behind.
+ */
+function glyphVars(p: Particle, j: number): Record<string, string> {
+    const vars: Record<string, string> = { "--season-i": String(j), "--season-n": String(p.group.length) };
+    const at = p.offsets[j];
+    if (at) {
+        vars["--season-gx"] = String(at.x);
+        vars["--season-gy"] = String(at.y);
+        vars["z-index"] = j === 0 ? "200" : String(Math.round(100 + at.y * 10));
+    }
+    return vars;
 }
 </script>
 
@@ -68,7 +88,7 @@ function varsOf(p: Particle): Record<string, string> {
 // ============================================================================
 // SEASONAL PARTICLES: snow at Christmas, and now and then a sleigh (two reindeer,
 // the sled and Santa, right to left across the upper sky); at Halloween bats, ghosts,
-// a pumpkin, a chase (a runner and two zombies, right to left) and a spider on its thread.
+// a pumpkin, a chase (a runner and a horde of zombies, right to left) and a spider on its thread.
 // Mounted once in App.vue, shown only while a season is active
 // (utils/seasons.ts) and never under "reduce motion" (the component above).
 //
@@ -152,7 +172,6 @@ function varsOf(p: Particle): Record<string, string> {
 
 .season-bat .season-glyph,
 .season-pumpkin .season-glyph,
-.season-chase .season-glyph,
 .season-sleigh .season-glyph {
     // The delay is the glyph's index times a quarter bob cycle, so the glyphs of a
     // group bob out of step. It sits IN the shorthand: the shorthand resets the
@@ -160,14 +179,38 @@ function varsOf(p: Particle): Record<string, string> {
     animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -1 / 4) infinite alternate;
 }
 
-// The chase: its glyphs sit side by side in one row, the runner first and the
-// zombies behind it, so the runner is the one in front: the group always goes
-// right to left (utils/seasonParticles.ts), and the 🏃 emoji faces that way.
-.season-chase,
+// The sleigh: its glyphs sit side by side in one row (reindeer first, see below).
 .season-sleigh {
     display: flex;
     align-items: flex-end;
     gap: calc(var(--season-size) * 0.2);
+}
+
+// The chase: a horde, not a row. Each glyph stands at its own offset from the runner
+// (utils/seasonParticles.ts, chaseHorde), in glyph sizes, and the group is exactly as
+// big as the cluster, so the crossing (`crossing`, the group's own width) moves all of
+// it off screen. The runner is the leftmost, in front; the zombies behind it.
+.season-chase {
+    width: calc(var(--season-size) * var(--season-w, 1));
+    height: calc(var(--season-size) * var(--season-h, 1));
+}
+
+// The horde's bob runs once through the whole group: each glyph's stagger is its share
+// of one bob cycle (the cycle is 2 × wobble, alternate), so the wave ripples from the
+// runner back through the zombies. A quarter-wobble step per glyph wrapped round the
+// cycle with eleven glyphs, and glyphs 0 and 8 bobbed in step.
+.season-chase .season-glyph {
+    position: absolute;
+    left: calc(var(--season-gx, 0) * var(--season-size));
+    bottom: calc(var(--season-gy, 0) * var(--season-size) * -1);
+    animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -2 / var(--season-n, 1)) infinite alternate;
+}
+
+// The runner, a third bigger: 🏃 is a whole small figure in its em box while 🧟 is
+// a bust that fills it, so at the same font size the runner looked like a child in
+// front of the horde (measured in the headless preview, 2026-10-31).
+.season-chase .season-glyph:first-child {
+    font-size: calc(var(--season-size) * 1.3);
 }
 
 // The sleigh: the same row, reindeer first, so the reindeer lead right to left

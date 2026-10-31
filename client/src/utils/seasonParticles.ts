@@ -11,7 +11,8 @@ export interface Particle {
     kind: ParticleKind
     /**
      * The emoji of a Halloween particle, one span each, in order. A chase has
-     * several, the runner LAST (it leads, on the right). Empty for a snowflake.
+     * several, the runner FIRST (the leftmost: a chase runs right to left, so it
+     * leads). Empty for a snowflake.
      */
     group: string[]
     /** Start position, % of the viewport width (flakes, ghosts, spiders). */
@@ -44,6 +45,21 @@ export interface Particle {
     lift: number
     /** Spider only: how far the thread lets it down, % of the viewport height. */
     drop: number
+    /**
+     * Chase only: where each glyph stands, parallel to `group`, in glyph sizes from
+     * the runner's spot: x to the right, y up (never positive, so no glyph drops
+     * below the ground lane). The runner is (0, 0). Empty for every other group,
+     * which is a plain row.
+     */
+    offsets: GlyphOffset[]
+    /** Chase only: the box the cluster needs, in glyph sizes (w to the right of the runner, h up from the ground). */
+    extent: { w: number; h: number }
+}
+
+/** A glyph's place in a cluster (see Particle.offsets). */
+export interface GlyphOffset {
+    x: number
+    y: number
 }
 
 /** The most particles on screen at once. Each one is a DOM element with a running animation. */
@@ -52,10 +68,11 @@ export const MAX_PARTICLES = 25
 /** A dusting, not a blizzard. */
 const SNOWFLAKES = 18
 
-/**
- * The chase: the runner in front, then two zombies. The runner is the FIRST
- * span, the leftmost, because the chase always goes right to left (`dir` is -1
- * for every chase) and the 🏃 emoji faces LEFT: it runs the way it looks.
+/*
+ * The chase: the runner in front, then a horde of zombies clustered behind it
+ * (`chaseHorde`). The runner is the FIRST span, the leftmost, because the chase
+ * always goes right to left (`dir` is -1 for every chase) and the 🏃 emoji faces
+ * LEFT: it runs the way it looks.
  *
  * ⚠️ It went left to right once, on the claim that 🏃 faces right. It faces
  * left — Unicode 15.1 added "person running facing right" (🏃‍➡️) precisely
@@ -63,7 +80,77 @@ const SNOWFLAKES = 18
  * backwards behind the zombies (user, 2026-10-31). Not 🏃‍➡️ either: a font
  * without the 15.1 sequence draws it as 🏃 plus an arrow.
  */
-export const CHASE_GROUP = ['🏃', '\u{1F9DF}', '\u{1F9DF}‍♂️']
+/** The chase's zombies: the plain one and the two gendered ones, mixed at random. */
+export const ZOMBIE_GLYPHS = ['\u{1F9DF}', '\u{1F9DF}‍♂️', '\u{1F9DF}‍♀️']
+
+/**
+ * How many zombies a horde brings: 8 to 10 in most chases (CHASE_ZOMBIES_MIN to
+ * CHASE_ZOMBIES_TYPICAL_MAX), and in one chase of three a bigger one, 11 to
+ * CHASE_ZOMBIES_MAX (`chaseZombieCount`).
+ */
+export const CHASE_ZOMBIES_MIN = 8
+export const CHASE_ZOMBIES_TYPICAL_MAX = 10
+export const CHASE_ZOMBIES_MAX = 16
+/** The share of chases with the bigger horde: one in three (user, 2026-10-31: "teils noch mehr"). */
+export const CHASE_BIG_SHARE = 1 / 3
+
+/**
+ * The cluster behind the runner. Zombies fill it column by column, HORDE_ROWS to a
+ * column: the front row on the ground, the rows behind it raised by HORDE_ROW_RISE
+ * each, so it reads as a crowd and not as a line. Every other row steps half a
+ * column, so the glyphs pack like a blob. HORDE_JITTER loosens every glyph.
+ */
+const HORDE_ROWS = 3
+const HORDE_COLUMN_STEP = 0.75
+const HORDE_ROW_RISE = 0.45
+const HORDE_JITTER = 0.15
+/**
+ * The runner's lead over the horde, in glyph sizes: it runs AHEAD of them. Without
+ * it the first column stood on the runner's heels and half covered it (the runner
+ * is drawn a third bigger, SeasonParticles.vue).
+ */
+const HORDE_LEAD = 0.6
+
+/** A whole number in [0, n), from the random source. */
+function pick(random: () => number, n: number): number {
+    return Math.min(n - 1, Math.floor(random() * n))
+}
+
+/** How many zombies one chase brings: 8 to 10 in two chases of three, 11 to 16 in the third. */
+export function chaseZombieCount(random: () => number): number {
+    if (random() >= CHASE_BIG_SHARE) {
+        return CHASE_ZOMBIES_MIN + pick(random, CHASE_ZOMBIES_TYPICAL_MAX - CHASE_ZOMBIES_MIN + 1)
+    }
+    return CHASE_ZOMBIES_TYPICAL_MAX + 1 + pick(random, CHASE_ZOMBIES_MAX - CHASE_ZOMBIES_TYPICAL_MAX)
+}
+
+/** One chase: the runner first, then its zombies, with where each stands and the box the cluster needs. */
+export interface ChaseHorde {
+    group: string[]
+    offsets: GlyphOffset[]
+    extent: { w: number; h: number }
+}
+
+/** A chase's horde: the runner at (0, 0) in front, the zombies clustered behind it (see HORDE_ROWS). */
+export function chaseHorde(random: () => number): ChaseHorde {
+    const zombies = chaseZombieCount(random)
+    const group = ['🏃']
+    const offsets: GlyphOffset[] = [{ x: 0, y: 0 }]
+    for (let j = 0; j < zombies; j++) {
+        group.push(ZOMBIE_GLYPHS[pick(random, ZOMBIE_GLYPHS.length)])
+        const column = Math.floor(j / HORDE_ROWS) + 1
+        const row = j % HORDE_ROWS
+        const stagger = row % 2 === 1 ? HORDE_COLUMN_STEP / 2 : 0
+        offsets.push({
+            x: HORDE_LEAD + column * HORDE_COLUMN_STEP + stagger + (random() * 2 - 1) * HORDE_JITTER,
+            // Never positive: a zombie rises from the ground lane, it does not sink into the bar.
+            y: -row * HORDE_ROW_RISE - random() * HORDE_JITTER,
+        })
+    }
+    const w = Math.max(...offsets.map((o) => o.x)) + 1
+    const h = -Math.min(...offsets.map((o) => o.y)) + 1
+    return { group, offsets, extent: { w, h } }
+}
 
 /** The spider, on its thread: U+1F577 and the emoji presentation selector. */
 export const SPIDER_GLYPH = '\u{1F577}️'
@@ -80,7 +167,8 @@ const HALLOWEEN: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'bat', group: ['🦇'], count: 3 },
     { kind: 'ghost', group: ['👻'], count: 2 },
     { kind: 'pumpkin', group: ['🎃'], count: 1 },
-    { kind: 'chase', group: CHASE_GROUP, count: 1 },
+    // The group is drawn per chase (chaseHorde), so it is empty here.
+    { kind: 'chase', group: [], count: 1 },
     { kind: 'spider', group: [SPIDER_GLYPH], count: 1 },
 ]
 
@@ -115,6 +203,8 @@ function snowflake(random: () => number): Particle {
         ground: false,
         lift: 0,
         drop: 0,
+        offsets: [],
+        extent: { w: 0, h: 0 },
     }
 }
 
@@ -127,7 +217,20 @@ function snowflake(random: () => number): Particle {
 export const CROSSER_RARITY = 1.5
 
 function crosserParticle(random: () => number, kind: ParticleKind, group: string[]): Particle {
-    const base = { kind, group, left: 0, top: 0, drift: 0, wobble: 0, dir: sign(random), ground: false, lift: 0, drop: 0 }
+    const base = {
+        kind,
+        group,
+        left: 0,
+        top: 0,
+        drift: 0,
+        wobble: 0,
+        dir: sign(random),
+        ground: false,
+        lift: 0,
+        drop: 0,
+        offsets: [] as GlyphOffset[],
+        extent: { w: 0, h: 0 },
+    }
     const rare = CROSSER_RARITY
     if (kind === 'bat') {
         // Crosses in a short part of its cycle, then is gone for a while. Always
@@ -158,16 +261,17 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
         }
     }
     if (kind === 'chase') {
-        // The runner and the zombies cross the bottom lane now and then, as one
+        // The runner and its horde cross the bottom lane now and then, as one
         // group, right to left: the runner leads, so it faces the way it runs.
         // The timing is the old lone zombie's, so the chase is no more frequent
-        // than the zombie was.
+        // than the zombie was. The horde is a cluster behind the runner (chaseHorde).
         return {
             ...base,
+            ...chaseHorde(random),
             dir: -1,
             ground: true,
             lift: between(random, 2.5, 6),
-            size: 34,
+            size: 30,
             duration: between(random, 120, 160) * rare,
             delay: between(random, 10, 40),
             wobble: between(random, 0.7, 1),

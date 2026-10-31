@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SeasonParticles from '@/components/SeasonParticles.vue'
-import { MAX_PARTICLES } from '@/utils/seasonParticles'
+import { CHASE_ZOMBIES_MAX, CHASE_ZOMBIES_MIN, MAX_PARTICLES, ZOMBIE_GLYPHS } from '@/utils/seasonParticles'
 
 // The layer is CSS animation over a handful of DOM nodes, so these tests check
 // what is drawn and when it is not: no season, reduced motion, the cap, and the
@@ -77,16 +77,47 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-monster-face')).toHaveLength(0)
     })
 
-    it('draws the chase as one group: the runner first, then two zombies, each with its own glyph span', () => {
+    it('draws the chase as one group: the runner first, then a horde of zombies, each with its own glyph span', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
         const chases = wrapper.findAll('.season-particle.season-chase')
         expect(chases).toHaveLength(1)
         const spans = chases[0].findAll('.season-glyph')
-        expect(spans.map((g) => g.text())).toEqual(['🏃', '🧟', '🧟‍♂️'])
-        // Each glyph carries its index, which staggers its bob.
-        expect(spans.map((g) => (g.element as HTMLElement).style.getPropertyValue('--season-i'))).toEqual(['0', '1', '2'])
+        const names = spans.map((g) => g.text())
+        expect(names[0]).toBe('🏃')
+        expect(names.length - 1).toBeGreaterThanOrEqual(CHASE_ZOMBIES_MIN)
+        expect(names.length - 1).toBeLessThanOrEqual(CHASE_ZOMBIES_MAX)
+        for (const z of names.slice(1)) expect(ZOMBIE_GLYPHS).toContain(z)
+        // Each glyph carries its index, which staggers its bob, and the horde's size.
+        const styles = spans.map((g) => g.element as HTMLElement)
+        expect(styles.map((s) => s.style.getPropertyValue('--season-i'))).toEqual(names.map((_, i) => String(i)))
+        expect(styles.every((s) => s.style.getPropertyValue('--season-n') === String(names.length))).toBe(true)
         // No lone zombie anywhere else on the page.
         expect(wrapper.findAll('.season-particle').filter((p) => p.classes().includes('season-zombie'))).toHaveLength(0)
+    })
+
+    it('places the chase as a cluster: the runner at the origin, each zombie at its own offset, the box sized to fit', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
+        const chase = wrapper.find('.season-particle.season-chase')
+        const style = (chase.element as HTMLElement).style
+        expect(style.getPropertyValue('--season-w')).toMatch(/^\d+(\.\d+)?$/)
+        expect(style.getPropertyValue('--season-h')).toMatch(/^\d+(\.\d+)?$/)
+        const spans = chase.findAll('.season-glyph').map((g) => g.element as HTMLElement)
+        // The runner, the first span, is at the origin and drawn in front of the zombies.
+        expect(spans[0].style.getPropertyValue('--season-gx')).toBe('0')
+        expect(spans[0].style.getPropertyValue('--season-gy')).toBe('0')
+        expect(spans[0].style.zIndex).toBe('200')
+        for (const zombie of spans.slice(1)) {
+            expect(Number(zombie.style.getPropertyValue('--season-gx'))).toBeGreaterThan(0)
+            expect(Number(zombie.style.getPropertyValue('--season-gy'))).toBeLessThanOrEqual(0)
+            expect(Number(zombie.style.zIndex)).toBeLessThan(200)
+        }
+    })
+
+    it('leaves the sleigh a plain row: no per-glyph offsets', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        for (const g of wrapper.findAll('.season-particle.season-sleigh .season-glyph')) {
+            expect((g.element as HTMLElement).style.getPropertyValue('--season-gx')).toBe('')
+        }
     })
 
     it('anchors the ground lane to the player bar: the chase and the pumpkin carry is-ground, the sky does not', () => {

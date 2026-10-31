@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHASE_GROUP, MAX_PARTICLES, SLEIGH_GROUP, SPIDER_GLYPH, crossing, particlesFor } from '@/utils/seasonParticles'
+import {
+    CHASE_BIG_SHARE,
+    CHASE_ZOMBIES_MAX,
+    CHASE_ZOMBIES_MIN,
+    CHASE_ZOMBIES_TYPICAL_MAX,
+    MAX_PARTICLES,
+    SLEIGH_GROUP,
+    SPIDER_GLYPH,
+    ZOMBIE_GLYPHS,
+    chaseHorde,
+    chaseZombieCount,
+    crossing,
+    particlesFor,
+} from '@/utils/seasonParticles'
 
 // A fixed random source: every value lands mid-range, so the layout is the same
 // on every run. The ranges themselves are checked below with a spread of values.
@@ -37,6 +50,12 @@ describe('particlesFor: the count is capped', () => {
         expect(particlesFor('halloween', MIDDLE)).toHaveLength(8)
         // 18 snowflakes and the one sleigh.
         expect(particlesFor('christmas', MIDDLE)).toHaveLength(19)
+    })
+
+    it('the whole horde is one particle: the cap counts the chase once', () => {
+        for (let seed = 1; seed <= 50; seed++) {
+            expect(particlesFor('halloween', sequence(seed)).filter((p) => p.kind === 'chase')).toHaveLength(1)
+        }
     })
 })
 
@@ -99,18 +118,6 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
         expect(new Set(items.map((p) => p.kind))).toEqual(new Set(['bat', 'ghost', 'pumpkin', 'chase', 'spider']))
     })
 
-    it('draws the chase as the runner first and two zombies behind it, the runner leading', () => {
-        const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
-        expect(chase.group).toHaveLength(3)
-        expect(chase.group).toEqual(CHASE_GROUP)
-        // The runner is the first, the leftmost span: it leads a right-to-left chase.
-        expect(chase.group[0]).toBe('🏃')
-        expect(chase.group.slice(1)).toEqual(['\u{1F9DF}', '\u{1F9DF}‍♂️'])
-    })
-
-    // 🏃 faces LEFT (Unicode 15.1 added 🏃‍➡️ because it does), so the chase must
-    // run that way: going left to right, the runner ran backwards behind the
-    // zombies (user, 2026-10-31).
     it('makes the chase always go right to left (dir -1), the way the runner faces, for any seed', () => {
         for (let seed = 1; seed <= 40; seed++) {
             const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
@@ -185,6 +192,145 @@ describe('particlesFor: Halloween is a few emoji, now and then', () => {
             )
         )
         expect(dirs).toEqual(new Set([1, -1]))
+    })
+})
+
+describe('chaseZombieCount: a horde of 8 to 10, and in one chase of three a bigger one', () => {
+    it('has the documented bounds: 8 to 10 typical, up to 16', () => {
+        expect(CHASE_ZOMBIES_MIN).toBe(8)
+        expect(CHASE_ZOMBIES_TYPICAL_MAX).toBe(10)
+        expect(CHASE_ZOMBIES_MAX).toBe(16)
+        expect(CHASE_BIG_SHARE).toBeCloseTo(1 / 3, 10)
+    })
+
+    it('is 8 to 10 in about two chases of three, and 11 to 16 in the rest', () => {
+        const counts: number[] = []
+        for (let seed = 1; seed <= 3000; seed++) counts.push(chaseZombieCount(sequence(seed)))
+        for (const n of counts) {
+            expect(n).toBeGreaterThanOrEqual(CHASE_ZOMBIES_MIN)
+            expect(n).toBeLessThanOrEqual(CHASE_ZOMBIES_MAX)
+        }
+        const typical = counts.filter((n) => n <= CHASE_ZOMBIES_TYPICAL_MAX).length / counts.length
+        expect(Math.abs(typical - 2 / 3)).toBeLessThan(0.03)
+        // Each side of the split reaches all of its own sizes, and the bigger hordes come by.
+        expect(new Set(counts.filter((n) => n <= 10))).toEqual(new Set([8, 9, 10]))
+        expect(new Set(counts.filter((n) => n > 10))).toEqual(new Set([11, 12, 13, 14, 15, 16]))
+    })
+
+    it('splits at one third of the random source: below it the bigger horde, from it the typical one', () => {
+        // A constant source takes the same branch on every draw, so these pin each branch's ends.
+        // Typical (random >= 1/3): 8 at the low end, 10 at the high end.
+        expect(chaseZombieCount(() => 1 / 3)).toBe(9)
+        expect(chaseZombieCount(() => 0.999999)).toBe(10)
+        // Bigger (random < 1/3): 11 at the low end, 16 at the high end.
+        expect(chaseZombieCount(() => 0)).toBe(11)
+        expect(chaseZombieCount(() => 0.2)).toBe(12)
+        expect(chaseZombieCount(() => 0.333)).toBe(12)
+    })
+})
+
+describe('chaseHorde: the runner first, then the zombies clustered behind it', () => {
+    it('is the runner first, then 8 to 16 zombies, all from the three zombie glyphs', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { group } = chaseHorde(sequence(seed))
+            expect(group[0], `seed ${seed}`).toBe('🏃')
+            const zombies = group.slice(1)
+            expect(zombies.length, `seed ${seed}`).toBeGreaterThanOrEqual(CHASE_ZOMBIES_MIN)
+            expect(zombies.length, `seed ${seed}`).toBeLessThanOrEqual(CHASE_ZOMBIES_MAX)
+            for (const z of zombies) expect(ZOMBIE_GLYPHS, `seed ${seed}`).toContain(z)
+        }
+    })
+
+    it('mixes the three zombie glyphs across the horde', () => {
+        const seen = new Set<string>()
+        for (let seed = 1; seed <= 40; seed++) for (const z of chaseHorde(sequence(seed)).group.slice(1)) seen.add(z)
+        expect(seen).toEqual(new Set(ZOMBIE_GLYPHS))
+    })
+
+    it('has one offset per glyph, parallel to the group', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { group, offsets } = chaseHorde(sequence(seed))
+            expect(offsets, `seed ${seed}`).toHaveLength(group.length)
+        }
+    })
+
+    it('puts the runner at (0, 0), the leftmost spot, and every zombie to its right', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { offsets } = chaseHorde(sequence(seed))
+            expect(offsets[0]).toEqual({ x: 0, y: 0 })
+            for (const o of offsets.slice(1)) expect(o.x, `seed ${seed}`).toBeGreaterThan(0)
+        }
+    })
+
+    it('keeps every glyph on or above the ground lane: no y is positive', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            for (const o of chaseHorde(sequence(seed)).offsets) expect(o.y, `seed ${seed}`).toBeLessThanOrEqual(0)
+        }
+    })
+
+    it('is a cluster, not a line: at least two rows once there are eight zombies or more', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { offsets } = chaseHorde(sequence(seed))
+            const zombies = offsets.slice(1)
+            expect(zombies.length).toBeGreaterThanOrEqual(8)
+            // Rows are 0.45 glyph sizes apart; the jitter is well inside half of that.
+            const rows = new Set(zombies.map((o) => Math.round(-o.y / 0.45)))
+            expect(rows.size, `seed ${seed}`).toBeGreaterThanOrEqual(2)
+        }
+    })
+
+    it('draws the back rows behind the front row in height: they sit higher than the ground', () => {
+        const { offsets } = chaseHorde(sequence(4))
+        expect(Math.min(...offsets.map((o) => o.y))).toBeLessThan(-0.5)
+    })
+
+    it('reports the box the cluster needs: its width past the runner and its height above the ground', () => {
+        for (let seed = 1; seed <= 100; seed++) {
+            const { offsets, extent } = chaseHorde(sequence(seed))
+            // Every glyph is one glyph size; the box covers all of them.
+            expect(extent.w, `seed ${seed}`).toBeCloseTo(Math.max(...offsets.map((o) => o.x)) + 1, 10)
+            expect(extent.h, `seed ${seed}`).toBeCloseTo(-Math.min(...offsets.map((o) => o.y)) + 1, 10)
+        }
+    })
+
+    it('is the same cluster for the same random source', () => {
+        expect(chaseHorde(sequence(42))).toEqual(chaseHorde(sequence(42)))
+    })
+
+    it('gives each chase a different horde', () => {
+        const sizes = new Set<number>()
+        for (let seed = 1; seed <= 60; seed++) sizes.add(chaseHorde(sequence(seed)).group.length)
+        expect(sizes.size).toBeGreaterThan(3)
+    })
+})
+
+describe('particlesFor: the chase carries its horde', () => {
+    it('gives the chase its group, its offsets and its box, and a glyph size of 30', () => {
+        for (let seed = 1; seed <= 30; seed++) {
+            const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
+            expect(chase.size).toBe(30)
+            expect(chase.group[0]).toBe('🏃')
+            expect(chase.offsets).toHaveLength(chase.group.length)
+            expect(chase.extent.w).toBeGreaterThan(1)
+            expect(chase.extent.h).toBeGreaterThan(1)
+        }
+    })
+
+    it('leaves the other groups as a plain row: no offsets for the sleigh or the bats', () => {
+        for (const p of particlesFor('christmas', sequence(3)).filter((p) => p.kind === 'sleigh')) {
+            expect(p.offsets).toEqual([])
+        }
+        for (const p of particlesFor('halloween', sequence(9)).filter((p) => p.kind === 'bat')) {
+            expect(p.offsets).toEqual([])
+        }
+    })
+
+    it('makes the chase always go right to left (dir -1) and keeps it on the ground lane, whatever the horde', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            const chase = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'chase')!
+            expect(chase.dir).toBe(-1)
+            expect(chase.ground).toBe(true)
+        }
     })
 })
 
@@ -273,8 +419,8 @@ describe('particlesFor: the sleigh crosses the upper sky, right to left', () => 
     })
 })
 
-// The chase is three glyphs wide (~115 px), more than 12 vw at a phone's width:
-// with the fixed margin it appeared and vanished half way through the edge.
+// The chase is a cluster, wider than 12 vw at a phone's width: with the fixed
+// margin it appeared and vanished half way through the edge.
 describe('crossing: a group starts and ends fully off screen', () => {
     it('measures the chase from its own width, right to left', () => {
         const chase = particlesFor('halloween', sequence(4)).find((p) => p.kind === 'chase')!
