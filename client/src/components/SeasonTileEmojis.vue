@@ -5,8 +5,8 @@
 
 <script setup lang="ts">
 // The seasonal emoji on the cover tiles, driven from the outside: each emoji
-// stands on the top edge of a visible cover that has none (utils/seasonTileEmojis.ts),
-// one every few seconds, up to the cap. This component draws them into its own layer
+// stands on the top edge of a visible cover with room for it (utils/seasonTileEmojis.ts),
+// at irregular intervals, up to the cap; a cover may carry several, side by side. This component draws them into its own layer
 // (the covers are not clipped that way), and a scroll clears them all
 // (utils/seasonScrolled.ts). The card lists never re-render for it.
 //

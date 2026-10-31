@@ -11,6 +11,7 @@ import {
     TILE_EMOJIS,
     TILE_GLYPH_PX,
     TILE_MIN_FREE_PCT,
+    TILE_PER_COVER_MAX,
     TILE_X_MAX,
     TILE_X_MIN,
     TILE_X_ROUND_MAX,
@@ -25,9 +26,12 @@ import {
     pickTileEmoji,
     pickTileTarget,
     pickTileX,
+    readTiles,
     tileAnchor,
     tileCap,
     tileEmojiWeightsFor,
+    tileHalfPct,
+    writeTiles,
     type TileBounds,
 } from '@/utils/seasonTileEmojis'
 
@@ -48,20 +52,24 @@ const VP = { width: 1000, height: 800 }
 /** The content starts at the top of the viewport, the bar at the bottom: no edge is cut. */
 const BOUNDS: TileBounds = { contentTop: 0, barTop: 800 }
 
-describe('tileCap: how many emoji may be on the page', () => {
-    it('is three in four of the visible covers, rounded up', () => {
+/** Emoji that must never stand on a tile: the ghost, the cobweb, the spider, the zombies and the bat. */
+const BANNED = ['👻', '\u{1F578}️', '\u{1F577}️', '🧟', '🧟‍♂️', '🧟‍♀️', '🦇']
+
+describe('tileCap: how many glyphs may be on the page', () => {
+    it('is one and a half glyphs per visible cover, rounded up', () => {
         expect(tileCap(0)).toBe(0)
-        expect(tileCap(1)).toBe(1)
-        expect(tileCap(4)).toBe(3)
-        expect(tileCap(5)).toBe(4)
-        expect(tileCap(10)).toBe(8)
+        expect(tileCap(1)).toBe(2)
+        expect(tileCap(2)).toBe(3)
+        expect(tileCap(4)).toBe(6)
+        expect(tileCap(5)).toBe(8)
+        expect(tileCap(10)).toBe(15)
     })
 
     it('never goes past the maximum, however many covers are visible', () => {
-        expect(TILE_CAP_MAX).toBe(16)
-        expect(tileCap(20)).toBe(15)
-        expect(tileCap(21)).toBe(16)
-        expect(tileCap(1000)).toBe(16)
+        expect(TILE_CAP_MAX).toBe(24)
+        expect(tileCap(16)).toBe(24)
+        expect(tileCap(17)).toBe(24)
+        expect(tileCap(1000)).toBe(24)
     })
 
     it('does not shrink as more covers come into view', () => {
@@ -75,12 +83,30 @@ describe('tileCap: how many emoji may be on the page', () => {
 })
 
 describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
-    it('keeps Halloween exactly as it was: graves and pumpkins most often', () => {
+    it('keeps Halloween: graves and pumpkins most often, then the rest of the set', () => {
         const halloween = tileEmojiWeightsFor('halloween')
         expect(halloween).toBe(TILE_EMOJI_WEIGHTS)
         expect(halloween.map((e) => e.emoji)).toEqual(TILE_EMOJIS)
         expect(halloween.find((e) => e.emoji === '🪦')?.weight).toBe(3)
         expect(halloween.find((e) => e.emoji === '🎃')?.weight).toBe(3)
+    })
+
+    it('gives the Halloween set nine emoji, the rest each with weight 1', () => {
+        expect(TILE_EMOJIS).toHaveLength(9)
+        expect(TILE_EMOJIS).toEqual([
+            '🪦',
+            '🎃',
+            '💀',
+            '\u{1F56F}️',
+            '🍬',
+            '⚰️',
+            '🦴',
+            '\u{1F408}‍⬛',
+            '🔮',
+        ])
+        const rest = TILE_EMOJI_WEIGHTS.filter((e) => e.emoji !== '🪦' && e.emoji !== '🎃')
+        expect(rest).toHaveLength(7)
+        expect(rest.every((e) => e.weight === 1)).toBe(true)
     })
 
     it('gives Christmas presents, cookies, stars, the tree and the snowman, and a little snow', () => {
@@ -107,7 +133,7 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
         expect(picked).toEqual(new Set(christmas.map((e) => e.emoji)))
     })
 
-    it('still avoids the neighbour\'s emoji with a Christmas set', () => {
+    it("still avoids the neighbour's emoji with a Christmas set", () => {
         const christmas = tileEmojiWeightsFor('christmas')
         for (let seed = 1; seed <= 40; seed++) {
             expect(pickTileEmoji(['🎁'], sequence(seed), christmas)).not.toBe('🎁')
@@ -115,60 +141,65 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
     })
 })
 
-describe('nextTileDelayMs: one emoji every few seconds', () => {
-    it('is random between 2 s and 6 s', () => {
-        expect(TILE_DELAY_MIN_MS).toBe(2000)
-        expect(TILE_DELAY_MAX_MS).toBe(6000)
-        expect(nextTileDelayMs(() => 0)).toBe(2000)
-        expect(nextTileDelayMs(() => 0.5)).toBe(4000)
-        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(6000)
+describe('nextTileDelayMs: irregular, 1.2 s to 7 s', () => {
+    it('is random between 1.2 s and 7 s', () => {
+        expect(TILE_DELAY_MIN_MS).toBe(1200)
+        expect(TILE_DELAY_MAX_MS).toBe(7000)
+        expect(nextTileDelayMs(() => 0)).toBe(1200)
+        expect(nextTileDelayMs(() => 0.5)).toBe(4100)
+        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(7000)
         for (let seed = 1; seed <= 20; seed++) {
             const d = nextTileDelayMs(sequence(seed))
-            expect(d).toBeGreaterThanOrEqual(2000)
-            expect(d).toBeLessThan(6000)
+            expect(d).toBeGreaterThanOrEqual(1200)
+            expect(d).toBeLessThan(7000)
         }
     })
 })
 
-describe('pickTileTarget: only a card without an emoji', () => {
-    it('never picks a card that already has one', () => {
-        const cards = [
-            { id: 'a', hasEmoji: true },
-            { id: 'b', hasEmoji: false },
-            { id: 'c', hasEmoji: true },
+describe('pickTileTarget: only a cover that is not full', () => {
+    it('never picks a cover flagged full', () => {
+        const covers = [
+            { id: 'a', full: true },
+            { id: 'b', full: false },
+            { id: 'c', full: true },
         ]
         for (let seed = 1; seed <= 10; seed++) {
-            expect(pickTileTarget(cards, sequence(seed))?.id).toBe('b')
+            expect(pickTileTarget(covers, sequence(seed))?.id).toBe('b')
         }
     })
 
-    it('returns null when every card has one, or there are none', () => {
-        expect(pickTileTarget([{ hasEmoji: true }], MIDDLE)).toBeNull()
+    it('returns null when every cover is full, or there are none', () => {
+        expect(pickTileTarget([{ full: true }], MIDDLE)).toBeNull()
         expect(pickTileTarget([], MIDDLE)).toBeNull()
     })
 
-    it('spreads the picks over the free cards', () => {
-        const cards = [1, 2, 3, 4].map((id) => ({ id, hasEmoji: false }))
+    it('spreads the picks over the free covers', () => {
+        const covers = [1, 2, 3, 4].map((id) => ({ id, full: false }))
         const picked = new Set<number>()
-        for (let seed = 1; seed <= 60; seed++) picked.add(pickTileTarget(cards, sequence(seed))!.id)
+        for (let seed = 1; seed <= 60; seed++) picked.add(pickTileTarget(covers, sequence(seed))!.id)
         expect(picked).toEqual(new Set([1, 2, 3, 4]))
     })
 })
 
 // Zombies and bats are crossers (utils/seasonParticles.ts). Standing still on a
 // tile they looked like a crossing that got stuck ("bitte keine fledermäuse und
-// zombies auf den kacheln", user, 2026-10-31).
-describe('tile emoji: nothing that belongs to the crossings', () => {
-    it('never stands a zombie or a bat on a tile', () => {
-        const banned = ['🧟', '🧟‍♂️', '🧟‍♀️', '🦇']
-        for (const emoji of banned) expect(TILE_EMOJIS, emoji).not.toContain(emoji)
-        for (let seed = 1; seed <= 200; seed++) expect(banned).not.toContain(pickTileEmoji([], sequence(seed)))
+// zombies auf den kacheln", user, 2026-10-31). The ghost, the cobweb and the
+// spider stay in the sky too ("bitte keine gespenster, spinnenweben, spinnen auf
+// den kacheln", user, 2026-10-31).
+describe('tile emoji: nothing that belongs to the crossings or the sky', () => {
+    it('never has a zombie, a bat, a ghost, a cobweb or a spider in the set', () => {
+        for (const emoji of BANNED) expect(TILE_EMOJIS, emoji).not.toContain(emoji)
+    })
+
+    it('never picks one of them, for many seeds', () => {
+        for (let seed = 1; seed <= 300; seed++) {
+            expect(BANNED).not.toContain(pickTileEmoji([], sequence(seed)))
+        }
     })
 })
 
 describe("pickTileEmoji: a themed emoji, not the neighbours' one", () => {
     it('only ever returns an emoji from the list', () => {
-        expect(TILE_EMOJIS).toHaveLength(6)
         expect(TILE_EMOJIS).toContain('🪦')
         expect(TILE_EMOJIS).toContain('🎃')
         for (let seed = 1; seed <= 30; seed++) {
@@ -177,7 +208,7 @@ describe("pickTileEmoji: a themed emoji, not the neighbours' one", () => {
     })
 
     it('avoids the emoji of the neighbours', () => {
-        const avoid = [TILE_EMOJIS[0], TILE_EMOJIS[3]]
+        const avoid = [TILE_EMOJIS[0], TILE_EMOJIS[1]]
         for (let seed = 1; seed <= 40; seed++) {
             const e = pickTileEmoji(avoid, sequence(seed))
             expect(avoid).not.toContain(e)
@@ -200,21 +231,21 @@ describe('pickTileEmoji: graves and pumpkins come up most often', () => {
         return counts
     }
 
-    it('gives the grave and the pumpkin the largest weight, and the others less', () => {
+    it('gives the grave and the pumpkin the largest weight, and the rest less', () => {
         const weight = (emoji: string) => TILE_EMOJI_WEIGHTS.find((e) => e.emoji === emoji)?.weight ?? 0
-        expect(weight('🪦')).toBeGreaterThan(weight('🦇'))
-        expect(weight('🎃')).toBeGreaterThan(weight('👻'))
+        expect(weight('🪦')).toBeGreaterThan(weight('💀'))
+        expect(weight('🎃')).toBeGreaterThan(weight('🔮'))
         expect(weight('🪦')).toBe(weight('🎃'))
         expect(weight('🪦')).toBeGreaterThan(0)
     })
 
-    it('shows a grave or a pumpkin about as often as their weights say, and well over a third of the time', () => {
+    it('shows a grave or a pumpkin about as often as their weights say, and half the time', () => {
         const counts = tally()
         const total = Object.values(counts).reduce((a, b) => a + b, 0)
         const graves = (counts['🪦'] ?? 0) + (counts['🎃'] ?? 0)
         const weightSum = TILE_EMOJI_WEIGHTS.reduce((a, e) => a + e.weight, 0)
         const expected = (3 + 3) / weightSum
-        expect(graves / total).toBeGreaterThan(0.35)
+        expect(graves / total).toBeGreaterThan(0.45)
         expect(Math.abs(graves / total - expected)).toBeLessThan(0.03)
     })
 
@@ -301,6 +332,49 @@ describe('pickTileX: a spot on the top edge, away from the label', () => {
     })
 })
 
+describe('tileHalfPct: the room one glyph takes on each side of its centre', () => {
+    it('is half the glyph width and a 3 px gap, in % of the cover width', () => {
+        expect(tileHalfPct(100)).toBe(17)
+        expect(tileHalfPct(200)).toBe(8.5)
+    })
+})
+
+describe('readTiles / writeTiles: several glyphs per cover, in two attributes', () => {
+    it('reads the emoji and the x lists, paired by position', () => {
+        const el = document.createElement('div')
+        el.setAttribute(ATTR_EMOJI, '🪦 🎃')
+        el.setAttribute(ATTR_X, '22.5 61')
+        expect(readTiles(el)).toEqual([
+            { emoji: '🪦', x: 22.5 },
+            { emoji: '🎃', x: 61 },
+        ])
+    })
+
+    it('reads nothing from a cover without the attributes', () => {
+        expect(readTiles(document.createElement('div'))).toEqual([])
+    })
+
+    it('drops a glyph whose x is not a number', () => {
+        const el = document.createElement('div')
+        el.setAttribute(ATTR_EMOJI, '🪦 🎃')
+        el.setAttribute(ATTR_X, 'nope 3')
+        expect(readTiles(el)).toEqual([{ emoji: '🎃', x: 3 }])
+    })
+
+    it('writes the two attributes, and removes both for no glyphs', () => {
+        const el = document.createElement('div')
+        writeTiles(el, [
+            { emoji: '🪦', x: 22.5 },
+            { emoji: '🎃', x: 61 },
+        ])
+        expect(el.getAttribute(ATTR_EMOJI)).toBe('🪦 🎃')
+        expect(el.getAttribute(ATTR_X)).toBe('22.5 61')
+        writeTiles(el, [])
+        expect(el.hasAttribute(ATTR_EMOJI)).toBe(false)
+        expect(el.hasAttribute(ATTR_X)).toBe(false)
+    })
+})
+
 describe('glyphRoom: the glyph stands inside the content, above the bar', () => {
     const rect = (top: number) => ({ top, width: 100, height: 100 })
 
@@ -367,14 +441,17 @@ describe('the DOM part on a page of covers', () => {
     /**
      * A cover in its own card, as the lists build them: the card is the cover's
      * parent, which is where the label and the stamp sit. `top` puts the edge
-     * inside the content; a top of 790 is past the bottom of the viewport.
+     * inside the content; a top of 790 is past the bottom of the viewport. The
+     * default width is 100 px; a cover that must carry two or three glyphs needs
+     * 200 px, since each glyph takes a full glyph width along the edge.
      */
-    function cover(opts: { top?: number; round?: boolean } = {}): HTMLElement {
+    function cover(opts: { top?: number; round?: boolean; width?: number } = {}): HTMLElement {
         const top = opts.top ?? 60
+        const width = opts.width ?? 100
         const card = document.createElement('div')
         const el = document.createElement('div')
         el.className = opts.round ? 'card-art is-round' : 'card-art'
-        el.getBoundingClientRect = () => ({ top, left: 10, width: 100, height: 100, bottom: top + 100, right: 110 }) as DOMRect
+        el.getBoundingClientRect = () => ({ top, left: 10, width, height: 100, bottom: top + 100, right: 10 + width }) as DOMRect
         card.appendChild(el)
         page.appendChild(card)
         return el
@@ -393,15 +470,17 @@ describe('the DOM part on a page of covers', () => {
         const covers = [1, 2, 3, 4, 5].map(() => cover())
         const done = addOneTile(page, MIDDLE, VP, BOUNDS)
         expect(covers).toContain(done)
-        expect(TILE_EMOJIS).toContain(done!.getAttribute(ATTR_EMOJI))
-        const x = Number(done!.getAttribute(ATTR_X))
+        expect(TILE_EMOJIS).toContain(readTiles(done!)[0].emoji)
+        const x = readTiles(done!)[0].x
         expect(x).toBeGreaterThanOrEqual(TILE_X_MIN)
         expect(x).toBeLessThanOrEqual(TILE_X_MAX)
     })
 
-    it('lets a single visible cover carry one', () => {
-        cover()
-        expect(addOneTile(page, MIDDLE, VP, BOUNDS)).not.toBeNull()
+    it('lets a single visible cover carry two, the cap for one cover', () => {
+        const only = cover({ width: 200 })
+        expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBe(only)
+        expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBe(only)
+        expect(readTiles(only)).toHaveLength(2)
         expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBeNull()
     })
 
@@ -416,26 +495,82 @@ describe('the DOM part on a page of covers', () => {
         expect(addOneTile(page, MIDDLE, VP, { contentTop: 0, barTop: 800 })).toBeNull()
     })
 
-    it('stops at the cap: 4 visible covers allow 3 emoji', () => {
-        for (let i = 0; i < 4; i++) cover()
-        for (let i = 0; i < 3; i++) expect(addOneTile(page, MIDDLE, VP, BOUNDS)).not.toBeNull()
+    it('stops at the cap: 4 visible covers allow 6 glyphs, and no cover carries a fourth', () => {
+        for (let i = 0; i < 4; i++) cover({ width: 200 })
+        for (let i = 0; i < 6; i++) expect(addOneTile(page, MIDDLE, VP, BOUNDS)).not.toBeNull()
         expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBeNull()
-        expect(page.querySelectorAll(`[${ATTR_EMOJI}]`)).toHaveLength(3)
+        const all = Array.from(page.querySelectorAll<HTMLElement>(`[${ATTR_EMOJI}]`))
+        expect(all.reduce((n, el) => n + readTiles(el).length, 0)).toBe(6)
+        for (const el of all) expect(readTiles(el).length).toBeLessThanOrEqual(TILE_PER_COVER_MAX)
     })
 
-    it("keeps a round cover's glyph at its top centre", () => {
-        const round = cover({ round: true })
+    it('lets a cover carry up to three side by side, and never a fourth', () => {
+        let reachedThree = false
         for (let seed = 1; seed <= 20; seed++) {
-            round.removeAttribute(ATTR_EMOJI)
-            round.removeAttribute(ATTR_X)
-            addOneTile(page, sequence(seed), VP, BOUNDS)
-            const x = Number(round.getAttribute(ATTR_X))
-            expect(x).toBeGreaterThanOrEqual(TILE_X_ROUND_MIN)
-            expect(x).toBeLessThanOrEqual(TILE_X_ROUND_MAX)
+            page.innerHTML = ''
+            const covers = Array.from({ length: 8 }, () => cover({ width: 200 }))
+            for (let i = 0; i < 12; i++) expect(addOneTile(page, sequence(seed * 31 + i), VP, BOUNDS), `seed ${seed}`).not.toBeNull()
+            for (const el of covers) {
+                const n = readTiles(el).length
+                expect(n, `seed ${seed}`).toBeLessThanOrEqual(TILE_PER_COVER_MAX)
+                if (n === TILE_PER_COVER_MAX) reachedThree = true
+            }
+        }
+        expect(reachedThree).toBe(true)
+    })
+
+    it('puts the glyphs of one cover next to each other, never on top of each other', () => {
+        const width = 200
+        // Two glyphs: one cover, and the cap for one visible cover is two.
+        for (let seed = 1; seed <= 30; seed++) {
+            page.innerHTML = ''
+            const el = cover({ width })
+            expect(addOneTile(page, sequence(seed), VP, BOUNDS)).toBe(el)
+            expect(addOneTile(page, sequence(seed + 100), VP, BOUNDS)).toBe(el)
+            const [a, b] = readTiles(el)
+            expect(Math.abs(a.x - b.x), `seed ${seed}`).toBeGreaterThanOrEqual(2 * tileHalfPct(width) - 0.2)
         }
     })
 
-    it('puts the glyph away from the type label above the cover', () => {
+    it('picks a cover that already has a glyph as readily as one without', () => {
+        const withOne = cover({ width: 200 })
+        const without = cover({ width: 200 })
+        let onWithOne = 0
+        let onWithout = 0
+        for (let seed = 1; seed <= 40; seed++) {
+            writeTiles(withOne, [{ emoji: '🪦', x: 50 }])
+            writeTiles(without, [])
+            const done = addOneTile(page, sequence(seed), VP, BOUNDS)
+            if (done === withOne) onWithOne++
+            if (done === without) onWithout++
+        }
+        expect(onWithOne).toBeGreaterThan(0)
+        expect(onWithout).toBeGreaterThan(0)
+    })
+
+    it("avoids every emoji of the neighbours and of the cover itself, not just one", () => {
+        // DOM order: prev (off screen, with a pumpkin), the target (with a grave), a filler
+        // with no room for a glyph. Only the target can take one, and neither the pumpkin
+        // nor the grave may be the new one.
+        const prev = cover({ top: 790 })
+        writeTiles(prev, [{ emoji: '🎃', x: 80 }])
+        const target = cover({ width: 200 })
+        cover({ top: 10 })
+        const picked = new Set<string>()
+        for (let seed = 1; seed <= 60; seed++) {
+            writeTiles(target, [{ emoji: '🪦', x: 50 }])
+            expect(addOneTile(page, sequence(seed), VP, BOUNDS)).toBe(target)
+            const tiles = readTiles(target)
+            expect(tiles).toHaveLength(2)
+            expect(tiles[1].emoji, `seed ${seed}`).not.toBe('🎃')
+            expect(tiles[1].emoji, `seed ${seed}`).not.toBe('🪦')
+            picked.add(tiles[1].emoji)
+        }
+        // The rest of the set still comes up: the avoid list is not a ban on everything.
+        expect(picked.size).toBeGreaterThan(3)
+    })
+
+    it('a glyph on a cover with the label above: the glyph stays away from the label', () => {
         // The label covers the left 60 % of the cover's width, just above its edge.
         const el = cover()
         const label = document.createElement('div')
@@ -444,19 +579,31 @@ describe('the DOM part on a page of covers', () => {
         el.parentElement!.insertBefore(label, el)
         const done = addOneTile(page, MIDDLE, VP, BOUNDS)
         expect(done).toBe(el)
-        expect(Number(el.getAttribute(ATTR_X))).toBeGreaterThanOrEqual(62)
+        expect(readTiles(el)[0].x).toBeGreaterThanOrEqual(62)
+    })
+
+    it('keeps a round cover\'s glyph at its top centre', () => {
+        const round = cover({ round: true })
+        for (let seed = 1; seed <= 20; seed++) {
+            round.removeAttribute(ATTR_EMOJI)
+            round.removeAttribute(ATTR_X)
+            addOneTile(page, sequence(seed), VP, BOUNDS)
+            const x = readTiles(round)[0].x
+            expect(x).toBeGreaterThanOrEqual(TILE_X_ROUND_MIN)
+            expect(x).toBeLessThanOrEqual(TILE_X_ROUND_MAX)
+        }
     })
 
     it('clearTiles removes every emoji, its spot and the drawing, and nothing else', () => {
         const a = cover()
         const b = cover()
         b.setAttribute('data-other', 'keep')
-        a.setAttribute(ATTR_EMOJI, '🦇')
-        a.setAttribute(ATTR_X, '40')
-        b.setAttribute(ATTR_EMOJI, '👻')
+        a.setAttribute(ATTR_EMOJI, '🪦 🎃')
+        a.setAttribute(ATTR_X, '40 70')
+        b.setAttribute(ATTR_EMOJI, '💀')
         b.setAttribute(ATTR_X, '60')
         const layer = document.createElement('div')
-        layer.innerHTML = '<span>🦇</span>'
+        layer.innerHTML = '<span>🪦</span>'
 
         clearTiles(page, layer)
 
@@ -514,12 +661,46 @@ describe('layoutTiles: one glyph per tagged cover, on its top edge, in the layer
         expect(glyph.style.top).toBe('200px')
     })
 
+    it('draws one span per glyph of a cover, side by side on its edge', () => {
+        const el = cover(200, 40)
+        writeTiles(el, [
+            { emoji: '🪦', x: 25 },
+            { emoji: '🎃', x: 75 },
+        ])
+        layoutTiles(page, layer)
+        expect(layer.children).toHaveLength(2)
+        const [a, b] = Array.from(layer.children) as HTMLElement[]
+        expect(a.textContent).toBe('🪦')
+        expect(a.style.left).toBe('65px')
+        expect(a.style.top).toBe('200px')
+        expect(b.textContent).toBe('🎃')
+        expect(b.style.left).toBe('115px')
+    })
+
+    it('reuses the spans from one layout to the next, and drops the spare ones', () => {
+        const el = cover(200, 40)
+        writeTiles(el, [
+            { emoji: '🪦', x: 25 },
+            { emoji: '🎃', x: 75 },
+        ])
+        layoutTiles(page, layer)
+        const before = Array.from(layer.children)
+        layoutTiles(page, layer)
+        expect(layer.children).toHaveLength(2)
+        before.forEach((node, i) => expect(layer.children[i]).toBe(node))
+
+        writeTiles(el, [{ emoji: '🪦', x: 25 }])
+        layoutTiles(page, layer)
+        expect(layer.children).toHaveLength(1)
+        expect(layer.children[0]).toBe(before[0])
+    })
+
     it('does not draw a cover without an emoji, and removes a glyph whose cover lost its tag', () => {
         const a = cover(200, 40)
         const b = cover(200, 300)
-        a.setAttribute(ATTR_EMOJI, '🦇')
+        a.setAttribute(ATTR_EMOJI, '🪦')
         a.setAttribute(ATTR_X, '50')
-        b.setAttribute(ATTR_EMOJI, '👻')
+        b.setAttribute(ATTR_EMOJI, '💀')
         b.setAttribute(ATTR_X, '50')
         layoutTiles(page, layer)
         expect(layer.children).toHaveLength(2)
@@ -527,17 +708,17 @@ describe('layoutTiles: one glyph per tagged cover, on its top edge, in the layer
         b.removeAttribute(ATTR_EMOJI)
         layoutTiles(page, layer)
         expect(layer.children).toHaveLength(1)
-        expect(layer.children[0].textContent).toBe('🦇')
+        expect(layer.children[0].textContent).toBe('🪦')
     })
 
     it('brings a glyph back when its cover is tagged again', () => {
         const a = cover(200, 40)
-        a.setAttribute(ATTR_EMOJI, '🦇')
+        a.setAttribute(ATTR_EMOJI, '🪦')
         a.setAttribute(ATTR_X, '50')
         layoutTiles(page, layer)
         clearTiles(page, layer)
         expect(layer.children).toHaveLength(0)
-        a.setAttribute(ATTR_EMOJI, '🦇')
+        a.setAttribute(ATTR_EMOJI, '🪦')
         a.setAttribute(ATTR_X, '50')
         layoutTiles(page, layer)
         expect(layer.children).toHaveLength(1)

@@ -1,31 +1,35 @@
 /**
  * The seasonal emoji on the cover tiles (components/SeasonTileEmojis.vue): Halloween
- * graves and pumpkins, Christmas presents and snowmen (`tileEmojiWeightsFor`).
+ * graves and pumpkins, and now and then a skull; Christmas presents and snowmen
+ * (`tileEmojiWeightsFor`).
  *
  * Each emoji STANDS ON the top edge of a cover, like a sprite on a platform in a
  * 2D game: its feet on the frame, at a horizontal spot along that edge. (Not on
- * the picture: user, 2026-10-31, "oben drüber quasi".) It appears one at a time,
- * every few seconds, on a visible cover that has none yet, and piles up to a cap
- * that grows with the number of visible covers. A scroll clears them all
- * (utils/seasonScrolled.ts); then they start again from zero.
+ * the picture: user, 2026-10-31, "oben drüber quasi".) One appears at a time, at
+ * irregular intervals, on a visible cover that has room for it. A cover can carry
+ * up to TILE_PER_COVER_MAX of them, side by side, each at a random spot along the
+ * edge that does not touch the others. The page piles up to a cap that grows with
+ * the number of visible covers. A scroll clears them all (utils/seasonScrolled.ts);
+ * then they start again from zero.
  *
  * Two parts, kept apart on purpose:
  *  - the DRIVER: which cover gets which emoji, and where along its edge. The cover
- *    carries two data attributes (the emoji and its x, in % of the cover width).
+ *    carries two data attributes, each a space-separated list with one entry per
+ *    glyph: the emoji, and its x in % of the cover width (`readTiles`, `writeTiles`).
  *    This part is pure (`pickTileX`, `freeSpans`) or reads only the cover's own
  *    rects, and the tests pin it.
  *  - the DRAWING: a fixed layer above the page (`layoutTiles`). A glyph cannot be
  *    a child of the cover, because `.card-art` clips with `overflow: hidden` and
- *    the glyph hangs above its top edge. So each tagged cover gets one `<span>` in
- *    that layer, placed from the cover's measured rect. A scroll fades the layer
+ *    the glyph hangs above its top edge. So each glyph of a cover gets one `<span>`
+ *    in that layer, placed from the cover's measured rect. A scroll fades the layer
  *    (`html.season-scrolled`) and the settle clears it.
  */
 
 import type { Season } from './seasons'
 
-/** The attribute with the emoji the cover carries. */
+/** The attribute with the emoji the cover carries, space-separated for several. */
 export const ATTR_EMOJI = 'data-season-emoji'
-/** The attribute with the emoji's x, in % of the cover's width (from the left). */
+/** The attribute with the emoji's x, in % of the cover's width (from the left), space-separated like ATTR_EMOJI. */
 export const ATTR_X = 'data-season-x'
 
 /**
@@ -47,22 +51,34 @@ export interface TileEmoji {
     weight: number
 }
 
+/** One glyph on a cover: its emoji, and its x along the top edge (% of the cover's width). */
+export interface TileGlyph {
+    emoji: string
+    x: number
+}
+
 /**
  * Halloween: graves and pumpkins come up most often ("zb gräber oder kürbisse",
- * user, 2026-10-31); the rest now and then.
+ * user, 2026-10-31); the rest of the set, each once in a while, weight 1.
  *
- * No zombies and no bats: those are creatures that MOVE across the screen
- * (utils/seasonParticles.ts), and standing still on a tile they read as a
- * glitch of the crossing ("bitte keine fledermäuse und zombies auf den
- * kacheln", user, 2026-10-31).
+ * No ghosts, spiders or cobwebs on the tiles ("bitte keine gespenster,
+ * spinnenweben, spinnen auf den kacheln", user, 2026-10-31): they stay in the
+ * sky and on the crossings (utils/seasonParticles.ts).
+ *
+ * No zombies and no bats either: those are creatures that MOVE across the screen,
+ * and standing still on a tile they read as a glitch of the crossing ("bitte keine
+ * fledermäuse und zombies auf den kacheln", user, 2026-10-31).
  */
 const HALLOWEEN_TILE_EMOJI: readonly TileEmoji[] = [
     { emoji: '🪦', weight: 3 },
     { emoji: '🎃', weight: 3 },
-    { emoji: '👻', weight: 1 },
     { emoji: '💀', weight: 1 },
-    { emoji: '\u{1F578}️', weight: 1 },
-    { emoji: '\u{1F577}️', weight: 1 },
+    { emoji: '\u{1F56F}️', weight: 1 },
+    { emoji: '🍬', weight: 1 },
+    { emoji: '⚰️', weight: 1 },
+    { emoji: '🦴', weight: 1 },
+    { emoji: '\u{1F408}‍⬛', weight: 1 },
+    { emoji: '🔮', weight: 1 },
 ]
 
 /**
@@ -105,20 +121,22 @@ export const TILE_X_ROUND_MAX = 58
 export const TILE_MIN_FREE_PCT = 6
 /** The glyph's height in px, the band above the cover's top edge it occupies (font 1.25 rem). */
 export const TILE_GLYPH_PX = 28
+/** Most glyphs one cover carries at once, side by side along its top edge. */
+export const TILE_PER_COVER_MAX = 3
 
-/** Never more than this many on the page at once, however many covers are visible. */
-export const TILE_CAP_MAX = 16
+/** Never more than this many glyphs on the page at once, however many covers are visible. */
+export const TILE_CAP_MAX = 24
 /**
- * Share of the visible covers that may carry one, rounded up: three in four, so
- * the page fills up noticeably ("may get quite a lot", user, 2026-10-31).
+ * Glyphs per visible cover, rounded up: one and a half, so the page fills with
+ * several to a cover ("mehr nebeneinander", user, 2026-10-31).
  */
-export const TILE_CAP_SHARE = 0.75
+export const TILE_CAP_SHARE = 1.5
 
-/** Gap between two new emoji, in ms: random in [MIN, MAX). */
-export const TILE_DELAY_MIN_MS = 2000
-export const TILE_DELAY_MAX_MS = 6000
+/** Gap between two new glyphs, in ms: random in [MIN, MAX). Irregular on purpose. */
+export const TILE_DELAY_MIN_MS = 1200
+export const TILE_DELAY_MAX_MS = 7000
 
-/** How many emoji may be on screen, given how many covers are visible. */
+/** How many glyphs may be on screen, given how many covers are visible. */
 export function tileCap(visibleCount: number): number {
     if (visibleCount <= 0) return 0
     return Math.min(TILE_CAP_MAX, Math.ceil(visibleCount * TILE_CAP_SHARE))
@@ -129,17 +147,20 @@ export function nextTileDelayMs(random: () => number): number {
     return TILE_DELAY_MIN_MS + random() * (TILE_DELAY_MAX_MS - TILE_DELAY_MIN_MS)
 }
 
-/** A card without an emoji, picked at random. Null when every card has one (or there are none). */
-export function pickTileTarget<T extends { hasEmoji: boolean }>(cards: T[], random: () => number): T | null {
-    const free = cards.filter((c) => !c.hasEmoji)
+/**
+ * A cover that can take one more glyph, picked at random. A cover flagged `full`
+ * is never picked. Null when every cover is full (or there are none).
+ */
+export function pickTileTarget<T extends { full: boolean }>(covers: T[], random: () => number): T | null {
+    const free = covers.filter((c) => !c.full)
     if (free.length === 0) return null
     return free[Math.min(free.length - 1, Math.floor(random() * free.length))]
 }
 
 /**
- * A random emoji that is not one of `avoid` (the neighbours' emoji), so two
- * next-door covers rarely match. If the avoid list covers every emoji, any one
- * is returned: a repeat beats none.
+ * A random emoji that is not one of `avoid` (the neighbours' emoji, and the cover's
+ * own), so two next-door glyphs rarely match. If the avoid list covers every emoji,
+ * any one is returned: a repeat beats none.
  */
 export function pickTileEmoji(
     avoid: readonly string[],
@@ -201,9 +222,41 @@ export function pickTileX(
     return Math.round(last[1] * 10) / 10
 }
 
+/**
+ * Half the room a glyph takes on each side of its centre along the edge, in % of
+ * the cover's width: half its width (TILE_GLYPH_PX) and a 3 px gap. Two glyph
+ * centres must be twice this apart so the glyphs stand next to each other without
+ * overlapping.
+ */
+export function tileHalfPct(coverWidthPx: number): number {
+    return ((TILE_GLYPH_PX / 2 + 3) / coverWidthPx) * 100
+}
+
 // ---------------------------------------------------------------------------
 // The DOM part.
 // ---------------------------------------------------------------------------
+
+/** The glyphs of a cover, from its two attributes: the emoji and its x, paired by position. */
+export function readTiles(cover: Element): TileGlyph[] {
+    const emojis = (cover.getAttribute(ATTR_EMOJI) ?? '').split(' ').filter(Boolean)
+    const xs = (cover.getAttribute(ATTR_X) ?? '').split(' ').filter(Boolean).map(Number)
+    const out: TileGlyph[] = []
+    for (let i = 0; i < Math.min(emojis.length, xs.length); i++) {
+        if (!Number.isNaN(xs[i])) out.push({ emoji: emojis[i], x: xs[i] })
+    }
+    return out
+}
+
+/** Writes the glyphs of a cover into its two attributes; no glyphs removes both. */
+export function writeTiles(cover: Element, tiles: readonly TileGlyph[]): void {
+    if (tiles.length === 0) {
+        cover.removeAttribute(ATTR_EMOJI)
+        cover.removeAttribute(ATTR_X)
+        return
+    }
+    cover.setAttribute(ATTR_EMOJI, tiles.map((t) => t.emoji).join(' '))
+    cover.setAttribute(ATTR_X, tiles.map((t) => String(t.x)).join(' '))
+}
 
 export interface ViewportSize {
     width: number
@@ -273,16 +326,30 @@ export function tileCovers(root: Document | Element): HTMLElement[] {
  * given. Covers keep nothing else.
  */
 export function clearTiles(root: Document | Element, layer?: HTMLElement): void {
-    for (const el of Array.from(root.querySelectorAll<HTMLElement>(`[${ATTR_EMOJI}]`))) {
-        el.removeAttribute(ATTR_EMOJI)
-        el.removeAttribute(ATTR_X)
-    }
+    for (const el of Array.from(root.querySelectorAll<HTMLElement>(`[${ATTR_EMOJI}]`))) writeTiles(el, [])
     layer?.replaceChildren()
 }
 
+/** The x range a cover's glyphs may stand in: the top centre of a round cover, the whole edge of the rest. */
+function coverRange(cover: Element): [number, number] {
+    return cover.classList.contains('is-round') ? [TILE_X_ROUND_MIN, TILE_X_ROUND_MAX] : [TILE_X_MIN, TILE_X_MAX]
+}
+
 /**
- * One step: adds an emoji to one visible cover without one, if the cap allows and
- * a cover has room for a glyph on its top edge. Returns the cover it decorated, or null.
+ * The spans of a cover's top edge a NEW glyph may not take: the label and the stamp,
+ * and around every glyph already there, two halves (its own half on top of its
+ * neighbour's), so the new centre stands a full glyph away.
+ */
+function blockedFor(cover: HTMLElement, tiles: readonly TileGlyph[]): [number, number][] {
+    const half = tileHalfPct(cover.getBoundingClientRect().width)
+    return [...blockedSpans(cover), ...tiles.map((t): [number, number] => [t.x - 2 * half, t.x + 2 * half])]
+}
+
+/**
+ * One step: adds an emoji to one visible cover, if the cap allows and a cover has
+ * room for a glyph on its top edge. The cover is picked at random from all visible
+ * covers with room, and it may already carry glyphs (up to TILE_PER_COVER_MAX).
+ * Returns the cover it decorated, or null.
  */
 export function addOneTile(
     root: Document | Element,
@@ -293,34 +360,29 @@ export function addOneTile(
 ): HTMLElement | null {
     const covers = tileCovers(root)
     const visible = covers.filter((el) => mostlyInView(el.getBoundingClientRect(), vp))
-    const tagged = covers.filter((el) => el.hasAttribute(ATTR_EMOJI)).length
-    if (tagged >= tileCap(visible.length)) return null
+    const placed = covers.reduce((n, el) => n + readTiles(el).length, 0)
+    if (placed >= tileCap(visible.length)) return null
 
-    // Only a cover with an empty top edge can take a glyph, and a place on it.
-    const placed = new Map<HTMLElement, number>()
+    // Every visible cover with room for a glyph on its top edge is a candidate. Its x
+    // is free of the label, the stamp and the glyphs it has already; a cover with no
+    // free spot, or with TILE_PER_COVER_MAX glyphs, is `full` and is not picked.
+    const candidates: { el: HTMLElement; tiles: TileGlyph[]; x: number | null; full: boolean }[] = []
     for (const el of visible) {
-        if (el.hasAttribute(ATTR_EMOJI)) continue
         if (!glyphRoom(el.getBoundingClientRect(), bounds)) continue
-        const range: [number, number] = el.classList.contains('is-round')
-            ? [TILE_X_ROUND_MIN, TILE_X_ROUND_MAX]
-            : [TILE_X_MIN, TILE_X_MAX]
-        const x = pickTileX(random, blockedSpans(el), range)
-        if (x !== null) placed.set(el, x)
+        const tiles = readTiles(el)
+        const x = tiles.length >= TILE_PER_COVER_MAX ? null : pickTileX(random, blockedFor(el, tiles), coverRange(el))
+        candidates.push({ el, tiles, x, full: x === null })
     }
-    const target = pickTileTarget(
-        Array.from(placed.keys()).map((el) => ({ el, hasEmoji: false })),
-        random
-    )
-    if (!target) return null
+    const target = pickTileTarget(candidates, random)
+    if (!target || target.x === null) return null
 
-    // The neighbours in DOM order, across the whole list, not just the visible ones.
+    // The neighbours in DOM order, across the whole list, not just the visible ones,
+    // and the cover itself: none of their emoji is picked again.
     const at = covers.indexOf(target.el)
-    const avoid = [covers[at - 1], covers[at + 1]]
-        .map((el) => el?.getAttribute(ATTR_EMOJI))
-        .filter((e): e is string => !!e)
+    const around: (HTMLElement | undefined)[] = [covers[at - 1], covers[at + 1], target.el]
+    const avoid = around.flatMap((el) => (el ? readTiles(el).map((t) => t.emoji) : []))
 
-    target.el.setAttribute(ATTR_EMOJI, pickTileEmoji(avoid, random, weights))
-    target.el.setAttribute(ATTR_X, String(placed.get(target.el)))
+    writeTiles(target.el, [...target.tiles, { emoji: pickTileEmoji(avoid, random, weights), x: target.x }])
     return target.el
 }
 
@@ -329,30 +391,37 @@ export function tileAnchor(rect: Pick<DOMRect, 'top' | 'left' | 'width'>, xPct: 
     return { x: rect.left + (rect.width * xPct) / 100, y: rect.top }
 }
 
-/** The drawing: one span per tagged cover in the layer, placed on its top edge; the rest are removed. */
-const glyphs = new WeakMap<HTMLElement, HTMLElement>()
+/** The drawing: the spans of each cover's glyphs, one per glyph, reused from one layout to the next. */
+const drawn = new WeakMap<HTMLElement, HTMLElement[]>()
 
+/** Draws one span per glyph of every cover in the layer, on its top edge; spans that no glyph needs any more are removed. */
 export function layoutTiles(root: Document | Element, layer: HTMLElement): void {
     const doc = layer.ownerDocument
     const live = new Set<HTMLElement>()
     for (const cover of tileCovers(root)) {
-        const emoji = cover.getAttribute(ATTR_EMOJI)
-        const xPct = Number(cover.getAttribute(ATTR_X))
-        if (!emoji || Number.isNaN(xPct)) continue
-        let el = glyphs.get(cover)
-        if (!el) {
-            el = doc.createElement('span')
-            el.className = 'season-tile-emoji'
-            el.setAttribute('aria-hidden', 'true')
-            glyphs.set(cover, el)
-        }
-        // A glyph that was taken out (its cover lost the tag) comes back into the layer.
-        if (el.parentNode !== layer) layer.appendChild(el)
-        if (el.textContent !== emoji) el.textContent = emoji
-        const at = tileAnchor(cover.getBoundingClientRect(), xPct)
-        el.style.left = `${at.x}px`
-        el.style.top = `${at.y}px`
-        live.add(el)
+        const tiles = readTiles(cover)
+        const spans = drawn.get(cover) ?? []
+        drawn.set(cover, spans)
+        // A cover that lost glyphs gives its spare spans up.
+        for (const spare of spans.splice(tiles.length)) spare.remove()
+        if (tiles.length === 0) continue
+        const rect = cover.getBoundingClientRect()
+        tiles.forEach((tile, i) => {
+            let el = spans[i]
+            if (!el) {
+                el = doc.createElement('span')
+                el.className = 'season-tile-emoji'
+                el.setAttribute('aria-hidden', 'true')
+                spans[i] = el
+            }
+            // A glyph that was taken out of the layer (its cover was cleared) comes back into it.
+            if (el.parentNode !== layer) layer.appendChild(el)
+            if (el.textContent !== tile.emoji) el.textContent = tile.emoji
+            const at = tileAnchor(rect, tile.x)
+            el.style.left = `${at.x}px`
+            el.style.top = `${at.y}px`
+            live.add(el)
+        })
     }
     for (const child of Array.from(layer.children)) {
         if (!live.has(child as HTMLElement)) child.remove()
