@@ -36,7 +36,10 @@ html.season-halloween {
         top: 0;
         // The anchor is the cover's top edge; the glyph's bottom sits on it (1 px in the frame).
         translate: -50% calc(-100% + 1px);
-        font-size: 1.25rem;
+        // Up from 1.25rem: "bisserl größer" (user, 2026-10-31). TILE_GLYPH_PX
+        // (utils/seasonTileEmojis.ts) is the room it needs above a cover; keep
+        // the two together.
+        font-size: 1.6rem;
         line-height: 1;
         opacity: 0.92;
         white-space: nowrap;
@@ -51,7 +54,7 @@ html.season-halloween {
     // Phones: the same emoji, a little smaller.
     @media (max-width: 459px) {
         .season-tile-emoji {
-            font-size: 1.15rem;
+            font-size: 1.45rem;
         }
     }
 }

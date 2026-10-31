@@ -41,12 +41,15 @@ export const TILE_OBSTACLE_SELECTOR = '.card-type-label, .card-stamp'
 /**
  * The emoji of a tile, each with its weight: graves and pumpkins come up most
  * often ("zb gräber oder kürbisse", user, 2026-10-31); the rest now and then.
+ *
+ * No zombies and no bats: those are creatures that MOVE across the screen
+ * (utils/seasonParticles.ts), and standing still on a tile they read as a
+ * glitch of the crossing ("bitte keine fledermäuse und zombies auf den
+ * kacheln", user, 2026-10-31).
  */
 export const TILE_EMOJI_WEIGHTS: readonly { emoji: string; weight: number }[] = [
     { emoji: '🪦', weight: 3 },
     { emoji: '🎃', weight: 3 },
-    { emoji: '🧟', weight: 2 },
-    { emoji: '🦇', weight: 1 },
     { emoji: '👻', weight: 1 },
     { emoji: '💀', weight: 1 },
     { emoji: '\u{1F578}️', weight: 1 },
@@ -65,7 +68,7 @@ export const TILE_X_ROUND_MAX = 58
 /** The least free width, in %, a glyph needs to stand somewhere on the edge. */
 export const TILE_MIN_FREE_PCT = 6
 /** The glyph's height in px, the band above the cover's top edge it occupies (font 1.25 rem). */
-export const TILE_GLYPH_PX = 22
+export const TILE_GLYPH_PX = 28
 
 /** Never more than this many on the page at once, however many covers are visible. */
 export const TILE_CAP_MAX = 16

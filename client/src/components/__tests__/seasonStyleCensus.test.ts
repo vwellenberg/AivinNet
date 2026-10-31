@@ -83,7 +83,7 @@ describe('the tile emoji show on phones too, standing on the cover edge', () => 
     it('never hides the emoji under a phone breakpoint', () => {
         // Hidden phones were the bug: the attribute was set, and `display: none` kept it off the screen.
         expect(seasons).not.toMatch(/max-width:\s*459px\)\s*\{[^}]*display:\s*none/)
-        expect(seasons).toMatch(/max-width:\s*459px\)\s*\{[^}]*font-size:\s*1\.15rem/)
+        expect(seasons).toMatch(/max-width:\s*459px\)\s*\{[^}]*font-size:\s*1\.45rem/)
     })
 
     it('fades and drops in with a tiny settle: no overshoot, no tilt', () => {

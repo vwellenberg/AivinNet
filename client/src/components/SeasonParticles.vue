@@ -66,7 +66,7 @@ function varsOf(p: Particle): Record<string, string> {
 <style lang="scss">
 // ============================================================================
 // SEASONAL PARTICLES: snow at Christmas; at Halloween bats, ghosts, a pumpkin,
-// a chase (two zombies and a runner, left to right) and a spider on its thread.
+// a chase (a runner and two zombies, right to left) and a spider on its thread.
 // Mounted once in App.vue, shown only while a season is active
 // (utils/seasons.ts) and never under "reduce motion" (the component above).
 //
@@ -158,9 +158,9 @@ function varsOf(p: Particle): Record<string, string> {
     animation: season-bob var(--season-wobble) ease-in-out calc(var(--season-i, 0) * var(--season-wobble) * -1 / 4) infinite alternate;
 }
 
-// The chase: its glyphs sit side by side in one row, the zombies first and the
-// runner last, so the runner is the one in front: the group always goes left to
-// right (utils/seasonParticles.ts), and the 🏃 emoji faces that way.
+// The chase: its glyphs sit side by side in one row, the runner first and the
+// zombies behind it, so the runner is the one in front: the group always goes
+// right to left (utils/seasonParticles.ts), and the 🏃 emoji faces that way.
 .season-chase {
     display: flex;
     align-items: flex-end;

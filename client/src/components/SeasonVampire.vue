@@ -220,36 +220,42 @@ onBeforeUnmount(() => {
     animation: season-peek-bat var(--peek-dur) ease-out backwards;
 }
 
-// Rise in the first 18 %, a pause of about a second, down out of sight at 49 %.
+// The percentages are of PEEK_DURATION_MS (4000 ms) and keep the vampire's and
+// the puff's milliseconds from when it was 3200 ms: only the bat's flight got
+// longer (utils/vampirePeek.ts). The launch is at 40 % = PEEK_LAUNCH_FRACTION.
+//
+// Rise in the first 14.4 % (576 ms), a pause of about a second, down out of
+// sight at 39.2 %.
 @keyframes season-peek-rise {
     0% {
         transform: translate3d(-50%, 100%, 0);
     }
-    18%,
-    48% {
+    14.4%,
+    38.4% {
         transform: translate3d(-50%, 0, 0);
     }
-    49%,
+    39.2%,
     100% {
         transform: translate3d(-50%, 100%, 0);
     }
 }
 
-// The puff: a 💨 that opens from the edge at 50 % and thins out.
+// The puff: a 💨 that opens from the edge at the launch (40 %) and thins out by 80 %.
 @keyframes season-peek-puff {
     0%,
-    47% {
+    37.6% {
         opacity: 0;
         transform: translate3d(-50%, 50%, 0) scale(0.3);
     }
-    50% {
+    40% {
         opacity: 1;
         transform: translate3d(-50%, 50%, 0) scale(0.6);
     }
-    72% {
+    57.6% {
         opacity: 0.9;
         transform: translate3d(-50%, 50%, 0) scale(1.4);
     }
+    80%,
     100% {
         opacity: 0;
         transform: translate3d(-50%, 50%, 0) scale(1.7);
@@ -262,11 +268,11 @@ onBeforeUnmount(() => {
 // and never fades out in view.
 @keyframes season-peek-bat {
     0%,
-    50% {
+    40% {
         opacity: 0;
         transform: translate3d(-50%, -50%, 0);
     }
-    53% {
+    42.4% {
         opacity: 1;
         transform: translate3d(-50%, -50%, 0);
     }

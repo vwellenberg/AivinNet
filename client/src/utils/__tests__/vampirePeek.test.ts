@@ -83,7 +83,14 @@ describe('peekAnchor and the whole peek', () => {
     })
 
     it('lasts a few seconds: rise, a pause of about a second, the puff and the bat', () => {
-        expect(PEEK_DURATION_MS).toBe(3200)
+        expect(PEEK_DURATION_MS).toBe(4000)
+    })
+
+    // "fledermaus vom vampir bisserl langsamer" (user, 2026-10-31): the flight
+    // got the extra time, the vampire's rise and pause kept theirs.
+    it('gives the bat 2.4 s to fly off, and the vampire still 1.6 s before the launch', () => {
+        expect(PEEK_DURATION_MS * (1 - PEEK_LAUNCH_FRACTION)).toBe(2400)
+        expect(PEEK_DURATION_MS * PEEK_LAUNCH_FRACTION).toBe(1600)
     })
 })
 
@@ -116,8 +123,8 @@ describe('peekExit: the bat flies off the screen, it does not fade', () => {
         expect(endsOffScreen({ x: 195, y: 260 }, { width: 390, height: 844 })).toBe(true)
     })
 
-    it('takes off after the puff: the scroll listener is released at the launch, half way', () => {
-        expect(PEEK_LAUNCH_FRACTION).toBe(0.5)
+    it('takes off after the puff: the scroll listener is released at the launch, at 40 %', () => {
+        expect(PEEK_LAUNCH_FRACTION).toBe(0.4)
     })
 })
 

@@ -16,8 +16,14 @@ export const PEEK_SIZE_PX = 56
  * One whole peek, in ms. The CSS keyframes are percentages of this, so it is
  * the one number the animation needs: rise (first ~18 %), a pause of about a
  * second, the puff, and the bat leaving.
+ *
+ * 4000, up from 3200: the bat flew off too fast ("bisserl langsamer", user,
+ * 2026-10-31). Only the flight got the extra time — the vampire's rise, pause
+ * and the puff keep their milliseconds, so the keyframes in SeasonVampire.vue
+ * are the old percentages times 0.8 (= 3200 / 4000). The flight now takes
+ * 2.4 s instead of 1.6 s.
  */
-export const PEEK_DURATION_MS = 3200
+export const PEEK_DURATION_MS = 4000
 
 /** Milliseconds until the next peek, from the random source. */
 export function nextPeekDelayMs(random: () => number): number {
@@ -57,7 +63,7 @@ export function peekAnchor(r: Pick<PeekRect, 'top' | 'left' | 'width'>): { x: nu
  * The fraction of one peek at which the bat takes off (the puff is done): from
  * here on it flies, and a scroll no longer takes the peek away.
  */
-export const PEEK_LAUNCH_FRACTION = 0.5
+export const PEEK_LAUNCH_FRACTION = 0.4
 
 /**
  * Where the bat flies to, relative to the anchor, in px: past BOTH viewport
