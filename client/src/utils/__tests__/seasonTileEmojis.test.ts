@@ -56,20 +56,21 @@ const BOUNDS: TileBounds = { contentTop: 0, barTop: 800 }
 const BANNED = ['👻', '\u{1F578}️', '\u{1F577}️', '🧟', '🧟‍♂️', '🧟‍♀️', '🦇']
 
 describe('tileCap: how many glyphs may be on the page', () => {
-    it('is one and a half glyphs per visible cover, rounded up', () => {
+    // "es soll 'besonders' bleiben" (user, 2026-10-31): one glyph per visible cover
+    // at most on average, ten on the page at most.
+    it('is one glyph per visible cover', () => {
         expect(tileCap(0)).toBe(0)
-        expect(tileCap(1)).toBe(2)
-        expect(tileCap(2)).toBe(3)
-        expect(tileCap(4)).toBe(6)
-        expect(tileCap(5)).toBe(8)
-        expect(tileCap(10)).toBe(15)
+        expect(tileCap(1)).toBe(1)
+        expect(tileCap(2)).toBe(2)
+        expect(tileCap(4)).toBe(4)
+        expect(tileCap(8)).toBe(8)
     })
 
     it('never goes past the maximum, however many covers are visible', () => {
-        expect(TILE_CAP_MAX).toBe(24)
-        expect(tileCap(16)).toBe(24)
-        expect(tileCap(17)).toBe(24)
-        expect(tileCap(1000)).toBe(24)
+        expect(TILE_CAP_MAX).toBe(10)
+        expect(tileCap(10)).toBe(10)
+        expect(tileCap(11)).toBe(10)
+        expect(tileCap(1000)).toBe(10)
     })
 
     it('does not shrink as more covers come into view', () => {
@@ -141,18 +142,13 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
     })
 })
 
-describe('nextTileDelayMs: irregular, 1.2 s to 7 s', () => {
-    it('is random between 1.2 s and 7 s', () => {
-        expect(TILE_DELAY_MIN_MS).toBe(1200)
-        expect(TILE_DELAY_MAX_MS).toBe(7000)
-        expect(nextTileDelayMs(() => 0)).toBe(1200)
-        expect(nextTileDelayMs(() => 0.5)).toBe(4100)
-        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(7000)
-        for (let seed = 1; seed <= 20; seed++) {
-            const d = nextTileDelayMs(sequence(seed))
-            expect(d).toBeGreaterThanOrEqual(1200)
-            expect(d).toBeLessThan(7000)
-        }
+describe('nextTileDelayMs: rare and irregular, 10 s to 35 s', () => {
+    it('is random between 10 s and 35 s', () => {
+        expect(TILE_DELAY_MIN_MS).toBe(10000)
+        expect(TILE_DELAY_MAX_MS).toBe(35000)
+        expect(nextTileDelayMs(() => 0)).toBe(10000)
+        expect(nextTileDelayMs(() => 0.5)).toBe(22500)
+        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(35000)
     })
 })
 
@@ -476,8 +472,9 @@ describe('the DOM part on a page of covers', () => {
         expect(x).toBeLessThanOrEqual(TILE_X_MAX)
     })
 
-    it('lets a single visible cover carry two, the cap for one cover', () => {
+    it('lets one cover carry two when two covers are visible and only it has room', () => {
         const only = cover({ width: 200 })
+        cover({ top: 10 })
         expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBe(only)
         expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBe(only)
         expect(readTiles(only)).toHaveLength(2)
@@ -495,36 +492,36 @@ describe('the DOM part on a page of covers', () => {
         expect(addOneTile(page, MIDDLE, VP, { contentTop: 0, barTop: 800 })).toBeNull()
     })
 
-    it('stops at the cap: 4 visible covers allow 6 glyphs, and no cover carries a fourth', () => {
+    it('stops at the cap: 4 visible covers allow 4 glyphs, and no cover carries a fourth', () => {
         for (let i = 0; i < 4; i++) cover({ width: 200 })
-        for (let i = 0; i < 6; i++) expect(addOneTile(page, MIDDLE, VP, BOUNDS)).not.toBeNull()
+        for (let i = 0; i < 4; i++) expect(addOneTile(page, MIDDLE, VP, BOUNDS)).not.toBeNull()
         expect(addOneTile(page, MIDDLE, VP, BOUNDS)).toBeNull()
         const all = Array.from(page.querySelectorAll<HTMLElement>(`[${ATTR_EMOJI}]`))
-        expect(all.reduce((n, el) => n + readTiles(el).length, 0)).toBe(6)
+        expect(all.reduce((n, el) => n + readTiles(el).length, 0)).toBe(4)
         for (const el of all) expect(readTiles(el).length).toBeLessThanOrEqual(TILE_PER_COVER_MAX)
     })
 
     it('lets a cover carry up to three side by side, and never a fourth', () => {
-        let reachedThree = false
+        // Four visible covers (cap 4), only the first with room above it: every
+        // glyph goes to that one, so it reaches three and is then full.
         for (let seed = 1; seed <= 20; seed++) {
             page.innerHTML = ''
-            const covers = Array.from({ length: 8 }, () => cover({ width: 200 }))
-            for (let i = 0; i < 12; i++) expect(addOneTile(page, sequence(seed * 31 + i), VP, BOUNDS), `seed ${seed}`).not.toBeNull()
-            for (const el of covers) {
-                const n = readTiles(el).length
-                expect(n, `seed ${seed}`).toBeLessThanOrEqual(TILE_PER_COVER_MAX)
-                if (n === TILE_PER_COVER_MAX) reachedThree = true
-            }
+            // 300 px wide: three glyphs a full glyph apart always fit on the edge.
+            const el = cover({ width: 300 })
+            for (let i = 0; i < 3; i++) cover({ top: 10 })
+            for (let i = 0; i < 3; i++) expect(addOneTile(page, sequence(seed * 31 + i), VP, BOUNDS), `seed ${seed}`).toBe(el)
+            expect(readTiles(el)).toHaveLength(TILE_PER_COVER_MAX)
+            expect(addOneTile(page, sequence(seed), VP, BOUNDS), `seed ${seed}`).toBeNull()
         }
-        expect(reachedThree).toBe(true)
     })
 
     it('puts the glyphs of one cover next to each other, never on top of each other', () => {
         const width = 200
-        // Two glyphs: one cover, and the cap for one visible cover is two.
+        // Two glyphs on one cover: two visible covers (cap 2), only one with room.
         for (let seed = 1; seed <= 30; seed++) {
             page.innerHTML = ''
             const el = cover({ width })
+            cover({ top: 10 })
             expect(addOneTile(page, sequence(seed), VP, BOUNDS)).toBe(el)
             expect(addOneTile(page, sequence(seed + 100), VP, BOUNDS)).toBe(el)
             const [a, b] = readTiles(el)
@@ -555,6 +552,8 @@ describe('the DOM part on a page of covers', () => {
         const prev = cover({ top: 790 })
         writeTiles(prev, [{ emoji: '🎃', x: 80 }])
         const target = cover({ width: 200 })
+        // Two fillers: the cap (one per visible cover) counts the off-screen pumpkin too.
+        cover({ top: 10 })
         cover({ top: 10 })
         const picked = new Set<string>()
         for (let seed = 1; seed <= 60; seed++) {
