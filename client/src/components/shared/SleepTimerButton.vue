@@ -1,9 +1,8 @@
 <template>
   <button
+    v-tip="title"
     class="sleep-timer-btn"
     :class="{ active: sleep.active }"
-    :title="title"
-    :aria-label="title"
     @click="openMenu"
   >
     <SleepSvg />
@@ -27,7 +26,7 @@ const sleep = useSleepTimer()
 const ds = useDeviceSync()
 
 const title = computed(() =>
-  sleep.active ? `Sleep timer: ${sleep.label} — tap to change or cancel` : 'Sleep timer'
+  sleep.active ? `Sleep timer: ${sleep.label} left. Click to change or turn off` : 'Sleep timer: stop the music after a while'
 )
 
 /**

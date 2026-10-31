@@ -1,5 +1,5 @@
 <template>
-    <button class="devices-btn" :class="{ 'ds-joined': ds.joined }" :title="title" @click="modal.showDevicesModal()">
+    <button v-tip="title" class="devices-btn" :class="{ 'ds-joined': ds.joined }" @click="modal.showDevicesModal()">
         <DevicesSvg />
         <span v-if="ds.partyActive" class="devices-party-sticker">PARTY</span>
     </button>

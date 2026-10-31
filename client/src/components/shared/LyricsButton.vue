@@ -1,6 +1,6 @@
 <template>
   <button
-    title="Lyrics"
+    v-tip="'Lyrics'"
     class="lyrics"
     :class="{ showStatus: lyrics.exists }"
     @click="handleClick"

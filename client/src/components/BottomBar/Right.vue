@@ -5,18 +5,18 @@
              mobile, where all controls are crammed into one group. -->
         <template v-if="isMobile">
             <button
+                v-tip="settings.repeat == 'all' ? 'Repeat all' : settings.repeat == 'one' ? 'Repeat one' : 'No repeat'"
                 class="aux repeat"
                 :class="{ 'aux-off': settings.repeat == 'none' }"
-                :title="settings.repeat == 'all' ? 'Repeat all' : settings.repeat == 'one' ? 'Repeat one' : 'No repeat'"
                 @click="settings.toggleRepeatMode"
             >
                 <RepeatOneSvg v-if="settings.repeat == 'one'" />
                 <RepeatAllSvg v-else />
             </button>
             <button
+                v-tip="settings.shuffle ? 'Shuffle: random next track' : 'Shuffle off'"
                 class="aux shuffle"
                 :class="{ 'aux-off': !settings.shuffle }"
-                :title="settings.shuffle ? 'Shuffle: random next track' : 'Shuffle off'"
                 @click="queue.toggleShuffle"
             >
                 <ShuffleSvg />
