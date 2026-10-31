@@ -304,11 +304,55 @@ async function save() {
     color: $gray1;
   }
 
-  // Every control is a 44px target; the phone keeps them full width.
+  // Every control is a 44px target; the phone keeps them full width. Fields
+  // wear the modal's search field (blush plate), pickers the settings'
+  // native select (panel plate, raised, a chevron in the text colour).
   .se-input {
     min-height: $bar-control;
     width: 100%;
     min-width: 0;
+    padding: 0 $medium;
+    border: $candy-border;
+    border-radius: $candy-radius-sm;
+    font: inherit;
+    font-weight: 600;
+    outline: none;
+
+    &:focus-visible {
+      outline: $focus-ring-w solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+
+  input.se-input {
+    background-color: $candy-pink-soft;
+    color: $candy-text;
+  }
+
+  select.se-input {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem;
+    background-color: $mem-panel;
+    color: $mem-content-text;
+    cursor: pointer;
+    text-overflow: ellipsis;
+    @include candy-shadow(3px, 3px);
+    // Two half-squares make the chevron, in currentColor, so it follows the mode.
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.15rem) 55%,
+      calc(100% - 0.8rem) 55%;
+    background-size: 0.35rem 0.35rem;
+    background-repeat: no-repeat;
+
+    // The popup list is drawn by the OS; without this, dark mode shows
+    // light-on-light options in some browsers.
+    option {
+      background-color: $mem-panel;
+      color: $mem-content-text;
+    }
   }
 
   .se-rules {
@@ -342,8 +386,11 @@ async function save() {
     color: $gray1;
   }
 
+  // Beside the two pickers, not under the value: it removes the whole rule.
   .se-remove {
     @include btn-action;
+    grid-row: 1;
+    grid-column: 3;
   }
 
   .se-add {
