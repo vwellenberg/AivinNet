@@ -321,12 +321,35 @@ $card-cover-pad: 6px;
 
     // The help row is a flex line of two spans; they cover themselves and stay
     // side by side.
+    //
+    // ⚠️ Each span is ONE line, truncated, never wrapped. A Home row swaps the
+    // help text for the time on hover (CardScroller `.hlistitem`), and a mix's
+    // help text is its artist list: "GLENN STAFFORD, DEREK DUKE, JASON HAYES"
+    // wrapped to two lines, so that plate stood taller than its neighbour —
+    // and snapped back to one line on hover, rocking the whole row. Both
+    // halves of the swap must be the same height, and one line is the only
+    // height both can promise.
+    .rhelp {
+        display: flex;
+        min-width: 0;
+    }
+
     .rhelp .help,
     .rhelp .time {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         padding: 1px $card-cover-pad;
         margin-left: -$card-cover-pad;
         border-radius: 6px;
         @include mem-text-veil($left: $card-cover-pad, $right: $card-cover-pad);
+    }
+
+    // Where both are shown (grid pages), the artist list gives way, not the
+    // time next to it.
+    .rhelp .time {
+        flex-shrink: 0;
     }
 }
 
