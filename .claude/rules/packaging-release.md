@@ -274,7 +274,7 @@ python/make/g++ braucht; seit #581 ist es weg, der Client hat keine native Abhä
 `.dockerignore` hält `node_modules`, `.git` und `.claude` (Worktrees!) aus dem Kontext,
 `client/` muss drin bleiben (`TestDockerfile` prüft beides). Der `Docker Smoke Test` schreibt
 deshalb **keinen Stub-Client** mehr, sondern prüft, dass `/` ein gebauter Client mit gehashtem
-`assets/index-*.js` ist (Vite 6: Bindestrich + base64url; Vite 3 hatte Punkt + Hex), kein
+`assets/index-*.js` ist (Vite 6 und 8: Bindestrich + base64url; Vite 3 hatte Punkt + Hex), kein
 `Downloading from GitHub` im Log steht und der Stempel einen `bundle`-Digest trägt.
 
 ## Der Client-Download aus dem Release (nur noch ohne gebündeltes Zip)
