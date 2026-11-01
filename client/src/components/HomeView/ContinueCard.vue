@@ -187,7 +187,8 @@ function resume() {
   --row-fill: #{$mem-panel};
   @include candy-box(var(--row-fill), $candy-radius);
   @include candy-shadow(4px, 4px);
-  color: $mem-ink;
+  // The panel's own text: `$mem-ink` stays dark in dark mode (panelText.test.ts).
+  color: $mem-text;
 
   // Dots, not hatch. The card is read; what can be pressed on it (cover, title,
   // Continue, the rows) carries its own plate, and the hatch says "pressable"

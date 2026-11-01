@@ -60,7 +60,10 @@ function dismiss() {
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius);
     @include candy-shadow(4px, 4px);
-    color: $mem-ink;
+    // The panel's own text, not `$mem-ink`: ink does not change with the mode,
+    // the panel does, and in dark mode the card was dark text on a dark plate
+    // (user, 2026-11-01, "oben eine leere bar"). tests: panelText.test.ts
+    color: $mem-text;
 
     &::before {
         // The card sits on the panel (`--row-fill`), not on a pastel: dots in the
