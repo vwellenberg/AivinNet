@@ -138,11 +138,13 @@ export const TILE_CAP_SHARE = 1
 
 /**
  * Gap between two new glyphs, in ms: random in [MIN, MAX). Irregular on purpose,
- * and long: on average one every ~22 s, so a glyph turns up now and then rather
- * than the page filling while one looks at it (see TILE_CAP_SHARE).
+ * and long: one every 30 s on average ("so etwa 1 alle 20-30 sekunden im
+ * schnitt", user, 2026-11-01; the round before averaged 22.5 s and still felt
+ * too often), so a glyph turns up now and then rather than the page filling
+ * while one looks at it (see TILE_CAP_SHARE).
  */
-export const TILE_DELAY_MIN_MS = 10000
-export const TILE_DELAY_MAX_MS = 35000
+export const TILE_DELAY_MIN_MS = 20000
+export const TILE_DELAY_MAX_MS = 40000
 
 /** How many glyphs may be on screen, given how many covers are visible. */
 export function tileCap(visibleCount: number): number {
