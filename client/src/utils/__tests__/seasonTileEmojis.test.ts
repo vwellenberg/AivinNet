@@ -142,13 +142,14 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
     })
 })
 
-describe('nextTileDelayMs: rare and irregular, 10 s to 35 s', () => {
-    it('is random between 10 s and 35 s', () => {
-        expect(TILE_DELAY_MIN_MS).toBe(10000)
-        expect(TILE_DELAY_MAX_MS).toBe(35000)
-        expect(nextTileDelayMs(() => 0)).toBe(10000)
-        expect(nextTileDelayMs(() => 0.5)).toBe(22500)
-        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(35000)
+describe('nextTileDelayMs: rare and irregular, 20 s to 40 s', () => {
+    // "so etwa 1 alle 20-30 sekunden im schnitt" (user, 2026-11-01): 30 s on average.
+    it('is random between 20 s and 40 s, 30 s on average', () => {
+        expect(TILE_DELAY_MIN_MS).toBe(20000)
+        expect(TILE_DELAY_MAX_MS).toBe(40000)
+        expect(nextTileDelayMs(() => 0)).toBe(20000)
+        expect(nextTileDelayMs(() => 0.5)).toBe(30000)
+        expect(nextTileDelayMs(() => 0.999999)).toBeLessThan(40000)
     })
 })
 
