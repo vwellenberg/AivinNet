@@ -27,7 +27,7 @@
                     :aria-pressed="p === period"
                     @click="$emit('changePeriod', p)"
                 >
-                    {{ p }}
+                    {{ statsPeriodLabel(p) }}
                 </button>
             </div>
         </div>
@@ -35,9 +35,9 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-import { STATS_PERIODS } from '@/utils/statsPeriod'
+import { STATS_TABS, isStatsPeriod, isStatsTab, statsPeriodLabel } from '@/utils/statsPeriod'
 
 const props = defineProps<{
     name: string
@@ -50,8 +50,12 @@ defineEmits<{
 }>()
 
 const groups = ['artists', 'albums', 'tracks', 'playlists']
-// One list for the tabs, the tiles and the caption (utils/statsPeriod.ts).
-const periods = STATS_PERIODS
+// The tab row, plus the current period as an extra active tab when it is not
+// one of the tabs (arriving from the recap card on "last week" / "last month").
+// Picking another tab changes the period, and the extra tab goes with it.
+const periods = computed<readonly string[]>(() =>
+    isStatsPeriod(props.period) && !isStatsTab(props.period) ? [...STATS_TABS, props.period] : [...STATS_TABS]
+)
 
 const groupSeg = ref<HTMLElement | null>(null)
 const periodSeg = ref<HTMLElement | null>(null)

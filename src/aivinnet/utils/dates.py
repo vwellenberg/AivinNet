@@ -93,11 +93,17 @@ def seconds_to_time_string(seconds: int):
 def get_date_range(duration: str, units_ago: int = 0):
     """
     Returns a tuple of dates representing the start and end of a given duration.
+
+    "lastweek" and "lastmonth" are the whole previous calendar week or month,
+    ending where the current one begins (not at now): the recap card on Home
+    tells about them on Mondays and the 1st, when the current period is empty.
     """
     date_range = None
     seconds_ago: float = 0
 
-    if duration != "alltime":
+    # Only the calendar units take `start_of`: "lastweek"/"lastmonth" are ranges
+    # of their own below, and "alltime" starts at the epoch.
+    if duration in ("day", "week", "month", "year"):
         seconds_ago = (pendulum.now() - pendulum.now().subtract().start_of(duration)).total_seconds() * units_ago
 
     match duration:
@@ -108,6 +114,12 @@ def get_date_range(duration: str, units_ago: int = 0):
                 # .end_of(duration)
                 .timestamp(),
             )
+        case "lastweek":
+            this_week = pendulum.now().start_of("week")
+            date_range = (this_week.subtract(weeks=1).timestamp(), this_week.timestamp())
+        case "lastmonth":
+            this_month = pendulum.now().start_of("month")
+            date_range = (this_month.subtract(months=1).timestamp(), this_month.timestamp())
         case "alltime":
             date_range = (0, pendulum.now().timestamp())
         case _:
@@ -143,11 +155,15 @@ def get_previous_period_start(duration: str, start: int) -> int:
 
     The charts compare the current period against this one for their trend
     arrows. "alltime" has nothing before it, so its previous period is empty.
+    "lastweek" and "lastmonth" compare against the week or month before
+    the one they name, the same as "week" and "month" do.
     """
     match duration:
-        case "day" | "week" | "month" | "year":
+        case "day" | "week" | "month" | "year" | "lastweek" | "lastmonth":
+            # "lastweek" -> "week": the unit is the same, only the period differs.
+            unit = duration.removeprefix("last")
             previous = pendulum.from_timestamp(start, tz="local").subtract(seconds=1)
-            return int(previous.start_of(duration).timestamp())
+            return int(previous.start_of(unit).timestamp())
         case "alltime":
             return start
 

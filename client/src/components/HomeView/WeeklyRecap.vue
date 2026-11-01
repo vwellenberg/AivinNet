@@ -18,7 +18,7 @@ import { useRouter } from 'vue-router'
 import { dismissWeeklyRecap, getWeeklyRecap, type WeeklyRecap } from '@/requests/home'
 import { Routes } from '@/router'
 import useSettings from '@/stores/settings'
-import { recapLines } from '@/utils/weeklyRecap'
+import { recapLines, recapStatsPeriod } from '@/utils/weeklyRecap'
 
 const router = useRouter()
 const settings = useSettings()
@@ -32,11 +32,12 @@ onMounted(async () => {
     recap.value = res.status === 200 ? (res.data?.recap ?? null) : null
 })
 
-// The card opens Stats on the period it tells about: the same tab the user
-// would press by hand (the period is the stats page's own setting).
+// The card opens Stats on the period it tells about: the previous week or month,
+// which the tabs reach as "last week" / "last month" (the period is the stats
+// page's own setting). The current period would be empty on a Monday or the 1st.
 function open() {
     if (!recap.value) return
-    settings.setStatsPeriod(recap.value.kind)
+    settings.setStatsPeriod(recapStatsPeriod(recap.value.kind))
     router.push({ name: Routes.Stats })
 }
 

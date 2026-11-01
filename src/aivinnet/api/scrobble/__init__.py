@@ -73,7 +73,8 @@ MAX_SCROBBLE_TIMESTAMP = 10**11
 
 
 # The periods the stats page offers: the chart tabs and the tiles under them.
-StatsPeriod = Literal["day", "week", "month", "year", "alltime"]
+# "lastweek" and "lastmonth" are the previous calendar week and month (the recap card, #530).
+StatsPeriod = Literal["day", "week", "month", "year", "alltime", "lastweek", "lastmonth"]
 
 
 class LogTrackBody(TrackHashSchema):
@@ -822,6 +823,8 @@ SAID_PERIOD = {
     "month": "this month",
     "year": "this year",
     "alltime": "all time",
+    "lastweek": "last week",
+    "lastmonth": "last month",
 }
 
 
