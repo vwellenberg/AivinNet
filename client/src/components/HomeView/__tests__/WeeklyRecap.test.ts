@@ -60,7 +60,8 @@ describe('WeeklyRecap on Home (#530)', () => {
 
         await w.find('.recap-open').trigger('click')
 
-        expect(setStatsPeriod).toHaveBeenCalledWith('month')
+        // Last month, not this month: the 1st has no days of this month yet.
+        expect(setStatsPeriod).toHaveBeenCalledWith('lastmonth')
         expect(push).toHaveBeenCalledWith({ name: 'StatsView' })
     })
 
@@ -69,7 +70,8 @@ describe('WeeklyRecap on Home (#530)', () => {
 
         await w.find('.recap-open').trigger('click')
 
-        expect(setStatsPeriod).toHaveBeenCalledWith('week')
+        // Last week, not this week: on a Monday this week has no plays yet.
+        expect(setStatsPeriod).toHaveBeenCalledWith('lastweek')
     })
 
     it('is dismissed at once and tells the server which period it closed', async () => {

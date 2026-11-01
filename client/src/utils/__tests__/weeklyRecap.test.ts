@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { WeeklyRecap } from '@/requests/home'
-import { recapLines } from '@/utils/weeklyRecap'
+import { recapLines, recapStatsPeriod } from '@/utils/weeklyRecap'
 
 // As GET /nothome/recap sends it (#530).
 const week: WeeklyRecap = {
@@ -40,5 +40,17 @@ describe('recapLines (#530)', () => {
 
     it('keeps the top track when there is no artist', () => {
         expect(recapLines({ ...week, top_artist: null }).detail).toBe('3 new albums · top track Stoned')
+    })
+})
+
+// The card names the PREVIOUS period, so it opens the previous one. Opening the
+// current one showed an empty Stats page on a Monday or the 1st (#530).
+describe('recapStatsPeriod', () => {
+    it('opens last week for a weekly card', () => {
+        expect(recapStatsPeriod('week')).toBe('lastweek')
+    })
+
+    it('opens last month for a monthly card', () => {
+        expect(recapStatsPeriod('month')).toBe('lastmonth')
     })
 })

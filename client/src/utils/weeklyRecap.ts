@@ -1,4 +1,5 @@
 import type { WeeklyRecap } from '@/requests/home'
+import type { StatsPeriod } from '@/utils/statsPeriod'
 
 /**
  * The words of the Home recap card (#530), from what the server counted.
@@ -18,4 +19,13 @@ export function recapLines(recap: WeeklyRecap): { kicker: string; headline: stri
         headline: recap.listened,
         detail: detail.join(' · '),
     }
+}
+
+/**
+ * The stats period a recap card opens (#530). The card tells about
+ * the PREVIOUS week or month, so it opens `lastweek` / `lastmonth`: the current
+ * period is empty on a Monday or the 1st, and the card would open on nothing.
+ */
+export function recapStatsPeriod(kind: WeeklyRecap['kind']): StatsPeriod {
+    return kind === 'month' ? 'lastmonth' : 'lastweek'
 }
