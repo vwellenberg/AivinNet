@@ -28,6 +28,8 @@ ALBUMS: dict[str, tuple[str, str, str, int | None]] = {
         f"r{n}": (f"Rock {n}", "Rock Band", "Rock", int(datetime(1994, 1, 1, tzinfo=UTC).timestamp())) for n in range(4)
     },
     **{f"j{n}": (f"Jazz {n}", "Jazz Trio", "Jazz", None) for n in range(3)},
+    # The Christmas station's pool: one album of eight Christmas tracks, never played.
+    "x0": ("Carols", "Choir", "Christmas", None),
 }
 TRACKS_PER_ALBUM = 8
 
@@ -254,3 +256,84 @@ def test_no_history_in_the_window_means_no_stations(radio, history, monkeypatch)
 
     assert listing(radio) == []
     assert radio.get("/playlists/genre1").get_json()["tracks"] == []
+
+
+# SECTION: THE SEASONAL STATIONS (the Christmas station, the New Year's Eve countdown)
+
+SEASON_CHRISTMAS = {"id": "christmas", "kind": "season", "name": "Christmas"}
+SEASON_COUNTDOWN = {"id": "countdown", "kind": "season", "name": "Countdown"}
+
+
+@pytest.fixture()
+def this_year(radio):
+    """
+    Six library tracks played in the countdown's year, track n of the list
+    n + 3 times: the countdown is exactly these, the favourite (r3/4) last.
+    """
+    from aivinnet.lib.home.stations import countdown_year
+
+    year = countdown_year(pendulum.now().date())
+    start = int(pendulum.datetime(year, 1, 1, tz="local").timestamp()) + 3600
+    played = [("r0", 1, 4), ("r1", 2, 5), ("j0", 1, 6), ("r2", 3, 7), ("j1", 2, 8), ("r3", 4, 9)]
+    for n, (albumhash, k, times) in enumerate(played):
+        for m in range(times):
+            scrobble(th(albumhash, k), start + n * 1000 + m)
+    return [th(albumhash, k) for albumhash, k, _ in played]
+
+
+def test_at_christmas_the_christmas_station_comes_first(radio, history):
+    run_routine()
+
+    stations = radio.get("/nothome/stations?season=christmas").get_json()
+
+    assert stations[0] == SEASON_CHRISTMAS
+    assert stations[1:] == listing(radio)
+
+
+def test_at_new_year_the_countdown_comes_first(radio, this_year):
+    run_routine()
+
+    stations = radio.get("/nothome/stations?season=newyear").get_json()
+
+    assert stations[0] == SEASON_COUNTDOWN
+    assert SEASON_CHRISTMAS not in stations
+
+
+def test_an_unknown_season_is_ignored_not_an_error(radio, history):
+    run_routine()
+
+    res = radio.get("/nothome/stations?season=halloween")
+
+    assert res.status_code == 200
+    assert res.get_json() == listing(radio)
+    assert SEASON_CHRISTMAS not in res.get_json()
+
+
+def test_no_season_lists_no_seasonal_station(radio, history):
+    run_routine()
+
+    ids = [s["id"] for s in listing(radio)]
+
+    assert "christmas" not in ids and "countdown" not in ids
+
+
+def test_the_christmas_station_plays_as_a_playlist_of_christmas_tracks(radio, history):
+    run_routine()
+
+    body = radio.get("/playlists/christmas").get_json()
+
+    assert body["info"]["name"] == "Christmas"
+    carols = {t.trackhash for (a, _), t in TRACKS.items() if a == "x0"}
+    tracks = [t["trackhash"] for t in body["tracks"]]
+    assert tracks and set(tracks) <= carols
+    assert len(tracks) == len(set(tracks))
+
+
+def test_the_countdown_plays_from_thirty_to_one(radio, this_year):
+    run_routine()
+
+    body = radio.get("/playlists/countdown").get_json()
+
+    assert body["info"]["name"] == "Countdown"
+    # Fewest plays first, the favourite last: in the order the list was built, not drawn.
+    assert [t["trackhash"] for t in body["tracks"]] == this_year

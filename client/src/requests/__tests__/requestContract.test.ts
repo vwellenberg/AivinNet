@@ -194,7 +194,7 @@ const CALLS: Record<string, unknown[]> = {
     'home/getRecentlyPlayed': [9],
     'home/getHomePageData': [9],
     'home/getSurpriseAlbum': [],
-    'home/getStations': [],
+    'home/getStations': ['christmas'],
     'home/getHomeLayout': [],
     'home/setHomeLayout': [['continue_listening', 'recently_played'], ['rediscover']],
     'home/getNotInterested': [],

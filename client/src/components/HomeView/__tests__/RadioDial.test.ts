@@ -1,5 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref, type Ref } from 'vue'
+
+import { SEASON_KEY } from '@/utils/seasonLogo'
 
 // Reactive: the dial re-reads the list when Home's rows change.
 const { homeMock, stationsMock, getStations, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(
@@ -74,6 +77,101 @@ async function mountWith(stations: any[], options: Record<string, unknown> = {})
     await flushPromises()
     return w
 }
+
+// The season the client is in: App.vue provides it under SEASON_KEY. The server
+// puts the season's station first, and the dial asks again when the season changes.
+describe('RadioDial by season', () => {
+    const usual = [
+        { id: 'genre1', kind: 'genre', name: 'rock' },
+        { id: 'genre2', kind: 'genre', name: 'jazz' },
+    ]
+    // What the server lists for each season (`GET /nothome/stations?season=…`).
+    const byServer = (season?: string | null) => {
+        if (season === 'christmas') return [{ id: 'christmas', kind: 'season', name: 'Christmas' }, ...usual]
+        if (season === 'newyear') return [{ id: 'countdown', kind: 'season', name: 'Countdown' }, ...usual]
+        return usual
+    }
+
+    function mountInSeason(season: Ref<string | null>) {
+        return mountWith([], { global: { provide: { [SEASON_KEY]: season } } })
+    }
+
+    beforeEach(() => {
+        homeMock.homepageItems = []
+        stationsMock.list = []
+        stationsMock.fail = false
+        getStations.mockReset()
+        getStations.mockImplementation(async (season?: string | null) => byServer(season))
+        tuneStation.mockClear()
+    })
+
+    afterEach(() => {
+        for (const w of mounted.splice(0)) w.unmount()
+    })
+
+    it('asks the server for the season the client is in', async () => {
+        await mountInSeason(ref<string | null>('christmas'))
+
+        expect(getStations).toHaveBeenLastCalledWith('christmas')
+    })
+
+    it('shows the season station first, named by the readout', async () => {
+        const w = await mountInSeason(ref<string | null>('christmas'))
+
+        expect(w.find('.radio-display-name').text()).toBe('Christmas')
+        expect(w.find('.radio-display-kind').text()).toContain('SEASON')
+        expect(dial(w).attributes('aria-valuetext')).toBe('Christmas, 87.5 FM')
+    })
+
+    it('comes with the seasonal station alone', async () => {
+        getStations.mockImplementation(async () => [{ id: 'countdown', kind: 'season', name: 'Countdown' }])
+
+        const w = await mountInSeason(ref<string | null>('newyear'))
+
+        expect(w.find('.radio-card').exists()).toBe(true)
+        expect(w.find('.radio-display-name').text()).toBe('Countdown')
+    })
+
+    it('asks again when the season changes, and shows the new season station', async () => {
+        const season = ref<string | null>('christmas')
+        const w = await mountInSeason(season)
+
+        season.value = 'newyear'
+        await flushPromises()
+
+        expect(getStations).toHaveBeenLastCalledWith('newyear')
+        expect(w.find('.radio-display-name').text()).toBe('Countdown')
+    })
+
+    it('keeps the station under the needle when a season station joins the list', async () => {
+        // Rock is under the needle; at Christmas the Christmas station is put before it.
+        const season = ref<string | null>(null)
+        const w = await mountInSeason(season)
+        expect(w.find('.radio-display-name').text()).toBe('rock')
+
+        season.value = 'christmas'
+        await flushPromises()
+
+        expect(w.find('.radio-display-name').text()).toBe('rock')
+        expect(dial(w).attributes('aria-valuenow')).toBe('2')
+    })
+
+    it('drops an answer to a season that has since changed', async () => {
+        // The Christmas answer is slow, and the New Year's answer comes first: the
+        // dial shows the one asked for last.
+        let answerChristmas!: (list: unknown[]) => void
+        getStations.mockImplementationOnce(() => new Promise(resolve => (answerChristmas = resolve)))
+        const season = ref<string | null>('christmas')
+        const w = await mountInSeason(season)
+
+        season.value = 'newyear'
+        await flushPromises()
+        answerChristmas(byServer('christmas'))
+        await flushPromises()
+
+        expect(w.find('.radio-display-name').text()).toBe('Countdown')
+    })
+})
 
 describe('RadioDial', () => {
     beforeEach(() => {

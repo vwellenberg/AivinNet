@@ -57,11 +57,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 
 import { getStations } from '@/requests/home'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
+import { SEASON_KEY } from '@/utils/seasonLogo'
 import { useElementSize } from '@vueuse/core'
 import {
   dragPosition,
@@ -85,15 +86,39 @@ import type { Station } from '@/utils/radioDial'
 // decade stations (`GET /nothome/stations`). Home's refresh asks again.
 
 const home = useHome()
+// The season on the client (App.vue, or a Settings preview): the server puts its
+// station first. A change asks the server again.
+const season = inject(SEASON_KEY, ref(null))
 const stations = ref<Station[]>([])
+// Each request is numbered: an answer to an older one (a season that has since
+// changed) is dropped, so the list on the dial is always the one asked for last.
+let loadSeq = 0
 
 async function loadStations() {
+  const mine = ++loadSeq
+  let list: Station[]
   try {
-    stations.value = stationsFromList(await getStations())
+    list = stationsFromList(await getStations(season.value))
   } catch {
     // The dial is an extra on Home: when the list cannot be had, there is no dial.
-    stations.value = []
+    list = []
   }
+  if (mine === loadSeq) setStations(list)
+}
+
+/**
+ * Put a new list on the dial and keep the station the needle rests on and the
+ * one playing by their ids: a season's station shifts every index after it.
+ */
+function setStations(list: Station[]) {
+  const tunedId = stations.value[tuned.value]?.id
+  const restingId = stations.value[index.value]?.id
+  stations.value = list
+  const at = (id: string | undefined) => (id === undefined ? -1 : list.findIndex(station => station.id === id))
+  tuned.value = at(tunedId)
+  const resting = at(restingId)
+  index.value = resting >= 0 ? resting : snapIndex(index.value, list.length)
+  if (drag.value === null) position.value = index.value
 }
 
 const dial = ref<HTMLElement>()
@@ -119,6 +144,9 @@ watch(
   () => home.homepageItems,
   () => void loadStations()
 )
+
+// A season starts or ends, or a Settings preview is toggled: the server lists its station (or not).
+watch(season, () => void loadStations())
 
 watch(
   () => stations.value.length,

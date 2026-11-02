@@ -29,10 +29,15 @@ export async function getHomePageData(limit: number) {
     return data
 }
 
-/** The user's radio stations in dial order: mixes, genres, decades (#640). */
-export async function getStations(): Promise<StationEntry[]> {
+/**
+ * The user's radio stations in dial order: the season's station first when
+ * `season` asks for one ("christmas", "newyear"), then mixes, genres, decades
+ * (#640). An unknown season is ignored by the server.
+ */
+export async function getStations(season?: string | null): Promise<StationEntry[]> {
+    const query = season ? '?season=' + encodeURIComponent(season) : ''
     const { data } = await useAxios({
-        url: paths.api.home.stations,
+        url: paths.api.home.stations + query,
         method: 'GET',
     })
 

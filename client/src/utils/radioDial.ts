@@ -9,7 +9,8 @@
  * those are on the dial.
  */
 
-export type StationKind = 'mix' | 'genre' | 'decade'
+/** `season`: the Christmas station or the New Year's Eve countdown, which the server puts first while its season runs. */
+export type StationKind = 'mix' | 'genre' | 'decade' | 'season'
 
 export interface Station {
     /** The playlist the station plays, by the id the playlist endpoint knows. */
@@ -26,13 +27,14 @@ export interface StationEntry {
 }
 
 /**
- * The stations the server lists, on the dial in dial order: mixes, genres,
- * decades (`buildStations`), whatever order the list came in.
+ * The stations the server lists, on the dial in dial order: the season's,
+ * mixes, genres, decades (`buildStations`), whatever order the list came in.
  */
 export function stationsFromList(entries: StationEntry[]): Station[] {
     const stations = entries.map(entry => ({ id: entry.id, name: entry.name || entry.id, kind: entry.kind }))
 
     return buildStations({
+        seasons: stations.filter(station => station.kind === 'season'),
         mixes: stations.filter(station => station.kind === 'mix'),
         genres: stations.filter(station => station.kind === 'genre'),
         decades: stations.filter(station => station.kind === 'decade'),
@@ -41,17 +43,28 @@ export function stationsFromList(entries: StationEntry[]): Station[] {
 
 /**
  * Whether Home shows the dial at all. Mixes alone would only repeat the
- * "Your mixes" row right below it (why #646 hid it), so it takes at least one
- * genre or decade station to be worth a place.
+ * "Your mixes" row right below it (why #646 hid it), so it takes a genre, a
+ * decade or a seasonal station to be worth a place. A season is one on its own:
+ * at Christmas the dial exists for the Christmas station, whatever else there is.
  */
 export function dialIsWorthShowing(stations: Station[]): boolean {
-    return stations.some(station => station.kind !== 'mix')
+    return stations.some(station => station.kind === 'genre' || station.kind === 'decade' || station.kind === 'season')
 }
 
-/** Mixes, then genres, then decades: the order the dial runs in. No station twice. */
-export function buildStations(lists: { mixes?: Station[]; genres?: Station[]; decades?: Station[] }): Station[] {
+/** Seasons, then mixes, then genres, then decades: the order the dial runs in. No station twice. */
+export function buildStations(lists: {
+    seasons?: Station[]
+    mixes?: Station[]
+    genres?: Station[]
+    decades?: Station[]
+}): Station[] {
     const seen = new Set<string>()
-    const all = [...(lists.mixes ?? []), ...(lists.genres ?? []), ...(lists.decades ?? [])]
+    const all = [
+        ...(lists.seasons ?? []),
+        ...(lists.mixes ?? []),
+        ...(lists.genres ?? []),
+        ...(lists.decades ?? []),
+    ]
 
     return all.filter(station => {
         if (!station.id || seen.has(station.id)) return false
@@ -134,7 +147,7 @@ export function stationFrequency(index: number, count: number): string {
 }
 
 /** The kind of a station as the readout names it. */
-const KIND_NAME: Record<StationKind, string> = { mix: 'MIX', genre: 'GENRE', decade: 'DECADE' }
+const KIND_NAME: Record<StationKind, string> = { mix: 'MIX', genre: 'GENRE', decade: 'DECADE', season: 'SEASON' }
 
 /**
  * What the display shows for a station: its name, the kind line
