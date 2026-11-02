@@ -20,10 +20,13 @@ fast lane, strict under mypy.
 """
 
 import random
+import re
+import unicodedata
 import zlib
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass, field
+from datetime import date
 
 from aivinnet.lib.home.discover import DAY, Play, TrackFacts, _artists, _resolve
 from aivinnet.utils.dates import tag_year
@@ -43,10 +46,79 @@ STATION_MAX_PER_ALBUM = 3
 
 GENRE_PLAYLIST_IDS = tuple(f"genre{n}" for n in range(1, STATION_COUNT + 1))
 DECADE_PLAYLIST_IDS = tuple(f"decade{n}" for n in range(1, STATION_COUNT + 1))
-STATION_PLAYLIST_IDS = (*GENRE_PLAYLIST_IDS, *DECADE_PLAYLIST_IDS)
 
 GENRE = "genre"
 DECADE = "decade"
+SEASON = "season"
+
+# The seasonal stations: the Christmas station, and the countdown of New Year's Eve.
+CHRISTMAS = "christmas"
+COUNTDOWN = "countdown"
+SEASON_PLAYLIST_IDS = (CHRISTMAS, COUNTDOWN)
+STATION_PLAYLIST_IDS = (*GENRE_PLAYLIST_IDS, *DECADE_PLAYLIST_IDS, *SEASON_PLAYLIST_IDS)
+# The season the client names (utils/seasons.ts) → the station it brings to the front.
+SEASON_STATIONS = {"christmas": CHRISTMAS, "newyear": COUNTDOWN}
+# A seasonal station is offered from this many tracks on.
+SEASON_MIN_TRACKS = 5
+# The countdown counts the user's this-many most played tracks of the year.
+COUNTDOWN_LENGTH = 30
+
+# A genre that makes a track Christmas music, as a word anywhere in its name ("Christmas", "Holiday Pop").
+CHRISTMAS_GENRE_WORDS = ("christmas", "xmas", "weihnacht", "holiday", "noel", "navidad")
+# A title that does, on word boundaries: a curated list. "Santana" is not "Santa",
+# and neither is "Santa Monica": Santa only with "Claus", "Baby" or as "Santa's".
+CHRISTMAS_TITLE = re.compile(
+    r"\b(?:christmas|xmas|weihnacht\w*|jingle bells?|santa claus|santa baby|santa's|sleigh|let it snow|silent night|stille nacht"
+    r"|o tannenbaum|feliz navidad|rudolph|winter wonderland|deck the halls|o du frohliche|leise rieselt)\b"
+)
+
+
+def _fold(text: str) -> str:
+    """Casefolded and without accents: "Noël" meets "noel", "fröhliche" meets "frohliche"."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(char for char in decomposed if not unicodedata.combining(char)).casefold()
+
+
+def is_christmas(title: str, genres: Iterable[str]) -> bool:
+    """Whether a library track is Christmas music, by one of its genre names or by its title."""
+    if any(word in _fold(genre) for genre in genres for word in CHRISTMAS_GENRE_WORDS):
+        return True
+    return CHRISTMAS_TITLE.search(_fold(title)) is not None
+
+
+def christmas_pool(tracks: Iterable[tuple[str, str, str, Sequence[str]]]) -> list[tuple[str, str]]:
+    """
+    The Christmas tracks of a library, as (trackhash, albumhash) pairs, the pool
+    `station_tracks` draws from. `tracks` gives (trackhash, albumhash, title,
+    genre names) for each library track.
+    """
+    return [(trackhash, albumhash) for trackhash, albumhash, title, genres in tracks if is_christmas(title, genres)]
+
+
+def countdown_year(today: date) -> int:
+    """
+    The year the countdown counts: this year's plays, but on 1 January the one
+    that has just ended, the year being rung out.
+    """
+    return today.year - 1 if (today.month, today.day) == (1, 1) else today.year
+
+
+def countdown_tracks(plays: Iterable[Play], start: int, end: int, library: Set[str]) -> list[str]:
+    """
+    The user's most played library tracks between the timestamps `start` and
+    `end`, ordered from #30 to #1 so the favourite plays last. Empty below
+    `SEASON_MIN_TRACKS`: fewer is no countdown.
+    """
+    counts = Counter(p.trackhash for p in plays if start <= p.timestamp < end and p.trackhash in library)
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:COUNTDOWN_LENGTH]
+    if len(ranked) < SEASON_MIN_TRACKS:
+        return []
+    return [trackhash for trackhash, _ in reversed(ranked)]
+
+
+def season_station_id(season: str | None) -> str | None:
+    """The station a season brings to the front of the dial, or None. An unknown season is none, not an error."""
+    return SEASON_STATIONS.get(season) if season else None
 
 
 @dataclass
@@ -264,22 +336,62 @@ def place_stations(
     return placed
 
 
+def build_season_stations(
+    christmas: Sequence[tuple[str, str]],
+    plays: Sequence[Play],
+    library: Set[str],
+    now: float,
+    day: int,
+    year_start: int,
+    year_end: int,
+) -> list[Station]:
+    """
+    The user's seasonal stations, built whatever the season is (the listing
+    decides which one comes first). The Christmas station is drawn like a genre
+    station, from the library's Christmas pool and the user's plays; the
+    countdown is the user's most played tracks between `year_start` and
+    `year_end`. Each one is left out below `SEASON_MIN_TRACKS`.
+    """
+    found: list[Station] = []
+
+    if len(christmas) >= SEASON_MIN_TRACKS:
+        all_plays = Counter(p.trackhash for p in plays)
+        start = now - STATION_DAYS * DAY
+        window_plays = Counter(p.trackhash for p in plays if start <= p.timestamp <= now)
+        tracks = station_tracks(christmas, window_plays, all_plays, _seed(day, SEASON, CHRISTMAS))
+        if tracks:
+            found.append(Station(SEASON, CHRISTMAS, "Christmas", tracks))
+
+    countdown = countdown_tracks(plays, year_start, year_end, library)
+    if countdown:
+        found.append(Station(SEASON, COUNTDOWN, "Countdown", countdown))
+
+    return found
+
+
 def station_listing(
     mixes: Sequence[Mapping[str, object] | None],
     stations: Mapping[str, Mapping[str, object]],
+    season: str | None = None,
 ) -> list[dict[str, str]]:
     """
-    The stations of a user, in dial order: mixes, genres, decades. A slot
-    without a station is left out. `mixes` by position (each with a "name");
-    `stations` by playlist id (each with "kind" and "name").
+    The stations of a user, in dial order: the season's station first (when it
+    has one), then mixes, genres, decades. A slot without a station is left out.
+    `mixes` by position (each with a "name"); `stations` by playlist id (each
+    with "kind" and "name").
     """
     listing: list[dict[str, str]] = []
+
+    seasonal = season_station_id(season)
+    if seasonal is not None and seasonal in stations:
+        season_station = stations[seasonal]
+        listing.append({"id": seasonal, "kind": str(season_station["kind"]), "name": str(season_station["name"])})
 
     for position, mix in enumerate(mixes[:STATION_COUNT]):
         if mix is not None:
             listing.append({"id": f"mix{position + 1}", "kind": "mix", "name": str(mix["name"])})
 
-    for playlistid in STATION_PLAYLIST_IDS:
+    for playlistid in (*GENRE_PLAYLIST_IDS, *DECADE_PLAYLIST_IDS):
         station = stations.get(playlistid)
         if station is not None:
             listing.append({"id": playlistid, "kind": str(station["kind"]), "name": str(station["name"])})

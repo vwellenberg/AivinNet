@@ -318,6 +318,29 @@ als `track.date`, wenn die Datei kein Jahr trägt. `track_facts` setzt `TrackFac
 auf 0, sobald `date == last_mod` ist — sonst bekäme jedes untaggte Album das Jahrzehnt seiner
 Dateidatum. Wer das Jahr anders liest, übernimmt diese Ausnahme.
 
+## Saisonale Sender: Weihnachten und Silvester
+
+Zwei Stationen mit festen Ids, `christmas` und `countdown`, liegen in `StationStore` **neben** den
+Slots (`genre1`…). Die Routine `RadioStations` rechnet sie bei jedem Lauf für alle User; welche
+Saison gerade gilt, entscheidet erst `GET /nothome/stations?season=…` (der Client schickt
+`activeSeason`, auch die Vorschau aus den Einstellungen). Die Station steht dann **vorn** in der
+Liste. Ein unbekannter Wert wird ignoriert, nie 422 — sonst bricht ein älterer oder neuerer Client
+den Dial.
+
+- **`christmas`** (`lib/home/stations.py::is_christmas`): ein Genre, das die Wörter *irgendwo*
+  enthält (`christmas`, `xmas`, `weihnacht`, `holiday`, `noel`, `navidad`, Akzente egal), oder ein
+  Titel aus einer kuratierten Liste **auf Wortgrenzen** („Santana“ ist nicht „Santa“). Gezogen wie
+  ein Genre-Sender (`station_tracks`, täglich neu). Ab 5 Bibliothekstracks. ⚠️ „Santa Monica“ und
+  ähnliche Titel fallen mit hinein — die Liste ist bewusst grob.
+- **`countdown`** (`countdown_tracks`): die 30 meistgespielten Bibliothekstracks des Jahres aus
+  `ScrobbleTable` (pro User), **von #30 bis #1**, nicht gemischt — der Favorit spielt zuletzt. Am
+  1. Januar zählt das **vergangene** Jahr (`countdown_year`). Ab 5 Tracks. ⚠️ Die Routine läuft alle
+  6 h: direkt nach Mitternacht kann der Countdown bis zu sechs Stunden das alte Jahr zeigen.
+- Im Dial heißen sie Art `season` (Readout „SEASON“, Name „Christmas“/„Countdown“), und
+  `dialIsWorthShowing` zählt sie — zu Weihnachten steht der Dial auch ohne Genre- oder Jahrzehnt-Sender.
+- Ein Wechsel der Saison fragt den Server neu (`RadioDial.vue`, `watch(season)`); eine Antwort zu
+  einer älteren Saison wird verworfen, und der Sender unter dem Zeiger bleibt über seine Id gewählt.
+
 ## Der Advent-Kalender (1.–24. Dezember)
 
 Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home

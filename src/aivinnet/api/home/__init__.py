@@ -207,17 +207,27 @@ def surprise_album():
     return {"albumhash": random.choice(albumhashes) if albumhashes else None}
 
 
+class StationsQuery(BaseModel):
+    # A plain string on purpose: an unknown season is ignored, never a 422, so an
+    # older or newer client cannot break the dial.
+    season: str | None = Field(
+        default=None,
+        description='The season on the client: "christmas" or "newyear" puts its station first; any other value is ignored',
+    )
+
+
 @api.get("/stations")
-def get_stations():
+def get_stations(query: StationsQuery):
     """
-    The radio's stations of the user, in dial order (#640, #542): the mixes
-    ("mix1" …), then the genres and the decades, each as its playlist id,
-    `kind` ("mix" | "genre" | "decade") and `name`. RAM only; `[]` when the
-    user has none yet.
+    The radio's stations of the user, in dial order (#640, #542): the season's
+    station first when `season` asks for one (the Christmas station, or the
+    New Year's Eve countdown), then the mixes ("mix1" …), the genres and the
+    decades, each as its playlist id, `kind` ("season" | "mix" | "genre" |
+    "decade") and `name`. RAM only; `[]` when the user has none yet.
     """
     userid = get_current_userid()
     mixes = HomepageStore.entries["your_mixes"].mixes.get(userid, [])
-    return station_listing(mixes, StationStore.of(userid))
+    return station_listing(mixes, StationStore.of(userid), season=query.season)
 
 
 # SECTION: THE RECAP CARD (#530)

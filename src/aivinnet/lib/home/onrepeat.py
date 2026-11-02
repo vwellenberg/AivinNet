@@ -100,6 +100,9 @@ def get_station_playlist(playlistid: str):
     """
     station = StationStore.get(get_current_userid(), playlistid)
     if station is None:
+        # "genre2" → "Genre 2"; a seasonal id has no number → "Christmas".
         prefix = playlistid.rstrip("0123456789")
-        station = {"name": f"{prefix.capitalize()} {playlistid[len(prefix) :]}", "trackhashes": []}
+        number = playlistid[len(prefix) :]
+        name = f"{prefix.capitalize()} {number}" if number else prefix.capitalize()
+        station = {"name": name, "trackhashes": []}
     return _playlist(playlistid, station["name"], station["trackhashes"])

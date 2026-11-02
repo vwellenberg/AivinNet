@@ -378,7 +378,14 @@
       "required": []
     }
   },
-  "GET /nothome/stations": {},
+  "GET /nothome/stations": {
+    "query": {
+      "allowed": [
+        "season"
+      ],
+      "required": []
+    }
+  },
   "GET /nothome/surprise": {},
   "GET /notsettings": {},
   "GET /notsettings/get-root-dirs": {},

@@ -69,6 +69,13 @@ describe('dialIsWorthShowing', () => {
         expect(dialIsWorthShowing([mix, genre])).toBe(true)
         expect(dialIsWorthShowing([decade])).toBe(true)
     })
+
+    it('comes with a seasonal station alone: at Christmas the dial is the Christmas station', () => {
+        const christmas = { id: 'christmas', name: 'Christmas', kind: 'season' as const }
+
+        expect(dialIsWorthShowing([christmas])).toBe(true)
+        expect(dialIsWorthShowing([mix, christmas])).toBe(true)
+    })
 })
 
 describe('buildStations', () => {
@@ -91,6 +98,27 @@ describe('buildStations', () => {
     it('is empty when no list has a station, and drops a station without an id', () => {
         expect(buildStations({})).toEqual([])
         expect(buildStations({ genres: [{ ...genre, id: '' }] })).toEqual([])
+    })
+
+    it('runs the season first, before the mixes', () => {
+        const christmas = { id: 'christmas', name: 'Christmas', kind: 'season' as const }
+
+        const stations = buildStations({ mixes: [mix], genres: [genre], seasons: [christmas] })
+
+        expect(stations.map(s => s.id)).toEqual(['christmas', 'mix1', 'genre:rock'])
+    })
+})
+
+describe('stationsFromList with a season', () => {
+    it('puts the season station first, whatever order the server listed it in', () => {
+        const stations = stationsFromList([
+            { id: 'genre1', kind: 'genre', name: 'rock' },
+            { id: 'mix1', kind: 'mix', name: 'Mix 1' },
+            { id: 'countdown', kind: 'season', name: 'Countdown' },
+        ])
+
+        expect(stations.map(s => s.id)).toEqual(['countdown', 'mix1', 'genre1'])
+        expect(stations[0]).toEqual({ id: 'countdown', name: 'Countdown', kind: 'season' })
     })
 })
 
@@ -284,5 +312,17 @@ describe('labelEvery (which stations carry a frequency label)', () => {
     it('labels a lone station, and never asks for more steps than there are stations', () => {
         expect(labelEvery(300, 1, 36)).toBe(1)
         expect(labelEvery(1, 3, 36)).toBe(3)
+    })
+})
+
+describe('stationReadout of a season station', () => {
+    it('names the station as it is called, and the kind line says SEASON', () => {
+        const christmas = { id: 'christmas', name: 'Christmas', kind: 'season' as const }
+
+        expect(stationReadout(christmas, 0, 2)).toEqual({
+            name: 'Christmas',
+            kind: 'SEASON · 87.5 FM',
+            valueText: 'Christmas, 87.5 FM',
+        })
     })
 })
