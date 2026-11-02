@@ -71,25 +71,52 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 A feature release on top of 2026.10.6.
 
-- **Home.** A recap card heads Home on Mondays with your last week of
-  listening, and on the 1st with your last month. *Deep cuts* plays the tracks of your favourite artists you have
-  never heard.
-- **Stats.** A records board with your milestone plays. A skip rate shows your
-  most skipped songs and the ones you always hear to the end. Listening per
-  device, how much of your library you have explored, your longest nonstop
-  stretch and the formats you listen in.
+- **Home.**
+  - A recap card heads Home on Mondays with your last week of listening, and on
+    the 1st with your last month. Tapping it opens Stats on exactly that week or
+    month.
+  - From 1 to 24 December an **Advent calendar** opens one door a day, each with
+    an album from your library you have not heard in a long time.
+  - *Deep cuts* plays the tracks of your favourite artists you have never heard.
+- **AivinNet FM.** A dial on Home tunes between your mixes, genres and decades,
+  with the station read out beside the band.
+- **Smart playlists.** Playlists that fill themselves from rules (genre, artist,
+  year, plays, date added, last played, favourite), kept up to date against your
+  library.
+- **Playback.**
+  - ReplayGain evens out the volume between tracks and albums.
+  - A sleep timer fades out and stops.
+  - A track removed from the queue can be put back with *Undo*.
+- **Stats.**
+  - A records board with your milestone plays.
+  - A skip rate with your most skipped songs and the ones you always hear to the
+    end.
+  - Listening per device, how much of your library you have explored, your
+    longest nonstop stretch and the formats you listen in.
+  - Last week and last month as periods of their own.
 - **Rewind as a story image.** Save your Rewind as a picture to share.
-- **AivinNet FM.** A dial that tunes between your mixes, genres and decades, with a readout of the station under the needle.
-- **Seasons.** From 24 October to 7 November the app wears a Halloween palette, with
-  bats, ghosts, a pumpkin, a vampire, a zombie and Frankenstein's monster
-  crossing now and then. From 10 to 30 December it snows. Nothing moves when
-  your system asks for reduced motion.
-- **A few easter eggs.** Not telling where.
-- **Fixed.** Stats tiles keep their words on their line while they count up,
-  and "How you listened" and playtime fit their tile. The context menu no
-  longer leaves a stray listener behind when it closes.
-- **Under the hood.** Dependencies are up to date (flask-openapi3 4,
-  Vitest 5, pinia-plugin-persistedstate 4, vue-debounce 5).
+- **Seasons.**
+  - **Halloween** (24 October to 7 November): a Halloween palette and a pumpkin
+    logo. Bats, ghosts and a spider come by now and then, a runner flees a horde
+    of zombies, a vampire peeks over a tile and turns into a bat, and graves,
+    pumpkins and skulls turn up on the tiles now and then.
+  - **Christmas** (10 to 30 December): snow, a bauble logo and a sleigh. There are
+    fairy lights on the top bar, presents and cookies on the tiles, and a snowman
+    peeking out.
+  - Nothing moves when your system asks for reduced motion.
+- **Smaller things.**
+  - The buttons in the player bar say what they do when you hover them.
+  - Tags a tagger had mangled show correctly (Whereâ€™s → Where’s).
+  - A cover that failed to load is loaded again.
+  - A few easter eggs. Not telling where.
+- **Fixed.**
+  - Mix tiles on Home are all the same height and no longer wobble under the
+    mouse.
+  - The recap and Continue cards are readable in dark mode.
+  - Stats tiles keep their words on their line while they count up.
+  - The context menu no longer leaves a stray listener behind when it closes.
+- **Under the hood.** The web client builds with Vite 8. Dependencies are up to
+  date (flask-openapi3 4, Vitest 5, pinia-plugin-persistedstate 4, vue-debounce 5).
 
 <details>
 <summary>What v2026.10.6 brought</summary>
