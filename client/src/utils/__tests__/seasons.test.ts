@@ -96,9 +96,9 @@ describe('paintedPalette: a temporary overlay, the stored scheme stays', () => {
         }
     })
 
-    it('Christmas keeps the stored scheme and only swaps the sprinkle', () => {
+    it('Christmas paints the Christmas palette over any stored scheme, and swaps the sprinkle', () => {
         for (const stored of PALETTES) {
-            expect(paintedPalette(stored, 'christmas')).toBe(stored)
+            expect(paintedPalette(stored, 'christmas')).toBe('christmas')
         }
     })
 
@@ -108,10 +108,12 @@ describe('paintedPalette: a temporary overlay, the stored scheme stays', () => {
         }
     })
 
-    it('the Halloween palette is a known scheme the Settings dropdown does not offer', () => {
-        expect(PALETTES).toContain('halloween')
+    it('the Halloween and Christmas palettes are known schemes the Settings dropdown does not offer', () => {
         const offered = (appearance.find((s) => s.title === 'Colour scheme')?.options ?? []).map((o) => o.value)
-        expect(offered).not.toContain('halloween')
+        for (const season of ['halloween', 'christmas'] as const) {
+            expect(PALETTES).toContain(season)
+            expect(offered).not.toContain(season)
+        }
     })
 })
 

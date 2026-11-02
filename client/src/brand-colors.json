@@ -240,6 +240,58 @@
         "#F4F2ED": "#FBF3E4",
         "#F5D547": "#A6F03A"
       }
+    },
+    "christmas": {
+      "light": {
+        "ink": "#1D0B10",
+        "paper": "#FBF8F2",
+        "teal": "#3E9B6A",
+        "yellow": "#F5C542",
+        "coral": "#D9363F",
+        "lavender": "#9CC3E6",
+        "pink": "#F28BA6",
+        "blue": "#2B4C8C",
+        "kraft": "#9A6236",
+        "lime": "#8FCB5B",
+        "gold": "#D6A036",
+        "sea": "#6FCBB0",
+        "orchid": "#9B4068",
+        "blush": "#F5CDCB",
+        "blushSoft": "#FCE8E6",
+        "textMuted": "#5F5559",
+        "home": "#2E8A5C"
+      },
+      "dark": {
+        "ground": "#0D1812",
+        "panel": "#132219",
+        "soft": "#1E3027",
+        "textMuted": "#BFD0C6",
+        "contentMuted": "#CDDAD3",
+        "pastelPaper": "70%"
+      },
+      "doodles": {
+        "#232046": "#2B1A1E",
+        "#2B2733": "#2D1E22",
+        "#2E9E90": "#1F6B45",
+        "#35B5A5": "#3E9B6A",
+        "#3E4890": "#1E4A34",
+        "#3EBFAF": "#6FCBB0",
+        "#5560BD": "#2B4C8C",
+        "#5B67C9": "#3D5FA8",
+        "#66C7B8": "#8FD6BE",
+        "#7C9BD6": "#9CC3E6",
+        "#8E7BE0": "#7FAFD8",
+        "#ACD9E8": "#D2E9F5",
+        "#C36BBE": "#9B4068",
+        "#D9603F": "#D9363F",
+        "#E2574C": "#D9363F",
+        "#EFA0C8": "#F28BA6",
+        "#F0A23C": "#D6A036",
+        "#F0A6B8": "#F5CDCB",
+        "#F2A9C4": "#F7B3C8",
+        "#F4F2ED": "#FBF8F2",
+        "#F5D547": "#F5C542"
+      }
     }
   }
 }

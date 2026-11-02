@@ -23,10 +23,10 @@ export function setSeasonPreview(season: Season | null): void {
 }
 
 /**
- * The palette a season paints. Christmas keeps the chosen scheme and only
- * swaps the sprinkle (Global/_seasons.scss, `html.season-christmas`).
+ * The palette a season paints. Christmas also swaps the sprinkle
+ * (Global/_seasons.scss, `html.season-christmas`).
  */
-const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween' }
+const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween', christmas: 'christmas' }
 
 /** The season a LOCAL calendar date falls in, or null. `getMonth()` is 0-based. */
 export function seasonOn(now: Date = new Date()): Season | null {

@@ -1,19 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+    BELL_GLYPH,
     CHASE_BIG_SHARE,
     CHASE_ZOMBIES_MAX,
     CHASE_ZOMBIES_MIN,
     CHASE_ZOMBIES_TYPICAL_MAX,
     CROSSER_QUIET_START_S,
+    DRIFT_SETTLE_S,
     MAX_PARTICLES,
+    PENGUIN_GLYPH,
+    PRESENT_GLYPH,
     SLEIGH_GROUP,
     SPIDER_GLYPH,
+    STAR_GLYPH,
+    WADDLE_MAX,
+    WADDLE_MIN,
     ZOMBIE_GLYPHS,
     chaseHorde,
     chaseZombieCount,
     crossing,
+    hangs,
     particlesFor,
+    waddleGroup,
 } from '@/utils/seasonParticles'
 
 // A fixed random source: every value lands mid-range, so the layout is the same
@@ -49,8 +58,8 @@ describe('particlesFor: the count is capped', () => {
 
     it('a season with a few particles keeps every one of them', () => {
         expect(particlesFor('halloween', MIDDLE)).toHaveLength(8)
-        // 18 snowflakes and the one sleigh.
-        expect(particlesFor('christmas', MIDDLE)).toHaveLength(19)
+        // 18 snowflakes, and one each of the sleigh, the bell, the present, the waddle and the star.
+        expect(particlesFor('christmas', MIDDLE)).toHaveLength(23)
     })
 
     it('the whole horde is one particle: the cap counts the chase once', () => {
@@ -66,7 +75,13 @@ describe('particlesFor: Christmas is snow, and now and then a sleigh', () => {
         const flakes = all.filter((p) => p.kind === 'flake')
         expect(flakes).toHaveLength(18)
         expect(flakes.every((p) => p.group.length === 0)).toBe(true)
-        expect(all.filter((p) => p.kind !== 'flake').map((p) => p.kind)).toEqual(['sleigh'])
+        expect(all.filter((p) => p.kind !== 'flake').map((p) => p.kind)).toEqual([
+            'sleigh',
+            'bell',
+            'present',
+            'waddle',
+            'star',
+        ])
 
         const sizes = new Set(flakes.map((p) => Math.round(p.size)))
         expect(sizes.size).toBeGreaterThan(2)
@@ -453,18 +468,32 @@ describe('particlesFor: every value stays in its range', () => {
 // fixed window (ghosts were even mid-rise at once), and a fresh page saw seven
 // or eight of them in its first minute.
 describe('crossers: about one every 15 s, from the first minute on', () => {
-    const CROSSERS = new Set(['bat', 'ghost', 'pumpkin', 'chase', 'spider', 'sleigh'])
+    const CROSSERS = new Set([
+        'bat',
+        'ghost',
+        'pumpkin',
+        'chase',
+        'spider',
+        'sleigh',
+        'bell',
+        'present',
+        'waddle',
+        'star',
+    ])
     const SEEDS = Array.from({ length: 200 }, (_, i) => i + 1)
+    const SEASONS = ['halloween', 'christmas'] as const
 
-    it('comes by once every 15 s or less often, on average', () => {
-        let rate = 0
-        for (const seed of SEEDS) {
-            for (const p of particlesFor('halloween', sequence(seed))) {
-                if (CROSSERS.has(p.kind)) rate += 1 / p.duration
+    it('comes by once every 15 s or less often, on average, in both seasons', () => {
+        for (const season of SEASONS) {
+            let rate = 0
+            for (const seed of SEEDS) {
+                for (const p of particlesFor(season, sequence(seed))) {
+                    if (CROSSERS.has(p.kind)) rate += 1 / p.duration
+                }
             }
+            const meanGap = 1 / (rate / SEEDS.length)
+            expect(meanGap, season).toBeGreaterThanOrEqual(15)
         }
-        const meanGap = 1 / (rate / SEEDS.length)
-        expect(meanGap).toBeGreaterThanOrEqual(15)
     })
 
     it('starts every crosser somewhere in its own cycle, after a quiet start, never mid-way', () => {
@@ -478,17 +507,306 @@ describe('crossers: about one every 15 s, from the first minute on', () => {
         }
     })
 
-    it('keeps the first minute after a load as calm as any other', () => {
-        let firstMinute = 0
-        let rate = 0
-        for (const seed of SEEDS) {
-            for (const p of particlesFor('halloween', sequence(seed)).filter((p) => CROSSERS.has(p.kind))) {
-                if (p.delay < 60) firstMinute++
-                rate += 1 / p.duration
+    it('keeps the first minute after a load as calm as any other, in both seasons', () => {
+        for (const season of SEASONS) {
+            let firstMinute = 0
+            let rate = 0
+            for (const seed of SEEDS) {
+                for (const p of particlesFor(season, sequence(seed)).filter((p) => CROSSERS.has(p.kind))) {
+                    if (p.delay < 60) firstMinute++
+                    rate += 1 / p.duration
+                }
+            }
+            // Steady state brings 60 * rate per minute; the first minute may not bring
+            // more than that plus a little sampling slack.
+            expect(firstMinute / SEEDS.length, season).toBeLessThanOrEqual((60 * rate) / SEEDS.length + 0.5)
+        }
+    })
+})
+
+describe('particlesFor: Christmas hangs a bell on a ribbon, as the spider hangs', () => {
+    const bellOf = (seed: number) => particlesFor('christmas', sequence(seed)).find((p) => p.kind === 'bell')!
+
+    it('is one bell, drawn with the bell emoji', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const bells = particlesFor('christmas', sequence(seed)).filter((p) => p.kind === 'bell')
+            expect(bells).toHaveLength(1)
+            expect(bells[0].group).toEqual([BELL_GLYPH])
+        }
+        expect(BELL_GLYPH).toBe('🔔')
+    })
+
+    it('hangs from the top edge like the spider: no sky lane, a drop within the spider\'s range', () => {
+        for (const seed of [2, 6, 10, 14]) {
+            const bell = bellOf(seed)
+            expect(bell.top).toBe(0)
+            expect(bell.ground).toBe(false)
+            expect(bell.lift).toBe(0)
+            expect(bell.drop).toBeGreaterThanOrEqual(25)
+            expect(bell.drop).toBeLessThanOrEqual(55)
+        }
+    })
+
+    it('is a hanger, and so is the spider, and nothing else is', () => {
+        expect(hangs(bellOf(2))).toBe(true)
+        for (const seed of [2, 6]) {
+            const spider = particlesFor('halloween', sequence(seed)).find((p) => p.kind === 'spider')!
+            expect(hangs(spider)).toBe(true)
+        }
+        for (const p of [...particlesFor('christmas', sequence(4)), ...particlesFor('halloween', sequence(4))]) {
+            if (p.kind !== 'spider' && p.kind !== 'bell') expect(hangs(p), p.kind).toBe(false)
+        }
+    })
+
+    it('is as rare as the spider: a long cycle, a crossing in a short part of it, and it waits first', () => {
+        for (const seed of [2, 6, 10]) {
+            const bell = bellOf(seed)
+            expect(bell.delay).toBeGreaterThan(0)
+            expect(bell.duration).toBeGreaterThanOrEqual(80 * 1.5)
+            expect(bell.duration).toBeLessThanOrEqual(100 * 1.5)
+        }
+    })
+
+    it('sits somewhere across the width, for any seed', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const bell = bellOf(seed)
+            expect(bell.left).toBeGreaterThanOrEqual(5)
+            expect(bell.left).toBeLessThanOrEqual(95)
+        }
+    })
+
+    it('has a ribbon that is gold or red, never the line colour, and both turn up', () => {
+        const ribbons = new Set<string>()
+        for (let seed = 1; seed <= 60; seed++) ribbons.add(bellOf(seed).ribbon)
+        expect(ribbons).toEqual(new Set(['gold', 'red']))
+    })
+
+    it('gives the spider the line colour as its thread', () => {
+        const spider = particlesFor('halloween', sequence(6)).find((p) => p.kind === 'spider')!
+        expect(spider.ribbon).toBe('line')
+    })
+})
+
+describe('particlesFor: Christmas presents tumble along the ground lane, as the pumpkin rolls', () => {
+    const presentOf = (seed: number) => particlesFor('christmas', sequence(seed)).find((p) => p.kind === 'present')!
+
+    it('is one present, drawn with the gift emoji', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const presents = particlesFor('christmas', sequence(seed)).filter((p) => p.kind === 'present')
+            expect(presents).toHaveLength(1)
+            expect(presents[0].group).toEqual([PRESENT_GLYPH])
+        }
+        expect(PRESENT_GLYPH).toBe('🎁')
+    })
+
+    it('stands on the ground lane above the bar, like the pumpkin', () => {
+        for (const seed of [2, 6, 10, 14]) {
+            const present = presentOf(seed)
+            expect(present.ground).toBe(true)
+            expect(present.lift).toBeGreaterThanOrEqual(4)
+            expect(present.lift).toBeLessThanOrEqual(10)
+        }
+    })
+
+    it('is rare like the pumpkin: it waits, and its cycle is the pumpkin\'s', () => {
+        for (const seed of [2, 6, 10]) {
+            const present = presentOf(seed)
+            expect(present.delay).toBeGreaterThan(0)
+            expect(present.duration).toBeGreaterThanOrEqual(150 * 1.5)
+            expect(present.duration).toBeLessThanOrEqual(200 * 1.5)
+        }
+    })
+
+    it('goes both ways, like the pumpkin', () => {
+        const dirs = new Set([1, 5, 9, 13, 17, 21].map((seed) => presentOf(seed).dir))
+        expect(dirs).toEqual(new Set([1, -1]))
+    })
+
+    it('turns a full turn every 2.5 to 3.5 s: a tumble, not a bob', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const present = presentOf(seed)
+            expect(present.wobble).toBeGreaterThanOrEqual(2.5)
+            expect(present.wobble).toBeLessThanOrEqual(3.5)
+        }
+    })
+
+    it('is not a hanger and not a group: no thread, no offsets', () => {
+        const present = presentOf(3)
+        expect(hangs(present)).toBe(false)
+        expect(present.offsets).toEqual([])
+    })
+})
+
+describe('waddleGroup: 3 to 5 penguins in one loose row, the leader first', () => {
+    it('has 3 to 5 penguins, all of them the penguin glyph', () => {
+        const counts = new Set<number>()
+        for (let seed = 1; seed <= 200; seed++) {
+            const { group } = waddleGroup(sequence(seed))
+            expect(group.length, `seed ${seed}`).toBeGreaterThanOrEqual(WADDLE_MIN)
+            expect(group.length, `seed ${seed}`).toBeLessThanOrEqual(WADDLE_MAX)
+            for (const g of group) expect(g).toBe(PENGUIN_GLYPH)
+            counts.add(group.length)
+        }
+        expect(counts).toEqual(new Set([3, 4, 5]))
+        expect(WADDLE_MIN).toBe(3)
+        expect(WADDLE_MAX).toBe(5)
+        expect(PENGUIN_GLYPH).toBe('🐧')
+    })
+
+    it('puts the leader at (0, 0), the leftmost spot, and the rest to its right', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { offsets } = waddleGroup(sequence(seed))
+            expect(offsets[0]).toEqual({ x: 0, y: 0 })
+            for (const o of offsets.slice(1)) expect(o.x, `seed ${seed}`).toBeGreaterThan(0)
+        }
+    })
+
+    it('has one offset per penguin, and no penguin drops below the ground lane', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const { group, offsets } = waddleGroup(sequence(seed))
+            expect(offsets, `seed ${seed}`).toHaveLength(group.length)
+            for (const o of offsets) expect(o.y, `seed ${seed}`).toBeLessThanOrEqual(0)
+        }
+    })
+
+    it('is one loose row: the penguins step along the ground with no two on top of each other', () => {
+        for (let seed = 1; seed <= 200; seed++) {
+            const xs = waddleGroup(sequence(seed)).offsets.map((o) => o.x)
+            for (let j = 1; j < xs.length; j++) {
+                expect(xs[j] - xs[j - 1], `seed ${seed}`).toBeGreaterThan(0.5)
             }
         }
-        // Steady state brings 60 * rate per minute; the first minute may not bring
-        // more than that plus a little sampling slack.
-        expect(firstMinute / SEEDS.length).toBeLessThanOrEqual((60 * rate) / SEEDS.length + 0.5)
+    })
+
+    it('reports the box it needs, as the chase does', () => {
+        for (let seed = 1; seed <= 100; seed++) {
+            const { offsets, extent } = waddleGroup(sequence(seed))
+            expect(extent.w, `seed ${seed}`).toBeCloseTo(Math.max(...offsets.map((o) => o.x)) + 1, 10)
+            expect(extent.h, `seed ${seed}`).toBeCloseTo(-Math.min(...offsets.map((o) => o.y)) + 1, 10)
+        }
+    })
+})
+
+describe('particlesFor: Christmas penguins waddle right to left, as the chase runs', () => {
+    const waddleOf = (seed: number) => particlesFor('christmas', sequence(seed)).find((p) => p.kind === 'waddle')!
+
+    it('is one waddle, carrying its penguins, offsets and box', () => {
+        for (let seed = 1; seed <= 30; seed++) {
+            const items = particlesFor('christmas', sequence(seed)).filter((p) => p.kind === 'waddle')
+            expect(items).toHaveLength(1)
+            const waddle = items[0]
+            expect(waddle.group.length).toBeGreaterThanOrEqual(WADDLE_MIN)
+            expect(waddle.offsets).toHaveLength(waddle.group.length)
+            expect(waddle.size).toBe(24)
+            expect(waddle.extent.w).toBeGreaterThan(1)
+            expect(waddle.extent.h).toBeGreaterThan(1)
+        }
+    })
+
+    it('always goes right to left (dir -1), whatever the group, so the leader leads', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            expect(waddleOf(seed).dir, `seed ${seed}`).toBe(-1)
+        }
+    })
+
+    it('waddles on the ground lane, lifted above the player bar, never in the sky', () => {
+        for (const seed of [3, 7, 11, 19]) {
+            const waddle = waddleOf(seed)
+            expect(waddle.ground).toBe(true)
+            expect(waddle.lift).toBeGreaterThanOrEqual(2.5)
+            expect(waddle.lift).toBeLessThanOrEqual(6)
+            expect(hangs(waddle)).toBe(false)
+        }
+    })
+
+    it('is as rare as the chase: the chase rhythm and rarity factor', () => {
+        for (const seed of [3, 7, 11]) {
+            const waddle = waddleOf(seed)
+            expect(waddle.delay).toBeGreaterThan(0)
+            expect(waddle.duration).toBeGreaterThanOrEqual(120 * 1.5)
+            expect(waddle.duration).toBeLessThanOrEqual(160 * 1.5)
+        }
+    })
+
+    it('crosses from fully off the right edge to fully off the left, measured from its own width', () => {
+        expect(crossing(waddleOf(4))).toEqual({ from: '100vw', to: 'calc(-100% - 1rem)' })
+    })
+
+    it('has no fixed-margin crossing that a cluster of penguins would stick out of', () => {
+        expect(crossing(waddleOf(4)).to).not.toBe('-12vw')
+        expect(crossing(waddleOf(4)).from).not.toBe('112vw')
+    })
+})
+
+describe('Christmas crossers: the lanes and the sky, and nothing behind the bar', () => {
+    it('keeps the bell in the sky, the present and the penguins on the ground lane', () => {
+        for (const seed of [1, 5, 9, 13]) {
+            const items = particlesFor('christmas', sequence(seed))
+            for (const p of items.filter((p) => p.kind === 'bell')) expect(p.ground).toBe(false)
+            for (const p of items.filter((p) => p.kind === 'present' || p.kind === 'waddle')) {
+                expect(p.ground).toBe(true)
+                expect(p.lift).toBeGreaterThan(0)
+            }
+        }
+    })
+
+    it('never puts a ground crosser under the bar: its lift is above zero, its glyphs never rise above the lane', () => {
+        for (const seed of [1, 5, 9, 13]) {
+            for (const p of particlesFor('christmas', sequence(seed))) {
+                if (!p.ground) continue
+                expect(p.lift).toBeGreaterThan(0)
+                for (const o of p.offsets) expect(o.y).toBeLessThanOrEqual(0)
+            }
+        }
+    })
+})
+
+describe('particlesFor: Christmas shooting star, across the upper sky', () => {
+    const starOf = (seed: number) => particlesFor('christmas', sequence(seed)).find((p) => p.kind === 'star')!
+
+    it('is one star, drawn with the star emoji', () => {
+        for (let seed = 1; seed <= 20; seed++) {
+            const stars = particlesFor('christmas', sequence(seed)).filter((p) => p.kind === 'star')
+            expect(stars).toHaveLength(1)
+            expect(stars[0].group).toEqual([STAR_GLYPH])
+        }
+        expect(STAR_GLYPH).toBe('⭐')
+    })
+
+    it('always goes right to left, so its trail streams behind it, for any seed', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            expect(starOf(seed).dir, `seed ${seed}`).toBe(-1)
+        }
+    })
+
+    it('flies in the upper sky, never on the ground lane, and is no hanger', () => {
+        for (let seed = 1; seed <= 40; seed++) {
+            const star = starOf(seed)
+            expect(star.ground, `seed ${seed}`).toBe(false)
+            expect(star.lift).toBe(0)
+            expect(star.top, `seed ${seed}`).toBeGreaterThanOrEqual(8)
+            expect(star.top, `seed ${seed}`).toBeLessThanOrEqual(30)
+            expect(hangs(star)).toBe(false)
+        }
+    })
+
+    it('is rare: it waits first, and its cycle is a long one (100 to 140 s, times the rarity factor)', () => {
+        for (const seed of [3, 7, 11]) {
+            const star = starOf(seed)
+            expect(star.delay).toBeGreaterThan(0)
+            expect(star.duration).toBeGreaterThanOrEqual(100 * 1.5)
+            expect(star.duration).toBeLessThanOrEqual(140 * 1.5)
+        }
+    })
+
+    it('crosses fully off screen, from the right edge to the left, as one glyph does', () => {
+        expect(crossing(starOf(4))).toEqual({ from: '112vw', to: '-12vw' })
+    })
+})
+
+describe('the snow drift on the player bar: settles over a few minutes', () => {
+    it('settles in over 2 to 5 minutes', () => {
+        expect(DRIFT_SETTLE_S).toBeGreaterThanOrEqual(120)
+        expect(DRIFT_SETTLE_S).toBeLessThanOrEqual(300)
     })
 })
