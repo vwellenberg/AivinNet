@@ -15,7 +15,7 @@ const source = readFileSync(APP, 'utf8')
 // Import lines first thrown away: only the template's own use of the names counts.
 const template = source.slice(0, source.indexOf('<script'))
 
-describe('App.vue mounts the season drivers for both seasons', () => {
+describe('App.vue mounts the season drivers for every season', () => {
     it('reads the App (parser guard)', () => {
         expect(template.length).toBeGreaterThan(200)
         expect(template).toContain('<SeasonParticles')
@@ -34,8 +34,21 @@ describe('App.vue mounts the season drivers for both seasons', () => {
         expect(template).not.toMatch(/SeasonVampire[^>]*halloween/)
     })
 
+    it('sets the New Year\'s class on <html> with the others, so its tile rules apply (#674)', () => {
+        const script = source.slice(source.indexOf('<script'))
+        expect(script).toContain('season.value === "newyear"')
+        expect(script).toMatch(/classList\.toggle\("season-newyear", newyear\)/)
+    })
+
+    it('shows the New Year\'s pill in the top bar only in that season, once on desktop and once on phones', () => {
+        const nav = readFileSync('src/components/nav/NavBar.vue', 'utf8')
+        expect(nav).toContain('<NewYearCountdown')
+        expect(nav).toMatch(/<NewYearCountdown v-if="season === 'newyear' && !isMobile" \/>/)
+        expect(nav).toMatch(/<NewYearCountdown v-if="season === 'newyear' && isMobile" \/>/)
+    })
+
     it('has a figure and tile set for each season it can mount for', () => {
-        for (const season of ['halloween', 'christmas'] as const) {
+        for (const season of ['halloween', 'christmas', 'newyear'] as const) {
             expect(PEEK_SPECS[season].figure.length).toBeGreaterThan(0)
             expect(tileEmojiWeightsFor(season).length).toBeGreaterThan(0)
         }

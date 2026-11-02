@@ -10,6 +10,8 @@
         <span class="topnav-lights" aria-hidden="true"><i v-for="n in FAIRY_LIGHTS" :key="n" :style="{ '--light-i': String(n) }" /></span>
         <div class="left">
             <Logo v-if="!isMobile" class="nav-logo" />
+            <!-- New Year's Eve: the clock to midnight, beside the logo on desktop (#674). -->
+            <NewYearCountdown v-if="season === 'newyear' && !isMobile" />
         </div>
         <div v-if="settings.is_alt_layout || !settings.use_sidebar || !xl" class="right">
             <span v-if="isMobile && !onSearchRoute" class="mobile-nav-title">
@@ -55,6 +57,8 @@
                     <component :is="action.icon" />
                 </button>
             </template>
+            <!-- On a phone the pill sits in the right group instead (the logo column is hidden there). -->
+            <NewYearCountdown v-if="season === 'newyear' && isMobile" />
             <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
             <ThemeToggle v-if="lookHasModes(settings.look)" />
             <AvatarWithDropdown />
@@ -64,7 +68,7 @@
 
 <script setup lang="ts">
 import { Routes } from '@/router'
-import { computed, nextTick, ref } from 'vue'
+import { computed, inject, nextTick, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import useAuth from '@/stores/auth'
@@ -79,12 +83,13 @@ const FAIRY_LIGHTS = Array.from({ length: 12 }, (_, i) => i)
 import SearchInput from '../RightSideBar/SearchInput.vue'
 import Logo from '@/components/Logo.vue'
 import { useLogoSignal } from '@/composables/useLogoSignal'
-import { useSeasonLogo } from '@/utils/seasonLogo'
+import { SEASON_KEY, useSeasonLogo } from '@/utils/seasonLogo'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
 import SparklesSvg from '@/assets/icons/sparkles.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
 import ThemeToggle from './ThemeToggle.vue'
+import NewYearCountdown from './NewYearCountdown.vue'
 import useModal from '@/stores/modal'
 
 const auth = useAuth()
@@ -101,6 +106,8 @@ const logoSpinning = ref(false)
 const { registerClick } = useLogoSignal()
 // The same seasonal dress as the desktop logo (utils/seasonLogo.ts).
 const logoSrc = useSeasonLogo()
+// The season App.vue provides (the date, or the Appearance preview): the New Year's pill follows it.
+const season = inject(SEASON_KEY, ref(null))
 
 function onLogoTap(e: MouseEvent) {
     logoSpinning.value = true

@@ -30,10 +30,11 @@
     pointer-events: none;
 }
 
-// The Halloween and Christmas tiles share one drawing; they differ only in how
-// they leave (below).
+// The Halloween, Christmas and New Year's tiles share one drawing; they differ only in
+// how they leave (below).
 html.season-halloween,
-html.season-christmas {
+html.season-christmas,
+html.season-newyear {
     .season-tile-emoji {
         position: fixed;
         left: 0;

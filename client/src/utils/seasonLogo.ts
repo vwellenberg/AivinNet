@@ -1,7 +1,8 @@
 /**
  * The logo planet dresses up for the seasons (utils/seasons.ts): a carved
- * pumpkin for Halloween, a Christmas bauble for Christmas. Same pixel grid as
- * the planet, so the outline, the hover spin and the orbit fit unchanged.
+ * pumpkin for Halloween, a Christmas bauble for Christmas, a party hat for New
+ * Year's Eve. Same pixel grid as the planet, so the outline, the hover spin and
+ * the orbit fit unchanged.
  *
  * App.vue owns the active season (it already reads date, look and the switch in
  * Settings → Appearance) and provides it; both logos read it from there, so a
@@ -11,12 +12,13 @@ import { computed, inject, ref, type ComputedRef, type InjectionKey, type Ref } 
 
 import christmasLogo from '@/assets/icons/logos/logo-christmas.png'
 import halloweenLogo from '@/assets/icons/logos/logo-halloween.png'
+import newyearLogo from '@/assets/icons/logos/logo-newyear.png'
 import planetLogo from '@/assets/icons/logos/logo-subspaceradio.png'
 import type { Season } from './seasons'
 
 export const SEASON_KEY: InjectionKey<Ref<Season | null>> = Symbol('season')
 
-const LOGOS: Record<Season, string> = { halloween: halloweenLogo, christmas: christmasLogo }
+const LOGOS: Record<Season, string> = { halloween: halloweenLogo, christmas: christmasLogo, newyear: newyearLogo }
 
 export function logoFor(season: Season | null): string {
     return season ? LOGOS[season] : planetLogo

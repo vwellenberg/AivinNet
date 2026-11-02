@@ -5,7 +5,7 @@
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" :navigation="navigations" />
     <!-- The season on the page: emoji on the cover tiles, and a figure peeking over one
-         (the vampire at Halloween, the snowman at Christmas). -->
+         (the vampire at Halloween, the snowman at Christmas, the party-goer on New Year's Eve). -->
     <SeasonTileEmojis v-if="season" :season="season" />
     <SeasonVampire v-if="season" :season="season" />
     <!-- The logo's signal easter egg (components/SignalBurst.vue, #544). -->
@@ -178,8 +178,9 @@ watch(
             paintedPalette(settings.palette, season.value),
             season.value === "christmas",
             season.value === "halloween",
+            season.value === "newyear",
         ] as const,
-    ([look, palette, christmas, halloween]) => {
+    ([look, palette, christmas, halloween, newyear]) => {
         for (const [cls, on] of Object.entries(paletteHtmlClasses(look, palette))) {
             document.documentElement.classList.toggle(cls, on);
         }
@@ -187,6 +188,8 @@ watch(
         document.documentElement.classList.toggle("season-christmas", christmas);
         // The Halloween cover emoji and their rules (Global/_seasons.scss).
         document.documentElement.classList.toggle("season-halloween", halloween);
+        // New Year's Eve (#674): the same cover emoji, champagne and fireworks.
+        document.documentElement.classList.toggle("season-newyear", newyear);
     },
     { immediate: true }
 );

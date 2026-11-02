@@ -49,6 +49,31 @@ describe('SeasonParticles: drawn only while a season is active', () => {
         expect(wrapper.findAll('.season-particle.season-bat')).toHaveLength(0)
     })
 
+    it('draws the rockets at New Year\'s Eve: each on the ground lane, with its head and its sparks', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'newyear' } })
+        const rockets = wrapper.findAll('.season-particle.season-rocket')
+        expect(rockets).toHaveLength(4)
+        for (const r of rockets) {
+            expect(r.classes()).toContain('is-ground')
+            expect(r.findAll('.season-rocket-head')).toHaveLength(1)
+            const sparks = r.findAll('.season-spark')
+            expect(sparks.length).toBeGreaterThanOrEqual(8)
+            expect(sparks.length).toBeLessThanOrEqual(12)
+            // Each spark has its own angle and distance, set as custom properties.
+            const style = (sparks[0].element as HTMLElement).style
+            expect(style.getPropertyValue('--spark-angle')).toMatch(/deg$/)
+            expect(style.getPropertyValue('--spark-dist')).toMatch(/px$/)
+        }
+    })
+
+    it('draws the sparkles at New Year\'s Eve as ✨ glyphs, and no snow', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'newyear' } })
+        const glitter = wrapper.findAll('.season-particle.season-glitter')
+        expect(glitter).toHaveLength(4)
+        expect(glitter.every((g) => g.text() === '✨')).toBe(true)
+        expect(wrapper.findAll('.season-particle.season-flake')).toHaveLength(0)
+    })
+
     it('draws one sleigh at Christmas, reindeer first, and gives it a right-to-left crossing', () => {
         const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
         const sleighs = wrapper.findAll('.season-particle.season-sleigh')
@@ -155,6 +180,14 @@ describe('SeasonParticles: drawn only while a season is active', () => {
 })
 
 describe('SeasonParticles: reduced motion draws nothing', () => {
+    it('draws no fireworks and no sparkles under the OS "reduce motion" setting (#674)', () => {
+        stubMatchMedia(true)
+        const wrapper = mount(SeasonParticles, { props: { season: 'newyear' } })
+        expect(wrapper.find('.season-particles').exists()).toBe(false)
+        expect(wrapper.findAll('.season-rocket')).toHaveLength(0)
+        expect(wrapper.findAll('.season-spark')).toHaveLength(0)
+    })
+
     it('draws no snow under the OS "reduce motion" setting', () => {
         stubMatchMedia(true)
         const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })

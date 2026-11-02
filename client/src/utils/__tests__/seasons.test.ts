@@ -43,13 +43,26 @@ describe('seasonOn: the calendar dates (local time)', () => {
         expect(seasonOn(at(2026, OCT, 31, 23, 59, 59, 999))).toBe('halloween')
     })
 
-    it('Dec 9 is no season, Dec 10 to 30 are Christmas, New Year\'s Eve is free', () => {
+    it('Dec 9 is no season, Dec 10 to 30 are Christmas, Dec 31 is New Year\'s Eve', () => {
         expect(seasonOn(at(2026, DEC, 9, 23, 59, 59, 999))).toBeNull()
         expect(seasonOn(at(2026, DEC, 10, 0, 0, 0, 0))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 24))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 25))).toBe('christmas')
         expect(seasonOn(at(2026, DEC, 30, 23, 59, 59, 999))).toBe('christmas')
-        expect(seasonOn(at(2026, DEC, 31, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2026, DEC, 31, 0, 0, 0, 0))).toBe('newyear')
+    })
+
+    it('New Year\'s Day is New Year\'s too, the day after 1 January is none', () => {
+        expect(seasonOn(at(2027, 0, 1, 0, 0, 0, 0))).toBe('newyear')
+        expect(seasonOn(at(2027, 0, 1, 23, 59, 59, 999))).toBe('newyear')
+        expect(seasonOn(at(2027, 0, 2, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2027, 0, 15))).toBeNull()
+    })
+
+    it('New Year\'s Eve starts at its first midnight, to the millisecond (31 Dec 00:00:00.000 is the season)', () => {
+        expect(seasonOn(at(2026, DEC, 30, 23, 59, 59, 999))).toBe('christmas')
+        expect(seasonOn(at(2026, DEC, 31, 0, 0, 0, 0))).toBe('newyear')
+        expect(seasonOn(at(2026, DEC, 31, 23, 59, 59, 999))).toBe('newyear')
     })
 
     it('reads the local calendar day (00:30 on 24 Oct is Halloween)', () => {
@@ -99,6 +112,12 @@ describe('paintedPalette: a temporary overlay, the stored scheme stays', () => {
     it('Christmas paints the Christmas palette over any stored scheme, and swaps the sprinkle', () => {
         for (const stored of PALETTES) {
             expect(paintedPalette(stored, 'christmas')).toBe('christmas')
+        }
+    })
+
+    it('New Year\'s Eve paints the midnight-and-gold palette over any stored scheme (#674)', () => {
+        for (const stored of PALETTES) {
+            expect(paintedPalette(stored, 'newyear')).toBe('newyear')
         }
     })
 
@@ -188,6 +207,15 @@ describe('the preview: a season forced for this tab, in place of the date', () =
         expect(activeSeason(at(2026, DEC, 25), 'memphis', true)).toBe('christmas')
     })
 
+    it('the New Year\'s palette is known too, and the Settings dropdown does not offer it either', () => {
+        expect(PALETTES).toContain('newyear')
+    })
+
+    it('a New Year\'s preview paints the New Year\'s palette, whatever the date', () => {
+        setSeasonPreview('newyear')
+        expect(paintedPalette('memphis', activeSeason(PLAIN, 'memphis', true))).toBe('newyear')
+    })
+
     it('still requires the Memphis look', () => {
         setSeasonPreview('halloween')
         expect(activeSeason(PLAIN, 'stream', true)).toBeNull()
@@ -211,7 +239,7 @@ describe('the preview: a season forced for this tab, in place of the date', () =
         const settings = useSettings()
         const row = appearance.find((s) => s.title === 'Preview season')
         expect(row).toBeDefined()
-        expect(row?.options?.map((o) => o.value)).toEqual(['off', 'halloween', 'christmas'])
+        expect(row?.options?.map((o) => o.value)).toEqual(['off', 'halloween', 'christmas', 'newyear'])
         expect(row?.state?.()).toBe('off')
 
         row?.action('christmas')

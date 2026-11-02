@@ -4,7 +4,8 @@
  * random source is passed in, so a test can pin it. The motion is CSS.
  *
  * One peek per season (`PEEK_SPECS`): the Halloween vampire puffs into a bat that
- * flies off; the Christmas snowman just rises and sinks back down.
+ * flies off; the Christmas snowman just rises and sinks back down; the New Year's
+ * party-goer (#674) pops a burst of confetti and sinks back down.
  */
 import type { ViewportSize } from './seasonTileEmojis'
 import type { Season } from './seasons'
@@ -35,19 +36,28 @@ export const PEEK_DURATION_MS = 4000
  */
 export const SNOWMAN_PEEK_DURATION_MS = 2400
 
+/**
+ * The New Year's peek, in ms: it rises, pops its burst, and sinks back down.
+ * Like the snowman's, it never launches, so it is shorter than the vampire's.
+ */
+export const PARTY_PEEK_DURATION_MS = 3200
+
 /** What one season's peek shows and how it ends. */
 export interface PeekSpec {
     /** The figure that rises from behind the cover. */
     figure: string
-    /** Whether it puffs into a bat that flies off (the Halloween peek only). */
+    /** Whether it flies off as a bat (the Halloween peek only). */
     launches: boolean
+    /** The burst it pops before it goes back down, or null for none (the Halloween puff is 💨). */
+    puff: string | null
     /** The whole peek, in ms (the CSS keyframes are percentages of it). */
     durationMs: number
 }
 
 export const PEEK_SPECS: Record<Season, PeekSpec> = {
-    halloween: { figure: '🧛', launches: true, durationMs: PEEK_DURATION_MS },
-    christmas: { figure: '⛄', launches: false, durationMs: SNOWMAN_PEEK_DURATION_MS },
+    halloween: { figure: '🧛', launches: true, puff: '💨', durationMs: PEEK_DURATION_MS },
+    christmas: { figure: '⛄', launches: false, puff: null, durationMs: SNOWMAN_PEEK_DURATION_MS },
+    newyear: { figure: '🥳', launches: false, puff: '🎉', durationMs: PARTY_PEEK_DURATION_MS },
 }
 
 /** Milliseconds until the next peek, from the random source. */

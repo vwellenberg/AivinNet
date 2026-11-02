@@ -10,11 +10,9 @@
         <span class="season-peek-clip">
             <span class="season-peek-figure">{{ spec.figure }}</span>
         </span>
-        <!-- Only the Halloween peek puffs into a bat (utils/vampirePeek.ts::PEEK_SPECS). -->
-        <template v-if="spec.launches">
-            <span class="season-peek-puff">💨</span>
-            <span class="season-peek-bat">🦇</span>
-        </template>
+        <!-- The burst and the bat, as the season's spec says (utils/vampirePeek.ts::PEEK_SPECS). -->
+        <span v-if="spec.puff" class="season-peek-puff">{{ spec.puff }}</span>
+        <span v-if="spec.launches" class="season-peek-bat">🦇</span>
     </div>
 </template>
 
@@ -22,6 +20,7 @@
 // A figure rises from behind the top edge of a card cover. At Halloween it is a
 // vampire: it pauses, puffs into a bat and flies off up and to the left. At
 // Christmas it is a snowman: it rises, waits and sinks back down (no puff, no bat).
+// On New Year's Eve a party-goer rises, pops a burst of confetti and sinks back.
 // Mounted in App.vue while a season is active, with that season as the prop. It
 // draws nothing under "reduce motion", nothing while the tab is hidden. A scroll
 // or a route change ends a peek that is still behind its card (the overlay is
@@ -235,6 +234,17 @@ onBeforeUnmount(() => {
     animation: season-peek-snowman var(--peek-dur) $motion-curve-settle backwards;
 }
 
+// New Year's Eve: the party-goer rises, and the burst opens above its head (the
+// burst is not clipped: it sits on the anchor, outside the clip box), then it sinks.
+.season-peek-newyear .season-peek-figure {
+    animation: season-peek-party var(--peek-dur) $motion-curve-settle backwards;
+}
+
+.season-peek-newyear .season-peek-puff {
+    bottom: calc(var(--peek-size) * 0.6);
+    animation: season-peek-pop var(--peek-dur) ease-out backwards;
+}
+
 .season-peek-puff {
     left: 0;
     opacity: 0;
@@ -245,6 +255,44 @@ onBeforeUnmount(() => {
     left: 0;
     opacity: 0;
     animation: season-peek-bat var(--peek-dur) ease-out backwards;
+}
+
+// The party-goer: rises by 16 %, stands for the burst, sinks out of sight by 70 %.
+@keyframes season-peek-party {
+    0% {
+        transform: translate3d(-50%, 100%, 0);
+    }
+    16%,
+    58% {
+        transform: translate3d(-50%, 0, 0);
+    }
+    70%,
+    100% {
+        transform: translate3d(-50%, 100%, 0);
+    }
+}
+
+// The 🎉 burst: it pops open above the party-goer's head at 30 %, thins out and is
+// gone by 62 %, before the figure has sunk.
+@keyframes season-peek-pop {
+    0%,
+    27% {
+        opacity: 0;
+        transform: translate3d(-50%, 0, 0) scale(0.3);
+    }
+    30% {
+        opacity: 1;
+        transform: translate3d(-50%, 0, 0) scale(0.8);
+    }
+    48% {
+        opacity: 0.95;
+        transform: translate3d(-50%, 0, 0) scale(1.35);
+    }
+    62%,
+    100% {
+        opacity: 0;
+        transform: translate3d(-50%, 0, 0) scale(1.6);
+    }
 }
 
 // The snowman: rises by 22 %, stands for a while, sinks out of sight by 70 %.

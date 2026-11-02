@@ -1,7 +1,7 @@
 /**
  * The seasonal emoji on the cover tiles (components/SeasonTileEmojis.vue): Halloween
- * graves and pumpkins, and now and then a skull; Christmas presents and snowmen
- * (`tileEmojiWeightsFor`).
+ * graves and pumpkins, and now and then a skull; Christmas presents and snowmen;
+ * New Year's champagne, bottles and poppers (`tileEmojiWeightsFor`).
  *
  * Each emoji STANDS ON the top edge of a cover, like a sprite on a platform in a
  * 2D game: its feet on the frame, at a horizontal spot along that edge. (Not on
@@ -95,9 +95,23 @@ const CHRISTMAS_TILE_EMOJI: readonly TileEmoji[] = [
     { emoji: '\u{1F328}️', weight: 1 },
 ]
 
+/**
+ * New Year's Eve and Day (#674): champagne and the bottle most often, the
+ * party poppers next, and the sparkles and fireworks now and then.
+ */
+const NEWYEAR_TILE_EMOJI: readonly TileEmoji[] = [
+    { emoji: '🥂', weight: 3 },
+    { emoji: '🍾', weight: 3 },
+    { emoji: '🎉', weight: 2 },
+    { emoji: '🎊', weight: 2 },
+    { emoji: '✨', weight: 1 },
+    { emoji: '🎆', weight: 1 },
+]
+
 const TILE_EMOJI_BY_SEASON: Record<Season, readonly TileEmoji[]> = {
     halloween: HALLOWEEN_TILE_EMOJI,
     christmas: CHRISTMAS_TILE_EMOJI,
+    newyear: NEWYEAR_TILE_EMOJI,
 }
 
 /** The weighted emoji of one season's tiles. */
