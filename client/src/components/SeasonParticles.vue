@@ -3,6 +3,7 @@
         v-if="season && !lessMotion"
         class="season-particles"
         :class="{ 'is-paused': visibility === 'hidden' }"
+        :style="layerVars"
         aria-hidden="true"
     >
         <span
@@ -31,8 +32,8 @@
 
 <script setup lang="ts">
 // @libraries
-import { useDocumentVisibility, useMediaQuery } from "@vueuse/core";
-import { computed } from "vue";
+import { useDocumentVisibility, useEventListener, useMediaQuery, useResizeObserver } from "@vueuse/core";
+import { computed, onMounted, ref } from "vue";
 
 // @utils
 import { crossing, DRIFT_SETTLE_S, hangs, particlesFor, type Particle, type Ribbon } from "@/utils/seasonParticles";
@@ -51,6 +52,34 @@ const RIBBON: Record<Ribbon, string> = { line: "var(--mem-line)", gold: "var(--m
 const lessMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 // A hidden tab stops its particles (the class below), not just its frames.
 const visibility = useDocumentVisibility();
+
+// Where the player bar really starts, in px from the bottom of the window. The
+// `$bottombarheight*` tokens are the bar's nominal height, but on a phone the bar
+// also carries the navigation row and the home-indicator inset (measured 167 px
+// against a 152 px token at 390 × 844), so the snow drift sat behind the bar.
+// Unset until measured: the CSS falls back to the token.
+const barHeight = ref<number | null>(null);
+const bar = ref<HTMLElement | null>(null);
+
+function measureBar(): void {
+    const el = bar.value;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    barHeight.value = top > 0 ? Math.max(0, window.innerHeight - top) : null;
+}
+
+onMounted(() => {
+    bar.value = document.querySelector<HTMLElement>(".b-bar");
+    measureBar();
+});
+useResizeObserver(bar, measureBar);
+useEventListener(window, "resize", measureBar, { passive: true });
+
+const layerVars = computed<Record<string, string>>(() => {
+    const vars: Record<string, string> = {};
+    if (barHeight.value !== null) vars["--season-bar-h"] = `${barHeight.value}px`;
+    return vars;
+});
 
 // Rolled once per season: a re-roll on every render would make the layout jump.
 const particles = computed(() => particlesFor(props.season));
@@ -424,19 +453,28 @@ function glyphVars(p: Particle, j: number): Record<string, string> {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: calc(#{$bottombarheight} - 2px);
+    // On the bar's real top edge (`--season-bar-h`, measured in the script), 2 px of
+    // its foot behind the bar; the token is only the fallback until it is measured.
+    bottom: calc(var(--season-bar-h, #{$bottombarheight}) - 2px);
     height: 0.75rem;
     transform-origin: 50% 100%;
-    background: radial-gradient(closest-side at 50% 100%, #ffffff 92%, transparent) 0 100% / 3.2rem 100% repeat-x;
+    // Explicit radii, not the nearest-side keyword: with the centre ON the bottom
+    // edge the nearest side is 0 px away, the ellipse has no height and nothing is painted
+    // (the first cut of this drift drew nothing at all).
+    // Two rows of humps in different widths, offset, so the drift reads as snow
+    // and not as a row of teeth.
+    background:
+        radial-gradient(ellipse 50% 100% at 50% 100%, #ffffff 92%, transparent) 0 100% / 3.2rem 70% repeat-x,
+        radial-gradient(ellipse 50% 100% at 50% 100%, #ffffff 92%, transparent) 1.3rem 100% / 5.1rem 100% repeat-x;
     filter: drop-shadow(0 -1px 1px rgb(0 0 0 / 0.2));
     animation: season-drift-settle var(--season-drift-dur) ease-out both;
 
     @include allPhones {
-        bottom: calc(#{$bottombarheight-phone} - 2px);
+        bottom: calc(var(--season-bar-h, #{$bottombarheight-phone}) - 2px);
     }
 
     @include shortViewport {
-        bottom: calc(#{$bottombarheight-short} - 2px);
+        bottom: calc(var(--season-bar-h, #{$bottombarheight-short}) - 2px);
     }
 }
 

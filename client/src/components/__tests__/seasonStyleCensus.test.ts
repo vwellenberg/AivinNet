@@ -245,11 +245,11 @@ describe('Christmas: the shooting star streaks with a gold trail, and the snow d
     it('sits on the player bar\'s top edge from the bar\'s own tokens, out of the flow, on every layout', () => {
         const drift = blockAfter(seasonParticles, '.season-drift {')
         expect(drift).toContain('position: absolute')
-        expect(drift).toContain('bottom: calc(#{$bottombarheight} - 2px)')
+        expect(drift).toContain('bottom: calc(var(--season-bar-h, #{$bottombarheight}) - 2px)')
         expect(drift).toContain('@include allPhones')
-        expect(drift).toContain('#{$bottombarheight-phone} - 2px')
+        expect(drift).toContain('var(--season-bar-h, #{$bottombarheight-phone}) - 2px')
         expect(drift).toContain('@include shortViewport')
-        expect(drift).toContain('#{$bottombarheight-short} - 2px')
+        expect(drift).toContain('var(--season-bar-h, #{$bottombarheight-short}) - 2px')
     })
 
     it('is paused with the layer when the tab is hidden', () => {
@@ -319,5 +319,27 @@ describe('Christmas: the fairy lights on the top bar', () => {
         const twinkle = blockAfter(seasons, '@keyframes season-light-twinkle')
         expect(twinkle).toMatch(/100%\s*\{\s*opacity:\s*1;?\s*\}/)
         expect(seasons).not.toMatch(/prefers-reduced-motion[^}]*\{[^}]*topnav-lights/)
+    })
+})
+
+// The drift drew nothing at first: `radial-gradient(closest-side at 50% 100%)`
+// measures to the bottom edge it is centred on, 0 px, so the ellipse had no
+// height. And on a phone it stood behind the bar: the bar is taller than its token.
+describe('Christmas: the snow drift is drawn, on the bar\'s real edge', () => {
+    const source = read(PARTICLES)
+    const drift = blockAfter(source, '.season-drift {')
+
+    it('reads the drift (parser guard)', () => {
+        expect(drift).toContain('season-drift-settle')
+    })
+
+    it('draws its humps with explicit radii, never closest-side at the edge', () => {
+        expect(drift).not.toMatch(/closest-side/)
+        expect(drift).toMatch(/radial-gradient\(ellipse \d+% \d+% at 50% 100%/)
+    })
+
+    it('stands on the measured bar height, the token only as fallback', () => {
+        expect(drift).toMatch(/bottom:\s*calc\(var\(--season-bar-h, #\{\$bottombarheight\}\)/)
+        expect(source).toMatch(/\["--season-bar-h"\] = `\$\{barHeight\.value\}px`/)
     })
 })
