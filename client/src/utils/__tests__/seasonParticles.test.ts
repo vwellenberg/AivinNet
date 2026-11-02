@@ -5,6 +5,7 @@ import {
     CHASE_ZOMBIES_MAX,
     CHASE_ZOMBIES_MIN,
     CHASE_ZOMBIES_TYPICAL_MAX,
+    CROSSER_QUIET_START_S,
     MAX_PARTICLES,
     SLEIGH_GROUP,
     SPIDER_GLYPH,
@@ -442,5 +443,52 @@ describe('particlesFor: every value stays in its range', () => {
                 }
             }
         }
+    })
+})
+
+// "die, die über das bild huschen bitte nur im schnitt alle 15 sekunden" (user,
+// 2026-11-02). Each crosser comes by once per cycle, so the page sees, on
+// average, sum(1 / duration) of them per second. And the first minute after a
+// load must not be busier than any other: every crosser used to have an early
+// fixed window (ghosts were even mid-rise at once), and a fresh page saw seven
+// or eight of them in its first minute.
+describe('crossers: about one every 15 s, from the first minute on', () => {
+    const CROSSERS = new Set(['bat', 'ghost', 'pumpkin', 'chase', 'spider', 'sleigh'])
+    const SEEDS = Array.from({ length: 200 }, (_, i) => i + 1)
+
+    it('comes by once every 15 s or less often, on average', () => {
+        let rate = 0
+        for (const seed of SEEDS) {
+            for (const p of particlesFor('halloween', sequence(seed))) {
+                if (CROSSERS.has(p.kind)) rate += 1 / p.duration
+            }
+        }
+        const meanGap = 1 / (rate / SEEDS.length)
+        expect(meanGap).toBeGreaterThanOrEqual(15)
+    })
+
+    it('starts every crosser somewhere in its own cycle, after a quiet start, never mid-way', () => {
+        for (const seed of SEEDS) {
+            for (const season of ['halloween', 'christmas'] as const) {
+                for (const p of particlesFor(season, sequence(seed)).filter((p) => CROSSERS.has(p.kind))) {
+                    expect(p.delay, `${season} ${p.kind} seed ${seed}`).toBeGreaterThanOrEqual(CROSSER_QUIET_START_S)
+                    expect(p.delay, `${season} ${p.kind} seed ${seed}`).toBeLessThanOrEqual(p.duration)
+                }
+            }
+        }
+    })
+
+    it('keeps the first minute after a load as calm as any other', () => {
+        let firstMinute = 0
+        let rate = 0
+        for (const seed of SEEDS) {
+            for (const p of particlesFor('halloween', sequence(seed)).filter((p) => CROSSERS.has(p.kind))) {
+                if (p.delay < 60) firstMinute++
+                rate += 1 / p.duration
+            }
+        }
+        // Steady state brings 60 * rate per minute; the first minute may not bring
+        // more than that plus a little sampling slack.
+        expect(firstMinute / SEEDS.length).toBeLessThanOrEqual((60 * rate) / SEEDS.length + 0.5)
     })
 })

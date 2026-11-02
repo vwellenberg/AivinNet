@@ -92,3 +92,29 @@ describe('WeeklyRecap on Home (#530)', () => {
         expect(w.find('.recap-close').attributes('aria-label')).toBe('Dismiss recap')
     })
 })
+
+// The text veil (`mem-dots-veil`) reaches 10–14 px past its host with a blur. On
+// `.recap-open`, which fills the whole card, it lay over the card's frame and
+// shadow and turned them whitish (user, 2026-11-02). It belongs on the lines.
+describe('WeeklyRecap: the text veil stays inside the card', () => {
+    const source = Object.values(
+        import.meta.glob('/src/components/HomeView/WeeklyRecap.vue', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    )[0]
+    const style = source.slice(source.indexOf('<style')).replace(/\/\/[^\n]*/g, '')
+
+    function block(selector: string): string {
+        const at = style.indexOf(selector + ' {')
+        if (at < 0) return ''
+        return style.slice(at, style.indexOf('\n    }', at))
+    }
+
+    it('reads the stylesheet (parser guard)', () => {
+        expect(block('.recap-open')).toContain('flex: 1')
+    })
+
+    it('puts the veil on the lines, never on the full-card button', () => {
+        expect(block('.recap-open')).not.toContain('mem-dots-veil')
+        expect(block('.recap-lines')).toContain('@include mem-dots-veil')
+        expect(source).toMatch(/<button class="recap-open"[^>]*>\s*<span class="recap-lines">/)
+    })
+})

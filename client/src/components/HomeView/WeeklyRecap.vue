@@ -3,9 +3,11 @@
        whether there is a card; the card closes for its period. -->
   <section v-if="recap" class="recap-card" :class="`recap-${recap.kind}`" aria-label="Your recap">
     <button class="recap-open" @click="open">
-      <span class="kicker">{{ lines.kicker }}</span>
-      <span class="headline">{{ lines.headline }}</span>
-      <span v-if="lines.detail" class="detail">{{ lines.detail }}</span>
+      <span class="recap-lines">
+        <span class="kicker">{{ lines.kicker }}</span>
+        <span class="headline">{{ lines.headline }}</span>
+        <span v-if="lines.detail" class="detail">{{ lines.detail }}</span>
+      </span>
     </button>
     <button class="btn-quiet recap-close" aria-label="Dismiss recap" @click="dismiss">×</button>
   </section>
@@ -80,16 +82,28 @@ function dismiss() {
     .recap-open {
         flex: 1;
         min-width: 0;
+        // The base `button` centres its contents; the lines start top left.
         display: flex;
-        flex-direction: column;
         align-items: flex-start;
-        gap: 0.3rem;
+        justify-content: flex-start;
         padding: 1rem 1.25rem;
         background: none;
         border: 0;
         color: inherit;
         text-align: left;
         cursor: pointer;
+    }
+
+    // The text veil sits on the LINES, not on the button. The button fills the
+    // whole card, and the veil reaches 10–14 px past its host with a blur, so on
+    // the button it lay over the card's own frame and shadow and turned them
+    // whitish (user, 2026-11-02: "Rand ist auch weißlich, Bereich zu groß?").
+    // On the lines it dims the dots around the words only, as on the Continue card.
+    .recap-lines {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
         @include mem-dots-veil;
     }
 

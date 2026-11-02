@@ -182,6 +182,21 @@ function between(random: () => number, min: number, max: number): number {
     return min + random() * (max - min)
 }
 
+/**
+ * When a crosser comes by first, in s after the page loads: anywhere in its own
+ * cycle, after a short quiet start. The first cut gave every crosser a fixed
+ * early window (bats 0–40 s, chase 10–40 s, ghosts already mid-rise), so a
+ * fresh page saw seven or eight of them in its first minute, one every ~8 s,
+ * against one every ~16 s afterwards ("die, die über das bild huschen bitte nur
+ * im schnitt alle 15 sekunden", user, 2026-11-02). Spread over the cycle, the
+ * first minute looks like every other.
+ */
+export const CROSSER_QUIET_START_S = 5
+
+function firstAppearance(random: () => number, duration: number): number {
+    return between(random, CROSSER_QUIET_START_S, duration)
+}
+
 function sign(random: () => number): 1 | -1 {
     return random() < 0.5 ? -1 : 1
 }
@@ -217,6 +232,12 @@ function snowflake(random: () => number): Particle {
 export const CROSSER_RARITY = 1.5
 
 function crosserParticle(random: () => number, kind: ParticleKind, group: string[]): Particle {
+    const shape = crosserShape(random, kind, group)
+    return { ...shape, delay: firstAppearance(random, shape.duration) }
+}
+
+/** A crosser without its start: where it goes, how big, and how long its cycle is. */
+function crosserShape(random: () => number, kind: ParticleKind, group: string[]): Omit<Particle, 'delay'> {
     const base = {
         kind,
         group,
@@ -243,7 +264,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
             // 32, up from 24: "bisserl größer" (user, 2026-10-31).
             size: 32,
             duration: between(random, 60, 90) * rare,
-            delay: between(random, 0, 40),
             wobble: between(random, 0.9, 1.4),
         }
     }
@@ -256,7 +276,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
             left: between(random, 5, 95),
             size: 30,
             duration,
-            delay: -between(random, 0, duration),
             wobble: between(random, 3, 5),
         }
     }
@@ -273,7 +292,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
             lift: between(random, 2.5, 6),
             size: 30,
             duration: between(random, 120, 160) * rare,
-            delay: between(random, 10, 40),
             wobble: between(random, 0.7, 1),
         }
     }
@@ -287,7 +305,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
             top: between(random, 14, 32),
             size: 28,
             duration: between(random, 120, 160) * rare,
-            delay: between(random, 10, 60),
             wobble: between(random, 0.8, 1.2),
         }
     }
@@ -302,7 +319,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
             drop: between(random, 25, 55),
             size: 26,
             duration: between(random, 80, 100) * rare,
-            delay: between(random, 10, 60),
             wobble: between(random, 1.6, 2.2),
         }
     }
@@ -314,7 +330,6 @@ function crosserParticle(random: () => number, kind: ParticleKind, group: string
         lift: between(random, 4, 10),
         size: 30,
         duration: between(random, 150, 200) * rare,
-        delay: between(random, 30, 90),
         wobble: between(random, 1.5, 2),
     }
 }
