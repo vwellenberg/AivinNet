@@ -65,9 +65,10 @@ COUNTDOWN_LENGTH = 30
 
 # A genre that makes a track Christmas music, as a word anywhere in its name ("Christmas", "Holiday Pop").
 CHRISTMAS_GENRE_WORDS = ("christmas", "xmas", "weihnacht", "holiday", "noel", "navidad")
-# A title that does, on word boundaries: a curated list, and "Santana" is not "Santa".
+# A title that does, on word boundaries: a curated list. "Santana" is not "Santa",
+# and neither is "Santa Monica": Santa only with "Claus", "Baby" or as "Santa's".
 CHRISTMAS_TITLE = re.compile(
-    r"\b(?:christmas|xmas|weihnacht\w*|jingle bells?|santa|sleigh|let it snow|silent night|stille nacht"
+    r"\b(?:christmas|xmas|weihnacht\w*|jingle bells?|santa claus|santa baby|santa's|sleigh|let it snow|silent night|stille nacht"
     r"|o tannenbaum|feliz navidad|rudolph|winter wonderland|deck the halls|o du frohliche|leise rieselt)\b"
 )
 

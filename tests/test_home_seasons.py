@@ -265,3 +265,14 @@ def test_the_countdown_station_is_built_from_the_year_and_is_not_shuffled():
     assert countdown.key == "countdown"
     assert countdown.name == "Countdown"
     assert countdown.tracks == [f"t{n}" for n in range(1, 8)]
+
+
+def test_santa_needs_claus_baby_or_the_possessive():
+    """A town is not Christmas music: "Santa Monica", "Santa Fe" stay out."""
+    from aivinnet.lib.home.stations import is_christmas
+
+    assert is_christmas("Santa Claus Is Coming to Town", [])
+    assert is_christmas("Santa Baby", [])
+    assert is_christmas("Santa's Workshop", [])
+    assert not is_christmas("Santa Monica", [])
+    assert not is_christmas("Santa Fe", [])
