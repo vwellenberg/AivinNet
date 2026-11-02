@@ -5,7 +5,21 @@
  */
 import type { Season } from './seasons'
 
-export type ParticleKind = 'flake' | 'bat' | 'ghost' | 'pumpkin' | 'chase' | 'spider' | 'sleigh'
+export type ParticleKind =
+    | 'flake'
+    | 'bat'
+    | 'ghost'
+    | 'pumpkin'
+    | 'chase'
+    | 'spider'
+    | 'sleigh'
+    | 'bell'
+    | 'present'
+    | 'waddle'
+    | 'star'
+
+/** The colour of a hanger's thread: the theme's line colour (the spider), or a bell's ribbon. */
+export type Ribbon = 'line' | 'gold' | 'red'
 
 export interface Particle {
     kind: ParticleKind
@@ -43,16 +57,18 @@ export interface Particle {
     ground: boolean
     /** Ground lane only: rem above the player bar's top edge. */
     lift: number
-    /** Spider only: how far the thread lets it down, % of the viewport height. */
+    /** Hangers only (`hangs`): how far the thread lets it down, % of the viewport height. */
     drop: number
+    /** Hangers only: what colour the thread is. `line` for every other particle. */
+    ribbon: Ribbon
     /**
-     * Chase only: where each glyph stands, parallel to `group`, in glyph sizes from
-     * the runner's spot: x to the right, y up (never positive, so no glyph drops
-     * below the ground lane). The runner is (0, 0). Empty for every other group,
+     * Chase and waddle only: where each glyph stands, parallel to `group`, in glyph sizes from
+     * the leader's spot: x to the right, y up (never positive, so no glyph drops
+     * below the ground lane). The leader is (0, 0). Empty for every other group,
      * which is a plain row.
      */
     offsets: GlyphOffset[]
-    /** Chase only: the box the cluster needs, in glyph sizes (w to the right of the runner, h up from the ground). */
+    /** Chase and waddle only: the box the cluster needs, in glyph sizes (w to the right of the leader, h up from the ground). */
     extent: { w: number; h: number }
 }
 
@@ -124,15 +140,23 @@ export function chaseZombieCount(random: () => number): number {
     return CHASE_ZOMBIES_TYPICAL_MAX + 1 + pick(random, CHASE_ZOMBIES_MAX - CHASE_ZOMBIES_TYPICAL_MAX)
 }
 
-/** One chase: the runner first, then its zombies, with where each stands and the box the cluster needs. */
-export interface ChaseHorde {
+/** A cluster of glyphs on the ground lane: the leader first, the rest behind it, with where each stands and the box it needs. */
+export interface Cluster {
     group: string[]
     offsets: GlyphOffset[]
     extent: { w: number; h: number }
 }
 
+/** The box a cluster needs: one glyph size past its furthest glyph, to the right and up. */
+function extentOf(offsets: GlyphOffset[]): { w: number; h: number } {
+    return {
+        w: Math.max(...offsets.map((o) => o.x)) + 1,
+        h: -Math.min(...offsets.map((o) => o.y)) + 1,
+    }
+}
+
 /** A chase's horde: the runner at (0, 0) in front, the zombies clustered behind it (see HORDE_ROWS). */
-export function chaseHorde(random: () => number): ChaseHorde {
+export function chaseHorde(random: () => number): Cluster {
     const zombies = chaseZombieCount(random)
     const group = ['🏃']
     const offsets: GlyphOffset[] = [{ x: 0, y: 0 }]
@@ -147,9 +171,42 @@ export function chaseHorde(random: () => number): ChaseHorde {
             y: -row * HORDE_ROW_RISE - random() * HORDE_JITTER,
         })
     }
-    const w = Math.max(...offsets.map((o) => o.x)) + 1
-    const h = -Math.min(...offsets.map((o) => o.y)) + 1
-    return { group, offsets, extent: { w, h } }
+    return { group, offsets, extent: extentOf(offsets) }
+}
+
+/** The penguins, U+1F427 (no emoji selector needed). */
+export const PENGUIN_GLYPH = '🐧'
+
+/** How many penguins a waddle brings: 3 to 5. */
+export const WADDLE_MIN = 3
+export const WADDLE_MAX = 5
+/** The gap between neighbouring penguins, in glyph sizes, and how much each one is pushed off its place. */
+const WADDLE_STEP = 0.9
+const WADDLE_JITTER = 0.12
+/** How far the penguins behind the leader may stand up off the ground lane, in glyph sizes. */
+const WADDLE_RISE = 0.3
+
+/**
+ * A waddle: 3 to 5 penguins in one loose row, the leader on the left at (0, 0) and
+ * the rest behind it, each jittered off its place, so it reads as a group and not as
+ * a ruler. The same offsets and box as a chase (`Cluster`); only the row is shorter.
+ */
+export function waddleGroup(random: () => number): Cluster {
+    const n = WADDLE_MIN + pick(random, WADDLE_MAX - WADDLE_MIN + 1)
+    const group: string[] = []
+    const offsets: GlyphOffset[] = []
+    for (let j = 0; j < n; j++) {
+        group.push(PENGUIN_GLYPH)
+        if (j === 0) {
+            offsets.push({ x: 0, y: 0 })
+            continue
+        }
+        offsets.push({
+            x: j * WADDLE_STEP + (random() * 2 - 1) * WADDLE_JITTER,
+            y: -random() * WADDLE_RISE,
+        })
+    }
+    return { group, offsets, extent: extentOf(offsets) }
 }
 
 /** The spider, on its thread: U+1F577 and the emoji presentation selector. */
@@ -172,9 +229,42 @@ const HALLOWEEN: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'spider', group: [SPIDER_GLYPH], count: 1 },
 ]
 
-/** Christmas: the snowflakes, and now and then the sleigh across the upper sky. */
+/** The bell on its ribbon, U+1F514. */
+export const BELL_GLYPH = '🔔'
+/** The present that tumbles along the ground, U+1F381. */
+export const PRESENT_GLYPH = '🎁'
+/** The shooting star across the upper sky, U+2B50. */
+export const STAR_GLYPH = '⭐'
+/**
+ * How long the snow on the player bar takes to settle into a full drift, in seconds:
+ * "over a few minutes" (SeasonParticles.vue, `.season-drift`). A page change clears it.
+ */
+export const DRIFT_SETTLE_S = 210
+
+/**
+ * The kinds that hang from the top edge on a thread (`hangs`): the spider and the
+ * bell share one mechanic (SeasonParticles.vue, `is-hanger`), and differ in colour only.
+ */
+const HANGERS: readonly ParticleKind[] = ['spider', 'bell']
+
+/** Whether a particle hangs from the top edge on a thread (`is-hanger`), rather than crossing or rising. */
+export function hangs(p: Particle): boolean {
+    return HANGERS.includes(p.kind)
+}
+
+/**
+ * Christmas: the snowflakes, and now and then one of each crosser: the sleigh across
+ * the upper sky, a bell let down on its ribbon, a present tumbling along the ground
+ * lane, and a waddle of penguins along it. Each comes once, as rare as its Halloween
+ * twin (the spider, the pumpkin, the chase).
+ */
 const CHRISTMAS: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'sleigh', group: SLEIGH_GROUP, count: 1 },
+    { kind: 'bell', group: [BELL_GLYPH], count: 1 },
+    { kind: 'present', group: [PRESENT_GLYPH], count: 1 },
+    // The group is drawn per waddle (waddleGroup), so it is empty here.
+    { kind: 'waddle', group: [], count: 1 },
+    { kind: 'star', group: [STAR_GLYPH], count: 1 },
 ]
 
 /** A value between `min` and `max`, from the random source. */
@@ -218,6 +308,7 @@ function snowflake(random: () => number): Particle {
         ground: false,
         lift: 0,
         drop: 0,
+        ribbon: 'line',
         offsets: [],
         extent: { w: 0, h: 0 },
     }
@@ -249,6 +340,7 @@ function crosserShape(random: () => number, kind: ParticleKind, group: string[])
         ground: false,
         lift: 0,
         drop: 0,
+        ribbon: 'line' as Ribbon,
         offsets: [] as GlyphOffset[],
         extent: { w: 0, h: 0 },
     }
@@ -311,7 +403,7 @@ function crosserShape(random: () => number, kind: ParticleKind, group: string[])
     if (kind === 'spider') {
         // A spider lets itself down on its thread from the top edge, hangs and
         // sways, and climbs back up. Rare: only a short part of each cycle is
-        // visible (season-spider in SeasonParticles.vue).
+        // visible (the hanger rules in SeasonParticles.vue).
         return {
             ...base,
             dir: 1,
@@ -320,6 +412,60 @@ function crosserShape(random: () => number, kind: ParticleKind, group: string[])
             size: 26,
             duration: between(random, 80, 100) * rare,
             wobble: between(random, 1.6, 2.2),
+        }
+    }
+    if (kind === 'bell') {
+        // The bell is the spider's twin: the same hanger, the same cycle and drop,
+        // on a ribbon that is gold or red instead of the line colour.
+        return {
+            ...base,
+            dir: 1,
+            left: between(random, 5, 95),
+            drop: between(random, 25, 55),
+            size: 26,
+            duration: between(random, 80, 100) * rare,
+            wobble: between(random, 1.6, 2.2),
+            ribbon: random() < 0.5 ? 'gold' : 'red',
+        }
+    }
+    if (kind === 'waddle') {
+        // The penguins waddle along the ground lane, right to left, as one loose
+        // group: the chase's rhythm, lift and crossing, so as rare as the chase.
+        // The leader is the leftmost, so it leads the way it looks (waddleGroup).
+        return {
+            ...base,
+            ...waddleGroup(random),
+            dir: -1,
+            ground: true,
+            lift: between(random, 2.5, 6),
+            size: 24,
+            duration: between(random, 120, 160) * rare,
+            wobble: between(random, 0.45, 0.6),
+        }
+    }
+    if (kind === 'star') {
+        // The shooting star: across the upper sky, always right to left, so its trail
+        // (SeasonParticles.vue, `.season-star`) streams behind it. It is only a short
+        // part of its cycle on screen (season-shoot), about two seconds, and rare.
+        return {
+            ...base,
+            dir: -1,
+            top: between(random, 8, 30),
+            size: 24,
+            duration: between(random, 100, 140) * rare,
+            wobble: 0,
+        }
+    }
+    if (kind === 'present') {
+        // The present is the pumpkin's twin: rare, a long wait, then a slow tumble
+        // along the ground lane above the player bar, both ways.
+        return {
+            ...base,
+            ground: true,
+            lift: between(random, 4, 10),
+            size: 28,
+            duration: between(random, 150, 200) * rare,
+            wobble: between(random, 2.5, 3.5),
         }
     }
     // The pumpkin: rare, a long wait, then a slow roll along the lower screen,
@@ -337,14 +483,14 @@ function crosserShape(random: () => number, kind: ParticleKind, group: string[])
 /**
  * Where a crosser starts and ends its `translate`, as CSS lengths
  * (SeasonParticles.vue). A single glyph goes from one side of the screen to the
- * other, 12 vw past each edge. A group — the sleigh, the chase — is a whole row
- * of glyphs, wider than that margin at a phone's width (the chase is ~115 px
- * against 47 px of margin at 390 px, so it popped in and out at the edges), so
- * it is measured from its own width instead (`%` in `translate` is the
- * element's own box): it starts and ends fully off screen.
+ * other, 12 vw past each edge. A group — the sleigh, the chase, the waddle — is a
+ * whole row of glyphs, wider than that margin at a phone's width (the chase is
+ * ~115 px against 47 px of margin at 390 px, so it popped in and out at the
+ * edges), so it is measured from its own width instead (`%` in `translate` is
+ * the element's own box): it starts and ends fully off screen.
  */
 export function crossing(p: Particle): { from: string; to: string } {
-    if (p.kind === 'sleigh' || p.kind === 'chase') {
+    if (p.kind === 'sleigh' || p.kind === 'chase' || p.kind === 'waddle') {
         const off = 'calc(-100% - 1rem)'
         const past = '100vw'
         return p.dir > 0 ? { from: off, to: past } : { from: past, to: off }

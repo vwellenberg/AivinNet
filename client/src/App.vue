@@ -3,7 +3,7 @@
     <Modal />
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
-    <SeasonParticles :season="season" />
+    <SeasonParticles :season="season" :navigation="navigations" />
     <!-- The season on the page: emoji on the cover tiles, and a figure peeking over one
          (the vampire at Halloween, the snowman at Christmas). -->
     <SeasonTileEmojis v-if="season" :season="season" />
@@ -168,6 +168,8 @@ provide(SEASON_KEY, season);
 // A date turns over at midnight with no click to watch for: re-read it each minute.
 const seasonTimer = setInterval(() => (today.value = new Date()), 60 * 1000);
 onBeforeUnmount(() => clearInterval(seasonTimer));
+// Counts the page changes: the snow drift on the player bar is cleared by each one (SeasonParticles.vue).
+const navigations = ref(0);
 
 watch(
     () =>
@@ -190,6 +192,7 @@ watch(
 );
 
 router.afterEach(() => {
+    navigations.value += 1;
     (document.getElementById("acontent") as HTMLElement).scrollTo(0, 0);
 });
 

@@ -195,3 +195,107 @@ describe('SeasonParticles: a hidden tab pauses the animation', () => {
         expect(wrapper.find('.season-particles').classes()).toContain('is-paused')
     })
 })
+
+describe('SeasonParticles: Christmas hangs a bell, tumbles a present and waddles penguins', () => {
+    it('draws one bell on a thread: the hanger class, its emoji, and a gold or red ribbon variable', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const bells = wrapper.findAll('.season-particle.season-bell')
+        expect(bells).toHaveLength(1)
+        expect(bells[0].classes()).toContain('is-hanger')
+        expect(bells[0].classes()).not.toContain('is-ground')
+        expect(bells[0].find('.season-glyph').text()).toBe('🔔')
+        const ribbon = (bells[0].element as HTMLElement).style.getPropertyValue('--season-ribbon')
+        expect(['var(--mem-gold)', 'var(--mem-coral)']).toContain(ribbon)
+    })
+
+    it('hangs the spider and the bell with the same class, and nothing else', () => {
+        const halloween = mount(SeasonParticles, { props: { season: 'halloween' } })
+        expect(halloween.find('.season-spider').classes()).toContain('is-hanger')
+        expect(halloween.find('.season-spider').classes()).not.toContain('is-ground')
+        for (const kind of ['bat', 'ghost', 'pumpkin', 'chase']) {
+            expect(halloween.findAll(`.season-${kind}`).every((el) => !el.classes().includes('is-hanger'))).toBe(true)
+        }
+        const christmas = mount(SeasonParticles, { props: { season: 'christmas' } })
+        expect(christmas.findAll('.is-hanger')).toHaveLength(1)
+        expect(christmas.findAll('.season-sleigh').every((el) => !el.classes().includes('is-hanger'))).toBe(true)
+    })
+
+    it('gives the spider the line colour as its thread', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'halloween' } })
+        const spider = wrapper.find('.season-spider').element as HTMLElement
+        expect(spider.style.getPropertyValue('--season-ribbon')).toBe('var(--mem-line)')
+    })
+
+    it('draws one present on the ground lane, with its gift emoji', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const presents = wrapper.findAll('.season-particle.season-present')
+        expect(presents).toHaveLength(1)
+        expect(presents[0].classes()).toContain('is-ground')
+        expect(presents[0].classes()).not.toContain('is-hanger')
+        expect(presents[0].find('.season-glyph').text()).toBe('🎁')
+    })
+
+    it('draws one waddle of 3 to 5 penguins, each with its own offset, the leader in front', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const waddles = wrapper.findAll('.season-particle.season-waddle')
+        expect(waddles).toHaveLength(1)
+        expect(waddles[0].classes()).toContain('is-ground')
+        const spans = waddles[0].findAll('.season-glyph')
+        expect(spans.length).toBeGreaterThanOrEqual(3)
+        expect(spans.length).toBeLessThanOrEqual(5)
+        for (const s of spans) expect(s.text()).toBe('🐧')
+        const leader = spans[0].element as HTMLElement
+        expect(leader.style.getPropertyValue('--season-gx')).toBe('0')
+        expect(leader.style.getPropertyValue('--season-gy')).toBe('0')
+        expect(leader.style.zIndex).toBe('200')
+        for (const follower of spans.slice(1)) {
+            expect(Number((follower.element as HTMLElement).style.getPropertyValue('--season-gx'))).toBeGreaterThan(0)
+        }
+        const style = (waddles[0].element as HTMLElement).style
+        expect(style.getPropertyValue('--season-from')).toBe('100vw')
+        expect(style.getPropertyValue('--season-to')).toBe('calc(-100% - 1rem)')
+    })
+
+    it('draws none of the new Christmas shapes under the OS "reduce motion" setting', () => {
+        stubMatchMedia(true)
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        expect(wrapper.findAll('.season-bell, .season-present, .season-waddle, .season-star')).toHaveLength(0)
+        expect(wrapper.find('.season-drift').exists()).toBe(false)
+    })
+})
+
+describe('SeasonParticles: a shooting star, and the snow drift on the bar', () => {
+    it('draws one star in the sky with its emoji and no ground lane', () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const stars = wrapper.findAll('.season-particle.season-star')
+        expect(stars).toHaveLength(1)
+        expect(stars[0].classes()).not.toContain('is-ground')
+        expect(stars[0].find('.season-glyph').text()).toBe('⭐')
+    })
+
+    it('draws the drift on the Christmas layer only, with its settle time from the particle model', () => {
+        const christmas = mount(SeasonParticles, { props: { season: 'christmas' } })
+        const drift = christmas.find('.season-drift')
+        expect(drift.exists()).toBe(true)
+        expect((drift.element as HTMLElement).style.getPropertyValue('--season-drift-dur')).toBe('210s')
+
+        const halloween = mount(SeasonParticles, { props: { season: 'halloween' } })
+        expect(halloween.find('.season-drift').exists()).toBe(false)
+    })
+
+    it('starts the drift over on every page change: a new navigation count is a new element', async () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas', navigation: 0 } })
+        const before = wrapper.find('.season-drift').element
+        await wrapper.setProps({ navigation: 1 })
+        const after = wrapper.find('.season-drift').element
+        expect(after).not.toBe(before)
+        expect(wrapper.findAll('.season-drift')).toHaveLength(1)
+    })
+
+    it('keeps the drift while the page does not change', async () => {
+        const wrapper = mount(SeasonParticles, { props: { season: 'christmas', navigation: 2 } })
+        const before = wrapper.find('.season-drift').element
+        await wrapper.setProps({ season: 'christmas' })
+        expect(wrapper.find('.season-drift').element).toBe(before)
+    })
+})
