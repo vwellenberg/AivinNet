@@ -78,7 +78,7 @@ describe('fireworks: a rocket climbs from the ground lane to the upper third', (
 
     it('takes the spark colour, angle and distance from custom properties, not from the stylesheet', () => {
         const spark = ruleOf(css, '.season-spark')
-        expect(spark).toContain('background: var(--spark-colour')
+        expect(spark).toMatch(/background: linear-gradient\(to right, transparent, var\(--spark-colour/)
         expect(css).toMatch(/@keyframes season-spark[\s\S]*var\(--spark-angle/)
         expect(css).toMatch(/@keyframes season-spark[\s\S]*var\(--spark-dist/)
         expect(css).toMatch(/@keyframes season-spark[\s\S]*var\(--spark-sag/)

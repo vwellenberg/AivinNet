@@ -602,12 +602,14 @@ function glyphVars(p: Particle, j: number): Record<string, string> {
     position: absolute;
     left: 0;
     top: 0;
-    width: var(--spark-size, 4px);
-    height: var(--spark-size, 4px);
-    margin: calc(var(--spark-size, 4px) / -2) 0 0 calc(var(--spark-size, 4px) / -2);
-    border-radius: 50%;
-    background: var(--spark-colour, #FFFFFF);
-    box-shadow: 0 0 6px var(--spark-colour, #FFFFFF);
+    // A streak along its flight, not a dot: the element's x axis IS the flight
+    // (rotate, then translateX), so a width three times the height draws the trail.
+    width: calc(var(--spark-size, 6px) * 3);
+    height: var(--spark-size, 6px);
+    margin: calc(var(--spark-size, 6px) / -2) 0 0 calc(var(--spark-size, 6px) * -1.5);
+    border-radius: $candy-radius-pill;
+    background: linear-gradient(to right, transparent, var(--spark-colour, #FFFFFF) 70%, #FFFFFF);
+    box-shadow: 0 0 10px 2px var(--spark-colour, #FFFFFF);
     animation: season-spark var(--season-dur) linear var(--season-delay) infinite backwards;
 }
 

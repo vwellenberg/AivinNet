@@ -44,7 +44,7 @@ describe('App.vue mounts the season drivers for every season', () => {
         const nav = readFileSync('src/components/nav/NavBar.vue', 'utf8')
         expect(nav).toContain('<NewYearCountdown')
         expect(nav).toMatch(/<NewYearCountdown v-if="season === 'newyear' && !isMobile" \/>/)
-        expect(nav).toMatch(/<NewYearCountdown v-if="season === 'newyear' && isMobile" \/>/)
+        expect(nav).toMatch(/<NewYearCountdown v-if="season === 'newyear' && isMobile" compact \/>/)
     })
 
     it('has a figure and tile set for each season it can mount for', () => {

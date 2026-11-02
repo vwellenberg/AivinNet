@@ -10,8 +10,8 @@ import { setSeasonPreview } from '@/utils/seasons'
 
 // The pill ticks once a second on the faked clock. A reload of the page (a new mount)
 // reads the remembered year the way a real reload does.
-function pill() {
-    return mount(NewYearCountdown)
+function pill(props: { compact?: boolean } = {}) {
+    return mount(NewYearCountdown, { props })
 }
 
 // The tab's visibility, as vueuse's useDocumentVisibility reads it.
@@ -145,5 +145,13 @@ describe('NewYearCountdown: the pill in the top bar (#674)', () => {
         expect(vi.getTimerCount()).toBe(before + 1)
         w.unmount()
         expect(vi.getTimerCount()).toBe(before)
+    })
+
+    // "Happy New Year 🎉" pushed the avatar past the edge of a 390 px phone.
+    it('says just "🎉 2027" in the compact (phone) form', async () => {
+        vi.setSystemTime(new Date(2027, 0, 1, 0, 10, 0, 0))
+        const w = pill({ compact: true })
+        await w.vm.$nextTick()
+        expect(w.text()).toBe('🎉 2027')
     })
 })

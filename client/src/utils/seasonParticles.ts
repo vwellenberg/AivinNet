@@ -115,9 +115,14 @@ export const ROCKET_DURATION_MIN_S = 64
 export const ROCKET_DURATION_MAX_S = 80
 /** The sparkles that drift down like the snow, but sparse. */
 export const GLITTER_COUNT = 4
-/** A burst: 8 to 12 sparks (SPARK_MIN to SPARK_MAX). */
-export const SPARK_MIN = 8
-export const SPARK_MAX = 12
+/**
+ * A burst: 12 to 18 sparks (SPARK_MIN to SPARK_MAX). The first cut had 8 to 12
+ * round dots of 3 to 5 px flying 50 to 92 px: in the preview a burst read as a
+ * few specks of dust, not as a firework. More, bigger and further now, and each
+ * spark is a streak along its flight (SeasonParticles.vue).
+ */
+export const SPARK_MIN = 12
+export const SPARK_MAX = 18
 /**
  * The spark colours: gold, silver, the brand red and teal. They are lights, not
  * palette roles, so they stay the same in every colour scheme.
@@ -325,8 +330,8 @@ export function sparkBurst(random: () => number): Spark[] {
         sparks.push({
             // Evenly round the circle, each one nudged a few degrees off its slot.
             angle: Math.round((360 / count) * k + (random() * 2 - 1) * 8),
-            dist: Math.round(between(random, 50, 92)),
-            size: Math.round(between(random, 3, 5)),
+            dist: Math.round(between(random, 70, 130)),
+            size: Math.round(between(random, 5, 8)),
             colour: SPARK_COLOURS[pick(random, SPARK_COLOURS.length)],
             sag: Math.round(between(random, 8, 22)),
         })
@@ -394,6 +399,7 @@ function glitter(random: () => number): Particle {
         ground: false,
         lift: 0,
         drop: 0,
+        ribbon: 'line',
         offsets: [],
         extent: { w: 0, h: 0 },
         sparks: [],

@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SeasonParticles from '@/components/SeasonParticles.vue'
-import { CHASE_ZOMBIES_MAX, CHASE_ZOMBIES_MIN, MAX_PARTICLES, ZOMBIE_GLYPHS } from '@/utils/seasonParticles'
+import { CHASE_ZOMBIES_MAX, CHASE_ZOMBIES_MIN, MAX_PARTICLES, ZOMBIE_GLYPHS, SPARK_MAX, SPARK_MIN } from '@/utils/seasonParticles'
 
 // The layer is CSS animation over a handful of DOM nodes, so these tests check
 // what is drawn and when it is not: no season, reduced motion, the cap, and the
@@ -57,8 +57,8 @@ describe('SeasonParticles: drawn only while a season is active', () => {
             expect(r.classes()).toContain('is-ground')
             expect(r.findAll('.season-rocket-head')).toHaveLength(1)
             const sparks = r.findAll('.season-spark')
-            expect(sparks.length).toBeGreaterThanOrEqual(8)
-            expect(sparks.length).toBeLessThanOrEqual(12)
+            expect(sparks.length).toBeGreaterThanOrEqual(SPARK_MIN)
+            expect(sparks.length).toBeLessThanOrEqual(SPARK_MAX)
             // Each spark has its own angle and distance, set as custom properties.
             const style = (sparks[0].element as HTMLElement).style
             expect(style.getPropertyValue('--spark-angle')).toMatch(/deg$/)

@@ -875,8 +875,8 @@ describe('particlesFor: New Year\'s Eve is fireworks and a few sparkles (#674)',
                 expect(p.sparks.length).toBeLessThanOrEqual(SPARK_MAX)
             }
         }
-        expect(SPARK_MIN).toBe(8)
-        expect(SPARK_MAX).toBe(12)
+        expect(SPARK_MIN).toBe(12)
+        expect(SPARK_MAX).toBe(18)
     })
 
     it('colours the sparks in gold, silver, red and teal only', () => {
@@ -897,13 +897,14 @@ describe('particlesFor: New Year\'s Eve is fireworks and a few sparkles (#674)',
         })
     })
 
-    it('gives the sparks a flight of 50 to 92 px, a size of 3 to 5 px, and a sag of 8 to 22 px', () => {
+    // The first cut (50–92 px, 3–5 px dots) read as specks of dust in the preview.
+    it('gives the sparks a flight of 70 to 130 px, a size of 5 to 8 px, and a sag of 8 to 22 px', () => {
         for (const seed of Array.from({ length: 40 }, (_, i) => i + 1)) {
             for (const s of sparkBurst(sequence(seed))) {
-                expect(s.dist).toBeGreaterThanOrEqual(50)
-                expect(s.dist).toBeLessThanOrEqual(92)
-                expect(s.size).toBeGreaterThanOrEqual(3)
-                expect(s.size).toBeLessThanOrEqual(5)
+                expect(s.dist).toBeGreaterThanOrEqual(70)
+                expect(s.dist).toBeLessThanOrEqual(130)
+                expect(s.size).toBeGreaterThanOrEqual(5)
+                expect(s.size).toBeLessThanOrEqual(8)
                 expect(s.sag).toBeGreaterThanOrEqual(8)
                 expect(s.sag).toBeLessThanOrEqual(22)
             }

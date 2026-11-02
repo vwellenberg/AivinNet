@@ -58,7 +58,7 @@
                 </button>
             </template>
             <!-- On a phone the pill sits in the right group instead (the logo column is hidden there). -->
-            <NewYearCountdown v-if="season === 'newyear' && isMobile" />
+            <NewYearCountdown v-if="season === 'newyear' && isMobile" compact />
             <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
             <ThemeToggle v-if="lookHasModes(settings.look)" />
             <AvatarWithDropdown />

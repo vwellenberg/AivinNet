@@ -2,6 +2,7 @@
     <!-- The pill: the clock to midnight, then the greeting. Nothing when there is no countdown. -->
     <span v-if="view" class="newyear-countdown" :class="{ 'is-greeting': view.kind === 'celebrating' }">
         <template v-if="view.kind === 'counting'">{{ clock }}</template>
+        <template v-else-if="compact">🎉 {{ newYear }}</template>
         <template v-else>Happy New Year 🎉</template>
     </span>
 </template>
@@ -28,6 +29,11 @@ import {
     rememberCelebratedYear,
 } from "@/utils/newYearCountdown";
 
+// On a phone the top bar holds the page title, this pill and two buttons in one
+// pill-shaped row: "Happy New Year 🎉" pushed the avatar past the screen edge
+// (measured at 390 px). The phone gets the short form, "🎉 2027".
+withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
+
 const SECOND_MS = 1000;
 const CONFETTI_PIECES = 40;
 
@@ -41,6 +47,8 @@ const view = computed(() => {
     const c = countdownAt(now.value, seasonPreview.value === "newyear");
     return c.kind === "none" ? null : c;
 });
+
+const newYear = computed(() => now.value.getFullYear() + (now.value.getMonth() === 11 ? 1 : 0));
 
 const clock = computed(() => {
     const c = view.value;
