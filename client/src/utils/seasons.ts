@@ -1,7 +1,8 @@
 /**
  * SEASONAL SCHEMES (#543). On a few dates the Memphis look changes its
  * colours: pumpkin and violet from a week before to a week after Halloween
- * (24 October – 7 November), snow sprinkles from 10 to 30 December.
+ * (24 October – 7 November), snow sprinkles from 10 to 30 December, and
+ * midnight blue and gold on New Year's Eve and Day (#674).
  *
  * The date only paints OVER the user's choice. The stored colour scheme
  * (utils/theme.ts) is never written here, so it comes back the next day, and
@@ -10,7 +11,7 @@
 import { ref } from 'vue'
 import { lookHasPalettes, type Look, type Palette } from './theme'
 
-export type Season = 'halloween' | 'christmas'
+export type Season = 'halloween' | 'christmas' | 'newyear'
 
 /**
  * The season Settings → Appearance forces for this tab, in place of the date.
@@ -26,17 +27,18 @@ export function setSeasonPreview(season: Season | null): void {
  * The palette a season paints. Christmas also swaps the sprinkle
  * (Global/_seasons.scss, `html.season-christmas`).
  */
-const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween', christmas: 'christmas' }
+const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween', christmas: 'christmas', newyear: 'newyear' }
 
 /** The season a LOCAL calendar date falls in, or null. `getMonth()` is 0-based. */
 export function seasonOn(now: Date = new Date()): Season | null {
     const month = now.getMonth()
     const day = now.getDate()
-    // A week either side of Halloween, and from a week before Christmas Eve's
-    // week to the day before New Year's Eve (user, 2026-10-31: "a week before
-    // and after"; 31 Dec is left free for New Year's Eve).
+    // A week either side of Halloween (user, 2026-10-31: "a week before and
+    // after"). Christmas from the 10th to the 30th; New Year's Eve has the 31st
+    // and New Year's Day (#674), the way Halloween keeps its week after.
     if ((month === 9 && day >= 24) || (month === 10 && day <= 7)) return 'halloween'
     if (month === 11 && day >= 10 && day <= 30) return 'christmas'
+    if ((month === 11 && day === 31) || (month === 0 && day === 1)) return 'newyear'
     return null
 }
 

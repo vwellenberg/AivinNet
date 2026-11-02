@@ -19,6 +19,14 @@
                 class="season-glyph"
                 :style="glyphVars(p, j)"
             >{{ g }}</span>
+            <!-- New Year's rocket: its head (the trail hangs below it in CSS), then the sparks of its burst. -->
+            <span v-if="p.kind === 'rocket'" class="season-rocket-head" />
+            <span
+                v-for="(s, k) in p.sparks"
+                :key="k"
+                class="season-spark"
+                :style="sparkVars(s)"
+            />
         </span>
         <!-- The snow on the player bar's top edge (Christmas). Keyed by the page change, so each one clears it. -->
         <span
@@ -36,7 +44,7 @@ import { useDocumentVisibility, useEventListener, useMediaQuery, useResizeObserv
 import { computed, onMounted, ref } from "vue";
 
 // @utils
-import { crossing, DRIFT_SETTLE_S, hangs, particlesFor, type Particle, type Ribbon } from "@/utils/seasonParticles";
+import { crossing, DRIFT_SETTLE_S, hangs, particlesFor, type Particle, type Ribbon, type Spark } from "@/utils/seasonParticles";
 import type { Season } from "@/utils/seasons";
 
 // `navigation` counts the page changes (App.vue): a change re-keys the snow drift, so it starts over.
@@ -107,6 +115,17 @@ function varsOf(p: Particle): Record<string, string> {
     };
 }
 
+/** One spark's variables: where it flies, how far, how big, its colour and its sag (utils/seasonParticles.ts, sparkBurst). */
+function sparkVars(s: Spark): Record<string, string> {
+    return {
+        "--spark-angle": `${s.angle}deg`,
+        "--spark-dist": `${s.dist}px`,
+        "--spark-size": `${s.size}px`,
+        "--spark-colour": s.colour,
+        "--spark-sag": `${s.sag}px`,
+    };
+}
+
 /**
  * One glyph's variables. Every glyph gets its index and the group's length (the
  * bob's stagger). A cluster glyph also gets its own offset from the runner, and a
@@ -174,7 +193,9 @@ function glyphVars(p: Particle, j: number): Record<string, string> {
 
 // Paused, not removed, when the tab is hidden: the layer keeps its layout.
 .season-particles.is-paused .season-particle,
-.season-particles.is-paused .season-glyph {
+.season-particles.is-paused .season-glyph,
+.season-particles.is-paused .season-rocket-head,
+.season-particles.is-paused .season-spark {
     animation-play-state: paused;
 }
 
@@ -495,6 +516,136 @@ function glyphVars(p: Particle, j: number): Record<string, string> {
     display: block;
     font-size: var(--season-size);
     line-height: 1;
+}
+
+// ----------------------------------------------------------------------------
+// New Year's Eve (#674): the rockets and the sparkles.
+//
+// A rocket is a point on the ground lane (is-ground, above the player bar). Its
+// particle climbs to the upper third of the screen; the head hangs on it, and at the
+// top the head goes out and the sparks fly out from the same point. Every keyframe is
+// a percentage of the cycle (--season-dur), and the timing is in those percentages,
+// so no duration is written as a literal.
+// ----------------------------------------------------------------------------
+
+// The climb is 67 vh less the bar and the lift: from the bar's top edge up to a third
+// of the way down from the top. The bar's height is per layout, as the ground lane's.
+.season-rocket {
+    --rocket-bar: #{$bottombarheight};
+    --rocket-rise: calc(67vh - var(--rocket-bar) - var(--season-lift, 0rem));
+    width: 0;
+    height: 0;
+    animation: season-rocket var(--season-dur) linear var(--season-delay) infinite backwards;
+
+    @include allPhones {
+        --rocket-bar: #{$bottombarheight-phone};
+    }
+
+    @include shortViewport {
+        --rocket-bar: #{$bottombarheight-short};
+    }
+}
+
+// The climb: the first 4.5 % of the cycle, quick at the start and easing in at the top.
+@keyframes season-rocket {
+    0% {
+        translate: 0 0;
+        animation-timing-function: ease-out;
+    }
+    4.5%,
+    100% {
+        translate: 0 calc(var(--rocket-rise) * -1);
+    }
+}
+
+// The head: lit from the first moment of the climb to the burst, then out.
+.season-rocket-head {
+    position: absolute;
+    left: -2px;
+    bottom: 0;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 0 6px 1px #F2B233;
+    animation: season-rocket-head var(--season-dur) linear var(--season-delay) infinite backwards;
+
+    // The trail, hanging below the head as it climbs.
+    &::after {
+        content: '';
+        position: absolute;
+        left: 1px;
+        top: 100%;
+        width: 2px;
+        height: 2.5rem;
+        background: linear-gradient(to bottom, rgb(242 178 51 / 0.85), rgb(242 178 51 / 0));
+    }
+}
+
+@keyframes season-rocket-head {
+    0% {
+        opacity: 0;
+    }
+    0.5%,
+    4.5% {
+        opacity: 1;
+    }
+    4.6%,
+    100% {
+        opacity: 0;
+    }
+}
+
+// A spark: from the burst point, out along its angle, sagging a little, and gone
+// by 10.5 % of the cycle (about four seconds of burst on a 70 s cycle).
+.season-spark {
+    position: absolute;
+    left: 0;
+    top: 0;
+    // A streak along its flight, not a dot: the element's x axis IS the flight
+    // (rotate, then translateX), so a width three times the height draws the trail.
+    width: calc(var(--spark-size, 6px) * 3);
+    height: var(--spark-size, 6px);
+    margin: calc(var(--spark-size, 6px) / -2) 0 0 calc(var(--spark-size, 6px) * -1.5);
+    border-radius: $candy-radius-pill;
+    background: linear-gradient(to right, transparent, var(--spark-colour, #FFFFFF) 70%, #FFFFFF);
+    box-shadow: 0 0 10px 2px var(--spark-colour, #FFFFFF);
+    animation: season-spark var(--season-dur) linear var(--season-delay) infinite backwards;
+}
+
+@keyframes season-spark {
+    0%,
+    4.5% {
+        opacity: 0;
+        transform: rotate(var(--spark-angle, 0deg)) translateX(0);
+        translate: 0 0;
+    }
+    4.6% {
+        opacity: 1;
+        transform: rotate(var(--spark-angle, 0deg)) translateX(0);
+        translate: 0 0;
+        animation-timing-function: ease-out;
+    }
+    10.5% {
+        opacity: 0;
+        transform: rotate(var(--spark-angle, 0deg)) translateX(var(--spark-dist, 60px));
+        translate: 0 var(--spark-sag, 12px);
+    }
+    100% {
+        opacity: 0;
+        transform: rotate(var(--spark-angle, 0deg)) translateX(var(--spark-dist, 60px));
+        translate: 0 var(--spark-sag, 12px);
+    }
+}
+
+// The sparkles: the snow's fall and sway, on a glyph.
+.season-glitter {
+    top: 0;
+    animation: season-snow var(--season-dur) linear var(--season-delay) infinite backwards;
+}
+
+.season-glitter .season-glyph {
+    opacity: 0.85;
 }
 
 @keyframes season-bob {

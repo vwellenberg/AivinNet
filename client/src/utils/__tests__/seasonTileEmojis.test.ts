@@ -140,6 +140,28 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
             expect(pickTileEmoji(['🎁'], sequence(seed), christmas)).not.toBe('🎁')
         }
     })
+
+    it('gives New Year\'s Eve champagne and the bottle most, the poppers next, the sparkles and fireworks least (#674)', () => {
+        const newyear = tileEmojiWeightsFor('newyear')
+        const weight = (emoji: string) => newyear.find((e) => e.emoji === emoji)?.weight
+        expect(newyear.map((e) => e.emoji)).toEqual(['🥂', '🍾', '🎉', '🎊', '✨', '🎆'])
+        expect(weight('🥂')).toBe(3)
+        expect(weight('🍾')).toBe(3)
+        expect(weight('🎉')).toBe(2)
+        expect(weight('🎊')).toBe(2)
+        expect(weight('✨')).toBe(1)
+        expect(weight('🎆')).toBe(1)
+    })
+
+    it('draws a New Year\'s tile only from the New Year\'s set, and none of the other seasons\'', () => {
+        const newyear = tileEmojiWeightsFor('newyear')
+        const picked = new Set<string>()
+        for (let seed = 1; seed <= 200; seed++) picked.add(pickTileEmoji([], sequence(seed), newyear))
+        expect(picked).toEqual(new Set(newyear.map((e) => e.emoji)))
+        for (const other of [...TILE_EMOJIS, ...tileEmojiWeightsFor('christmas').map((e) => e.emoji)]) {
+            expect(picked).not.toContain(other)
+        }
+    })
 })
 
 describe('nextTileDelayMs: rare and irregular, 20 s to 40 s', () => {

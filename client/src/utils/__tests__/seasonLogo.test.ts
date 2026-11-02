@@ -12,6 +12,13 @@ describe('logoFor', () => {
         expect(logoFor('halloween')).toContain('logo-halloween')
         expect(logoFor('christmas')).toContain('logo-christmas')
     })
+
+    it('gives New Year\'s Eve the planet in a party hat, its own picture (#674)', () => {
+        expect(logoFor('newyear')).toContain('logo-newyear')
+        expect(logoFor('newyear')).not.toBe(logoFor(null))
+        expect(logoFor('newyear')).not.toBe(logoFor('halloween'))
+        expect(logoFor('newyear')).not.toBe(logoFor('christmas'))
+    })
 })
 
 describe('useSeasonLogo', () => {

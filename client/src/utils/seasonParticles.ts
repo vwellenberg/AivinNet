@@ -17,6 +17,8 @@ export type ParticleKind =
     | 'present'
     | 'waddle'
     | 'star'
+    | 'rocket'
+    | 'glitter'
 
 /** The colour of a hanger's thread: the theme's line colour (the spider), or a bell's ribbon. */
 export type Ribbon = 'line' | 'gold' | 'red'
@@ -70,6 +72,25 @@ export interface Particle {
     offsets: GlyphOffset[]
     /** Chase and waddle only: the box the cluster needs, in glyph sizes (w to the right of the leader, h up from the ground). */
     extent: { w: number; h: number }
+    /**
+     * Rocket only: the sparks of its burst, drawn by CSS at the top of its climb
+     * (components/SeasonParticles.vue). Empty for every other kind.
+     */
+    sparks: Spark[]
+}
+
+/** One spark of a rocket's burst (see Particle.sparks). */
+export interface Spark {
+    /** Direction of flight, in degrees, clockwise from straight up. */
+    angle: number
+    /** How far it flies from the burst, in px. */
+    dist: number
+    /** Its diameter, in px. */
+    size: number
+    /** Its colour, one of SPARK_COLOURS. */
+    colour: string
+    /** How far it sags under its own weight by the end of its flight, in px. */
+    sag: number
 }
 
 /** A glyph's place in a cluster (see Particle.offsets). */
@@ -83,6 +104,30 @@ export const MAX_PARTICLES = 25
 
 /** A dusting, not a blizzard. */
 const SNOWFLAKES = 18
+
+/**
+ * New Year's Eve (#674): fireworks and a few sparkles. Four rockets, each on a
+ * cycle of 64 to 80 s: four in a cycle of that length come about every 16 to 20 s
+ * on average (the 15 s rule in the crosser tests). Rarer than the snow by far.
+ */
+export const ROCKET_COUNT = 4
+export const ROCKET_DURATION_MIN_S = 64
+export const ROCKET_DURATION_MAX_S = 80
+/** The sparkles that drift down like the snow, but sparse. */
+export const GLITTER_COUNT = 4
+/**
+ * A burst: 12 to 18 sparks (SPARK_MIN to SPARK_MAX). The first cut had 8 to 12
+ * round dots of 3 to 5 px flying 50 to 92 px: in the preview a burst read as a
+ * few specks of dust, not as a firework. More, bigger and further now, and each
+ * spark is a streak along its flight (SeasonParticles.vue).
+ */
+export const SPARK_MIN = 12
+export const SPARK_MAX = 18
+/**
+ * The spark colours: gold, silver, the brand red and teal. They are lights, not
+ * palette roles, so they stay the same in every colour scheme.
+ */
+export const SPARK_COLOURS = ['#F2B233', '#C9D0DC', '#FF284E', '#1FB5A8'] as const
 
 /*
  * The chase: the runner in front, then a horde of zombies clustered behind it
@@ -267,9 +312,31 @@ const CHRISTMAS: { kind: ParticleKind; group: string[]; count: number }[] = [
     { kind: 'star', group: [STAR_GLYPH], count: 1 },
 ]
 
+/** New Year's Eve: the rockets (the sparkles are their own drift, see `glitter`). */
+const NEWYEAR: { kind: ParticleKind; group: string[]; count: number }[] = [
+    { kind: 'rocket', group: [], count: ROCKET_COUNT },
+]
+
 /** A value between `min` and `max`, from the random source. */
 function between(random: () => number, min: number, max: number): number {
     return min + random() * (max - min)
+}
+
+/** One burst: 8 to 12 sparks spread round the circle, each its own length, size, colour and sag. */
+export function sparkBurst(random: () => number): Spark[] {
+    const count = SPARK_MIN + pick(random, SPARK_MAX - SPARK_MIN + 1)
+    const sparks: Spark[] = []
+    for (let k = 0; k < count; k++) {
+        sparks.push({
+            // Evenly round the circle, each one nudged a few degrees off its slot.
+            angle: Math.round((360 / count) * k + (random() * 2 - 1) * 8),
+            dist: Math.round(between(random, 70, 130)),
+            size: Math.round(between(random, 5, 8)),
+            colour: SPARK_COLOURS[pick(random, SPARK_COLOURS.length)],
+            sag: Math.round(between(random, 8, 22)),
+        })
+    }
+    return sparks
 }
 
 /**
@@ -311,6 +378,31 @@ function snowflake(random: () => number): Particle {
         ribbon: 'line',
         offsets: [],
         extent: { w: 0, h: 0 },
+        sparks: [],
+    }
+}
+
+/** A sparkle: drifts down like a snowflake, with its own size and a ✨ glyph. */
+function glitter(random: () => number): Particle {
+    const duration = between(random, 14, 24)
+    return {
+        kind: 'glitter',
+        group: ['✨'],
+        left: between(random, 0, 100),
+        top: 0,
+        size: between(random, 12, 18),
+        duration,
+        delay: -between(random, 0, duration),
+        drift: between(random, -40, 40),
+        wobble: 0,
+        dir: 1,
+        ground: false,
+        lift: 0,
+        drop: 0,
+        ribbon: 'line',
+        offsets: [],
+        extent: { w: 0, h: 0 },
+        sparks: [],
     }
 }
 
@@ -343,8 +435,25 @@ function crosserShape(random: () => number, kind: ParticleKind, group: string[])
         ribbon: 'line' as Ribbon,
         offsets: [] as GlyphOffset[],
         extent: { w: 0, h: 0 },
+        sparks: [] as Spark[],
     }
     const rare = CROSSER_RARITY
+    if (kind === 'rocket') {
+        // Climbs from just above the player bar (the ground lane, so it is never behind
+        // it) to the upper third, bursts into its sparks there, and is gone. The cycle is
+        // its own, long on purpose (ROCKET_DURATION_MIN_S): see the crosser tests.
+        return {
+            ...base,
+            dir: 1,
+            ground: true,
+            lift: between(random, 2, 3.5),
+            left: between(random, 8, 92),
+            size: 4,
+            duration: between(random, ROCKET_DURATION_MIN_S, ROCKET_DURATION_MAX_S),
+            wobble: 0,
+            sparks: sparkBurst(random),
+        }
+    }
     if (kind === 'bat') {
         // Crosses in a short part of its cycle, then is gone for a while. Always
         // right to left: the 🦇 emoji faces left, and one flying backwards looked
@@ -511,6 +620,11 @@ export function particlesFor(season: Season | null, random: () => number = Math.
         }
     } else if (season === 'halloween') {
         for (const { kind, group, count } of HALLOWEEN) {
+            for (let i = 0; i < count; i++) out.push(crosserParticle(random, kind, group))
+        }
+    } else if (season === 'newyear') {
+        for (let i = 0; i < GLITTER_COUNT; i++) out.push(glitter(random))
+        for (const { kind, group, count } of NEWYEAR) {
             for (let i = 0; i < count; i++) out.push(crosserParticle(random, kind, group))
         }
     }

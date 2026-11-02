@@ -8,10 +8,17 @@ import {
     CHASE_ZOMBIES_TYPICAL_MAX,
     CROSSER_QUIET_START_S,
     DRIFT_SETTLE_S,
+    GLITTER_COUNT,
     MAX_PARTICLES,
     PENGUIN_GLYPH,
     PRESENT_GLYPH,
+    ROCKET_COUNT,
+    ROCKET_DURATION_MAX_S,
+    ROCKET_DURATION_MIN_S,
     SLEIGH_GROUP,
+    SPARK_COLOURS,
+    SPARK_MAX,
+    SPARK_MIN,
     SPIDER_GLYPH,
     STAR_GLYPH,
     WADDLE_MAX,
@@ -22,6 +29,7 @@ import {
     crossing,
     hangs,
     particlesFor,
+    sparkBurst,
     waddleGroup,
 } from '@/utils/seasonParticles'
 
@@ -49,7 +57,7 @@ describe('particlesFor: no season, no particles', () => {
 describe('particlesFor: the count is capped', () => {
     it('never returns more than MAX_PARTICLES, for any season or random source', () => {
         expect(MAX_PARTICLES).toBe(25)
-        for (const season of ['christmas', 'halloween'] as const) {
+        for (const season of ['christmas', 'halloween', 'newyear'] as const) {
             for (let seed = 1; seed <= 20; seed++) {
                 expect(particlesFor(season, sequence(seed)).length).toBeLessThanOrEqual(MAX_PARTICLES)
             }
@@ -446,7 +454,7 @@ describe('crossing: a group starts and ends fully off screen', () => {
 
 describe('particlesFor: every value stays in its range', () => {
     it('keeps positions on the screen and times positive', () => {
-        for (const season of ['christmas', 'halloween'] as const) {
+        for (const season of ['christmas', 'halloween', 'newyear'] as const) {
             for (let seed = 1; seed <= 10; seed++) {
                 for (const p of particlesFor(season, sequence(seed))) {
                     expect(p.left).toBeGreaterThanOrEqual(0)
@@ -468,6 +476,7 @@ describe('particlesFor: every value stays in its range', () => {
 // fixed window (ghosts were even mid-rise at once), and a fresh page saw seven
 // or eight of them in its first minute.
 describe('crossers: about one every 15 s, from the first minute on', () => {
+    // The rockets (#674) are crossers too: they come by on their own cycle, one at a time.
     const CROSSERS = new Set([
         'bat',
         'ghost',
@@ -479,11 +488,12 @@ describe('crossers: about one every 15 s, from the first minute on', () => {
         'present',
         'waddle',
         'star',
+        'rocket',
     ])
     const SEEDS = Array.from({ length: 200 }, (_, i) => i + 1)
-    const SEASONS = ['halloween', 'christmas'] as const
+    const SEASONS = ['halloween', 'christmas', 'newyear'] as const
 
-    it('comes by once every 15 s or less often, on average, in both seasons', () => {
+    it('comes by once every 15 s or less often, on average, in every season', () => {
         for (const season of SEASONS) {
             let rate = 0
             for (const seed of SEEDS) {
@@ -507,7 +517,7 @@ describe('crossers: about one every 15 s, from the first minute on', () => {
         }
     })
 
-    it('keeps the first minute after a load as calm as any other, in both seasons', () => {
+    it('keeps the first minute after a load as calm as any other, in every season', () => {
         for (const season of SEASONS) {
             let firstMinute = 0
             let rate = 0
@@ -808,5 +818,122 @@ describe('the snow drift on the player bar: settles over a few minutes', () => {
     it('settles in over 2 to 5 minutes', () => {
         expect(DRIFT_SETTLE_S).toBeGreaterThanOrEqual(120)
         expect(DRIFT_SETTLE_S).toBeLessThanOrEqual(300)
+    })
+})
+
+describe('particlesFor: New Year\'s Eve is fireworks and a few sparkles (#674)', () => {
+    it('makes the rockets and the sparkles, and nothing else', () => {
+        const kinds = particlesFor('newyear', MIDDLE).map((p) => p.kind)
+        expect(kinds.filter((k) => k === 'rocket')).toHaveLength(ROCKET_COUNT)
+        expect(kinds.filter((k) => k === 'glitter')).toHaveLength(GLITTER_COUNT)
+        expect(kinds).toHaveLength(ROCKET_COUNT + GLITTER_COUNT)
+    })
+
+    it('has three or four rockets, and sparse sparkles: four of each at most', () => {
+        expect(ROCKET_COUNT).toBeGreaterThanOrEqual(3)
+        expect(ROCKET_COUNT).toBeLessThanOrEqual(4)
+        expect(GLITTER_COUNT).toBeLessThanOrEqual(4)
+    })
+
+    it('launches each rocket from the ground lane, just above the player bar, never in the sky', () => {
+        for (const seed of Array.from({ length: 30 }, (_, i) => i + 1)) {
+            for (const p of particlesFor('newyear', sequence(seed)).filter((p) => p.kind === 'rocket')) {
+                expect(p.ground).toBe(true)
+                expect(p.lift).toBeGreaterThanOrEqual(2)
+                expect(p.lift).toBeLessThanOrEqual(3.5)
+                expect(p.left).toBeGreaterThanOrEqual(0)
+                expect(p.left).toBeLessThanOrEqual(100)
+            }
+        }
+    })
+
+    it('gives every rocket its own cycle of 64 to 80 s, long enough for the 15 s rule', () => {
+        expect(ROCKET_DURATION_MIN_S).toBeGreaterThanOrEqual(ROCKET_COUNT * 15)
+        for (const seed of Array.from({ length: 30 }, (_, i) => i + 1)) {
+            for (const p of particlesFor('newyear', sequence(seed)).filter((p) => p.kind === 'rocket')) {
+                expect(p.duration).toBeGreaterThanOrEqual(ROCKET_DURATION_MIN_S)
+                expect(p.duration).toBeLessThanOrEqual(ROCKET_DURATION_MAX_S)
+            }
+        }
+    })
+
+    it('spreads the rockets\' first appearances over their cycles, after the quiet start', () => {
+        const delays = particlesFor('newyear', sequence(7)).filter((p) => p.kind === 'rocket').map((p) => p.delay)
+        expect(new Set(delays).size).toBe(ROCKET_COUNT)
+        for (const seed of Array.from({ length: 30 }, (_, i) => i + 1)) {
+            for (const p of particlesFor('newyear', sequence(seed)).filter((p) => p.kind === 'rocket')) {
+                expect(p.delay).toBeGreaterThanOrEqual(CROSSER_QUIET_START_S)
+                expect(p.delay).toBeLessThanOrEqual(p.duration)
+            }
+        }
+    })
+
+    it('bursts each rocket into 8 to 12 sparks, for every seed', () => {
+        for (const seed of Array.from({ length: 50 }, (_, i) => i + 1)) {
+            for (const p of particlesFor('newyear', sequence(seed)).filter((p) => p.kind === 'rocket')) {
+                expect(p.sparks.length).toBeGreaterThanOrEqual(SPARK_MIN)
+                expect(p.sparks.length).toBeLessThanOrEqual(SPARK_MAX)
+            }
+        }
+        expect(SPARK_MIN).toBe(12)
+        expect(SPARK_MAX).toBe(18)
+    })
+
+    it('colours the sparks in gold, silver, red and teal only', () => {
+        expect([...SPARK_COLOURS].sort()).toEqual(['#1FB5A8', '#C9D0DC', '#F2B233', '#FF284E'].sort())
+        for (const seed of Array.from({ length: 20 }, (_, i) => i + 1)) {
+            for (const s of sparkBurst(sequence(seed))) {
+                expect(SPARK_COLOURS).toContain(s.colour)
+            }
+        }
+    })
+
+    it('spreads a burst evenly round the circle, each spark off its own slot by a few degrees at most', () => {
+        const sparks = sparkBurst(MIDDLE)
+        const n = sparks.length
+        sparks.forEach((s, k) => {
+            const slot = (360 / n) * k
+            expect(Math.abs(s.angle - slot)).toBeLessThanOrEqual(8)
+        })
+    })
+
+    // The first cut (50–92 px, 3–5 px dots) read as specks of dust in the preview.
+    it('gives the sparks a flight of 70 to 130 px, a size of 5 to 8 px, and a sag of 8 to 22 px', () => {
+        for (const seed of Array.from({ length: 40 }, (_, i) => i + 1)) {
+            for (const s of sparkBurst(sequence(seed))) {
+                expect(s.dist).toBeGreaterThanOrEqual(70)
+                expect(s.dist).toBeLessThanOrEqual(130)
+                expect(s.size).toBeGreaterThanOrEqual(5)
+                expect(s.size).toBeLessThanOrEqual(8)
+                expect(s.sag).toBeGreaterThanOrEqual(8)
+                expect(s.sag).toBeLessThanOrEqual(22)
+            }
+        }
+    })
+
+    it('draws the sparkles as ✨ glyphs that drift down like the snow, from the top edge', () => {
+        const glitter = particlesFor('newyear', sequence(3)).filter((p) => p.kind === 'glitter')
+        expect(glitter).toHaveLength(GLITTER_COUNT)
+        for (const p of glitter) {
+            expect(p.group).toEqual(['✨'])
+            expect(p.top).toBe(0)
+            expect(p.size).toBeGreaterThanOrEqual(12)
+            expect(p.size).toBeLessThanOrEqual(18)
+            expect(p.duration).toBeGreaterThan(0)
+            expect(p.sparks).toEqual([])
+        }
+    })
+
+    it('makes no rockets or sparkles at Christmas or Halloween', () => {
+        for (const season of ['christmas', 'halloween'] as const) {
+            for (const p of particlesFor(season, MIDDLE)) {
+                expect(p.kind).not.toBe('rocket')
+                expect(p.kind).not.toBe('glitter')
+            }
+        }
+    })
+
+    it('keeps the rockets and the sparkles within the cap', () => {
+        expect(ROCKET_COUNT + GLITTER_COUNT).toBeLessThanOrEqual(MAX_PARTICLES)
     })
 })

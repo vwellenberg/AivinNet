@@ -6,6 +6,7 @@ import {
     PEEK_DURATION_MS,
     PEEK_LAUNCH_FRACTION,
     PEEK_SIZE_PX,
+    PARTY_PEEK_DURATION_MS,
     PEEK_SPECS,
     SNOWMAN_PEEK_DURATION_MS,
     nextPeekDelayMs,
@@ -35,12 +36,22 @@ function sequence(seed: number): () => number {
 
 describe('PEEK_SPECS: one figure per season', () => {
     it('keeps the Halloween vampire: it puffs into a bat that flies off, over the whole peek', () => {
-        expect(PEEK_SPECS.halloween).toEqual({ figure: '🧛', launches: true, durationMs: PEEK_DURATION_MS })
+        expect(PEEK_SPECS.halloween).toEqual({ figure: '🧛', launches: true, puff: '💨', durationMs: PEEK_DURATION_MS })
     })
 
-    it('gives Christmas a snowman that has no bat phase', () => {
+    it('gives Christmas a snowman that has no bat phase and no burst', () => {
         expect(PEEK_SPECS.christmas.figure).toBe('⛄')
         expect(PEEK_SPECS.christmas.launches).toBe(false)
+        expect(PEEK_SPECS.christmas.puff).toBeNull()
+    })
+
+    it('gives New Year\'s Eve a party-goer that pops a 🎉 burst and sinks back, never launching', () => {
+        expect(PEEK_SPECS.newyear).toEqual({ figure: '🥳', launches: false, puff: '🎉', durationMs: PARTY_PEEK_DURATION_MS })
+    })
+
+    it('keeps the party peek between the snowman and the vampire in length', () => {
+        expect(PARTY_PEEK_DURATION_MS).toBeGreaterThan(SNOWMAN_PEEK_DURATION_MS)
+        expect(PARTY_PEEK_DURATION_MS).toBeLessThan(PEEK_DURATION_MS)
     })
 
     it('makes the snowman peek shorter than the vampire, on its own duration', () => {
