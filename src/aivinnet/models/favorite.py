@@ -5,7 +5,9 @@ from typing import Any, Literal
 @dataclass
 class Favorite:
     hash: str
-    type: Literal["album", "track", "artist"]
+    # Also the sidebar pins, which share the table: "pinned_album",
+    # "pinned_folder".
+    type: Literal["album", "track", "artist", "pinned_album", "pinned_folder"]
     timestamp: int
     userid: int
     extra: dict[str, Any]
@@ -25,4 +27,8 @@ class Favorite:
         # directly return it PREFIXED (`FavoritesTable.get_last_trackhash`,
         # whose caller in `lib/home/recover_items.py` strips it by hand). The
         # dataclass is the boundary, not the table.
-        self.hash = self.hash.replace(f"{self.type}_", "")
+        #
+        # Only the LEADING prefix: a pinned folder's hash is its path, and
+        # `replace` also cut `pinned_folder_` out of the middle of a folder
+        # that happened to carry that in its name.
+        self.hash = self.hash.removeprefix(f"{self.type}_")

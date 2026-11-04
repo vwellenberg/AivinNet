@@ -21,8 +21,13 @@ vi.mock('@/requests/album', () => ({
     getPinnedAlbums: vi.fn(),
     reorderPinnedAlbums: vi.fn(),
 }))
+vi.mock('@/requests/folders', () => ({
+    getPinnedFolders: vi.fn(),
+    reorderPinnedFolders: vi.fn(),
+}))
 
 import usePinnedAlbums from '@/stores/pages/pinnedAlbums'
+import usePinnedFolders from '@/stores/pages/pinnedFolders'
 import usePlaylists from '@/stores/pages/playlists'
 import usePlaylistFolders from '@/stores/playlistFolders'
 
@@ -63,6 +68,16 @@ describe('playlists.movePlayedToTop', () => {
         store.playlists = [mkPl(1, { pinned: true, settings: { position: 2 } }), mkPl(2)]
         usePlaylistFolders().folders = [{ id: 9, name: 'F', position: 0, items: [] } as any]
         usePinnedAlbums().albums = [{ albumhash: 'ah', title: 'A', position: 1 } as any]
+
+        await store.movePlayedToTop(1)
+
+        expect(reorderSidebarPlaylists).toHaveBeenCalledWith([{ id: 1, position: -1 }])
+    })
+
+    it('moves a pinned playlist above pinned music folders too', async () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1, { pinned: true, settings: { position: 2 } })]
+        usePinnedFolders().folders = [{ name: 'Rock', path: '/music/Rock/', trackcount: 3, is_sym: false, position: 0 }]
 
         await store.movePlayedToTop(1)
 

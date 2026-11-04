@@ -7,6 +7,8 @@ import useModal from "@/stores/modal";
 import useTracklist from "@/stores/queue/tracklist";
 
 import { addFolderToPlaylist } from "@/requests/playlists";
+import { toggleFolderPin } from "@/helpers/pinFolder";
+import usePinnedFolders from "@/stores/pages/pinnedFolders";
 import { getAddToPlaylistOptions } from "./utils";
 
 export default async (path: string) => {
@@ -57,5 +59,17 @@ export default async (path: string) => {
     icon: icons.PlusIcon,
   };
 
-  return [play_next, add_to_queue, add_to_playlist];
+  // Same wording as the album menu: the sidebar section is "Library".
+  // The sidebar loads the pins, but the phone has no sidebar: without this the
+  // menu offered "Pin" for a pinned folder, and the toggle unpinned it.
+  const pinned = usePinnedFolders();
+  if (!pinned.loaded) await pinned.fetchAll();
+  const is_pinned = pinned.isPinned(path);
+  const pin = <Option>{
+    label: is_pinned ? "Unpin from library" : "Pin to library",
+    action: () => toggleFolderPin(path),
+    icon: icons.PushPinIcon,
+  };
+
+  return [play_next, add_to_queue, add_to_playlist, pin];
 };
