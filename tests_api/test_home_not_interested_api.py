@@ -25,7 +25,7 @@ from test_home_discover_api import (  # noqa: F401 - the imported fixtures
 
 
 @pytest.fixture()
-def marks(home, monkeypatch):  # noqa: F811 - the imported fixture
+def marks(home, monkeypatch):
     """The discover scenario's API, with the endpoints acting as its user."""
     import aivinnet.api.home as home_api
 

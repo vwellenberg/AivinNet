@@ -133,6 +133,13 @@ ignore = [
     "RUF012", # mutable class default — false positives bei SQLAlchemy models
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# These modules import pytest fixtures from test_home_discover_api and take them
+# as test arguments, which pyflakes reads as a redefinition of the import.
+"tests_api/test_discoveries_api.py" = ["F811"]
+"tests_api/test_home_not_interested_api.py" = ["F811"]
+"tests_api/test_recently_added_stamp_api.py" = ["F811"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["aivinnet"]
 
