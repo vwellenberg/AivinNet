@@ -57,9 +57,10 @@
                   <FolderSvg class="folder-icon" />
                 </div>
                 <span class="ellip">{{ entry.folder.name }}</span>
-                <PushPinSvg v-if="zone.top" class="folder-pin" title="Pinned" />
                 <span class="folder-count">{{ entry.folder.playlists.length }}</span>
                 <RightArrowSvg class="folder-chevron" :class="{ open: !folderStore.isCollapsed(entry.id) }" />
+                <!-- Last, so it lines up with the pin of every other row. -->
+                <PushPinSvg v-if="zone.top" class="folder-pin" title="Pinned" />
               </div>
               <div v-if="!folderStore.isCollapsed(entry.id)" class="sidebar-folder-items">
                 <SidebarPlaylistItem
@@ -1179,19 +1180,15 @@ $sidebar-label-opacity: 0.85;
       }
 
       // Pinned folders carry the same tilted thumbtack as pinned playlists and
-      // albums; the un-pinned ones below the zone carry none. It takes the push
-      // to the right edge, so the count sits right behind it.
+      // albums, and in the same place: the last thing in the row, so all pins
+      // stand in one column (count and chevron sit to its left). The un-pinned
+      // folders below the zone carry none.
       .folder-pin {
-        margin-left: auto;
         flex-shrink: 0;
         width: 0.95rem;
         height: 0.95rem;
         color: $candy-text;
         transform: rotate(35deg);
-
-        + .folder-count {
-          margin-left: 0;
-        }
       }
     }
 
