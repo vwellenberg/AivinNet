@@ -68,6 +68,10 @@ export interface TileGlyph {
  * No zombies and no bats either: those are creatures that MOVE across the screen,
  * and standing still on a tile they read as a glitch of the crossing ("bitte keine
  * fledermäuse und zombies auf den kacheln", user, 2026-10-31).
+ *
+ * No bones: a bone lies flat in the middle of its glyph box, so it cannot stand
+ * on the edge and hangs in the air above it ("knochen auch bitte weg … die hängen
+ * so komisch in der luft", user, 2026-11-04).
  */
 const HALLOWEEN_TILE_EMOJI: readonly TileEmoji[] = [
     { emoji: '🪦', weight: 3 },
@@ -76,7 +80,6 @@ const HALLOWEEN_TILE_EMOJI: readonly TileEmoji[] = [
     { emoji: '\u{1F56F}️', weight: 1 },
     { emoji: '🍬', weight: 1 },
     { emoji: '⚰️', weight: 1 },
-    { emoji: '🦴', weight: 1 },
     { emoji: '\u{1F408}‍⬛', weight: 1 },
     { emoji: '🔮', weight: 1 },
 ]
