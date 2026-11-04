@@ -69,6 +69,43 @@ Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
 
 ## What's new in this release
 
+A feature release on top of 2026.11.0, in time for December.
+
+- **New Year's Eve** (31 December and 1 January), a season of its own.
+  - Rockets climb from the player bar and burst into sparks, and a few sparkles
+    drift down.
+  - From 18:00 a clock in the top bar counts down to midnight; past midnight it
+    wishes a happy new year. If the app is open at midnight, confetti.
+  - A party-hat logo and a midnight-blue and gold palette.
+  - Glasses, bottles and party poppers turn up on the tiles now and then.
+  - On New Year's Eve Home offers **Your year in music**, straight into your
+    Rewind.
+- **Christmas got bigger** (10 to 30 December).
+  - A Christmas palette.
+  - A bell lets itself down on its ribbon, a present tumbles along the bottom,
+    penguins waddle across and a shooting star crosses the sky.
+  - Snow slowly settles on the player bar.
+- **Seasonal stations on AivinNet FM.**
+  - A **Christmas** station plays the Christmas music in your library, found by
+    genre or title.
+  - On New Year's Eve the **Countdown** plays your 30 most played songs of the
+    year, counting down to your number one.
+- **Pin folders to the library sidebar.**
+  - Music folders can be pinned like albums and playlists, with play and pause
+    right on the row.
+  - Playlist folders can be pinned and unpinned too.
+- **Fixed.**
+  - A selected playlist inside a folder keeps its frame.
+  - The pin of a playlist folder sits at the right edge like on every other row.
+- **Under the hood.**
+  - The web client is about 130 KB smaller: the cover colours now come from
+    node-vibrant 4, without its image library.
+  - Pinia 3, and up-to-date build actions.
+  - No known vulnerability in what ships.
+
+<details>
+<summary>What v2026.11.0 brought</summary>
+
 A feature release on top of 2026.10.6.
 
 - **Home.**
@@ -117,6 +154,8 @@ A feature release on top of 2026.10.6.
   - The context menu no longer leaves a stray listener behind when it closes.
 - **Under the hood.** The web client builds with Vite 8. Dependencies are up to
   date (flask-openapi3 4, Vitest 5, pinia-plugin-persistedstate 4, vue-debounce 5).
+
+</details>
 
 <details>
 <summary>What v2026.10.6 brought</summary>
