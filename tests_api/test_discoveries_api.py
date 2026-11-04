@@ -37,7 +37,7 @@ def ago(history: int, seconds: int) -> int:
 
 
 @pytest.fixture()
-def stats(home, api_client, monkeypatch):  # noqa: F811 - the imported fixture
+def stats(home, api_client, monkeypatch):
     import aivinnet.api.scrobble as scrobble_api
     import aivinnet.lib.first_play_cache as first_play_cache
 

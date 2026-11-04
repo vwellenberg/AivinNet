@@ -32,9 +32,7 @@ def skips_api(api_client, monkeypatch):
         "get_tracks_by_trackhashes",
         lambda hashes: [SimpleNamespace(trackhash=h, duration=lengths[h]) for h in set(hashes) if h in lengths],
     )
-    monkeypatch.setattr(
-        scrobble_api, "serialize_track", lambda track: {"trackhash": track.trackhash, "album": ALBUM}
-    )
+    monkeypatch.setattr(scrobble_api, "serialize_track", lambda track: {"trackhash": track.trackhash, "album": ALBUM})
     return api
 
 

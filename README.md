@@ -206,7 +206,7 @@ lanes, known gotchas).
 
 ```sh
 uv sync                            # dependencies
-uvx ruff@0.17.1 check src/ tests/  # lint
+uvx ruff@0.17.1 check src/ tests/ tests_api/  # lint
 ```
 
 The web client lives in `client/` — Vue 3 and Vite, with its own `yarn` scripts:

@@ -60,8 +60,8 @@ Sicherheitsnetz dagegen: `tests/test_internal_imports_resolve.py`.
 uv sync
 
 # Linting
-uvx ruff@0.17.1 check src/ tests/
-uvx ruff@0.17.1 format src/ tests/
+uvx ruff@0.17.1 check src/ tests/ tests_api/
+uvx ruff@0.17.1 format src/ tests/ tests_api/
 
 # Unit-Tests (schnelle Lane; läuft lokal, uv liegt unter ~/.local/bin/uv.exe)
 uvx --with xxhash --with unidecode --with pendulum --with requests \
@@ -164,6 +164,9 @@ git fetch --prune && git branch -D <branch>
   genau diese Version auf (`ruff@…`). Vorher lief Pre-commit mit 0.11.4 und CI mit dem jeweils neuesten Release —
   zwei Formatter, die sich widersprechen können. Bump = alle Stellen auf einmal;
   `tests/test_ruff_version_pinned.py` nennt die vergessenen.
+  ⚠️ **Lint-Bereich = `src/ tests/ tests_api/`.** `tests_api/` fehlte bis 2026-11-04 in CI und Hook,
+  und 35 Funde sammelten sich ungesehen (31 davon F811: importierte Fixtures als Testargument,
+  jetzt per Datei in `per-file-ignores`). Neues Python-Verzeichnis ⇒ in alle Aufrufe aufnehmen.
 - **mypy:** Graduelle Einführung — die geprüften Dateien stehen im Job `Lint & Format` (`ci.yml`), in `.pre-commit-config.yaml`
   und im Befehl oben, alle gleich halten. Neue Module bei Bearbeitung dort aufnehmen. **Version wie bei Ruff:** maßgeblich ist
   `rev:` von `mirrors-mypy`, alle uvx-Aufrufe tragen `mypy@…` (vorher Pre-commit 1.15.0, CI das jeweils neueste Release).
@@ -171,7 +174,7 @@ git fetch --prune && git branch -D <branch>
 - **Beide nicht in der uv-Dev-Gruppe:** `uv run ruff`/`uv run mypy` nähme sonst die Version aus `uv.lock`
   statt des `rev:`. Wer sie dort braucht, pinnt `==<rev>`; beide Wächter prüfen `pyproject.toml` und `uv.lock` mit.
 - **Pre-commit Hooks:** ruff check --fix, ruff format, mypy (strikte Module). Ruff dort nur auf
-  `src/` + `tests/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
+  `src/` + `tests/` + `tests_api/`, genau wie CI — ab 0.17 formatiert `ruff-format` sonst auch die Python-Beispiele
   in Markdown-Doku um.
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs. `Unit Tests` und `API Tests` sind eine Matrix und laufen mit demselben Befehl auch auf `windows-latest` (`… (Windows)`, waitress statt bjoern). `API Tests (Python 3.13)` fährt den vollen Stack zusätzlich auf dem neuesten Python (kein Gate): Docker, AppImage und Server laufen auf 3.11, `requires-python` lässt aber Neueres zu, und auf 3.13 startete die App wegen des fehlenden `audioop` gar nicht (#574, Backport `audioop-lts`). ⚠️ Die Linux-Namen sind Pflicht-Checks: Ein Matrix-Job ohne festes `name` meldet sich als `Unit Tests (ubuntu-latest)`, und jeder PR wartet dann ewig auf einen Check, der nie kommt.
 - **Dependabot** (`.github/dependabot.yml`) öffnet jede Woche PRs für Actions, `uv.lock`,

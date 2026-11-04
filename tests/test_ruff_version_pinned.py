@@ -88,18 +88,18 @@ def test_uv_installs_no_other_ruff():
 
 
 def test_pre_commit_checks_what_ci_checks():
-    # CI runs `ruff check src/ tests/` and `ruff format --check src/ tests/`.
+    # CI runs `ruff check src/ tests/ tests_api/` and `ruff format --check src/ tests/ tests_api/`.
     # Without `files`, the hooks took every tracked file: run.py, and (since
     # ruff-format learned Markdown) the code examples in the docs.
     config = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
     ruff_repo = config.split("repo: https://github.com/astral-sh/ruff-pre-commit")[1].split("- repo:")[0]
     hooks = re.findall(r"- id: (\S+)\n((?:\s{8,}.+\n)*)", ruff_repo)
     assert {hook for hook, _ in hooks} == {"ruff-check", "ruff-format"}, hooks
-    unscoped = [hook for hook, body in hooks if "files: ^(src|tests)/" not in body]
-    assert not unscoped, f"scope these hooks to CI's paths with `files: ^(src|tests)/`: {unscoped}"
+    unscoped = [hook for hook, body in hooks if "files: ^(src|tests|tests_api)/" not in body]
+    assert not unscoped, f"scope these hooks to CI's paths with `files: ^(src|tests|tests_api)/`: {unscoped}"
     ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    assert re.search(r"ruff@\S+ check src/ tests/\n", ci)
-    assert re.search(r"ruff@\S+ format --check src/ tests/\n", ci)
+    assert re.search(r"ruff@\S+ check src/ tests/ tests_api/\n", ci)
+    assert re.search(r"ruff@\S+ format --check src/ tests/ tests_api/\n", ci)
 
 
 def test_each_caller_still_calls_ruff():

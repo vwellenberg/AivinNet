@@ -19,7 +19,7 @@ from test_home_discover_api import (  # noqa: F401
 
 
 @pytest.fixture()
-def added(home, monkeypatch):  # noqa: F811 - the imported fixture
+def added(home, monkeypatch):
     import aivinnet.lib.first_play_cache as first_play_cache
     from aivinnet.store.homepage import HomepageStore
 

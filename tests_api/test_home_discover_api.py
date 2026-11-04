@@ -118,16 +118,15 @@ def artisthash(albumhash: str) -> str:
 
 @pytest.fixture()
 def home(api_client, monkeypatch):
+    # First plays are cached per user by their play count and last id, which
+    # a later test's fresh database may repeat.
+    import aivinnet.lib.first_play_cache as first_play_cache
     import aivinnet.store.homepage as homepage
     from aivinnet.store.albums import AlbumMapEntry, AlbumStore
     from aivinnet.store.artists import ArtistMapEntry, ArtistStore
     from aivinnet.store.homepage import HomepageStore
     from aivinnet.store.homepageentries import PersonalTitleEntry
     from aivinnet.store.tracks import TrackGroup, TrackStore
-
-    # First plays are cached per user by their play count and last id, which
-    # a later test's fresh database may repeat.
-    import aivinnet.lib.first_play_cache as first_play_cache
 
     monkeypatch.setattr(first_play_cache, "_first_plays", {})
 
@@ -450,7 +449,7 @@ def test_forgotten_favorites_are_also_a_playlist(home, history, monkeypatch):
 def test_play_all_plays_more_forgotten_favorites_than_the_row_shows(home, history, monkeypatch):
     """The row shows as many cards as fit; "Play all" plays every one the
     routine found. Every track a favourite: ten are forgotten (two per album,
-    Red Hot Chili Peppers and Faith No More 1–3 were played lately)."""
+    Red Hot Chili Peppers and Faith No More 1 to 3 were played lately)."""
     import aivinnet.lib.home.onrepeat as onrepeat
 
     monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
@@ -465,7 +464,7 @@ def test_play_all_plays_more_forgotten_favorites_than_the_row_shows(home, histor
 
 def test_because_you_listened_plays_as_a_mix(home, history, monkeypatch):
     """ "Play mix" (#524): one track per album of the row — the one the user
-    played most. Faith No More 1–3 tie at 11 plays; 3 was played last."""
+    played most. Faith No More 1 to 3 tie at 11 plays; 3 was played last."""
     import aivinnet.lib.home.onrepeat as onrepeat
 
     monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)

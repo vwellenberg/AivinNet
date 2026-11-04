@@ -56,7 +56,7 @@ def _track(albumhash: str, n: int):
 def _album(albumhash: str, tracks):
     from aivinnet.models.album import Album
 
-    title, artist = ALBUMS[albumhash]
+    title, _artist = ALBUMS[albumhash]
     first = tracks[0]
     return Album(
         albumartists=first.albumartists,
