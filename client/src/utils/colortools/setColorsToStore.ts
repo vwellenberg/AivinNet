@@ -1,4 +1,4 @@
-import Vibrant from "node-vibrant";
+import { Vibrant } from "node-vibrant/browser";
 import listToRgbString from "./listToRgbString";
 import { darkenHex } from "./index";
 import { collectSwatches, dominance } from "./swatches";
@@ -27,9 +27,7 @@ export default (store: any, img_url: string, btn_only: boolean = false) => {
   store._colorToken = token;
 
   const extract = () => {
-    const vibrant = new Vibrant(img_url);
-
-    vibrant
+    Vibrant.from(img_url)
       .getPalette()
       .then((palette) => {
       if (store._colorToken !== token) return; // a newer call took over
@@ -39,9 +37,9 @@ export default (store: any, img_url: string, btn_only: boolean = false) => {
       // Button: a bright, punchy colour.
       store.colors.btn =
         listToRgbString(
-          palette.LightVibrant?.getRgb() ||
-            palette.Vibrant?.getRgb() ||
-            palette.DarkVibrant?.getRgb()
+          palette.LightVibrant?.rgb ||
+            palette.Vibrant?.rgb ||
+            palette.DarkVibrant?.rgb
         ) || "";
 
       if (btn_only) return;

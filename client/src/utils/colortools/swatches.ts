@@ -1,5 +1,15 @@
+import type { Vibrant } from "node-vibrant/browser";
 import listToRgbString from "./listToRgbString";
 import { darkenHex } from "./index";
+
+/**
+ * node-vibrant's palette, derived from its own API (the package exports no
+ * `Palette` type from its browser entry). Typed, so the next accessor change
+ * fails the typecheck: v4 turned `getRgb()`/`getHsl()`/`getPopulation()` into
+ * the getters `rgb`/`hsl`/`population`, and with `palette: any` the colours
+ * broke silently at runtime while every test, mocked, stayed green.
+ */
+export type VibrantPalette = Awaited<ReturnType<ReturnType<typeof Vibrant.from>["getPalette"]>>;
 
 export interface SwatchLite {
   rgb: number[];
@@ -7,7 +17,7 @@ export interface SwatchLite {
   pop: number;
 }
 
-const SWATCH_NAMES = [
+const SWATCH_NAMES: (keyof VibrantPalette)[] = [
   "Vibrant",
   "DarkVibrant",
   "LightVibrant",
@@ -16,12 +26,12 @@ const SWATCH_NAMES = [
   "LightMuted",
 ];
 
-export function collectSwatches(palette: any): SwatchLite[] {
+export function collectSwatches(palette: VibrantPalette): SwatchLite[] {
   const out: SwatchLite[] = [];
   for (const name of SWATCH_NAMES) {
     const sw = palette[name];
     if (sw) {
-      out.push({ rgb: sw.getRgb(), hsl: sw.getHsl(), pop: sw.getPopulation() });
+      out.push({ rgb: sw.rgb, hsl: sw.hsl, pop: sw.population });
     }
   }
   return out;
@@ -48,7 +58,7 @@ export function dominance(s: SwatchLite): number {
  * to tint with — a genuinely greyscale cover or the no-cover placeholder. The
  * Now Playing page uses that empty result to fall back to the brand green.
  */
-export function dominantColoredBg(palette: any): string {
+export function dominantColoredBg(palette: VibrantPalette): string {
   const colored = collectSwatches(palette).filter((s) => s.hsl[1] >= 0.15);
   if (!colored.length) return "";
   const primary = [...colored].sort((a, b) => dominance(b) - dominance(a))[0];

@@ -10,16 +10,18 @@ const clear = vi.fn<(url: string) => Promise<boolean>>()
 vi.mock('../placeholderCover', () => ({ coverIsPlaceholder: (url: string) => clear(url) }))
 
 const vibrantCalls: string[] = []
-vi.mock('node-vibrant', () => ({
-    default: class {
-        constructor(url: string) {
+vi.mock('node-vibrant/browser', () => ({
+    Vibrant: {
+        from(url: string) {
             vibrantCalls.push(url)
-        }
-        getPalette() {
-            // A dark blue cover, as node-vibrant reports it.
-            const swatch = (rgb: number[], pop: number) => ({ getRgb: () => rgb, rgb, population: pop, getPopulation: () => pop, getHsl: () => [0.6, 0.6, 0.3] })
-            return Promise.resolve({ Vibrant: swatch([40, 90, 160], 900), DarkVibrant: swatch([20, 45, 80], 300) })
-        }
+            return {
+                getPalette() {
+                    // A dark blue cover, as node-vibrant reports it.
+                    const swatch = (rgb: number[], pop: number) => ({ rgb, population: pop, hsl: [0.6, 0.6, 0.3] })
+                    return Promise.resolve({ Vibrant: swatch([40, 90, 160], 900), DarkVibrant: swatch([20, 45, 80], 300) })
+                },
+            }
+        },
     },
 }))
 
