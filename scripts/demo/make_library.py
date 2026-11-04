@@ -173,55 +173,76 @@ def build_albums(rng: random.Random) -> list[Album]:
     return albums
 
 
+# Bright, flat colour sets that sit well next to the app's own Memphis palette.
+# (background, shape, shape, text). Each album picks one by its title, so the
+# grid reads as a set without two neighbours looking alike.
+COVER_SETS = [
+    ("#F5B23C", "#E2574C", "#2FBFA3", "#17171A"),
+    ("#2FBFA3", "#F2799F", "#F5D547", "#17171A"),
+    ("#8B8BEB", "#F5B23C", "#F4F2ED", "#17171A"),
+    ("#E2574C", "#F5D547", "#17171A", "#F4F2ED"),
+    ("#F2799F", "#3B82D9", "#F5B23C", "#17171A"),
+    ("#3B82D9", "#F5D547", "#F2799F", "#F4F2ED"),
+    ("#8CC63F", "#8B8BEB", "#E2574C", "#17171A"),
+    ("#17171A", "#2FBFA3", "#F2799F", "#F4F2ED"),
+    ("#F4F2ED", "#E2574C", "#3B82D9", "#17171A"),
+    ("#C36BBE", "#F5B23C", "#2FBFA3", "#F4F2ED"),
+    ("#B08850", "#F4F2ED", "#E2574C", "#17171A"),
+    ("#3EBFAF", "#17171A", "#F5B23C", "#17171A"),
+]
+INK = (23, 23, 26)
+
+
 def draw_cover(album: Album, rng: random.Random) -> Image.Image:
-    """Bold shapes over a vertical gradient, with the title set large. Seeded per album."""
+    """Flat colour, a few bold shapes with an ink outline, and the title set large. Seeded per album."""
     size = COVER_SIZE
-    bg_hex, fg_hex, accent_hex = album.palette
-    bg = _rgb(bg_hex)
-    fg = _rgb(fg_hex)
-    accent = _rgb(accent_hex)
+    index = sum(ord(c) for c in album.title) % len(COVER_SETS)
+    bg_hex, a_hex, b_hex, text_hex = COVER_SETS[index]
+    bg, shape_a, shape_b, text = _rgb(bg_hex), _rgb(a_hex), _rgb(b_hex), _rgb(text_hex)
 
     img = Image.new("RGB", (size, size), bg)
     draw = ImageDraw.Draw(img)
-    # Gradient: lighten the background from top to bottom.
-    for y in range(size):
-        t = y / (size - 1)
-        col = tuple(int(bg[k] * (1 - 0.35 * t) + fg[k] * 0.35 * t) for k in range(3))
-        draw.line([(0, y), (size, y)], fill=col)
+    # A faint dot grid, like the app's halftone.
+    for y in range(20, size, 40):
+        for x in range(20, size, 40):
+            draw.ellipse([x - 3, y - 3, x + 3, y + 3], fill=_mix(bg, text, 0.12))
 
-    overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    odraw = ImageDraw.Draw(overlay)
-    for _ in range(rng.randint(4, 6)):
-        kind = rng.choice(["circle", "rect", "tri"])
-        x0, y0 = rng.randint(-100, size - 100), rng.randint(-100, size - 100)
-        s = rng.randint(180, 520)
-        color = (*(accent if rng.random() < 0.6 else fg), rng.randint(120, 230))
+    # The title sits at the bottom, the artist at the top left: the shapes keep
+    # to the band in between, right of the artist line, so neither is covered.
+    lines = _wrap(album.title, 11)
+    line_h = 118
+    top = size - 70 - line_h * len(lines)
+    band_top, band_bottom = 120, top - 30
+    for i in range(rng.randint(3, 4)):
+        kind = rng.choice(["circle", "rect", "tri", "zigzag"])
+        colour = shape_a if i % 2 == 0 else shape_b
+        s = rng.randint(150, max(160, min(320, band_bottom - band_top)))
+        h = int(s * 0.45) if kind == "rect" else (s // 4 if kind == "zigzag" else s)
+        x0 = rng.randint(120, size - s - 30)
+        y0 = rng.randint(band_top, max(band_top, band_bottom - h))
         if kind == "circle":
-            odraw.ellipse([x0, y0, x0 + s, y0 + s], fill=color)
+            draw.ellipse([x0, y0, x0 + s, y0 + s], fill=colour, outline=INK, width=10)
         elif kind == "rect":
-            odraw.rectangle([x0, y0, x0 + s, y0 + int(s * 0.4)], fill=color)
+            draw.rectangle([x0, y0, x0 + s, y0 + h], fill=colour, outline=INK, width=10)
+        elif kind == "tri":
+            draw.polygon([(x0, y0 + s), (x0 + s // 2, y0), (x0 + s, y0 + s)], fill=colour, outline=INK, width=10)
         else:
-            odraw.polygon([(x0, y0 + s), (x0 + s // 2, y0), (x0 + s, y0 + s)], fill=color)
-    img = Image.alpha_composite(img.convert("RGBA"), overlay)
+            points = [(x0 + k * s // 5, y0 + (0 if k % 2 == 0 else h)) for k in range(6)]
+            draw.line(points, fill=INK, width=34, joint="curve")
+            draw.line(points, fill=colour, width=20, joint="curve")
 
-    title_draw = ImageDraw.Draw(img)
-    font = _font(104)
-    lines = _wrap(album.title, 9)
-    line_h = 116
-    top = size - 60 - line_h * len(lines)
+    font = _font(112)
     for i, line in enumerate(lines):
-        bbox = title_draw.textbbox((0, 0), line, font=font)
-        w = bbox[2] - bbox[0]
-        # A dark stroke keeps the title readable over bright shapes.
-        title_draw.text(
-            ((size - w) / 2, top + i * line_h),
-            line,
-            font=font,
-            fill=fg,
-            stroke_width=6,
-            stroke_fill=bg,
+        draw.text(
+            (56, top + i * line_h), line, font=font, fill=text, stroke_width=4 if text != INK else 0, stroke_fill=INK
         )
-    return img.convert("RGB")
+    small = _font(40)
+    draw.text((60, 52), album.artist.upper(), font=small, fill=text)
+    return img
+
+
+def _mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    return (int(a[0] + (b[0] - a[0]) * t), int(a[1] + (b[1] - a[1]) * t), int(a[2] + (b[2] - a[2]) * t))
 
 
 def _rgb(hex_color: str) -> tuple[int, int, int]:
@@ -229,7 +250,18 @@ def _rgb(hex_color: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
+# A heavy face where the system has one; otherwise Pillow's scalable default.
+FONT_CANDIDATES = (
+    "/usr/share/fonts/opentype/inter/InterDisplay-Black.otf",
+    "/usr/share/fonts/opentype/inter/Inter-ExtraBold.otf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+)
+
+
 def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path in FONT_CANDIDATES:
+        if Path(path).is_file():
+            return ImageFont.truetype(path, size)
     # Pillow >= 10.1 ships a scalable default font; the size argument is honoured.
     return ImageFont.load_default(size=size)
 
