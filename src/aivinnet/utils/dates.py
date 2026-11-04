@@ -128,26 +128,6 @@ def get_date_range(duration: str, units_ago: int = 0):
     return (int(date_range[0]), int(date_range[1]))
 
 
-def get_duration_ago(duration: str, units_ago: int = 1) -> int:
-    """
-    Returns the start of the last duration.
-    """
-    seconds_in_day = 24 * 60 * 60
-    now = pendulum.now()
-
-    match duration:
-        case "day":
-            return int(now.subtract(seconds=seconds_in_day * units_ago).timestamp())
-        case "week":
-            return int(now.subtract(seconds=seconds_in_day * 7 * units_ago).timestamp())
-        case "month":
-            return int(now.subtract(seconds=seconds_in_day * 30 * units_ago).timestamp())
-        case "year":
-            return int(now.subtract(seconds=seconds_in_day * 365 * units_ago).timestamp())
-        case _:
-            raise ValueError(f"Invalid duration: {duration}")
-
-
 def get_previous_period_start(duration: str, start: int) -> int:
     """
     Returns the start of the calendar period before the one that begins at
