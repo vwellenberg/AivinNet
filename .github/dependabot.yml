@@ -50,6 +50,12 @@ updates:
     groups:
       client:
         update-types: ["minor", "patch"]
+    # v3 drops what typedScroller.ts builds on (DynamicScroller.computed and the
+    # view pool per row type): the bump alone crashes the app at startup (#653).
+    # The migration is #704; drop this entry with it.
+    ignore:
+      - dependency-name: vue-virtual-scroller
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: deps(client)
 
