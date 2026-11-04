@@ -53,7 +53,8 @@ const VP = { width: 1000, height: 800 }
 const BOUNDS: TileBounds = { contentTop: 0, barTop: 800 }
 
 /** Emoji that must never stand on a tile: the ghost, the cobweb, the spider, the zombies and the bat. */
-const BANNED = ['👻', '\u{1F578}️', '\u{1F577}️', '🧟', '🧟‍♂️', '🧟‍♀️', '🦇']
+// The bone lies flat mid-box, so it hangs in the air over the edge (user, 2026-11-04).
+const BANNED = ['👻', '\u{1F578}️', '\u{1F577}️', '🧟', '🧟‍♂️', '🧟‍♀️', '🦇', '🦴']
 
 describe('tileCap: how many glyphs may be on the page', () => {
     // "es soll 'besonders' bleiben" (user, 2026-10-31): one glyph per visible cover
@@ -92,8 +93,8 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
         expect(halloween.find((e) => e.emoji === '🎃')?.weight).toBe(3)
     })
 
-    it('gives the Halloween set nine emoji, the rest each with weight 1', () => {
-        expect(TILE_EMOJIS).toHaveLength(9)
+    it('gives the Halloween set eight emoji (no bone), the rest each with weight 1', () => {
+        expect(TILE_EMOJIS).toHaveLength(8)
         expect(TILE_EMOJIS).toEqual([
             '🪦',
             '🎃',
@@ -101,12 +102,11 @@ describe('tileEmojiWeightsFor: each season has its own weighted set', () => {
             '\u{1F56F}️',
             '🍬',
             '⚰️',
-            '🦴',
             '\u{1F408}‍⬛',
             '🔮',
         ])
         const rest = TILE_EMOJI_WEIGHTS.filter((e) => e.emoji !== '🪦' && e.emoji !== '🎃')
-        expect(rest).toHaveLength(7)
+        expect(rest).toHaveLength(6)
         expect(rest.every((e) => e.weight === 1)).toBe(true)
     })
 
@@ -206,7 +206,7 @@ describe('pickTileTarget: only a cover that is not full', () => {
 // spider stay in the sky too ("bitte keine gespenster, spinnenweben, spinnen auf
 // den kacheln", user, 2026-10-31).
 describe('tile emoji: nothing that belongs to the crossings or the sky', () => {
-    it('never has a zombie, a bat, a ghost, a cobweb or a spider in the set', () => {
+    it('never has a zombie, a bat, a ghost, a cobweb, a spider or a bone in the set', () => {
         for (const emoji of BANNED) expect(TILE_EMOJIS, emoji).not.toContain(emoji)
     })
 

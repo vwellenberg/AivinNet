@@ -4,6 +4,7 @@ import { routeLocationKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SeasonVampire from '@/components/SeasonVampire.vue'
+import * as glyphInk from '@/utils/glyphInk'
 import { PEEK_DELAY_MIN_MS, PEEK_DURATION_MS, SNOWMAN_PEEK_DURATION_MS } from '@/utils/vampirePeek'
 
 // The clock and the overlay. The choice of card and the timing are unit-tested in
@@ -53,6 +54,8 @@ async function advance(ms: number): Promise<void> {
 beforeEach(() => {
     vi.useFakeTimers()
     vi.spyOn(Math, 'random').mockReturnValue(0)
+    // jsdom has no canvas: the ink measurement is stubbed (its own tests: utils/__tests__/glyphInk.test.ts).
+    vi.spyOn(glyphInk, 'inkGapBelow').mockReturnValue(0)
     stubMatchMedia(false)
     setVisibility('visible')
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1000 })
@@ -129,6 +132,35 @@ describe('SeasonVampire: the peek', () => {
         const wrapper = mountVampire()
         await advance(PEEK_DELAY_MIN_MS * 3)
         expect(wrapper.find('.season-peek').exists()).toBe(false)
+        wrapper.unmount()
+    })
+})
+
+// "Vampir schwebt etwas über der Kachel" (user, 2026-11-04): the emoji font left
+// empty room under the picture, so the figure's box stood on the edge and its ink
+// floated above it. The figure now sinks by the measured gap (utils/glyphInk.ts;
+// jsdom has no canvas, so the measurement is stubbed here).
+describe('SeasonVampire: the figure stands on the edge, not its box', () => {
+    it('sinks the figure by the measured ink gap of its font', async () => {
+        const measure = vi.spyOn(glyphInk, 'inkGapBelow').mockReturnValue(9)
+        coverInView()
+        const wrapper = mountVampire()
+        await advance(PEEK_DELAY_MIN_MS)
+        await nextTick()
+        expect(measure).toHaveBeenCalledWith(wrapper.find('.season-peek-figure').element)
+        const style = (wrapper.find('.season-peek').element as HTMLElement).style
+        expect(style.getPropertyValue('--peek-sink')).toBe('9px')
+        wrapper.unmount()
+    })
+
+    it('stays where its box puts it when nothing can be measured', async () => {
+        vi.spyOn(glyphInk, 'inkGapBelow').mockReturnValue(0)
+        coverInView()
+        const wrapper = mountVampire()
+        await advance(PEEK_DELAY_MIN_MS)
+        await nextTick()
+        const style = (wrapper.find('.season-peek').element as HTMLElement).style
+        expect(style.getPropertyValue('--peek-sink')).toBe('0px')
         wrapper.unmount()
     })
 })

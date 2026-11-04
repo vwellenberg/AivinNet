@@ -8,7 +8,7 @@
         aria-hidden="true"
     >
         <span class="season-peek-clip">
-            <span class="season-peek-figure">{{ spec.figure }}</span>
+            <span ref="figureEl" class="season-peek-figure">{{ spec.figure }}</span>
         </span>
         <!-- The burst and the bat, as the season's spec says (utils/vampirePeek.ts::PEEK_SPECS). -->
         <span v-if="spec.puff" class="season-peek-puff">{{ spec.puff }}</span>
@@ -32,10 +32,11 @@
 
 // @libraries
 import { useDocumentVisibility, useMediaQuery } from "@vueuse/core";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 // @utils
+import { inkGapBelow } from "@/utils/glyphInk";
 import { COVER_SELECTOR } from "@/utils/seasonTileEmojis";
 import type { Season } from "@/utils/seasons";
 import {
@@ -59,6 +60,8 @@ interface Peek {
     /** Where the bat flies to, relative to the anchor (utils/vampirePeek.ts::peekExit). */
     exitX: number;
     exitY: number;
+    /** How far the figure sits below the edge, so its ink and not its box stands on it (utils/glyphInk.ts). */
+    sink: number;
 }
 
 const lessMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
@@ -66,6 +69,7 @@ const visibility = useDocumentVisibility();
 const route = useRoute();
 
 const peek = ref<Peek | null>(null);
+const figureEl = ref<HTMLElement | null>(null);
 let seq = 0;
 let nextTimer: ReturnType<typeof setTimeout> | undefined;
 let endTimer: ReturnType<typeof setTimeout> | undefined;
@@ -79,6 +83,7 @@ const peekStyle = computed(() =>
               "--peek-y": `${peek.value.y}px`,
               "--peek-exit-x": `${peek.value.exitX}px`,
               "--peek-exit-y": `${peek.value.exitY}px`,
+              "--peek-sink": `${peek.value.sink}px`,
               "--peek-size": `${PEEK_SIZE_PX}px`,
               "--peek-dur": `${spec.value.durationMs}ms`,
           }
@@ -124,13 +129,28 @@ function tryPeek(): void {
     }
     const anchor = peekAnchor(rects[index]);
     const exit = peekExit(anchor);
-    peek.value = { key: ++seq, x: anchor.x, y: anchor.y, exitX: exit.x, exitY: exit.y };
+    peek.value = { key: ++seq, x: anchor.x, y: anchor.y, exitX: exit.x, exitY: exit.y, sink: 0 };
+    sinkFigure(seq);
     window.addEventListener("scroll", endPeek, { capture: true, passive: true });
     if (spec.value.launches) {
         launchTimer = setTimeout(unhookScroll, spec.value.durationMs * PEEK_LAUNCH_FRACTION);
     }
     // The whole peek: the bat has flown off the screen by the end of it.
     endTimer = setTimeout(endPeek, spec.value.durationMs);
+}
+
+/**
+ * Lowers the figure by the empty room its emoji font leaves under the picture,
+ * so the vampire stands ON the cover's edge and does not float above it (user,
+ * 2026-11-04). The clip hides what goes below the edge. Measured once the figure
+ * is in the DOM; it is still hidden then (the rise starts below the edge).
+ */
+function sinkFigure(key: number): void {
+    nextTick(() => {
+        const el = figureEl.value;
+        if (!el || !peek.value || peek.value.key !== key) return;
+        peek.value.sink = inkGapBelow(el);
+    });
 }
 
 /** Ends the peek (on time, or early on a scroll before the launch, or a route change) and books the next one. */
@@ -225,6 +245,9 @@ onBeforeUnmount(() => {
 // the base style is what shows after it. The figure takes its season's rise.
 .season-peek-figure {
     left: 50%;
+    // Down by the font's empty room under the picture (measured, `--peek-sink`):
+    // the ink stands on the edge, the box below it is clipped.
+    bottom: calc(-1 * var(--peek-sink, 0px));
     transform: translate3d(-50%, 100%, 0);
     animation: season-peek-rise var(--peek-dur) $motion-curve-settle backwards;
 }
