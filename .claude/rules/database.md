@@ -135,6 +135,20 @@ ein `DELETE … WHERE hash` ohne User (löschte fremde Zeilen) und Lookups/Zähl
 aller User zusammenwarfen. Wer eine Methode dort anfasst, prüft alle Geschwister-Methoden mit:
 `unique=True` gehört bei diesen Tabellen in ein `UniqueConstraint(<spalte>, "userid")`.
 
+## `FavoritesTable` hält auch die Sidebar-Pins
+
+Neben `track`/`album`/`artist` stehen dort `pinned_album` (Album-Hash) und `pinned_folder`
+(seit 2026-11, Schlüssel ist der **Ordnerpfad** in der Schreibweise von `safe_dir_prefix`:
+aufgelöst, POSIX, genau ein `/` am Ende, `api/folder.py::pin_key`). Ohne die eine Schreibweise
+wäre `/music/Rock` vom Breadcrumb und `/music/Rock/` von der Ordnerkarte zweimal angepinnt.
+Zwei Folgen:
+
+- **Wer über alle Favoriten zählt, filtert nach Typ** (`count_favs_in_period`), sonst wird jeder
+  Pin zum „neuen Favoriten".
+- **`Favorite.__post_init__` schneidet nur den FÜHRENDEN Typ-Präfix ab** (`removeprefix`). Mit
+  `replace` verschwand `pinned_folder_` auch mitten aus einem Pfad, der es zufällig im Namen
+  trägt, und der Pin zeigte auf einen Ordner, den es nicht gibt (`tests_api/test_pinned_folders.py`).
+
 ## ⚠️ Die `get_all`-Lesemethoden liefern Generatoren, keine Listen
 
 `ScrobbleTable.get_all`, `TrackTable.get_all` & Co. sind Generatoren. `if not rows:` ist dann

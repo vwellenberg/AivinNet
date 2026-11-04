@@ -5,6 +5,7 @@ Contains all the folder routes.
 import itertools
 import os
 import pathlib
+from dataclasses import asdict
 from pathlib import Path
 
 import psutil
@@ -16,11 +17,14 @@ from aivinnet import settings
 from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.config import UserConfig
-from aivinnet.lib.folderslib import get_files_and_dirs, get_folders
+from aivinnet.db.userdata import FavoritesTable
+from aivinnet.db.utils import favorites_to_dataclass
+from aivinnet.lib.folderslib import create_folder, get_files_and_dirs, get_folders
 from aivinnet.lib.sortlib import folder_order, sort_folders
 from aivinnet.serializers.track import serialize_track
+from aivinnet.store.folder import FolderStore
 from aivinnet.store.tracks import TrackStore
-from aivinnet.utils.filesystem import dir_prefix
+from aivinnet.utils.filesystem import dir_prefix, safe_dir_prefix
 from aivinnet.utils.wintools import is_windows
 
 tag = Tag(name="Folders", description="Get folders and tracks in a directory")
@@ -304,3 +308,112 @@ def get_tracks_in_path(query: GetTracksInPathQuery):
     return {
         "tracks": [serialize_track(t) for t in itertools.islice(existing, 300)],
     }
+
+
+# Folders are not DB rows either, so — like pinned albums (`api/album.py`) — a
+# pin is a row in the per-user FavoritesTable under its own type, keyed by the
+# folder's path. Pinned folders surface in the library sidebar next to pinned
+# albums and playlists and share their position space.
+PINNED_FOLDER_TYPE = "pinned_folder"
+
+
+def pin_key(path: str) -> str:
+    """
+    The one spelling a folder is pinned under: the scanner's POSIX form,
+    resolved, with exactly one trailing `/` (`safe_dir_prefix`).
+
+    Without it the same folder could be pinned twice — once as `/music/Rock`
+    from the breadcrumb, once as `/music/Rock/` from a folder card — and on
+    Windows a backslash spelling would never match the stored one.
+    """
+    return safe_dir_prefix(path)
+
+
+def _pinned_rows():
+    pinned, _ = FavoritesTable.get_all_of_type(PINNED_FOLDER_TYPE, 0, -1)
+    return favorites_to_dataclass(pinned)
+
+
+@api.get("/pinned")
+def get_pinned_folders():
+    """
+    Get pinned folders
+
+    The current user's pinned folders (most recently pinned first) for the
+    library sidebar. Each carries its explicit sidebar `position` (None until
+    reordered), shared with pinned albums, playlist folders and pinned playlists.
+
+    A pin whose folder is no longer inside a configured root dir (the root was
+    removed in the settings) is left out but kept: re-adding the root brings it
+    back. A folder that is merely empty right now (a share that is offline)
+    stays listed with `trackcount` 0, so it can still be unpinned.
+    """
+    favs = [f for f in _pinned_rows() if is_path_within_root_dirs(f.hash)]
+    counts = FolderStore.count_tracks_containing_paths([f.hash for f in favs])
+
+    folders = []
+    for fav, count in zip(favs, counts, strict=True):
+        folder = asdict(create_folder(fav.hash, count["trackcount"]))
+        # The stored key, not create_folder's re-spelling of it: it is what
+        # pin_unpin and the reorder endpoint match on.
+        folder["path"] = fav.hash
+        folder["position"] = (fav.extra or {}).get("position")
+        folders.append(folder)
+
+    return {"folders": folders}
+
+
+class PinFolderBody(BaseModel):
+    path: str = Field(description="The folder to pin or unpin")
+
+
+@api.post("/pin_unpin")
+def pin_unpin_folder(body: PinFolderBody):
+    """
+    Pin/unpin a folder
+
+    Toggles whether the folder appears in the library sidebar. Returns the new
+    pinned state and the `path` the pin is stored under (resolved, POSIX, one
+    trailing `/`), so the client can match it.
+
+    Unpinning always works, even for a folder that no longer exists. Pinning is
+    checked first: a folder outside the configured root dirs is 403, one that
+    is not a directory 400 — and in both cases nothing is written.
+    """
+    key = pin_key(body.path)
+
+    if FavoritesTable.check_exists(key, PINNED_FOLDER_TYPE):
+        FavoritesTable.remove_item({"hash": key, "type": PINNED_FOLDER_TYPE})
+        return {"pinned": False, "path": key}, 200
+
+    if not is_path_within_root_dirs(key):
+        return {"error": "Path not within allowed directories"}, 403
+
+    if not Path(key).is_dir():
+        return {"error": "Invalid directory"}, 400
+
+    FavoritesTable.insert_item({"hash": key, "type": PINNED_FOLDER_TYPE, "extra": {}})
+    return {"pinned": True, "path": key}, 200
+
+
+class PinnedFolderPosition(BaseModel):
+    path: str = Field(description="The pinned folder's path, as GET /folder/pinned returns it")
+    position: int = Field(description="Explicit sidebar position")
+
+
+class ReorderPinnedFoldersBody(BaseModel):
+    positions: list[PinnedFolderPosition] = Field(description="Explicit pinned-folder positions")
+
+
+@api.post("/pinned/order")
+def reorder_pinned_folders(body: ReorderPinnedFoldersBody):
+    """
+    Set each pinned folder's sidebar position explicitly. Positions share one
+    space with pinned albums, playlist folders and pinned playlists, so all of
+    them interleave freely in the library sidebar. Unlisted folders keep their
+    position; a path that is not pinned is ignored.
+    """
+    for item in body.positions:
+        FavoritesTable.set_extra(pin_key(item.path), PINNED_FOLDER_TYPE, {"position": item.position})
+
+    return {"msg": "Done"}, 200

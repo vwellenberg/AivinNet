@@ -177,6 +177,7 @@
       ]
     }
   },
+  "GET /folder/pinned": {},
   "GET /folder/show-in-files": {
     "query": {
       "allowed": [
@@ -815,6 +816,28 @@
         "folder"
       ],
       "required": [],
+      "type": "json"
+    }
+  },
+  "POST /folder/pin_unpin": {
+    "body": {
+      "allowed": [
+        "path"
+      ],
+      "required": [
+        "path"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /folder/pinned/order": {
+    "body": {
+      "allowed": [
+        "positions"
+      ],
+      "required": [
+        "positions"
+      ],
       "type": "json"
     }
   },

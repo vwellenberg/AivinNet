@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { Playlist } from "@/interfaces";
 import { getAllPlaylists, reorderSidebarPlaylists } from "@/requests/playlists";
 import usePinnedAlbums from "@/stores/pages/pinnedAlbums";
+import usePinnedFolders from "@/stores/pages/pinnedFolders";
 import usePlaylistFolders from "@/stores/playlistFolders";
 
 const MAX_POS = Number.MAX_SAFE_INTEGER;
@@ -108,6 +109,7 @@ export default defineStore("playlists", {
         others = [
           ...folders.folders.map((f) => f.position ?? MAX_POS),
           ...usePinnedAlbums().albums.map((a) => a.position ?? MAX_POS),
+          ...usePinnedFolders().folders.map((f) => f.position ?? MAX_POS),
           ...this.playlists
             .filter((p) => p.id !== pid && p.pinned && !folders.folderOf.has(p.id))
             .map(pos),

@@ -80,3 +80,57 @@ export async function getTracksInPath(path: string) {
 
     return <Track[]>[]
 }
+
+/** A folder pinned to the library sidebar (GET /folder/pinned). */
+export interface PinnedFolder {
+    name: string
+    /** The spelling the pin is stored under: resolved, POSIX, one trailing `/`. */
+    path: string
+    trackcount: number
+    is_sym: boolean
+    /** Explicit sidebar position, shared with albums, folders and playlists. */
+    position?: number | null
+}
+
+/**
+ * Toggle pin/unpin for a folder on the server.
+ * @returns the new pinned state and the path the server stores it under, or
+ *   null if the request failed (403 outside the root dirs, 400 not a folder).
+ */
+export async function pinUnpinFolder(path: string): Promise<{ pinned: boolean; path: string } | null> {
+    const { data, status } = await useAxios({
+        url: paths.api.folder.base + '/pin_unpin',
+        props: { path },
+    })
+
+    if (status === 200) {
+        return { pinned: data.pinned as boolean, path: data.path as string }
+    }
+
+    return null
+}
+
+/**
+ * The current user's pinned folders, for the library sidebar — or null if the
+ * request failed, so a failure is not mistaken for "nothing pinned".
+ */
+export async function getPinnedFolders(): Promise<PinnedFolder[] | null> {
+    const { data, status } = await useAxios({
+        url: paths.api.folder.base + '/pinned',
+        method: 'GET',
+    })
+
+    return status === 200 ? data?.folders ?? [] : null
+}
+
+/**
+ * Set explicit sidebar positions for pinned folders (shared position space
+ * with pinned albums, playlist folders and pinned playlists). Unlisted folders
+ * keep their position.
+ */
+export async function reorderPinnedFolders(positions: { path: string; position: number }[]) {
+    await useAxios({
+        url: paths.api.folder.base + '/pinned/order',
+        props: { positions },
+    })
+}

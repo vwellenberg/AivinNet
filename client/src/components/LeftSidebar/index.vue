@@ -13,8 +13,9 @@
     </div>
     <div class="scrollable">
       <div class="sidebar-library">
-        <!-- Manually-ordered zone: folders, pinned albums and pinned
-             playlists, freely interleaved (shared position space). -->
+        <!-- Manually-ordered zone: playlist folders, pinned albums, pinned
+             music folders and pinned playlists, freely interleaved (shared
+             position space). -->
         <div class="sidebar-toplevel" @dragover.prevent @drop="onDropToTopZone($event)">
           <template v-for="entry in topZone" :key="entry.kind + '-' + entry.id">
             <!-- Folder -->
@@ -95,6 +96,38 @@
               <PushPinSvg class="pl-pin" title="Pinned" />
             </RouterLink>
 
+            <!-- Pinned music folder -->
+            <RouterLink
+              v-else-if="entry.kind === 'dir'"
+              :to="{ name: Routes.folder, params: { path: entry.dir.path } }"
+              class="sidebar-playlist-item"
+              :class="[{ active: isOpenDir(entry.dir.path) }, markerClass('dir', entry.id)]"
+              :title="entry.dir.path"
+              draggable="true"
+              @dragstart="onDirDragStart(entry.dir.path, $event)"
+              @dragend="clearDrag"
+              @dragover.prevent="onDirDragOver(entry.dir.path, $event)"
+              @drop.stop="onDirDrop(entry.dir.path, $event)"
+              @contextmenu.prevent="onDirContextMenu($event, entry.dir.path)"
+            >
+              <div class="sidebar-pl-img rounded-sm">
+                <div class="sidebar-pl-placeholder">
+                  <DirSvg />
+                </div>
+                <button
+                  class="pl-play-overlay mem-glyph-swap"
+                  :class="{ playing: isCurrentDir(entry.dir.path) }"
+                  :title="isPlayingDir(entry.dir.path) ? 'Pause' : 'Play'"
+                  @click.prevent.stop="togglePlayDir(entry.dir.path)"
+                >
+                  <PauseSvg v-if="isPlayingDir(entry.dir.path)" />
+                  <PlaySvg v-else />
+                </button>
+              </div>
+              <span class="ellip">{{ entry.dir.name }}</span>
+              <PushPinSvg class="pl-pin" title="Pinned" />
+            </RouterLink>
+
             <!-- Pinned playlist -->
             <SidebarPlaylistItem
               v-else
@@ -131,9 +164,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import useSettingsStore from "@/stores/settings";
 import usePStore from "@/stores/pages/playlists";
 import usePinnedAlbums from "@/stores/pages/pinnedAlbums";
+import usePinnedFolders, { folderKey } from "@/stores/pages/pinnedFolders";
+import { PinnedFolder } from "@/requests/folders";
 import { Routes } from '@/router'
 import { paths } from '@/config'
 import { Album, Playlist, Track } from "@/interfaces";
@@ -144,6 +180,9 @@ import PlaySvg from "@/assets/icons/play.svg";
 import PauseSvg from "@/assets/icons/pause.svg";
 import PushPinSvg from "@/assets/icons/push-pin.svg";
 import FolderSvg from "@/assets/icons/folder.fill.svg";
+// A music folder, as in the navigation's "Folders" entry — not the filled
+// glyph of a playlist folder, which is a different thing in the same list.
+import DirSvg from "@/assets/icons/folder.svg";
 import RightArrowSvg from "@/assets/icons/right-arrow.svg";
 import PlusSvg from "@/assets/icons/plus.svg";
 
@@ -154,8 +193,8 @@ import useModalStore from "@/stores/modal";
 import usePlaylistFolders from "@/stores/playlistFolders";
 import { PlaylistFolder } from "@/requests/playlistFolders";
 import { FromOptions, ContextSrc } from "@/enums";
-import { playFromAlbumCard } from "@/helpers/usePlayFrom";
-import { showAlbumContextMenu } from "@/helpers/contextMenuHandler";
+import { playFromAlbumCard, playFromFolderCard } from "@/helpers/usePlayFrom";
+import { showAlbumContextMenu, showFolderContextMenu } from "@/helpers/contextMenuHandler";
 import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon } from "@/icons";
 import { getPlaylist } from "@/requests/playlists";
 import { useResizeObserver } from "@vueuse/core";
@@ -181,6 +220,8 @@ useResizeObserver(sidebarEl, () => {
 const settings = useSettingsStore();
 const playlists = usePStore();
 const pinnedAlbums = usePinnedAlbums();
+const pinnedFolders = usePinnedFolders();
+const route = useRoute();
 const queue = useQueue();
 const tracklist = useTracklist();
 // Album cover thumbnail base (pinned albums in the library list).
@@ -218,12 +259,14 @@ type TopEntry =
       folder: PlaylistFolder & { playlists: Playlist[] };
     }
   | { kind: "playlist"; id: number; position: number; pl: Playlist }
-  | { kind: "album"; id: string; position: number; al: Album };
+  | { kind: "album"; id: string; position: number; al: Album }
+  | { kind: "dir"; id: string; position: number; dir: PinnedFolder };
 
 // Tie-break for entries that share a position (e.g. all MAX before the first
-// reorder): albums first, then folders, then playlists — preserving the
-// historical layout where pinned albums sat above the folder/playlist zone.
-const kindRank = { album: 0, folder: 1, playlist: 2 } as const;
+// reorder): albums first, then music folders, then playlist folders, then
+// playlists — preserving the historical layout where pinned albums sat above
+// the folder/playlist zone; pinned music folders join the pins above it.
+const kindRank = { album: 0, dir: 1, folder: 2, playlist: 3 } as const;
 
 // The manually-ordered zone: folders + pinned albums + pinned playlists
 // interleaved by a shared position.
@@ -234,6 +277,9 @@ const topZone = computed<TopEntry[]>(() => {
   }
   for (const al of pinnedAlbums.sortedAlbums) {
     entries.push({ kind: "album", id: al.albumhash, position: al.position ?? Number.MAX_SAFE_INTEGER, al });
+  }
+  for (const dir of pinnedFolders.sortedFolders) {
+    entries.push({ kind: "dir", id: dir.path, position: dir.position ?? Number.MAX_SAFE_INTEGER, dir });
   }
   for (const p of ungroupedPlaylists.value) {
     if (p.pinned) {
@@ -248,10 +294,12 @@ const bottomZone = computed(() => ungroupedPlaylists.value.filter(p => !p.pinned
 const dragOverFolder = ref<number | null>(null);
 // What is being dragged (set on dragstart — dataTransfer can't be read during
 // dragover) and where the drop line currently sits.
-const dragging = ref<{ type: "playlist" | "folder"; id: number } | { type: "album"; id: string } | null>(null);
-const dropMarker = ref<{ kind: "pl" | "folder" | "album"; id: number | string; edge: "before" | "after" } | null>(
-  null
-);
+const dragging = ref<{ type: "playlist" | "folder"; id: number } | { type: "album" | "dir"; id: string } | null>(null);
+const dropMarker = ref<{
+  kind: "pl" | "folder" | "album" | "dir";
+  id: number | string;
+  edge: "before" | "after";
+} | null>(null);
 
 function readDragPid(e: DragEvent): number | null {
   const raw = e.dataTransfer?.getData("playlistid");
@@ -266,7 +314,7 @@ function edgeFromEvent(e: DragEvent): "before" | "after" {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   return e.clientY < rect.top + rect.height / 2 ? "before" : "after";
 }
-function markerClass(kind: "pl" | "folder" | "album", id: number | string) {
+function markerClass(kind: "pl" | "folder" | "album" | "dir", id: number | string) {
   const m = dropMarker.value;
   return {
     "drop-before": !!m && m.kind === kind && m.id === id && m.edge === "before",
@@ -293,6 +341,11 @@ function onAlbumDragStart(albumhash: string, e: DragEvent) {
   e.dataTransfer?.setData("albumhash", albumhash);
   if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
 }
+function onDirDragStart(path: string, e: DragEvent) {
+  dragging.value = { type: "dir", id: path };
+  e.dataTransfer?.setData("folderpath", path);
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+}
 
 // playlist rows: show the line for any drag (a folder can also land before/after)
 function onItemDragOver(plId: number, e: DragEvent) {
@@ -306,12 +359,20 @@ function onAlbumDragOver(albumhash: string, e: DragEvent) {
   dragOverFolder.value = null;
   dropMarker.value = { kind: "album", id: albumhash, edge: edgeFromEvent(e) };
 }
+// pinned music folder rows: same again
+function onDirDragOver(path: string, e: DragEvent) {
+  if (!dragging.value) return;
+  dragOverFolder.value = null;
+  dropMarker.value = { kind: "dir", id: path, edge: edgeFromEvent(e) };
+}
 
 // reorder the shared top zone, placing the dragged entry next to the target
+type TopKind = TopEntry["kind"];
+
 function reorderTopZone(
-  draggedKind: "folder" | "playlist" | "album",
+  draggedKind: TopKind,
   draggedId: number | string,
-  targetKind: "folder" | "playlist" | "album",
+  targetKind: TopKind,
   targetId: number | string,
   edge: "before" | "after"
 ) {
@@ -326,25 +387,28 @@ function reorderTopZone(
   const folderPos: { id: number; position: number }[] = [];
   const plPos: { id: number; position: number }[] = [];
   const albumPos: { albumhash: string; position: number }[] = [];
+  const dirPos: { path: string; position: number }[] = [];
   order.forEach((en, i) => {
     if (en.kind === "folder") folderPos.push({ id: en.id as number, position: i });
     else if (en.kind === "album") albumPos.push({ albumhash: en.id as string, position: i });
+    else if (en.kind === "dir") dirPos.push({ path: en.id as string, position: i });
     else plPos.push({ id: en.id as number, position: i });
   });
   if (folderPos.length) folderStore.reorder(folderPos);
   if (plPos.length) playlists.reorderTopLevel(plPos);
   if (albumPos.length) pinnedAlbums.reorderTopLevel(albumPos);
+  if (dirPos.length) pinnedFolders.reorderTopLevel(dirPos);
 }
 
-// drop anything onto a pinned album row → interleave next to it
-async function onAlbumDrop(targetAl: Album, e: DragEvent) {
-  void e;
+// drop anything onto a pinned album or pinned music folder row → interleave
+// next to it
+async function onPinDrop(targetKind: "album" | "dir", targetId: string) {
   const drag = dragging.value;
   const edge = dropMarker.value?.edge ?? "before";
   clearDrag();
   if (!drag) return;
 
-  if (drag.type === "album" && drag.id === targetAl.albumhash) return;
+  if (drag.type === targetKind && drag.id === targetId) return;
 
   if (drag.type === "playlist") {
     // Pull the playlist out of any folder first, then place it (only if pinned).
@@ -353,7 +417,15 @@ async function onAlbumDrop(targetAl: Album, e: DragEvent) {
     if (!dragged?.pinned) return;
   }
 
-  reorderTopZone(drag.type, drag.id, "album", targetAl.albumhash, edge);
+  reorderTopZone(drag.type, drag.id, targetKind, targetId, edge);
+}
+function onAlbumDrop(targetAl: Album, e: DragEvent) {
+  void e;
+  return onPinDrop("album", targetAl.albumhash);
+}
+function onDirDrop(path: string, e: DragEvent) {
+  void e;
+  return onPinDrop("dir", path);
 }
 function onDropInFolderAt(folder: { id: number; items: number[] }, targetPl: Playlist, e: DragEvent) {
   const pid = readDragPid(e);
@@ -374,7 +446,7 @@ async function onTopItemDrop(targetPl: Playlist, e: DragEvent) {
   clearDrag();
   if (!drag) return;
 
-  if (drag.type === "folder" || drag.type === "album") {
+  if (drag.type !== "playlist") {
     reorderTopZone(drag.type, drag.id, "playlist", targetPl.id, edge);
     return;
   }
@@ -398,9 +470,9 @@ function folderHeaderZone(e: DragEvent): "before" | "into" | "after" {
   return "into";
 }
 function onFolderHeaderDragOver(folder: PlaylistFolder, e: DragEvent) {
-  // Folders and albums can only land before/after a folder (no "into" zone —
-  // folders contain playlists only).
-  if (dragging.value?.type === "folder" || dragging.value?.type === "album") {
+  // Folders, albums and music folders can only land before/after a folder (no
+  // "into" zone — folders contain playlists only).
+  if (dragging.value && dragging.value.type !== "playlist") {
     dragOverFolder.value = null;
     dropMarker.value = { kind: "folder", id: folder.id, edge: edgeFromEvent(e) };
     return;
@@ -422,7 +494,7 @@ async function onFolderHeaderDrop(folder: PlaylistFolder, e: DragEvent) {
   clearDrag();
   if (!drag) return;
 
-  if (drag.type === "folder" || drag.type === "album") {
+  if (drag.type !== "playlist") {
     if (drag.type === "folder" && drag.id === folder.id) return;
     reorderTopZone(drag.type, drag.id, "folder", folder.id, edge);
     return;
@@ -439,7 +511,7 @@ async function onFolderHeaderDrop(folder: PlaylistFolder, e: DragEvent) {
 }
 
 // folder body / empty area: append a dragged playlist to the folder
-// (folders and albums can't be dropped into a folder)
+// (folders, albums and music folders can't be dropped into a folder)
 function onDropToFolder(folderId: number, e: DragEvent) {
   if (dragging.value && dragging.value.type !== "playlist") return clearDrag();
   const pid = readDragPid(e);
@@ -454,7 +526,7 @@ function onDropToTopZone(e: DragEvent) {
   if (!drag) return;
   const last = topZone.value[topZone.value.length - 1];
   if (!last || (drag.id === last.id && drag.type === last.kind)) return;
-  if (drag.type === "folder" || drag.type === "album") {
+  if (drag.type !== "playlist") {
     reorderTopZone(drag.type, drag.id, last.kind, last.id, "after");
   } else {
     const dragged = playlists.playlists.find(p => p.id === drag.id);
@@ -540,6 +612,43 @@ function onAlbumContextMenu(e: MouseEvent, al: Album) {
   showAlbumContextMenu(e, ctxFlag, al);
 }
 
+function onDirContextMenu(e: MouseEvent, path: string) {
+  showFolderContextMenu(e, ctxFlag, ContextSrc.FolderCard, path);
+}
+
+// The folder page open right now is this pin (its route param is the path in
+// whatever spelling the link used).
+function isOpenDir(path: string) {
+  return route.name === Routes.folder && folderKey(String(route.params.path ?? "")) === folderKey(path);
+}
+// Which pin the sidebar last started, and the queue source that produced.
+// `from.path` alone cannot say: `setFromFolder` records the FIRST track's own
+// folder, so a pin whose music sits in subfolders never matched it.
+const startedDir = ref<{ key: string; from: unknown } | null>(null);
+
+// Is this pinned folder the source the player was loaded from?
+function isCurrentDir(path: string) {
+  const from = tracklist.from as any;
+  if (from?.type !== FromOptions.folder) return false;
+  const key = folderKey(path);
+  if (startedDir.value?.key === key && startedDir.value.from === from) return true;
+  return folderKey(from?.path ?? "") === key;
+}
+function isPlayingDir(path: string) {
+  return isCurrentDir(path) && queue.playing;
+}
+function togglePlayDir(path: string) {
+  if (isCurrentDir(path)) {
+    queue.playPause();
+  } else {
+    const before = tracklist.from;
+    playFromFolderCard(path).then(() => {
+      // An empty folder leaves the queue alone — do not claim its source.
+      if (tracklist.from !== before) startedDir.value = { key: folderKey(path), from: tracklist.from };
+    });
+  }
+}
+
 // Is the given album the one currently loaded in the player?
 function isCurrentAlbum(albumhash: string) {
   return (
@@ -607,6 +716,9 @@ onMounted(() => {
   }
   if (!pinnedAlbums.albums.length) {
     pinnedAlbums.fetchAll();
+  }
+  if (!pinnedFolders.loaded) {
+    pinnedFolders.fetchAll();
   }
   folderStore.fetch();
 });
