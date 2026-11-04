@@ -57,7 +57,7 @@ unpacks the web client bundled in the image — no download needed.
 | --- | --- |
 | `aivinnet-v*-x86_64.AppImage` | Linux (Intel/AMD) — recommended |
 | `aivinnet-v*-aarch64.AppImage` | Linux ARM64 (Raspberry Pi 4/5) |
-| `aivinnet_linux_*`, `aivinnet_windows_*.exe`, `aivinnet_darwin_arm64` | single-file binaries |
+| `aivinnet_linux_*`, `aivinnet_windows_*.exe` | single-file binaries |
 | `aivinnet-*.whl` | pip/uv install (needs Python 3.11+, and a compiler for `bjoern` on Linux) |
 | `client.zip` | built web client on its own |
 | `SHA256SUMS` | checksums for every asset above |
@@ -65,7 +65,11 @@ unpacks the web client bundled in the image — no download needed.
 The Docker image is not an asset here — it lives in the container registry:
 `ghcr.io/vwellenberg/aivinnet:latest` (and `:v<version>`).
 
-Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn.
+Windows binaries are unsigned — SmartScreen will warn.
+
+**No macOS binary in this release:** GitHub had no macOS build machines for it.
+On a Mac, use Docker Desktop (the image runs on Apple Silicon), or keep the
+`aivinnet_darwin_arm64` from v2026.11.0 until the binary is back.
 
 ## What's new in this release
 

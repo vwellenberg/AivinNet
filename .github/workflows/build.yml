@@ -433,11 +433,11 @@ jobs:
             windows-latest,
             windows-11-arm,
             # macos-13,
-            # Pinned, not `macos-latest`: on 2026-11-04 that label got no runner
-            # three times in a row (each job cancelled after 15 min queueing,
-            # no step run), and a missing binary holds back the whole release.
-            # macos-15 is Apple Silicon too, so the asset stays darwin_arm64.
-            macos-15,
+            # macOS is out for now (#710): on 2026-11-04 neither macos-latest
+            # nor macos-15 got a runner (four runs, each job cancelled after
+            # 15 min in the queue, before any step), and a missing binary holds
+            # back the whole release. Put the line back once runners are there.
+            # macos-15,
           ]
 
     steps:
