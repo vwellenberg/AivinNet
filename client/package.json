@@ -20,7 +20,7 @@
     "@vueuse/integrations": "^9.2.0",
     "axios": "^0.34.0",
     "fuse.js": "^6.6.2",
-    "node-vibrant": "3.1.6",
+    "node-vibrant": "4.0.4",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "qr-code-styling": "^1.9.2",
