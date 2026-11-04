@@ -1,14 +1,12 @@
 import { defineStore } from "pinia";
-import Vibrant from "node-vibrant";
+import { Vibrant } from "node-vibrant/browser";
 import listToRgbString from "@/utils/colortools/listToRgbString";
 import { dominantColoredBg } from "@/utils/colortools/swatches";
 
 async function getImageColor(url: string) {
-  const vibrant = new Vibrant(url);
-
-  const palette = await vibrant.getPalette();
-  const lightvibrant = listToRgbString(palette.LightVibrant?.getRgb()) || "";
-  const darkvibrant = listToRgbString(palette.Muted?.getRgb()) || "";
+  const palette = await Vibrant.from(url).getPalette();
+  const lightvibrant = listToRgbString(palette.LightVibrant?.rgb) || "";
+  const darkvibrant = listToRgbString(palette.Muted?.rgb) || "";
   // Dominant cover colour, darkened to the Album/Playlist gradient base. '' when
   // the cover has no colour to tint with (greyscale / no-cover placeholder), so
   // the Now Playing page can fall back to the brand green.
