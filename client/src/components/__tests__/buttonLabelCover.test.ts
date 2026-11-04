@@ -67,8 +67,8 @@ describe.each([["btn-action", ["> svg"]]])("%s", (name, covered) => {
 });
 
 // Concept "C" (user, 2026-10-16): the texture runs over the whole primary and
-// thins toward its middle, where glyph and label sit, to the same rest the
-// dots leave under text. The cover it replaced printed a box of the fill
+// thins toward its middle, where glyph and label sit, to the same rest as any
+// hatched label (nothing since 2026-11-04). The cover it replaced printed a box of the fill
 // around the label. The hover hatch runs on the same masked layer — painted
 // on the button's own background it would run behind the label at full.
 describe("btn-primary", () => {
@@ -76,7 +76,7 @@ describe("btn-primary", () => {
 
     it("thins its texture toward the content instead of covering label and glyph", () => {
         const layer = rulesFor(body, "&::before")[0] ?? "";
-        expect(layer).toMatch(/mask-image:\s*radial-gradient\(closest-side, \$mem-veil-rest 70%, #000 100%\)/);
+        expect(layer).toMatch(/mask-image:\s*radial-gradient\(closest-side, \$mem-hatch-veil-rest 70%, #000 100%\)/);
         for (const selector of ["> svg", "> .text"]) {
             expect(rulesFor(body, selector).some((rule) => /background-color/.test(rule)), selector).toBe(false);
         }
