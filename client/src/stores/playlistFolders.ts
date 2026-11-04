@@ -6,6 +6,7 @@ import {
     deletePlaylistFolder,
     getPlaylistFolders,
     movePlaylistToFolder,
+    pinUnpinPlaylistFolder,
     renamePlaylistFolder,
     reorderPlaylistFolders,
 } from '@/requests/playlistFolders'
@@ -64,6 +65,14 @@ export default defineStore('playlistFolders', {
             if (res.status === 200) {
                 const f = this.folders.find(f => f.id === id)
                 if (f) f.name = (res.data as PlaylistFolder).name
+            }
+        },
+        /** Pin/unpin a folder; the sidebar moves it once the server agrees. */
+        async togglePin(id: number) {
+            const res = await pinUnpinPlaylistFolder(id)
+            if (res.status === 200) {
+                const f = this.folders.find(f => f.id === id)
+                if (f) f.pinned = !!res.data.pinned
             }
         },
         async remove(id: number) {

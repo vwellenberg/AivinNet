@@ -66,6 +66,25 @@ def rename_folder(path: FolderIdPath, body: RenameFolderBody):
     return PlaylistFolderTable.get_by_id(path.folder_id)
 
 
+@api.post("/<int:folder_id>/pin_unpin")
+def pin_unpin_folder(path: FolderIdPath):
+    """
+    Pin/unpin a playlist folder.
+
+    A pinned folder sits in the sidebar's manually ordered zone, next to pinned
+    playlists and albums; an unpinned one moves down among the alphabetical
+    rest. Its playlists and its position are kept either way, so pinning it
+    again puts it back where it was. Returns the new pinned state.
+    """
+    folder = PlaylistFolderTable.get_by_id(path.folder_id)
+    if folder is None:
+        return {"error": "Folder not found"}, 404
+
+    pinned = not folder["pinned"]
+    PlaylistFolderTable.update_one(path.folder_id, {"pinned": pinned})
+    return {"pinned": pinned}, 200
+
+
 @api.delete("/<int:folder_id>")
 def delete_folder(path: FolderIdPath):
     """

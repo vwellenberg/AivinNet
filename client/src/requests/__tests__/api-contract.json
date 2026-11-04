@@ -1050,6 +1050,7 @@
       "type": "json"
     }
   },
+  "POST /playlistfolders/{folder_id}/pin_unpin": {},
   "POST /playlists/new": {
     "body": {
       "allowed": [

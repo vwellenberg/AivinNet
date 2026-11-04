@@ -1178,6 +1178,10 @@ class PlaylistFolderTable(Base):
     userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
     items: Mapped[list[int]] = mapped_column(JSON(), default_factory=list)
     position: Mapped[int] = mapped_column(Integer(), default=0)
+    # In the sidebar's manually ordered zone (True) or among the alphabetical
+    # rest below it. Older databases get it from
+    # migrations/playlistfolder_pinned.py, as True: where folders always were.
+    pinned: Mapped[bool] = mapped_column(Boolean(), default=True, server_default="1")
 
     @classmethod
     def to_dict(cls, entry: Any) -> dict[str, Any]:
@@ -1186,6 +1190,7 @@ class PlaylistFolderTable(Base):
             "name": entry.name,
             "items": entry.items or [],
             "position": entry.position,
+            "pinned": bool(entry.pinned),
         }
 
     @classmethod
@@ -1205,7 +1210,9 @@ class PlaylistFolderTable(Base):
 
     @classmethod
     def create(cls, name: str, position: int):
-        result = cls.insert_one({"name": name, "userid": get_current_userid(), "items": [], "position": position})
+        result = cls.insert_one(
+            {"name": name, "userid": get_current_userid(), "items": [], "position": position, "pinned": True}
+        )
         return result.lastrowid
 
     @classmethod

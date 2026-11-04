@@ -94,7 +94,10 @@ nicht per `ALTER TABLE` entfernen: **die Tabelle muss neu gebaut werden** (neue 
 kopieren, alte droppen). Vorbild und Baumuster: `migrations/favorites_unique_per_user.py`.
 
 Eine **neue Spalte** ist der billige Fall: `ALTER TABLE … ADD COLUMN` geht in place
-(`migrations/user_token_version.py`, `track_added.py`). ⚠️ Sie muss aber in `setup_sqlite()`
+(`migrations/user_token_version.py`, `track_added.py`, `playlistfolder_pinned.py`). Der
+Default ist dabei eine Entscheidung über den **Bestand**: `playlistfolder.pinned` kommt als 1,
+weil Ordner vorher immer oben standen. Mit 0 wäre nach dem Update jeder Ordner in der
+Seitenleiste nach unten gerutscht. ⚠️ Sie muss aber in `setup_sqlite()`
 laufen, **vor** dem ersten SELECT der Tabelle: Der nennt jede gemappte Spalte, und auf der alten
 DB scheitert er mit `no such column`. `run_migrations()` ist dafür zu spät.
 

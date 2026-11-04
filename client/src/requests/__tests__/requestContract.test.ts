@@ -225,6 +225,7 @@ const CALLS: Record<string, unknown[]> = {
     'playlistFolders/deletePlaylistFolder': [3],
     'playlistFolders/movePlaylistToFolder': [7, 3, 0],
     'playlistFolders/reorderPlaylistFolders': [[{ id: 3, position: 0 }]],
+    'playlistFolders/pinUnpinPlaylistFolder': [3],
     'playlists/reorderSidebarPlaylists': [[{ id: 7, position: 0 }]],
     'playlists/createNewPlaylist': ['Mix'],
     'playlists/getAllPlaylists': [false],
