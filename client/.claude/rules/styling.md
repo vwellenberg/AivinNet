@@ -600,6 +600,10 @@ zwei Hälften, sobald die Navigation Platten bekam.
   Kinder als eigene Platten machen aus einer Gruppe sechs gleichrangige Platten; flache Kinder
   neben Platten bauen die Naht im Kleinen wieder auf. In einem Kasten dürfen sie flach sein,
   **weil** sie auf einer Platte sitzen — der Ordner-Kopf hat deshalb bewusst *keine* eigene Platte.
+  ⚠️ **Flach heißt nur „in Ruhe".** Hover **und** Auswahl heben die Kind-Zeile zur vollen Platte
+  (Rahmen + Offset), genau wie eine Ebene höher. Die Auswahl gab Rahmen und Offset bis 2026-11-04
+  ab und stand als rahmenloser Blush-Balken im Ordner, während jede gehoverte Zeile daneben eine
+  Platte war — gemeldet als „sollte hier nicht ein Rahmen drum sein?". Zensus: `rowHover.test.ts`.
 - **Platten brauchen Luft:** `gap: $small` statt `$smaller`, und der Container reserviert rechts
   `padding-right: $small`, weil `overflow: hidden` sonst den Offset-Schatten bündig abschneidet.
   Kosten gemessen: 986 → 1046 px über 19 Einträge (+6 %), komplett in den Abständen.

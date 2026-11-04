@@ -1083,12 +1083,17 @@ $sidebar-label-opacity: 0.85;
           background-color: var(--row-fill);
         }
 
-        // The selection still needs to be visible in here, so the fill and its
-        // accent hatch stay — only frame and offset are dropped.
+        // Selected is the FULL plate too: fill, accent hatch, ink frame and
+        // offset — the same row as one level up, exactly like the hover above.
+        // It used to drop frame and offset and keep only the fill, which left
+        // a frameless pastel bar inside the folder while every row you point
+        // at rises into a framed plate (reported 2026-11-04: "sollte hier
+        // nicht ein Rahmen drum sein?"). The offset is restated because the
+        // resting rule above switches it off at higher specificity; the
+        // body's $smaller padding leaves room for the last row's 3px.
         &.active {
           @include mem-row-plate-active;
-          border-color: transparent;
-          box-shadow: none;
+          box-shadow: mem-shadow(3px, 3px);
         }
       }
     }

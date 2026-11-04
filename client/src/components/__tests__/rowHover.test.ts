@@ -428,6 +428,25 @@ describe("folder rows hover like playlist rows", () => {
     expect(hover).not.toMatch(/\b(border-color|box-shadow|background-image)\s*:/);
   });
 
+  // The selected playlist inside a folder used to drop frame and offset and
+  // keep only the blush fill — a frameless pastel bar next to rows that rise
+  // into a full plate under the pointer (reported 2026-11-04: "sollte hier
+  // nicht ein Rahmen drum sein?"). Selected reads like the top-level row:
+  // fill, accent hatch, ink frame AND offset.
+  it("keeps the full plate on the selected row too", () => {
+    const items = rules(styleSource(sidebar)).find(rule => rule.selectors.includes(".sidebar-folder-items"));
+    const row = items && rules(items.body).find(rule => rule.selectors.includes(".sidebar-playlist-item"));
+    const active = row && rules(row.body).find(rule => rule.selectors.includes("&.active"));
+    const own = active ? ownDeclarations(active.body) : "";
+
+    expect(own).toMatch(/@include\s+mem-row-plate-active\b/);
+    expect(own).not.toMatch(/border-color\s*:\s*transparent/);
+    expect(own).not.toMatch(/box-shadow\s*:\s*none/);
+    // The resting row switches the offset off; the selected row must bring
+    // it back, the same 3px every plate rests on.
+    expect(own).toMatch(/box-shadow\s*:\s*mem-shadow\(3px,\s*3px\)/);
+  });
+
   // A background tile starts at its own element's corner: with the hatch on
   // each resting row, every playlist in a folder printed the identical strokes
   // (reported 2026-10-05). The body carries ONE sheet; resting rows are windows
