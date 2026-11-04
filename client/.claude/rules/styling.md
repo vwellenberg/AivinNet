@@ -314,8 +314,23 @@ Drei Bedingungen, alle tragend:
    „nie hinter Text", und jede der drei Umsetzungen schnitt eine harte Form aus der Textur: einen
    Kasten in der Füllfarbe hinter jedem Label, ein Loch in Content-Box-Größe, einen Kasten hinter
    Beschriftung und Glyph des Hauptbuttons. Jetzt läuft die Textur über die ganze Platte, und unter
-   dem Text bleibt derselbe Rest wie unter Text auf Punkten (`1 - $mem-veil-strength`, ein Token
-   für beide). Welche Umsetzung gilt, entscheidet weiter die **Fläche**:
+   dem Text blieb derselbe Rest wie unter Text auf Punkten (`1 - $mem-veil-strength`).
+   ⚠️ **Seit 2026-11-04 bleibt unter Schrift auf der Schraffur NICHTS** (Nutzer: „noch weniger
+   Schraffur um Text herum", Variante C einer Vorschau-Runde): `$mem-hatch-veil-strength: 1`,
+   eigenes Token neben dem der Punkte, die bei 0.72 bleiben. Der Hauptbutton zieht mit:
+   Seine Sprenkel und die Hover-Schraffur liegen auf **einer** maskierten Ebene, getrennte
+   Stärken gingen nur mit einer zweiten. Die Striche sind 2,6 px breit, die Punkte 2 px — das Viertel, das unter Punkten
+   nicht stört, las sich auf der Schraffur weiter als Striche durch die Wörter. Dazu der rechte
+   Auslauf von `mem-hatch-clear` 26 → 34 px und der Ring von `mem-label-hatch` 0.375/0.6 →
+   0.3/0.45 rem (`btn-pill` reicht 0.45 rem selbst durch). Ein Kasten entsteht trotzdem nicht:
+   Die Ränder blenden weiter weich aus, nur die Mitte ist jetzt deckend.
+   ⚠️ **Mehr Deckkraft allein sieht man nicht.** Die Runde zeigte 0.72 / 0.85 / 0.95 / 1.0 fast
+   identisch: Der Schleier ist nur so hoch wie das Label (2 px Polster), die Striche ober- und
+   unterhalb laufen unabhängig davon an den Buchstaben vorbei. Sichtbar wird es erst zusammen mit
+   Auslauf und Ring. Und ein größerer Hof über das Label hinaus (negativer `inset`) wird von
+   `overflow: hidden` (Ellipsen!) abgeschnitten und überdeckt sonst den Rahmen der Zeit-Pille —
+   wer mehr Abstand nach oben/unten will, muss das **Polster** des Labels ändern, nicht den Schleier.
+   Welche Umsetzung gilt, entscheidet weiter die **Fläche**:
 
    - **Breites Element, dessen Text nur einen Teil einnimmt** (Sidebar-Zeile, Navigations-Zeile,
      Browse-Kachel, Up-next-Zeile) → `mem-hatch-clear` auf dem **Label**, nicht auf dem Container.
@@ -325,7 +340,8 @@ Drei Bedingungen, alle tragend:
      wurde grau).
    - **Kleines Element, das im Wesentlichen aus seinem Label besteht** (Tab, Chip, Pill,
      Text-Button) → **`mem-label-hatch`**: die Textur auf einem `::before` über den ganzen Button,
-     voll im Ring (`$ring-x`/`$ring-y`), über `$fade` (6 px) zum Rest abgeblendet. Durch die
+     voll im Ring (`$ring-x`/`$ring-y`), über `$fade` (6 px) zum Rest (seit 2026-11-04: null)
+     abgeblendet. Durch die
      Maske scheint die Füllung des Buttons, egal in welchem Zustand. Die Strichfarbe reist als
      `--label-hatch`; ein Zustand, der die Füllung wechselt, setzt sie mit (Hover →
      `--mem-hatch-hover`, statischer Akzent → `--mem-hatch-accent`). In `btn-action` heißt das

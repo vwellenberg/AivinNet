@@ -372,15 +372,15 @@ $control-dense-glyph: 1rem;
     opacity: 0.45;
     pointer-events: none;
     // The texture thins toward the middle, where glyph and label sit (user,
-    // 2026-10-16, concept "C"): full at the ends, `1 - $mem-veil-strength`
-    // under the content. It replaced a cover behind the label and the glyph
+    // 2026-10-16, concept "C"): full at the ends, nothing under the content
+    // since 2026-11-04 (`$mem-hatch-veil-rest`, like every hatched label). It replaced a cover behind the label and the glyph
     // (#237: lifting them above the texture alone let it show THROUGH the
     // letters), which printed a box of the fill into the texture. The hover
     // hatch runs on this same layer, so it thins the same way.
     // 70%: a wide label ("Play all", "Find lyrics") reaches about that far out,
     // and at 45% its outer letters stood in ~60% texture.
-    -webkit-mask-image: radial-gradient(closest-side, $mem-veil-rest 70%, #000 100%);
-    mask-image: radial-gradient(closest-side, $mem-veil-rest 70%, #000 100%);
+    -webkit-mask-image: radial-gradient(closest-side, $mem-hatch-veil-rest 70%, #000 100%);
+    mask-image: radial-gradient(closest-side, $mem-hatch-veil-rest 70%, #000 100%);
   }
 
   svg,
@@ -651,7 +651,7 @@ $control-dense-glyph: 1rem;
   @include mem-label-hatch(
     26px,
     $on: if($fill == $mem-panel or $fill == $mem-soft, surface, accent),
-    $ring-y: if($h == auto, 0.2rem, 0.6rem)
+    $ring-y: if($h == auto, 0.2rem, 0.45rem)
   );
   // A pill is a LABEL button by definition — every call site in the app is a
   // word: Save, Login, Cancel, Delete, Load More, New Playlist, the search

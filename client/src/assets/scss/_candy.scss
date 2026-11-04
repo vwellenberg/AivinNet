@@ -1209,12 +1209,22 @@ $mem-seg-reserve: 4px !default;
   background-size: auto, $size $size;
 }
 
-// How much of a texture the text takes away under itself — dots and hatch alike
-// (user, 2026-10-16, concept "C"): about a quarter still shows under the
-// letters, and it fades back in around them instead of stopping at a box.
+// How much of a texture the text takes away under itself (user, 2026-10-16,
+// concept "C"): about a quarter still shows under the letters, and it fades
+// back in around them instead of stopping at a box. This one is the DOTS':
+// they are faint enough to stay under text.
 $mem-veil-strength: 0.72;
 // The same, as a mask colour: what a mask lets through under the text.
 $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
+
+// The HATCH clears the letters completely (user, 2026-11-04: "noch weniger
+// Schraffur um Text herum", variant C of a preview round). The strokes are
+// 2.6px wide and bold where the dots are 2px points — the quarter that stayed
+// under the dots still read as strokes running through the words. Still no
+// box: the veil fades back in at its edges as before, only its middle is
+// opaque now.
+$mem-hatch-veil-strength: 1;
+$mem-hatch-veil-rest: mem-alpha(#000, 1 - $mem-hatch-veil-strength);
 
 // The veil itself, shared by `mem-text-veil` and `mem-dots-veil` (they differ
 // only in how they feather): the surface's own fill — the panel when a host
@@ -1245,12 +1255,14 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 // the text ends exactly where the texture begins and reads as cramped.
 //
 // SOFT since 2026-10-16 (user, concept "C", first built for the dots): the
-// cover is a veil on the label's `::before`, not its background. It lets
-// `1 - $mem-veil-strength` of the strokes through under the letters and fades
-// out over the buffer on the right (and a few px at the other edges), so the
-// hatch thins toward the text instead of stopping at a box around it.
+// cover is a veil on the label's `::before`, not its background. It fades out
+// over the buffer on the right (and a few px at the other edges), so the hatch
+// thins toward the text instead of stopping at a box around it. Under the
+// letters themselves nothing is left since 2026-11-04 (`$mem-hatch-veil-
+// strength`), and the default buffer grew from 26px to 34px with it: the
+// longer run-out on the right was the other half of the chosen variant.
 // ---------------------------------------------------------------------------
-@mixin mem-hatch-clear($buffer: 26px) {
+@mixin mem-hatch-clear($buffer: 34px) {
   flex: 0 1 auto;
   min-width: 0;
   border-radius: 7px;
@@ -1258,8 +1270,8 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
   @include mem-text-veil($left: 4px, $right: $buffer);
 }
 
-// The soft cover itself, for any element that holds text on a texture: a veil
-// of `--row-fill` on its `::before`, `$mem-veil-strength` strong, fading in over
+// The soft cover itself, for any element that holds text on the hatch: a veil
+// of `--row-fill` on its `::before`, `$mem-hatch-veil-strength` strong, fading in over
 // `$left`, out over `$right` and 3px at the top and bottom. Inside the element's
 // own box (`inset: 0`): a label with a frame (the duration pill) had its ring
 // veiled where a larger layer spilled over it. It isolates the element, so the
@@ -1269,7 +1281,7 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
   isolation: isolate;
 
   &::before {
-    @include mem-veil-layer;
+    @include mem-veil-layer($mem-hatch-veil-strength);
     inset: 0;
     border-radius: inherit;
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 $left, #000 calc(100% - #{$right}), transparent 100%),
@@ -1313,7 +1325,7 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
 // Takes the `::before` of its host: `btn-primary` owns that pseudo-element for
 // its sprinkle, so the two never meet on one element.
 // ---------------------------------------------------------------------------
-@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.375rem, $ring-y: 0.6rem, $fade: 6px) {
+@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.3rem, $ring-y: 0.45rem, $fade: 6px) {
   --label-hatch: #{if($on == accent, var(--mem-hatch-accent), var(--mem-hatch))};
   position: relative;
 
@@ -1326,18 +1338,23 @@ $mem-veil-rest: mem-alpha(#000, 1 - $mem-veil-strength);
     background-size: $size $size;
     // SOFT since 2026-10-16 (concept "C"): full strength at the edge, fading
     // to what the veil leaves under the label — the same rest as under any
-    // text — instead of a hard hole cut out of the content box. Three layers,
-    // added: the sides, the top and bottom, the rest everywhere.
+    // hatched text, nothing since 2026-11-04 — instead of a hard hole cut out
+    // of the content box. Three layers, added: the sides, the top and bottom,
+    // the rest everywhere.
     //
     // At the sides the fade runs OUTWARD from the ring into the buffer (every
     // label role has 12px of inline padding: 6 + 6). Above and below there is
     // no such buffer — the text band starts where the old hole did — so the
     // fade ends AT the ring, and `max()`/`min()` keep it from crossing the
-    // middle on a low pill (2.25rem: 2 x (0.6rem + 6px) is more than its box).
+    // middle on a low pill (2.25rem: 2 x (0.45rem + 6px) is 26.4px of 36px).
+    //
+    // The ring narrowed on 2026-11-04 (0.375/0.6rem -> 0.3/0.45rem) and the
+    // middle went fully clear (`$mem-hatch-veil-rest`): the same "less hatch
+    // around the text" as the row labels, chosen from the same preview.
     $sides: linear-gradient(to right, #000 $ring-x, transparent calc(#{$ring-x} + #{$fade}), transparent calc(100% - #{$ring-x} - #{$fade}), #000 calc(100% - #{$ring-x}));
     $ends: linear-gradient(#000 max(0px, #{$ring-y} - #{$fade}), transparent min(#{$ring-y}, 50%), transparent max(100% - #{$ring-y}, 50%), #000 min(100%, 100% - #{$ring-y} + #{$fade}));
-    -webkit-mask-image: $sides, $ends, linear-gradient($mem-veil-rest, $mem-veil-rest);
-    mask-image: $sides, $ends, linear-gradient($mem-veil-rest, $mem-veil-rest);
+    -webkit-mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
+    mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
     pointer-events: none;
   }
 }

@@ -48,10 +48,10 @@ describe("mem-label-hatch", () => {
 
   it("thins the texture toward the label instead of cutting a hole", () => {
     // Concept "C" (user, 2026-10-16): full strength in the ring, fading to the
-    // veil's rest under the text — the same rest as under any text on a
-    // texture. Both spellings: the -webkit- one for older Android WebViews.
-    expect(body).toMatch(/-webkit-mask-image: \$sides, \$ends, linear-gradient\(\$mem-veil-rest, \$mem-veil-rest\);/);
-    expect(body).toMatch(/[^-]mask-image: \$sides, \$ends, linear-gradient\(\$mem-veil-rest, \$mem-veil-rest\);/);
+    // hatch veil's rest under the text — the same rest as under any hatched
+    // text (nothing since 2026-11-04; the dots keep their own). Both spellings: the -webkit- one for older Android WebViews.
+    expect(body).toMatch(/-webkit-mask-image: \$sides, \$ends, linear-gradient\(\$mem-hatch-veil-rest, \$mem-hatch-veil-rest\);/);
+    expect(body).toMatch(/[^-]mask-image: \$sides, \$ends, linear-gradient\(\$mem-hatch-veil-rest, \$mem-hatch-veil-rest\);/);
     // A low pill (2.25rem) is shorter than both vertical fades together: the
     // stops are clamped to the middle so the band under the text never closes.
     expect(body).toMatch(/transparent min\(#\{\$ring-y\}, 50%\), transparent max\(100% - #\{\$ring-y\}, 50%\)/);
@@ -68,9 +68,9 @@ describe("mem-label-hatch", () => {
 describe("mem-text-veil (label covers and card captions)", () => {
   const veil = mixin(CANDY, "mem-text-veil");
 
-  it("veils on a pseudo-element, isolated, in the surface's fill at the shared strength", () => {
+  it("veils on a pseudo-element, isolated, in the surface's fill at the hatch strength", () => {
     expect(veil).toMatch(/isolation: isolate;/);
-    expect(veil).toMatch(/&::before\s*\{\s*@include mem-veil-layer;/);
+    expect(veil).toMatch(/&::before\s*\{\s*@include mem-veil-layer\(\$mem-hatch-veil-strength\);/);
     const layer = mixin(CANDY, "mem-veil-layer");
     expect(layer).toMatch(/background-color: var\(--row-fill, #\{\$mem-panel\}\);/);
     expect(layer).toMatch(/opacity: \$strength;/);
@@ -94,9 +94,16 @@ describe("mem-text-veil (label covers and card captions)", () => {
     expect(cards).not.toMatch(/background-color: var\(--row-fill\);\s*border-radius: 6px;/);
   });
 
-  it("shares one strength and one layer with the dots veil", () => {
+  // Since 2026-11-04 the hatch clears the letters completely ("noch weniger
+  // Schraffur um Text herum", variant C), while the dots keep their quarter:
+  // one layer, two strengths.
+  it("shares one layer with the dots veil, but clears the text fully", () => {
     expect(CANDY).toMatch(/^\$mem-veil-strength: 0\.72;/m);
     expect(CANDY).toMatch(/^\$mem-veil-rest: mem-alpha\(#000, 1 - \$mem-veil-strength\);/m);
+    expect(CANDY).toMatch(/^\$mem-hatch-veil-strength: 1;/m);
+    expect(CANDY).toMatch(/^\$mem-hatch-veil-rest: mem-alpha\(#000, 1 - \$mem-hatch-veil-strength\);/m);
+    expect(CANDY).toMatch(/@mixin mem-hatch-clear\(\$buffer: 34px\)/);
+    expect(CANDY).toMatch(/@mixin mem-label-hatch\(\$size: 26px, \$on: surface, \$ring-x: 0\.3rem, \$ring-y: 0\.45rem, \$fade: 6px\)/);
     const dots = mixin(CANDY, "mem-dots-veil");
     expect(dots).toMatch(/\$strength: \$mem-veil-strength/);
     expect(dots).toMatch(/@include mem-veil-layer\(\$strength\);/);
