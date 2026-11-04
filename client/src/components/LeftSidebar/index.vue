@@ -13,11 +13,19 @@
     </div>
     <div class="scrollable">
       <div class="sidebar-library">
-        <!-- Manually-ordered zone: playlist folders, pinned albums, pinned
-             music folders and pinned playlists, freely interleaved (shared
-             position space). -->
-        <div class="sidebar-toplevel" @dragover.prevent @drop="onDropToTopZone($event)">
-          <template v-for="entry in topZone" :key="entry.kind + '-' + entry.id">
+        <!-- Two zones, one template, so a playlist folder is the same box in
+             both. Top: the manually ordered zone — pinned playlist folders,
+             pinned albums, pinned music folders and pinned playlists, freely
+             interleaved (shared position space). Bottom: the un-pinned rest,
+             playlist folders first, then the playlists. -->
+        <div
+          v-for="zone in zones"
+          :key="zone.name"
+          :class="zone.cls"
+          @dragover.prevent
+          @drop="zone.top ? onDropToTopZone($event) : onDropToTop($event)"
+        >
+          <template v-for="entry in zone.entries" :key="entry.kind + '-' + entry.id">
             <!-- Folder -->
             <div
               v-if="entry.kind === 'folder'"
@@ -36,7 +44,7 @@
                 role="button"
                 tabindex="0"
                 :aria-expanded="!folderStore.isCollapsed(entry.id)"
-                draggable="true"
+                :draggable="zone.top"
                 @dragstart="onFolderDragStart(entry.id, $event)"
                 @dragend="clearDrag"
                 @click="folderStore.toggleCollapse(entry.id)"
@@ -49,6 +57,7 @@
                   <FolderSvg class="folder-icon" />
                 </div>
                 <span class="ellip">{{ entry.folder.name }}</span>
+                <PushPinSvg v-if="zone.top" class="folder-pin" title="Pinned" />
                 <span class="folder-count">{{ entry.folder.playlists.length }}</span>
                 <RightArrowSvg class="folder-chevron" :class="{ open: !folderStore.isCollapsed(entry.id) }" />
               </div>
@@ -128,28 +137,18 @@
               <PushPinSvg class="pl-pin" title="Pinned" />
             </RouterLink>
 
-            <!-- Pinned playlist -->
+            <!-- Playlist: pinned ones interleave up top; the rest only take a
+                 drop to leave their folder (the bottom zone's own drop). -->
             <SidebarPlaylistItem
               v-else
               :pl="entry.pl"
-              :class="markerClass('pl', entry.id)"
+              :class="zone.top ? markerClass('pl', entry.id) : null"
               @dragstart="onPlDragStart(entry.id)"
               @dragend="clearDrag"
-              @dragover.prevent="onItemDragOver(entry.id, $event)"
-              @drop.stop="onTopItemDrop(entry.pl, $event)"
+              @dragover.prevent="zone.top && onItemDragOver(entry.id, $event)"
+              @drop.stop="zone.top ? onTopItemDrop(entry.pl, $event) : onDropToTop($event)"
             />
           </template>
-        </div>
-
-        <!-- Remaining (un-pinned, un-grouped) playlists, alphabetical. -->
-        <div class="sidebar-bottom-zone" @dragover.prevent @drop="onDropToTop($event)">
-          <SidebarPlaylistItem
-            v-for="pl in bottomZone"
-            :key="pl.id"
-            :pl="pl"
-            @dragstart="onPlDragStart(pl.id)"
-            @dragend="clearDrag"
-          />
         </div>
       </div>
     </div>
@@ -195,7 +194,7 @@ import { PlaylistFolder } from "@/requests/playlistFolders";
 import { FromOptions, ContextSrc } from "@/enums";
 import { playFromAlbumCard, playFromFolderCard } from "@/helpers/usePlayFrom";
 import { showAlbumContextMenu, showFolderContextMenu } from "@/helpers/contextMenuHandler";
-import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon } from "@/icons";
+import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon, PushPinIcon } from "@/icons";
 import { getPlaylist } from "@/requests/playlists";
 import { useResizeObserver } from "@vueuse/core";
 import { sidebarScrollsWhole } from "@/utils/sidebarFit";
@@ -246,6 +245,12 @@ const foldersWithPlaylists = computed(() =>
   }))
 );
 
+// A server from before the pin column sends no `pinned`: that folder is up
+// top, where every folder used to be.
+function isPinnedFolder(f: PlaylistFolder) {
+  return f.pinned !== false;
+}
+
 // Playlists not in any folder.
 const ungroupedPlaylists = computed(() =>
   playlists.sortedPlaylists.filter(p => !folderStore.folderOf.has(p.id))
@@ -273,6 +278,7 @@ const kindRank = { album: 0, dir: 1, folder: 2, playlist: 3 } as const;
 const topZone = computed<TopEntry[]>(() => {
   const entries: TopEntry[] = [];
   for (const f of foldersWithPlaylists.value) {
+    if (!isPinnedFolder(f)) continue;
     entries.push({ kind: "folder", id: f.id, position: f.position ?? Number.MAX_SAFE_INTEGER, folder: f });
   }
   for (const al of pinnedAlbums.sortedAlbums) {
@@ -288,8 +294,22 @@ const topZone = computed<TopEntry[]>(() => {
   }
   return entries.sort((a, b) => a.position - b.position || kindRank[a.kind] - kindRank[b.kind]);
 });
-// Everything else (un-pinned, un-grouped) stays alphabetical below.
-const bottomZone = computed(() => ungroupedPlaylists.value.filter(p => !p.pinned));
+// Everything else stays below: un-pinned playlist folders by name, then the
+// un-pinned, un-grouped playlists in their own order (sortedPlaylists).
+const bottomZone = computed<TopEntry[]>(() => [
+  ...foldersWithPlaylists.value
+    .filter((f) => !isPinnedFolder(f))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((f) => ({ kind: "folder" as const, id: f.id, position: Number.MAX_SAFE_INTEGER, folder: f })),
+  ...ungroupedPlaylists.value
+    .filter((p) => !p.pinned)
+    .map((p) => ({ kind: "playlist" as const, id: p.id, position: Number.MAX_SAFE_INTEGER, pl: p })),
+]);
+
+const zones = computed(() => [
+  { name: "top", cls: "sidebar-toplevel", top: true, entries: topZone.value },
+  { name: "bottom", cls: "sidebar-bottom-zone", top: false, entries: bottomZone.value },
+]);
 
 const dragOverFolder = ref<number | null>(null);
 // What is being dragged (set on dragstart — dataTransfer can't be read during
@@ -470,6 +490,13 @@ function folderHeaderZone(e: DragEvent): "before" | "into" | "after" {
   return "into";
 }
 function onFolderHeaderDragOver(folder: PlaylistFolder, e: DragEvent) {
+  // An un-pinned folder sits in the alphabetical zone, so there is no
+  // "before/after" to land on: it only takes playlists, anywhere on its head.
+  if (!isPinnedFolder(folder)) {
+    dropMarker.value = null;
+    dragOverFolder.value = dragging.value?.type === "playlist" ? folder.id : null;
+    return;
+  }
   // Folders, albums and music folders can only land before/after a folder (no
   // "into" zone — folders contain playlists only).
   if (dragging.value && dragging.value.type !== "playlist") {
@@ -493,6 +520,11 @@ async function onFolderHeaderDrop(folder: PlaylistFolder, e: DragEvent) {
   const into = dragOverFolder.value === folder.id;
   clearDrag();
   if (!drag) return;
+
+  if (!isPinnedFolder(folder)) {
+    if (drag.type === "playlist") folderStore.move(drag.id, folder.id);
+    return;
+  }
 
   if (drag.type !== "playlist") {
     if (drag.type === "folder" && drag.id === folder.id) return;
@@ -561,6 +593,8 @@ async function getFolderTracks(folder: PlaylistFolder): Promise<Track[] | null> 
 }
 
 function onFolderContextMenu(e: MouseEvent, folder: PlaylistFolder) {
+  // Same wording as albums and music folders: the zone is the "Library".
+  const is_pinned = isPinnedFolder(folder);
   // showContextMenu expects the options getter to return a Promise.
   const options = async () => [
     {
@@ -590,6 +624,11 @@ function onFolderContextMenu(e: MouseEvent, folder: PlaylistFolder) {
         const tracks = await getFolderTracks(folder);
         if (tracks) tracklist.addTracks(tracks);
       },
+    },
+    {
+      label: is_pinned ? "Unpin from library" : "Pin to library",
+      icon: PushPinIcon,
+      action: () => folderStore.togglePin(folder.id),
     },
     {
       label: "Rename",
@@ -1137,6 +1176,22 @@ $sidebar-label-opacity: 0.85;
         flex-shrink: 0;
         font-size: 0.75rem;
         font-weight: 700;
+      }
+
+      // Pinned folders carry the same tilted thumbtack as pinned playlists and
+      // albums; the un-pinned ones below the zone carry none. It takes the push
+      // to the right edge, so the count sits right behind it.
+      .folder-pin {
+        margin-left: auto;
+        flex-shrink: 0;
+        width: 0.95rem;
+        height: 0.95rem;
+        color: $candy-text;
+        transform: rotate(35deg);
+
+        + .folder-count {
+          margin-left: 0;
+        }
       }
     }
 

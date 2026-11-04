@@ -13,6 +13,7 @@ from aivinnet.migrations.album_title_from_folder import rename_albums_after_thei
 from aivinnet.migrations.albumhash_collapse import repair_collapsed_albumhashes
 from aivinnet.migrations.drop_mixes import drop_mix_data
 from aivinnet.migrations.favorites_unique_per_user import repair_favorites_unique_constraint
+from aivinnet.migrations.playlistfolder_pinned import add_playlistfolder_pinned_column
 from aivinnet.migrations.track_added import add_track_added_column
 from aivinnet.migrations.user_token_version import add_token_version_column
 from aivinnet.migrations.username_unique import make_usernames_unique
@@ -85,6 +86,8 @@ def setup_sqlite():
     # Same reason, for the track table: loading the library selects every
     # mapped column (migrations/track_added.py).
     add_track_added_column()
+    # And for the playlist folders (migrations/playlistfolder_pinned.py).
+    add_playlistfolder_pinned_column()
 
     if not list(UserTable.get_all()):
         password, generated = initial_admin_password()

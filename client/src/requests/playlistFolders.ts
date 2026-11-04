@@ -7,6 +7,8 @@ export interface PlaylistFolder {
     name: string
     items: number[]
     position: number
+    /** In the sidebar's ordered zone (true) or among the alphabetical rest. Missing = true (older server). */
+    pinned?: boolean
 }
 
 export async function getPlaylistFolders(): Promise<PlaylistFolder[]> {
@@ -36,4 +38,9 @@ export async function movePlaylistToFolder(playlist_id: number, folder_id: numbe
 
 export async function reorderPlaylistFolders(positions: { id: number; position: number }[]) {
     return await useAxios({ url: `${base}/reorder`, method: 'POST', props: { positions } })
+}
+
+/** Toggle whether a folder sits in the sidebar's ordered zone. Answers `{ pinned }`. */
+export async function pinUnpinPlaylistFolder(id: number) {
+    return await useAxios({ url: `${base}/${id}/pin_unpin`, method: 'POST' })
 }

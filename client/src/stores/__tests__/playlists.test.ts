@@ -74,6 +74,17 @@ describe('playlists.movePlayedToTop', () => {
         expect(reorderSidebarPlaylists).toHaveBeenCalledWith([{ id: 1, position: -1 }])
     })
 
+    it('ignores an un-pinned playlist folder: it sits below the zone', async () => {
+        const store = usePlaylists()
+        store.playlists = [mkPl(1, { pinned: true, settings: { position: 2 } }), mkPl(2, { pinned: true, settings: { position: 5 } })]
+        usePlaylistFolders().folders = [{ id: 9, name: 'F', position: 0, items: [], pinned: false } as any]
+
+        await store.movePlayedToTop(2)
+
+        // min of the zone is playlist 1 at 2, not the un-pinned folder at 0
+        expect(reorderSidebarPlaylists).toHaveBeenCalledWith([{ id: 2, position: 1 }])
+    })
+
     it('moves a pinned playlist above pinned music folders too', async () => {
         const store = usePlaylists()
         store.playlists = [mkPl(1, { pinned: true, settings: { position: 2 } })]

@@ -107,7 +107,8 @@ export default defineStore("playlists", {
       let others: number[];
       if (pl.pinned) {
         others = [
-          ...folders.folders.map((f) => f.position ?? MAX_POS),
+          // Only the folders that share the zone: an un-pinned one sits below.
+          ...folders.folders.filter((f) => f.pinned !== false).map((f) => f.position ?? MAX_POS),
           ...usePinnedAlbums().albums.map((a) => a.position ?? MAX_POS),
           ...usePinnedFolders().folders.map((f) => f.position ?? MAX_POS),
           ...this.playlists
