@@ -132,6 +132,12 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
   wartet auf ihn, prüft sein Ergebnis aber **nicht**, und meldet ein fehlendes
   `aivinnet_darwin_*` als `::warning`. Linux, Windows und AppImage bleiben Pflicht. Wer einen
   Schritt ändert, ändert ihn für beide Jobs — der Anker ist dieselbe Liste, keine Kopie.
+  ⚠️ **Ein abgebrochener Job zählt auch für Enkel.** Das implizite `success()` im `if` eines Jobs
+  schaut die ganze Kette hinauf: Der Docker-Job (`needs: upload-builds`) wäre nach einem
+  abgebrochenen macOS-Job übersprungen worden, obwohl der Upload durchlief. Er prüft deshalb
+  explizit `!cancelled() && needs.upload-builds.result == 'success'`. Jeder neue Job hinter dem
+  Upload braucht dieselbe Form. Und der Lauf selbst steht ohne macOS auf „failure“
+  (`continue-on-error` deckt keinen Abbruch) — maßgeblich ist, ob Upload und Docker grün sind.
 - **⚠️ `GITHUB_TOKEN` ist nur lesend, Schreibrechte gibt es pro Job (#300).** Beide Workflows
   setzen oben `permissions: contents: read`. Schreiben dürfen nur `upload-builds` (`contents`,
   legt das Release an) und `docker` (`packages`, ghcr). Ohne den Schlüssel bekommt jeder Job die
