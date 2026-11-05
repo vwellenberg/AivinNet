@@ -33,6 +33,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 SEED = 713
@@ -65,6 +66,31 @@ class Api:
                 return err.code, json.loads(raw)
             except ValueError:
                 return err.code, raw.decode(errors="replace")
+
+    def upload(self, path: str, fields: dict[str, str], file_field: str, file_path: Path) -> tuple[int, Any]:
+        """multipart/form-data POST with one file, standard library only."""
+        boundary = f"demo{random.Random(str(file_path)).getrandbits(64):x}"
+        parts = []
+        for name, value in fields.items():
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
+        parts.append(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{file_field}"; filename="{file_path.name}"\r\n'
+            f"Content-Type: image/jpeg\r\n\r\n".encode()
+            + file_path.read_bytes()
+            + b"\r\n"
+        )
+        parts.append(f"--{boundary}--\r\n".encode())
+        req = urllib.request.Request(
+            self.base + path,
+            data=b"".join(parts),
+            method="POST",
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "Accept": "application/json"},
+        )
+        try:
+            with self.opener.open(req, timeout=30) as res:
+                return res.status, json.loads(res.read() or b"null")
+        except urllib.error.HTTPError as err:
+            return err.code, err.read().decode(errors="replace")
 
     def must(self, method: str, path: str, body: Any = None, ok=(200, 201)) -> Any:
         status, payload = self.call(method, path, body)
@@ -316,11 +342,33 @@ def build_history(
     return plays
 
 
+def seed_artist_images(api: Api, folder: Path) -> int:
+    """Upload the portraits from make_library.py, matched to the artists by file name."""
+    if not folder.is_dir():
+        print(f"no artist pictures at {folder}, skipped")
+        return 0
+    by_name: dict[str, Path] = {p.stem.casefold(): p for p in folder.glob("*.jpg")}
+    payload = api.must("GET", "/getall/artists?start=0&limit=100")
+    done = 0
+    for artist in payload.get("items", []):
+        picture = by_name.get(str(artist.get("name", "")).casefold())
+        if picture is None:
+            continue
+        status, _ = api.upload("/coverart/artist/upload", {"artisthash": artist["artisthash"]}, "image", picture)
+        done += status == 200
+    return done
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--url", default="http://127.0.0.1:19800", help="Base URL of the running server")
     parser.add_argument("--password", required=True, help="Password of the admin account")
     parser.add_argument("--music", required=True, help="Absolute path of the library from make_library.py")
+    parser.add_argument(
+        "--artist-images",
+        default=None,
+        help="Folder with the artist pictures (default: <music>-artists, as make_library.py writes it)",
+    )
     parser.add_argument(
         "--today",
         default=None,
@@ -351,6 +399,9 @@ def main() -> int:
     print(f"playlists: {len(playlists)} (folder 'Moods' holds 2), pinned 2 playlists + 1 album")
     favorites = seed_favorites(api, albums, songs)
     print(f"favourites: {len(favorites)} tracks, 3 albums, 2 artists")
+
+    pictures = Path(args.artist_images) if args.artist_images else Path(args.music.rstrip("/") + "-artists")
+    print(f"artist pictures: {seed_artist_images(api, pictures)} uploaded")
 
     plays = build_history(today, songs, playlists, favorites, rng)
     sent = 0

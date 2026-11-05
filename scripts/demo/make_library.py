@@ -341,6 +341,72 @@ def tag_mp3(path: Path, album: Album, track: Track, number: int, cover_jpg: byte
     audio.save(v2_version=3)
 
 
+# Two albums carry synced lyrics (.lrc beside each track), so the lyrics view has
+# something to show. The lines are invented, like everything else here.
+LYRIC_ALBUMS = {"Chrome Coastline", "Pocket Weather"}
+LYRIC_LINES = [
+    "Neon on the water, signal on the shore",
+    "We drove until the static said our names",
+    "Every streetlight counting down the night",
+    "Hold the frequency, don't let it fade",
+    "Chrome along the coastline, glowing slow",
+    "Your voice comes in between the stations",
+    "Turn it up until the windows hum",
+    "A little weather in a pocket of the sky",
+    "Rain on the radio, sun in the chorus",
+    "We were louder than the thunder for a while",
+    "Paper clouds and a borrowed afternoon",
+    "Keep the tape running, keep the lights low",
+]
+
+
+def write_lrc(path: Path, track: Track, rng: random.Random) -> None:
+    """Synced lyrics: one invented line every ~3 s, across the track's length."""
+    # Each line once per song, in a shuffled order: drawn with replacement, the same
+    # line came up twice in a row.
+    pool = LYRIC_LINES[:]
+    rng.shuffle(pool)
+    lines = []
+    t = 1.0
+    while t < track.duration - 2 and pool:
+        minutes, seconds = divmod(t, 60)
+        lines.append(f"[{int(minutes):02d}:{seconds:05.2f}]{pool.pop()}")
+        t += rng.uniform(2.6, 3.8)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def draw_portrait(name: str) -> Image.Image:
+    """An artist picture: initials over a flat colour and two shapes, kept inside the round crop."""
+    size = 500
+    index = sum(ord(c) for c in name) % len(COVER_SETS)
+    bg_hex, a_hex, b_hex, text_hex = COVER_SETS[(index + 5) % len(COVER_SETS)]
+    bg, shape_a, shape_b, text = _rgb(bg_hex), _rgb(a_hex), _rgb(b_hex), _rgb(text_hex)
+    img = Image.new("RGB", (size, size), bg)
+    draw = ImageDraw.Draw(img)
+    rng = random.Random(f"{SEED}:portrait:{name}")
+    for colour in (shape_a, shape_b):
+        s = rng.randint(130, 190)
+        x0, y0 = rng.choice([(70, 70), (300, 80), (80, 300), (290, 290)])
+        if rng.random() < 0.5:
+            draw.ellipse([x0, y0, x0 + s, y0 + s], fill=colour, outline=INK, width=8)
+        else:
+            draw.rectangle([x0, y0, x0 + s, y0 + int(s * 0.6)], fill=colour, outline=INK, width=8)
+    words = [w for w in re.split(r"\s+", name) if w and w[0].isalpha() and w.lower() not in {"the", "of", "feat."}]
+    initials = "".join(w[0] for w in words[:2]).upper()
+    font = _font(200)
+    box = draw.textbbox((0, 0), initials, font=font)
+    w, h = box[2] - box[0], box[3] - box[1]
+    draw.text(
+        ((size - w) / 2 - box[0], (size - h) / 2 - box[1]),
+        initials,
+        font=font,
+        fill=text,
+        stroke_width=6 if text != INK else 0,
+        stroke_fill=INK,
+    )
+    return img
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("outdir", type=Path, help="Folder to write the library into (replaced if it exists)")
@@ -376,9 +442,22 @@ def main() -> int:
             target = folder / f"{number:02d} {sanitize(track.title)}.mp3"
             synth_audio(target, track.duration, track_rng)
             tag_mp3(target, album, track, number, cover_jpg)
+            if album.title in LYRIC_ALBUMS:
+                write_lrc(target.with_suffix(".lrc"), track, track_rng)
             total_tracks += 1
 
     artists = {a.artist for a in albums} | {t.artist.split(" feat.")[0] for a in albums for t in a.tracks if t.artist}
+    # Pictures for the artist pages, beside the library (not inside it: the scanner
+    # should not see them). seed.py uploads them through the real upload endpoint.
+    portraits = out.parent / f"{out.name}-artists"
+    if portraits.exists():
+        shutil.rmtree(portraits)
+    portraits.mkdir()
+    named = artists | {
+        t.artist.split(" feat. ")[1] for a in albums for t in a.tracks if t.artist and " feat. " in t.artist
+    }
+    for name in sorted(named - {"Various Artists"}):
+        draw_portrait(name).save(portraits / f"{sanitize(name)}.jpg", "JPEG", quality=90)
     print(f"{len(albums)} albums, {total_tracks} tracks, {len(artists)} artists -> {out}")
     return 0
 
