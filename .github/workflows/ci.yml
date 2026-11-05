@@ -75,6 +75,8 @@ jobs:
           shellcheck client/scripts/deploy-client.sh client/scripts/prune-serve-assets.sh
           # The server half of the deploy button runs unattended every minute.
           shellcheck scripts/auto-deploy.sh
+          # Decides which commit a release points at, with write access.
+          shellcheck scripts/release-target.sh
 
   # Both Python lanes also run on Windows. Linux alone never sees the bugs that
   # only exist there: `str(path)` carries backslashes while stored paths are
