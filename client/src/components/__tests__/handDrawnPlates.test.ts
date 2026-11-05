@@ -287,3 +287,75 @@ describe("filled pressables without a frame (#424)", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// A VEIL PLATE WITHOUT A FRAME.
+//
+// Both censuses above start from "pressable". The Stats empty-state notes
+// ("Nothing heard for the first time this week") are not: they painted
+// `--mem-veil` — the reading plate's fill — with no border and no shadow, and
+// stood next to framed panels as boxes with their edge missing (2026-11-05).
+// `statsPlateFrames.test.ts` guards Stats only. This one reads the whole app:
+// a block that paints the veil is a plate, so it draws the frame too.
+//
+// Exceptions are a different kind of surface — a scrim over artwork or a block
+// whose frame belongs to its parent — and say so in their reason.
+// ---------------------------------------------------------------------------
+const VEIL = /var\(\s*--mem-veil\s*\)/;
+
+function veilPlatesIn(file: string, css: string): Plate[] {
+  return namedRules(css)
+    .filter(rule => !rule.selector.startsWith("@") || rule.selector.startsWith("@mixin"))
+    .filter(rule => values(rule.own, "background(?:-color)?").some(value => VEIL.test(value)) && !framed(rule.own))
+    .map(rule => ({
+      key: `${file} :: ${[...rule.parents, rule.selector].join(" » ")}`,
+      exempt: false,
+    }));
+}
+
+const VEIL_PLATES = SOURCES.flatMap(([file, css]) => veilPlatesIn(file, css));
+
+const VEIL_ALLOWED: Record<string, string> = {
+  "src/components/BottomBar/BottomBar.vue :: .b-bar » .center » .time":
+    "a label chip: the veil is the text plate under a number on the doodled ground (styling.md, `--mem-veil`), 6 px radius, no panel of its own",
+  "src/components/BottomBar/Left.vue :: .left-group » .track-info » .title":
+    "a label chip under the track title — a text plate in the player bar, not a reading panel; a 3 px frame would outweigh the line it carries",
+  "src/components/BottomBar/Left.vue :: .left-group » .track-info » .artistname":
+    "a label chip under the artist name — same text plate as the title above it",
+  "src/assets/scss/Global/app-grid.scss :: .songlist-item":
+    "the row's frame is painted by the inlay layers (colour band left, ink strip right, .is-first/.is-last top and bottom) — see styling.md, 'Kassetten-Inlay'",
+  "src/assets/scss/_candy.scss :: @mixin mem-band-tint":
+    "a fill-only mixin: the including row owns its frame (the inlay layers), this only tints the band hue into the veil",
+};
+
+describe("veil plates without a frame", () => {
+  it("flags the Stats note as it was before the fix", () => {
+    const before = `.discoveries-note {
+      display: inline-block;
+      padding: $small $medium;
+      border-radius: $candy-radius-sm;
+      background-color: var(--mem-veil);
+      color: $mem-content-faint;
+    }`;
+    expect(veilPlatesIn("fixture", before)).toEqual([{ key: "fixture :: .discoveries-note", exempt: false }]);
+
+    const after = before.replace("border-radius", "border: $candy-border;\n      border-radius");
+    expect(veilPlatesIn("fixture", after)).toEqual([]);
+  });
+
+  it("no block paints the veil without a frame", () => {
+    const offenders = VEIL_PLATES.filter(plate => !(plate.key in VEIL_ALLOWED)).map(plate => plate.key);
+    expect(
+      offenders,
+      "a --mem-veil fill with no frame — add `border: $candy-border` and a shadow, or add the block to VEIL_ALLOWED with the reason"
+    ).toEqual([]);
+  });
+
+  it("every veil exception still exists, with a reason", () => {
+    const keys = VEIL_PLATES.map(plate => plate.key);
+    expect(Object.keys(VEIL_ALLOWED).filter(key => !keys.includes(key))).toEqual([]);
+    for (const [key, reason] of Object.entries(VEIL_ALLOWED)) {
+      expect(reason.length, `${key} is allowed without a reason`).toBeGreaterThan(20);
+    }
+  });
+});
