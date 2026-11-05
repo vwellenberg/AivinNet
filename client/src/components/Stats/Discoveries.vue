@@ -102,9 +102,11 @@ watch(() => props.period, load, { immediate: true })
         display: inline-block;
         margin: 0;
         padding: $small $medium;
+        border: $candy-border;
         border-radius: $candy-radius-sm;
         background-color: var(--mem-veil);
         color: $mem-content-faint;
+        @include candy-shadow;
     }
 }
 </style>
