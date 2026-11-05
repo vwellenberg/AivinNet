@@ -360,7 +360,15 @@ jobs:
     permissions:
       contents: read
       packages: write
-    if: ${{ github.event.inputs.build_docker == 'true' }}
+    # Explicit status check, not the implicit success(): that one also looks at
+    # every job further up the chain, so the macOS job that may miss (#710 —
+    # build-pyinstaller-macos, cancelled when GitHub has no runner) would skip
+    # Docker even though upload-builds went through. What this job depends on is
+    # that the release exists; upload-builds succeeding says exactly that.
+    if: >-
+      ${{ !cancelled()
+      && needs.upload-builds.result == 'success'
+      && github.event.inputs.build_docker == 'true' }}
 
     steps:
       # A public image for a release nobody can see yet (drafts are hidden from
