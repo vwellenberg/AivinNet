@@ -9,12 +9,12 @@ A self-hosted music player frontend, branded as **AivinNet**. This is a fork of 
 
 ## Screenshots
 
+The screenshots live with the main README: [What it looks like](../README.md#what-it-looks-like).
+
 |                                                     |                                                        |
 | --------------------------------------------------- | ------------------------------------------------------ |
-| **Home** — browse your library                      | **Lyrics** — synced, with a per-line progress bar      |
-| ![Home](docs/screenshots/home.png)                  | ![Synced lyrics](docs/screenshots/lyrics.png)          |
-| **Playlist** — track list with ambient gradient     | **Artists** — library grid                             |
-| ![Playlist view](docs/screenshots/playlist.png)     | ![Artists](docs/screenshots/artists.png)               |
+| **Home**                                            | **Synced lyrics**, with a progress bar per line        |
+| ![Home](docs/screenshots/home.webp)                 | ![Synced lyrics](docs/screenshots/lyrics.webp)         |
 
 ### Dark theme
 
@@ -23,10 +23,9 @@ switches itself by the clock: light from 08:00, dark from 20:00 by default. Both
 zone are adjustable under Settings → Appearance; the zone defaults to the device's own, or can be
 pinned (e.g. `Europe/Berlin`) so a machine set to another zone still follows home time.
 
-|                                                     |                                                        |
-| --------------------------------------------------- | ------------------------------------------------------ |
-| **Home**                                            | **Playlist**                                           |
-| ![Home in dark theme](docs/screenshots/home-dark.png) | ![Playlist in dark theme](docs/screenshots/playlist-dark.png) |
+| | |
+| --- | --- |
+| ![Home in dark theme](docs/screenshots/home-dark.webp) | ![Album in dark theme](docs/screenshots/album-dark.webp) |
 
 ---
 
