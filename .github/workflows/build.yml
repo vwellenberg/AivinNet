@@ -432,15 +432,12 @@ jobs:
             ubuntu-22.04-arm,
             windows-latest,
             windows-11-arm,
-            # macos-13,
-            # macOS is out for now (#710): on 2026-11-04 neither macos-latest
-            # nor macos-15 got a runner (four runs, each job cancelled after
-            # 15 min in the queue, before any step), and a missing binary holds
-            # back the whole release. Put the line back once runners are there.
-            # macos-15,
+            # macOS has a job of its own below (build-pyinstaller-macos).
           ]
 
-    steps:
+    # Shared with build-pyinstaller-macos through this anchor: one list of steps,
+    # two jobs. The `startsWith(matrix.os, …)` conditions pick the right ones.
+    steps: &pyinstaller-steps
       - name: Checkout AivinNet
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -526,10 +523,32 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
+  # macOS on its own, and allowed to miss (#710). On 2026-11-04 neither
+  # macos-latest nor macos-15 got a runner: four release runs, each macOS job
+  # cancelled after 15 min in the queue before any step ran, and because the
+  # upload waited on the whole matrix, nothing was published, Docker included.
+  # Now the upload still waits for this job (so its binary ships whenever it is
+  # built) but never checks its result: no macOS runner costs the macOS asset,
+  # not the release. The upload logs a warning when the asset is missing.
+  build-pyinstaller-macos:
+    name: Build binary on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: [build-client, build-wheels]
+    if: ${{ github.event.inputs.binary_build == 'true' }}
+    continue-on-error: true
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        # Pinned, not macos-latest: Apple Silicon, so the asset stays darwin_arm64.
+        os: [macos-15]
+    steps: *pyinstaller-steps
+
   upload-builds:
     name: Uploading builds to release
     runs-on: ubuntu-latest
-    needs: [build-client, build-wheels, build-pyinstaller, build-appimage]
+    # build-pyinstaller-macos is waited for but its result is not checked below:
+    # see the comment on that job.
+    needs: [build-client, build-wheels, build-pyinstaller, build-pyinstaller-macos, build-appimage]
     # INFO: build-pyinstaller and build-appimage are skipped when binary_build
     # is false, and a skipped `needs` skips the dependent job as well — which
     # meant "no release at all, every job green". Accept skipped, never accept
@@ -598,6 +617,9 @@ jobs:
               cp "$dir"/* release/
             fi
           done
+          if [ "${{ github.event.inputs.binary_build }}" = "true" ] && ! ls release/aivinnet_darwin_* >/dev/null 2>&1; then
+            echo "::warning title=No macOS binary::The macOS job did not deliver aivinnet_darwin_*; the release goes out without it (#710)."
+          fi
           cd release
           sha256sum * > SHA256SUMS
           cat SHA256SUMS

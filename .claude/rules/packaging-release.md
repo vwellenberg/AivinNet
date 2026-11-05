@@ -124,6 +124,14 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
 - **Ein übersprungener `needs`-Job überspringt den abhängigen Job.** Mit `binary_build=false`
   entstand früher gar kein Release, bei grüner Übersicht. `upload-builds` prüft die Job-Results
   jetzt explizit.
+- **⚠️ macOS darf fehlen, sonst nichts (#710).** Am 2026-11-04 bekam der macOS-Job viermal
+  keinen Runner (`macos-latest` und `macos-15`, jeweils nach 15 min in der Warteschlange
+  abgebrochen, kein einziger Schritt lief), und weil Upload und Docker auf die ganze Matrix
+  warteten, erschien gar nichts. Seitdem ist macOS ein eigener Job `build-pyinstaller-macos`
+  (`continue-on-error`, dieselben Schritte per YAML-Anker `*pyinstaller-steps`): Der Upload
+  wartet auf ihn, prüft sein Ergebnis aber **nicht**, und meldet ein fehlendes
+  `aivinnet_darwin_*` als `::warning`. Linux, Windows und AppImage bleiben Pflicht. Wer einen
+  Schritt ändert, ändert ihn für beide Jobs — der Anker ist dieselbe Liste, keine Kopie.
 - **⚠️ `GITHUB_TOKEN` ist nur lesend, Schreibrechte gibt es pro Job (#300).** Beide Workflows
   setzen oben `permissions: contents: read`. Schreiben dürfen nur `upload-builds` (`contents`,
   legt das Release an) und `docker` (`packages`, ghcr). Ohne den Schlüssel bekommt jeder Job die
