@@ -2,82 +2,113 @@
 
 **Self-hosted music server with a web player of its own**
 
-AivinNet streams your own audio library to a web player with a look of its own —
+AivinNet streams your own music library to a web player with a look of its own:
 bold 80s/Memphis shapes and colours, in light and dark. Point it at a folder of
-music, open it in a browser, and that is the whole idea. It is a Python/Flask
-backend serving a REST API, and a Vue web client — both in this repository.
+music, open it in a browser, and that is the whole idea. Everything it suggests
+comes from your own listening, on your own machine.
 
-![AivinNet in use](client/docs/screenshots/demo.gif)
+```sh
+curl -fsSL https://raw.githubusercontent.com/vwellenberg/AivinNet/master/install.sh | bash
+```
+
+One line on Linux; Docker and the other ways are under [Other install paths](#other-install-paths).
+
+![AivinNet Home: continue listening, AivinNet FM and your mixes](client/docs/screenshots/home.webp)
 
 ## What it looks like
 
-|                                                                 |                                                                       |
-| --------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Home** — browse your library                                  | **Lyrics** — synced, with a per-line progress bar                     |
-| ![Home](client/docs/screenshots/home.png)                       | ![Synced lyrics](client/docs/screenshots/lyrics.png)                  |
-| **Playlist** — track list with ambient gradient                 | **Artists** — library grid                                            |
-| ![Playlist view](client/docs/screenshots/playlist.png)          | ![Artists](client/docs/screenshots/artists.png)                       |
+| | |
+| --- | --- |
+| ![Home in dark mode](client/docs/screenshots/home-dark.webp) | ![An album in dark mode](client/docs/screenshots/album-dark.webp) |
+| **Dark mode**, by hand or automatically in the evening | **Albums** with their tracks, tinted from the cover |
+| ![Synced lyrics](client/docs/screenshots/lyrics.webp) | ![Stats](client/docs/screenshots/stats.webp) |
+| **Synced lyrics** with a progress bar per line | **Stats**: top artists, albums and tracks, and more |
 
-The whole palette flips through the moon toggle in the top bar, and with **Auto
-dark mode** on it switches itself: dark from 20:00, light from 08:00.
+In motion: from Home to an album, and playing it with its lyrics.
 
-|                                                                 |                                                                       |
-| --------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Home**                                                        | **Playlist**                                                          |
-| ![Home in dark theme](client/docs/screenshots/home-dark.png)    | ![Playlist in dark theme](client/docs/screenshots/playlist-dark.png)  |
+<p align="center"><img src="client/docs/screenshots/demo.gif" alt="A short tour: Home, an album, playing it with synced lyrics" width="800"></p>
 
----
----
+On the phone it is the same app, laid out for one hand:
+
+<p align="center">
+  <img src="client/docs/screenshots/phone-home.webp" alt="Home on the phone" width="260">
+  <img src="client/docs/screenshots/phone-nowplaying.webp" alt="Now playing on the phone" width="260">
+  <img src="client/docs/screenshots/phone-lyrics.webp" alt="Lyrics on the phone" width="260">
+</p>
+
+And now and then it dresses up for the season: Halloween, Christmas (below) and
+New Year's Eve, with their own colours, logo and a few things that wander across
+the screen. Nothing moves when your system asks for reduced motion.
+
+![Home at Christmas: snow, fairy lights and the Christmas station](client/docs/screenshots/christmas.webp)
+
+<sub>All screenshots show a demo library made for them: invented artists, generated
+covers, synthetic audio. `scripts/demo/` rebuilds it and takes the pictures.</sub>
 
 ## What it does
 
-**Your library, browsable.** Point it at one or more folders and it reads the
-tags into albums, artists, and tracks. Artist pages split the discography by
-type and collect every appearance, guest spots included. Alongside that, a folder
-browser walks the directory tree as it sits on disk, for the times the tags are
-not the truth. Search covers tracks, albums, and artists, with an A–Z band for
-browsing rather than typing. Adding music later means one **Scan for new music**
-from the profile menu — AivinNet does not watch the filesystem.
+**Your library**
+- Reads the tags into albums, artists and tracks; artist pages split the
+  discography by type and collect guest appearances. A folder browser walks the
+  tree as it is on disk, for when the tags are not the truth.
+- Search over tracks, albums and artists, and an A–Z band for browsing.
+- Fix tags in the app, give an album a cover (upload, search online, or write it
+  into the files), and give an artist a picture.
+- New music arrives with **Scan for new music** in the profile menu; AivinNet
+  does not watch the filesystem.
 
-**Playlists and favourites.** Playlists take a cover (uploaded or found online),
-can be pinned to the sidebar, and can be filed into folders once there are too
-many to scan. Favourites are their own section — tracks, albums, and artists
-each with a page.
+**Home, from your own listening**
+- *Continue listening*, *Your mixes* (cut from your own listening sessions),
+  *Because you listened to …*, *On repeat*, *Never played*, *Deep cuts*,
+  *Forgotten favorites*, *Almost complete*, *On this day* and more. Each user
+  picks which rows appear and in what order.
+- **AivinNet FM**: a dial on Home that tunes between your mixes, genres and
+  decades, plus seasonal stations (Christmas, a New Year's Eve countdown).
+- A recap card on Mondays and on the 1st, an Advent calendar in December, and
+  **Rewind**, your year in music, which you can save as a story image.
 
-**Playback.** Gapless, with optional silence-padding removal and an optional
-crossfade whose length you set yourself. A queue you can rearrange by dragging, shuffle and repeat,
-and a now-playing screen that is the queue itself, with the lyrics one click away.
+**Playlists and favourites**
+- Playlists with covers, pinned to the sidebar and filed into folders; music
+  folders and albums can be pinned too.
+- **Smart playlists** that fill themselves from rules (genre, artist, year, plays,
+  date added, last played, favourite).
+- Favourites for tracks, albums and artists, each with a page of its own.
 
-**Lyrics.** Synced lyrics from `.lrc` files next to the track or from embedded
-tags, with a per-line progress bar. The lyrics plugin can download missing ones,
-optionally overriding unsynced text it finds.
+**Playback**
+- Gapless, with optional silence skipping and a crossfade you set yourself.
+- **ReplayGain** to even out the volume, a **sleep timer** that fades out, and a
+  queue you rearrange by dragging (and undo a removal from).
+- Synced lyrics from `.lrc` files or embedded tags; the optional lyrics finder
+  can fetch missing ones.
 
-**Multiroom.** Pair a second device by scanning a QR code, and playback follows
-the group — start on the desktop, pick it up on the phone.
+**Stats**
+- Top artists, albums and tracks per day, week, month, year or all time, with
+  trends against the period before.
+- A listening calendar and clock, skip rate, records, devices, formats, and how
+  much of your library you have explored.
 
-**Editing.** Fix tags in the app, and give an album a cover: upload one, search
-online, or write the picture back into the files themselves.
+**Several devices, several people**
+- **Multiroom**: pair a phone by QR code and play in sync on several devices,
+  each of them able to steer.
+- Multiple users, each with their own playlists, favourites and history, plus an
+  optional guest login.
+- Downloads of an album or playlist, as a ZIP or as separate files.
+- **Backup and restore** of the whole instance in one file.
 
-**Downloads.** Pull a whole album or playlist as a ZIP, or as separate files
-named from their tags.
+**Looks**
+- Memphis in light and dark, with four colour schemes (Memphis, Lagune,
+  Terrakotta, Eierschale), or a calm *Boring* look.
 
-**Stats.** What you played, when, and how often — top artists, albums, and
-tracks over a week, a month, a year, or all time.
+<details>
+<summary>For tinkerers</summary>
 
-**Accounts.** Multiple users with their own playlists, favourites, and history,
-plus an optional shared guest login, so a visitor can listen without an account
-of their own.
+- A REST API behind everything the client does.
+- An [MCP server](mcp_server/) so an assistant can manage playlists and fix tags
+  for you.
 
-**Backup and restore.** One button writes the whole instance — users, playlists,
-favourites, play history, and artwork — to `~/aivinnet.backup` (in Docker:
-`/config/aivinnet.backup`, inside the config volume), and restores it on the same
-machine or another one.
+</details>
 
-**Elsewhere.** The web client installs as a PWA. There is a REST API behind
-everything the client does, and an [MCP server](mcp_server/) so an assistant can
-manage playlists and fix tags for you.
-
-**What it does not do:** transcode. Files are streamed as they are — see
+**What it does not do:** transcode. Files are streamed as they are; see
 [Audio formats](#audio-formats).
 
 ---
