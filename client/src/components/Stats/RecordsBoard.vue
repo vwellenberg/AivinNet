@@ -90,9 +90,11 @@ onMounted(async () => {
         display: inline-block;
         margin: 0;
         padding: $small $medium;
+        border: $candy-border;
         border-radius: $candy-radius-sm;
         background-color: var(--mem-veil);
         color: $mem-content-faint;
+        @include candy-shadow;
     }
 
     .records-list {

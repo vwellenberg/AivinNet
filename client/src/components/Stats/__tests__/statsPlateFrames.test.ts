@@ -9,8 +9,10 @@ import { describe, expect, it } from 'vitest'
 // missing (reported 2026-10-30). A plate here is a style block that paints the
 // veil; it has to draw the frame and the offset shadow too.
 //
-// The one-line notes ("Nothing played yet") stay plain chips on purpose: they
-// stand in for a missing panel, they are not one.
+// The one-line notes ("Nothing played yet", "Nothing heard for the first time")
+// are plates too when they paint the veil: they stand in for a missing panel
+// and sat there with no edge (reported 2026-11-05). Notes INSIDE a framed panel
+// paint no veil of their own and are not matched.
 // ---------------------------------------------------------------------------
 
 const DIR = 'src/components/Stats'
@@ -30,7 +32,6 @@ function blocks(source: string) {
 const PLATES = FILES.flatMap(({ name, source }) =>
     blocks(source)
         .filter(b => /background-color:\s*var\(--mem-veil\)/.test(b.body))
-        .filter(b => !/-note\b/.test(b.selector))
         .map(b => ({ where: `${name} ${b.selector}`, body: b.body })),
 )
 
@@ -39,6 +40,8 @@ describe('Stats: every reading plate is framed', () => {
         const where = PLATES.map(p => p.where)
         expect(where).toContain('RecordsBoard.vue .record')
         expect(where).toContain('SkipRate.vue .skip-plate')
+        expect(where).toContain('Discoveries.vue .discoveries-note')
+        expect(where).toContain('RecordsBoard.vue .records-note')
         expect(PLATES.length).toBeGreaterThanOrEqual(5)
     })
 
