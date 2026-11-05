@@ -1,7 +1,7 @@
 /**
  * SEASONAL SCHEMES (#543). On a few dates the Memphis look changes its
- * colours: pumpkin and violet from a week before to a week after Halloween
- * (24 October – 7 November), snow sprinkles from 10 to 30 December, and
+ * colours: pumpkin and violet in the week up to Halloween (24–31 October, and
+ * 1 November when that is a Sunday), snow sprinkles from 10 to 30 December, and
  * midnight blue and gold on New Year's Eve and Day (#674).
  *
  * The date only paints OVER the user's choice. The stored colour scheme
@@ -33,10 +33,12 @@ const SEASON_PALETTE: Partial<Record<Season, Palette>> = { halloween: 'halloween
 export function seasonOn(now: Date = new Date()): Season | null {
     const month = now.getMonth()
     const day = now.getDate()
-    // A week either side of Halloween (user, 2026-10-31: "a week before and
-    // after"). Christmas from the 10th to the 30th; New Year's Eve has the 31st
-    // and New Year's Day (#674), the way Halloween keeps its week after.
-    if ((month === 9 && day >= 24) || (month === 10 && day <= 7)) return 'halloween'
+    // Halloween ends on Halloween itself (user, 2026-11-05, reverting the week
+    // after from #673), but a Halloween on a Saturday keeps its weekend: the
+    // Sunday after still counts. `getDay()` is 0 on a Sunday. Christmas from
+    // the 10th to the 30th; New Year's Eve has the 31st and New Year's Day (#674).
+    if (month === 9 && day >= 24) return 'halloween'
+    if (month === 10 && day === 1 && now.getDay() === 0) return 'halloween'
     if (month === 11 && day >= 10 && day <= 30) return 'christmas'
     if ((month === 11 && day === 31) || (month === 0 && day === 1)) return 'newyear'
     return null

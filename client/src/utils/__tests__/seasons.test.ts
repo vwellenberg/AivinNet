@@ -29,13 +29,27 @@ afterEach(() => {
 })
 
 describe('seasonOn: the calendar dates (local time)', () => {
-    it('Halloween runs from Oct 24 to Nov 7, a week either side', () => {
+    it('Oct 23 and Nov 1 are no season, Oct 24 to 31 are Halloween', () => {
+        // 2027: Nov 1 is a Monday.
+        expect(new Date(2027, NOV, 1).getDay()).toBe(1)
         expect(seasonOn(at(2027, OCT, 23, 23, 59, 59, 999))).toBeNull()
         expect(seasonOn(at(2027, OCT, 24, 0, 0, 0, 0))).toBe('halloween')
+        expect(seasonOn(at(2027, OCT, 29))).toBe('halloween')
         expect(seasonOn(at(2027, OCT, 31))).toBe('halloween')
-        expect(seasonOn(at(2027, NOV, 1))).toBe('halloween')
-        expect(seasonOn(at(2027, NOV, 7, 23, 59, 59, 999))).toBe('halloween')
-        expect(seasonOn(at(2027, NOV, 8, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2027, NOV, 1, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2027, NOV, 7))).toBeNull()
+    })
+
+    it('keeps the Sunday after a Saturday Halloween, and only that day', () => {
+        // 2026: Halloween is a Saturday, Nov 1 a Sunday.
+        expect(new Date(2026, OCT, 31).getDay()).toBe(6)
+        expect(seasonOn(at(2026, NOV, 1, 0, 0, 0, 0))).toBe('halloween')
+        expect(seasonOn(at(2026, NOV, 1, 23, 59, 59, 999))).toBe('halloween')
+        expect(seasonOn(at(2026, NOV, 2, 0, 0, 0, 0))).toBeNull()
+        expect(seasonOn(at(2026, NOV, 5))).toBeNull()
+        // 2025: Nov 1 is a Saturday (Halloween a Friday), so it is not added.
+        expect(new Date(2025, NOV, 1).getDay()).toBe(6)
+        expect(seasonOn(at(2025, NOV, 1))).toBeNull()
     })
 
     it('Halloween covers its last day, to the last millisecond', () => {
