@@ -138,9 +138,10 @@ A feature release on top of 2026.10.6.
 - **Rewind as a story image.** Save your Rewind as a picture to share.
 - **Seasons.**
   - **Halloween** (24 to 31 October, plus the Sunday after a Saturday
-    Halloween): a Halloween palette and a pumpkin logo. Bats, ghosts and a spider come by now and then, a runner flees a horde
-    of zombies, a vampire peeks over a tile and turns into a bat, and graves,
-    pumpkins and skulls turn up on the tiles now and then.
+    Halloween): a Halloween palette and a pumpkin logo. Bats, ghosts and a
+    spider come by now and then, a runner flees a horde of zombies, a vampire
+    peeks over a tile and turns into a bat, and graves, pumpkins and skulls turn
+    up on the tiles now and then.
   - **Christmas** (10 to 30 December): snow, a bauble logo and a sleigh. There are
     fairy lights on the top bar, presents and cookies on the tiles, and a snowman
     peeking out.
