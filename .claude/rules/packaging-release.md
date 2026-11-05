@@ -149,7 +149,21 @@ weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
   ⚠️ Gebaut wird aber, wovon der Lauf gestartet wurde. Eine Wiederholung startet man deshalb
   **vom Tag aus** („Use workflow from" → Tag `v…`), nicht von `master`. Sonst landet neuerer Code
   unter der alten Versionsnummer: `ncipollo/release-action` verschiebt einen bestehenden Tag
-  nicht und hängt die neuen Dateien an das alte Release.
+  nicht und hängt die neuen Dateien an das alte Release. Seit #710 bricht der Upload in dem Fall
+  ab, statt anzuhängen (`scripts/release-target.sh`, Schritt „Choose the release target").
+- **⚠️ `GITHUB_TOKEN` darf ein Release nur auf einen Commit zeigen lassen, dessen
+  `.github/workflows` denen von `master` gleichen.** Sonst kommt 403 „Resource not accessible by
+  integration", beim Anlegen wie beim Update (dem Token fehlt die `workflows`-Berechtigung, und
+  die lässt sich nicht vergeben). Gemessen am 2026-11-05 mit einem Probe-Workflow: Ein Commit ohne
+  Branch-Ende, aber mit den Workflows von `master`, bekam 201, `master~1` (älteres `build.yml`)
+  403. Die Action schickte das Ziel bei jedem Update erneut mit. Ein wiederholter Upload nach
+  einem Merge, der einen Workflow ändert, scheiterte daher (v2026.11.2-rc1, Lauf 42082724759).
+  Deshalb setzt `release-target.sh` das Ziel nur beim Anlegen. Für ein bestehendes Release auf
+  demselben Commit übergibt es `commit` leer, und die Action lässt das Feld dann weg. Wächter:
+  `tests/test_release_target.py`. ⚠️ **Offen bleibt das Anlegen selbst:** Landet ein
+  Workflow-Merge, während ein Release-Lauf noch baut (~30 Minuten), scheitert schon das Anlegen
+  mit 403, und eine Wiederholung desselben Laufs scheitert genauso. Dann den Lauf neu von
+  `master` starten (bei einem rc: nächste rc-Nummer).
 - **Musikordner auf externem Mount ⇒ `RequiresMountsFor=` in der Unit.** Startet der Dienst vor
   dem Mount, entfernt der Scan alle „fehlenden" Tracks aus der DB
   (`lib/tagger.py::remove_tracks_by_filepaths`) → Playlists voller Waisen. `install.sh --music`

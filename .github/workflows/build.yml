@@ -576,6 +576,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/changelog.md
+            scripts/release-target.sh
 
       - name: Download client artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -632,6 +633,20 @@ jobs:
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
 
+      # The target commit goes to GitHub once, on create, and never again: an
+      # update that sends it is refused with 403 as soon as master's workflows
+      # differ from the commit being built (GITHUB_TOKEN has no `workflows`
+      # permission). A release for another commit stops here instead of getting
+      # new files under its old target. Details: scripts/release-target.sh.
+      - name: Choose the release target
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          commit=$(bash scripts/release-target.sh "${{ github.repository }}" "v${{ github.event.inputs.tag }}" "${{ github.sha }}")
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "release target: ${commit:-unchanged (the release already points at ${{ github.sha }})}"
+
       - name: Upload artifacts to GitHub Release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
@@ -642,7 +657,8 @@ jobs:
           tag: ${{ format('v{0}',github.event.inputs.tag) }}
           bodyFile: .github/changelog.md
           artifactErrorsFailBuild: true
-          commit: ${{ github.sha }}
+          # Empty for an existing release: the action then leaves the target out.
+          commit: ${{ steps.target.outputs.commit }}
           makeLatest: ${{github.event.inputs.is_latest == 'true'}}
           artifacts: "release/*"
           token: ${{ secrets.GITHUB_TOKEN }}
