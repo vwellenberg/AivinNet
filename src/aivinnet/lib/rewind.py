@@ -14,7 +14,7 @@ top track either.
 
 from collections import Counter
 from collections.abc import Callable, Iterable, Sequence
-from datetime import datetime, tzinfo
+from datetime import date, datetime, tzinfo
 from typing import Any, Protocol
 
 from aivinnet.lib.home.discover import TrackFacts, time_slot
@@ -37,13 +37,27 @@ class RewindPlay(Protocol):
     source: str
 
 
-def finished_years(years: Iterable[int], this_year: int) -> list[int]:
+def is_new_years_eve(today: date) -> bool:
+    """31 December: the day a year's Rewind opens while the year still runs (#674)."""
+    return (today.month, today.day) == (12, 31)
+
+
+def is_open_year(year: int, today: date) -> bool:
     """
-    The years with plays a Rewind can be opened for, oldest first. A year
-    opens on January 1 of the next one — a look back at a year still running
-    would change every day, so this year never has one.
+    A year's Rewind opens on 31 December of that year (New Year's Eve, #674)
+    and stays open after it. Before that, only the finished years are open: a
+    look back at a year still running would change every day. On New Year's
+    Eve it changes during that one day as plays come in, which is the point.
     """
-    return sorted({year for year in years if year < this_year})
+    return year < today.year or (year == today.year and is_new_years_eve(today))
+
+
+def finished_years(years: Iterable[int], today: date) -> list[int]:
+    """
+    The years with plays a Rewind can be opened for on `today`, oldest first
+    (`is_open_year`): the years before this one, and this one on New Year's Eve.
+    """
+    return sorted({year for year in years if is_open_year(year, today)})
 
 
 def fresh_year(years: Sequence[int], seen: Iterable[int]) -> int | None:

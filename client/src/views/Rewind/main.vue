@@ -21,12 +21,12 @@
                 </div>
             </div>
 
-            <!-- A year opens on January 1 for the one that ended (#527): a link
+            <!-- A year opens on New Year's Eve, 31 December (#527, #674): a link
                  or bookmark to a year still running lands here, not on a
                  retry that can only fail again. -->
             <section v-if="closedYear" class="rewind-plate rewind-hero">
                 <h2 class="section-title">Rewind {{ closedYear }}</h2>
-                <div class="rewind-sub">Opens on January 1, {{ closedYear + 1 }}, once the year is over.</div>
+                <div class="rewind-sub">Opens on December 31, {{ closedYear }}, New Year's Eve.</div>
             </section>
 
             <section v-if="failed" class="rewind-plate rewind-hero">

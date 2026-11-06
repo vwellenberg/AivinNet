@@ -162,7 +162,7 @@ describe('Rewind', () => {
     it('says when a year still running opens, and keeps the way to the open ones', async () => {
         vi.mocked(getRewind).mockResolvedValue({
             status: 404,
-            data: { error: 'Rewind 2026 opens on January 1, 2027', opens: '2027-01-01', years: [2024, 2025] },
+            data: { error: 'Rewind 2026 opens on December 31, 2026', opens: '2026-12-31', years: [2024, 2025] },
         } as any)
         route.params = { year: '2026' }
 
@@ -170,7 +170,7 @@ describe('Rewind', () => {
         await flushPromises()
 
         expect(plates(w)).toEqual(['Rewind 2026'])
-        expect(w.text()).toContain('Opens on January 1, 2027')
+        expect(w.text()).toContain('Opens on December 31, 2026')
         expect(w.text()).not.toContain('could not be loaded')
         expect(w.find('.rewind-retry').exists()).toBe(false)
         // A bookmark to this year still reaches the last finished one.

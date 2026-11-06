@@ -98,18 +98,91 @@ def test_a_year_told_in_cards(rewind_api):
     assert body["listener"] == {"kind": "album", "share": 0.75}
 
 
-def test_this_year_opens_on_new_years_day(rewind_api):
+@pytest.fixture()
+def clock(monkeypatch):
+    """Pin the server's clock: `datetime.now()` of the endpoint, nothing else."""
+    import aivinnet.api.scrobble as scrobble_api
+
+    real = datetime
+
+    def at(when: datetime):
+        class PinnedDatetime(real):
+            @classmethod
+            def now(cls, tz=None):
+                return when
+
+        monkeypatch.setattr(scrobble_api, "datetime", PinnedDatetime)
+
+    return at
+
+
+def test_the_running_year_opens_on_new_years_eve(rewind_api, clock):
     play(th(MILES, 1), local(LAST, 6, 1))
     play(th(MILES, 1), local(*THIS_YEAR))
+    clock(datetime(THIS, 12, 31, 12))
+
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST, THIS]
+    body = rewind(rewind_api, THIS)
+    assert body["year"] == THIS
+    assert body["plays"] == 1
+
+
+def test_this_year_opens_on_new_years_eve_not_before(rewind_api, clock):
+    play(th(MILES, 1), local(LAST, 6, 1))
+    play(th(MILES, 1), local(*THIS_YEAR))
+    clock(datetime(THIS, 12, 30, 23, 59))
 
     res = rewind_api.get(f"/logger/rewind?year={THIS}")
 
     assert res.status_code == 404
     # When it opens, and where to go meanwhile: a bookmark lands here.
-    assert res.get_json()["opens"] == f"{THIS + 1}-01-01"
+    assert res.get_json()["opens"] == f"{THIS}-12-31"
+    assert res.get_json()["error"] == f"Rewind {THIS} opens on December 31, {THIS}"
     assert res.get_json()["years"] == [LAST]
     # Nor does it count as a year to open.
     assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST]
+
+
+def test_a_future_year_opens_on_its_new_years_eve(rewind_api, clock):
+    clock(datetime(THIS, 12, 31, 12))
+
+    res = rewind_api.get(f"/logger/rewind?year={THIS + 1}")
+
+    assert res.status_code == 404
+    assert res.get_json()["opens"] == f"{THIS + 1}-12-31"
+
+
+def test_the_years_list_grows_on_new_years_eve_not_a_day_earlier(rewind_api, clock):
+    # The cached list of the 30th must not be served on the 31st.
+    play(th(MILES, 1), local(LAST, 6, 1))
+    play(th(MILES, 1), local(*THIS_YEAR))
+    clock(datetime(THIS, 12, 30, 12))
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST]
+    assert rewind(rewind_api, LAST)["years"] == [LAST]
+
+    clock(datetime(THIS, 12, 31, 12))
+    assert rewind_api.get("/logger/rewind/years").get_json()["years"] == [LAST, THIS]
+    assert rewind(rewind_api, LAST)["years"] == [LAST, THIS]
+
+
+def test_a_new_play_on_new_years_eve_is_a_new_running_year(rewind_api, clock):
+    play(th(MILES, 1), local(*THIS_YEAR))
+    clock(datetime(THIS, 12, 31, 12))
+    assert rewind(rewind_api, THIS)["plays"] == 1
+
+    play(th(MILES, 2), local(THIS, 1, 1, 1))
+    assert rewind(rewind_api, THIS)["plays"] == 2
+
+
+def test_the_running_year_is_rebuilt_on_new_years_day(rewind_api, clock):
+    play(th(MILES, 1), local(*THIS_YEAR))
+    clock(datetime(THIS, 12, 31, 12))
+    assert rewind(rewind_api, THIS)["year"] == THIS
+
+    clock(datetime(THIS + 1, 1, 1, 0, 30))
+    body = rewind(rewind_api, THIS)
+    assert body["year"] == THIS
+    assert body["years"] == [THIS]
 
 
 def test_a_later_year_is_not_open_either(rewind_api):

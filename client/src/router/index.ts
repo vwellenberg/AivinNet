@@ -210,7 +210,7 @@ const Stats = {
 }
 
 // AivinNet Rewind (#527): one year of listening; without a year, the latest
-// finished one (a year opens on January 1). A year switch stays on the page
+// open one (a year opens on New Year's Eve). A year switch stays on the page
 // and fetches the year (views/Rewind).
 const Rewind = {
     path: '/rewind/:year?',

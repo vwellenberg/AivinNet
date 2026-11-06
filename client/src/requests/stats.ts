@@ -149,7 +149,7 @@ export async function markRewindSeen(year: number) {
 
 /**
  * AivinNet Rewind: one year of listening (#527); without a year, the latest
- * finished one. A year still running answers 404 — it opens on January 1.
+ * open one. A year still running answers 404 — it opens on 31 December.
  */
 export async function getRewind(year?: number) {
     return await useAxios({
