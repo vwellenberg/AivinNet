@@ -153,7 +153,7 @@ onMounted(async () => {
 
         &.is-today {
             background-color: var(--look-selected-fill, #{$mem-yellow});
-            color: var(--look-selected-text, #{$mem-content-text});
+            color: var(--look-selected-text, #{$mem-ink});
             --label-hatch: var(--mem-hatch-accent);
         }
 
