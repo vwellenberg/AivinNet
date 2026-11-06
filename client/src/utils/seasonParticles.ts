@@ -100,10 +100,10 @@ export interface GlyphOffset {
 }
 
 /** The most particles on screen at once. Each one is a DOM element with a running animation. */
-export const MAX_PARTICLES = 25
+export const MAX_PARTICLES = 45
 
-/** A dusting, not a blizzard. */
-const SNOWFLAKES = 18
+/** Proper snowfall at Christmas (user, 2026-11-06: "mehr Schnee"); was 18. */
+const SNOWFLAKES = 36
 
 /**
  * New Year's Eve (#674): fireworks and a few sparkles. Four rockets, each on a
