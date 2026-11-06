@@ -341,6 +341,14 @@ den Dial.
 - Ein Wechsel der Saison fragt den Server neu (`RadioDial.vue`, `watch(season)`); eine Antwort zu
   einer älteren Saison wird verworfen, und der Sender unter dem Zeiger bleibt über seine Id gewählt.
 
+⚠️ **Saison-Logik hängt an ZWEI Uhren.** Palette, Effekte, Countdown-Pille und Konfetti
+rechnen mit der Uhr des Browsers; Advent-Tür, Saison-Sender und welche Rewind-Jahre offen sind,
+mit der des Servers. Ein Client-Feature, das eine Server-Antwort zum Datum braucht, ist erst
+geprüft, wenn **beide** auf demselben Tag stehen: „Your year in music“ (#674) erschien an
+Silvester nie, weil der Server ein Jahr erst am 1. Januar öffnete — alle Client-Tests waren grün,
+weil sie die Jahre mockten (#729). Probe dafür: `scripts/demo/rehearsal.sh` (faketime + Playwright,
+`scripts/demo/README.md` → „Season rehearsal“).
+
 ## Der Advent-Kalender (1.–24. Dezember)
 
 Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
