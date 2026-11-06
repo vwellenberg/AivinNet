@@ -3,7 +3,7 @@ import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import { Routes, router } from '@/router'
-import { useDebounce } from '@vueuse/core'
+import { refDebounced } from '@vueuse/core'
 
 import { searchAlbums, searchArtists, searchFolders, searchTopResults, searchTracks } from '@/requests/searchMusic'
 
@@ -28,7 +28,7 @@ export default defineStore('search', () => {
     const query = ref('')
     const settings = useSettings()
     const route = computed(() => router.currentRoute.value)
-    const debouncedQuery = useDebounce(query, 500)
+    const debouncedQuery = refDebounced(query, 500)
     const { startLoading, stopLoading } = useLoader()
 
     const currentTab = ref('top')
