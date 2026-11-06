@@ -10,21 +10,20 @@
 <script setup lang="ts">
 // The top bar's New Year's pill (#674). Mounted only in the New Year's season (NavBar.vue),
 // so the clock runs nowhere else. One interval, once a second, and only while the tab is
-// visible. A page that was open across midnight fires the confetti once for the year
-// (utils/newYearCountdown.ts, the remembered year in localStorage).
+// visible. On 1 January the New Year's shower fires once per device per year, on any tick of
+// the day (utils/newYearCountdown.ts, the remembered year in localStorage). Not in the preview.
 
 // @libraries
 import { useDocumentVisibility } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 // @utils
-import { celebrate } from "@/utils/confetti";
+import { celebrateNewYear } from "@/utils/confetti";
 import { seasonPreview } from "@/utils/seasons";
 import {
     clockText,
-    confettiDue,
     countdownAt,
-    crossedNewYear,
+    newYearConfettiYear,
     readCelebratedYear,
     rememberCelebratedYear,
 } from "@/utils/newYearCountdown";
@@ -35,12 +34,12 @@ import {
 withDefaults(defineProps<{ compact?: boolean }>(), { compact: false });
 
 const SECOND_MS = 1000;
-const CONFETTI_PIECES = 40;
 
 const now = ref(new Date());
 const visibility = useDocumentVisibility();
-// The reading before the last tick: a midnight between it and the next one is the crossing.
-let lastTick = new Date();
+// The year the shower fired for on this page. The remembered year (localStorage) covers reloads;
+// this covers a storage that refuses the write, so the page never fires it twice.
+let firedThisPage: number | null = null;
 let timer: ReturnType<typeof setInterval> | undefined;
 
 const view = computed(() => {
@@ -55,22 +54,23 @@ const clock = computed(() => {
     return c && c.kind === "counting" ? clockText(c.remainingMs) : "";
 });
 
-function tick(): void {
-    const t = new Date();
-    const year = crossedNewYear(lastTick, t);
-    lastTick = t;
-    now.value = t;
-    // A crossing is one reading, so it comes once per mount; the remembered year keeps it to once per year.
-    if (year !== null && confettiDue(year, readCelebratedYear())) {
-        rememberCelebratedYear(year);
-        celebrate(CONFETTI_PIECES);
-    }
+// `mayFire` is false only for the tick that start() runs at once: at mount, and again when the
+// tab becomes visible. That tick may come before the page is painted, so the shower waits for
+// the next one, a second later.
+function tick(mayFire: boolean): void {
+    now.value = new Date();
+    if (!mayFire || seasonPreview.value === "newyear") return;
+    const year = newYearConfettiYear(now.value, firedThisPage ?? readCelebratedYear());
+    if (year === null) return;
+    firedThisPage = year;
+    rememberCelebratedYear(year);
+    celebrateNewYear();
 }
 
 function start(): void {
     if (timer !== undefined) return;
-    tick();
-    timer = setInterval(tick, SECOND_MS);
+    tick(false);
+    timer = setInterval(() => tick(true), SECOND_MS);
 }
 
 function stop(): void {

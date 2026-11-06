@@ -1,10 +1,10 @@
 /**
  * The New Year's countdown in the top bar (components/nav/NewYearCountdown.vue, #674).
  *
- * From 18:00 on 31 December it counts the time left to midnight, as hh:mm:ss. At
- * midnight, a page that was open across it fires the confetti once for the year,
- * and for the first hour of 1 January it says "Happy New Year". Pure: the clock is
- * passed in, so the tests fix the dates. Only the storage guard touches the browser.
+ * From 18:00 on 31 December it counts the time left to midnight, as hh:mm:ss. For
+ * the first hour of 1 January it says "Happy New Year", and on any part of 1 January
+ * the confetti is due once per device per year (newYearConfettiYear). Pure: the clock
+ * is passed in, so the tests fix the dates. Only the storage guard touches the browser.
  *
  * The Appearance preview (utils/seasons.ts) shows the same countdown on any day,
  * counting to the next midnight.
@@ -65,22 +65,15 @@ export function clockText(remainingMs: number): string {
 }
 
 /**
- * The year whose midnight the clock passed between two readings, if that midnight
- * is recent enough to celebrate: `prev` before 1 January 00:00, `now` at or after it,
- * and `now` within the first hour. Null otherwise. A page opened after midnight
- * has no `prev` before it, so it does not fire.
+ * The year whose confetti is due at `now`, or null. It is due on any part of 1 January
+ * (local time), once per year: `firedFor` is the year it last fired for on this device.
+ * A page open across midnight gets it on the first tick of 1 January, and a page opened
+ * later that day gets it too, unless the year is already remembered.
  */
-export function crossedNewYear(prev: Date, now: Date): number | null {
+export function newYearConfettiYear(now: Date, firedFor: number | null): number | null {
+    if (now.getMonth() !== 0 || now.getDate() !== 1) return null
     const year = now.getFullYear()
-    const midnight = new Date(year, 0, 1).getTime()
-    const t = now.getTime()
-    if (prev.getTime() < midnight && t >= midnight && t - midnight < CELEBRATION_MS) return year
-    return null
-}
-
-/** Whether the confetti for `year` is still due, given the year it last fired for. */
-export function confettiDue(year: number, firedFor: number | null): boolean {
-    return firedFor !== year
+    return firedFor === year ? null : year
 }
 
 /** The year the confetti last fired for on this device, or null (also when storage is blocked). */

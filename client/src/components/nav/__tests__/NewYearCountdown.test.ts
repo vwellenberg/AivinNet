@@ -1,8 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { celebrate } = vi.hoisted(() => ({ celebrate: vi.fn() }))
-vi.mock('@/utils/confetti', () => ({ celebrate }))
+const { celebrate, celebrateNewYear } = vi.hoisted(() => ({ celebrate: vi.fn(), celebrateNewYear: vi.fn() }))
+vi.mock('@/utils/confetti', () => ({ celebrate, celebrateNewYear }))
 
 import NewYearCountdown from '@/components/nav/NewYearCountdown.vue'
 import { CELEBRATED_KEY } from '@/utils/newYearCountdown'
@@ -29,6 +29,7 @@ afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     celebrate.mockReset()
+    celebrateNewYear.mockReset()
     setSeasonPreview(null)
     localStorage.clear()
 })
@@ -57,18 +58,18 @@ describe('NewYearCountdown: the pill in the top bar (#674)', () => {
     it('fires the confetti once when the page is open across midnight, and says Happy New Year', async () => {
         vi.setSystemTime(new Date(2026, 11, 31, 23, 59, 59, 0))
         const w = pill()
-        expect(celebrate).not.toHaveBeenCalled()
+        expect(celebrateNewYear).not.toHaveBeenCalled()
 
         vi.advanceTimersByTime(1000)
         await w.vm.$nextTick()
-        expect(celebrate).toHaveBeenCalledTimes(1)
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
         expect(localStorage.getItem(CELEBRATED_KEY)).toBe('2027')
         expect(w.text()).toBe('Happy New Year 🎉')
 
         // Ticking on through the first hour does not fire it again.
         vi.advanceTimersByTime(5000)
         await w.vm.$nextTick()
-        expect(celebrate).toHaveBeenCalledTimes(1)
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
     })
 
     it('does not fire the confetti again for a year it already fired for', async () => {
@@ -76,7 +77,7 @@ describe('NewYearCountdown: the pill in the top bar (#674)', () => {
         vi.setSystemTime(new Date(2026, 11, 31, 23, 59, 59, 0))
         pill()
         vi.advanceTimersByTime(1000)
-        expect(celebrate).not.toHaveBeenCalled()
+        expect(celebrateNewYear).not.toHaveBeenCalled()
     })
 
     it('still fires only once when storage is blocked: the mount remembers it on its own', async () => {
@@ -92,16 +93,43 @@ describe('NewYearCountdown: the pill in the top bar (#674)', () => {
         await w.vm.$nextTick()
         vi.advanceTimersByTime(5000)
         await w.vm.$nextTick()
-        expect(celebrate).toHaveBeenCalledTimes(1)
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
     })
 
-    it('does not fire when the page is opened after midnight', async () => {
-        vi.setSystemTime(new Date(2027, 0, 1, 0, 30, 0, 0))
+    it('fires on 1 January at 14:00 with nothing remembered: on the first tick after mount, not the synchronous one', async () => {
+        vi.setSystemTime(new Date(2027, 0, 1, 14, 0, 0, 0))
         const w = pill()
+        // The mount's own tick is synchronous, before the page is painted: no burst there.
+        expect(celebrateNewYear).not.toHaveBeenCalled()
+
         vi.advanceTimersByTime(1000)
         await w.vm.$nextTick()
-        expect(celebrate).not.toHaveBeenCalled()
-        expect(w.text()).toBe('Happy New Year 🎉')
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
+        expect(localStorage.getItem(CELEBRATED_KEY)).toBe('2027')
+    })
+
+    it('does not fire again on a remount the same day, once the year is remembered', async () => {
+        vi.setSystemTime(new Date(2027, 0, 1, 14, 0, 0, 0))
+        const first = pill()
+        vi.advanceTimersByTime(1000)
+        await first.vm.$nextTick()
+        first.unmount()
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
+
+        vi.setSystemTime(new Date(2027, 0, 1, 14, 30, 0, 0))
+        pill()
+        vi.advanceTimersByTime(5000)
+        expect(celebrateNewYear).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not fire in the Appearance preview, and does not remember the year', async () => {
+        setSeasonPreview('newyear')
+        vi.setSystemTime(new Date(2027, 0, 1, 14, 0, 0, 0))
+        const w = pill()
+        vi.advanceTimersByTime(2000)
+        await w.vm.$nextTick()
+        expect(celebrateNewYear).not.toHaveBeenCalled()
+        expect(localStorage.getItem(CELEBRATED_KEY)).toBeNull()
     })
 
     it('goes away after the first hour of 1 January', async () => {
@@ -119,7 +147,7 @@ describe('NewYearCountdown: the pill in the top bar (#674)', () => {
         vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0, 0))
         const w = pill()
         expect(w.text()).toBe('12:00:00')
-        expect(celebrate).not.toHaveBeenCalled()
+        expect(celebrateNewYear).not.toHaveBeenCalled()
     })
 
     it('stops ticking while the tab is hidden, and catches up the moment it is visible', async () => {

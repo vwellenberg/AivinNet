@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { celebrate } from '@/utils/confetti'
+import { celebrate, celebrateNewYear } from '@/utils/confetti'
 
 // The burst is a layer that appears once and is gone after its lifetime. The
 // movement is CSS (Global/confetti.scss), so these tests check what is made
@@ -70,3 +70,48 @@ describe('celebrate', () => {
         expect(document.querySelector('.confetti-layer')).toBeNull()
     })
 })
+
+describe('celebrateNewYear: the shower of 1 January', () => {
+    const layers = () => document.querySelectorAll('.confetti-layer').length
+
+    it('makes several layers over time: a wave every 600 ms, each one alive for its lifetime', () => {
+        celebrateNewYear()
+        expect(layers()).toBe(1)
+
+        // Waves at 0, 600 and 1200 ms; the first one is gone at 1000 ms.
+        vi.advanceTimersByTime(1200)
+        expect(layers()).toBe(2)
+    })
+
+    it('stops after the last wave: no layer left and no timer pending', () => {
+        celebrateNewYear()
+        vi.advanceTimersByTime(3500)
+
+        expect(layers()).toBe(0)
+        expect(vi.getTimerCount()).toBe(0)
+    })
+
+    it('flies the waves from varied points in the upper part of the screen', () => {
+        celebrateNewYear()
+        const origins = new Set<string>()
+        for (let wave = 0; wave < 5; wave++) {
+            if (wave > 0) vi.advanceTimersByTime(600)
+            // The newest layer is the wave that has just gone up.
+            const layer = document.querySelectorAll<HTMLElement>('.confetti-layer')[layers() - 1]
+            const piece = layer.querySelector<HTMLElement>('.confetti-piece')!
+            origins.add(`${piece.style.left}|${piece.style.top}`)
+            expect(parseInt(piece.style.top, 10)).toBeLessThanOrEqual(window.innerHeight * 0.4)
+        }
+        expect(origins.size).toBeGreaterThan(1)
+    })
+
+    it('makes nothing and schedules nothing under reduced motion', () => {
+        window.matchMedia = vi.fn(() => ({ matches: true })) as any
+
+        celebrateNewYear()
+
+        expect(layers()).toBe(0)
+        expect(vi.getTimerCount()).toBe(0)
+    })
+})
+
