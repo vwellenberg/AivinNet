@@ -72,6 +72,26 @@ binary of an earlier release.
 
 ## What's new in this release
 
+Ready for December, on top of 2026.11.2.
+
+- **Christmas looks wintrier.** A blue, snowy palette, and twice as much snow.
+  The Halloween and Christmas palettes are stronger overall.
+- **New Year's Eve.**
+  - "Your year in music" on Home now really shows on 31 December, and opens
+    your Rewind: a year's Rewind now opens on New Year's Eve instead of
+    1 January.
+  - The New Year's confetti lasts about three seconds, and comes whenever you
+    first open AivinNet on 1 January, not only at midnight. Once per device.
+- **Fixed.**
+  - Today's door in the Advent calendar is readable in dark mode.
+  - A server that cannot start because its port is taken no longer crashes a
+    second time while shutting down.
+- **Under the hood.** Seven dependencies fewer, and one copy of a client
+  library instead of three.
+
+<details>
+<summary>What v2026.11.2 brought</summary>
+
 A maintenance release on top of 2026.11.1.
 
 - **The macOS binary is back.** 2026.11.1 went out without
@@ -87,6 +107,8 @@ A maintenance release on top of 2026.11.1.
   - A release no longer waits for macOS: if GitHub has no macOS machine free,
     everything else still ships.
   - Up-to-date build tooling for the web client.
+
+</details>
 
 <details>
 <summary>What v2026.11.1 brought</summary>
