@@ -56,7 +56,7 @@ describe('particlesFor: no season, no particles', () => {
 
 describe('particlesFor: the count is capped', () => {
     it('never returns more than MAX_PARTICLES, for any season or random source', () => {
-        expect(MAX_PARTICLES).toBe(25)
+        expect(MAX_PARTICLES).toBe(45)
         for (const season of ['christmas', 'halloween', 'newyear'] as const) {
             for (let seed = 1; seed <= 20; seed++) {
                 expect(particlesFor(season, sequence(seed)).length).toBeLessThanOrEqual(MAX_PARTICLES)
@@ -66,8 +66,8 @@ describe('particlesFor: the count is capped', () => {
 
     it('a season with a few particles keeps every one of them', () => {
         expect(particlesFor('halloween', MIDDLE)).toHaveLength(8)
-        // 18 snowflakes, and one each of the sleigh, the bell, the present, the waddle and the star.
-        expect(particlesFor('christmas', MIDDLE)).toHaveLength(23)
+        // 36 snowflakes, and one each of the sleigh, the bell, the present, the waddle and the star.
+        expect(particlesFor('christmas', MIDDLE)).toHaveLength(41)
     })
 
     it('the whole horde is one particle: the cap counts the chase once', () => {
@@ -81,7 +81,7 @@ describe('particlesFor: Christmas is snow, and now and then a sleigh', () => {
     it('makes snowflakes with a few sizes, and one sleigh among them', () => {
         const all = particlesFor('christmas', sequence(7))
         const flakes = all.filter((p) => p.kind === 'flake')
-        expect(flakes).toHaveLength(18)
+        expect(flakes).toHaveLength(36)
         expect(flakes.every((p) => p.group.length === 0)).toBe(true)
         expect(all.filter((p) => p.kind !== 'flake').map((p) => p.kind)).toEqual([
             'sleigh',
