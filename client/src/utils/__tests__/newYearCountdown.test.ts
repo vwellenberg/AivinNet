@@ -4,9 +4,8 @@ import {
     CELEBRATED_KEY,
     CELEBRATION_MS,
     clockText,
-    confettiDue,
     countdownAt,
-    crossedNewYear,
+    newYearConfettiYear,
     readCelebratedYear,
     rememberCelebratedYear,
 } from '@/utils/newYearCountdown'
@@ -72,35 +71,31 @@ describe('clockText: hh:mm:ss, rounded up to the second', () => {
     })
 })
 
-describe('crossedNewYear: the page was open across midnight', () => {
-    it('fires for the year that starts, when the clock passes 00:00 on 1 January', () => {
-        expect(crossedNewYear(at(2026, DEC, 31, 23, 59, 59, 0), at(2027, JAN, 1, 0, 0, 0, 0))).toBe(2027)
-        expect(crossedNewYear(at(2026, DEC, 31, 23, 59, 59, 900), at(2027, JAN, 1, 0, 0, 1, 0))).toBe(2027)
+describe('newYearConfettiYear: the confetti is due on 1 January, once per year', () => {
+    it('fires for the new year at midnight, the first tick of 1 January', () => {
+        expect(newYearConfettiYear(at(2027, JAN, 1, 0, 0, 0, 0), null)).toBe(2027)
+        expect(newYearConfettiYear(at(2027, JAN, 1, 0, 0, 1, 0), null)).toBe(2027)
     })
 
-    it('does not fire for a page opened after midnight: its first reading is already in the year', () => {
-        expect(crossedNewYear(at(2027, JAN, 1, 0, 0, 30), at(2027, JAN, 1, 0, 0, 31))).toBeNull()
+    it('fires later on 1 January too, not only in the first hour', () => {
+        expect(newYearConfettiYear(at(2027, JAN, 1, 15, 30, 0, 0), null)).toBe(2027)
     })
 
-    it('does not fire on any other midnight', () => {
-        expect(crossedNewYear(at(2026, 5, 30, 23, 59, 59), at(2026, 6, 1, 0, 0, 0))).toBeNull()
-        expect(crossedNewYear(at(2026, DEC, 31, 23, 59, 58), at(2026, DEC, 31, 23, 59, 59))).toBeNull()
+    it('does not fire again for a year it already fired for, the rest of 1 January included', () => {
+        expect(newYearConfettiYear(at(2027, JAN, 1, 0, 0, 1, 0), 2027)).toBeNull()
+        expect(newYearConfettiYear(at(2027, JAN, 1, 15, 30, 0, 0), 2027)).toBeNull()
     })
 
-    it('does not fire for a page that comes back long after midnight (only the first hour counts)', () => {
-        expect(crossedNewYear(at(2026, DEC, 31, 23, 0), at(2027, JAN, 1, 9, 0))).toBeNull()
-        expect(crossedNewYear(at(2026, DEC, 31, 23, 0), at(2027, JAN, 1, 0, 59, 59, 999))).toBe(2027)
-    })
-})
-
-describe('confettiDue: once per year', () => {
-    it('is due when nothing was fired, or another year was', () => {
-        expect(confettiDue(2027, null)).toBe(true)
-        expect(confettiDue(2027, 2026)).toBe(true)
+    it('does not fire on 31 December, even in the last second before midnight', () => {
+        expect(newYearConfettiYear(at(2026, DEC, 31, 23, 59, 59, 0), null)).toBeNull()
     })
 
-    it('is not due again for the year it already fired for', () => {
-        expect(confettiDue(2027, 2027)).toBe(false)
+    it('does not fire on 2 January', () => {
+        expect(newYearConfettiYear(at(2027, JAN, 2, 9, 0, 0, 0), null)).toBeNull()
+    })
+
+    it('fires when the remembered year is last year', () => {
+        expect(newYearConfettiYear(at(2027, JAN, 1, 9, 0, 0, 0), 2026)).toBe(2027)
     })
 })
 

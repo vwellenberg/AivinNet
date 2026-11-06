@@ -1,6 +1,8 @@
 // ---------------------------------------------------------------------------
 // Konfetti for a moment somebody chose: a device joined the group, the first
 // playlist was made. One burst, then the layer is gone. No counter, no loop.
+// The one exception is the New Year's shower (celebrateNewYear): a few waves in
+// a row, still no loop, each wave its own short-lived layer.
 //
 // The movement lives in the stylesheet (Global/confetti.scss), like every other
 // movement in the app. Here only the pieces are made and aimed.
@@ -54,4 +56,35 @@ export function celebrate(pieces = PIECES, from?: { x: number; y: number }): voi
 
     document.body.appendChild(layer)
     window.setTimeout(() => layer.remove(), LIFETIME_MS)
+}
+
+/** The New Year's shower: five waves, one every 600 ms, so the last ends about 3.4 s in. */
+const SHOWER_WAVES = 5
+const SHOWER_GAP_MS = 600
+const SHOWER_PIECES = 35
+
+/**
+ * The shower for 1 January (the New Year's pill, #674). Each wave comes from a new point
+ * across the upper part of the screen, so the confetti does not fall from one spot.
+ *
+ * Nothing is made under "less motion", and no timer is scheduled either: the check
+ * comes before the first wave, and every later wave is scheduled only after it.
+ *
+ * Unmounting the pill mid-shower does not cancel the remaining waves. They are
+ * short-lived, own no state, and each removes its own layer, so a cancel would only
+ * add a handle to keep for no visible gain. The cost: a wave may land after the page
+ * has moved on, which is the intended effect of a celebration, not a leak.
+ */
+export function celebrateNewYear(): void {
+    if (typeof document === 'undefined' || prefersLessMotion()) return
+
+    const origin = (): { x: number; y: number } => ({
+        x: window.innerWidth * (0.15 + Math.random() * 0.7),
+        y: window.innerHeight * (0.1 + Math.random() * 0.3),
+    })
+
+    celebrate(SHOWER_PIECES, origin())
+    for (let wave = 1; wave < SHOWER_WAVES; wave++) {
+        window.setTimeout(() => celebrate(SHOWER_PIECES, origin()), wave * SHOWER_GAP_MS)
+    }
 }
