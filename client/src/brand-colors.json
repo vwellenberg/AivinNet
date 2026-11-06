@@ -252,14 +252,14 @@
         "pink": "#F8AAB0",
         "blue": "#2A5DB0",
         "kraft": "#A8743A",
-        "lime": "#E8C77A",
+        "lime": "#5CB85C",
         "gold": "#E0A81E",
         "sea": "#A8447A",
         "orchid": "#D0507A",
         "blush": "#CFE3F5",
         "blushSoft": "#E8F2FB",
         "textMuted": "#55606E",
-        "home": "#F0B429"
+        "home": "#2E9E5A"
       },
       "dark": {
         "ground": "#0A1220",
@@ -272,13 +272,13 @@
       "doodles": {
         "#232046": "#14203A",
         "#2B2733": "#1A2436",
-        "#2E9E90": "#1E3470",
-        "#35B5A5": "#4A9BE0",
+        "#2E9E90": "#1F6B45",
+        "#35B5A5": "#2E9E5A",
         "#3E4890": "#16284F",
         "#3EBFAF": "#A8447A",
         "#5560BD": "#2A5DB0",
         "#5B67C9": "#3D5FA8",
-        "#66C7B8": "#F2D58A",
+        "#66C7B8": "#5CB85C",
         "#7C9BD6": "#8EC5F0",
         "#8E7BE0": "#7FAFD8",
         "#ACD9E8": "#D2E9F5",
