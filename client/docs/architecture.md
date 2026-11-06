@@ -40,7 +40,7 @@ Quer dazu: `utils/` (pure Helfer, testbar — Farben, Playlist-Index-Arithmetik,
 
 ## Start-Sequenz
 
-`main.ts` steckt nur Plugins zusammen (Pinia + Persistenz, Router, v-wave, Virtual Scroller,
+`main.ts` steckt nur Plugins zusammen (Pinia + Persistenz, Router, Klick-Welle `v-wave`, Virtual Scroller,
 Motion, Auto-Animate) und mountet `App.vue`. Die eigentliche Startlogik steht in **`App.vue`**:
 
 1. Theme-Klassen auf `document.body` setzen (`theme-dark`, `use-figtree-font`, Lauflicht-Stufe,
