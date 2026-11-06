@@ -8,9 +8,15 @@ export default function useVisibility(
 ) {
   const visible = ref(false);
 
-  useIntersectionObserver(elem, ([{ isIntersecting }], observerElement) => {
-    visible.value = isIntersecting;
-  });
+  // threshold: @vueuse/core 8 defaulted to 0.1, 15 defaults to 0. Pinned to the
+  // old value so the callback fires at the same points.
+  useIntersectionObserver(
+    elem,
+    ([{ isIntersecting }], observerElement) => {
+      visible.value = isIntersecting;
+    },
+    { threshold: 0.1 }
+  );
 
   watch(
     () => visible.value,

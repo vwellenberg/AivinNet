@@ -40,7 +40,7 @@ vi.mock('@/requests/playlists', () => ({ getAllPlaylists: vi.fn(() => Promise.re
 // of the app (useBreakpoints) pull real exports from the same module.
 vi.mock('@vueuse/core', async () => {
     const actual = await vi.importActual<Record<string, unknown>>('@vueuse/core')
-    return { ...actual, useDebounce: (value: unknown) => value }
+    return { ...actual, refDebounced: (value: unknown) => value }
 })
 
 import useSearchStore from '@/stores/search'
