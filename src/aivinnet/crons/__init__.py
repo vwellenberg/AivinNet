@@ -89,7 +89,10 @@ def stop_cron_jobs(timeout: float) -> None:
     thread — at most `timeout` seconds. Call it BEFORE closing the database.
     """
     _stop.set()
-    if _thread is not None:
+    # is_alive() is False for a thread that was created but not started yet,
+    # and join() raises on exactly that. Such a thread sees `_stop` when it
+    # starts and returns at once, so there is nothing to wait for.
+    if _thread is not None and _thread.is_alive():
         _thread.join(timeout)
         if _thread.is_alive():
             log.warning("cron job still running %s s into the shutdown", timeout)
