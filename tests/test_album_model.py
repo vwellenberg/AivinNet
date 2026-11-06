@@ -16,7 +16,6 @@ for mod_name in [
     "tinytag",
     "psutil",
     "show_in_file_manager",
-    "tabulate",
     "setproctitle",
     "locust",
     "watchdog",
@@ -24,7 +23,6 @@ for mod_name in [
     "sortedcontainers",
     "ffmpeg",
     "schedule",
-    "pystray",
     "rapidfuzz",
 ]:
     if mod_name not in sys.modules:

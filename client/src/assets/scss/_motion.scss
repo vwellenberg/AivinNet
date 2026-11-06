@@ -48,8 +48,8 @@ $motion-settle: 0.25s;
 // and at $motion-settle the switch still read as a flicker.
 $motion-veil: 0.4s;
 
-// The click ripple on rows. Mirrored — v-wave is configured in `main.ts`, which
-// is TypeScript and cannot read this file; the comment there points back here.
+// The click ripple on rows. Mirrored — the duration is DURATION_MS in
+// `directives/vWave.ts`, which is TypeScript and cannot read this file.
 $motion-ripple: 0.35s;
 
 // One turn of a loading spinner. The single loop on the scale, because there

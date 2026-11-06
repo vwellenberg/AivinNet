@@ -16,14 +16,12 @@ for mod_name in [
     "tinytag",
     "psutil",
     "show_in_file_manager",
-    "tabulate",
     "setproctitle",
     "watchdog",
     "sqlalchemy",
     "sortedcontainers",
     "ffmpeg",
     "schedule",
-    "pystray",
     "rapidfuzz",
 ]:
     if mod_name not in sys.modules:

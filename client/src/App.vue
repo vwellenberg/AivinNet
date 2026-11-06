@@ -22,17 +22,15 @@
     >
         <LeftSidebar v-if="!isMobile" />
         <NavBar />
-        <div id="acontent" v-element-size="updateContentElemSize">
+        <div id="acontent" ref="contentEl">
             <div id="contentresizer" ref="appcontent"></div>
-            <BalancerProvider>
-                <!-- `meta.remount`: routes that SHARE a component but must not share
-                     an instance (Albums / Artists) get their own key, so switching
-                     between them builds the page anew. Everything else keeps
-                     Vue Router's default reuse (no key). -->
-                <RouterView v-slot="{ Component, route }">
-                    <component :is="Component" :key="route.meta.remount ? route.name : undefined" />
-                </RouterView>
-            </BalancerProvider>
+            <!-- `meta.remount`: routes that SHARE a component but must not share
+                 an instance (Albums / Artists) get their own key, so switching
+                 between them builds the page anew. Everything else keeps
+                 Vue Router's default reuse (no key). -->
+            <RouterView v-slot="{ Component, route }">
+                <component :is="Component" :key="route.meta.remount ? route.name : undefined" />
+            </RouterView>
         </div>
         <RightSideBar v-if="settings.use_sidebar && xl" />
         <BottomBar />
@@ -42,11 +40,9 @@
 
 <script setup lang="ts">
 // @libraries
-import { vElementSize } from "@vueuse/components";
-import { onStartTyping } from "@vueuse/core";
+import { onStartTyping, useElementSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, provide, Ref, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { BalancerProvider } from "vue-wrap-balancer";
 
 // @stores
 import useAuth from "@/stores/auth";
@@ -89,6 +85,7 @@ import { getLoggedInUser } from "./requests/auth";
 // import BubbleManager from "./components/bubbles/BinManager.vue";
 
 const appcontent: Ref<HTMLLegendElement | null> = ref(null);
+const contentEl: Ref<HTMLElement | null> = ref(null);
 const auth = useAuth();
 const queue = useQueue();
 const modal = useModal();
@@ -222,6 +219,12 @@ function updateContentElemSize({ width, height }: { width: number; height: numbe
 
     resizer_width.value = elem_width;
 }
+
+// The #acontent size, reported as v-element-size did: once when mounted (0 x 0
+// until the first observer call), then on every change.
+const { width: contentBoxWidth, height: contentBoxHeight } = useElementSize(contentEl);
+onMounted(() => updateContentElemSize({ width: contentBoxWidth.value, height: contentBoxHeight.value }));
+watch([contentBoxWidth, contentBoxHeight], ([width, height]) => updateContentElemSize({ width, height }));
 
 function handleRootDirsPrompt() {
     getRootDirs().then(dirs => {

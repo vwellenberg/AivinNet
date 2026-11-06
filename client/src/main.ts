@@ -1,14 +1,11 @@
-import { createApp, type Plugin } from "vue";
+import { createApp } from "vue";
 import { createPinia } from "pinia";
-
-import WrapBalancer from "vue-wrap-balancer";
 
 import {
   RecycleScroller,
   DynamicScrollerItem,
   // @ts-ignore
 } from "vue-virtual-scroller";
-import VWave from "v-wave";
 import { autoAnimatePlugin } from "@formkit/auto-animate/vue";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 
@@ -16,6 +13,7 @@ import App from "./App.vue";
 import { router } from "./router";
 import vTooltip from "./directives/vTooltip";
 import vContextMenu from "./directives/vContextMenu";
+import vWave from "./directives/vWave";
 import vTip from "./directives/vTip";
 import { installArrivalLatch } from "./utils/arrivalLatch";
 import { TypedDynamicScroller } from "./utils/typedScroller";
@@ -39,15 +37,11 @@ app.use(autoAnimatePlugin);
 // (Global/_buttons.scss) and no ripple, so two effects never compete for the
 // same element.
 //
-// `color` is the theme's ink line rather than v-wave's default `currentColor`:
-// currentColor makes the ripple whatever the row's text happens to be, so a
-// muted row rippled grey and the active yellow row rippled differently again.
-// `duration` is the 0.35s TrackItem had already arrived at by hand, now the
-// one value for everyone.
-app.use(VWave as Plugin, {
-  color: "var(--mem-line)",
-  duration: 0.35,
-});
+// Its colour is the theme's ink line rather than currentColor: currentColor
+// made the ripple whatever the row's text happens to be, so a muted row
+// rippled grey and the active yellow row rippled differently again. The 0.35 s
+// duration is the one value for everyone. See directives/vWave.ts.
+app.directive("wave", vWave);
 
 app.directive("tooltip", vTooltip);
 // Hover hints in the app's look for icon-only buttons (directives/vTip.ts).
@@ -68,7 +62,6 @@ installTouchActive();
 // instead of staying a broken-image icon. See utils/imageRetry.ts.
 installImageRetry();
 
-app.component("WrapBalancer", WrapBalancer);
 app.component("RecycleScroller", RecycleScroller);
 // One view pool per component, so a recycled view never turns a card row into
 // a head and rebuilds it. See utils/typedScroller.ts.

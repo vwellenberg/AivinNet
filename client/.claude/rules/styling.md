@@ -1600,11 +1600,13 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
 
 **Zeilen** (Nav, Playlists, gepinnte Alben, Ordner-Köpfe, Track-Zeilen) bekommen die
 `v-wave`-Welle. **Buttons** bekommen das Press-Feedback ihrer Rolle und **keine** Welle — sonst
-kämpfen zwei Effekte um dasselbe Element. Farbe und Dauer stehen **einmal** in `main.ts`
-(`var(--mem-line)`, 0,35 s), nicht pro Aufrufstelle.
+kämpfen zwei Effekte um dasselbe Element. Farbe und Dauer stehen **einmal** in
+`directives/vWave.ts` (`var(--mem-line)`, 0,35 s), nicht pro Aufrufstelle. Die Welle wird nicht
+beim Loslassen abgebaut, sondern wächst und löst sich selbst auf (500 ms).
 
-v-wave setzt `overflow: hidden` auf einen **inneren** Container und erbt den Radius vom Wirt —
-Zeilenradius und absolut positionierte Drop-Marken bleiben also heil.
+Die Welle wird absolut im Wirt positioniert. Solange sie läuft, bekommt der Wirt `position:
+relative` und `overflow: hidden` (danach werden die Inline-Styles zurückgesetzt) — der Radius
+kommt vom Wirt, Zeilenradius und absolut positionierte Drop-Marken bleiben also heil.
 
 ### ⚠️ Der Zeiger hat EINE Farbe, und sie ist keine Farbe: `--mem-hover` (#422)
 

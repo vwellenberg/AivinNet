@@ -25,7 +25,6 @@ for _mod in [
     "tinytag",
     "psutil",
     "show_in_file_manager",
-    "tabulate",
     "setproctitle",
     "locust",
     "watchdog",
@@ -34,7 +33,6 @@ for _mod in [
     "sortedcontainers",
     "ffmpeg",
     "schedule",
-    "pystray",
     "rapidfuzz",
     "mutagen",
 ]:
