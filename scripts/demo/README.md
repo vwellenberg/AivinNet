@@ -108,3 +108,48 @@ ffmpeg -ss 0.8 -i ~/aivinnet-demo/video/*.webm \
 
 The page clock is fixed to 12 November (no season), the Christmas shot to 15 December. The server
 keeps its real clock, so "x days ago" depends on when you seed and shoot.
+
+## Season rehearsal
+
+The seasons (Halloween, the Advent calendar, Christmas, New Year's Eve) only show on their
+days, and half of what they show comes from the **server's** clock (the Advent door, the
+Christmas and Countdown stations, which Rewind years are open), the other half from the
+**browser's** (palette, effects, the countdown pill, the confetti). A rehearsal moves both to
+the same moment. Moving only the browser hides exactly the bugs that live between the two: in
+the December 2026 rehearsal, "Your year in music" never showed on 31 December, because the
+server opened a year's Rewind only on 1 January (#729). Every client test was green.
+
+Needs `faketime` (`apt-get install faketime`) and the seeded demo from steps 1-4 (with the
+client built into `~/aivinnet-demo/client`). One call per day; each starts from a fresh copy of
+the seeded config and stops its server again:
+
+```bash
+scripts/demo/rehearsal.sh dec01 "2026-12-01 10:00:00"
+scripts/demo/rehearsal.sh dec10 "2026-12-10 19:00:00" --dark
+scripts/demo/rehearsal.sh dec24 "2026-12-24 18:00:00" --dark
+scripts/demo/rehearsal.sh dec31 "2026-12-31 17:59:50" --wait 3000 --after 9000
+scripts/demo/rehearsal.sh nye "2026-12-31 23:59:50" --wait 3000 --after 9000
+scripts/demo/rehearsal.sh jan01 "2027-01-01 15:00:00"
+scripts/demo/rehearsal.sh jan02 "2027-01-02 12:00:00" --desk-only
+```
+
+Pick the days at the edges: the day before a season, its first and last day, the day after,
+and the hours where something switches (18:00 and midnight on 31 December). `--after` takes a
+second shot that much later, across the switch. Results land in `~/aivinnet-demo/rehearsal`:
+a desktop and a phone shot per day (`--dark` adds a dark one), a JSON with the browser's clock,
+the season classes and the Home headings, and `<day>-problems.txt` with console errors, page
+errors and HTTP errors. The aim is an empty problems file and a server log without traceback.
+
+Seed with `--today` close to the rehearsed days (e.g. the end of November), or the history is
+months old by then and the history-based rows look emptier than they will.
+
+⚠️ Two traps the script handles, both met while building it:
+
+- **`uv` must not run under `faketime`.** A `uv` that has to sync reaches PyPI, and with the
+  clock in the future every certificate reads as expired. The script syncs first and runs the
+  environment's python under `faketime` directly.
+- **Stop the whole process group.** `uv run` starts python as a child; killing `uv` leaves the
+  server listening, and the next day's run then talks to the old server (same port), at the old
+  date, without any error. The script starts the server with `setsid` and stops the group, and
+  refuses to start while the port is taken. Do not stop it with `pkill -f "run.py --port …"`
+  from a shell whose own command line contains that pattern: it matches the shell too.
