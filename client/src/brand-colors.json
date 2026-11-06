@@ -191,28 +191,28 @@
     },
     "halloween": {
       "light": {
-        "ink": "#1D1326",
-        "paper": "#FFE8CC",
-        "teal": "#FF6A00",
-        "yellow": "#B6FF3B",
-        "coral": "#E0301E",
-        "lavender": "#B070F0",
-        "pink": "#FF3FA0",
-        "blue": "#4B2A9A",
-        "kraft": "#8A4A12",
-        "lime": "#7CE01C",
-        "gold": "#FFB000",
-        "sea": "#2FB59A",
-        "orchid": "#B01E4A",
-        "blush": "#FFB27A",
-        "blushSoft": "#FFD9B8",
-        "textMuted": "#5A4A3E",
-        "home": "#6A1FB5"
+        "ink": "#0D0814",
+        "paper": "#EAE2F4",
+        "teal": "#7CFF2B",
+        "yellow": "#B8FF3D",
+        "coral": "#7A3FD6",
+        "lavender": "#B58CF5",
+        "pink": "#E040C8",
+        "blue": "#3A1F7A",
+        "kraft": "#7D8F2A",
+        "lime": "#4FD81A",
+        "gold": "#FF8A1F",
+        "sea": "#2FD6A0",
+        "orchid": "#9A2BD0",
+        "blush": "#C9A8F0",
+        "blushSoft": "#E3D4F7",
+        "textMuted": "#5A4F6A",
+        "home": "#5B1FB0"
       },
       "dark": {
-        "ground": "#140A22",
-        "panel": "#1F1233",
-        "soft": "#36214F",
+        "ground": "#07040C",
+        "panel": "#110A1C",
+        "soft": "#221538",
         "textMuted": "#B8AECA",
         "contentMuted": "#CAC2D9",
         "pastelPaper": "90%"
@@ -237,8 +237,8 @@
         "#F0A23C": "#FFB347",
         "#F0A6B8": "#C8F27A",
         "#F2A9C4": "#F5B5C8",
-        "#F4F2ED": "#FFE8CC",
-        "#F5D547": "#B6FF3B"
+        "#F4F2ED": "#EAE2F4",
+        "#F5D547": "#B8FF3D"
       }
     },
     "christmas": {
