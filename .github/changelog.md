@@ -72,6 +72,25 @@ binary of an earlier release.
 
 ## What's new in this release
 
+A maintenance release on top of 2026.11.1.
+
+- **The macOS binary is back.** 2026.11.1 went out without
+  `aivinnet_darwin_arm64` because GitHub had no macOS build machine free; this
+  release has it again.
+- **Halloween ends on Halloween again** (24 to 31 October), plus the Sunday
+  after when Halloween falls on a Saturday.
+- **Easier to read.**
+  - No hatching under row labels, card captions and buttons any more.
+  - The empty-state notes in Stats ("Nothing played yet") have a frame like
+    every other card.
+- **Under the hood.**
+  - A release no longer waits for macOS: if GitHub has no macOS machine free,
+    everything else still ships.
+  - Up-to-date build tooling for the web client.
+
+<details>
+<summary>What v2026.11.1 brought</summary>
+
 A feature release on top of 2026.11.0, in time for December.
 
 - **New Year's Eve** (31 December and 1 January), a season of its own.
@@ -105,6 +124,8 @@ A feature release on top of 2026.11.0, in time for December.
     node-vibrant 4, without its image library.
   - Pinia 3, and up-to-date build actions.
   - No known vulnerability in what ships.
+
+</details>
 
 <details>
 <summary>What v2026.11.0 brought</summary>

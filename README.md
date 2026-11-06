@@ -180,8 +180,8 @@ missing the most recent transactions.
 
 - **Single-file binaries** for Linux, Windows and macOS are attached to each
   [release](https://github.com/vwellenberg/AivinNet/releases). macOS comes only
-  when GitHub had a macOS build machine free for the release (v2026.11.1 has
-  none). They are unsigned, so SmartScreen/Gatekeeper will warn.
+  when GitHub had a macOS build machine free for the release. They are unsigned,
+  so SmartScreen/Gatekeeper will warn.
 - **Wheel** (`pip`/`uv`): needs Python 3.11+, and on Linux a compiler plus
   `libev-dev` for `bjoern`.
 - **Docker**: `ghcr.io/vwellenberg/aivinnet` — [docs/docker.md](docs/docker.md).
