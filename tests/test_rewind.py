@@ -5,7 +5,7 @@ The module imports no database or store code, so these run in the fast lane.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from aivinnet.lib.home.discover import TrackFacts
 from aivinnet.lib.listening_sources import source_kind
@@ -52,16 +52,25 @@ class TestSources:
 
 
 class TestFinishedYears:
-    def test_a_year_opens_on_new_years_day(self):
-        # Plays in 2023 to 2026, now in 2026: 2026 is still running.
-        assert finished_years([2023, 2024, 2025, 2026], this_year=2026) == [2023, 2024, 2025]
+    def test_a_year_is_open_from_its_new_years_eve(self):
+        # Plays in 2023 to 2026, the running year is 2026: the open years are the finished ones.
+        assert finished_years([2023, 2024, 2025, 2026], date(2026, 12, 30)) == [2023, 2024, 2025]
 
-    def test_a_first_year_still_running_is_none(self):
-        assert finished_years([2026], this_year=2026) == []
+    def test_the_running_year_opens_on_new_years_eve(self):
+        assert finished_years([2023, 2024, 2025, 2026], date(2026, 12, 31)) == [2023, 2024, 2025, 2026]
+
+    def test_the_year_that_ended_stays_open_on_new_years_day(self):
+        assert finished_years([2023, 2024, 2025, 2026], date(2027, 1, 1)) == [2023, 2024, 2025, 2026]
+
+    def test_a_first_year_still_running_is_none_before_new_years_eve(self):
+        assert finished_years([2026], date(2026, 12, 30)) == []
+
+    def test_a_first_year_is_open_on_new_years_eve(self):
+        assert finished_years([2026], date(2026, 12, 31)) == [2026]
 
     def test_only_years_with_music(self):
         # A year without a single play has nothing to look back on.
-        assert finished_years([2025, 2019, 2021], this_year=2026) == [2019, 2021, 2025]
+        assert finished_years([2025, 2019, 2021], date(2026, 6, 1)) == [2019, 2021, 2025]
 
 
 class TestRewind:

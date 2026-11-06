@@ -29,7 +29,7 @@ from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
 from aivinnet.lib.recipes.records import board_of
 from aivinnet.lib.records import celebrated
-from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, seen_years
+from aivinnet.lib.rewind import build_rewind, finished_years, fresh_year, is_new_years_eve, is_open_year, seen_years
 from aivinnet.lib.server_card import SERVER_TOTALS
 from aivinnet.lib.skip_rate import build_skip_rate
 from aivinnet.models.album import Album
@@ -644,18 +644,29 @@ class RewindQuery(BaseModel):
 # per user, so switching through the years holds no more than one page. The
 # years a Rewind opens for are cached alongside: grouping every play by year
 # is a scan as well.
-_rewinds: dict[int, tuple[tuple[int, int, tuple[int, int]], dict]] = {}
-_rewind_years: dict[int, tuple[tuple[int, tuple[int, int]], list[int]]] = {}
+_rewinds: dict[int, tuple[tuple[tuple[int, bool], int, tuple[int, int]], dict]] = {}
+_rewind_years: dict[int, tuple[tuple[tuple[int, bool], tuple[int, int]], list[int]]] = {}
 
 
-def _finished_years(userid: int, this_year: int, marker: tuple[int, int]) -> list[int]:
-    """The finished years the user has plays in (`lib/rewind.finished_years`)."""
-    # This year too: on January 1 a year opens without a new play.
-    key = (this_year, marker)
+def _today() -> date:
+    """Today on the C library's clock: the zone Rewind's years are counted in."""
+    return datetime.now().date()
+
+
+def _open_key(today: date) -> tuple[int, bool]:
+    """What decides which years are open: the year, and whether it is New Year's Eve (#674)."""
+    return today.year, is_new_years_eve(today)
+
+
+def _finished_years(userid: int, today: date, marker: tuple[int, int]) -> list[int]:
+    """The years the user has plays in that are open on `today` (`lib/rewind.finished_years`)."""
+    # The running year is open on New Year's Eve without a new play: the key
+    # has to change on that day, or the list of the 30th is served on the 31st.
+    key = (_open_key(today), marker)
     cached = _rewind_years.get(userid)
     if cached is None or cached[0] != key:
         played = ScrobbleTable.years_with_plays(int(time.time()), userid)
-        cached = (key, finished_years(played, this_year))
+        cached = (key, finished_years(played, today))
         _rewind_years[userid] = cached
 
     return cached[1]
@@ -670,7 +681,7 @@ def get_rewind_years():
     unseen (#572) — the one the stats page and, in January, Home announce.
     """
     userid = get_current_userid()
-    years = _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))
+    years = _finished_years(userid, _today(), ScrobbleTable.change_marker(userid))
     seen = seen_years(UserTable.get_extra(userid).get(REWIND_SEEN_KEY))
     return {"years": years, "seen": seen, "fresh": fresh_year(years, seen)}, 200
 
@@ -690,7 +701,7 @@ def mark_rewind_seen(body: RewindSeenBody):
     if UserTable.is_guest(userid):
         return {"msg": "The guest account keeps Rewind as it is"}, 403
 
-    years = _finished_years(userid, datetime.now().year, ScrobbleTable.change_marker(userid))
+    years = _finished_years(userid, _today(), ScrobbleTable.change_marker(userid))
     if body.year not in years:
         return {"msg": f"No Rewind for {body.year}"}, 404
 
@@ -708,21 +719,22 @@ def get_rewind(query: RewindQuery):
     tracks, the song of the summer, the first track, the busiest day, the new
     artists, how and when the user listens. Plus the years there are plays in.
 
-    A year opens on January 1 of the next one: this year and later answer 404
-    (with the years that are open). Days and years are the C library's local
+    A year opens on 31 December of that year (New Year's Eve, #674) and stays
+    open after it: a year that is not open answers 404 (with the years that
+    are open and the day it opens). Days and years are the C library's local
     time, like the listening calendar on the same page
     (`ScrobbleTable.local_today`), not pendulum's zone.
     """
     userid = get_current_userid()
-    this_year = datetime.now().year
+    today = _today()
     marker = ScrobbleTable.change_marker(userid)
-    years = _finished_years(userid, this_year, marker)
-    year = query.year or (years[-1] if years else this_year - 1)
-    if year >= this_year:
-        opens = f"{year + 1}-01-01"
-        return {"error": f"Rewind {year} opens on January 1, {year + 1}", "opens": opens, "years": years}, 404
+    years = _finished_years(userid, today, marker)
+    year = query.year or (years[-1] if years else today.year - 1)
+    if not is_open_year(year, today):
+        opens = f"{year}-12-31"
+        return {"error": f"Rewind {year} opens on December 31, {year}", "opens": opens, "years": years}, 404
 
-    key = (this_year, year, marker)
+    key = (_open_key(today), year, marker)
     cached = _rewinds.get(userid)
     if cached is None or cached[0] != key:
         cached = (key, _build_rewind(userid, year, years))

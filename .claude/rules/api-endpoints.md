@@ -250,15 +250,18 @@ Zelle summiert jede Woche des Zeitraums, feste Minuten hießen bei „all time�
 bei „this week“. ⚠️ Am Handy steht das Raster **hochkant** (Tage als Spalten,
 `clockLayout(…, upright)`): 24 Spalten ergaben gemessen 8 px (390) bzw. 5 px (320) kleine Felder.
 
-**Ein Rewind öffnet am 1. Januar für das Jahr, das endete** (Wunsch des Nutzers, 2026-10-23): Ein
-Rückblick auf ein laufendes Jahr ändert sich täglich. Das laufende und spätere Jahre antworten
-**404** mit `opens` und den offenen `years` (ein Lesezeichen findet so zum letzten Jahr). Die
-Jahresliste (`GET /logger/rewind/years`) kennt nur beendete Jahre **mit** Plays
-(`ScrobbleTable.years_with_plays`, in SQL gruppiert, dann `lib/rewind.finished_years`), und ohne
-`year` kommt das jüngste davon. ⚠️ Nicht die Spanne vom ersten bis zum letzten Play nehmen: Wer ein
+**Ein Rewind öffnet am 31. Dezember (Silvester) für das Jahr** (#674; vorher am 1. Januar, Wunsch
+des Nutzers 2026-10-23): Jedes beendete Jahr ist offen, das laufende erst an seinem letzten Tag.
+Ein Rückblick auf ein laufendes Jahr ändert sich täglich, am 31. nur noch im Lauf des Tages, weil
+Plays dazukommen. Ein laufendes oder späteres Jahr antwortet vor seinem 31. Dezember **404** mit
+`opens` = `YYYY-12-31` und den offenen `years` (ein Lesezeichen findet so zum letzten Jahr). Die
+Regel steht in `lib/rewind.is_open_year`. Die Jahresliste (`GET /logger/rewind/years`) kennt nur
+offene Jahre **mit** Plays (`ScrobbleTable.years_with_plays`, in SQL gruppiert, dann
+`lib/rewind.finished_years(years, today)`), und ohne `year` kommt das jüngste davon. ⚠️ Nicht die Spanne vom ersten bis zum letzten Play nehmen: Wer ein
 Jahr pausiert hat, landete sonst standardmäßig auf einem leeren Jahr (im Review gefunden). Beide
-Caches tragen auch das laufende Jahr im Schlüssel: Am 1. Januar öffnet ein Jahr, ohne dass ein Play
-dazukommt. Der Client glaubt einem 404 nur mit `opens`; jeder andere 404 (älteres Backend, Proxy)
+Caches tragen `(today.year, ist 31. Dezember)` im Schlüssel: Am 31. öffnet das laufende Jahr ohne
+dass ein Play dazukommt, und ein Bau vom 30. darf am 31. nicht wiederverwendet werden (die Jahresliste
+im Antwort-Dict würde das laufende Jahr fehlen lassen). Der Client glaubt einem 404 nur mit `opens`; jeder andere 404 (älteres Backend, Proxy)
 ist ein Fehler mit „Try again“. Der Link auf der Stats-Seite (`components/Stats/RewindLink.vue`)
 erscheint erst, wenn es ein solches Jahr gibt. Tests rechnen relativ zu `datetime.now().year` und
 legen Plays „dieses Jahr“ auf dessen erste Minute — `now - 5 min` liegt kurz nach Mitternacht an
@@ -277,7 +280,7 @@ geöffnet — ein Sentinel hinter der letzten Platte (`.rewind-end`, Intersectio
 Öffnen; dann `POST /logger/rewind/seen`, bei einem Fehler beim nächsten Mal erneut. Danach bleibt das
 Kalenderfeld vom 1. Januar die Tür zum Vorjahr (`utils/rewind.rewindDoor`; für die Tastatur ein
 Link, der erst beim Fokus erscheint). Am nächsten 1. Januar ist das neue Jahr ungesehen und wieder
-laut (auf Home). Gespeichert in `UserTable.extra["rewind_seen"]`, das `User.todict()` wie das Home-Layout
+laut (auf Home) — außer es wurde am 31. Dezember schon bis zum Ende angesehen. Gespeichert in `UserTable.extra["rewind_seen"]`, das `User.todict()` wie das Home-Layout
 draußen lässt (`models/user.PRIVATE_EXTRA_KEYS`). Das Gastkonto markiert nichts (403).
 
 ⚠️ **Beide zählen Tage in der Zone der C-Bibliothek, nicht in pendulums** — der Kalender, weil er
