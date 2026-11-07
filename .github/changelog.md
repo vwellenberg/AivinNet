@@ -67,10 +67,20 @@ The Docker image is not an asset here — it lives in the container registry:
 
 Windows and macOS binaries are unsigned — SmartScreen/Gatekeeper will warn. If
 a release has no `aivinnet_darwin_arm64`, GitHub had no macOS build machine for
-it: use Docker Desktop on the Mac (the image runs on Apple Silicon), or the
-binary of an earlier release.
+it yet. The build is retried and the binary added to the release once a machine
+is free; until then, use Docker Desktop on the Mac (the image runs on Apple
+Silicon).
 
 ## What's new in this release
+
+A small fix on top of 2026.11.3.
+
+- **iPhone: searching from the title brings up the keyboard.** Tapping "Home"
+  at the top opens the search, and now the keyboard comes with it instead of
+  just the caret.
+
+<details>
+<summary>What v2026.11.3 brought</summary>
 
 Ready for December, on top of 2026.11.2.
 
@@ -88,6 +98,8 @@ Ready for December, on top of 2026.11.2.
     second time while shutting down.
 - **Under the hood.** Seven dependencies fewer, and one copy of a client
   library instead of three.
+
+</details>
 
 <details>
 <summary>What v2026.11.2 brought</summary>
