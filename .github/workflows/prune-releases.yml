@@ -7,8 +7,9 @@
 #
 # Drafts count as old: a draft is never one of the kept releases.
 #
-# `dry_run` is on by default: a run then only lists what it would remove. No code from the
-# repository is checked out or run; the job only calls the GitHub API.
+# `dry_run` is on by default: a run then only lists what it would remove. The logic lives in
+# scripts/prune-releases.sh, which the Release workflow runs too: since 2026-11-07 every published
+# "latest" release removes the ones before it on its own (build.yml). This button is for the rest.
 name: Prune releases
 
 on:
@@ -39,6 +40,11 @@ jobs:
     permissions:
       contents: write # deletes releases, nothing else
     steps:
+      - name: Checkout AivinNet
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Remove all but the newest releases
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,35 +52,4 @@ jobs:
           # Through the environment, never interpolated into the script: an input is text someone typed.
           KEEP: ${{ inputs.keep }}
           DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          set -euo pipefail
-
-          if ! printf '%s' "$KEEP" | grep -Eq '^[1-9][0-9]*$'; then
-            echo "::error::keep must be a number of at least 1, got '$KEEP'"
-            exit 1
-          fi
-
-          # Every release as "id<TAB>tag<TAB>draft<TAB>published_at", newest first; drafts have
-          # no published_at and sort last.
-          gh api --paginate "repos/$REPO/releases?per_page=100" \
-            --jq '.[] | [.id, .tag_name, .draft, (.published_at // "")] | @tsv' \
-            | sort -t$'\t' -k4,4r > releases.tsv
-
-          kept=0
-          while IFS=$'\t' read -r id tag draft published; do
-            if [ "$draft" = "false" ] && [ "$kept" -lt "$KEEP" ]; then
-              kept=$((kept + 1))
-              echo "keep    $tag"
-              continue
-            fi
-            if [ "$DRY_RUN" = "true" ]; then
-              echo "would remove $tag$([ "$draft" = "true" ] && echo ' (draft)')"
-            else
-              gh api -X DELETE "repos/$REPO/releases/$id"
-              echo "removed $tag$([ "$draft" = "true" ] && echo ' (draft)')"
-            fi
-          done < releases.tsv
-
-          if [ "$kept" -eq 0 ]; then
-            echo "::warning::no published release found to keep"
-          fi
+        run: bash scripts/prune-releases.sh "$REPO" "$KEEP" "$DRY_RUN"
