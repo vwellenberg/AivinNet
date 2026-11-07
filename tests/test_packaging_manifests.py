@@ -384,6 +384,7 @@ ALLOWED_WRITES = {
     ("build.yml", "upload-builds"): {"contents"},  # creates the release
     ("build.yml", "docker"): {"packages"},  # pushes the image to ghcr
     ("deploy.yml", "signal"): {"contents"},  # moves refs/heads/deploy (AivinNet#478)
+    ("prune-releases.yml", "prune"): {"contents"},  # deletes old releases, keeps the tags
 }
 
 

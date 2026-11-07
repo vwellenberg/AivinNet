@@ -1,0 +1,80 @@
+# Remove old GitHub releases, keep the newest ones (Actions → Prune releases → "Run workflow").
+#
+# Only the RELEASES go: their page and their files. The git tags stay, so every version can
+# still be rebuilt from its tag (build.yml), and the Docker images in ghcr are not touched.
+# What stops working for a removed release is `install.sh --version <that tag>`, because it
+# downloads the release's files; a normal install and `--update` take the newest release.
+#
+# Drafts count as old: a draft is never one of the kept releases.
+#
+# `dry_run` is on by default: a run then only lists what it would remove. No code from the
+# repository is checked out or run; the job only calls the GitHub API.
+name: Prune releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many of the newest published releases to keep"
+        required: true
+        default: "1"
+      dry_run:
+        description: "Only list what would be removed"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: prune-releases
+      cancel-in-progress: false
+    permissions:
+      contents: write # deletes releases, nothing else
+    steps:
+      - name: Remove all but the newest releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Through the environment, never interpolated into the script: an input is text someone typed.
+          KEEP: ${{ inputs.keep }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          if ! printf '%s' "$KEEP" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "::error::keep must be a number of at least 1, got '$KEEP'"
+            exit 1
+          fi
+
+          # Every release as "id<TAB>tag<TAB>draft<TAB>published_at", newest first; drafts have
+          # no published_at and sort last.
+          gh api --paginate "repos/$REPO/releases?per_page=100" \
+            --jq '.[] | [.id, .tag_name, .draft, (.published_at // "")] | @tsv' \
+            | sort -t$'\t' -k4,4r > releases.tsv
+
+          kept=0
+          while IFS=$'\t' read -r id tag draft published; do
+            if [ "$draft" = "false" ] && [ "$kept" -lt "$KEEP" ]; then
+              kept=$((kept + 1))
+              echo "keep    $tag"
+              continue
+            fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "would remove $tag$([ "$draft" = "true" ] && echo ' (draft)')"
+            else
+              gh api -X DELETE "repos/$REPO/releases/$id"
+              echo "removed $tag$([ "$draft" = "true" ] && echo ' (draft)')"
+            fi
+          done < releases.tsv
+
+          if [ "$kept" -eq 0 ]; then
+            echo "::warning::no published release found to keep"
+          fi

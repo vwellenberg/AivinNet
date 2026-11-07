@@ -54,6 +54,13 @@ Wrapper übernimmt der Entrypoint nur `SSL_CERT_FILE`, und zwar nur, wenn der Bu
 Das betrifft das TLS der stdlib; `requests` nimmt certifi. Unter systemd fiel der Fehler nie auf,
 weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
 
+**Alte Releases entfernen:** Actions → **Prune releases** (`prune-releases.yml`), `keep` = wie viele
+der neuesten veröffentlichten bleiben, `dry_run` steht per Default an und listet nur. Weg sind
+Release-Seite und Dateien; die **Git-Tags bleiben** (jede Version bleibt aus dem Tag baubar), die
+Docker-Images in ghcr auch. Danach geht `install.sh --version <alter Tag>` nicht mehr. Drafts
+zählen immer als alt. Grund für den Workflow: Die Claude-Sessions haben weder `gh` noch ein
+GitHub-Werkzeug, das Releases löscht.
+
 ## ⚠️ Fallen, die hier schon zugeschlagen haben
 
 - **Die Update-Tests laufen absichtlich in einer Umgebung mit kaputter Zeitzone.** Seit
