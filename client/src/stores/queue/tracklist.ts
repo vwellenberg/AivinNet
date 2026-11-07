@@ -59,6 +59,22 @@ export default defineStore('tracklist', {
                 this.tracklist = parsed.tracks
             }
         },
+        /**
+         * A NEW source the user started (`setFromX`) leaves repeat-one. Repeat
+         * one is the mode that makes a freshly started album play one song over
+         * and over, so it goes back to the default here.
+         *
+         * Called from each `setFromX`, not from `setNewList`: mirroring a queue
+         * from another device also swaps the list, and must not change repeat
+         * on this device. The `applying` check is the same guard, stated once
+         * more for anyone who calls this from a mirror path later. Adding,
+         * inserting and restoring from storage never come through here.
+         */
+        leaveRepeatOneForNewSource() {
+            if (useDeviceSync().applying) return
+            const settings = useSettings()
+            if (settings.repeat === 'one') settings.setRepeatMode('all')
+        },
         setNewList(tracklist: Track[]) {
             if (this.tracklist !== tracklist) {
                 this.tracklist = []
@@ -94,6 +110,7 @@ export default defineStore('tracklist', {
                 path: tracks[0].folder,
                 name: name?.trim() === '' ? path : name,
             }
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromAlbum(name: string, albumhash: string, tracks: Track[]) {
@@ -103,6 +120,7 @@ export default defineStore('tracklist', {
                 albumhash: albumhash,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromPlaylist(name: string, pid: number, tracks: Track[]) {
@@ -112,6 +130,7 @@ export default defineStore('tracklist', {
                 id: pid,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
 
             // Library sidebar recency: bubble the played playlist to the top
@@ -128,6 +147,7 @@ export default defineStore('tracklist', {
                 id: id,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromSearch(query: string, tracks: Track[]) {
@@ -136,6 +156,7 @@ export default defineStore('tracklist', {
                 query: query,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromArtist(artisthash: string, name: string, tracks: Track[]) {
@@ -145,6 +166,7 @@ export default defineStore('tracklist', {
                 artistname: name,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromFav(tracks: Track[]) {
@@ -152,6 +174,7 @@ export default defineStore('tracklist', {
                 type: FromOptions.favorite,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         setFromSmartPlaylist(name: string, id: number, tracks: Track[]) {
@@ -161,6 +184,7 @@ export default defineStore('tracklist', {
                 id,
             }
 
+            this.leaveRepeatOneForNewSource()
             this.setNewList(tracks)
         },
         addTrack(track: Track) {

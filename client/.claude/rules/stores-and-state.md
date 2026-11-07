@@ -255,6 +255,17 @@ war damit im Normalfall falsch — die Spiegelung griff **nie** (#315). Richtig 
 `rangeAligns(seite, queue, lo, hi)`: trackhash für trackhash über genau den Abschnitt, den der Move
 berührt.
 
+## Repeat „one" endet mit einer neuen Quelle (`tracklist.leaveRepeatOneForNewSource`)
+
+Repeat „one" lässt einen frisch gestarteten Album, eine Playlist oder eine Suche denselben Song
+immer wieder spielen. Deshalb setzt jedes `setFromX` (Album, Playlist, Ordner, Suche, Künstler,
+Favoriten, Smart-Playlist) Repeat von „one" auf „all", **bevor** die Liste getauscht wird. Der Reset
+steht nicht in `setNewList`: Spiegelung von einem anderen Gerät tauscht die Liste ebenfalls, und
+die darf den Repeat-Modus hier nicht ändern (`ds.applying`). Hinzufügen, Einfügen und das
+Wiederherstellen aus dem Local Storage lösen ihn nicht aus. Repeat „all" und „none" bleiben, Shuffle
+bleibt. In der Gruppe geht die Änderung über `settings.setRepeatMode` (→ `ds.intercept('toggleRepeat')`)
+und wirkt erst, wenn der Befehl zurückkommt.
+
 ## Requests
 
 Alles läuft über `requests/useAxios.ts` — es schaltet den Ladebalken, öffnet bei 401 das
