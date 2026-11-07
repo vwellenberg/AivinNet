@@ -9,7 +9,10 @@ import { describe, expect, it } from 'vitest'
 //
 // Quelltext-Zensus: Der Titel ist ein Button auf der Home-Route, und der Klick
 // navigiert zur Suche und setzt danach den Fokus auf das Suchfeld. Der Fokus
-// kommt erst nach der Navigation, weil das Feld erst dort gerendert wird.
+// kommt erst nach der Navigation, weil das Feld erst dort gerendert wird —
+// und deshalb läuft er über focusAcrossNavigation: iOS öffnet die Tastatur nur
+// für einen Fokus IM Tap, ein nackter `push().then(focus)` ließ sie zu.
+// Das Verhalten selbst prüft utils/__tests__/focusAcrossNavigation.test.ts.
 // ---------------------------------------------------------------------------
 
 const SOURCE = readFileSync('src/components/nav/NavBar.vue', 'utf8')
@@ -23,11 +26,14 @@ describe('NavBar: Home-Titel öffnet die Suche', () => {
         expect(SOURCE).toMatch(/v-if="route\.name === Routes\.Home"\s+type="button"\s+class="mobile-nav-title-text"\s+@click="openSearch"/)
     })
 
-    it('navigiert zur Suche und setzt danach den Fokus', () => {
+    it('navigiert zur Suche und fokussiert über focusAcrossNavigation (iOS-Tastatur)', () => {
         const fn = SOURCE.match(/function openSearch\(\) \{([\s\S]*?)\n\}/)
         expect(fn, 'openSearch fehlt').not.toBeNull()
-        expect(fn![1]).toContain('Routes.search')
-        expect(fn![1]).toMatch(/\.then\(\(\) => nextTick\(/)
+        // Der Aufruf, nicht nur der Import: synchron im Klick-Handler.
+        expect(fn![1]).toMatch(/^\s*(void )?focusAcrossNavigation\(/)
+        expect(fn![1]).toMatch(/\(\) => router\.push\(\{ name: Routes\.search/)
         expect(fn![1]).toContain("getElementById('globalsearch')")
+        // Ein später, eigener Fokus nach der Navigation öffnet auf iOS keine Tastatur.
+        expect(fn![1]).not.toMatch(/\.then\(/)
     })
 })
