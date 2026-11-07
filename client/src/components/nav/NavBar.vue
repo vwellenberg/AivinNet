@@ -68,12 +68,13 @@
 
 <script setup lang="ts">
 import { Routes } from '@/router'
-import { computed, inject, nextTick, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import useAuth from '@/stores/auth'
 import { content_width, isMobile } from '@/stores/content-width'
 import useSettings from '@/stores/settings'
+import { focusAcrossNavigation } from '@/utils/focusAcrossNavigation'
 import { lookHasModes } from '@/utils/theme'
 import { xl } from './../../composables/useBreakpoints'
 
@@ -117,11 +118,14 @@ function onLogoTap(e: MouseEvent) {
 const router = useRouter()
 
 // The search field only exists on the search route on a phone, so the push
-// comes first; the focus waits for the field to render.
+// comes first and the focus waits for the field to render. iOS would open no
+// keyboard for that late focus — focusAcrossNavigation holds it open with a
+// stand-in input focused inside the tap.
 function openSearch() {
-    router
-        .push({ name: Routes.search, params: { page: 'top' } })
-        .then(() => nextTick(() => document.getElementById('globalsearch')?.focus()))
+    void focusAcrossNavigation(
+        () => router.push({ name: Routes.search, params: { page: 'top' } }),
+        () => document.getElementById('globalsearch'),
+    )
 }
 
 /**
