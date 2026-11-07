@@ -196,13 +196,13 @@ function handleFav() {
         align-items: center;
         margin-top: 1rem;
 
-        // The four controls read as ONE cluster in the middle, not as four
+        // The five controls read as ONE cluster in the middle, not as five
         // objects pinned across the card. Spreading them over the full line
         // put 35px between neighbours — the bar's own control spacing is
         // $bar-gap (20px), and that is what the group carries anyway.
         //
         // The cap is what produces that spacing, and `gap: 0` is what makes it
-        // work: the width is the cluster — four controls plus the three
+        // work: the width is the cluster — five controls plus the four
         // $bar-gap between them — and `space-between` then divides exactly
         // that leftover, so the buttons stand $bar-gap apart wherever the line
         // is at least as wide.
@@ -213,15 +213,18 @@ function handleFav() {
         // (a 320px phone: 212px against 236px) the 20px gaps stayed 20px and
         // the row overflowed to the right — the devices button was clipped by
         // the card edge, measured on the built branch before this line existed.
-        // With the spacing derived instead, the gaps shrink (12px at 320px)
-        // and the 44px touch targets stay whole, which is the right way round.
+        // With the spacing derived instead, the gaps shrink and the 44px touch
+        // targets stay whole, which is the right way round. Measured with five
+        // controls (cluster 300px): 20px apart at 390px, 4px at 320px (236px
+        // line), nothing clipped.
         .right-group {
-            // repeat · shuffle · lyrics · devices — the group's own contents
-            // under this screen's props (`hide-heart`, `hide-volume` above).
-            // A fifth control would not break the row (the gaps just get
-            // smaller), but it would stop standing $bar-gap apart until this
-            // number follows.
-            $np-aux-controls: 4;
+            // repeat · shuffle · lyrics · sleep timer · devices — what
+            // BottomBar/Right.vue renders under this screen's props (`hide-heart`,
+            // `hide-volume` above; heart and volume are gated off). A control
+            // added or removed there must change this number too, or the row
+            // stops standing $bar-gap apart. `__tests__/rightGroupAuxState.test.ts`
+            // counts the template and fails on a mismatch.
+            $np-aux-controls: 5;
 
             width: 100%;
             max-width: calc(
