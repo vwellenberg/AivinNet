@@ -662,3 +662,12 @@ jobs:
           makeLatest: ${{github.event.inputs.is_latest == 'true'}}
           artifacts: "release/*"
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      # A published "latest" release replaces the ones before it (the user's rule,
+      # 2026-11-07): only its page and files go, the git tags stay. Test runs
+      # (draft, or prerelease without `latest`) leave every release alone.
+      - name: Remove older releases
+        if: ${{ github.event.inputs.is_draft == 'false' && github.event.inputs.is_latest == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/prune-releases.sh "${{ github.repository }}" 1 false

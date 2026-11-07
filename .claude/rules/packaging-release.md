@@ -54,7 +54,10 @@ Wrapper übernimmt der Entrypoint nur `SSL_CERT_FILE`, und zwar nur, wenn der Bu
 Das betrifft das TLS der stdlib; `requests` nimmt certifi. Unter systemd fiel der Fehler nie auf,
 weil `KillMode=control-group` alle Prozesse der Gruppe trifft.
 
-**Alte Releases entfernen:** Actions → **Prune releases** (`prune-releases.yml`), `keep` = wie viele
+**Ein Release ersetzt das vorige** (Nutzer, 2026-11-07): Der Workflow `Release` entfernt nach
+einem veröffentlichten `latest`-Release alle älteren (Schritt „Remove older releases" in
+`upload-builds`, `scripts/prune-releases.sh`, Tags bleiben). Testläufe (Draft, oder `prerelease` ohne
+`is_latest`) lassen alles stehen. Von Hand: Actions → **Prune releases** (`prune-releases.yml`), `keep` = wie viele
 der neuesten veröffentlichten bleiben, `dry_run` steht per Default an und listet nur. Weg sind
 Release-Seite und Dateien; die **Git-Tags bleiben** (jede Version bleibt aus dem Tag baubar), die
 Docker-Images in ghcr auch. Danach geht `install.sh --version <alter Tag>` nicht mehr. Drafts
