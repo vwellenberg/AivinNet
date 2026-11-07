@@ -20,24 +20,42 @@
              that stopped making sense twice over: the sidebar art is gone, and
              the row already ends in a heart a few elements down, so switching
              it on put two of them in the same bar. -->
-        <RouterLink
-            title="Go to Now Playing"
-            :to="{
-                name: Routes.nowPlaying,
-                params: {
-                    tab: 'home',
-                },
-                replace: true,
-            }"
-            class="np-image lauflicht-rim rounded-sm no-scroll"
-        >
-            <!-- Keyed by the track: a new track is a new image, so the sticker
-                 slaps down again instead of the cover swapping in place. -->
-            <img :key="queue.currenttrackhash" :src="paths.images.thumb.small + queue.currenttrack?.image" alt="" />
-            <div class="expandicon">
-                <ExpandSvg />
-            </div>
-        </RouterLink>
+        <!-- The wrapper anchors the mode badge. It sits OUTSIDE the cover link:
+             the link is `no-scroll` (overflow hidden) and the badge overhangs its
+             corner, and a tap on the badge must not navigate. -->
+        <div class="np-cover">
+            <RouterLink
+                title="Go to Now Playing"
+                :to="{
+                    name: Routes.nowPlaying,
+                    params: {
+                        tab: 'home',
+                    },
+                    replace: true,
+                }"
+                class="np-image lauflicht-rim rounded-sm no-scroll"
+            >
+                <!-- Keyed by the track: a new track is a new image, so the sticker
+                     slaps down again instead of the cover swapping in place. -->
+                <img :key="queue.currenttrackhash" :src="paths.images.thumb.small + queue.currenttrack?.image" alt="" />
+                <div class="expandicon">
+                    <ExpandSvg />
+                </div>
+            </RouterLink>
+            <!-- Phone bar only: shuffle and repeat-one live in Now Playing here,
+                 so the bar shows them while one is unusual. Repeat "all" (the
+                 default) and "none" are not shown — a badge on every bar would be
+                 permanent. Tapping it turns the unusual modes back off. -->
+            <button
+                v-if="phoneBar && modeBadgeLabel"
+                class="mode-badge"
+                :aria-label="modeBadgeLabel"
+                @click.prevent="leaveUnusualModes"
+            >
+                <ShuffleSvg v-if="settings.shuffle" />
+                <RepeatOneSvg v-if="settings.repeat === 'one'" />
+            </button>
+        </div>
         <div class="track-info">
             <div v-tooltip class="title">
                 <span class="ellip">
@@ -111,6 +129,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { paths } from '@/config'
 import { Routes } from '@/router'
 
@@ -119,6 +138,8 @@ import useQStore from '@/stores/queue'
 import useSettingsStore from '@/stores/settings'
 
 import ExpandSvg from '@/assets/icons/expand.svg'
+import RepeatOneSvg from '@/assets/icons/repeat-one.svg'
+import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import VolumeMuteSvg from '@/assets/icons/volume-mute.svg'
 import ArtistName from '@/components/shared/ArtistName.vue'
 import DevicesButton from '../DeviceSync/DevicesButton.vue'
@@ -131,6 +152,25 @@ import ExplicitIcon from '@/assets/icons/explicit.svg'
 
 const queue = useQStore()
 const settings = useSettingsStore()
+
+// The badge says which UNUSUAL mode is on, and only that. Shuffle and
+// repeat-one are off the bar on a phone (they live in Now Playing), so this is
+// the one place the bar can show them.
+const modeBadgeLabel = computed(() => {
+    const shuffle = settings.shuffle
+    const one = settings.repeat === 'one'
+    if (!shuffle && !one) return null
+    if (shuffle && one) return 'Shuffle and repeat one on — turn off'
+    return shuffle ? 'Shuffle on — turn off' : 'Repeat one on — turn off'
+})
+
+// Back to the defaults in one tap. Shuffle is per device, so it is flipped
+// locally; repeat goes through the store, which routes it through the group
+// when joined.
+function leaveUnusualModes() {
+    if (settings.shuffle) queue.toggleShuffle()
+    if (settings.repeat === 'one') settings.setRepeatMode('all')
+}
 
 /**
  * This bar is the PHONE bar: cover, title, transport, and one of unmute /
@@ -324,6 +364,55 @@ defineEmits<{
         // ever REPORTED from a phone. The `margin-right` that stood here too —
         // $medium, dropping to $small on the narrowest phones — was the cover's
         // private half of a spacing rule the row now owns as a `gap`.)
+    }
+
+    // The cover's wrapper: the anchor the mode badge overhangs. It owns the
+    // cover's box (height and no-shrink moved up from `.np-image`, which is now
+    // one flex child of it), and it is not clipped — the badge sits outside the
+    // `no-scroll` link.
+    .np-cover {
+        position: relative;
+        display: flex;
+        flex-shrink: 0;
+        height: 3rem;
+    }
+
+    // Phone bar only, shown while shuffle or repeat-one is on (see the
+    // template). A filled "on" box with the ink frame drawn on it, not a
+    // `btn-toggle-on`: that role is 44px tall and would take the bar's row, and
+    // the badge has to read as a tag on the cover. Its 3px rest shadow comes
+    // from `candy-raised`, so it is raised the same way as every other plate.
+    // Both glyphs on: one pill, the same box with two glyphs.
+    .mode-badge {
+        position: absolute;
+        right: -6px;
+        bottom: -6px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: $mode-badge-gap;
+        height: 22px;
+        padding: 0 4px;
+        // Ink in both themes: the yellow is the same in both, so its ink is too.
+        border: $mem-ring-w solid $mem-ink;
+        border-radius: 6px;
+        background-color: var(--look-on-fill, #{$mem-yellow});
+        color: var(--look-on-glyph, #{$mem-ink});
+        @include candy-raised(3px, 3px);
+
+        // The hit area is 44px; the visible box stays 22px. An invisible
+        // extension of the button, so the tap target does not shrink the badge.
+        &::after {
+            content: '';
+            position: absolute;
+            inset: -11px;
+        }
+
+        svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
     }
 
     // (The cover-replacement heart used to be squared to 3rem here, with a

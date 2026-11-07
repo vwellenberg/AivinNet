@@ -104,6 +104,16 @@ Zwei Fallen beim Ersetzen eines Legacy-Glyphs:
 - **Ein Glyph kann anderswo als roher Pfad einkopiert sein.** `FolderCard.vue` trug eine private
   Kopie von `folder-1.svg` im Template, die keine Icon-Änderung je erreicht hätte.
 
+## Der Phone-Bar-Badge zeigt die unüblichen Modi (Shuffle, Repeat one)
+
+Auf dem Handy liegen Shuffle und Repeat nur in der Now-Playing-Ansicht, die Player-Leiste zeigt
+sie nicht. Ohne Anzeige sieht man nicht, dass einer der beiden Modi läuft. Deshalb trägt der
+Cover der Phone-Leiste ein gelbes Badge (`BottomBar/Left.vue`, `.mode-badge`), solange Shuffle
+**oder** Repeat „one" an ist; ein Tippen schaltet beide zurück. Repeat „all" ist der Standard und
+bekommt **kein** Badge (sonst trüge es jeder dauerhaft), Repeat „none" auch keines. Am Desktop gibt
+es das Badge nicht, dort stehen Shuffle und Repeat in der Mitte der Leiste. Das Badge sitzt
+außerhalb des Cover-Links, damit ein Tippen nicht navigiert.
+
 ## ⚠️ Ein Akzent auf einer gefüllten Zeile ist eine Messung, keine Wahl
 
 Die laufende Track-Zeile ist `$mem-yellow` (`.songlist-item.current`, dazu

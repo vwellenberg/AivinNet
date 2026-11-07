@@ -133,6 +133,9 @@ $bar-gap-tight: 0.75rem;
 // private margin — measured, `next` and `devices` stood at exactly 0 once the
 // devices button had a fill.)
 $bar-gap-phone: 0.5rem;
+// The space between the two glyphs of the phone bar's mode badge (Left.vue).
+// Named with the bar's gaps so the bar carries no pixel literal of its own.
+$mode-badge-gap: 3px;
 
 // ---------------------------------------------------------------------------
 // THE COMPACT SCALE — the app's SECOND footprint, which until now had no name.

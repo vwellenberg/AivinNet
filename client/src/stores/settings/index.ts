@@ -233,28 +233,23 @@ export default defineStore('settings', {
         },
         // repeat 👇
         toggleRepeatMode() {
-            // Repeat is shared across the group: broadcast a set_repeat command
-            // and let the mirrored state flip it locally (volume/mute stay local).
+            const next = this.repeat == 'all' ? 'one' : this.repeat == 'one' ? 'none' : 'all'
+            this.setRepeatMode(next)
+        },
+        /**
+         * Set repeat to an explicit mode. Repeat is shared across the group:
+         * joined, it broadcasts a set_repeat command and the mirrored state
+         * writes it back (volume/mute stay local). Mirroring writes `repeat`
+         * directly, so it never comes through here and never re-broadcasts.
+         */
+        setRepeatMode(mode: 'all' | 'one' | 'none') {
             const ds = useDeviceSync()
             if (ds.joined && !ds.applying) {
-                const next = this.repeat == 'all' ? 'one' : this.repeat == 'one' ? 'none' : 'all'
-                ds.intercept('toggleRepeat', next)
+                ds.intercept('toggleRepeat', mode)
                 return
             }
 
-            if (this.repeat == 'all') {
-                this.repeat = 'one'
-                return
-            }
-
-            if (this.repeat == 'one') {
-                this.repeat = 'none'
-                return
-            }
-
-            if (this.repeat == 'none') {
-                this.repeat = 'all'
-            }
+            this.repeat = mode
         },
         setRootDirs(dirs: string[]) {
             this.root_dirs = dirs
