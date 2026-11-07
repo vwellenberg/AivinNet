@@ -111,32 +111,39 @@ defineEmits<{
         // — colour them through `color`, never `fill`, or the stroked ones
         // (shuffle, repeat, lyrics) get flooded solid.
         color: $candy-text;
-    }
 
-    // Dimmed through the colour, not `opacity` on the glyph: opacity faded the
-    // glyph's cover too, and the hatch showed through the grey icon.
-    button.aux.aux-off {
-        color: mem-alpha($candy-text, 0.45);
-    }
-
-    // The hover fill is dark in the light theme, so the dimmed glyph takes the
-    // hover text colour at the same strength. Gated like the role's own hover
-    // (Global/_buttons.scss): ungated, a tap latched this half alone — paper
-    // text on the resting white plate, a glyph that vanished.
-    @media (hover: hover) {
-        button.aux.aux-off:hover {
-            color: mem-alpha(var(--mem-hover-text), 0.45);
+        // The state rules are NESTED here, not written beside this rule. Beside
+        // it they were `button.aux…` at 0,3,1, and this plate is 0,4,1: the
+        // plate won on every toggle, so ON and OFF both stood as the white
+        // plate (measured on the iPhone profile). Nested, they repeat the
+        // plate's selector and add their own classes, so they out-rank it.
+        //
+        // Dimmed through the colour, not `opacity` on the glyph: opacity faded
+        // the glyph's cover too, and the hatch showed through the grey icon.
+        &.aux.aux-off {
+            color: mem-alpha($candy-text, 0.45);
         }
-    }
 
-    // Active shuffle / repeat wear the yellow memphis box, mirroring the
-    // desktop transport (LeftSidebar/NP/HotKeys.vue). The footprint is already
-    // reserved by the plated role above, so switching on changes colour only —
-    // it used to also resize the button from 3rem to 2.5rem, which shoved its
-    // neighbours on every toggle. Hover comes with the role (#422); the copy
-    // here was still blush, the old pointer colour.
-    button.aux:not(.aux-off) {
-        @include btn-toggle-on;
+        // The hover fill is dark in the light theme, so the dimmed glyph takes
+        // the hover text colour at the same strength. Gated like the role's own
+        // hover (Global/_buttons.scss): ungated, a tap latched this half alone —
+        // paper text on the resting white plate, a glyph that vanished.
+        @media (hover: hover) {
+            &.aux.aux-off:hover {
+                color: mem-alpha(var(--mem-hover-text), 0.45);
+            }
+        }
+
+        // Active shuffle / repeat wear the yellow memphis box, mirroring the
+        // desktop transport (LeftSidebar/NP/HotKeys.vue). The footprint is
+        // already reserved by the plated role above, so switching on changes
+        // colour only — it used to also resize the button from 3rem to 2.5rem,
+        // which shoved its neighbours on every toggle. Hover comes with the
+        // role (#422); the copy here was still blush, the old pointer colour.
+        // `btn-toggle-on` also clears the plate's rest hatch (background-image).
+        &.aux:not(.aux-off) {
+            @include btn-toggle-on;
+        }
     }
 }
 </style>
