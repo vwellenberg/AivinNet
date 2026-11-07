@@ -73,11 +73,27 @@ Silicon).
 
 ## What's new in this release
 
+Shuffle and repeat on the phone, on top of 2026.11.4.
+
+- **You can see shuffle and repeat on the phone again.** In the Now Playing
+  view, Shuffle and Repeat now turn yellow when they are on; before, on and off
+  looked the same there.
+- **A badge on the cover in the phone's player bar** shows when Shuffle or
+  "Repeat one" is on. Tap it to switch them off, without opening Now Playing.
+- **"Repeat one" ends with a new album or playlist.** Starting something new
+  goes back to repeating the whole list, so a new album no longer plays its
+  first song over and over. Shuffle stays as you set it.
+
+<details>
+<summary>What v2026.11.4 brought</summary>
+
 A small fix on top of 2026.11.3.
 
 - **iPhone: searching from the title brings up the keyboard.** Tapping "Home"
   at the top opens the search, and now the keyboard comes with it instead of
   just the caret.
+
+</details>
 
 <details>
 <summary>What v2026.11.3 brought</summary>
