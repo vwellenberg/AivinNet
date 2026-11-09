@@ -16,6 +16,7 @@ Each of these has failed silently once, in a way CI could not see:
   ``TestAppimageWorkflow``.
 """
 
+import ast
 import re
 import tomllib
 import zlib
@@ -547,3 +548,48 @@ class TestPinnedBuildInputs:
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         uv_entry = config.split("- package-ecosystem: uv", 1)[1].split("- package-ecosystem:", 1)[0]
         assert "versioning-strategy: increase" in uv_entry
+
+
+class TestFrozenLauncher:
+    """The single-file binary opens the client.zip that the spec bundles (v2026.10.5+).
+
+    cc21b069 moved the spec's client.zip into the package (`aivinnet/client.zip`,
+    the path `AssetHandler.bundled_zip_path` reads). `run.py` kept opening the
+    bundle root, so every binary from v2026.10.5 to v2026.11.6 died before the
+    server started, and the release smoke test only ran the AppImage, which
+    takes its client through `--client`. Three guards keep the files in step.
+    """
+
+    def test_run_py_opens_the_packaged_client_zip(self):
+        source = (REPO_ROOT / "run.py").read_text(encoding="utf-8")
+        assert '_MEIPASS + "/client.zip"' not in source
+        opened = [
+            node
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "ZipFile"
+        ]
+        assert len(opened) == 1, "exactly one ZipFile call in the launcher"
+        path_parts = {
+            node.value
+            for node in ast.walk(opened[0].args[0])
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
+        assert {"aivinnet", "client.zip"} <= path_parts, "must be _MEIPASS / aivinnet / client.zip"
+
+    def test_the_spec_does_not_add_a_root_client_zip(self):
+        spec = (REPO_ROOT / "aivinnet.spec").read_text(encoding="utf-8")
+        # Comments may name the old entry (the spec explains why it is gone).
+        code = "\n".join(line for line in spec.splitlines() if not line.lstrip().startswith("#"))
+        assert not re.search(r"""['"]client\.zip['"]\s*,\s*['"]\.['"]""", code), "root copy from the spec"
+        assert "client.zip" in _package_data_globs(), "the package data must carry it instead"
+
+    def test_the_release_starts_every_binary(self):
+        workflow = _release_workflow()
+        step = re.search(
+            r"- name: Smoke test the binary\n(.*?)(?=\n {6}- name:|\n {4}\S|\Z)",
+            workflow,
+            re.DOTALL,
+        )
+        assert step, "build.yml needs a step named 'Smoke test the binary'"
+        assert "--version" in step.group(1)
+        assert workflow.index("Smoke test the binary") > workflow.index("Build with Pyinstaller on")

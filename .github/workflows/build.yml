@@ -464,16 +464,6 @@ jobs:
           name: client
           path: client
 
-      - name: Compress client (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          zip -r client.zip client
-
-      - name: Compress client (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Compress-Archive -Path client -DestinationPath client.zip -Force
-
       - name: Download wheel artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -522,6 +512,13 @@ jobs:
 
       - name: Build with Pyinstaller on ${{ matrix.os }}
         run: pyinstaller aivinnet.spec
+
+      # The binary unpacks its client before anything else (run.py), so a start
+      # with --version is enough to catch a missing client.zip. v2026.10.5 to
+      # v2026.11.6 shipped binaries that died right there, and nothing ran them.
+      - name: Smoke test the binary
+        shell: bash
+        run: ./dist/aivinnet_* --version
 
       - name: upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
