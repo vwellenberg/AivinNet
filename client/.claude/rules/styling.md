@@ -2216,6 +2216,12 @@ negative Margins wieder heraus, damit das Bild nicht wandert (`NowPlaying/Header
 `SongItem/TrackTitle.vue`). Ausnahme: das Mini-Cover der Player-Leiste — dort trägt der Link
 selbst den Offset-Schatten, ein Polster risse eine Lücke zwischen Rahmen und Schatten.
 
+**Eine Stärke für alle drei.** Das Mini-Cover lief bis 2026-11-09 mit halbem Kometen
+(`--lauflicht-scale: 0.5`, „blendet auf 48 px"). Seit die Kometen im Gleichtakt laufen, las
+sich das als schwache Kopie desselben Lichts (Nutzer: „links unten etwas schwach im Vergleich").
+Die Stärke setzt allein die Einstellung; ein Wirt schaltet höchstens den Schein (`::after`) ab,
+wenn er ihn abschneiden würde. Test: `utils/__tests__/lauflicht.test.ts`.
+
 Ein `<img>` hat keine Pseudo-Elemente: Wer das Lauflicht an ein Bild hängt, braucht einen Wrapper,
 und eine Neigung des Bildes gehört dann auf den Wrapper (sonst steht der Ring gerade um ein
 schiefes Cover).

@@ -310,12 +310,11 @@ defineEmits<{
             display: none;
         }
 
-        // The comet is the only light on this 48px cover, and at full strength
-        // it reads as glare. Half of whatever level is chosen keeps the ring
-        // saying "playing" (a factor, so the level setting still decides the base).
-        &.lauflicht-rim {
-            --lauflicht-scale: 0.5;
-        }
+        // The comet runs at the level's full strength, like on the big cover
+        // and the playing row. It used to be halved here (`--lauflicht-scale:
+        // 0.5`, "glare on a 48px cover"); since the three run in step
+        // (syncLauflicht), the halved one read as the weak copy of the same
+        // light (user, 2026-11-09). The level setting still sets the strength.
 
         img {
             height: 100%;
