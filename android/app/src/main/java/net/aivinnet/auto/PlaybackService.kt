@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -68,10 +69,15 @@ class PlaybackService : MediaLibraryService() {
         api = AivinApi.create(this)
         browseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        // Same bearer and refresh logic as the API calls: the player streams through it.
-        val dataSourceFactory = OkHttpDataSource.Factory(api.authedClient)
+        // Downloaded tracks play from disk, the rest streams. The cache is read-only here, and that is
+        // deliberate: it never evicts, so a stream written into it would grow with every track played.
+        // Only the download service writes it. Streams keep the bearer and refresh logic of the API calls.
+        val cacheFactory = CacheDataSource.Factory()
+            .setCache(OfflineEngine.get(this).cache)
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(api.authedClient))
+            .setCacheWriteDataSinkFactory(null)
         player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(cacheFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -314,9 +320,14 @@ class PlaybackService : MediaLibraryService() {
         .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
         .build()
 
+    /**
+     * The cache key is the trackhash, so a download made under another filepath (or another server
+     * address) is still found. Downloads use the same key, see [OfflineEngine.request].
+     */
     private fun playable(playlistId: String, track: TrackInfo, base: String): MediaItem = MediaItem.Builder()
         .setMediaId(MediaIds.track(playlistId, track.trackhash))
         .setUri(StreamUrls.build(base, track.trackhash, track.filepath))
+        .setCustomCacheKey(track.trackhash)
         .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
         .build()
 

@@ -42,7 +42,12 @@ android {
 dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    implementation(libs.media3.datasource)
     implementation(libs.media3.datasource.okhttp)
+    // StandaloneDatabaseProvider: the cache index and the download index live in one SQLite file.
+    implementation(libs.media3.database)
+    // Periodic offline sync (OfflineSyncWorker). Background work survives the app being closed.
+    implementation(libs.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)

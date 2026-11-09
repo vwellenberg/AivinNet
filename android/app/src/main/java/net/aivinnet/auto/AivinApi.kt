@@ -32,8 +32,16 @@ internal class AuthManager(
     private val store: SessionStore,
     private val plain: OkHttpClient,
 ) {
-    @Synchronized
-    fun refreshAfter(usedAccessToken: String): Boolean {
+    /**
+     * Each [AivinApi] builds its own AuthManager, and the downloads add more callers. A refresh
+     * token can be rotated by the server, so two refreshes running at once could revoke each other
+     * and sign the user out. The lock is therefore per process, not per instance.
+     */
+    fun refreshAfter(usedAccessToken: String): Boolean = synchronized(REFRESH_LOCK) {
+        refreshLocked(usedAccessToken)
+    }
+
+    private fun refreshLocked(usedAccessToken: String): Boolean {
         val current = store.accessToken
         if (current != null && current != usedAccessToken) return true
 
@@ -65,6 +73,10 @@ internal class AuthManager(
             store.saveTokens(tokens.accessToken, tokens.refreshToken)
             return true
         }
+    }
+
+    private companion object {
+        val REFRESH_LOCK = Any()
     }
 }
 
