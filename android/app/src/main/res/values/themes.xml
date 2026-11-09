@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AivinNet" parent="Theme.AppCompat.DayNight.DarkActionBar" />
+    <!--
+        No action bar: the window is edge-to-edge (forced from Android 15 on), and an AppCompat
+        action bar does not pad the content below it by the status bar. The layout draws its own
+        title and MainActivity applies the insets.
+    -->
+    <style name="Theme.AivinNet" parent="Theme.AppCompat.DayNight.NoActionBar" />
 </resources>
