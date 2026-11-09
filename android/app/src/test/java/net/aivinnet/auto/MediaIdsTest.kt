@@ -41,6 +41,20 @@ class MediaIdsTest {
     }
 
     @Test
+    fun `parses the offline folder and an offline playlist`() {
+        assertEquals(MediaRef.Offline, MediaIds.parse("offline"))
+        assertEquals("off:7", MediaIds.offlinePlaylist("7"))
+        assertEquals(MediaRef.OfflinePlaylist("7"), MediaIds.parse("off:7"))
+        assertEquals(MediaRef.OfflinePlaylist("mix3"), MediaIds.parse("off:mix3"))
+    }
+
+    @Test
+    fun `an offline playlist id with a colon or no id is unknown`() {
+        assertEquals(MediaRef.Unknown, MediaIds.parse("off:"))
+        assertEquals(MediaRef.Unknown, MediaIds.parse("off:7:8"))
+    }
+
+    @Test
     fun `rejects malformed ids`() {
         assertEquals(MediaRef.Unknown, MediaIds.parse(null))
         assertEquals(MediaRef.Unknown, MediaIds.parse(""))

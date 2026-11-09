@@ -13,6 +13,7 @@
     <string name="status_logging_in">Anmelden …</string>
     <string name="browse_mixes">Mixes</string>
     <string name="browse_playlists">Playlists</string>
+    <string name="browse_offline">Offline</string>
     <string name="offline_title">Offline</string>
     <string name="offline_hint">Markierte Mixes und Playlists laden sich über WLAN herunter und bleiben aktuell. Im Auto spielen sie dann auch ohne Netz.</string>
     <string name="offline_status_storage">Speicher: %1$s</string>

@@ -38,7 +38,9 @@ import kotlinx.coroutines.launch
  * The media service Android Auto browses and plays from. The phone UI is only the login screen.
  *
  * Browse tree: root → "mixes" / "playlists" → playlist (`pl:<id>`) → track (`tr:<id>:<hash>`).
- * A chosen track sets the whole playlist as the queue, so next and previous work.
+ * root → "offline" → offline playlist (`off:<id>`) → track: from the snapshots, no network needed.
+ * A chosen track sets the whole playlist as the queue, so next and previous work. Without network,
+ * a playlist resolves to its offline copy, which keeps only the downloaded tracks.
  *
  * Media3's session and library APIs are all marked @UnstableApi. Media3 documents them as the
  * supported surface for media apps, so the marker goes on the class.
@@ -218,9 +220,9 @@ class PlaybackService : MediaLibraryService() {
                 val base = api.requireBaseUrl()
                 // The list the car showed first; if the track is not in it (cache expired and the
                 // mix was refilled meanwhile), one fresh fetch.
-                var detail = playlist(single.playlistId)
+                var detail = playlistOrOffline(single.playlistId, fresh = false)
                 if (detail?.tracks?.none { it.trackhash == single.trackhash } != false) {
-                    detail = playlist(single.playlistId, fresh = true)
+                    detail = playlistOrOffline(single.playlistId, fresh = true)
                 }
                 detail ?: throw AivinException("Playlist nicht gefunden")
                 val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
@@ -239,14 +241,27 @@ class PlaybackService : MediaLibraryService() {
         MediaRef.Root -> listOf(
             folder(MediaIds.MIXES, getString(R.string.browse_mixes)),
             folder(MediaIds.PLAYLISTS, getString(R.string.browse_playlists)),
+            folder(MediaIds.OFFLINE, getString(R.string.browse_offline)),
         )
-        MediaRef.Mixes -> mixes()
-        MediaRef.Playlists -> api.playlists().map { playlistItem(it.id, it.name, it.count) }
+        // No network: the offline copies are listed instead. If there are none, the error stands.
+        MediaRef.Mixes -> try {
+            mixes()
+        } catch (e: IOException) {
+            offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }
+        }
+        MediaRef.Playlists -> try {
+            api.playlists().map { playlistItem(it.id, it.name, it.count) }
+        } catch (e: IOException) {
+            offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }
+        }
         is MediaRef.Playlist -> {
             // Opening a playlist always shows its current state; the tap then reuses this fetch.
-            val detail = playlist(ref.id, fresh = true)
+            val detail = playlistOrOffline(ref.id, fresh = true)
             detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
         }
+        // The offline folder reads only the snapshots and the download index: it works without any network.
+        MediaRef.Offline -> offlineListing { true }
+        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks?.map { trackItem(ref.id, it) } ?: emptyList()
         else -> emptyList()
     }
 
@@ -266,6 +281,34 @@ class PlaybackService : MediaLibraryService() {
         return api.playlist(id).also { playlists.put(id, it) }
     }
 
+    /**
+     * The playlist from the server, or with no network its offline copy. The copy keeps only the
+     * downloaded tracks, the only ones that can play in a dead spot. Without a copy the network
+     * error is rethrown.
+     */
+    private suspend fun playlistOrOffline(id: String, fresh: Boolean): PlaylistDetail? = try {
+        playlist(id, fresh)
+    } catch (e: IOException) {
+        offlineCopy(id) ?: throw e
+    }
+
+    /** The snapshot of an offline playlist reduced to its downloaded tracks; null when it is not offline. */
+    private fun offlineCopy(id: String): PlaylistDetail? {
+        val snapshot = offlineSnapshots()[id] ?: return null
+        return OfflineBrowse.playable(snapshot, offline.completedTrackhashes())
+    }
+
+    /** The snapshots of this account's offline playlists; empty when nobody is signed in. */
+    private fun offlineSnapshots(): Map<String, PlaylistDetail?> {
+        val account = api.store.accountKey ?: return emptyMap()
+        return offline.store.load().snapshots(account)
+    }
+
+    /** The offline playlists that [include] selects and that have something to play, as `off:` items. */
+    private fun offlineListing(include: (String) -> Boolean): List<MediaItem> =
+        OfflineBrowse.listed(offlineSnapshots(), offline.completedTrackhashes(), include)
+            .map { playlistItem(it.id, it.name, it.tracks.size, offline = true) }
+
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {
         val base = api.requireBaseUrl()
@@ -276,7 +319,7 @@ class PlaybackService : MediaLibraryService() {
             val detail = if (details.containsKey(ref.playlistId)) {
                 details[ref.playlistId]
             } else {
-                playlist(ref.playlistId).also { details[ref.playlistId] = it }
+                playlistOrOffline(ref.playlistId, fresh = false).also { details[ref.playlistId] = it }
             }
             val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
             out += playable(ref.playlistId, track, base)
@@ -306,8 +349,8 @@ class PlaybackService : MediaLibraryService() {
         )
         .build()
 
-    private fun playlistItem(id: String, name: String, count: Int): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.playlist(id))
+    private fun playlistItem(id: String, name: String, count: Int, offline: Boolean = false): MediaItem = MediaItem.Builder()
+        .setMediaId(if (offline) MediaIds.offlinePlaylist(id) else MediaIds.playlist(id))
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(name)
