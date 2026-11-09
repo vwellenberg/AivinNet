@@ -73,6 +73,18 @@ Silicon).
 
 ## What's new in this release
 
+A fix for the single-file programs, on top of 2026.11.6.
+
+- **The single-file programs start again.** The downloads for Linux, Windows
+  and macOS (`aivinnet_linux_*`, `aivinnet_windows_*.exe`, `aivinnet_darwin_*`)
+  stopped right at the start since 2026.10.5, because they looked for their web
+  player in the wrong place. The AppImage, the one-line installer and Docker
+  were not affected. Every release now starts each program once before it is
+  published.
+
+<details>
+<summary>What v2026.11.6 brought</summary>
+
 A brighter Lauflicht and a tidier sidebar, on top of 2026.11.5.
 
 - **The Lauflicht runs in step.** The light around the cover in the player bar,
@@ -86,6 +98,8 @@ A brighter Lauflicht and a tidier sidebar, on top of 2026.11.5.
   the playlist pink, a pinned music folder the folder colour, and a playlist
   without a picture its pink, instead of a solid black glyph or a faded icon.
 - **Sidebar thumbnails have a frame** like every other picture in the app.
+
+</details>
 
 <details>
 <summary>What v2026.11.5 brought</summary>
