@@ -1135,12 +1135,16 @@ $sidebar-label-opacity: 0.85;
         // same cover: without one the strokes ran straight through the folder
         // glyph, which read as a broken hatch (reported 2026-10-04).
         //
-        // The cover is the FOLDER pastel, not the row's own fill: on the plain
-        // fill the solid ink glyph was the one black block in a list of
-        // covers and pastel placeholders (user, 2026-11-09). Same rule as the
-        // picture-less rows below (`.sidebar-pl-placeholder.is-folder`), and
-        // the pastel is static, so the glyph is static ink in both themes.
-        @include mem-entity-tint("folder");
+        // The cover is the PLAYLIST pastel, not the row's own fill: on the
+        // plain fill the solid ink glyph was the one black block in a list of
+        // covers and pastel placeholders (user, 2026-11-09).
+        //
+        // Pink, not kraft: a playlist folder holds playlists, so it wears the
+        // playlist colour like a picture-less playlist does. Kraft belongs to
+        // MUSIC folders (the "Folders" nav entry, a pinned directory) — the
+        // first version of this used kraft and the user flagged the mix-up.
+        // The pastel is static, so the glyph is static ink in both themes.
+        @include mem-entity-tint("playlist");
         border-radius: 7px;
         flex-shrink: 0;
         width: $control-dense;
