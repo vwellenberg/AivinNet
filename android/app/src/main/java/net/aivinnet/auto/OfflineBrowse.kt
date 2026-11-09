@@ -21,8 +21,7 @@ object OfflineBrowse {
         completed: Set<String>,
         include: (String) -> Boolean,
     ): List<PlaylistDetail> = snapshots
-        .filter { (id, snapshot) -> snapshot != null && include(id) }
-        .map { (_, snapshot) -> playable(snapshot!!, completed) }
+        .mapNotNull { (id, snapshot) -> snapshot?.takeIf { include(id) }?.let { playable(it, completed) } }
         .filter { it.tracks.isNotEmpty() }
         .sortedBy { it.name.lowercase() }
 }

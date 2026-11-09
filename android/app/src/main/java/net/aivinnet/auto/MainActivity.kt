@@ -218,8 +218,9 @@ class MainActivity : AppCompatActivity() {
             val progress = when {
                 state.offlineIds(account).isEmpty() -> getString(R.string.offline_status_none)
                 wanted.isEmpty() -> getString(R.string.offline_status_pending)
-                else -> getString(
-                    R.string.offline_status_progress,
+                else -> resources.getQuantityString(
+                    R.plurals.offline_status_progress,
+                    wanted.size,
                     wanted.count { it in completed },
                     wanted.size,
                 )
@@ -275,10 +276,10 @@ class MainActivity : AppCompatActivity() {
                 setPadding(0, dp(6), 0, dp(6))
             }
             val label = TextView(this).apply {
-                text = "${candidate.name}\n" + resources.getQuantityString(
-                    R.plurals.track_count,
-                    candidate.count,
-                    candidate.count,
+                text = getString(
+                    R.string.offline_row_label,
+                    candidate.name,
+                    resources.getQuantityString(R.plurals.track_count, candidate.count, candidate.count),
                 )
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }

@@ -4,4 +4,9 @@
         <item quantity="one">%d Titel</item>
         <item quantity="other">%d Titel</item>
     </plurals>
+    <!-- Counted by the total: "1 von 1 Titel", "12 von 40 Titeln". -->
+    <plurals name="offline_status_progress">
+        <item quantity="one">%1$d von %2$d Titel geladen</item>
+        <item quantity="other">%1$d von %2$d Titeln geladen</item>
+    </plurals>
 </resources>

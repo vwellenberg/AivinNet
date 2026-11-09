@@ -1,14 +1,15 @@
 package net.aivinnet.auto
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadCursor
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.scheduler.PlatformScheduler
@@ -67,10 +68,22 @@ class OfflineEngine private constructor(context: Context) {
         )
     }
 
-    /** Trackhashes with a download that is queued, running, paused or done. Failed ones are not held. */
-    fun heldTrackhashes(): Set<String> = trackhashesIn(HELD_STATES)
+    /**
+     * Trackhashes with a download that is queued, running, paused or done. Failed ones are not held,
+     * so the next sync queues them again.
+     */
+    fun heldTrackhashes(): Set<String> = trackhashes(
+        downloads.downloadIndex.getDownloads(
+            Download.STATE_QUEUED,
+            Download.STATE_STOPPED,
+            Download.STATE_DOWNLOADING,
+            Download.STATE_COMPLETED,
+            Download.STATE_RESTARTING,
+        ),
+    )
 
-    fun completedTrackhashes(): Set<String> = trackhashesIn(intArrayOf(Download.STATE_COMPLETED))
+    fun completedTrackhashes(): Set<String> =
+        trackhashes(downloads.downloadIndex.getDownloads(Download.STATE_COMPLETED))
 
     /** Bytes on disk for the completed downloads: the number the phone screen shows. */
     fun storageBytes(): Long = downloads.downloadIndex.getDownloads(Download.STATE_COMPLETED).use { cursor ->
@@ -79,12 +92,11 @@ class OfflineEngine private constructor(context: Context) {
         total
     }
 
-    private fun trackhashesIn(states: IntArray): Set<String> =
-        downloads.downloadIndex.getDownloads(*states).use { cursor ->
-            val out = HashSet<String>()
-            while (cursor.moveToNext()) out += cursor.download.request.id
-            out
-        }
+    private fun trackhashes(cursor: DownloadCursor): Set<String> = cursor.use {
+        val out = HashSet<String>()
+        while (it.moveToNext()) out += it.download.request.id
+        out
+    }
 
     /** Sends [play] now. If the server cannot take it, it waits in the outbox for the next flush. */
     suspend fun recordScrobble(api: AivinApi, play: ScrobblePlay) {
@@ -107,14 +119,6 @@ class OfflineEngine private constructor(context: Context) {
         /** Used by [PlatformScheduler] for the job that restarts downloads when requirements are met again. */
         const val SCHEDULER_JOB_ID = 747
 
-        private val HELD_STATES = intArrayOf(
-            Download.STATE_QUEUED,
-            Download.STATE_STOPPED,
-            Download.STATE_DOWNLOADING,
-            Download.STATE_COMPLETED,
-            Download.STATE_RESTARTING,
-        )
-
         @Volatile
         private var instance: OfflineEngine? = null
 
@@ -125,7 +129,7 @@ class OfflineEngine private constructor(context: Context) {
 
         /** The download request for one track. The trackhash is the id and the cache key, so the filepath never matters. */
         fun request(trackhash: String, streamUrl: String): DownloadRequest =
-            DownloadRequest.Builder(trackhash, Uri.parse(streamUrl))
+            DownloadRequest.Builder(trackhash, streamUrl.toUri())
                 .setCustomCacheKey(trackhash)
                 .build()
 

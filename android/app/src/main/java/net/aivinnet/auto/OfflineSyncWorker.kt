@@ -1,6 +1,7 @@
 package net.aivinnet.auto
 
 import android.content.Context
+import androidx.media3.common.util.UnstableApi
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -14,6 +15,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** Runs [OfflineSync] in the background, every 12 hours and when the user asks for it. */
+@UnstableApi
 class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {

@@ -1,6 +1,7 @@
 package net.aivinnet.auto
 
 import android.content.Context
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.offline.DownloadService
 import java.io.IOException
 import kotlinx.coroutines.sync.withLock
@@ -12,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
  * snapshot, so a dead spot during a sync costs nothing. Then downloads are started and removed to
  * match all snapshots of all accounts (see [OfflinePlan]). Finally the scrobble outbox is flushed.
  */
+@UnstableApi
 class OfflineSync(
     private val context: Context,
     private val api: AivinApi,
