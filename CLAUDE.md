@@ -348,6 +348,12 @@ beide AppImage-Jobs des ersten Release-Versuchs starben. Details:
 `.claude/rules/packaging-release.md` (lädt beim Anfassen von `install.sh`, `appimage/**`, den
 Workflows oder `settings.py`).
 
+## Android Auto (Prototyp, `android/`)
+
+Eigene native App (`net.aivinnet.auto`, Gradle, Media3): Anmeldung auf dem Telefon, Browse-Baum und
+Wiedergabe für Android Auto, Scrobbles aus dem Player. Bauen, Sideload und Auto-Entwicklermodus:
+[android/README.md](android/README.md). Eigener CI-Job `Android` (nicht Pflicht, nur bei Änderungen in `android/`).
+
 ## Empfehlungen / Home
 
 **Empfehlungen rechnet die App selbst, ohne jeden Dienst** (#138): aus der lokalen Hörhistorie
