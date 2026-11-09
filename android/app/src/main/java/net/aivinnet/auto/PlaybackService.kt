@@ -60,6 +60,9 @@ class PlaybackService : MediaLibraryService() {
 
     private val scrobbler = Scrobbler()
 
+    /** Playlists as last shown in the car, so a tap plays exactly that list. */
+    private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
+
     override fun onCreate() {
         super.onCreate()
         api = AivinApi.create(this)
@@ -108,29 +111,35 @@ class PlaybackService : MediaLibraryService() {
         /**
          * The service is exported (Android Auto must bind to it), so any app on the phone can
          * connect. Only trusted callers may browse the library: the system (SystemUI, media
-         * controls), Android Auto and this app. Everyone else — including Bluetooth/AVRCP, which
-         * arrives as a legacy controller — gets the player commands only, so play/pause/next
-         * from the steering wheel keep working without exposing the library.
+         * controls), Android Auto and this app. Everyone else — including legacy controllers
+         * such as Bluetooth/AVRCP on older Android — gets the full player commands but no
+         * session/library commands, so play/pause/next keep working without exposing the library.
+         *
+         * ⚠️ Commands are set explicitly on purpose. `AcceptedResultBuilder(session, controller)`
+         * hands every controller that is not [MediaSession.ControllerInfo.isTrusted] (system or
+         * MEDIA_CONTENT_CONTROL) Media3's *untrusted* defaults, and those are read-only: Android
+         * Auto would then see the tree but could not start a track, and
+         * `DEFAULT_UNTRUSTED_PLAYER_COMMANDS` cannot even pause (checked in Media3 1.11.1).
          */
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            val trusted = ControllerTrust.mayBrowse(
+            val mayBrowse = ControllerTrust.mayBrowse(
                 packageName = controller.packageName,
                 packageVerified = controller.isPackageNameVerified,
                 systemTrusted = controller.isTrusted,
                 ownPackage = packageName,
             )
-            if (trusted) {
-                return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
+            val sessionCommands = if (mayBrowse) {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+            } else {
+                Log.i(TAG, "Player-only connection for ${controller.packageName}")
+                SessionCommands.EMPTY
             }
-            Log.i(TAG, "Player-only connection for ${controller.packageName}")
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(SessionCommands.EMPTY)
-                .setAvailablePlayerCommands(
-                    MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_PLAYER_COMMANDS,
-                )
+                .setAvailableSessionCommands(sessionCommands)
+                .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 .build()
         }
 
@@ -158,7 +167,7 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
             browseScope.future<LibraryResult<ImmutableList<MediaItem>>> {
                 try {
-                    LibraryResult.ofItemList(children(parentId), params)
+                    LibraryResult.ofItemList(Paging.slice(children(parentId), page, pageSize), params)
                 } catch (e: Exception) {
                     errorResult(e, params)
                 }
@@ -195,9 +204,14 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = browseScope.future {
             val single = mediaItems.singleOrNull()?.let { MediaIds.parse(it.mediaId) } as? MediaRef.Track
             if (single != null) {
-                val detail = api.playlist(single.playlistId)
-                    ?: throw AivinException("Playlist nicht gefunden")
                 val base = api.requireBaseUrl()
+                // The list the car showed first; if the track is not in it (cache expired and the
+                // mix was refilled meanwhile), one fresh fetch.
+                var detail = playlist(single.playlistId)
+                if (detail?.tracks?.none { it.trackhash == single.trackhash } != false) {
+                    detail = playlist(single.playlistId, fresh = true)
+                }
+                detail ?: throw AivinException("Playlist nicht gefunden")
                 val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
                 if (start < 0) throw AivinException("Titel nicht in der Playlist")
                 val queue = detail.tracks.map { playable(detail.id, it, base) }
@@ -218,7 +232,8 @@ class PlaybackService : MediaLibraryService() {
         MediaRef.Mixes -> mixes()
         MediaRef.Playlists -> api.playlists().map { playlistItem(it.id, it.name, it.count) }
         is MediaRef.Playlist -> {
-            val detail = api.playlist(ref.id)
+            // Opening a playlist always shows its current state; the tap then reuses this fetch.
+            val detail = playlist(ref.id, fresh = true)
             detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
         }
         else -> emptyList()
@@ -227,11 +242,17 @@ class PlaybackService : MediaLibraryService() {
     /** Only the mixes the user actually has. A mix answers 404 or no tracks when it is missing. */
     private suspend fun mixes(): List<MediaItem> = coroutineScope {
         MediaIds.MIX_IDS
-            .map { id -> async { api.playlist(id) } }
+            .map { id -> async { playlist(id, fresh = true) } }
             .awaitAll()
             .filterNotNull()
             .filter { it.tracks.isNotEmpty() }
             .map { playlistItem(it.id, it.name, it.tracks.size) }
+    }
+
+    /** A playlist from the cache, or fetched (and cached) when [fresh] or not cached. */
+    private suspend fun playlist(id: String, fresh: Boolean = false): PlaylistDetail? {
+        if (!fresh) playlists.get(id)?.let { return it.detail }
+        return api.playlist(id).also { playlists.put(id, it) }
     }
 
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
@@ -244,7 +265,7 @@ class PlaybackService : MediaLibraryService() {
             val detail = if (details.containsKey(ref.playlistId)) {
                 details[ref.playlistId]
             } else {
-                api.playlist(ref.playlistId).also { details[ref.playlistId] = it }
+                playlist(ref.playlistId).also { details[ref.playlistId] = it }
             }
             val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
             out += playable(ref.playlistId, track, base)
@@ -338,10 +359,12 @@ class PlaybackService : MediaLibraryService() {
 
         /** Sends the listened time of the current track, if it reaches the minimum. Never blocks. */
         fun flush() {
-            val track = current ?: return
+            // Read and reset first, even without a track: time timed while no track was set
+            // must not be credited to the next one.
             val listened = timer.listenedMs(SystemClock.elapsedRealtime())
             timer.reset()
             if (player.isPlaying) timer.onPlaying(SystemClock.elapsedRealtime())
+            val track = current ?: return
 
             val seconds = ScrobbleRules.seconds(listened)
             if (!ScrobbleRules.shouldSend(seconds)) return
@@ -353,9 +376,11 @@ class PlaybackService : MediaLibraryService() {
                 source = "pl:${track.playlistId}",
             )
             scrobbleScope.launch {
+                // Any exception: an uncaught one here would kill the service mid-drive. A lost play
+                // is the lesser harm; buffering plays for dead spots comes with offline (#747).
                 try {
                     api.logPlay(play)
-                } catch (e: IOException) {
+                } catch (e: Exception) {
                     Log.w(TAG, "Scrobble failed", e)
                 }
             }

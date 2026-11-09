@@ -75,7 +75,13 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val store = api.store
         binding.statusText.text = if (store.isLoggedIn) {
-            getString(R.string.status_logged_in, store.username.orEmpty())
+            val status = getString(R.string.status_logged_in, store.username.orEmpty())
+            val base = store.baseUrl.orEmpty()
+            if (Transport.isUnencryptedRemote(base)) {
+                status + "\n\n" + getString(R.string.warning_unencrypted)
+            } else {
+                status
+            }
         } else {
             getString(R.string.status_logged_out)
         }

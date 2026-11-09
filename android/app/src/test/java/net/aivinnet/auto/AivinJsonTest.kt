@@ -26,7 +26,7 @@ class AivinJsonTest {
 
     @Test
     fun `login without tokens fails loudly`() {
-        assertThrows(org.json.JSONException::class.java) {
+        assertThrows(AivinException::class.java) {
             AivinJson.parseLogin("""{"msg":"User not found"}""")
         }
     }

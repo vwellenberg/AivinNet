@@ -13,4 +13,5 @@
     <string name="status_logging_in">Anmelden …</string>
     <string name="browse_mixes">Mixes</string>
     <string name="browse_playlists">Playlists</string>
+    <string name="warning_unencrypted">⚠️ Unverschlüsselt: Passwort und Anmeldung gehen per http über das Internet. Besser eine https-Adresse oder ein VPN verwenden.</string>
 </resources>

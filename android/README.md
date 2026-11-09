@@ -66,6 +66,17 @@ möglich“ erscheint, auf dem Telefon neu anmelden.
 - **Wer die Bibliothek durchblättern darf** (`ControllerTrust.kt`): Der Dienst ist exportiert,
   damit Android Auto ihn binden kann — also kann sich jede App verbinden. Blättern dürfen nur das
   System, Android Auto (Paketname gegen die UID geprüft) und die App selbst; alle anderen
-  (auch Bluetooth/AVRCP) bekommen nur Play/Pause/Weiter.
+  (auch Bluetooth/AVRCP) bekommen nur Play/Pause/Weiter. ⚠️ Die Befehle stehen dort **explizit**:
+  `AcceptedResultBuilder(session, controller)` gibt jedem Controller ohne System-Vertrauen
+  Media3s *untrusted*-Vorgaben, und die sind nur lesend — Android Auto sähe den Baum, könnte
+  aber nichts starten, und nicht einmal Pause ginge (geprüft im Quelltext von Media3 1.11.1).
+- **Playlist-Cache** (`BrowseSupport.kt`, 10 min): Ein Tipp im Auto spielt genau die Liste, die
+  angezeigt wurde. Mixes sind Fächer, die der Server neu befüllt — ohne Cache fände der Tipp den
+  Titel nach einem Neuaufbau nicht mehr. Browse-Antworten sind auf 500 Einträge gekappt (Binder-
+  Limit), die Warteschlange enthält trotzdem die ganze Playlist.
+- **Unverschlüsselt:** `http://` zu einer Adresse außerhalb von LAN/VPN zeigt nach der Anmeldung
+  eine Warnung (`Transport` in `Urls.kt`) — im Mobilnetz gingen Passwort und Tokens im Klartext.
+- **Offen:** Scrobbles aus Funklöchern gehen noch verloren (Puffer kommt mit Offline, #747);
+  `gradle-wrapper.properties` hat noch keine `distributionSha256Sum`.
 - Cleartext-HTTP ist erlaubt (`res/xml/network_security_config.xml`), weil die Heimserver im LAN
   ohne TLS laufen.
