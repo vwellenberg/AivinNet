@@ -2,9 +2,12 @@ package net.aivinnet.auto
 
 import android.content.Context
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Brings the offline playlists up to date and makes the disk match them.
@@ -26,6 +29,11 @@ class OfflineSync(
         val failed: Int = 0,
         val queued: Int = 0,
         val removed: Int = 0,
+        /**
+         * The download service could not be started (the app is in the background) and the
+         * manager got the work directly: the caller must keep the process alive until it is idle.
+         */
+        val needsKeepAlive: Boolean = false,
     )
 
     suspend fun run(): Report = engine.syncLock.withLock {
@@ -54,16 +62,10 @@ class OfflineSync(
         // Another account's offline tracks stay as they are until that account syncs again.
         val currentTracks = state.snapshots(account).values.filterNotNull().flatMap { it.tracks }
         val byHash = currentTracks.associateBy { it.trackhash }
-        var queued = 0
-        for (hash in diff.toDownload) {
-            val track = byHash[hash] ?: continue
-            val request = OfflineEngine.request(hash, StreamUrls.build(base, hash, track.filepath))
-            DownloadService.sendAddDownload(context, OfflineDownloadService::class.java, request, false)
-            queued++
+        val adds = diff.toDownload.mapNotNull { hash ->
+            byHash[hash]?.let { OfflineEngine.request(hash, StreamUrls.build(base, hash, it.filepath)) }
         }
-        for (hash in diff.toRemove) {
-            DownloadService.sendRemoveDownload(context, OfflineDownloadService::class.java, hash, false)
-        }
+        val direct = submit(adds, diff.toRemove)
 
         engine.flushScrobbles(api)
 
@@ -71,8 +73,41 @@ class OfflineSync(
             signedIn = true,
             refreshed = refreshed,
             failed = failed,
-            queued = queued,
+            queued = adds.size,
             removed = diff.toRemove.size,
+            needsKeepAlive = direct && adds.isNotEmpty(),
         )
+    }
+
+    /**
+     * Hands the changes to the download service, or straight to the manager when Android refuses
+     * the service start. Returns true for the direct path.
+     *
+     * ⚠️ `sendAddDownload(…, foreground = false)` is a plain `startService`, which Android 8+
+     * refuses with an IllegalStateException while the app is in the background — exactly where the
+     * periodic worker runs. Without this fallback the 12-hour sync never downloaded anything. The
+     * direct path calls the manager on the main thread, the looper it was created on (it has none of
+     * its own); additions and removals are idempotent, so a partly sent intent batch is harmless.
+     */
+    private suspend fun submit(adds: List<DownloadRequest>, removes: Collection<String>): Boolean {
+        try {
+            for (request in adds) {
+                DownloadService.sendAddDownload(context, OfflineDownloadService::class.java, request, false)
+            }
+            for (hash in removes) {
+                DownloadService.sendRemoveDownload(context, OfflineDownloadService::class.java, hash, false)
+            }
+            return false
+        } catch (e: IllegalStateException) {
+            offlineLog("Download service not startable in the background, using the manager directly", e)
+        }
+        val allowMobile = engine.store.load().allowMobile
+        withContext(Dispatchers.Main) {
+            val manager = engine.downloads
+            manager.setRequirements(OfflineEngine.requirementsFor(allowMobile))
+            adds.forEach { manager.addDownload(it) }
+            removes.forEach { manager.removeDownload(it) }
+        }
+        return true
     }
 }
