@@ -121,7 +121,7 @@
               @contextmenu.prevent="onDirContextMenu($event, entry.dir.path)"
             >
               <div class="sidebar-pl-img rounded-sm">
-                <div class="sidebar-pl-placeholder">
+                <div class="sidebar-pl-placeholder is-folder">
                   <DirSvg />
                 </div>
                 <button
@@ -1385,6 +1385,29 @@ $sidebar-label-opacity: 0.85;
       width: 1.1rem;
       height: 1.1rem;
       opacity: 0.5;
+    }
+
+    // A row without a picture wears its ENTITY's pastel, the same rule as the
+    // tiles (`.card-art.is-glyph`, cards.scss) and the folder list's glyph: a
+    // pinned music folder reads kraft like the "Folders" nav entry, a
+    // picture-less playlist pink like "Playlists". Before this both sat on the
+    // generic blush with a half-faded glyph, and next to two album covers the
+    // folder row read as a hole (user, 2026-11-09).
+    //
+    // The pastel is STATIC (mem-pastel), so the glyph is static ink at full
+    // strength — the theme's text colour would go light on it in dark mode.
+    &.is-folder {
+      @include mem-entity-tint("folder");
+    }
+
+    &.is-playlist {
+      @include mem-entity-tint("playlist");
+    }
+
+    &.is-folder svg,
+    &.is-playlist svg {
+      color: $mem-ink;
+      opacity: 1;
     }
   }
 }
