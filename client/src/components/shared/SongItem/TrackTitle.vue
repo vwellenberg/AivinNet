@@ -6,7 +6,11 @@
            ROW — including on rows that never opted into dragging. The index
            that travels with it belongs to whatever list this row is in, and a
            drop target reading it as its own position moves the wrong track. -->
-      <img :src="imguri + track.image" class="album-art image rounded-sm" draggable="false" />
+      <!-- The frame carries the tilt and, on the playing row, the Lauflicht:
+           the ring and its comet are pseudo-elements, and an <img> has none. -->
+      <span class="art-frame" :class="{ 'lauflicht-rim': is_current }">
+        <img :src="imguri + track.image" class="album-art image rounded-sm" draggable="false" />
+      </span>
       <div class="thumb-play-overlay" v-if="!is_current">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </div>
@@ -27,7 +31,10 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, watch } from "vue";
+
 import { Track } from "@/interfaces";
+import { syncLauflicht } from "@/utils/lauflicht";
 const imguri = paths.images.thumb.small;
 
 import ArtistName from "../ArtistName.vue";
@@ -36,10 +43,21 @@ import ExplicitIcon from "@/assets/icons/explicit.svg";
 
 import { paths } from "@/config";
 
-defineProps<{
+const props = defineProps<{
   track: Track;
   is_current: boolean;
 }>();
+
+// The row that turns current starts its comet at that moment; put it at the
+// angle the player-bar cover is at (utils/lauflicht.ts). The scroller recycles
+// rows, so a row can turn current without remounting — hence the watch.
+// `post`: the class has to be on the element before there is an animation to align.
+onMounted(() => props.is_current && syncLauflicht());
+watch(
+  () => props.is_current,
+  (current) => current && syncLauflicht(),
+  { flush: "post" }
+);
 
 defineEmits<{
   (e: "play"): void;
@@ -61,6 +79,32 @@ defineEmits<{
     position: relative;
     flex-shrink: 0;
 
+    // The tilt sits on the frame, not the image: the Lauflicht ring is drawn
+    // on the frame and has to lean with the cover it traces.
+    .art-frame {
+      // How far the ring reaches past the cover's ink frame — see the Now
+      // Playing cover (NowPlaying/Header.vue): with the edges flush, the
+      // frame's anti-aliased black still shows through the light's edge.
+      $rim-bleed: 1px;
+
+      display: block;
+      position: relative;
+      z-index: 20;
+      padding: $rim-bleed;
+      // Taken back out, so the cover keeps its place in the row.
+      margin: -$rim-bleed;
+      border-radius: calc(#{$candy-radius-sm} + #{$rim-bleed});
+      transform: rotate(-2.5deg);
+      transition: transform $motion-tint ease;
+
+      // The playing row: the comet ring only, as on the player-bar cover. The
+      // blurred bloom would be cut flat by the row (`overflow: hidden` on the
+      // playing state) and smears teal into the yellow fill.
+      &.lauflicht-rim::after {
+        display: none;
+      }
+    }
+
     // Glued into the inlay: the full ink frame and the offset shadow every
     // other image surface in this app wears, plus a slight tilt. The 1px hairline
     // it replaces was the one picture frame in the design that wasn't one.
@@ -71,19 +115,18 @@ defineEmits<{
     // the case .claude/rules/styling.md warns about is a box sized exactly to
     // its content, which this is not.
     .album-art {
+      display: block;
       width: 3rem;
       height: 3rem;
       object-fit: contain;
       cursor: pointer;
-      z-index: 20;
       border: $candy-border;
       border-radius: $candy-radius-sm;
       @include candy-shadow(3px, 3px);
-      transform: rotate(-2.5deg);
-      // `box-shadow` and `transform` have to be listed once the mixin's own
-      // transition is overridden by this one — a later `transition` wins whole,
-      // not per-property.
-      transition: filter $motion-tint ease, box-shadow $motion-tint ease, transform $motion-tint ease;
+      // `box-shadow` has to be listed once the mixin's own transition is
+      // overridden by this one — a later `transition` wins whole, not
+      // per-property.
+      transition: filter $motion-tint ease, box-shadow $motion-tint ease;
     }
 
     // Straightens under the pointer: the tilt says "stuck on", the snap-to-square
@@ -94,7 +137,7 @@ defineEmits<{
     // last — the tilt is the row's resting state, and a phone had one row
     // stuck out of it with no way back (#457).
     @media (hover: hover) {
-      &:hover .album-art {
+      &:hover .art-frame {
         transform: rotate(0deg);
       }
     }

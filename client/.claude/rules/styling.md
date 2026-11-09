@@ -2203,6 +2203,32 @@ koppeln, der auch wieder endet. **Pausieren über `animation-play-state`, nicht 
 `motion-policy.scss`** — die erzwingt Dauer und Wiederholung mit `!important`, nie den
 Play-State, und das muss so bleiben.
 
+## ⚠️ Das Lauflicht: Ring AUSSERHALB des Rahmens, und alle Kometen in einem Takt
+
+Der Ring (`.lauflicht-rim::before`, `inset: 0`, `border-radius: inherit`) liegt auf einem
+**Wrapper**, der Ink-Rahmen auf dem Bild darin. Zwei Radien heißt: Der engere Bildradius
+(`$candy-radius`, 14 px) ragte am großen Now-Playing-Cover unter dem runderen Ring (1rem) hervor,
+gemeldet als „schwarzer Rand in den Ecken außerhalb des Glows". Gleicher Radius reicht auch nicht:
+Bündig scheint die Kantenglättung des Rahmens durch die Ringkante (im Nachbau gemessen: Ecke mit
+Fehlradius 113 dunkle Pixel, mit 1 px Überstand 0). Deshalb trägt der Wrapper `$rim-bleed`
+(1 px) als `padding`, Radius `calc(<Bildradius> + $rim-bleed)`, und nimmt den Überstand über
+negative Margins wieder heraus, damit das Bild nicht wandert (`NowPlaying/Header.vue`,
+`SongItem/TrackTitle.vue`). Ausnahme: das Mini-Cover der Player-Leiste — dort trägt der Link
+selbst den Offset-Schatten, ein Polster risse eine Lücke zwischen Rahmen und Schatten.
+
+Ein `<img>` hat keine Pseudo-Elemente: Wer das Lauflicht an ein Bild hängt, braucht einen Wrapper,
+und eine Neigung des Bildes gehört dann auf den Wrapper (sonst steht der Ring gerade um ein
+schiefes Cover).
+
+**Takt:** Eine CSS-Animation beginnt, wenn ihr Element den Stil bekommt — ein später erscheinendes
+Cover (Now Playing öffnen, nächste Zeile wird laufend, Einstellung von `off` auf an) lief mit
+eigener Phase. `syncLauflicht()` (`utils/lauflicht.ts`) kopiert einmalig die `currentTime` der am
+längsten laufenden Kopie auf die anderen; danach hält die gemeinsame Dauer sie zusammen. Aufgerufen
+beim Mounten der Wirte und wenn eine Zeile `is_current` wird. **`currentTime`, nicht `startTime`
+oder `play()`** — die übernehmen den Play-State von CSS, und `body.lauflicht-idle` könnte das
+Licht nicht mehr pausieren (gemessen in Chromium: nach dem Sync bis auf ein Frame gleich, Pause
+greift weiter).
+
 ## ⚠️ App-Höhe: nie aus Viewport-Einheiten (`vh`/`dvh`/`svh`/`lvh`)
 
 **Symptom:** Nach dem Drehen (Landscape → Portrait) steht die ganze UI in der oberen Hälfte, die
