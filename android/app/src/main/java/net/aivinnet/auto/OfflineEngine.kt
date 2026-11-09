@@ -54,16 +54,16 @@ class OfflineEngine private constructor(context: Context) {
         }
         downloads = DownloadManager(context, databaseProvider, cache, upstream, executor)
 
-        store = OfflineStore(File(context.filesDir, STORE_FILE), ::logError)
+        store = OfflineStore(File(context.filesDir, STORE_FILE), ::offlineLog)
         scrobbles = ScrobbleOutbox(
             JsonFile<List<QueuedPlay>>(
                 File(context.filesDir, SCROBBLE_QUEUE_FILE),
                 emptyList(),
                 OfflineJson::decodeQueue,
                 OfflineJson::encodeQueue,
-                ::logError,
+                ::offlineLog,
             ),
-            ::logError,
+            ::offlineLog,
         )
     }
 
@@ -86,8 +86,19 @@ class OfflineEngine private constructor(context: Context) {
             out
         }
 
+    /** Sends [play] now. If the server cannot take it, it waits in the outbox for the next flush. */
+    suspend fun recordScrobble(api: AivinApi, play: ScrobblePlay) {
+        val owner = api.store.accountKey ?: return
+        scrobbles.record(owner, play) { sendScrobble(it, api::logPlay, ::offlineLog) }
+    }
+
+    /** Sends the plays waiting for the signed-in account, oldest first. */
+    suspend fun flushScrobbles(api: AivinApi) {
+        val owner = api.store.accountKey ?: return
+        scrobbles.flush(owner) { sendScrobble(it, api::logPlay, ::offlineLog) }
+    }
+
     companion object {
-        private const val TAG = "OfflineEngine"
         private const val CACHE_DIR = "media"
         private const val STORE_FILE = "offline.json"
         private const val SCROBBLE_QUEUE_FILE = "scrobble-queue.json"
@@ -123,9 +134,12 @@ class OfflineEngine private constructor(context: Context) {
             Requirements(if (allowMobile) Requirements.NETWORK else Requirements.NETWORK_UNMETERED)
 
         fun scheduler(context: Context): PlatformScheduler = PlatformScheduler(context, SCHEDULER_JOB_ID)
-
-        private fun logError(message: String, cause: Throwable?) {
-            Log.w(TAG, message, cause)
-        }
     }
+}
+
+private const val OFFLINE_TAG = "Offline"
+
+/** Non-fatal offline problems go to logcat; nothing in the offline path may crash the app or the service. */
+internal fun offlineLog(message: String, cause: Throwable?) {
+    Log.w(OFFLINE_TAG, message, cause)
 }

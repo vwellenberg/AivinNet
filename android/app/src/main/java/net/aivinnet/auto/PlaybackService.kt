@@ -47,6 +47,7 @@ import kotlinx.coroutines.launch
 class PlaybackService : MediaLibraryService() {
 
     private lateinit var api: AivinApi
+    private lateinit var offline: OfflineEngine
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaLibrarySession
 
@@ -67,13 +68,17 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         api = AivinApi.create(this)
+        offline = OfflineEngine.get(this)
         browseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        // Plays that failed without network (a dead spot) are sent now, before anything else.
+        scrobbleScope.launch { offline.flushScrobbles(api) }
 
         // Downloaded tracks play from disk, the rest streams. The cache is read-only here, and that is
         // deliberate: it never evicts, so a stream written into it would grow with every track played.
         // Only the download service writes it. Streams keep the bearer and refresh logic of the API calls.
         val cacheFactory = CacheDataSource.Factory()
-            .setCache(OfflineEngine.get(this).cache)
+            .setCache(offline.cache)
             .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(api.authedClient))
             .setCacheWriteDataSinkFactory(null)
         player = ExoPlayer.Builder(this)
@@ -386,15 +391,9 @@ class PlaybackService : MediaLibraryService() {
                 duration = seconds,
                 source = "pl:${track.playlistId}",
             )
-            scrobbleScope.launch {
-                // Any exception: an uncaught one here would kill the service mid-drive. A lost play
-                // is the lesser harm; buffering plays for dead spots comes with offline (#747).
-                try {
-                    api.logPlay(play)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Scrobble failed", e)
-                }
-            }
+            // A play the server cannot take now waits in the outbox (dead spots), and any error is
+            // contained there: an uncaught one in this scope would kill the service mid-drive.
+            scrobbleScope.launch { offline.recordScrobble(api, play) }
         }
     }
 
