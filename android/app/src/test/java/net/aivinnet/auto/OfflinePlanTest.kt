@@ -87,4 +87,19 @@ class OfflinePlanTest {
 
         assertEquals(setOf("a"), diff.toDownload)
     }
+
+    @Test
+    fun `a failed download of a wanted track is queued again`() {
+        val diff = OfflinePlan.diff(listOf(playlist("7", "a")), downloaded = emptySet(), failed = setOf("a"))
+
+        assertEquals(setOf("a"), diff.toDownload)
+        assertEquals(emptySet<String>(), diff.toRemove)
+    }
+
+    @Test
+    fun `a failed download nobody wants any more is removed, partial bytes and all`() {
+        val diff = OfflinePlan.diff(emptyList(), downloaded = emptySet(), failed = setOf("a"))
+
+        assertEquals(setOf("a"), diff.toRemove)
+    }
 }

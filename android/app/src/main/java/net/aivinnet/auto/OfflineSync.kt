@@ -56,7 +56,7 @@ class OfflineSync(
         }
 
         val state = engine.store.load()
-        val diff = OfflinePlan.diff(state.allSnapshots(), engine.heldTrackhashes())
+        val diff = OfflinePlan.diff(state.allSnapshots(), engine.heldTrackhashes(), engine.failedTrackhashes())
 
         // Only this account's tracks can be fetched now: they need this server and this login.
         // Another account's offline tracks stay as they are until that account syncs again.

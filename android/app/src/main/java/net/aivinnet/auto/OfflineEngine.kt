@@ -82,6 +82,9 @@ class OfflineEngine private constructor(context: Context) {
         ),
     )
 
+    fun failedTrackhashes(): Set<String> =
+        trackhashes(downloads.downloadIndex.getDownloads(Download.STATE_FAILED))
+
     fun completedTrackhashes(): Set<String> =
         trackhashes(downloads.downloadIndex.getDownloads(Download.STATE_COMPLETED))
 
@@ -117,7 +120,9 @@ class OfflineEngine private constructor(context: Context) {
         private const val MAX_PARALLEL_DOWNLOADS = 3
 
         /** Used by [PlatformScheduler] for the job that restarts downloads when requirements are met again. */
-        const val SCHEDULER_JOB_ID = 747
+        // ⚠️ Far from 0: WorkManager hands out JobScheduler ids counting up from 0 and would reach a
+        // small id, after which the two jobs replace each other (the download resume job vanishes).
+        const val SCHEDULER_JOB_ID = 2_000_000_747
 
         @Volatile
         private var instance: OfflineEngine? = null

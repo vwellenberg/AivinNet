@@ -119,6 +119,20 @@ bekommt dagegen nur die geladenen Titel in die Warteschlange.
   Limit), die Warteschlange enthält trotzdem die ganze Playlist.
 - **Unverschlüsselt:** `http://` zu einer Adresse außerhalb von LAN/VPN zeigt nach der Anmeldung
   eine Warnung (`Transport` in `Urls.kt`) — im Mobilnetz gingen Passwort und Tokens im Klartext.
-- **Offen:** `gradle-wrapper.properties` hat noch keine `distributionSha256Sum`.
+- **Hintergrund-Sync:** `DownloadService.sendAddDownload(…, foreground = false)` ist ein
+  `startService`, den Android 8+ aus dem Hintergrund mit `IllegalStateException` ablehnt — genau
+  dort läuft der 12-h-Worker. Dann bekommt der `DownloadManager` die Aufträge direkt (auf dem
+  Main-Looper, auf dem er gebaut wurde), und der Worker hält den Prozess bis zu 8 min am Leben.
+- **Token nur an den eigenen Server** (`SameServer`): Ein Download, der noch unter einem anderen
+  Konto/Server in der Warteschlange steht, bekommt nicht das Token des aktuell angemeldeten.
+- **Offen:**
+  - `gradle-wrapper.properties` hat noch keine `distributionSha256Sum`.
+  - Wer eine Playlist online geöffnet hat und binnen 10 min (Playlist-Cache) im Funkloch einen
+    Titel antippt, bekommt die volle Online-Liste als Warteschlange, nicht nur die geladenen Titel.
+  - Der Cache-Schlüssel ist der Trackhash; ersetzt der Server eine Datei bei gleichen Tags (z. B.
+    FLAC → MP3), wird ein fertiger Download nicht erneuert.
+  - Der erste Zugriff auf die Offline-Daten (`OfflineEngine.get`) lädt den Cache-Index auf dem
+    Main-Thread — bei sehr vielen geladenen Titeln kann der erste Start spürbar hängen.
+  - „Offline-Daten löschen“ wartet auf einen laufenden Sync, ohne Fortschrittsanzeige.
 - Cleartext-HTTP ist erlaubt (`res/xml/network_security_config.xml`), weil die Heimserver im LAN
   ohne TLS laufen.

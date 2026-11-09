@@ -150,6 +150,9 @@ suspend fun sendScrobble(
     SendOutcome.SENT
 } catch (e: ServerException) {
     ScrobbleResponses.outcome(e.code)
+} catch (e: kotlinx.coroutines.CancellationException) {
+    // Cooperative cancellation (a replaced or stopped worker) must reach the caller, not count as a retry.
+    throw e
 } catch (e: Exception) {
     log("Scrobble kept for a later try", e)
     SendOutcome.RETRY

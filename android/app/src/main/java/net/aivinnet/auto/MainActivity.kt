@@ -89,7 +89,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         render()
-        if (api.isLoggedIn) scheduleSync()
+        // Not on a rotation: syncNow REPLACEs, and would cancel a running sync that keeps downloads alive.
+        if (api.isLoggedIn && savedInstanceState == null) scheduleSync()
     }
 
     override fun onResume() {

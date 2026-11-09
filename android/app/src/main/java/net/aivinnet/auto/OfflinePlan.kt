@@ -17,11 +17,20 @@ object OfflinePlan {
      * removed when no offline playlist anywhere still lists it. [downloaded] are the trackhashes
      * with a live download (failed ones do not count, so they are queued again).
      */
-    fun diff(snapshots: Collection<PlaylistDetail>, downloaded: Set<String>): Diff {
+    /**
+     * @param failed downloads that failed. A wanted one is queued again (it is not in [downloaded]);
+     *   an unwanted one is removed — the cache never evicts, so its partial bytes would otherwise
+     *   stay on disk for good, invisible to the storage line that only counts completed downloads.
+     */
+    fun diff(
+        snapshots: Collection<PlaylistDetail>,
+        downloaded: Set<String>,
+        failed: Set<String> = emptySet(),
+    ): Diff {
         val wanted = referenced(snapshots)
         return Diff(
             toDownload = wanted - downloaded,
-            toRemove = downloaded - wanted,
+            toRemove = (downloaded + failed) - wanted,
         )
     }
 }

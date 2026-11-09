@@ -44,11 +44,14 @@ class JsonFile<T>(
             out.flush()
             out.fd.sync()
         }
-        if (!tmp.renameTo(file)) {
-            // renameTo may refuse to replace on some filesystems. Drop the old file and try once more.
-            file.delete()
-            if (!tmp.renameTo(file)) throw IOException("Could not replace ${file.name}")
-        }
+        // One atomic replace. The old fallback (delete, then rename again) could lose the whole
+        // document when the second rename failed too; this either swaps or leaves the old file.
+        java.nio.file.Files.move(
+            tmp.toPath(),
+            file.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+        )
     }
 
     /** Read, change and write under one lock, so two writers cannot lose each other's change. */

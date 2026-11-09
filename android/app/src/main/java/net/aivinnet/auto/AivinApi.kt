@@ -97,6 +97,11 @@ internal class AuthInterceptor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
+        // The token belongs to the server it was issued by. A download queued under another
+        // account (another server) must not resume carrying this one's token.
+        if (!SameServer.matches(original.url, store.baseUrl)) {
+            throw AivinException("Anfrage an einen anderen Server als den angemeldeten")
+        }
         val token = store.accessToken ?: throw AuthExpiredException()
 
         val first = chain.proceed(original.withBearer(token))
@@ -218,5 +223,13 @@ class AivinApi private constructor(
                 .build()
             return AivinApi(store, plain, authed)
         }
+    }
+}
+
+/** Whether a request goes to the server the session belongs to (scheme, host and port). */
+object SameServer {
+    fun matches(url: okhttp3.HttpUrl, baseUrl: String?): Boolean {
+        val base = baseUrl?.toHttpUrlOrNull() ?: return false
+        return url.scheme == base.scheme && url.host == base.host && url.port == base.port
     }
 }
