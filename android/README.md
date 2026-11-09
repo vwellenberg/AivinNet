@@ -31,9 +31,18 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Oder das APK aus dem CI-Lauf (Artefakt `aivinnet-auto-debug-apk`) auf das Telefon kopieren und
 öffnen. Dafür muss die Installation aus unbekannten Quellen erlaubt sein.
 
-Dann die App öffnen, Server-URL (z. B. `http://192.168.1.10:1970`), Benutzername und Passwort
-eingeben und **Anmelden** drücken. Die Anmeldung gilt für das Auto, bis man auf dem Telefon
-**Abmelden** drückt.
+Dann die App öffnen, Server-URL, Benutzername und Passwort eingeben und **Anmelden** drücken.
+Die Anmeldung gilt für das Auto, bis man auf dem Telefon **Abmelden** drückt; ein Funkloch beim
+Token-Refresh meldet **nicht** ab, nur eine Ablehnung durch den Server (401/422).
+
+⚠️ **Die Server-URL muss unterwegs erreichbar sein.** Im Auto hängt das Telefon im Mobilnetz,
+nicht im Heim-WLAN — eine LAN-Adresse (`http://192.168.…:1970`) funktioniert dort nicht. Also die
+Adresse eintragen, unter der der Server von außen erreichbar ist (Domain, VPN o. ä.). Für einen
+ersten Test zu Hause im WLAN geht die LAN-Adresse.
+
+⚠️ **Debug-APKs aus dem CI sind bei jedem Lauf anders signiert.** Ein neueres APK lässt sich dann
+nicht über das alte installieren („App nicht installiert“): alte Version deinstallieren und neu
+anmelden. Ein fester Signierschlüssel kommt mit dem Release-Build.
 
 ## In Android Auto anzeigen (Sideload)
 
@@ -54,5 +63,9 @@ möglich“ erscheint, auf dem Telefon neu anmelden.
 - Versionen: `gradle/libs.versions.toml`
 - Die Logik, die sich ohne Android testen lässt (Media-IDs, JSON, Stream-URLs, Scrobble-Regel),
   liegt in reinen Klassen mit Tests unter `app/src/test`.
+- **Wer die Bibliothek durchblättern darf** (`ControllerTrust.kt`): Der Dienst ist exportiert,
+  damit Android Auto ihn binden kann — also kann sich jede App verbinden. Blättern dürfen nur das
+  System, Android Auto (Paketname gegen die UID geprüft) und die App selbst; alle anderen
+  (auch Bluetooth/AVRCP) bekommen nur Play/Pause/Weiter.
 - Cleartext-HTTP ist erlaubt (`res/xml/network_security_config.xml`), weil die Heimserver im LAN
   ohne TLS laufen.

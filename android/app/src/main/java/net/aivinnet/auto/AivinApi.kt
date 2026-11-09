@@ -50,22 +50,31 @@ internal class AuthManager(
             .post(ByteArray(0).toRequestBody(null))
             .build()
 
-        return try {
-            plain.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    store.clear()
-                    return false
-                }
-                val tokens = AivinJson.parseLogin(response.body?.string().orEmpty())
-                store.saveTokens(tokens.accessToken, tokens.refreshToken)
-                true
+        // A network error or a server hiccup is NOT a logout: in the car a dead spot is
+        // normal, and clearing the session there would force a new sign-in on the phone.
+        // Only the server refusing the refresh token itself ends the session.
+        plain.newCall(request).execute().use { response ->
+            if (RefreshRules.isRefused(response.code)) {
+                store.clear()
+                return false
             }
-        } catch (e: IOException) {
-            // Specified behaviour: a failed refresh counts as logged out.
-            store.clear()
-            false
+            if (!response.isSuccessful) {
+                throw ServerException(response.code, "Anmeldung nicht erneuerbar (HTTP ${response.code})")
+            }
+            val tokens = AivinJson.parseLogin(response.body?.string().orEmpty())
+            store.saveTokens(tokens.accessToken, tokens.refreshToken)
+            return true
         }
     }
+}
+
+/** Which refresh answers mean "this session is over" rather than "try again later". */
+object RefreshRules {
+    /**
+     * 401: token expired or revoked (logout bumps the token version). 422: flask_jwt_extended's
+     * answer for a malformed token. Everything else (5xx, a proxy's 502) leaves the session alone.
+     */
+    fun isRefused(code: Int): Boolean = code == 401 || code == 422
 }
 
 /** Adds the bearer token to every request. A 401 triggers one refresh and one retry. */

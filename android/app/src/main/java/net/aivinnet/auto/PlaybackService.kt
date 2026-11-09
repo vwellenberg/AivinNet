@@ -17,6 +17,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -103,6 +104,35 @@ class PlaybackService : MediaLibraryService() {
     // region Browse tree
 
     private inner class LibraryCallback : MediaLibrarySession.Callback {
+
+        /**
+         * The service is exported (Android Auto must bind to it), so any app on the phone can
+         * connect. Only trusted callers may browse the library: the system (SystemUI, media
+         * controls), Android Auto and this app. Everyone else — including Bluetooth/AVRCP, which
+         * arrives as a legacy controller — gets the player commands only, so play/pause/next
+         * from the steering wheel keep working without exposing the library.
+         */
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val trusted = ControllerTrust.mayBrowse(
+                packageName = controller.packageName,
+                packageVerified = controller.isPackageNameVerified,
+                systemTrusted = controller.isTrusted,
+                ownPackage = packageName,
+            )
+            if (trusted) {
+                return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
+            }
+            Log.i(TAG, "Player-only connection for ${controller.packageName}")
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(SessionCommands.EMPTY)
+                .setAvailablePlayerCommands(
+                    MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_PLAYER_COMMANDS,
+                )
+                .build()
+        }
 
         override fun onGetLibraryRoot(
             session: MediaLibrarySession,
