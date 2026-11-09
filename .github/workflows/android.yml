@@ -1,0 +1,47 @@
+name: Android
+
+# The Android Auto prototype (android/). Path-filtered, and deliberately NOT a required
+# check: a skipped required check never reports, so a Python-only change would wait for
+# ever. The job runs only when android/ or this file changes, and nothing else waits on it.
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  push:
+    branches: [master]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+
+# Read-only, like every other workflow here (see tests/test_packaging_manifests.py).
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Android Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build and unit-test
+        run: ./gradlew assembleDebug testDebugUnitTest --no-daemon --console=plain
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aivinnet-auto-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
