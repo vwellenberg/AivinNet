@@ -59,6 +59,20 @@ updates:
     commit-message:
       prefix: deps(client)
 
+  # The Android prototype (android/): Gradle wrapper, version catalog and Maven dependencies.
+  # Minor/patch as one group, majors one at a time, the same cooldown as the others.
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      android:
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: deps(android)
+
   # The MCP server (mcp_server/) has its own requirements.txt and no lock.
   - package-ecosystem: pip
     directory: /mcp_server

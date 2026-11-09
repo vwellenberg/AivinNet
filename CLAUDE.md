@@ -178,7 +178,7 @@ git fetch --prune && git branch -D <branch>
   in Markdown-Doku um.
 - **CI:** GitHub Actions bei Push auf `dev`/`master` und bei PRs auf `master` — Lint, Format, Mypy, Tests (mit Coverage-Floor). Jobs: `Lint & Format`, `Unit Tests`, `API Tests` (voller Stack via `uv sync` + libev, Verzeichnis `tests_api/`), `Docker Smoke Test` (baut und **startet** das Image: Login, Platzhalterbilder, Passwort-Reset, Einstellungen über Neustart) und die vier `Client …`-Jobs. `Unit Tests` und `API Tests` sind eine Matrix und laufen mit demselben Befehl auch auf `windows-latest` (`… (Windows)`, waitress statt bjoern). `API Tests (Python 3.13)` fährt den vollen Stack zusätzlich auf dem neuesten Python (kein Gate): Docker, AppImage und Server laufen auf 3.11, `requires-python` lässt aber Neueres zu, und auf 3.13 startete die App wegen des fehlenden `audioop` gar nicht (#574, Backport `audioop-lts`). ⚠️ Die Linux-Namen sind Pflicht-Checks: Ein Matrix-Job ohne festes `name` meldet sich als `Unit Tests (ubuntu-latest)`, und jeder PR wartet dann ewig auf einen Check, der nie kommt.
 - **Dependabot** (`.github/dependabot.yml`) öffnet jede Woche PRs für Actions, `uv.lock`,
-  `client/yarn.lock` und `mcp_server/requirements.txt`: Minor/Patch als ein Sammel-PR pro
+  `client/yarn.lock`, `mcp_server/requirements.txt` und Gradle (`android/`): Minor/Patch als ein Sammel-PR pro
   Ökosystem, Majors einzeln, 7 Tage Cooldown. Sicherheits-PRs kommen sofort und einzeln.
   **Was GitHub für die Alerts sieht, zeigt die SBOM** (`gh api
   repos/vwellenberg/AivinNet/dependency-graph/sbom`; die Alert-API selbst gibt Cloud-Sessions
@@ -187,7 +187,7 @@ git fetch --prune && git branch -D <branch>
   bis dahin „GitHub liest die Bereiche, nicht den Lock" — eine Vermutung aus #594, die die SBOM
   widerlegt; warum am 2026-10-24 trotzdem 43 Alerts offen waren, ist nicht belegt (am selben Tag
   kamen auch die Client-Fixe aus #592). Audit also auf **jedes** Manifest: `uv.lock`,
-  `client/yarn.lock` **und** `mcp_server/requirements.txt` — Letzteres hatte vor #594 niemand
+  `client/yarn.lock`, `mcp_server/requirements.txt` **und** `android/gradle/libs.versions.toml` — `mcp_server` hatte vor #594 niemand
   geprüft. Die Untergrenzen hebt Dependabot trotzdem mit (`versioning-strategy: increase`),
   damit `pyproject.toml` nicht hinter dem Lock zurückbleibt. ⚠️ Diese PRs mergen **nicht** von
   selbst — `--auto` setzt nur, wer es einschaltet.
@@ -347,6 +347,12 @@ das ist der Release-Body.
 beide AppImage-Jobs des ersten Release-Versuchs starben. Details:
 `.claude/rules/packaging-release.md` (lädt beim Anfassen von `install.sh`, `appimage/**`, den
 Workflows oder `settings.py`).
+
+## Android Auto (Prototyp, `android/`)
+
+Eigene native App (`net.aivinnet.auto`, Gradle, Media3): Anmeldung auf dem Telefon, Browse-Baum und
+Wiedergabe für Android Auto, Scrobbles aus dem Player. Bauen, Sideload und Auto-Entwicklermodus:
+[android/README.md](android/README.md). Eigener CI-Job `Android` (nicht Pflicht, nur bei Änderungen in `android/`).
 
 ## Empfehlungen / Home
 
