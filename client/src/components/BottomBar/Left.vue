@@ -129,11 +129,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { paths } from '@/config'
 import { Routes } from '@/router'
 
 import { isLargerMobile, isMobile, isPhoneBar } from '@/stores/content-width'
+import { syncLauflicht } from '@/utils/lauflicht'
 import useQStore from '@/stores/queue'
 import useSettingsStore from '@/stores/settings'
 
@@ -152,6 +153,9 @@ import ExplicitIcon from '@/assets/icons/explicit.svg'
 
 const queue = useQStore()
 const settings = useSettingsStore()
+
+// Keep this comet at the same angle as the other covers' (utils/lauflicht.ts).
+onMounted(() => syncLauflicht())
 
 // The badge says which UNUSUAL mode is on, and only that. Shuffle and
 // repeat-one are off the bar on a phone (they live in Now Playing), so this is

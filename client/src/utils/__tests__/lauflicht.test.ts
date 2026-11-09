@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { describe, expect, it } from 'vitest'
 
-import { lauflichtClasses } from '../lauflicht'
+import { lauflichtClasses, syncLauflicht } from '../lauflicht'
 
 describe('lauflichtClasses', () => {
     it('pauses the Lauflicht while nothing plays', () => {
@@ -71,5 +71,56 @@ describe('lauflicht stylesheet', () => {
 
     it('is not overridden by the reduced-motion policy', () => {
         expect(policy).not.toMatch(/animation-play-state/)
+    })
+})
+
+// The comet on a cover that appears later (opening Now Playing, the next row
+// turning current) used to start at its own angle: two lights on screen, two
+// phases. The sync copies the longest-running copy's time onto the others.
+describe('syncLauflicht', () => {
+    type Fake = { animationName: string; currentTime: number | null }
+    const anim = (animationName: string, currentTime: number | null): Fake => ({ animationName, currentTime })
+    const doc = (list: Fake[]) => ({ getAnimations: () => list as unknown as Animation[] })
+
+    it('puts a newly started comet at the angle of the running one', () => {
+        const bar = anim('np-comet-spin', 93_400)
+        const big = anim('np-comet-spin', 12)
+        syncLauflicht(doc([big, bar]))
+        expect(big.currentTime).toBe(93_400)
+        expect(bar.currentTime).toBe(93_400)
+    })
+
+    it('syncs each keyframe set on its own and leaves other animations alone', () => {
+        const spinOld = anim('np-comet-spin', 5_000)
+        const spinNew = anim('np-comet-spin', 0)
+        const breathe = anim('np-comet-breathe', 40)
+        const arrival = anim('mem-step-in', 1)
+        syncLauflicht(doc([spinOld, spinNew, breathe, arrival]))
+        expect(spinNew.currentTime).toBe(5_000)
+        // A single copy has nothing to follow — not pulled to the comet's time.
+        expect(breathe.currentTime).toBe(40)
+        expect(arrival.currentTime).toBe(1)
+    })
+
+    it('is a no-op where the browser has no animation list', () => {
+        expect(() => syncLauflicht({} as Pick<Document, 'getAnimations'>)).not.toThrow()
+        expect(() => syncLauflicht(undefined)).not.toThrow()
+    })
+})
+
+// The big cover's ring and its ink frame must share one corner: with the
+// frame on a tighter radius than the ring, its corner stuck out past the light.
+describe('Now Playing cover rim', () => {
+    const header = readFileSync('src/components/NowPlaying/Header.vue', 'utf8')
+    const block = header.match(/\.np-image \{([\s\S]*?)\n {8}img \{([\s\S]*?)\n {8}\}/)
+
+    it('draws the ring outside the frame on a concentric radius', () => {
+        expect(block, '.np-image block in Header.vue').not.toBeNull()
+        const [, rim, img] = block!
+        expect(img).toMatch(/border: \$candy-border;/)
+        // The image takes its radius from `.rounded` ($candy-radius) in the template.
+        expect(header).toMatch(/<img class="rounded"/)
+        expect(rim).toMatch(/padding: \$rim-bleed;/)
+        expect(rim).toMatch(/border-radius: calc\(#\{\$candy-radius\} \+ #\{\$rim-bleed\}\);/)
     })
 })

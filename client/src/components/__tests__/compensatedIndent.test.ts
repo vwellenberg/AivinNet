@@ -125,6 +125,11 @@ const isZero = (value: string) => /^(0[a-z%]*|auto)$/.test(value);
 const DELIBERATE: Record<string, string> = {
   "assets/scss/Global/cards.scss::> *:not(.rhelp)": "the row text's own fill, kept off the text's edge",
   "assets/scss/Global/cards.scss::.rhelp .time": "same fill on the help row's two spans",
+  // Not an indent: room for the Lauflicht ring to reach 1px past the cover's
+  // ink frame (styling.md, "Das Lauflicht"). The margin keeps the cover where
+  // it stood; nothing but the image sits in these boxes.
+  "components/shared/SongItem/TrackTitle.vue::.art-frame": "Lauflicht ring bleed past the cover frame",
+  "components/NowPlaying/Header.vue::.np-image": "Lauflicht ring bleed past the cover frame",
 };
 
 /**

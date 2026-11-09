@@ -73,6 +73,8 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+
 import { paths } from '@/config'
 import { dropSources, favType } from '@/enums'
 import favoriteHandler from '@/helpers/favoriteHandler'
@@ -81,6 +83,7 @@ import { isMobile, isSmallPhone } from '@/stores/content-width'
 import useQueueStore from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import { formatSeconds } from '@/utils'
+import { syncLauflicht } from '@/utils/lauflicht'
 
 import Progress from '@/components/LeftSidebar/NP/Progress.vue'
 import Buttons from '../BottomBar/Right.vue'
@@ -91,6 +94,10 @@ import PlayingFrom from './PlayingFrom.vue'
 
 const queue = useQueueStore()
 const tracklist = useTracklist()
+
+// The player-bar cover has been running its comet since the app loaded; this
+// one starts now. Same angle on both (utils/lauflicht.ts).
+onMounted(() => syncLauflicht())
 
 function handleFav() {
     favoriteHandler(
@@ -314,12 +321,25 @@ function handleFav() {
     }
 
     .np-image {
+        // How far the Lauflicht ring reaches past the cover's ink frame.
+        $rim-bleed: 1px;
+
         position: relative;
         display: block;
-        margin-bottom: 1rem;
-        // Match the cover's corner radius so the Lauflicht rim (border-radius:
-        // inherit) traces the rounded image edge instead of a square.
-        border-radius: 1rem;
+        // The bleed is taken back out of the margins, so the cover stands
+        // exactly where it did, flush with the plates above and below it.
+        margin: (-$rim-bleed) (-$rim-bleed) calc(1rem - #{$rim-bleed});
+        // The ring (border-radius: inherit, inset: 0) is drawn on THIS box, the
+        // ink frame on the image inside it. They were two radii — 1rem here,
+        // `$candy-radius` (14px) on the image — and the tighter image corner
+        // stuck out past the ring's rounder one: a sliver of black outside the
+        // glow at all four corners. Now the ring sits $rim-bleed outside the
+        // frame on a concentric radius, so its 5px cover the 3px frame with
+        // room to spare and the frame's anti-aliased edge is under the light
+        // too (with the edges flush, about a quarter of the black still showed
+        // through on the edge pixels).
+        padding: $rim-bleed;
+        border-radius: calc(#{$candy-radius} + #{$rim-bleed});
 
         img {
             width: 100%;

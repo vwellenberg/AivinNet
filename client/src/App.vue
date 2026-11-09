@@ -57,7 +57,7 @@ import useTracker from "@/stores/tracker";
 
 // @utils
 import handleShortcuts from "@/helpers/useKeyboard";
-import { lauflichtClasses } from "@/utils/lauflicht";
+import { lauflichtClasses, syncLauflicht } from "@/utils/lauflicht";
 import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
 import { activeSeason, paintedPalette } from "@/utils/seasons";
 import { SEASON_KEY } from "@/utils/seasonLogo";
@@ -121,10 +121,13 @@ watch(
 // While nothing plays it is paused (body.lauflicht-idle) — see utils/lauflicht.ts.
 watch(
     () => [settings.np_lauflicht_level, queue.playing, deviceSync.partyActive] as const,
-    ([level, playing, party]) => {
+    ([level, playing, party], old) => {
         for (const [cls, on] of Object.entries(lauflichtClasses(level, playing, party))) {
             document.body.classList.toggle(cls, on);
         }
+        // `off` -> on starts every comet afresh; line them up again. Play/pause
+        // and the party speed keep the phase, so they need no sync.
+        if (old && old[0] === "off" && level !== "off") syncLauflicht();
     },
     { immediate: true }
 );
