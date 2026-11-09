@@ -7,7 +7,9 @@ Browse-Baum auf.
 
 - **Baum:** Mixes · Playlists → Playlist → Titel (Auswahl setzt die ganze Playlist als Warteschlange)
 - **Streaming:** `GET /file/<trackhash>/legacy` mit Bearer-Token, Token-Refresh bei 401
-- **Scrobbles:** `POST /logger/track/log` für jeden Titel, der mindestens 5 s lief
+- **Offline:** markierte Mixes und Playlists werden aufs Telefon geladen und spielen auch ohne Netz (unten)
+- **Scrobbles:** `POST /logger/track/log` für jeden Titel, der mindestens 5 s lief; was ohne Netz
+  nicht ankommt, wird gespeichert und nachgereicht
 - **Noch nicht:** Cover (der Bild-Endpoint braucht den Authorization-Header, den das Auto nicht
   senden kann), Suche, Sprachbefehle
 
@@ -57,6 +59,47 @@ Entwicklermodus an ist:
 Danach erscheint „AivinNet“ unter den Medien-Apps im Auto. Wenn die App als „angemeldet nicht
 möglich“ erscheint, auf dem Telefon neu anmelden.
 
+## Offline (Funklöcher im Auto)
+
+Markierte Mixes und Playlists werden aufs Telefon geladen und bleiben aktuell. Im Auto spielen sie
+dann auch ohne Netz.
+
+- **Markieren:** In der App unter der Anmeldung den Abschnitt **Offline** öffnen und den Schalter
+  neben der Liste einschalten. Die Änderung startet sofort einen Abgleich.
+- **Laden:** Standardmäßig nur über unbegrenztes WLAN. Der Schalter **Auch über Mobilfunk laden**
+  erlaubt Mobilfunk. Ohne Erlaubnis wartet die Übertragung, bis passendes Netz da ist.
+- **Aktualisieren:** Alle 12 Stunden, beim App-Start und nach jeder Änderung wird jede markierte
+  Liste frisch abgerufen. Neue Titel werden geladen, entfernte gelöscht. Ein Titel, der noch in einer
+  anderen markierten Liste steht, bleibt. **Jetzt aktualisieren** erzwingt den Lauf.
+- **Im Auto:** Der Ordner **Offline** listet die markierten Listen mit ihren heruntergeladenen Titeln
+  und braucht kein Netz. Mixes und Playlists fallen bei fehlendem Netz auf ihre Offline-Kopie zurück.
+  Dort stehen nur die Titel, die vollständig auf dem Telefon liegen; die übrigen fehlen, statt bei
+  jedem Tipp zu scheitern.
+- **Speicher** (alles App-privat, bei der Deinstallation weg):
+  - `files/media/`: die Titel (SimpleCache, Schlüssel = Trackhash)
+  - `files/offline.json`: welche Listen offline sind, mit dem Stand beim letzten Abgleich
+  - `files/scrobble-queue.json`: Plays, die der Server noch nicht bekommen hat
+  - Die Anzeige in der App zählt die fertigen Downloads. **Offline-Daten löschen** entfernt Titel
+    und Markierungen. **Abmelden** lässt sie liegen: wer sich wieder anmeldet, hat sie sofort.
+- **Konten:** Markierungen gelten pro Server und Benutzer, denn `mix1` ist für jeden Benutzer eine
+  andere Liste. Die Titel selbst teilen sich alle Konten über den Trackhash.
+
+**Warum der Cache nur gelesen wird:** Der Player liest den Cache, schreibt aber nie hinein. Nur der
+Download-Dienst schreibt. Der Cache wird nie geräumt (`NoOpCacheEvictor`), damit ein Download im Auto
+nicht verschwindet. Schriebe der Player Streams hinein, wüchse der Speicher mit jedem gehörten Titel
+ohne Grenze.
+
+**Scrobble-Warteschlange:** Ein Play, den der Server nicht annehmen kann (kein Netz), wird gespeichert
+und mit dem ursprünglichen Zeitstempel nachgereicht, in Reihenfolge, beim nächsten App-Start, Abgleich
+oder erfolgreichen Play. Antwortet der Server mit 400, 404 oder 422, ist der Play abgelehnt und fällt
+weg. 401, 408, 429, 5xx und Netzfehler lassen ihn in der Schlange. Höchstens 5000 Plays; danach fallen
+die ältesten weg.
+
+**Grenzen:** Eine Playlist, die im Netz gestartet wurde, behält ihre volle Warteschlange, auch die
+nicht geladenen Titel. Fährt man danach in ein Funkloch, bricht die Wiedergabe beim ersten nicht
+geladenen Titel mit einem Fehler ab; Media3 überspringt ihn nicht von selbst. Wer offline startet,
+bekommt dagegen nur die geladenen Titel in die Warteschlange.
+
 ## Technisches
 
 - Kotlin, Android Views (kein Compose), Media3 1.11.1, OkHttp, minSdk 26, target/compileSdk 36
@@ -76,7 +119,6 @@ möglich“ erscheint, auf dem Telefon neu anmelden.
   Limit), die Warteschlange enthält trotzdem die ganze Playlist.
 - **Unverschlüsselt:** `http://` zu einer Adresse außerhalb von LAN/VPN zeigt nach der Anmeldung
   eine Warnung (`Transport` in `Urls.kt`) — im Mobilnetz gingen Passwort und Tokens im Klartext.
-- **Offen:** Scrobbles aus Funklöchern gehen noch verloren (Puffer kommt mit Offline, #747);
-  `gradle-wrapper.properties` hat noch keine `distributionSha256Sum`.
+- **Offen:** `gradle-wrapper.properties` hat noch keine `distributionSha256Sum`.
 - Cleartext-HTTP ist erlaubt (`res/xml/network_security_config.xml`), weil die Heimserver im LAN
   ohne TLS laufen.
