@@ -122,7 +122,7 @@
             >
               <div class="sidebar-pl-img rounded-sm">
                 <div class="sidebar-pl-placeholder is-folder">
-                  <DirSvg />
+                  <FolderSvg />
                 </div>
                 <button
                   class="pl-play-overlay mem-glyph-swap"
@@ -179,10 +179,13 @@ import SidebarPlaylistItem from "./SidebarPlaylistItem.vue";
 import PlaySvg from "@/assets/icons/play.svg";
 import PauseSvg from "@/assets/icons/pause.svg";
 import PushPinSvg from "@/assets/icons/push-pin.svg";
-import FolderSvg from "@/assets/icons/folder.fill.svg";
-// A music folder, as in the navigation's "Folders" entry — not the filled
-// glyph of a playlist folder, which is a different thing in the same list.
-import DirSvg from "@/assets/icons/folder.svg";
+// One folder glyph for both kinds of folder in this list — the outline of the
+// navigation's "Folders" entry, like every other icon here. A playlist folder
+// used a FILLED variant to tell it apart from a pinned music folder; on its
+// pastel tile the solid block read worse than the line drawing (user,
+// 2026-11-09), and the two are told apart by their tint now: playlist pink
+// for a playlist folder, folder kraft for a music folder.
+import FolderSvg from "@/assets/icons/folder.svg";
 import RightArrowSvg from "@/assets/icons/right-arrow.svg";
 import PlusSvg from "@/assets/icons/plus.svg";
 

@@ -23,13 +23,13 @@ const placeholder = block(styleBlock(panelSource), ".sidebar-pl-placeholder").bo
 
 describe("sidebar placeholders wear their entity's pastel", () => {
   it("found the sources and the placeholder rule", () => {
-    expect(panelSource).toContain("<DirSvg />");
+    expect(panelSource).toContain('class="sidebar-pl-placeholder is-folder"');
     expect(itemSource).toContain("<PlaylistSvg />");
     expect(placeholder, ".sidebar-pl-placeholder block not found").not.toBe("");
   });
 
   it("tags the pinned music folder as a folder", () => {
-    expect(panelSource).toMatch(/class="sidebar-pl-placeholder is-folder">\s*<DirSvg \/>/);
+    expect(panelSource).toMatch(/class="sidebar-pl-placeholder is-folder">\s*<FolderSvg \/>/);
   });
 
   it("tags the picture-less playlist as a playlist", () => {
@@ -74,5 +74,14 @@ describe("sidebar placeholders wear their entity's pastel", () => {
     expect(thumb, ".sidebar-pl-img block not found").not.toBe("");
     expect(thumb).toMatch(ring);
     expect(block(css, ".folder-icon-slot").body).toMatch(ring);
+  });
+
+  // The playlist folder head draws the OUTLINE folder, like the "Folders" nav
+  // entry and every other icon in the list. The filled variant read as a solid
+  // block on its pastel tile (user, 2026-11-09); the tint tells the two kinds
+  // of folder apart now, not the glyph.
+  it("draws both folders with the outline glyph, never the filled one", () => {
+    expect(panelSource).toMatch(/import FolderSvg from "@\/assets\/icons\/folder\.svg";/);
+    expect(panelSource).not.toMatch(/folder\.fill\.svg/);
   });
 });
