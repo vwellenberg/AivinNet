@@ -96,6 +96,14 @@
                 android:inputType="textUri" />
 
             <TextView
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/server_url_help"
+                android:textSize="13sp" />
+
+            <TextView
                 style="@style/Aivin.Label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

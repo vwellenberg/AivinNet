@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AivinNet</string>
-    <string name="server_url_hint">Server-URL, die auch unterwegs erreichbar ist</string>
+    <string name="server_url_hint">https://musik.example.org</string>
+    <string name="server_url_help">Muss auch unterwegs übers Mobilfunknetz erreichbar sein.</string>
     <string name="username_hint">Benutzername</string>
     <string name="password_hint">Passwort</string>
     <string name="login_button">Anmelden</string>
