@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon ground: the web's paper with its grid (fixed colours, the icon does not follow night mode). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#F4F2ED" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#E2DFD6" android:pathData="M5,0h1v108h-1z M0,5h108v1h-108z M17,0h1v108h-1z M0,17h108v1h-108z M29,0h1v108h-1z M0,29h108v1h-108z M41,0h1v108h-1z M0,41h108v1h-108z M53,0h1v108h-1z M0,53h108v1h-108z M65,0h1v108h-1z M0,65h108v1h-108z M77,0h1v108h-1z M0,77h108v1h-108z M89,0h1v108h-1z M0,89h108v1h-108z M101,0h1v108h-1z M0,101h108v1h-108z" />
+</vector>

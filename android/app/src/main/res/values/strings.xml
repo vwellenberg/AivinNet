@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AivinNet</string>
-    <string name="server_url_hint">Server-URL, die auch unterwegs erreichbar ist</string>
+    <string name="server_url_hint">https://musik.example.org</string>
+    <string name="server_url_help">Muss auch unterwegs übers Mobilfunknetz erreichbar sein.</string>
     <string name="username_hint">Benutzername</string>
     <string name="password_hint">Passwort</string>
     <string name="login_button">Anmelden</string>
     <string name="logout_button">Abmelden</string>
-    <string name="status_logged_out">Nicht angemeldet.</string>
-    <string name="status_logged_in">Angemeldet als %1$s — jetzt Android Auto öffnen</string>
+    <string name="status_logged_in">Hallo, %1$s</string>
     <string name="status_fields_missing">Bitte Server-URL, Benutzername und Passwort eingeben.</string>
     <string name="status_login_failed">Anmeldung fehlgeschlagen: %1$s</string>
     <string name="status_logging_in">Anmelden …</string>
@@ -17,7 +17,6 @@
     <string name="offline_title">Offline</string>
     <string name="offline_hint">Markierte Mixes und Playlists laden sich über WLAN herunter und bleiben aktuell. Im Auto spielen sie dann auch ohne Netz.</string>
     <string name="offline_status_storage">Speicher: %1$s</string>
-    <string name="offline_row_label">%1$s\n%2$s</string>
     <string name="offline_status_none">Keine Liste ist offline markiert.</string>
     <string name="offline_status_pending">Wird beim nächsten Abgleich geladen.</string>
     <string name="offline_status_unreadable">Der Offline-Speicher ist nicht lesbar.</string>
@@ -35,4 +34,8 @@
     <string name="warning_unencrypted">⚠️ Unverschlüsselt: Passwort und Anmeldung gehen per http über das Internet. Besser eine https-Adresse oder ein VPN verwenden.</string>
     <string name="server_url_label">Server-Adresse</string>
     <string name="login_intro">Dieselbe Anmeldung wie in der Web-App. Danach läuft alles im Auto über Android Auto.</string>
+    <string name="tagline">Deine Musik im Auto</string>
+    <string name="login_title">Anmelden</string>
+    <string name="account_chip">Verbunden</string>
+    <string name="account_next_step">Alles bereit: Im Auto Android Auto öffnen und unter den Medien-Apps AivinNet wählen.</string>
 </resources>

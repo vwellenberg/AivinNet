@@ -100,6 +100,19 @@ nicht geladenen Titel. Fährt man danach in ein Funkloch, bricht die Wiedergabe 
 geladenen Titel mit einem Fehler ab; Media3 überspringt ihn nicht von selbst. Wer offline startet,
 bekommt dagegen nur die geladenen Titel in die Warteschlange.
 
+## Aussehen
+
+- **Look der Web-App** (Memphis, `client/src/assets/scss/_candy.scss`): Papiergrund mit Raster,
+  Karten mit Tintenlinie und hartem Versatzschatten, türkiser Haupt-Knopf, gelbe/korallene
+  Sticker; im Dunkelmodus der indigo Grund der Web-App (`values-night/colors.xml`).
+- **App-Icon = der Pixel-Planet der Web-App** (`client/src/assets/icons/logos/logo-subspaceradio.png`)
+  mit Tintenumriss und dem korallenen Mond seiner Hover-Umlaufbahn, als adaptives Icon mit
+  Monochrom-Ebene. Erzeugt aus dem 28×28-Zellraster des Planeten, **nearest-neighbour**
+  skaliert (sonst verschwimmen die Pixel) auf eine 72-Zellen-Fläche (1 Zelle = 1,5 dp), damit
+  Planet *und* Mond im 66-dp-Sicherheitskreis jeder Launcher-Maske liegen — bei 2 dp/Zelle wurde
+  der Mond von runden Masken abgeschnitten. `login_planet.png` ist dasselbe Raster in groß und
+  wird ungefiltert gezeichnet (`login_planet_crisp.xml`).
+
 ## Technisches
 
 - Kotlin, Android Views (kein Compose), Media3 1.11.1, OkHttp, minSdk 26, target/compileSdk 36

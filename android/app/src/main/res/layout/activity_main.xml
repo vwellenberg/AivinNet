@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+    The web client's Memphis look: paper ground with a grid, cards with an ink line and a hard
+    offset shadow, the pixel planet on top. Signed out shows the login card, signed in the account
+    and offline cards (MainActivity.render).
+
     The window is edge-to-edge (forced from Android 15 on with targetSdk 35+), so MainActivity
     pads this root by the system bars, the display cutout and the keyboard. Without that, the
     first field sat under the status bar and could not be seen.
@@ -8,139 +12,259 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_grid"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="24dp"
+        android:paddingTop="32dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="40dp">
+
+        <ImageView
+            android:layout_width="132dp"
+            android:layout_height="132dp"
+            android:layout_gravity="center_horizontal"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter"
+            android:src="@drawable/login_planet_crisp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
             android:text="@string/app_name"
-            android:textSize="28sp"
+            android:textColor="@color/aivin_text"
+            android:textSize="38sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="match_parent"
+            android:id="@+id/tagline"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/login_intro" />
-
-        <TextView
-            android:id="@+id/serverUrlLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:labelFor="@id/serverUrl"
-            android:text="@string/server_url_label"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_chip"
+            android:paddingStart="14dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="4dp"
+            android:text="@string/tagline"
+            android:textColor="@color/aivin_on_accent"
+            android:textSize="14sp"
             android:textStyle="bold" />
 
-        <EditText
-            android:id="@+id/serverUrl"
+        <!-- Signed out. -->
+        <LinearLayout
+            android:id="@+id/loginCard"
+            style="@style/Aivin.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/server_url_hint"
-            android:importantForAutofill="no"
-            android:inputType="textUri"
-            android:minHeight="48dp" />
+            android:layout_marginTop="32dp">
 
-        <TextView
-            android:id="@+id/usernameLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:labelFor="@id/username"
-            android:text="@string/username_hint"
-            android:textStyle="bold" />
+            <TextView
+                style="@style/Aivin.Heading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/login_title" />
 
-        <EditText
-            android:id="@+id/username"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/username_hint"
-            android:importantForAutofill="no"
-            android:inputType="text"
-            android:minHeight="48dp" />
+            <TextView
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/login_intro" />
 
-        <TextView
-            android:id="@+id/passwordLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:labelFor="@id/password"
-            android:text="@string/password_hint"
-            android:textStyle="bold" />
+            <TextView
+                style="@style/Aivin.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/serverUrl"
+                android:text="@string/server_url_label" />
 
-        <EditText
-            android:id="@+id/password"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/password_hint"
-            android:importantForAutofill="no"
-            android:inputType="textPassword"
-            android:minHeight="48dp" />
+            <EditText
+                android:id="@+id/serverUrl"
+                style="@style/Aivin.Field"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/server_url_hint"
+                android:importantForAutofill="no"
+                android:inputType="textUri" />
 
-        <Button
-            android:id="@+id/loginButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/login_button" />
+            <TextView
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/server_url_help"
+                android:textSize="13sp" />
 
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:textSize="16sp" />
+            <TextView
+                style="@style/Aivin.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/username"
+                android:text="@string/username_hint" />
 
-        <Button
-            android:id="@+id/logoutButton"
+            <EditText
+                android:id="@+id/username"
+                style="@style/Aivin.Field"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/username_hint"
+                android:importantForAutofill="no"
+                android:inputType="text" />
+
+            <TextView
+                style="@style/Aivin.Label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:labelFor="@id/password"
+                android:text="@string/password_hint" />
+
+            <EditText
+                android:id="@+id/password"
+                style="@style/Aivin.Field"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/password_hint"
+                android:importantForAutofill="no"
+                android:inputType="textPassword" />
+
+            <TextView
+                android:id="@+id/loginMessage"
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/loginButton"
+                style="@style/Aivin.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/login_button" />
+
+        </LinearLayout>
+
+        <!-- Signed in. -->
+        <LinearLayout
+            android:id="@+id/accountCard"
+            style="@style/Aivin.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/logout_button" />
+            android:layout_marginTop="32dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip"
+                android:paddingStart="12dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="3dp"
+                android:text="@string/account_chip"
+                android:textColor="@color/aivin_on_accent"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusText"
+                style="@style/Aivin.Heading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/serverText"
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/warningText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_chip_warning"
+                android:paddingStart="14dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="8dp"
+                android:text="@string/warning_unencrypted"
+                android:textColor="@color/aivin_on_accent"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
+                style="@style/Aivin.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/account_next_step" />
+
+            <Button
+                android:id="@+id/logoutButton"
+                style="@style/Aivin.Button.Secondary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/logout_button" />
+
+        </LinearLayout>
 
         <!-- Offline: shown only when signed in (MainActivity.render). -->
         <LinearLayout
             android:id="@+id/offlineSection"
+            style="@style/Aivin.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:orientation="vertical"
             android:visibility="gone">
 
             <TextView
+                style="@style/Aivin.Heading"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/offline_title"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:text="@string/offline_title" />
 
             <TextView
+                style="@style/Aivin.Body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="@string/offline_hint"
-                android:textSize="14sp" />
+                android:text="@string/offline_hint" />
 
             <TextView
                 android:id="@+id/offlineStatus"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textSize="15sp" />
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_chip"
+                android:paddingStart="12dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="4dp"
+                android:textColor="@color/aivin_on_accent"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/mobileDataSwitch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:minHeight="48dp"
-                android:text="@string/offline_mobile_switch" />
+                android:text="@string/offline_mobile_switch"
+                android:textColor="@color/aivin_text"
+                android:textSize="15sp" />
 
             <LinearLayout
                 android:id="@+id/offlineList"
@@ -151,16 +275,18 @@
 
             <Button
                 android:id="@+id/syncButton"
+                style="@style/Aivin.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="20dp"
                 android:text="@string/offline_sync_button" />
 
             <Button
                 android:id="@+id/deleteOfflineButton"
+                style="@style/Aivin.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:text="@string/offline_delete_button" />
 
         </LinearLayout>

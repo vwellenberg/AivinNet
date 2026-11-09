@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The web client's Memphis palette (client/src/assets/scss/_candy.scss): paper ground with a grid,
+    ink lines, teal for the primary action, yellow for states, coral as the second accent.
+    values-night/colors.xml carries the dark theme's indigo ground and paper lines.
+-->
+<resources>
+    <color name="aivin_ground">#F4F2ED</color>
+    <color name="aivin_surface">#FFFFFF</color>
+    <color name="aivin_field">#F4F2ED</color>
+    <color name="aivin_line">#17171A</color>
+    <color name="aivin_text">#17171A</color>
+    <color name="aivin_text_muted">#5B5B66</color>
+    <color name="aivin_teal">#2FBFA3</color>
+    <color name="aivin_yellow">#F5B23C</color>
+    <color name="aivin_coral">#E2574C</color>
+    <color name="aivin_pink">#F2799F</color>
+    <color name="aivin_on_accent">#17171A</color>
+    <color name="aivin_disabled">#C9C7C0</color>
+</resources>
