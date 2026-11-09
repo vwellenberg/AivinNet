@@ -124,3 +124,17 @@ describe('Now Playing cover rim', () => {
         expect(rim).toMatch(/border-radius: calc\(#\{\$candy-radius\} \+ #\{\$rim-bleed\}\);/)
     })
 })
+
+// The three covers run in step, so they also run at one strength: a halved
+// player-bar comet read as the weak copy of the big one (user, 2026-11-09).
+describe('player-bar cover Lauflicht', () => {
+    const bar = readFileSync('src/components/BottomBar/Left.vue', 'utf8')
+
+    it('keeps the bar cover in the rim', () => {
+        expect(bar).toMatch(/class="np-image lauflicht-rim/)
+    })
+
+    it('does not scale the comet down', () => {
+        expect(bar).not.toMatch(/--lauflicht-scale:\s*0?\.\d/)
+    })
+})
