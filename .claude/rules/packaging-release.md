@@ -220,6 +220,13 @@ GitHub-Werkzeug, das Releases löscht.
   Stille-Erkennung (pydub). `install.sh` bietet das Distro-Paket an (Default Ja), der Server
   meldet beim Start, wenn es fehlt (`start_info_logger.has_ffmpeg`). Fedora: `ffmpeg-free`,
   nicht `ffmpeg` (das bräuchte RPM Fusion).
+- **⚠️ Die Einzeldatei-Binaries v2026.10.5 bis v2026.11.6 starteten nicht.** Seit cc21b069 legt
+  das Spec `client.zip` nur noch als Paketdaten unter `aivinnet/client.zip` ab, `run.py` öffnete
+  aber weiter `sys._MEIPASS/client.zip` (Bundle-Wurzel) → `FileNotFoundError` schon vor dem
+  Serverstart. Der Rauchtest des Releases lief nur gegen das AppImage, das seinen Client per
+  `--client` aus dem squashfs holt, deshalb fiel es niemandem auf. Jetzt startet der Release-
+  Workflow jedes Binary mit `--version` (Schritt „Smoke test the binary“), und
+  `TestFrozenLauncher` in `tests/test_packaging_manifests.py` hält `run.py` und das Spec zusammen.
 
 ## Der entpackte Client überlebt das Update — seit v2026.8.3 wird er erneuert
 
