@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AivinNet</string>
+    <string name="server_url_hint">Server-URL, z. B. http://192.168.1.10:1970</string>
+    <string name="username_hint">Benutzername</string>
+    <string name="password_hint">Passwort</string>
+    <string name="login_button">Anmelden</string>
+    <string name="logout_button">Abmelden</string>
+    <string name="status_logged_out">Nicht angemeldet.</string>
+    <string name="status_logged_in">Angemeldet als %1$s — jetzt Android Auto öffnen</string>
+    <string name="status_fields_missing">Bitte Server-URL, Benutzername und Passwort eingeben.</string>
+    <string name="status_login_failed">Anmeldung fehlgeschlagen: %1$s</string>
+    <string name="status_logging_in">Anmelden …</string>
+    <string name="browse_mixes">Mixes</string>
+    <string name="browse_playlists">Playlists</string>
+</resources>

@@ -1,0 +1,95 @@
+package net.aivinnet.auto
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** Tokens returned by `POST /auth/login` and `POST /auth/refresh` (same shape). */
+data class LoginResult(
+    val accessToken: String,
+    val refreshToken: String,
+    val maxAge: Long,
+)
+
+/** One entry of `GET /playlists?no_images=true` (`{"data": [...]}`). */
+data class PlaylistSummary(
+    val id: String,
+    val name: String,
+    val count: Int,
+)
+
+/** One track of `GET /playlists/<id>?limit=-1`, as serialised by serializers/track.py. */
+data class TrackInfo(
+    val trackhash: String,
+    val title: String,
+    val album: String,
+    val artists: List<String>,
+    val duration: Int,
+    val filepath: String,
+    val image: String,
+)
+
+/** `GET /playlists/<id>?limit=-1`: `info.name` plus the resolvable tracks. */
+data class PlaylistDetail(
+    val id: String,
+    val name: String,
+    val tracks: List<TrackInfo>,
+)
+
+/** One play for `POST /logger/track/log`. `timestamp` is unix seconds at the end of the play. */
+data class ScrobblePlay(
+    val trackhash: String,
+    val timestamp: Long,
+    val duration: Int,
+    val source: String,
+)
+
+/** Parses the JSON bodies of the AivinNet API. Pure, so it runs in JVM unit tests. */
+object AivinJson {
+
+    fun parseLogin(body: String): LoginResult {
+        val json = JSONObject(body)
+        return LoginResult(
+            accessToken = json.getString("accesstoken"),
+            refreshToken = json.getString("refreshtoken"),
+            maxAge = json.optLong("maxage", 0L),
+        )
+    }
+
+    fun parsePlaylists(body: String): List<PlaylistSummary> {
+        val data = JSONObject(body).optJSONArray("data") ?: JSONArray()
+        return (0 until data.length()).map { index ->
+            val playlist = data.getJSONObject(index)
+            PlaylistSummary(
+                id = playlist.get("id").toString(),
+                name = playlist.optString("name", ""),
+                count = playlist.optInt("count", 0),
+            )
+        }
+    }
+
+    fun parsePlaylistDetail(id: String, body: String): PlaylistDetail {
+        val json = JSONObject(body)
+        val name = json.optJSONObject("info")?.optString("name", "").orEmpty()
+        val tracks = json.optJSONArray("tracks") ?: JSONArray()
+        return PlaylistDetail(
+            id = id,
+            name = name.ifEmpty { id },
+            tracks = (0 until tracks.length()).map { parseTrack(tracks.getJSONObject(it)) },
+        )
+    }
+
+    private fun parseTrack(track: JSONObject): TrackInfo {
+        val artists = track.optJSONArray("artists") ?: JSONArray()
+        return TrackInfo(
+            trackhash = track.getString("trackhash"),
+            title = track.optString("title", ""),
+            album = track.optString("album", ""),
+            artists = (0 until artists.length())
+                .mapNotNull { artists.optJSONObject(it)?.optString("name", "") }
+                .filter { it.isNotBlank() },
+            duration = track.optInt("duration", 0),
+            filepath = track.getString("filepath"),
+            image = track.optString("image", ""),
+        )
+    }
+}
