@@ -63,4 +63,16 @@ describe("sidebar placeholders wear their entity's pastel", () => {
     expect(slot).not.toMatch(/var\(--row-fill\)/);
     expect(block(css, ".folder-icon").body).toMatch(/color:\s*\$mem-ink;/);
   });
+
+  // Every picture in the app wears an ink frame; the sidebar's 28px thumbnails
+  // were the last without one (user, 2026-11-09). Both boxes carry it — the
+  // thumbnail (cover, mosaic, placeholder) and the playlist folder's icon tile.
+  it("frames the thumbnail box and the folder icon tile in the ink ring", () => {
+    const css = styleBlock(panelSource);
+    const ring = /border:\s*\$mem-ring-w solid \$mem-line;/;
+    const thumb = block(css, ".sidebar-pl-img").body;
+    expect(thumb, ".sidebar-pl-img block not found").not.toBe("");
+    expect(thumb).toMatch(ring);
+    expect(block(css, ".folder-icon-slot").body).toMatch(ring);
+  });
 });
