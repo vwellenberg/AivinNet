@@ -14,4 +14,6 @@
     <string name="browse_mixes">Mixes</string>
     <string name="browse_playlists">Playlists</string>
     <string name="warning_unencrypted">⚠️ Unverschlüsselt: Passwort und Anmeldung gehen per http über das Internet. Besser eine https-Adresse oder ein VPN verwenden.</string>
+    <string name="server_url_label">Server-Adresse</string>
+    <string name="login_intro">Dieselbe Anmeldung wie in der Web-App. Danach läuft alles im Auto über Android Auto.</string>
 </resources>

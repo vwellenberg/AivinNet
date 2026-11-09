@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The window is edge-to-edge (forced from Android 15 on with targetSdk 35+), so MainActivity
+    pads this root by the system bars, the display cutout and the keyboard. Without that, the
+    first field sat under the status bar and could not be seen.
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -10,6 +16,28 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/login_intro" />
+
+        <TextView
+            android:id="@+id/serverUrlLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:labelFor="@id/serverUrl"
+            android:text="@string/server_url_label"
+            android:textStyle="bold" />
+
         <EditText
             android:id="@+id/serverUrl"
             android:layout_width="match_parent"
@@ -19,6 +47,15 @@
             android:inputType="textUri"
             android:minHeight="48dp" />
 
+        <TextView
+            android:id="@+id/usernameLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:labelFor="@id/username"
+            android:text="@string/username_hint"
+            android:textStyle="bold" />
+
         <EditText
             android:id="@+id/username"
             android:layout_width="match_parent"
@@ -27,6 +64,15 @@
             android:importantForAutofill="no"
             android:inputType="text"
             android:minHeight="48dp" />
+
+        <TextView
+            android:id="@+id/passwordLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:labelFor="@id/password"
+            android:text="@string/password_hint"
+            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/password"
