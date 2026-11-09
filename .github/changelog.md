@@ -73,6 +73,23 @@ Silicon).
 
 ## What's new in this release
 
+A brighter Lauflicht and a tidier sidebar, on top of 2026.11.5.
+
+- **The Lauflicht runs in step.** The light around the cover in the player bar,
+  the big Now Playing cover and the playing row in a list now circle at the same
+  angle, and the playing row's cover gets the light too.
+- **The player bar's light is as bright as the others.** It used to run at half
+  strength; the level in the settings alone decides now.
+- **No more black corner on the big cover.** The light now covers the cover's
+  rounded corners, where a dark sliver of the frame used to peek out.
+- **Sidebar: no more black blocks.** A playlist folder shows an outline folder on
+  the playlist pink, a pinned music folder the folder colour, and a playlist
+  without a picture its pink, instead of a solid black glyph or a faded icon.
+- **Sidebar thumbnails have a frame** like every other picture in the app.
+
+<details>
+<summary>What v2026.11.5 brought</summary>
+
 Shuffle and repeat on the phone, on top of 2026.11.4.
 
 - **You can see shuffle and repeat on the phone again.** In the Now Playing
@@ -83,6 +100,8 @@ Shuffle and repeat on the phone, on top of 2026.11.4.
 - **"Repeat one" ends with a new album or playlist.** Starting something new
   goes back to repeating the whole list, so a new album no longer plays its
   first song over and over. Shuffle stays as you set it.
+
+</details>
 
 <details>
 <summary>What v2026.11.4 brought</summary>
