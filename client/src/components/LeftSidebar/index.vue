@@ -1145,6 +1145,8 @@ $sidebar-label-opacity: 0.85;
         // first version of this used kraft and the user flagged the mix-up.
         // The pastel is static, so the glyph is static ink in both themes.
         @include mem-entity-tint("playlist");
+        // Framed like the thumbnails below (`.sidebar-pl-img`).
+        border: $mem-ring-w solid $mem-line;
         border-radius: 7px;
         flex-shrink: 0;
         width: $control-dense;
@@ -1341,6 +1343,13 @@ $sidebar-label-opacity: 0.85;
     flex-shrink: 0;
     overflow: hidden;
     position: relative;
+    // The ink frame every other picture in the app wears (song list, charts,
+    // folder list) — the sidebar was the last place without one (user,
+    // 2026-11-09). On the BOX, not the <img>, so a cover, a mosaic and a
+    // placeholder tile get the same edge. The ring width, not the 3px
+    // $candy-border: at 28px a 3px frame eats too much cover and runs into the
+    // row's own 3px plate border. Border-box (global), so the box stays 28px.
+    border: $mem-ring-w solid $mem-line;
 
     img {
       width: 100%;
