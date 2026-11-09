@@ -47,4 +47,17 @@ describe("sidebar placeholders wear their entity's pastel", () => {
     expect(glyph).toMatch(/color:\s*\$mem-ink;/);
     expect(glyph).toMatch(/opacity:\s*1;/);
   });
+
+  // The playlist FOLDER head is a third picture-less row, and the one the user
+  // actually saw: the first round only reached the pinned music folder, and the
+  // head kept its solid black glyph on the row's own fill (2026-11-09).
+  it("gives the playlist folder head the folder pastel and an ink glyph", () => {
+    expect(panelSource).toMatch(/class="folder-icon-slot">\s*<FolderSvg class="folder-icon" \/>/);
+    const css = styleBlock(panelSource);
+    const slot = block(css, ".folder-icon-slot").body;
+    expect(slot, ".folder-icon-slot block not found").not.toBe("");
+    expect(slot).toMatch(/@include mem-entity-tint\("folder"\)/);
+    expect(slot).not.toMatch(/var\(--row-fill\)/);
+    expect(block(css, ".folder-icon").body).toMatch(/color:\s*\$mem-ink;/);
+  });
 });

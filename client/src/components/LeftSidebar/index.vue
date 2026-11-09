@@ -1134,7 +1134,13 @@ $sidebar-label-opacity: 0.85;
         // It sits on the hatch like the name and the count, so it carries the
         // same cover: without one the strokes ran straight through the folder
         // glyph, which read as a broken hatch (reported 2026-10-04).
-        background-color: var(--row-fill);
+        //
+        // The cover is the FOLDER pastel, not the row's own fill: on the plain
+        // fill the solid ink glyph was the one black block in a list of
+        // covers and pastel placeholders (user, 2026-11-09). Same rule as the
+        // picture-less rows below (`.sidebar-pl-placeholder.is-folder`), and
+        // the pastel is static, so the glyph is static ink in both themes.
+        @include mem-entity-tint("folder");
         border-radius: 7px;
         flex-shrink: 0;
         width: $control-dense;
@@ -1144,8 +1150,9 @@ $sidebar-label-opacity: 0.85;
       }
 
       .folder-icon {
-        width: 1.35rem;
-        height: 1.35rem;
+        width: 1.1rem;
+        height: 1.1rem;
+        color: $mem-ink;
       }
 
       .folder-chevron {
