@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@formkit/auto-animate": "^1.0.0-beta.3",
+    "@formkit/auto-animate": "^1.0.0-pre-alpha.3",
     "@popperjs/core": "^2.11.8",
     "@vueuse/core": "^15.0.0",
     "axios": "^0.34.0",
