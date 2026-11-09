@@ -12,6 +12,17 @@ class SessionStore(private val prefs: SharedPreferences) {
 
     val isLoggedIn: Boolean get() = accessToken != null && refreshToken != null
 
+    /**
+     * Server and user of the stored session, or null when signed out. Offline playlists are kept
+     * per account: a playlist id belongs to one user, and `mix1` is a different mix for everyone.
+     */
+    val accountKey: String?
+        get() {
+            val base = baseUrl ?: return null
+            val user = username ?: return null
+            return if (isLoggedIn) "$base|$user" else null
+        }
+
     fun saveLogin(baseUrl: String, username: String, accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString(KEY_BASE_URL, baseUrl)

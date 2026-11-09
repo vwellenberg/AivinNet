@@ -50,3 +50,21 @@ class RefreshRulesTest {
         assertFalse(RefreshRules.isRefused(503))
     }
 }
+
+class SameServerTest {
+
+    private fun url(s: String) = okhttp3.HttpUrl.Companion.run { s.toHttpUrl() }
+
+    @Test
+    fun `the session's own server gets the token`() {
+        assertTrue(SameServer.matches(url("http://192.168.1.10:1970/file/abc/legacy?filepath=x"), "http://192.168.1.10:1970"))
+    }
+
+    @Test
+    fun `another server, port or scheme does not`() {
+        assertFalse(SameServer.matches(url("http://other.example:1970/file/abc/legacy"), "http://192.168.1.10:1970"))
+        assertFalse(SameServer.matches(url("http://192.168.1.10:8080/x"), "http://192.168.1.10:1970"))
+        assertFalse(SameServer.matches(url("https://music.example.org/x"), "http://music.example.org"))
+        assertFalse(SameServer.matches(url("http://192.168.1.10:1970/x"), null))
+    }
+}

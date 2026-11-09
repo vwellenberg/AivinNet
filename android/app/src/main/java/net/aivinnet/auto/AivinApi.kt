@@ -32,8 +32,16 @@ internal class AuthManager(
     private val store: SessionStore,
     private val plain: OkHttpClient,
 ) {
-    @Synchronized
-    fun refreshAfter(usedAccessToken: String): Boolean {
+    /**
+     * Each [AivinApi] builds its own AuthManager, and the downloads add more callers. A refresh
+     * token can be rotated by the server, so two refreshes running at once could revoke each other
+     * and sign the user out. The lock is therefore per process, not per instance.
+     */
+    fun refreshAfter(usedAccessToken: String): Boolean = synchronized(REFRESH_LOCK) {
+        refreshLocked(usedAccessToken)
+    }
+
+    private fun refreshLocked(usedAccessToken: String): Boolean {
         val current = store.accessToken
         if (current != null && current != usedAccessToken) return true
 
@@ -66,6 +74,10 @@ internal class AuthManager(
             return true
         }
     }
+
+    private companion object {
+        val REFRESH_LOCK = Any()
+    }
 }
 
 /** Which refresh answers mean "this session is over" rather than "try again later". */
@@ -85,6 +97,11 @@ internal class AuthInterceptor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
+        // The token belongs to the server it was issued by. A download queued under another
+        // account (another server) must not resume carrying this one's token.
+        if (!SameServer.matches(original.url, store.baseUrl)) {
+            throw AivinException("Anfrage an einen anderen Server als den angemeldeten")
+        }
         val token = store.accessToken ?: throw AuthExpiredException()
 
         val first = chain.proceed(original.withBearer(token))
@@ -206,5 +223,13 @@ class AivinApi private constructor(
                 .build()
             return AivinApi(store, plain, authed)
         }
+    }
+}
+
+/** Whether a request goes to the server the session belongs to (scheme, host and port). */
+object SameServer {
+    fun matches(url: okhttp3.HttpUrl, baseUrl: String?): Boolean {
+        val base = baseUrl?.toHttpUrlOrNull() ?: return false
+        return url.scheme == base.scheme && url.host == base.host && url.port == base.port
     }
 }
