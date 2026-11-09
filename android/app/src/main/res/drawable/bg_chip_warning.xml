@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sticker: pill, accent fill, ink line. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/aivin_coral" />
+    <stroke android:width="2dp" android:color="@color/aivin_line" />
+    <corners android:radius="999dp" />
+</shape>

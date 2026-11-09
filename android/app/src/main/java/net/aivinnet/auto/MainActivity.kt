@@ -104,42 +104,46 @@ class MainActivity : AppCompatActivity() {
         val username = binding.username.text.toString().trim()
         val password = binding.password.text.toString()
         if (server.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            binding.statusText.setText(R.string.status_fields_missing)
+            showLoginMessage(getString(R.string.status_fields_missing))
             return
         }
 
         binding.loginButton.isEnabled = false
-        binding.statusText.setText(R.string.status_logging_in)
+        showLoginMessage(getString(R.string.status_logging_in))
         lifecycleScope.launch {
             try {
                 api.login(server, username, password)
                 binding.password.setText("")
+                binding.loginMessage.visibility = View.GONE
                 render()
                 scheduleSync()
             } catch (e: IOException) {
-                binding.statusText.text = getString(R.string.status_login_failed, e.message.orEmpty())
+                showLoginMessage(getString(R.string.status_login_failed, e.message.orEmpty()))
             } finally {
                 binding.loginButton.isEnabled = true
             }
         }
     }
 
+    private fun showLoginMessage(message: String) {
+        binding.loginMessage.text = message
+        binding.loginMessage.visibility = View.VISIBLE
+    }
+
+    /** Signed out: the login card. Signed in: the account card and the offline card. */
     private fun render() {
         val store = api.store
-        binding.statusText.text = if (store.isLoggedIn) {
-            val status = getString(R.string.status_logged_in, store.username.orEmpty())
-            val base = store.baseUrl.orEmpty()
-            if (Transport.isUnencryptedRemote(base)) {
-                status + "\n\n" + getString(R.string.warning_unencrypted)
-            } else {
-                status
-            }
-        } else {
-            getString(R.string.status_logged_out)
-        }
-        binding.logoutButton.isEnabled = store.isLoggedIn
-
         val signedIn = store.isLoggedIn
+        binding.loginCard.visibility = if (signedIn) View.GONE else View.VISIBLE
+        binding.accountCard.visibility = if (signedIn) View.VISIBLE else View.GONE
+        if (signedIn) {
+            val base = store.baseUrl.orEmpty()
+            binding.statusText.text = getString(R.string.status_logged_in, store.username.orEmpty())
+            binding.serverText.text = base
+            binding.warningText.visibility =
+                if (Transport.isUnencryptedRemote(base)) View.VISIBLE else View.GONE
+        }
+
         binding.offlineSection.visibility = if (signedIn) View.VISIBLE else View.GONE
         if (signedIn) {
             refreshOfflineStatus()
@@ -267,29 +271,50 @@ class MainActivity : AppCompatActivity() {
     private fun renderRows(candidates: List<Candidate>, marked: Set<String>) {
         binding.offlineList.removeAllViews()
         if (candidates.isEmpty()) {
-            binding.offlineList.addView(TextView(this).apply { setText(R.string.offline_no_lists) })
+            binding.offlineList.addView(TextView(this).apply {
+                setText(R.string.offline_no_lists)
+                setTextColor(ContextCompat.getColor(context, R.color.aivin_text_muted))
+            })
             return
         }
         for (candidate in candidates) {
+            // One row per list: name in bold, track count muted, the switch on the right; a hairline
+            // in the card's line colour between rows.
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(0, dp(6), 0, dp(6))
+                minimumHeight = dp(56)
+                setPadding(0, dp(8), 0, dp(8))
             }
-            val label = TextView(this).apply {
-                text = getString(
-                    R.string.offline_row_label,
-                    candidate.name,
-                    resources.getQuantityString(R.plurals.track_count, candidate.count, candidate.count),
-                )
+            val text = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
+            text.addView(TextView(this).apply {
+                this.text = candidate.name
+                setTextColor(ContextCompat.getColor(context, R.color.aivin_text))
+                textSize = 16f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+            text.addView(TextView(this).apply {
+                this.text = resources.getQuantityString(R.plurals.track_count, candidate.count, candidate.count)
+                setTextColor(ContextCompat.getColor(context, R.color.aivin_text_muted))
+                textSize = 14f
+            })
             val toggle = SwitchCompat(this).apply {
                 isChecked = candidate.id in marked
+                contentDescription = candidate.name
                 setOnCheckedChangeListener { _, checked -> setOffline(candidate.id, checked) }
             }
-            row.addView(label)
+            row.addView(text)
             row.addView(toggle)
+            if (binding.offlineList.childCount > 0) {
+                binding.offlineList.addView(View(this).apply {
+                    setBackgroundColor(ContextCompat.getColor(context, R.color.aivin_line))
+                    alpha = 0.15f
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
+                })
+            }
             binding.offlineList.addView(row)
         }
     }

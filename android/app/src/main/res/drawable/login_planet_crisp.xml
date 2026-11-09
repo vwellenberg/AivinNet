@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pixel art: no filtering when scaled, or the planet's cells blur into each other. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:antialias="false"
+    android:filter="false"
+    android:src="@drawable/login_planet" />

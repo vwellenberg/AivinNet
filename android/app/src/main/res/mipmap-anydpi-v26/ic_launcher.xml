@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The web client's pixel planet (client/src/assets/icons/logos/logo-subspaceradio.png) with an ink
+    outline and the coral moon of its hover orbit. The PNGs are the planet's 28x28 cell grid scaled
+    nearest-neighbour onto a 72-cell canvas (1 cell = 1.5dp), so planet and moon stay inside the
+    66dp safe circle of every launcher mask. The monochrome layer is the silhouette for themed icons.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
+</adaptive-icon>

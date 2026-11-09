@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Candy button: the face sits up-left of a hard ink shadow; pressed, it moves onto the shadow
+    (the web's "pressed into the page"). Disabled: flat, no shadow.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <layer-list>
+            <item android:bottom="4dp" android:right="4dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/aivin_disabled" />
+                    <stroke android:width="3dp" android:color="@color/aivin_line" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_pressed="true">
+        <layer-list>
+            <item android:left="4dp" android:top="4dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/aivin_surface" />
+                    <stroke android:width="3dp" android:color="@color/aivin_line" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item android:left="4dp" android:top="4dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/aivin_line" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+            <item android:bottom="4dp" android:right="4dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/aivin_surface" />
+                    <stroke android:width="3dp" android:color="@color/aivin_line" />
+                    <corners android:radius="10dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>
