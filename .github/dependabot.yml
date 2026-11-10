@@ -50,12 +50,20 @@ updates:
     groups:
       client:
         update-types: ["minor", "patch"]
-    # v3 drops what typedScroller.ts builds on (DynamicScroller.computed and the
-    # view pool per row type): the bump alone crashes the app at startup (#653).
-    # The migration is #704; drop this entry with it.
+    # From 2.0.0 (stable, not only v3) the scroller is a <script setup> rewrite without what
+    # typedScroller.ts builds on (DynamicScroller.computed, the view pool per row type): the
+    # bump alone crashes the app at startup (#653). Ignoring only the major let 2.0.1 in through
+    # the minor group (#750), so every version from 2.0.0 is ignored; package.json pins the beta
+    # exactly for the same reason. The migration is #704; drop this entry with it.
+    #
+    # auto-animate restarted its versions at 0.x; the old 1.0.0-* prereleases rank above 0.10
+    # in semver, and "1.0.0-pre-alpha.3" (2022) even above "1.0.0-beta.5", so Dependabot offered
+    # downgrades (#753).
     ignore:
       - dependency-name: vue-virtual-scroller
-        update-types: ["version-update:semver-major"]
+        versions: [">=2.0.0"]
+      - dependency-name: "@formkit/auto-animate"
+        versions: [">=1.0.0-0 <1.0.0"]
     commit-message:
       prefix: deps(client)
 
