@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@formkit/auto-animate": "^1.0.0-beta.3",
+    "@formkit/auto-animate": "^0.10.2",
     "@popperjs/core": "^2.11.8",
     "@vueuse/core": "^15.0.0",
     "axios": "^1.21.0",
@@ -25,7 +25,7 @@
     "vue": "^3.5.44",
     "vue-boring-avatars": "^1.4.0",
     "vue-router": "^5.4.0",
-    "vue-virtual-scroller": "^2.0.0-beta.7"
+    "vue-virtual-scroller": "2.0.0-beta.7"
   },
   "devDependencies": {
     "@nextcss/color-tools": "^2.0.0",

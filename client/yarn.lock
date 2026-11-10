@@ -1200,10 +1200,10 @@
   resolved "https://registry.yarnpkg.com/@exodus/bytes/-/bytes-1.16.0.tgz#954c9d9dd7eec15b966b2e8f2d883c04295b720c"
   integrity sha512-IcpW84uEn3N7ETtNZMlxKhfl6Pec8rUNGOTBtWbK1FKhJxIFAptZyVrvVRVBimAJxJCgc3PxepxkdWWG4DVzfA==
 
-"@formkit/auto-animate@^1.0.0-beta.3":
-  version "1.0.0-beta.5"
-  resolved "https://registry.yarnpkg.com/@formkit/auto-animate/-/auto-animate-1.0.0-beta.5.tgz#3fe4d520a82909cdcffa8854f26bc26ca4562045"
-  integrity sha512-WoSwyhAZPOe6RB/IgicOtCHtrWwEpfKIZ/H/nxpKfnZL9CB6hhhBGU5bCdMRw7YpAUF2CDlQa+WWh+gCqz5lDg==
+"@formkit/auto-animate@^0.10.2":
+  version "0.10.2"
+  resolved "https://registry.yarnpkg.com/@formkit/auto-animate/-/auto-animate-0.10.2.tgz#b13e443efc9cd575c5fa7318ec71aeb61a0b6cdb"
+  integrity sha512-t2Z3y8b/zB3wPWwgpc6JDVm4q0ezb5vfe2mqfUrQJ7XziZY8iYuhocQ7eJdTzowRePihrNbZ/DNJoFa6Yi5blg==
 
 "@humanwhocodes/config-array@^0.11.10":
   version "0.11.10"
@@ -5755,7 +5755,7 @@ vue-tsc@^2.1.10:
     "@volar/typescript" "2.4.15"
     "@vue/language-core" "2.2.12"
 
-vue-virtual-scroller@^2.0.0-beta.7:
+vue-virtual-scroller@2.0.0-beta.7:
   version "2.0.0-beta.7"
   resolved "https://registry.yarnpkg.com/vue-virtual-scroller/-/vue-virtual-scroller-2.0.0-beta.7.tgz#4ea8158638c84b2033b001a8b26c5fcb6896b271"
   integrity sha512-OrouVj1i2939jaLjVfu8f5fsDlbzhAb4bOsYZYrAkpcVLylAmMoGtIL7eT3hJrdTiaKbwQpRdnv7DKf9Fn+tHg==

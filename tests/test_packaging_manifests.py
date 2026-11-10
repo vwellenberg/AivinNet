@@ -17,6 +17,7 @@ Each of these has failed silently once, in a way CI could not see:
 """
 
 import ast
+import json
 import re
 import tomllib
 import zlib
@@ -538,6 +539,21 @@ class TestPinnedBuildInputs:
         assert (REPO_ROOT / "uv.lock").is_file()
         assert (REPO_ROOT / "client" / "yarn.lock").is_file()
         assert (REPO_ROOT / "mcp_server" / "requirements.txt").is_file()
+
+    def test_the_scroller_stays_on_the_beta_until_its_migration(self):
+        """vue-virtual-scroller from 2.0.0 on is the rewrite that crashes the app (#653, #704).
+
+        The ignore rule covered only the semver-major update, so 2.0.1 came in through the
+        minor/patch group (#750), and the caret range in package.json would have taken it on any
+        lock-free install. Both doors stay shut until #704 removes them together.
+        """
+        config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        npm_entry = config.split("- package-ecosystem: npm", 1)[1].split("- package-ecosystem:", 1)[0]
+        scroller = npm_entry.split("dependency-name: vue-virtual-scroller", 1)[1].split("- dependency-name:", 1)[0]
+        assert 'versions: [">=2.0.0"]' in scroller, "ignore every version from 2.0.0, not only majors"
+
+        package = json.loads((REPO_ROOT / "client" / "package.json").read_text(encoding="utf-8"))
+        assert package["dependencies"]["vue-virtual-scroller"] == "2.0.0-beta.7", "pin exactly, no range"
 
     def test_dependabot_moves_the_backend_floors(self):
         """The floors in pyproject.toml follow uv.lock.
