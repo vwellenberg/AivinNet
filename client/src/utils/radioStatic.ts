@@ -13,7 +13,10 @@ const BURST_GAP_MS = 250
  * `length` samples of white noise in [-1, 1], faded in over a few milliseconds
  * and out over the last fifth, so the burst never clicks at either end.
  */
-export function staticSamples(length: number, random: () => number = Math.random): Float32Array {
+// `Float32Array<ArrayBuffer>`, not the bare `Float32Array` (= `<ArrayBufferLike>`): since the typed arrays
+// are generic over their buffer, `copyToChannel` only takes one backed by a plain ArrayBuffer, and a
+// freshly allocated array is exactly that.
+export function staticSamples(length: number, random: () => number = Math.random): Float32Array<ArrayBuffer> {
     const out = new Float32Array(Math.max(0, length))
     const attack = Math.max(1, Math.floor(length * 0.02))
     const release = Math.max(1, Math.floor(length * 0.2))

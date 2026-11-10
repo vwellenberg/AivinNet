@@ -555,7 +555,9 @@ class TestPinnedBuildInputs:
         assert 'versions: [">=2.0.0-beta.9"]' in scroller, "ignore everything after beta.8, not only majors"
 
         package = json.loads((REPO_ROOT / "client" / "package.json").read_text(encoding="utf-8"))
-        assert package["dependencies"]["vue-virtual-scroller"] == "2.0.0-beta.7", "pin exactly, no range"
+        pinned = package["dependencies"]["vue-virtual-scroller"]
+        # beta.8 (2023) is the last release before the rewrite; beta.9 and later are the rewrite.
+        assert re.fullmatch(r"2\.0\.0-beta\.[1-8]", pinned), f"pin an exact pre-rewrite beta, not {pinned!r}"
 
     def test_dependabot_moves_the_backend_floors(self):
         """The floors in pyproject.toml follow uv.lock.
