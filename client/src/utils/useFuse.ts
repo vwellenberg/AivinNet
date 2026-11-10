@@ -1,4 +1,4 @@
-import Fuse from "fuse.js";
+import Fuse, { type FuseResult } from "fuse.js";
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from "vue";
 
 /**
@@ -23,7 +23,7 @@ export default (query: MaybeRefOrGetter<string>, data: MaybeRefOrGetter<any[]>, 
   // evaluation, and a deep watch per call (what @vueuse/integrations did)
   // walked the whole track list and was never stopped. The computed tracks
   // what building the index reads, so a ref or getter input stays reactive.
-  const results: ComputedRef<Fuse.FuseResult<any>[]> = computed(() => {
+  const results: ComputedRef<FuseResult<any>[]> = computed(() => {
     const list = toValue(data) ?? [];
     const term = toValue(query);
     if (!term) {
