@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 kotlin {
@@ -13,7 +12,14 @@ kotlin {
 
 android {
     namespace = "net.aivinnet.auto"
-    compileSdk = 36
+    // okhttp-android 5.5.1 is an AAR that must be compiled against API 37 or later
+    // (AGP's checkAarMetadata). compileSdk only selects the API surface we build against;
+    // targetSdk (the runtime behaviour) stays at 36.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "net.aivinnet.auto"

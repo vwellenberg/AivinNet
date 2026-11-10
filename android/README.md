@@ -15,7 +15,7 @@ Browse-Baum auf.
 
 ## Bauen
 
-Voraussetzungen: JDK 21, Android SDK (`ANDROID_HOME`, Plattformen 36).
+Voraussetzungen: JDK 21, Android SDK (`ANDROID_HOME`, Plattform `android-37.2`).
 
 ```bash
 cd android
@@ -115,7 +115,10 @@ bekommt dagegen nur die geladenen Titel in die Warteschlange.
 
 ## Technisches
 
-- Kotlin, Android Views (kein Compose), Media3 1.11.1, OkHttp, minSdk 26, target/compileSdk 36
+- Kotlin (eingebaut in AGP 9, kein eigenes Kotlin-Plugin), Android Views (kein Compose), Media3 1.11.1,
+  OkHttp 5, minSdk 26, targetSdk 36. **compileSdk 37.2**, weil `okhttp-android` 5.5.1 das per
+  AAR-Metadaten verlangt; das Laufzeitverhalten bestimmt weiter targetSdk 36. Gradle 9 und AGP 9 gehen
+  nur zusammen: AGP 8.13 konfiguriert unter Gradle ≥ 9.6 nicht mehr.
 - Versionen: `gradle/libs.versions.toml`
 - Die Logik, die sich ohne Android testen lässt (Media-IDs, JSON, Stream-URLs, Scrobble-Regel),
   liegt in reinen Klassen mit Tests unter `app/src/test`.

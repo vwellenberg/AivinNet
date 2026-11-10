@@ -69,7 +69,7 @@ internal class AuthManager(
             if (!response.isSuccessful) {
                 throw ServerException(response.code, "Anmeldung nicht erneuerbar (HTTP ${response.code})")
             }
-            val tokens = AivinJson.parseLogin(response.body?.string().orEmpty())
+            val tokens = AivinJson.parseLogin(response.body.string())
             store.saveTokens(tokens.accessToken, tokens.refreshToken)
             return true
         }
@@ -195,7 +195,7 @@ class AivinApi private constructor(
 
     private fun execute(client: OkHttpClient, request: Request): Pair<Int, String> =
         client.newCall(request).execute().use { response ->
-            response.code to response.body?.string().orEmpty()
+            response.code to response.body.string()
         }
 
     private fun loginError(code: Int): AivinException = when (code) {
