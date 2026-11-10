@@ -53,15 +53,21 @@ updates:
     # From 2.0.0 (stable, not only v3) the scroller is a <script setup> rewrite without what
     # typedScroller.ts builds on (DynamicScroller.computed, the view pool per row type): the
     # bump alone crashes the app at startup (#653). Ignoring only the major let 2.0.1 in through
-    # the minor group (#750), so every version from 2.0.0 is ignored; package.json pins the beta
-    # exactly for the same reason. The migration is #704; drop this entry with it.
+    # the minor group (#750), and "from 2.0.0" still let 2.0.0-beta.10 in (#770): beta.9 and
+    # beta.10 (March 2026) are already the rewrite, they only kept the beta name. So everything
+    # after beta.8 is ignored; package.json pins beta.7 exactly for the same reason. The
+    # migration is #704; drop this entry with it.
     #
     # auto-animate restarted its versions at 0.x; the old 1.0.0-* prereleases rank above 0.10
     # in semver, and "1.0.0-pre-alpha.3" (2022) even above "1.0.0-beta.5", so Dependabot offered
     # downgrades (#753).
     ignore:
       - dependency-name: vue-virtual-scroller
-        versions: [">=2.0.0"]
+        versions: [">=2.0.0-beta.9"]
+      # TypeScript 7 is the native (Go) compiler; vue-tsc and typescript-eslint do not run on
+      # it yet (#768: lint and typecheck fail). Revisit when vue-tsc supports it.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
       - dependency-name: "@formkit/auto-animate"
         versions: [">=1.0.0-0 <1.0.0"]
     commit-message:
