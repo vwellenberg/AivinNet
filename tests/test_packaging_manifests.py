@@ -545,12 +545,14 @@ class TestPinnedBuildInputs:
 
         The ignore rule covered only the semver-major update, so 2.0.1 came in through the
         minor/patch group (#750), and the caret range in package.json would have taken it on any
-        lock-free install. Both doors stay shut until #704 removes them together.
+        lock-free install. A rule "from 2.0.0" then let 2.0.0-beta.10 in (#770): beta.9 and
+        beta.10 (2026) are already the rewrite under the old prerelease name, and they sort below
+        2.0.0. Both doors stay shut until #704 removes them together.
         """
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         npm_entry = config.split("- package-ecosystem: npm", 1)[1].split("- package-ecosystem:", 1)[0]
         scroller = npm_entry.split("dependency-name: vue-virtual-scroller", 1)[1].split("- dependency-name:", 1)[0]
-        assert 'versions: [">=2.0.0"]' in scroller, "ignore every version from 2.0.0, not only majors"
+        assert 'versions: [">=2.0.0-beta.9"]' in scroller, "ignore everything after beta.8, not only majors"
 
         package = json.loads((REPO_ROOT / "client" / "package.json").read_text(encoding="utf-8"))
         assert package["dependencies"]["vue-virtual-scroller"] == "2.0.0-beta.7", "pin exactly, no range"
