@@ -38,9 +38,10 @@ jobs:
 
       # compileSdk is 37.2 (okhttp-android 5.5.1 requires API 37+); the runner image
       # does not guarantee that platform, so install it explicitly. `yes` answers a
-      # license prompt, which would otherwise hang the job until its timeout.
+      # license prompt, which would otherwise hang the job until its timeout. It sits in
+      # `(… || true)`: Actions runs bash with pipefail, and `yes` ends on SIGPIPE (141).
       - name: Install Android platform 37.2
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-37.2'
+        run: (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-37.2'
 
       - name: Build and unit-test
         run: ./gradlew assembleDebug testDebugUnitTest --no-daemon --console=plain
