@@ -36,6 +36,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # compileSdk is 37.2 (okhttp-android 5.5.1 requires API 37+); the runner image
+      # does not guarantee that platform, so install it explicitly.
+      - name: Install Android platform 37.2
+        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install 'platforms;android-37.2'"
+
       - name: Build and unit-test
         run: ./gradlew assembleDebug testDebugUnitTest --no-daemon --console=plain
 
