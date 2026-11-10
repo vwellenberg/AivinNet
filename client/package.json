@@ -17,7 +17,7 @@
     "@popperjs/core": "^2.11.8",
     "@vueuse/core": "^15.0.0",
     "axios": "^1.21.0",
-    "fuse.js": "^6.6.2",
+    "fuse.js": "^7.5.0",
     "node-vibrant": "4.0.4",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
