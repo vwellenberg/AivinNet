@@ -48,6 +48,28 @@ describe('StatItem motif', () => {
         expect(shapeOf('sources')).toBe('path+rotated')
     })
 
+    // The library row (#536) fell through to the default: five tiles in one
+    // coral with one zigzag and one sparkle each (reported 2026-11-11).
+    it('gives each library tile its own colour, shape and icon, none of them the default', () => {
+        const LIBRARY = ['library-explored', 'library-nonstop', 'library-formats', 'library-bitrate', 'library-hires']
+        const looks = LIBRARY.map(kind => {
+            const w = tile(kind)
+            return {
+                motif: w.find('svg.statmotif').attributes('data-motif'),
+                colour: w.attributes('style'),
+                icon: w.find('.staticon').html(),
+            }
+        })
+        const fallback = tile('something-new')
+        const fallbackMotif = fallback.find('svg.statmotif').attributes('data-motif')
+        expect(new Set(looks.map(l => l.motif)).size).toBe(LIBRARY.length)
+        expect(new Set(looks.map(l => l.colour)).size).toBe(LIBRARY.length)
+        expect(looks.map(l => l.motif)).not.toContain(fallbackMotif)
+        expect(looks.map(l => l.colour)).not.toContain(fallback.attributes('style'))
+        // Hi-res keeps the sparkle; the other four draw their own.
+        expect(new Set(looks.map(l => l.icon)).size).toBe(LIBRARY.length)
+    })
+
     it('puts a kind nobody claimed on the zigzag', () => {
         expect(shapeOf('something-new')).toBe(shapeOf('favorites'))
     })

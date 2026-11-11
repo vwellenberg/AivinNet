@@ -157,7 +157,7 @@ describe('colour schemes: the rules Memphis was measured against', () => {
 // ---------------------------------------------------------------------------
 
 const INDEX = readFileSync('src/assets/scss/Global/index.scss', 'utf-8')
-const TILE_ROLES = ['blush', 'lavender', 'teal', 'yellow', 'coral'] // StatItem.vue
+const TILE_ROLES = ['blush', 'lavender', 'teal', 'yellow', 'coral', 'sea', 'gold', 'pink', 'kraft', 'blue', 'orchid', 'lime'] // StatItem.vue
 const TINT_ROLES = [...new Set([...Object.values(NAV_TINTS), ...ENTITIES.map(([, role]) => role), 'home'])]
 
 function darkScheme(scheme: string) {

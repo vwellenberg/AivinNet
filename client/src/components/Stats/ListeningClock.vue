@@ -123,7 +123,31 @@ watch(
     .clock-peaks {
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem 2rem;
+        gap: 0.75rem;
+    }
+
+    // Each figure on a panel card under a label in its own accent, like the
+    // records and the skip rankings: the label reads first, the figure under it.
+    .clock-peak {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 0.35rem;
+        min-width: 9rem;
+        padding: 0.6rem 0.8rem;
+        background-color: $mem-panel;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        color: $mem-text;
+
+        &:nth-child(1) {
+            --peak-accent: #{$mem-yellow};
+        }
+
+        &:nth-child(2) {
+            --peak-accent: #{$mem-lavender};
+        }
     }
 
     .clock-peak-value {
@@ -133,10 +157,12 @@ watch(
     }
 
     .clock-peak-label {
-        font-size: 0.8rem;
-        font-weight: 700;
+        @include mem-sticker($fill: var(--peak-accent), $pad: 0.15rem 0.55rem);
+        font-size: 0.75rem;
+        font-weight: 800;
         text-transform: uppercase;
-        color: $mem-content-faint;
+        letter-spacing: 0.04em;
+        color: $mem-ink;
     }
 
     .clock-note {

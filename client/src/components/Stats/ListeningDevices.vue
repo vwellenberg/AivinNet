@@ -6,15 +6,23 @@
         <h3 class="section-title">Listening per device</h3>
         <div class="devices-plate">
             <ol class="devices-list">
-                <li v-for="row in devices.devices" :key="rowKey(row)" class="devices-row">
-                    <div class="devices-line">
-                        <span class="devices-label">{{ deviceLabel(row) }}</span>
+                <li
+                    v-for="(row, i) in devices.devices"
+                    :key="rowKey(row)"
+                    class="devices-row"
+                    :style="{ '--device-accent': accentAt(i) }"
+                >
+                    <span class="devices-icon" aria-hidden="true"><DevicesSvg /></span>
+                    <div class="devices-text">
+                        <span class="devices-label" :title="deviceLabel(row)">{{ deviceLabel(row) }}</span>
+                        <div class="devices-bar" aria-hidden="true">
+                            <span :style="{ width: barWidth(row.share) }"></span>
+                        </div>
+                    </div>
+                    <div class="devices-figures">
                         <span class="devices-share">{{ devicePercent(row.share) }}</span>
+                        <span class="devices-time">{{ formatSeconds(row.seconds, true) }}</span>
                     </div>
-                    <div class="devices-bar" aria-hidden="true">
-                        <span :style="{ width: barWidth(row.share) }"></span>
-                    </div>
-                    <span class="devices-time">{{ formatSeconds(row.seconds, true) }}</span>
                 </li>
             </ol>
             <p class="devices-note">
@@ -29,7 +37,9 @@
 import { onUnmounted, ref, watch } from 'vue'
 
 import { DeviceRow, DevicesPayload, getListeningDevices } from '@/requests/stats'
+import DevicesSvg from '@/assets/icons/devices.svg'
 import formatSeconds from '@/utils/useFormatSeconds'
+import { accentAt } from '@/utils/statAccents'
 import { barWidth, deviceLabel, devicePercent } from '@/utils/listeningDevices'
 
 const props = defineProps<{ period: string }>()
@@ -71,7 +81,7 @@ watch(
     .devices-plate {
         display: flex;
         flex-direction: column;
-        gap: 0.9rem;
+        gap: 1rem;
         max-width: 100%;
         padding: 1rem;
         background-color: var(--mem-veil);
@@ -81,28 +91,58 @@ watch(
         color: $mem-content-text;
     }
 
+    // The rows on a panel card, like the skip rankings beside them.
     ol {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
         margin: 0;
-        padding: 0;
+        padding: 0.75rem;
         list-style: none;
+        background-color: $mem-panel;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        color: $mem-text;
     }
 
     .devices-row {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.35rem;
+        border-radius: $candy-radius-sm;
+    }
+
+    // The device's own accent: its badge and its bar wear the same colour.
+    .devices-icon {
+        display: grid;
+        place-items: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        background-color: var(--device-accent);
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        color: $mem-ink;
+
+        svg {
+            width: 1.4rem;
+            height: 1.4rem;
+        }
+    }
+
+    .devices-text {
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
-        padding: 0.2rem 0;
+        gap: 0.35rem;
+        min-width: 0;
     }
 
-    .devices-line {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
+    .devices-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-weight: 600;
-    }
-
-    .devices-share {
-        font-variant-numeric: tabular-nums;
     }
 
     .devices-bar {
@@ -114,18 +154,35 @@ watch(
         span {
             display: block;
             height: 100%;
-            background-color: $mem-teal;
+            border-radius: inherit;
+            background-color: var(--device-accent);
         }
     }
 
-    .devices-time,
-    .devices-note {
+    .devices-figures {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .devices-share {
+        font-size: 1.1rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .devices-time {
         font-size: 0.85rem;
+        white-space: nowrap;
         opacity: 0.8;
     }
 
     .devices-note {
         margin: 0;
+        padding-top: 0.75rem;
+        border-top: $mem-hairline-w dashed $mem-line;
+        font-size: 0.8rem;
+        opacity: 0.7;
     }
 }
 </style>

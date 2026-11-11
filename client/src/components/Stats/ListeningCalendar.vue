@@ -12,9 +12,8 @@
                 </div>
                 <div class="streak">
                     <div class="streak-value">{{ streakDays(calendar.streaks.longest) }}</div>
-                    <div class="streak-label">
-                        longest streak<template v-if="longestRange"> · {{ longestRange }}</template>
-                    </div>
+                    <div class="streak-label">longest streak</div>
+                    <div v-if="longestRange" class="streak-range">{{ longestRange }}</div>
                 </div>
                 <div class="streak">
                     <div class="streak-value">{{ activeDays(calendar) }}</div>
@@ -191,7 +190,43 @@ onMounted(async () => {
     .calendar-streaks {
         display: flex;
         flex-wrap: wrap;
-        gap: 1rem 2rem;
+        gap: 0.75rem;
+    }
+
+    // Each figure on a panel card under a label in its own accent, like the
+    // records and the skip rankings: the label reads first, the figure under it.
+    .streak {
+        display: flex;
+        flex-direction: column-reverse;
+        align-items: flex-start;
+        justify-content: flex-end;
+        gap: 0.35rem;
+        min-width: 9rem;
+        padding: 0.6rem 0.8rem;
+        background-color: $mem-panel;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        color: $mem-text;
+
+        &:nth-child(1) {
+            --peak-accent: #{$mem-coral};
+        }
+
+        &:nth-child(2) {
+            --peak-accent: #{$mem-teal};
+        }
+
+        &:nth-child(3) {
+            --peak-accent: #{$mem-blue};
+        }
+    }
+
+    // Under the figure, outside its label: the dates made the sticker run long.
+    // (The card stacks in reverse, so it comes first in the markup.)
+    .streak-range {
+        order: -1;
+        font-size: 0.8rem;
+        color: $mem-text-muted;
     }
 
     .streak-value {
@@ -201,10 +236,12 @@ onMounted(async () => {
     }
 
     .streak-label {
-        font-size: 0.8rem;
-        font-weight: 700;
+        @include mem-sticker($fill: var(--peak-accent), $pad: 0.15rem 0.55rem);
+        font-size: 0.75rem;
+        font-weight: 800;
         text-transform: uppercase;
-        color: $mem-content-faint;
+        letter-spacing: 0.04em;
+        color: $mem-ink;
     }
 
     .calendar-scroll {
