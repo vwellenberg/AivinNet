@@ -7,7 +7,13 @@ import logging
 
 from aivinnet.db.userdata import PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib.albumslib import sort_by_track_no
-from aivinnet.lib.home.homerows import CONTINUE_SEARCH_LIMIT, find_continue_listening, parse_playlist_id
+from aivinnet.lib.home.homerows import (
+    CONTINUE_MAX_ITEMS,
+    CONTINUE_SEARCH_LIMIT,
+    CONTINUE_SPARE_ITEMS,
+    find_continue_listening,
+    parse_playlist_id,
+)
 from aivinnet.lib.recipes import HomepageRoutine
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.homepage import HomepageStore
@@ -67,7 +73,9 @@ class ContinueListening(HomepageRoutine):
             # triggered it — that one is already written.
             try:
                 scrobbles = ScrobbleTable.get_all(0, CONTINUE_SEARCH_LIMIT, userid=userid)
-                items = find_continue_listening(scrobbles, _resolve_tracklist(userid))
+                items = find_continue_listening(
+                    scrobbles, _resolve_tracklist(userid), limit=CONTINUE_MAX_ITEMS + CONTINUE_SPARE_ITEMS
+                )
             except Exception:
                 log.error("continue-listening refresh failed for user %s", userid, exc_info=True)
                 continue

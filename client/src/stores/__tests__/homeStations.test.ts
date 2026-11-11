@@ -87,4 +87,26 @@ describe('home store: the dial comes with the rows (#776)', () => {
 
         expect(home.stations).toEqual([station('genre1')])
     })
+
+    it('an older answer writes nothing, rows included: rows and dial come from one answer', async () => {
+        const home = useHome()
+        const older = deferred<{ rows: unknown[]; stations: unknown[] }>()
+        getHomePageData.mockReturnValueOnce(older.promise)
+        getHomePageData.mockResolvedValueOnce({
+            rows: [{ recently_added: { title: 'New', items: [{ id: 'new' }] } }],
+            stations: [station('genre1')],
+        })
+
+        const first = home.fetchAll('christmas')
+        await home.fetchAll(null)
+        older.resolve({
+            rows: [{ recently_added: { title: 'Old', items: [{ id: 'old' }] } }],
+            stations: [station('christmas')],
+        })
+        await first
+
+        // @ts-ignore
+        expect(home.homepageData.recently_added.title).toBe('New')
+        expect(home.stations).toEqual([station('genre1')])
+    })
 })

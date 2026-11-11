@@ -65,21 +65,22 @@ export default defineStore('homepage', () => {
     }
     // The season the last fetch asked for; a refetch keeps it.
     let lastSeason: string | null = null
-    // An answer to an older fetch (another season) does not overwrite the dial.
-    let stationsSeq = 0
+    // Only the newest fetch writes. An older answer (another season, a narrower
+    // window) arriving last overwrote the rows while its dial was dropped, so rows
+    // and dial came from two different answers.
+    let latestFetch = 0
 
     async function fetchAll(season: string | null = null) {
         fetches++
         const limit = fetchCardCount.value
         fetchedLimit = limit
         lastSeason = season
-        const mine = ++stationsSeq
+        const mine = ++latestFetch
         const { rows: data, stations: list, recap: card, advent: calendar } = await getHomePageData(limit, season)
-        if (mine === stationsSeq) {
-            stations.value = list
-            recap.value = card
-            advent.value = calendar
-        }
+        if (mine !== latestFetch) return
+        stations.value = list
+        recap.value = card
+        advent.value = calendar
         let keys = []
 
         for (const [index, item] of data.entries()) {

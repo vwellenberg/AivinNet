@@ -3,6 +3,7 @@ from typing import Any
 
 from aivinnet.db.userdata import ContinueDismissTable
 from aivinnet.lib.first_play_cache import first_plays_of
+from aivinnet.lib.home.homerows import CONTINUE_MAX_ITEMS
 from aivinnet.lib.home.recover_items import recover_items
 
 
@@ -118,7 +119,10 @@ class ContinueEntry(GenericRecoverableEntry):
 
     def get_items(self, userid: int, limit: int | None = None):
         dismissed = ContinueDismissTable.of_user(userid)
-        shown = [item for item in self.items.get(userid, []) if not _dismissed(item, dismissed)][:limit]
+        # The routine keeps spares behind the row (CONTINUE_SPARE_ITEMS); Home shows
+        # at most CONTINUE_MAX_ITEMS of what is left after the dismissals.
+        most = CONTINUE_MAX_ITEMS if limit is None else min(limit, CONTINUE_MAX_ITEMS)
+        shown = [item for item in self.items.get(userid, []) if not _dismissed(item, dismissed)][:most]
 
         cards = []
         for item in shown:

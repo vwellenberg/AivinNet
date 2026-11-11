@@ -631,6 +631,8 @@ class RestoreBackup:
                 or not dismissal["hash"]
                 or isinstance(dismissal.get("timestamp"), bool)
                 or not isinstance(dismissal.get("timestamp", 0), int)
+                # SQLite stores 64 bits; a bigger one raised OverflowError, uncaught.
+                or not 0 <= dismissal.get("timestamp", 0) < 2**63
             ):
                 shown = dismissal if isinstance(dismissal, dict) else {"row": dismissal}
                 report.discard("continue dismissed", shown, ValueError("malformed dismissal"))

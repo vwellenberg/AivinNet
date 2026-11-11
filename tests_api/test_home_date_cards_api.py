@@ -1,10 +1,12 @@
 """
 The date cards of Home in `GET /nothome/` (#776): the recap and the Advent
-calendar come with the rows. A card whose data is not computed yet is absent on
-that load, and its computation runs on a thread: nothing in the request waits.
+calendar come with the rows, on the FIRST load. A first draft warmed them on a
+thread and left them out until ready; the client never asks again, so the first
+Home of a Monday had no recap, and a later refetch popped the card in above the
+rows. They are computed in the request now, behind the same caches the
+standalone endpoints always used.
 """
 
-import time
 from datetime import date
 
 import pytest
@@ -13,62 +15,49 @@ from test_home_discover_api import home  # noqa: F401 - the imported fixture
 
 @pytest.fixture()
 def as_user(home, monkeypatch):
-    """The discover scenario's API, acting as its user, with empty date caches."""
+    """The discover scenario's API, acting as its user, with an empty recap cache."""
     import aivinnet.api.home as home_api
     import aivinnet.store.homepage as homepage
 
     monkeypatch.setattr(home_api, "get_current_userid", lambda: home.userid)
     monkeypatch.setattr(homepage, "get_current_userid", lambda: home.userid)
     monkeypatch.setattr(home_api, "_recaps", {})
-    monkeypatch.setattr(home_api, "_advent_ready", set())
-    monkeypatch.setattr(home_api, "_warming", set())
     return home
 
 
-def wait_until(predicate, seconds: float = 10.0) -> None:
-    deadline = time.time() + seconds
-    while time.time() < deadline:
-        if predicate():
-            return
-        time.sleep(0.05)
-    raise AssertionError("the background computation did not finish")
-
-
-def test_the_recap_comes_with_the_rows_and_is_never_waited_for(as_user, monkeypatch):
+def test_the_first_home_of_a_monday_carries_the_recap(as_user, monkeypatch):
     import aivinnet.api.home as home_api
 
     monkeypatch.setattr(home_api, "recap_today", lambda: date(2026, 11, 9))  # a Monday: last week's recap
+    # The recap's content is `test_home_recap_api.py`'s business; here only when it comes.
+    monkeypatch.setattr(home_api, "_build_recap", lambda userid, period: {"key": period.key, "plays": 7})
 
     first = as_user.get("/nothome/?limit=9").get_json()
+
     assert set(first) == {"rows", "stations", "recap", "advent"}
-    assert first["recap"] is None, "not computed yet: the card is absent on this load"
+    assert first["recap"] == {"key": first["recap"]["key"], "plays": 7}
+    # The same card the standalone endpoint serves, on the very first load.
+    assert first["recap"] == as_user.get("/nothome/recap").get_json()["recap"]
+    assert first["recap"] == home_api._recaps[as_user.userid][1]
 
-    wait_until(lambda: as_user.userid in home_api._recaps)
-    later = as_user.get("/nothome/?limit=9").get_json()
-    assert later["recap"] == home_api._recaps[as_user.userid][1]
 
-
-def test_the_advent_calendar_is_computed_in_the_background(as_user, monkeypatch):
+def test_the_first_home_in_advent_carries_the_calendar(as_user, monkeypatch):
     import aivinnet.api.home as home_api
 
-    today = date(2026, 12, 10)
-    monkeypatch.setattr(home_api, "recap_today", lambda: today)
+    monkeypatch.setattr(home_api, "recap_today", lambda: date(2026, 12, 10))
 
     first = as_user.get("/nothome/?limit=9").get_json()
-    assert first["advent"] == {"day": 0, "doors": []}, "not computed yet: no calendar on this load"
 
-    wait_until(lambda: (as_user.userid, today) in home_api._advent_ready)
-    later = as_user.get("/nothome/?limit=9").get_json()
-    assert later["advent"]["day"] == 10
-    assert len(later["advent"]["doors"]) <= 10
+    assert first["advent"]["day"] == 10
+    assert first["advent"] == as_user.get("/nothome/advent").get_json()
 
 
-def test_outside_the_season_no_advent_work_is_started(as_user, monkeypatch):
+def test_outside_the_season_there_is_no_calendar_and_no_recap(as_user, monkeypatch):
     import aivinnet.api.home as home_api
 
-    monkeypatch.setattr(home_api, "recap_today", lambda: date(2026, 6, 3))
+    monkeypatch.setattr(home_api, "recap_today", lambda: date(2026, 6, 3))  # a Wednesday in June
 
     body = as_user.get("/nothome/?limit=9").get_json()
 
     assert body["advent"] == {"day": 0, "doors": []}
-    assert not any(ident[0] == "advent" for ident in home_api._warming)
+    assert body["recap"] is None

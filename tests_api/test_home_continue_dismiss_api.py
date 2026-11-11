@@ -138,3 +138,36 @@ def test_a_playlist_is_dismissed_by_its_id_without_a_store_check(api, dismissing
     dismiss(api, "playlist", "4242")
 
     assert ("playlist", "4242") in ContinueDismissTable.of_user(dismissing.userid)
+
+
+def test_the_next_unfinished_entry_moves_up_after_a_dismissal(api, dismissing):
+    """The routine keeps spares: a ✕ must not shrink the row until its next run (#776)."""
+    from aivinnet.lib.home.homerows import CONTINUE_MAX_ITEMS
+    from aivinnet.store.albums import AlbumStore
+    from aivinnet.store.homepage import HomepageStore
+
+    hashes = list(AlbumStore.albummap)[: CONTINUE_MAX_ITEMS + 1]
+    assert len(hashes) == CONTINUE_MAX_ITEMS + 1, "the scenario needs one album more than the row shows"
+    now = int(time.time())
+    HomepageStore.entries["continue_listening"].items[dismissing.userid] = [
+        {"type": "album", "hash": h, "trackhash": "x", "track_index": 0, "track_total": 5, "timestamp": now - 60 * i}
+        for i, h in enumerate(hashes, start=1)
+    ]
+
+    before = shown_continue(api)
+    assert [c["dismiss"]["hash"] for c in before] == hashes[:CONTINUE_MAX_ITEMS]
+
+    dismiss(api, "album", hashes[0])
+
+    after = shown_continue(api)
+    assert [c["dismiss"]["hash"] for c in after] == hashes[1:]
+
+
+def test_the_routine_keeps_spares_behind_the_row():
+    """Wiring: the routine asks the rule for more than the row shows."""
+    import inspect
+
+    from aivinnet.lib.recipes import continuelistening
+
+    source = inspect.getsource(continuelistening.ContinueListening.run)
+    assert "limit=CONTINUE_MAX_ITEMS + CONTINUE_SPARE_ITEMS" in source

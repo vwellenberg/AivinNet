@@ -1,4 +1,3 @@
-import logging
 import random
 from datetime import date
 from typing import Literal
@@ -10,7 +9,6 @@ from pydantic import BaseModel, Field
 from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
 from aivinnet.api.scrobble import discovered_in
 from aivinnet.db.userdata import ContinueDismissTable, NotInterestedTable, UserTable
-from aivinnet.lib.home.advent import advent_day
 from aivinnet.lib.home.advent_calendar import advent_calendar
 from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
@@ -27,9 +25,6 @@ from aivinnet.store.stations import StationStore
 from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import seconds_to_time_string
 from aivinnet.utils.stats import get_artists_in_period, summarize_tracks_in_period
-from aivinnet.utils.threading import background
-
-log = logging.getLogger(__name__)
 
 bp_tag = Tag(name="Home", description="Homepage items")
 api = APIBlueprint("home", __name__, url_prefix="/nothome", abp_tags=[bp_tag])
@@ -386,12 +381,14 @@ def get_recap():
     return {"recap": _recap_for(userid, period)}, 200
 
 
-# The date cards of Home, folded into `GET /nothome/` (#776). Each one reads
-# what the cache already holds; the first call for a period or day starts the
-# computation on a thread and answers without the card. Nothing waits on it,
-# and bjoern serves one request at a time.
-_warming: set[tuple[str, int, str]] = set()
-_advent_ready: set[tuple[int, date]] = set()
+# The date cards of Home, folded into `GET /nothome/` (#776), so they arrive
+# with the rows instead of after them and push nothing down. Computed in the
+# request, exactly as `GET /nothome/recap` and `GET /nothome/advent` always did,
+# behind the same caches: the recap once per user and period, the Advent plays
+# once per user until their next play. A first draft warmed both on a thread and
+# answered without the card until it was ready; the client never asks again,
+# so the first Home of a Monday had no recap, and a later refetch popped the
+# card in above the rows — the very jump this change removes.
 
 
 def _recap_card(userid: int, today: date) -> dict | None:
@@ -403,50 +400,11 @@ def _recap_card(userid: int, today: date) -> dict | None:
     if not is_news(period, dismissed if isinstance(dismissed, str) else None):
         return None
 
-    cached = _recaps.get(userid)
-    if cached is not None and cached[0] == period.key:
-        return cached[1]
-
-    ident = ("recap", userid, period.key)
-    if ident not in _warming:
-        _warming.add(ident)
-        _compute_recap(userid, period, ident)
-    return None
-
-
-@background
-def _compute_recap(userid: int, period: RecapPeriod, ident: tuple[str, int, str]) -> None:
-    try:
-        _recap_for(userid, period)
-    except Exception:
-        log.error("recap for user %s failed", userid, exc_info=True)
-    finally:
-        _warming.discard(ident)
+    return _recap_for(userid, period)
 
 
 def _advent_card(userid: int, today: date) -> dict:
-    if advent_day(today) == 0:
-        return {"day": 0, "doors": []}
-
-    if (userid, today) in _advent_ready:
-        return advent_calendar(userid, today)
-
-    ident = ("advent", userid, today.isoformat())
-    if ident not in _warming:
-        _warming.add(ident)
-        _compute_advent(userid, today, ident)
-    return {"day": 0, "doors": []}
-
-
-@background
-def _compute_advent(userid: int, today: date, ident: tuple[str, int, str]) -> None:
-    try:
-        advent_calendar(userid, today)
-        _advent_ready.add((userid, today))
-    except Exception:
-        log.error("advent calendar for user %s failed", userid, exc_info=True)
-    finally:
-        _warming.discard(ident)
+    return advent_calendar(userid, today)
 
 
 class RecapDismissBody(BaseModel):

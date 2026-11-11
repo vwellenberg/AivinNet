@@ -79,6 +79,7 @@ def test_a_malformed_dismissal_is_discarded_not_fatal(backups):
         {"userid": 1, "type": "album", "timestamp": 1},  # no hash: used to raise KeyError
         {"userid": 1, "type": "album", "hash": ALBUM, "timestamp": "today"},
         "not a row",
+        {"userid": 1, "type": "playlist", "hash": OTHER, "timestamp": 10**20},  # too big for SQLite
         {"userid": 1, "type": "album", "hash": ALBUM, "timestamp": 1_700_000_000},
     ]
     backup = backups.root / "backup.1700000001"
@@ -90,6 +91,6 @@ def test_a_malformed_dismissal_is_discarded_not_fatal(backups):
     res = backups.post("/backup/restore", json={"backup_dir": backup.name})
 
     assert res.status_code == 200, res.text
-    assert res.get_json()["restored"]["continue_dismissed"] == {"restored": 1, "skipped": 0, "discarded": 4}
+    assert res.get_json()["restored"]["continue_dismissed"] == {"restored": 1, "skipped": 0, "discarded": 5}
     assert dismissals() == [(1, "album", ALBUM, 1_700_000_000)]
     wipe()

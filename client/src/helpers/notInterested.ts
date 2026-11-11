@@ -52,7 +52,8 @@ export async function notInterested(rowKey: string, card: MenuCard) {
                 useToast().showError(`Could not bring ${card.name} back`)
                 return
             }
-            await home.fetchAll()
+            // Keeps the season of the last fetch: a bare fetch dropped the seasonal station.
+            await home.refreshIfLoaded()
         },
     })
 }
