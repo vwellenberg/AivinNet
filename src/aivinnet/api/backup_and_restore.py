@@ -113,8 +113,12 @@ def _invalid_rating_row(row: object) -> str | None:
     # bool is an int in Python; True is not a one-star rating.
     if isinstance(rating, bool) or not isinstance(rating, int) or not 1 <= rating <= 5:
         return "rating must be a whole number from 1 to 5"
-    if timestamp is not None and (isinstance(timestamp, bool) or not isinstance(timestamp, int)):
-        return "timestamp must be a whole number"
+    # SQLite stores 64-bit integers; a bigger one raises OverflowError, which the
+    # restore does not catch, and the whole section would stop.
+    if timestamp is not None and (
+        isinstance(timestamp, bool) or not isinstance(timestamp, int) or not 0 <= timestamp < 2**63
+    ):
+        return "timestamp must be a whole number of seconds"
     return None
 
 

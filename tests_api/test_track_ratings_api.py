@@ -323,13 +323,14 @@ def test_a_restore_discards_malformed_rating_rows_instead_of_failing(api_client,
         {"userid": 1, "rating": 3, "timestamp": NOW},  # no hash: used to raise KeyError
         {"userid": 1, "trackhash": TRACK, "rating": 3, "timestamp": "yesterday"},
         "not a row",
+        {"userid": 1, "trackhash": TRACK, "rating": 3, "timestamp": 10**20},  # too big for SQLite
         {"userid": 1, "trackhash": OTHER, "rating": 5, "timestamp": NOW},  # the one good row
     ]
 
     with patch("aivinnet.api.backup_and_restore.get_current_userid", return_value=1):
         report = RestoreBackup.restore_ratings(object.__new__(RestoreBackup), payload)
 
-    assert (report.restored, report.discarded) == (1, 6)
+    assert (report.restored, report.discarded) == (1, 7)
     assert _stored() == {(OTHER, 1): 5}
 
 
