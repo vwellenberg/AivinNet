@@ -83,12 +83,15 @@ function pick(n: number) {
         }
 
         // The preview IS the hover here, so the role's plate stays away: no
-        // fill, no hatch, the glyph keeps its own colour. The scale stays — it
-        // marks which star the pointer is on.
+        // fill, no hatch. The role's hover text is the label for its contrast
+        // plate, so with the plate gone the colour goes back to the panel's
+        // (roleHoverGate.test.ts). The scale stays — it marks which star the
+        // pointer is on.
         @media (hover: hover) {
             &:hover {
                 background-color: transparent;
                 background-image: none;
+                color: $mem-content-text;
             }
         }
     }
