@@ -40,10 +40,13 @@
         <span class="text">Continue</span>
       </button>
     </div>
-    <ol v-if="upNext.length" class="up-next">
+    <!-- Always there, with its three slots (#776): the column takes its space
+         from the first frame, and the tracks fill the slots when they arrive,
+         so the card does not grow. A card with no tracks after the load hides it. -->
+    <ol class="up-next" :class="{ 'up-next-none': upNextLoaded && !upNext.length }">
       <li class="kicker">Up next</li>
-      <li v-for="row in upNext" :key="row.track.trackhash">
-        <button class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
+      <li v-for="(row, i) in upNextSlots" :key="i">
+        <button v-if="row" class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
           <span class="glyph" v-html="row.current ? PlayIcon : NoteIcon"></span>
           <span class="words">
             <b class="title ellip">{{ row.track.title }}</b>
@@ -53,6 +56,7 @@
           </span>
           <span v-if="row.track.duration" class="dur">{{ formatSeconds(row.track.duration) }}</span>
         </button>
+        <span v-else class="next-slot-empty" aria-hidden="true"></span>
       </li>
     </ol>
   </div>
@@ -127,6 +131,11 @@ const link = computed(() =>
 // inside it (the server's index can be off by orphans, see resumeIndex).
 const UP_NEXT = 3;
 const upNext = ref<{ track: Track; current: boolean }[]>([]);
+// The three slots exist from the first frame (#776): the column is as tall as its
+// tracks will be, so the rows arriving fill it instead of growing the card.
+const upNextSlots = computed(() => Array.from({ length: UP_NEXT }, (_, i) => upNext.value[i] ?? null));
+// Set once the tracks are in, empty or not: an empty answer hides the column.
+const upNextLoaded = ref(false);
 
 async function loadUpNext() {
   const item = props.entry.item;
@@ -144,12 +153,16 @@ async function loadUpNext() {
     tracks = data?.tracks ?? [];
   }
 
-  if (!tracks.length) return;
+  if (!tracks.length) {
+    upNextLoaded.value = true;
+    return;
+  }
 
   const at = resumeIndex(tracks, item.resume_trackhash, index - offset);
   // No position number in front of the title: many titles carry their own
   // track number ("19. Rittersleut"), and "3 · 19. …" read as noise.
   upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({ track, current: i === 0 }));
+  upNextLoaded.value = true;
 }
 
 // A primitive key: a getter that builds a new array is "changed" every time
@@ -401,11 +414,25 @@ function resume() {
     // 2026-10-11: the rows read as dead without it). The words, the glyph and the
     // duration take their own covers, so no stroke crosses a letter or an icon.
     // The fill stays the static panel: the card under it is a static pastel.
+    // A card with no tracks after the load: the column is not there at all.
+    &.up-next-none {
+      display: none;
+    }
+
+    // Every slot, filled or not, is the same height (#776): a row that arrives
+    // takes exactly the place its blank slot held.
+    .next-slot-empty {
+      display: block;
+      height: 3.1rem;
+    }
+
     .next-row {
       @include mem-row-plate($hatch: true);
       --row-fill: var(--card-inlay-fill, #{$mem-panel-static});
       color: var(--card-inlay-text, #{$mem-ink});
       width: 100%;
+      height: 3.1rem;
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       // Buttons centre their content app-wide; a list row reads from the left.
