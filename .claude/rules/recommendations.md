@@ -39,7 +39,11 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
 
 - **„Continue listening“** (`lib/recipes/continuelistening.py`): bis zu drei Karten. Das sind die
   zuletzt gehörten, nicht beendeten Alben bzw. Playlists aus den neuesten 200 Scrobbles mit
-  `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu.
+  `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu. Das ✕ auf einer Karte (#776) legt einen
+Eintrag in `continue_dismissed` (pro User, mit Zeitstempel) an: `ContinueEntry.get_items` lässt ihn aus,
+solange sein letzter Play nicht neuer ist als die Entfernung; der erste Play danach bringt ihn zurück.
+Undo nimmt die Entfernung zurück (`DELETE /nothome/continue/dismiss`). Im Backup als Abschnitt
+`continue_dismissed`.
 - **Rückblick-Karte** (#530, `api/home` `GET /nothome/recap`, Regeln in `lib/home/recap.py`, pur und strikt):
   oben auf Home, **nicht** in der Reihenfolge (wie Rewind, nicht in `DEFAULT_ORDER`): am Montag
   die letzte Woche, am 1. der letzte Monat (ein 1. auf einen Montag zeigt nur den Monat). Zeitraum

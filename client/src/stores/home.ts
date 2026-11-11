@@ -7,6 +7,11 @@ import type { StationEntry } from '@/utils/radioDial'
 import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
 import { fetchCardCount, maxAbumCards } from './content-width'
 
+/** A "Continue listening" card's key for the ✕ (#776), as the server sent it. */
+function dismissKey(card: unknown): { type: string; hash: string } | undefined {
+    return (card as { dismiss?: { type: string; hash: string } }).dismiss
+}
+
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
 
@@ -151,6 +156,33 @@ export default defineStore('homepage', () => {
         if (fetchedLimit) await fetchAll(season)
     }
 
+    /**
+     * Take one entry out of "Continue listening" at once — the ✕ (#776) — and
+     * return how to put it back if the server refuses. Put back where it stood;
+     * after a fetch in between, nothing is put back: the server's answer is there.
+     */
+    function dropContinue(type: string, hash: string): () => void {
+        // @ts-ignore
+        const entry: HomePageItem | undefined = homepageData.continue_listening
+        if (!entry) return () => {}
+
+        const index = entry.items.findIndex(item => {
+            const key = dismissKey(item)
+            return key?.type === type && key?.hash === hash
+        })
+        if (index < 0) return () => {}
+
+        const [card] = entry.items.splice(index, 1)
+        const fetched = fetches
+
+        return () => {
+            // @ts-ignore
+            const now: HomePageItem | undefined = homepageData.continue_listening
+            if (!now || fetches !== fetched) return
+            now.items.splice(index, 0, toRaw(card))
+        }
+    }
+
     return {
         homepageData,
         homepageItems,
@@ -160,5 +192,6 @@ export default defineStore('homepage', () => {
         refetchIfWider,
         refreshIfLoaded,
         dropCard,
+        dropContinue,
     }
 })

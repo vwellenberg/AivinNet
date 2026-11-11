@@ -159,6 +159,9 @@ export const paths = {
             get layout() {
                 return this.base + '/layout'
             },
+            get continueDismiss() {
+                return this.base + '/continue/dismiss'
+            },
             get notInterested() {
                 return this.base + '/not-interested'
             },

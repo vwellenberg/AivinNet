@@ -3,6 +3,20 @@
        when the CARD is wide enough, whatever the window or sidebars do. -->
   <div class="continue-wrap">
   <div class="continue-card" :class="`ent-${entry.type}`">
+    <!-- The ✕ (#776): leaves "Continue listening" until the next play. A card
+         without a `dismiss` key (an older server) has none. -->
+    <button
+      v-if="entry.dismiss"
+      class="btn-quiet continue-dismiss"
+      type="button"
+      aria-label="Aus Weiterhören entfernen"
+      title="Aus Weiterhören entfernen"
+      @click.stop.prevent="dismiss"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" fill="none" stroke-width="2.4" stroke-linecap="round" />
+      </svg>
+    </button>
     <RouterLink class="cover" :to="link">
       <!-- A playlist without its own picture shows the album collage, exactly
            like its card in the rows below (PlaylistCard.vue). -->
@@ -49,6 +63,7 @@
 import { computed, ref, watch } from "vue";
 
 import { paths } from "@/config";
+import { removeFromContinue } from "@/helpers/continueDismiss";
 import { playAlbumAt, playPlaylistAt, resumeIndex } from "@/helpers/usePlayFrom";
 import { AlbumIcon, PlayIcon, PlaylistIcon } from "@/icons";
 import { Track } from "@/interfaces";
@@ -73,6 +88,8 @@ const props = defineProps<{
   entry: {
     type: string;
     item?: any;
+    // The ✕ key (#776): absent on a server that predates it.
+    dismiss?: { type: string; hash: string };
   };
 }>();
 
@@ -150,6 +167,11 @@ function playTrack(track: Track) {
   else playPlaylistAt(hash.value, index, track.trackhash);
 }
 
+// The ✕: the card leaves at once, the server keeps it out (helpers/continueDismiss.ts).
+function dismiss() {
+  if (props.entry.dismiss) void removeFromContinue(props.entry.dismiss, name.value);
+}
+
 function resume() {
   // Resume ON the track they were on: it may have been cut off mid-way.
   const index = props.entry.item?.track_index ?? 0;
@@ -178,6 +200,7 @@ function resume() {
   // its value, Continue pops, the Up next rows step in. All of it on the
   // shared vocabulary (Global/_button-classes.scss), nothing local.
   animation: mem-plate-rise $motion-settle ease-out;
+  position: relative;
   display: grid;
   grid-template-columns: 8.5rem minmax(0, 1fr);
   gap: 1.25rem;
@@ -465,6 +488,29 @@ function resume() {
         }
       }
     }
+  }
+
+  // The ✕ (#776) in the top right corner. The role gives the 44 px target, the
+  // pointer-only hover and both themes. The title and the info column keep clear
+  // of it, so a long name never runs under the button.
+  .continue-dismiss {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: $bar-control;
+    height: $bar-control;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+  }
+
+  &:has(.continue-dismiss) .info {
+    padding-right: $bar-control;
   }
 
   // Once risen, it stays risen — the latch the rows have (utils/arrivalLatch.ts

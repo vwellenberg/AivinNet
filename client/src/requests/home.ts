@@ -130,6 +130,27 @@ export async function unmarkNotInterested(type: NotInterestedType, hash: string)
     })
 }
 
+/** What a "Continue listening" card is dismissed by: its `dismiss` key (#776). */
+export type ContinueType = 'album' | 'playlist'
+
+/** Remove an album or playlist from "Continue listening" (the ✕, #776). */
+export async function dismissContinue(type: ContinueType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.continueDismiss,
+        method: 'POST',
+        props: { type, hash },
+    })
+}
+
+/** Take a "Continue listening" dismissal back: the undo of the ✕. */
+export async function undismissContinue(type: ContinueType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.continueDismiss,
+        method: 'DELETE',
+        props: { type, hash },
+    })
+}
+
 /** The Home recap card (#530): the period's numbers, and the Stats tab it opens. */
 export interface WeeklyRecap {
     // "week:2026-10-19" or "month:2026-10": what a dismissal stores.
