@@ -1,4 +1,4 @@
-from aivinnet.db.userdata import FavoritesTable, LibDataTable, ScrobbleTable
+from aivinnet.db.userdata import FavoritesTable, LibDataTable, ScrobbleTable, TrackRatingTable
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
 from aivinnet.store.tracks import TrackStore
@@ -87,6 +87,19 @@ def map_favorites():
             track = TrackStore.trackhashmap.get(entry.hash)
             if track:
                 track.set_favorite_user(True, entry.userid)
+
+
+def map_ratings():
+    """
+    Maps every user's track ratings (#777) onto the in-memory tracks.
+
+    SET, never toggle, for the same reason as `map_favorites` (#391): a rating
+    written after a rescan swapped in the fresh stores is already there.
+    """
+    for userid, trackhash, rating in TrackRatingTable.all_rows():
+        track = TrackStore.trackhashmap.get(trackhash)
+        if track:
+            track.set_rating(userid, rating)
 
 
 def map_artist_colors():

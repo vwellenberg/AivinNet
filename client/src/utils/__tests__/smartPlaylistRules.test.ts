@@ -28,6 +28,7 @@ const SERVER_OPERATORS: Record<string, string[]> = {
     date_added: ['in_last_days', 'not_in_last_days'],
     last_played: ['in_last_days', 'not_in_last_days', 'never'],
     favorite: ['is'],
+    rating: ['gte', 'lte', 'eq', 'unrated'],
 }
 
 describe('operators per field', () => {

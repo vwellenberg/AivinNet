@@ -50,6 +50,19 @@ umzug = {vorher[fp]: nachher[fp] for fp in vorher
 # dann playlist.trackhashes, favorite.hash und scrobble.trackhash durchziehen
 ```
 
+⚠️ **Eine neue Tabelle, die Trackhashes speichert, hängt an VIER Umzugsstellen — nicht an einer.**
+Die persönlichen Bewertungen (#777) zogen anfangs nur über `reference_migration` um (Tag-Edit,
+Rescan, Album-Apply). Zwei weitere Wege kannten sie nicht, und beide verlieren lautlos:
+`name_cleanup._referenced_trackhashes` entscheidet, welche alten Hashes beim Start überhaupt
+umziehen — ein Track, den **nur** eine Bewertung hielt, blieb zurück; und die Startup-Reparatur
+`migrations/album_title_from_folder._remap_references` zieht Playlists, Favoriten und Scrobbles
+von Hand um. Die vierte Stelle ist der RAM: Nach einem Tag-Edit liest `track_edit._refresh_ratings`
+die Bewertung aus der Tabelle zurück, statt die alte Map zu kopieren, denn landet der Edit auf einem
+Hash, den eine andere Datei schon trägt, behält die Tabelle deren Bewertung („die bestehende
+gewinnt"). Eine Tabelle mit Unique-Schlüssel pro User zieht nie per nacktem `UPDATE` um, sondern
+über `_move_ratings` (Platzhalter, dann Ziel). Wer eine fünfte Referenz anlegt, sucht die Stellen
+über `ScrobbleTable.trackhash`, denn jede Umzugsstelle nennt die Scrobbles.
+
 ⚠️ **Den Umzug GLEICHZEITIG anwenden, nie Paar für Paar** (`migrate_track_references_many`).
 Vertauschte Titel (A→B, B→A) oder eine um eins verschobene Reihe (1→2, 2→3, …) bilden auf
 einen Hash ab, der selbst noch umzieht: Paar für Paar verschmolz der erste Schritt zwei Songs

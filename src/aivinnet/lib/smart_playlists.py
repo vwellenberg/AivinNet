@@ -19,6 +19,9 @@ A definition is `match` ("all" or "any" of its rules), `rules`, `limit` and
   days), and `never` for last_played. A track never played has no last_played:
   it is not "in the last N days", so `not_in_last_days` matches it.
 - favorite: `is` true or false.
+- rating: this user's personal rating (1-5, #777). `gte`, `lte`, `eq` take a
+  whole number from 1 to 5; `unrated` takes no value and matches a track the
+  user has not rated.
 
 `sort` is `"random"` or `{"field": <field>, "order": "asc" | "desc"}`. Tracks
 without a value for the field (a year, a last play) go last in either order.
@@ -43,7 +46,10 @@ STRING_FIELDS = ("genre", "artist", "albumartist")
 NUMBER_FIELDS = ("year", "playcount")
 DATE_FIELDS = ("date_added", "last_played")
 FLAG_FIELDS = ("favorite",)
-FIELDS = STRING_FIELDS + NUMBER_FIELDS + DATE_FIELDS + FLAG_FIELDS
+RATING_FIELDS = ("rating",)
+FIELDS = STRING_FIELDS + NUMBER_FIELDS + DATE_FIELDS + FLAG_FIELDS + RATING_FIELDS
+MIN_RATING = 1
+MAX_RATING = 5
 
 OPERATORS: dict[str, tuple[str, ...]] = {
     "genre": ("is", "is_not", "contains"),
@@ -54,6 +60,7 @@ OPERATORS: dict[str, tuple[str, ...]] = {
     "date_added": ("in_last_days", "not_in_last_days"),
     "last_played": ("in_last_days", "not_in_last_days", "never"),
     "favorite": ("is",),
+    "rating": ("gte", "lte", "eq", "unrated"),
 }
 
 _TOP_KEYS = frozenset({"match", "rules", "limit", "sort"})
@@ -106,6 +113,8 @@ class TrackFacts:
     playcount: int
     last_played: int | None
     favorite: bool
+    # This user's rating, 1-5, or None when unrated.
+    rating: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +184,15 @@ def _parse_value(field: str, op: str, raw: Any, number: int) -> RuleValue:
         if raw is not None:
             raise ValueError(f"{where}: takes no value")
         return None
+
+    if field == "rating":
+        if op == "unrated":
+            if raw is not None:
+                raise ValueError(f"{where}: takes no value")
+            return None
+        if not _is_count(raw) or not MIN_RATING <= raw <= MAX_RATING:
+            raise ValueError(f"{where}: value must be a whole number from {MIN_RATING} to {MAX_RATING}")
+        return int(raw)
 
     if field == "favorite":
         if not isinstance(raw, bool):
@@ -293,8 +311,22 @@ def _matches(rule: Rule, track: TrackFacts, now: int) -> bool:
         return _date_matches(track.added, rule.op, rule.value, now)
     if field == "last_played":
         return _date_matches(track.last_played, rule.op, rule.value, now)
+    if field == "rating":
+        return _rating_matches(track.rating, rule.op, rule.value)
     # favorite: the only field left, and parsing allows only `is` with a bool.
     return track.favorite == rule.value
+
+
+def _rating_matches(rating: int | None, op: str, value: RuleValue) -> bool:
+    if op == "unrated":
+        return rating is None
+    if rating is None or not isinstance(value, int):
+        return False
+    if op == "eq":
+        return rating == value
+    if op == "lte":
+        return rating <= value
+    return rating >= value  # gte
 
 
 def _text_matches(values: tuple[str, ...], op: str, value: RuleValue) -> bool:
@@ -357,6 +389,8 @@ def _sort_value(track: TrackFacts, field: str) -> str | int | None:
         return track.added
     if field == "last_played":
         return track.last_played
+    if field == "rating":
+        return track.rating
     return int(track.favorite)  # favorite
 
 

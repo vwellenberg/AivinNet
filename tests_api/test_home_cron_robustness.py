@@ -107,7 +107,9 @@ def test_an_edit_that_leaves_the_old_hash_to_another_file_carries_no_favourites(
     """The database references stay on the old hash, so the RAM view must too."""
     import aivinnet.lib.track_edit as track_edit
 
-    previous = SimpleNamespace(fav_userids=[1], playcount=7, playduration=900, lastplayed=5, color="#abc")
+    previous = SimpleNamespace(
+        trackhash="h1", fav_userids=[1], playcount=7, playduration=900, lastplayed=5, color="#abc"
+    )
     new = SimpleNamespace(trackhash="h2", fav_userids=[], playcount=0, playduration=0, lastplayed=0, color="", added=0)
     monkeypatch.setattr(track_edit.TrackStore, "get_tracks_by_filepaths", classmethod(lambda cls, p: [previous]))
     monkeypatch.setattr(track_edit.TrackStore, "remove_track_by_filepath", classmethod(lambda cls, p: None))

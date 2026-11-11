@@ -567,3 +567,90 @@ def test_there_is_no_way_to_edit_the_tracks_of_a_smart_playlist(smart, library, 
     response = getattr(smart, method)(path, json={"trackhash": _hash("jerry"), "before_trackhash": "mary"})
 
     assert response.status_code == 404
+
+
+class TestRatingRule:
+    """The "My rating" rule (#777) over the request cycle: the caller's own ratings decide.
+
+    Ratings sit in the RAM store (`TrackGroup.set_rating`), which is what the rule reads,
+    the same as the favourite flag. Persistence is covered in test_track_ratings_api.py.
+    """
+
+    @pytest.fixture()
+    def rated(self, smart, library):
+        from aivinnet.store.tracks import TrackStore
+
+        def rate(name: str, rating: int, userid: int = 1) -> None:
+            TrackStore.trackhashmap[_hash(name)].set_rating(userid, rating)
+
+        rate("jerry", 5)
+        rate("mary", 4)
+        rate("blue", 2)
+        return rate
+
+    def test_at_least_four_stars_is_the_callers_rated_tracks(self, smart, rated):
+        _create(smart, "Good", _rule("rating", "gte", 4))
+
+        assert _titles(smart.get("/smartplaylists/1")) == {"Jerry Was a Race Car Driver", "Mary the Ostrich"}
+
+    def test_at_most_and_exactly(self, smart, rated):
+        _create(smart, "Low", _rule("rating", "lte", 2))  # id 1
+        _create(smart, "Four", _rule("rating", "eq", 4))  # id 2
+
+        assert _titles(smart.get("/smartplaylists/1")) == {"Blue Note"}
+        assert _titles(smart.get("/smartplaylists/2")) == {"Mary the Ostrich"}
+
+    def test_unrated_is_everything_the_caller_has_not_rated(self, smart, rated):
+        _create(smart, "Unrated", _rule("rating", "unrated"))
+
+        assert _titles(smart.get("/smartplaylists/1")) == {"The Clown", "Mood Indigo"}
+
+    def test_a_rating_is_each_users_own(self, smart, rated):
+        _create(smart, "Good", _rule("rating", "gte", 4))  # id 1, user 1
+        smart.userid = 2
+        _create(smart, "Good", _rule("rating", "gte", 4))  # id 2, user 2
+
+        # User 2 has rated nothing, so their four-star playlist is empty.
+        assert _titles(smart.get("/smartplaylists/2")) == set()
+        smart.userid = 1
+        assert _titles(smart.get("/smartplaylists/1")) == {"Jerry Was a Race Car Driver", "Mary the Ostrich"}
+
+    def test_a_rating_sort_puts_the_highest_first(self, smart, rated):
+        _create(
+            smart,
+            "Ranked",
+            _rule("rating", "gte", 1),
+            sort={"field": "rating", "order": "desc"},
+        )
+
+        titles = [track["title"] for track in smart.get("/smartplaylists/1").get_json()["tracks"]]
+        assert titles == ["Jerry Was a Race Car Driver", "Mary the Ostrich", "Blue Note"]
+
+    @pytest.mark.parametrize(
+        ("rule", "message"),
+        [
+            (_rule("rating", "gte", 0), "whole number from 1 to 5"),
+            (_rule("rating", "lte", 6), "whole number from 1 to 5"),
+            (_rule("rating", "eq", "four"), "whole number from 1 to 5"),
+            (_rule("rating", "unrated", 3), "takes no value"),
+            (_rule("rating", "between", [1, 5]), "takes gte, lte, eq, unrated"),
+        ],
+    )
+    def test_a_bad_rating_rule_is_400_and_writes_nothing(self, smart, library, rule, message):
+        response = _create(smart, "Bad", rule)
+
+        assert response.status_code == 400
+        assert message in response.get_json()["error"]
+        assert smart.get("/smartplaylists/1").status_code == 404
+
+    def test_editing_a_rating_rule_changes_the_tracks(self, smart, rated):
+        _create(smart, "Editable", _rule("rating", "gte", 4))  # id 1
+        assert _titles(smart.get("/smartplaylists/1")) == {"Jerry Was a Race Car Driver", "Mary the Ostrich"}
+
+        response = smart.put(
+            "/smartplaylists/1/update",
+            json=_body("Editable", _rule("rating", "unrated")),
+        )
+
+        assert response.status_code == 200
+        assert _titles(smart.get("/smartplaylists/1")) == {"The Clown", "Mood Indigo"}

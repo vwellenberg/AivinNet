@@ -68,6 +68,7 @@ def _facts_of(trackhash: str, track: Track, userid: int, plays: dict[str, tuple[
         playcount=count,
         last_played=last if count else None,
         favorite=userid in track.fav_userids,
+        rating=track.rating_of(userid),
     )
 
 

@@ -28,6 +28,8 @@ export interface Track extends AlbumDisc {
     trackhash: string
     filetype: string
     is_favorite: boolean
+    // This user's personal rating, 1-5, or null when unrated (#777).
+    rating?: number | null
     explicit: boolean
     type?: string
 

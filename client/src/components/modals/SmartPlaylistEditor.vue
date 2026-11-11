@@ -116,6 +116,18 @@
           </select>
         </template>
 
+        <template v-else-if="valueKind(row.draft.field, row.draft.op) === 'stars'">
+          <select
+            v-model="row.draft.value"
+            :name="`rule-${i + 1}-value`"
+            :aria-label="`Rule ${i + 1}: number of stars`"
+            class="se-input se-value"
+          >
+            <option value="" disabled>Choose stars</option>
+            <option v-for="n in STAR_VALUES" :key="n" :value="String(n)">{{ n }} {{ n === 1 ? 'star' : 'stars' }}</option>
+          </select>
+        </template>
+
         <p v-else class="se-none">No value needed</p>
 
         <button
@@ -182,6 +194,8 @@ import {
     FIELDS,
     formFromPlaylist,
     MAX_LIMIT,
+    MAX_RATING,
+    MIN_RATING,
     newDraft,
     OP_LABELS,
     OPS_BY_FIELD,
@@ -194,6 +208,9 @@ import {
     summarize,
     valueKind,
 } from '@/utils/smartPlaylistRules'
+
+/** The star choices of a rating rule (#777), from the same bounds the server uses. */
+const STAR_VALUES = Array.from({ length: MAX_RATING - MIN_RATING + 1 }, (_, i) => MIN_RATING + i)
 
 const props = defineProps<{
     /** The playlist to edit. Without it the editor creates a new one. */

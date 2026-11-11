@@ -172,6 +172,7 @@ def load_endpoints(web: OpenAPI):
         web.register_api(aivinnet_api.playlistfolders.api)
         web.register_api(aivinnet_api.smartplaylists.api)
         web.register_api(aivinnet_api.favorites.api)
+        web.register_api(aivinnet_api.ratings.api)
         web.register_api(aivinnet_api.track.api)
         web.register_api(aivinnet_api.imgserver.api)
         web.register_api(aivinnet_api.settings.api)

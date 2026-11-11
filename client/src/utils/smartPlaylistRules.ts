@@ -13,7 +13,8 @@ import type { SmartPlaylist, SmartPlaylistBody, SmartPlaylistRule, SmartPlaylist
 export const STRING_FIELDS = ['genre', 'artist', 'albumartist'] as const
 export const NUMBER_FIELDS = ['year', 'playcount'] as const
 export const DATE_FIELDS = ['date_added', 'last_played'] as const
-export const FIELDS = [...STRING_FIELDS, ...NUMBER_FIELDS, ...DATE_FIELDS, 'favorite'] as const
+export const RATING_FIELDS = ['rating'] as const
+export const FIELDS = [...STRING_FIELDS, ...NUMBER_FIELDS, ...DATE_FIELDS, 'favorite', ...RATING_FIELDS] as const
 export type SmartField = (typeof FIELDS)[number]
 
 export type SmartOp =
@@ -27,6 +28,9 @@ export type SmartOp =
     | 'in_last_days'
     | 'not_in_last_days'
     | 'never'
+    | 'gte'
+    | 'lte'
+    | 'unrated'
 
 export const OPS_BY_FIELD: Record<SmartField, readonly SmartOp[]> = {
     genre: ['is', 'is_not', 'contains'],
@@ -37,6 +41,8 @@ export const OPS_BY_FIELD: Record<SmartField, readonly SmartOp[]> = {
     date_added: ['in_last_days', 'not_in_last_days'],
     last_played: ['in_last_days', 'not_in_last_days', 'never'],
     favorite: ['is'],
+    // This user's own rating, 1-5 (#777): at least, at most, exactly, or none.
+    rating: ['gte', 'lte', 'eq', 'unrated'],
 }
 
 export const FIELD_LABELS: Record<SmartField, string> = {
@@ -48,6 +54,7 @@ export const FIELD_LABELS: Record<SmartField, string> = {
     date_added: 'Date added',
     last_played: 'Last played',
     favorite: 'Favorite',
+    rating: 'My rating',
 }
 
 export const OP_LABELS: Record<SmartOp, string> = {
@@ -61,6 +68,9 @@ export const OP_LABELS: Record<SmartOp, string> = {
     in_last_days: 'in the last … days',
     not_in_last_days: 'not in the last … days',
     never: 'never',
+    gte: 'is at least',
+    lte: 'is at most',
+    unrated: 'is not rated',
 }
 
 /** The sort field list: every rule field, plus "random" in front of it. */
@@ -71,11 +81,16 @@ export const SORT_RANDOM = 'random'
  * text, a whole number, two whole numbers, a count of days, true/false, or
  * nothing at all ("never").
  */
-export type ValueKind = 'text' | 'number' | 'range' | 'days' | 'flag' | 'none'
+export type ValueKind = 'text' | 'number' | 'range' | 'days' | 'flag' | 'stars' | 'none'
+
+/** The rating bounds, mirroring `lib/smart_playlists.py` (MIN_RATING, MAX_RATING). */
+export const MIN_RATING = 1
+export const MAX_RATING = 5
 
 export function valueKind(field: SmartField, op: SmartOp): ValueKind {
-    if (op === 'never') return 'none'
+    if (op === 'never' || op === 'unrated') return 'none'
     if (field === 'favorite') return 'flag'
+    if (field === 'rating') return 'stars'
     if ((STRING_FIELDS as readonly string[]).includes(field)) return 'text'
     if (op === 'between') return 'range'
     if ((NUMBER_FIELDS as readonly string[]).includes(field)) return 'number'
@@ -155,6 +170,14 @@ export function ruleFromDraft(draft: RuleDraft): RuleResult {
         case 'days': {
             const n = whole(value)
             if (n === null || n < 1) return { error: `${name}: enter a whole number of days, at least 1` }
+            return { rule: { ...base, value: n } }
+        }
+
+        case 'stars': {
+            const n = whole(value)
+            if (n === null || n < MIN_RATING || n > MAX_RATING) {
+                return { error: `${name}: choose from ${MIN_RATING} to ${MAX_RATING} stars` }
+            }
             return { rule: { ...base, value: n } }
         }
 
@@ -312,6 +335,12 @@ export function describeRule(rule: SmartPlaylistRule): string {
             return `${label} not in the last ${daysText(value)}`
         case 'never':
             return 'Never played'
+        case 'gte':
+            return `${label} is at least ${String(value)} ${value === 1 ? 'star' : 'stars'}`
+        case 'lte':
+            return `${label} is at most ${String(value)} ${value === 1 ? 'star' : 'stars'}`
+        case 'unrated':
+            return 'Not rated'
     }
     return `${label} ${op}`
 }
@@ -327,7 +356,7 @@ export function describeSort(sort: SmartPlaylistSort): string {
         order = desc ? 'favorites first' : 'favorites last'
     } else if ((DATE_FIELDS as readonly string[]).includes(sort.field)) {
         order = desc ? 'newest first' : 'oldest first'
-    } else if ((NUMBER_FIELDS as readonly string[]).includes(sort.field)) {
+    } else if ((NUMBER_FIELDS as readonly string[]).includes(sort.field) || sort.field === 'rating') {
         order = desc ? 'highest first' : 'lowest first'
     } else {
         order = desc ? 'Z to A' : 'A to Z'

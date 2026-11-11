@@ -72,12 +72,13 @@ def untagged_track(playlist_db):
 
     yield
 
-    from aivinnet.db.userdata import FavoritesTable, ScrobbleTable
+    from aivinnet.db.userdata import FavoritesTable, ScrobbleTable, TrackRatingTable
 
     with DbEngine.manager(commit=True) as session:
         session.execute(delete(TrackTable))
         session.execute(delete(FavoritesTable))
         session.execute(delete(ScrobbleTable))
+        session.execute(delete(TrackRatingTable))
 
 
 def test_the_premise_the_rename_changes_the_runtime_hash():
@@ -120,3 +121,20 @@ def test_a_favourite_a_play_and_a_playlist_follow_the_rename(untagged_track):
         assert session.execute(select(FavoritesTable.hash)).scalars().all() == [f"track_{new}"]
         assert session.execute(select(ScrobbleTable.trackhash)).scalars().all() == [new]
         assert session.execute(select(PlaylistTable.trackhashes)).scalars().one() == [new]
+
+
+def test_a_rating_follows_the_rename(untagged_track):
+    """The fourth reference since #777: unique per user, so it moves through the mover."""
+    from aivinnet.db.engine import DbEngine
+    from aivinnet.db.userdata import TrackRatingTable
+    from aivinnet.migrations.album_title_from_folder import rename_albums_after_their_folder
+
+    old = runtime_trackhash(TITLE, OLD_ALBUM, ARTISTS)
+    new = runtime_trackhash(TITLE, NEW_ALBUM, ARTISTS)
+    TrackRatingTable.set_rating(old, 1, 4)
+
+    rename_albums_after_their_folder()
+
+    with DbEngine.manager() as session:
+        rows = session.execute(select(TrackRatingTable.trackhash, TrackRatingTable.rating)).all()
+    assert [(r.trackhash, r.rating) for r in rows] == [(new, 4)]

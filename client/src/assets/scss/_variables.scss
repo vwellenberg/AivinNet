@@ -101,7 +101,12 @@ $index-badge: 1.7rem;
 // was noticed over the Plays column, and the base row, both responsive variants
 // and the album page kept the old width. Whoever adds the next variant should
 // not have to know this story.
-$songlist-duration-col: 10rem;
+//
+// Since #777 it also reserves the rating slot before the heart: 32px plus one
+// more gap, so 13rem. The slot is reserved even on unrated rows, so the
+// duration stands at one x-position down the list.
+$songlist-rating-slot: 2rem;
+$songlist-duration-col: 13rem;
 
 // Track-row grid with the "Date added" column (playlist page, wide layouts):
 // index | title | album | date added | duration. Shared by the rows

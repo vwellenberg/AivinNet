@@ -7,7 +7,7 @@ import { openInFiles } from '@/requests/folders'
 import { addTracksToPlaylist } from '@/requests/playlists'
 import { removePlaylistTrack } from '@/helpers/playlistTrackEdits'
 
-import { AddToQueueIcon, AlbumIcon, ArtistIcon, DeleteIcon, DownloadIcon, FolderIcon, PencilIcon, PlaylistIcon, PlayNextIcon, PlusIcon, SearchIcon } from '@/icons'
+import { AddToQueueIcon, AlbumIcon, ArtistIcon, DeleteIcon, DownloadIcon, FolderIcon, PencilIcon, PlaylistIcon, PlayNextIcon, PlusIcon, SearchIcon, StarIcon } from '@/icons'
 import { getBaseUrl, paths } from '@/config'
 import useModalStore from '@/stores/modal'
 import usePlaylistStore from '@/stores/pages/playlist'
@@ -16,6 +16,7 @@ import useTracklist from '@/stores/queue/tracklist'
 import { loggedInUserIsAdmin } from '@/settings/utils'
 import { getAddToPlaylistOptions, get_find_on_social } from './utils'
 import { isStoredPlaylistId } from '@/utils/storedPlaylist'
+import useRatings from '@/stores/ratings'
 
 /**
  * Returns a list of context menu items for a track.
@@ -76,6 +77,34 @@ export default async (track: Track): Promise<Option[]> => {
 
     // The BARE labels belong to the single track: every container menu
     // (album/artist/folder/playlist) names its subject instead.
+    // "Rate" (#777): the five stars plus removal, so rating works by
+    // keyboard and long-press as well as through the row's sticker.
+    const rate_track: Option = {
+        label: 'Rate',
+        icon: StarIcon,
+        children: async () => {
+            const ratings = useRatings()
+            const fallback = track.rating ?? null
+            // Literal labels: the menu census reads them from the source.
+            const starLabels = ['★', '★★', '★★★', '★★★★', '★★★★★']
+            const stars: Option[] = starLabels.map((label, i) => ({
+                label,
+                action: () => {
+                    ratings.rate(track.trackhash, i + 1, fallback)
+                },
+            }))
+            return [
+                ...stars,
+                {
+                    label: 'Remove rating',
+                    action: () => {
+                        ratings.rate(track.trackhash, null, fallback)
+                    },
+                },
+            ]
+        },
+    }
+
     const add_to_q: Option = {
         label: 'Add to queue',
         action: () => {
@@ -208,6 +237,7 @@ export default async (track: Track): Promise<Option[]> => {
         play_next,
         add_to_q,
         add_to_playlist,
+        rate_track,
         go_to_album,
         go_to_folder,
         go_to_artist,

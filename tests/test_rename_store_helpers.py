@@ -93,6 +93,9 @@ def test_a_tag_edit_tells_the_folder_view_the_new_hash(monkeypatch):
     monkeypatch.setattr(track_edit, "TrackStore", MagicMock())
     folder = MagicMock()
     monkeypatch.setattr(track_edit, "FolderStore", folder)
+    # Ratings are re-read from their table (#777); that needs the real DB stack,
+    # which this lane stubs. Covered in tests_api/test_track_ratings_api.py.
+    monkeypatch.setattr(track_edit, "_refresh_ratings", lambda trackhash: None)
 
     track_edit._store_track("/m/a.mp3", _Track("fresh-hash", "/m/a.mp3"))
 

@@ -29,6 +29,10 @@ const tooltip = computed(() =>
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.6;
+    // The duration cell beside it carries the rating sticker, which can reach
+    // back over this column's right edge (the cell is justified to its end).
+    // Keep the date clear of it.
+    padding-right: $medium;
 
     @include mediumPhones {
         display: none;

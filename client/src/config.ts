@@ -54,6 +54,16 @@ export const paths = {
         get removeFavorite() {
             return this.favorites + '/remove'
         },
+        ratings: '/ratings',
+        get setRating() {
+            return this.ratings + '/set'
+        },
+        get clearRating() {
+            return this.ratings + '/clear'
+        },
+        get allRatings() {
+            return this.ratings
+        },
         artist: '/artist',
         track: '/track',
         lyrics: '/lyrics',

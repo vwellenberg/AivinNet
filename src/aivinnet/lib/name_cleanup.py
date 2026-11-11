@@ -93,10 +93,10 @@ def _chunks(items: list[str]) -> Iterable[list[str]]:
 
 
 def _referenced_trackhashes(session: Any, hashes: set[str]) -> set[str]:
-    """Which of `hashes` a playlist, a favourite or a scrobble still holds."""
+    """Which of `hashes` a playlist, a favourite, a scrobble or a rating still holds."""
     from sqlalchemy import select
 
-    from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable
+    from aivinnet.db.userdata import FavoritesTable, PlaylistTable, ScrobbleTable, TrackRatingTable
 
     found: set[str] = set()
 
@@ -114,6 +114,14 @@ def _referenced_trackhashes(session: Any, hashes: set[str]) -> set[str]:
     for chunk in _chunks(wanted):
         rows = session.execute(
             select(ScrobbleTable.trackhash).where(ScrobbleTable.trackhash.in_(chunk)).distinct()
+        ).all()
+        found.update(h for (h,) in rows)
+
+    # A track held ONLY by a rating (#777) must move too, or its rating points at a dead hash.
+    wanted = sorted(hashes - found)
+    for chunk in _chunks(wanted):
+        rows = session.execute(
+            select(TrackRatingTable.trackhash).where(TrackRatingTable.trackhash.in_(chunk)).distinct()
         ).all()
         found.update(h for (h,) in rows)
 

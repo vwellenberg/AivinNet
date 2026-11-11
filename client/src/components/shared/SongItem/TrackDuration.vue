@@ -1,5 +1,8 @@
 <template>
     <div class="options-and-duration">
+        <!-- The rating sticker (#777) sits before the heart so the duration keeps
+             its x-position. Unrated, it is only a ghost under the pointer. -->
+        <TrackRating :trackhash="trackhash" :rating="rating" />
         <!-- HeartSvg IS a button, so the click belongs to it, not to a wrapper
              around it (#137). With `no_emit` the button did nothing and this div
              caught the bubbling click — a control inside a control. Now the
@@ -28,9 +31,12 @@
 import OptionSvg from '@/assets/icons/more.svg'
 import { formatSeconds } from '@/utils'
 import HeartSvg from '../HeartSvg.vue'
+import TrackRating from './TrackRating.vue'
 
 defineProps<{
     duration: number
+    trackhash: string
+    rating: number | null
     is_fav: boolean
     highlightFavoriteTracks: boolean
     showFavIcon?: boolean
