@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // The Now Playing rating sits in the track's plate (user, 2026-11-11): a star
 // button beside the heart, not a free row of stars under the plate. Read from
 // source, like the other layout censuses: mounting the card needs the whole
 // player state, and what has to hold here is the structure.
-const read = (rel: string) => readFileSync(resolve(__dirname, '..', rel), 'utf-8')
+// Paths from the client root, like the other source censuses (vitest runs there).
+const read = (rel: string) => readFileSync(`src/components/${rel}`, 'utf-8')
 const info = read('NowPlaying/NowPlayingInfo.vue')
 const header = read('NowPlaying/Header.vue')
 
