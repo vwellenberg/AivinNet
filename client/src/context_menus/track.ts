@@ -77,10 +77,10 @@ export default async (track: Track): Promise<Option[]> => {
 
     // The BARE labels belong to the single track: every container menu
     // (album/artist/folder/playlist) names its subject instead.
-    // "Bewerten" (#777): the five stars plus removal, so rating works by
+    // "Rate" (#777): the five stars plus removal, so rating works by
     // keyboard and long-press as well as through the row's sticker.
     const rate_track: Option = {
-        label: 'Bewerten',
+        label: 'Rate',
         icon: StarIcon,
         children: async () => {
             const ratings = useRatings()
@@ -96,7 +96,7 @@ export default async (track: Track): Promise<Option[]> => {
             return [
                 ...stars,
                 {
-                    label: 'Bewertung entfernen',
+                    label: 'Remove rating',
                     action: () => {
                         ratings.rate(track.trackhash, null, fallback)
                     },

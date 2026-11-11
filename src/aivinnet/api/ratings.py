@@ -63,7 +63,7 @@ def set_rating(body: RatingSetBody):
         log.exception("Failed to rate track %s", body.trackhash)
         return {"msg": "Failed! An error occured"}, 500
 
-    group.set_rating(body.rating, userid)
+    group.set_rating(userid, body.rating)
 
     return {"msg": "Rated", "rating": body.rating}
 
@@ -83,7 +83,7 @@ def clear_rating(body: RatingClearBody):
 
     group = TrackStore.trackhashmap.get(body.trackhash)
     if group is not None:
-        group.set_rating(None, userid)
+        group.set_rating(userid, None)
 
     return {"msg": "Rating removed"}
 
@@ -101,5 +101,4 @@ def get_rating(path: RatingPath):
     """
     The current user's rating of one track, or null when unrated.
     """
-    rating = TrackRatingTable.of_user(get_current_userid()).get(path.trackhash)
-    return {"rating": rating}
+    return {"rating": TrackRatingTable.rating_of(path.trackhash, get_current_userid())}

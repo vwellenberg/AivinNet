@@ -581,7 +581,7 @@ class TestRatingRule:
         from aivinnet.store.tracks import TrackStore
 
         def rate(name: str, rating: int, userid: int = 1) -> None:
-            TrackStore.trackhashmap[_hash(name)].set_rating(rating, userid)
+            TrackStore.trackhashmap[_hash(name)].set_rating(userid, rating)
 
         rate("jerry", 5)
         rate("mary", 4)

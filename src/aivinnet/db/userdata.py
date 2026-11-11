@@ -1461,6 +1461,20 @@ class TrackRatingTable(Base):
         return {row.trackhash: row.rating for row in rows}
 
     @classmethod
+    def rating_of(cls, trackhash: str, userid: int) -> int | None:
+        """One user's rating of one track: a keyed lookup, not the user's whole table."""
+        row = next(
+            cls.execute(select(cls.rating).where(and_(cls.trackhash == trackhash, cls.userid == userid)))
+        ).first()
+        return row.rating if row else None
+
+    @classmethod
+    def of_track(cls, trackhash: str) -> dict[int, int]:
+        """`userid -> rating` for one track: what the RAM store must show after a retag."""
+        rows = next(cls.execute(select(cls.userid, cls.rating).where(cls.trackhash == trackhash))).all()
+        return {row.userid: row.rating for row in rows}
+
+    @classmethod
     def everyone(cls) -> list[dict[str, Any]]:
         """Every user's ratings, for the instance backup: `{userid, trackhash, rating, timestamp}`."""
         rows = next(cls.execute(select(cls.userid, cls.trackhash, cls.rating, cls.timestamp).order_by(cls.id))).all()

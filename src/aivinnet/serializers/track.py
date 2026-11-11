@@ -77,4 +77,7 @@ def serialize_tracks(tracks: list[Track], _remove: set | None = None, remove_dis
 
     if _remove is None:
         _remove = set()
-    return [serialize_track(t, _remove, remove_disc) for t in tracks]
+    # The caller resolved once, not per row: a page of 1000 tracks decoded the
+    # JWT 1000 times for `rating` alone.
+    userid = get_current_userid()
+    return [serialize_track(t, _remove, remove_disc, userid=userid) for t in tracks]

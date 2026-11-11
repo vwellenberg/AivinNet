@@ -80,6 +80,7 @@ import NavBar from "@/components/nav/NavBar.vue";
 import RightSideBar from "@/components/RightSideBar/Main.vue";
 
 import { getAllSettings } from "@/requests/settings";
+import useRatings from "@/stores/ratings";
 import { getRootDirs } from "@/requests/settings/rootdirs";
 import { getLoggedInUser } from "./requests/auth";
 // import BubbleManager from "./components/bubbles/BinManager.vue";
@@ -259,6 +260,9 @@ onMounted(async () => {
     }
 
     settings.initializeVolume();
+
+    // The user's ratings (#777), so restored queue copies show the current ones.
+    useRatings().seed().catch(() => null);
 
     // Device sync: register this device and start the session poll loop.
     // Must never break app start (e.g. older backend without the endpoints).

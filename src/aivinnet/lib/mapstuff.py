@@ -99,7 +99,7 @@ def map_ratings():
     for userid, trackhash, rating in TrackRatingTable.all_rows():
         track = TrackStore.trackhashmap.get(trackhash)
         if track:
-            track.set_rating(rating, userid)
+            track.set_rating(userid, rating)
 
 
 def map_artist_colors():

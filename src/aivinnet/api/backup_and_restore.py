@@ -103,6 +103,21 @@ def all_scrobbles():
         yield from ScrobbleTable.get_all(start=0, userid=user.id)
 
 
+def _invalid_rating_row(row: object) -> str | None:
+    """Why a backup's rating row cannot be restored, or None when it can (#777)."""
+    if not isinstance(row, dict):
+        return "not an object"
+    trackhash, rating, timestamp = row.get("trackhash"), row.get("rating"), row.get("timestamp")
+    if not isinstance(trackhash, str) or not trackhash:
+        return "no trackhash"
+    # bool is an int in Python; True is not a one-star rating.
+    if isinstance(rating, bool) or not isinstance(rating, int) or not 1 <= rating <= 5:
+        return "rating must be a whole number from 1 to 5"
+    if timestamp is not None and (isinstance(timestamp, bool) or not isinstance(timestamp, int)):
+        return "timestamp must be a whole number"
+    return None
+
+
 def owner_resolver():
     """
     Decide which user a restored row belongs to.
@@ -320,6 +335,14 @@ class RestoreBackup:
         existing = {(row["userid"], row["trackhash"]) for row in TrackRatingTable.everyone()}
 
         for row in ratings:
+            problem = _invalid_rating_row(row)
+            if problem:
+                # A hand-edited or foreign backup: a 7, a "4" or a missing hash
+                # would otherwise land in the table (SQLite does not enforce
+                # the type) or stop the whole restore with a KeyError.
+                report.discard("rating", row if isinstance(row, dict) else {"row": row}, ValueError(problem))
+                continue
+
             owner = resolve_owner(row)
             key = (owner, row["trackhash"])
 

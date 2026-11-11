@@ -125,7 +125,7 @@ def _carry_favourite_users(kind: str, old_entry, new_hash: str) -> None:
 # over every tag edit showed the track, its album and its artists as
 # un-favourited and unplayed, and dropped the artist colour — until a restart
 # re-derived it. The tables themselves were never touched.
-_DERIVED_STATE = ("fav_userids", "rated_by", "playcount", "playduration", "lastplayed", "color")
+_DERIVED_STATE = ("fav_userids", "playcount", "playduration", "lastplayed", "color")
 
 
 def _carry_over(old, new, names: tuple[str, ...] = _DERIVED_STATE) -> None:
@@ -221,9 +221,31 @@ def _store_track(filepath: str, track: Track, carry_references: bool = True) -> 
         # until the next restart, and a toggle hit a row that did not exist.
         _carry_over(previous, track, ("color",) if not carry_references else _DERIVED_STATE)
     TrackStore.add_track(track)
+    # Ratings (#777) are READ from the table, never carried: the rows have just
+    # moved (or stayed) in the committed transaction, and only the table knows
+    # the outcome. A retag onto a hash another file already holds keeps the
+    # target's rating per user ("existing rating wins"), and copying the old
+    # track's map put a second, different rating into the same group in RAM.
+    _refresh_ratings(track.trackhash)
+    if previous is not None and previous.trackhash != track.trackhash:
+        _refresh_ratings(previous.trackhash)
     # The folder view looks files up by their hash, and the hash may just have
     # changed with the tags.
     FolderStore.index_file(filepath, track.trackhash, track.added)
+
+
+def _refresh_ratings(trackhash: str) -> None:
+    """Set every file under `trackhash` to the ratings the table holds for it."""
+    # Imported here: the fast test lane replaces `aivinnet.db` with a stub module,
+    # and a top-level import broke the collection of every test importing this file.
+    from aivinnet.db.userdata import TrackRatingTable
+
+    group = TrackStore.trackhashmap.get(trackhash)
+    if group is None:
+        return
+    rated = TrackRatingTable.of_track(trackhash)
+    for track in group.tracks:
+        track.rated_by = dict(rated)
 
 
 def resolve_track(old_trackhash: str, filepath: str | None = None) -> Track:
