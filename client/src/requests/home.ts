@@ -1,6 +1,7 @@
 import { paths } from '@/config'
 import type { Album, HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
+import type { RewindYears } from './stats'
 import useAxios from './useAxios'
 
 export async function getRecents(path: string, limit: number) {
@@ -28,6 +29,9 @@ export interface HomeData {
     // or still being computed on the server).
     recap: WeeklyRecap | null
     advent: AdventCalendar | null
+    // The years a Rewind opens for (#776): read by the January card and New
+    // Year's Eve's "Your year in music". Null from a server that does not send it.
+    rewind: RewindYears | null
 }
 
 export async function getHomePageData(limit: number, season?: string | null): Promise<HomeData> {
@@ -43,6 +47,7 @@ export async function getHomePageData(limit: number, season?: string | null): Pr
         stations: Array.isArray(data?.stations) ? data.stations : [],
         recap: data?.recap ?? null,
         advent,
+        rewind: data?.rewind && Array.isArray(data.rewind.years) ? (data.rewind as RewindYears) : null,
     }
 }
 

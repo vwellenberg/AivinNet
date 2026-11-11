@@ -1,21 +1,23 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/requests/stats', () => ({ getRewindYears: vi.fn() }))
 vi.mock('@/router', () => ({ Routes: { Rewind: 'RewindView' } }))
 const { celebrate } = vi.hoisted(() => ({ celebrate: vi.fn() }))
 vi.mock('@/utils/confetti', () => ({ celebrate }))
 
 import RewindCard from '@/components/HomeView/RewindCard.vue'
-import { getRewindYears } from '@/requests/stats'
+import useHome from '@/stores/home'
 
 const stubs = { RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' } }
 
-// As GET /logger/rewind/years sends it (#572).
-async function card(fresh: number | null, on: Date, status = 200) {
+// As Home's answer carries it (`rewind`, #776; the shape of GET /logger/rewind/years, #572).
+// `answered: false` is a server that sent none.
+async function card(fresh: number | null, on: Date, answered = true) {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(on)
-    vi.mocked(getRewindYears).mockResolvedValue({ status, data: { years: [2024, 2025], seen: [], fresh } } as any)
+    setActivePinia(createPinia())
+    useHome().rewind = answered ? { years: [2024, 2025], seen: [], fresh } : null
     const w = mount(RewindCard, { global: { stubs } })
     await flushPromises()
     return w
@@ -38,7 +40,7 @@ describe('RewindCard on Home (#572)', () => {
     it('stays away after January, once seen, and without an answer', async () => {
         expect((await card(2025, new Date(2026, 1, 1))).find('.rewind-card').exists()).toBe(false)
         expect((await card(null, new Date(2026, 0, 12))).find('.rewind-card').exists()).toBe(false)
-        expect((await card(2025, new Date(2026, 0, 12), 500)).find('.rewind-card').exists()).toBe(false)
+        expect((await card(2025, new Date(2026, 0, 12), false)).find('.rewind-card').exists()).toBe(false)
     })
 
     it('greets the new year with one burst of confetti out of the card, once per year', async () => {

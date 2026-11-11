@@ -367,7 +367,9 @@ hinter denselben Caches wie die Einzel-Endpunkte (Recap einmal je User und Zeitr
 nächsten Play). ⚠️ Ein erster Entwurf rechnete sie auf einem Thread vor und ließ sie bis dahin weg: Der
 Client fragt nie nach, also fehlte der Montags-Rückblick beim ersten Home, und ein späterer Refetch ließ
 die Karte über den Zeilen aufploppen — genau der Sprung, den #776 entfernt. Eine Karte, die mit den
-Zeilen kommen soll, ist in der ersten Antwort oder gar nicht da. Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
+Zeilen kommen soll, ist in der ersten Antwort oder gar nicht da. Dasselbe gilt für `rewind` (die Jahre aus
+`GET /logger/rewind/years`, gelesen von der Januar-Karte und „Your year in music“ an Silvester): Beide
+Karten stehen über den Zeilen und entscheiden selbst nach dem Datum, ob sie sich zeigen. Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
 blendet sie nicht aus). `GET /nothome/advent` (`api/home`) liefert `{day, doors}`: `day` ist 0 außerhalb
 des Fensters, sonst die Tür von heute, `doors` die Türen 1 bis heute mit je einem Album (Karten-Form wie
 „Recently played“). Regeln in `lib/home/advent.py` (pur, strikt): Reihenfolge eines Jahres ist quiet

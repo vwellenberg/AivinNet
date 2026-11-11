@@ -196,7 +196,7 @@ def test_home_carries_the_dial_with_its_rows(radio, history):
     run_routine()
 
     body = radio.get("/nothome/?limit=9").get_json()
-    assert set(body) == {"rows", "stations", "recap", "advent"}
+    assert set(body) == {"rows", "stations", "recap", "advent", "rewind"}
     assert body["stations"] == listing(radio)
 
     seasonal = radio.get("/nothome/?limit=9&season=christmas").get_json()

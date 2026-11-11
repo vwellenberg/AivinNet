@@ -7,7 +7,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
-from aivinnet.api.scrobble import discovered_in
+from aivinnet.api.scrobble import discovered_in, rewind_years_of
 from aivinnet.db.userdata import ContinueDismissTable, NotInterestedTable, UserTable
 from aivinnet.lib.home.advent_calendar import advent_calendar
 from aivinnet.lib.home.get_recently_played import get_recently_played
@@ -65,9 +65,11 @@ class HomepageItem(BaseModel):
 @api.get("/")
 def homepage_items(query: HomepageItem):
     """
-    Home in one answer (#776): `rows` in the user's order, and `stations`, the
-    radio's dial (`GET /nothome/stations`), so the dial arrives with the rows
-    instead of after them and pushes nothing down. Both are RAM only.
+    Home in one answer (#776): `rows` in the user's order, `stations` (the
+    radio's dial, `GET /nothome/stations`), the date cards `recap` and `advent`,
+    and `rewind` (`GET /scrobble/rewind/years`). Everything above the rows
+    arrives with them instead of after them, so nothing pushes them down. Each
+    part reads the cache its own endpoint reads.
     """
     userid = get_current_userid()
     today = recap_today()
@@ -78,6 +80,9 @@ def homepage_items(query: HomepageItem):
         # whose data is still being computed is simply absent on this load.
         "recap": _recap_card(userid, today),
         "advent": _advent_card(userid, today),
+        # The years a Rewind opens for: the January card and New Year's Eve's
+        # "Your year in music" decide from them on the client's date.
+        "rewind": rewind_years_of(userid),
     }
 
 

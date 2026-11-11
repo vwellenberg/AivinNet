@@ -34,7 +34,7 @@ def test_the_first_home_of_a_monday_carries_the_recap(as_user, monkeypatch):
 
     first = as_user.get("/nothome/?limit=9").get_json()
 
-    assert set(first) == {"rows", "stations", "recap", "advent"}
+    assert set(first) == {"rows", "stations", "recap", "advent", "rewind"}
     assert first["recap"] == {"key": first["recap"]["key"], "plays": 7}
     # The same card the standalone endpoint serves, on the very first load.
     assert first["recap"] == as_user.get("/nothome/recap").get_json()["recap"]
@@ -61,3 +61,14 @@ def test_outside_the_season_there_is_no_calendar_and_no_recap(as_user, monkeypat
 
     assert body["advent"] == {"day": 0, "doors": []}
     assert body["recap"] is None
+
+
+def test_the_rewind_years_come_with_the_rows(as_user):
+    """The January card and "Your year in music" read them; the same answer as their endpoint."""
+    from aivinnet.api.scrobble import rewind_years_of
+
+    body = as_user.get("/nothome/?limit=9").get_json()
+
+    # `GET /logger/rewind/years` answers with the same function.
+    assert body["rewind"] == rewind_years_of(as_user.userid)
+    assert set(body["rewind"]) == {"years", "seen", "fresh"}

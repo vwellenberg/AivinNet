@@ -1,33 +1,30 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
 
-vi.mock('@/requests/stats', () => ({ getRewindYears: vi.fn() }))
 vi.mock('@/router', () => ({ Routes: { Rewind: 'RewindView' } }))
 
 import YearInMusicCard from '@/components/HomeView/YearInMusicCard.vue'
-import { getRewindYears } from '@/requests/stats'
-import { SEASON_KEY } from '@/utils/seasonLogo'
+import useHome from '@/stores/home'
 import { setSeasonPreview, type Season } from '@/utils/seasons'
 import { DISMISSED_KEY } from '@/utils/yearInMusic'
 
 const stubs = { RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' } }
 
-// As GET /stats/rewind/years answers it: the years a Rewind opens for.
-async function card(season: Season | null, on: Date, years: number[] = [2025, 2026]) {
+// As Home's answer carries it (`rewind`, #776): the years a Rewind opens for.
+// `_season` only names the case; the card decides from the date (or the preview).
+async function card(_season: Season | null, on: Date, years: number[] = [2025, 2026]) {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(on)
-    vi.mocked(getRewindYears).mockResolvedValue({ status: 200, data: { years, seen: [], fresh: null } } as any)
-    const w = mount(YearInMusicCard, {
-        global: { stubs, provide: { [SEASON_KEY as symbol]: ref(season) } },
-    })
+    setActivePinia(createPinia())
+    useHome().rewind = { years, seen: [], fresh: null }
+    const w = mount(YearInMusicCard, { global: { stubs } })
     await flushPromises()
     return w
 }
 
 afterEach(() => {
     vi.useRealTimers()
-    vi.mocked(getRewindYears).mockReset()
     setSeasonPreview(null)
     localStorage.clear()
 })
@@ -43,9 +40,8 @@ describe('YearInMusicCard on Home (#674)', () => {
         })
     })
 
-    it('asks Rewind only while the New Year\'s season is on, and shows nothing otherwise', async () => {
+    it('shows nothing outside New Year\'s Eve', async () => {
         const w = await card('christmas', new Date(2026, 11, 20))
-        expect(getRewindYears).not.toHaveBeenCalled()
         expect(w.find('.year-music-card').exists()).toBe(false)
     })
 

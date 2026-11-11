@@ -680,10 +680,14 @@ def get_rewind_years():
     the user has seen to the end; `fresh`: the latest year while it is still
     unseen (#572) — the one the stats page and, in January, Home announce.
     """
-    userid = get_current_userid()
+    return rewind_years_of(get_current_userid()), 200
+
+
+def rewind_years_of(userid: int) -> dict:
+    """`{years, seen, fresh}` for one user: this endpoint's answer, and Home's `rewind` (#776)."""
     years = _finished_years(userid, _today(), ScrobbleTable.change_marker(userid))
     seen = seen_years(UserTable.get_extra(userid).get(REWIND_SEEN_KEY))
-    return {"years": years, "seen": seen, "fresh": fresh_year(years, seen)}, 200
+    return {"years": years, "seen": seen, "fresh": fresh_year(years, seen)}
 
 
 class RewindSeenBody(BaseModel):

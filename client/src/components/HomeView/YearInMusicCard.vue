@@ -17,28 +17,26 @@
 </template>
 
 <script setup lang="ts">
-// The New Year's review card (#674). It asks Rewind for the years only while the New
-// Year's season is on (the date, or the Appearance preview), and the card shows only
-// when this year has a Rewind (utils/yearInMusic.ts). The season is read once, at mount,
-// as the composable asks once per mount.
+// The New Year's review card (#674). It shows on New Year's Eve (or in the
+// Appearance preview) when this year has a Rewind (utils/yearInMusic.ts).
 
 // @libraries
-import { computed, inject, ref } from "vue";
+import { computed, ref } from "vue";
 
 // @utils
-import useRewindYears from "@/composables/useRewindYears";
 import { Routes } from "@/router";
-import { SEASON_KEY } from "@/utils/seasonLogo";
+import useHome from "@/stores/home";
 import { seasonPreview } from "@/utils/seasons";
 import { readDismissedYear, rememberDismissedYear, yearInMusicYear } from "@/utils/yearInMusic";
 
-const season = inject(SEASON_KEY, ref(null));
-// Only the New Year's season asks the server: the card shows in no other season.
-const rewind = useRewindYears(season.value === "newyear");
+// The years come with Home's own answer (#776), so the card stands there with the
+// rows instead of dropping in above them a request later. It shows on New Year's
+// Eve only (`yearInMusicYear`), or in the season preview.
+const home = useHome();
 const dismissedFor = ref(readDismissedYear());
 
 const year = computed(() =>
-    yearInMusicYear(rewind.value?.years ?? [], dismissedFor.value, new Date(), seasonPreview.value === "newyear"),
+    yearInMusicYear(home.rewind?.years ?? [], dismissedFor.value, new Date(), seasonPreview.value === "newyear"),
 );
 
 function dismiss(): void {

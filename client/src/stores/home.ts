@@ -2,6 +2,7 @@ import { computed, reactive, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 
 import { type AdventCalendar, getHomePageData, type WeeklyRecap } from '@/requests/home'
+import type { RewindYears } from '@/requests/stats'
 import { HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
 import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
@@ -58,6 +59,8 @@ export default defineStore('homepage', () => {
     // Each comes with the rows; null means no card on this load.
     const recap = ref<WeeklyRecap | null>(null)
     const advent = ref<AdventCalendar | null>(null)
+    // The Rewind years (#776), for the January and New Year's Eve cards above the rows.
+    const rewind = ref<RewindYears | null>(null)
 
     /** The recap card is closed (the ✕): gone at once, the server keeps the answer. */
     function clearRecap() {
@@ -76,11 +79,15 @@ export default defineStore('homepage', () => {
         fetchedLimit = limit
         lastSeason = season
         const mine = ++latestFetch
-        const { rows: data, stations: list, recap: card, advent: calendar } = await getHomePageData(limit, season)
+        const { rows: data, stations: list, recap: card, advent: calendar, rewind: years } = await getHomePageData(
+            limit,
+            season,
+        )
         if (mine !== latestFetch) return
         stations.value = list
         recap.value = card
         advent.value = calendar
+        rewind.value = years
         let keys = []
 
         for (const [index, item] of data.entries()) {
@@ -204,6 +211,7 @@ export default defineStore('homepage', () => {
         stations,
         recap,
         advent,
+        rewind,
         clearRecap,
         fetchAll,
         refetchIfWider,

@@ -16,24 +16,31 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 
-import useRewindYears from '@/composables/useRewindYears'
 import { Routes } from '@/router'
+import useHome from '@/stores/home'
 import { celebrate } from '@/utils/confetti'
 import { announcedOnHome, newYearBurst } from '@/utils/rewind'
 
-// Only January asks the server: the card shows in no other month.
-const rewind = useRewindYears(new Date().getMonth() === 0)
-const year = computed(() => announcedOnHome(rewind.value?.fresh))
+// The years come with Home's own answer (#776), so the card stands there with
+// the rows instead of dropping in above them a request later. It shows in
+// January only (`announcedOnHome`).
+const home = useHome()
+const year = computed(() => announcedOnHome(home.rewind?.fresh))
 const card = ref<HTMLElement | null>(null)
 
 // Happy New Year: the first time the card shows on this device, a burst of
-// confetti out of it — once per year, not on every visit to Home.
-watch(year, async y => {
-    if (!y || !newYearBurst(y)) return
-    await nextTick()
-    const box = card.value?.getBoundingClientRect()
-    celebrate(40, box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : undefined)
-})
+// confetti out of it — once per year, not on every visit to Home. Immediate:
+// on a return to Home the store already holds the years when the card mounts.
+watch(
+    year,
+    async y => {
+        if (!y || !newYearBurst(y)) return
+        await nextTick()
+        const box = card.value?.getBoundingClientRect()
+        celebrate(40, box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : undefined)
+    },
+    { immediate: true },
+)
 </script>
 
 <style lang="scss">
