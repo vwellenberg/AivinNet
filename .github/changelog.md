@@ -73,6 +73,29 @@ Silicon).
 
 ## What's new in this release
 
+Ratings, a calmer Home and a brighter Stats page, on top of 2026.11.7.
+
+- **Rate your songs, 1 to 5 stars.** Each person rates for themselves: in Now
+  Playing (five stars at the top), from a song's menu ("Bewerten"), or by
+  tapping the star sticker in a song list. Ratings follow a song when its tags
+  are corrected and are part of backups.
+- **Smart playlists by rating.** A new rule "My rating" (at least, at most,
+  exactly, or not rated yet), and smart playlists can be sorted by it.
+- **Remove something from "Continue listening".** A ✕ on each card takes the
+  album or playlist out of the row, with undo. Play it again and it comes back.
+- **Home no longer jumps while it loads.** The radio dial, the weekly and monthly
+  review card and the Advent calendar come with the rows instead of pushing them down a moment
+  later, and the cards no longer flicker at the end of their animation.
+- **Stats looks friendlier.** The skip card has coloured headings, covers and
+  bars; devices, records, listening peaks and streaks sit on cards in the same
+  style; the library tiles each get their own colour and icon; and the Rewind
+  link has a heading of its own.
+- **Under the hood:** newer libraries for the web player (the long-list
+  scroller, TypeScript, axios, fuse.js) and the server.
+
+<details>
+<summary>What v2026.11.7 brought</summary>
+
 A fix for the single-file programs, on top of 2026.11.6.
 
 - **The single-file programs start again.** The downloads for Linux, Windows
@@ -81,6 +104,8 @@ A fix for the single-file programs, on top of 2026.11.6.
   player in the wrong place. The AppImage, the one-line installer and Docker
   were not affected. Every release now starts each program once before it is
   published.
+
+</details>
 
 <details>
 <summary>What v2026.11.6 brought</summary>
