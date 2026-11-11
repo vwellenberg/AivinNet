@@ -4,7 +4,7 @@
         :class="[props.icon, { 'is-expandable': props.expandable, 'is-expanded': props.expandable && props.expanded }]"
         :style="tileStyle"
     >
-        <svg class="statmotif" viewBox="0 0 150 90" aria-hidden="true" focusable="false">
+        <svg class="statmotif" viewBox="0 0 150 90" aria-hidden="true" focusable="false" :data-motif="motif">
             <circle v-if="motif === 'disc'" cx="128" cy="-6" r="58" />
             <polygon v-else-if="motif === 'triangle'" points="52,-14 168,6 104,74" />
             <path
@@ -27,6 +27,29 @@
                 v-else-if="motif === 'pie'"
                 transform="rotate(-8 130 0)"
                 d="M130 0 L77.4 19.2 A56 56 0 1 1 110.8 52.6 Z"
+            />
+            <!-- The library tiles (#536), one shape each so the row reads as five. -->
+            <circle v-else-if="motif === 'ring'" class="line" cx="122" cy="8" r="42" />
+            <path
+                v-else-if="motif === 'arcs'"
+                class="line"
+                d="M58 -12 A62 62 0 0 0 182 -12 M88 -12 A32 32 0 0 0 152 -12"
+            />
+            <g v-else-if="motif === 'dots'">
+                <circle cx="72" cy="20" r="12" />
+                <circle cx="106" cy="42" r="16" />
+                <circle cx="142" cy="14" r="22" />
+            </g>
+            <g v-else-if="motif === 'bars'">
+                <rect x="66" y="-6" width="14" height="48" rx="7" />
+                <rect x="88" y="-6" width="14" height="70" rx="7" />
+                <rect x="110" y="-6" width="14" height="34" rx="7" />
+                <rect x="132" y="-6" width="14" height="60" rx="7" />
+            </g>
+            <path
+                v-else-if="motif === 'cross'"
+                transform="rotate(18 125 25)"
+                d="M114 -8 h22 v22 h22 v22 h-22 v22 h-22 v-22 h-22 v-22 h22 z"
             />
             <rect v-else x="62" y="-8" width="120" height="34" transform="rotate(28 122 9)" />
         </svg>
@@ -96,6 +119,10 @@ import SparklesSvg from '@/assets/icons/sparkles.svg'
 import CompassSvg from '@/assets/icons/compass.svg'
 import PieSvg from '@/assets/icons/pie.svg'
 import ExpandSvg from '@/assets/icons/expand.svg'
+import EyeSvg from '@/assets/icons/eye.svg'
+import RepeatSvg from '@/assets/icons/repeat.svg'
+import NoteSvg from '@/assets/icons/note.svg'
+import VolumeSvg from '@/assets/icons/volume-high.svg'
 
 import { paths } from '@/config'
 import { Routes } from '@/router'
@@ -149,6 +176,15 @@ const icon = computed(() => {
 
         case 'sources':
             return PieSvg
+
+        case 'library-explored':
+            return EyeSvg
+        case 'library-nonstop':
+            return RepeatSvg
+        case 'library-formats':
+            return NoteSvg
+        case 'library-bitrate':
+            return VolumeSvg
 
         default:
             return SparklesSvg
@@ -243,6 +279,18 @@ const defaultBackgroundStyles = computed(() => {
         case 'sources':
             // "How you listened" (#538): lime, worn by no other tile.
             return 'var(--mem-lime)'
+        // The library row (#536) takes the accents no tile above it wears, one
+        // each: five tiles in one coral read as one tile five times.
+        case 'library-explored':
+            return 'var(--mem-sea)'
+        case 'library-nonstop':
+            return 'var(--mem-gold)'
+        case 'library-formats':
+            return 'var(--mem-pink)'
+        case 'library-bitrate':
+            return 'var(--mem-kraft)'
+        case 'library-hires':
+            return 'var(--mem-blue)'
         default:
             // "New favorites" and anything else unclaimed. Coral, not blush:
             // `streams` already takes blush, so the two sat side by side in
@@ -272,6 +320,16 @@ const motif = computed(() => {
             return 'sparkle'
         case 'sources':
             return 'pie'
+        case 'library-explored':
+            return 'ring'
+        case 'library-nonstop':
+            return 'arcs'
+        case 'library-formats':
+            return 'dots'
+        case 'library-bitrate':
+            return 'bars'
+        case 'library-hires':
+            return 'cross'
         default:
             return 'zigzag'
     }

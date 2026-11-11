@@ -38,7 +38,7 @@ const PLATES = FILES.flatMap(({ name, source }) =>
 describe('Stats: every reading plate is framed', () => {
     it('finds the plates (guard over the parser)', () => {
         const where = PLATES.map(p => p.where)
-        expect(where).toContain('RecordsBoard.vue .record')
+        expect(where).toContain('RecordsBoard.vue .records-plate')
         expect(where).toContain('SkipRate.vue .skip-plate')
         expect(where).toContain('Discoveries.vue .discoveries-note')
         expect(where).toContain('RecordsBoard.vue .records-note')
