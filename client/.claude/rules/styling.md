@@ -1537,7 +1537,8 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   `main.ts` der App-eigene `components/shared/TypedDynamicScroller.vue`: dieselbe Komposition aus
   `useDynamicScroller`, die jeder Zeile über `typedRows()` (`utils/typedScroller.ts`) `type:
   item.component` mitgibt. Registriert unter dem Bibliotheksnamen, also gilt es für jede Seite; ein
-  nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"` (Suche → Tracks). Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
+  nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"` (Suche → Tracks).
+  Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
   ⚠️ **Angekommen wird beim Seitenaufbau, nicht beim Scrollen** (Entscheidung des Nutzers,
   2026-10-20). Ein Scrollsprung, der weiter reicht als der gerenderte Bereich, ist für die
   Bibliothek „nicht kontinuierlich“ und legt **neue** Views an, statt die alten freizugeben;

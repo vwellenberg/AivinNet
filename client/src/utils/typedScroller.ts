@@ -33,7 +33,18 @@ export function viewType(item: unknown): unknown {
     return component && typeof component === 'object' ? toRaw(component) : component
 }
 
-/** Copies each library row with its pool type; the library's own fields stay as they are. */
-export function typedRows<T extends { item: unknown }>(rows: T[]): (T & { type: unknown })[] {
-    return rows.map((row) => ({ ...row, type: viewType(row.item) }))
+/**
+ * Gives each of the library's rows its pool type, IN PLACE, and hands back the same array.
+ *
+ * Not a copy on purpose: when only a measured size changes, the library keeps its row array and
+ * re-triggers it. A fresh array per flush would fire RecycleScroller's items watcher every time,
+ * rebuilding its key and type arrays over all rows while scrolling a long playlist — work the
+ * library's own DynamicScroller never does. Writing the same value again does not re-trigger.
+ */
+export function typeRows<T extends { item: unknown; type?: unknown }>(rows: T[]): (T & { type: unknown })[] {
+    for (const row of rows) {
+        const type = viewType(row.item)
+        if (row.type !== type) row.type = type
+    }
+    return rows as (T & { type: unknown })[]
 }

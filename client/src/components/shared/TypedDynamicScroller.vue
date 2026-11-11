@@ -20,7 +20,7 @@ import { computed, ref, toRef } from 'vue'
 import { RecycleScroller, useDynamicScroller } from 'vue-virtual-scroller'
 import type { CacheSnapshot, UseDynamicScrollerOptions } from 'vue-virtual-scroller'
 
-import { typedRows } from '@/utils/typedScroller'
+import { typeRows } from '@/utils/typedScroller'
 
 defineOptions({ inheritAttrs: false })
 
@@ -61,6 +61,9 @@ const props = withDefaults(
 
 const emit = defineEmits<{ resize: []; visible: [] }>()
 
+// Hoisted like the library does it: one ref for the component's life, not a new one per recompute.
+const items = toRef(props, 'items')
+
 const scroller = ref<unknown>()
 
 /** The RecycleScroller's root element, read the way the library's own component reads it. */
@@ -73,7 +76,7 @@ const el = computed<HTMLElement | undefined>(() => {
 })
 
 const options = computed(() => ({
-    items: toRef(props, 'items'),
+    items,
     keyField: props.keyField,
     direction: props.direction,
     minItemSize: props.minItemSize,
@@ -106,7 +109,6 @@ const {
     onScrollerVisible,
 } = useDynamicScroller(options)
 
-const rows = computed(() => typedRows(itemsWithSize.value))
 
 defineExpose({
     startSpacerSize,
@@ -126,7 +128,8 @@ defineExpose({
 <template>
     <RecycleScroller
         ref="scroller"
-        :items="rows"
+        v-bind="$attrs"
+        :items="typeRows(itemsWithSize)"
         :min-item-size="minItemSize"
         :direction="direction"
         :cache="cache"
@@ -140,7 +143,6 @@ defineExpose({
         type-field="type"
         :list-tag="listTag"
         :item-tag="itemTag"
-        v-bind="$attrs"
         @resize="onScrollerResize"
         @visible="onScrollerVisible"
     >

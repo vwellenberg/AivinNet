@@ -60,6 +60,12 @@ updates:
         versions: [">=7.0.0"]
       - dependency-name: "@formkit/auto-animate"
         versions: [">=1.0.0-0 <1.0.0"]
+      # components/shared/TypedDynamicScroller.vue rebuilds the library's DynamicScroller on its
+      # own `useDynamicScroller` (#704), so its props, slots and the composable's return values
+      # are copied. Patches come by themselves; a minor or major gets an explicit PR that compares
+      # the wrapper against the new library source first.
+      - dependency-name: vue-virtual-scroller
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     commit-message:
       prefix: deps(client)
 

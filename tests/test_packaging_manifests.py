@@ -540,18 +540,23 @@ class TestPinnedBuildInputs:
         assert (REPO_ROOT / "client" / "yarn.lock").is_file()
         assert (REPO_ROOT / "mcp_server" / "requirements.txt").is_file()
 
-    def test_the_scroller_is_the_v3_migration_without_a_beta_ignore(self):
-        """vue-virtual-scroller is on 3.x, exact, and Dependabot no longer ignores it (#704).
+    def test_the_scroller_is_the_v3_migration_with_minor_bumps_by_hand(self):
+        """vue-virtual-scroller is on 3.x, exact; Dependabot brings patches, never minors or majors.
 
         History: 2.0.0 and later are the rewrite (a `<script setup>` DynamicScroller without
         `computed`) that crashed the app, so the pin stayed on 2.0.0-beta.8 and Dependabot
-        ignored everything after it (#653, #750, #770). The migration to 3.0.5 built the typed
-        view pool on the library's own `useDynamicScroller`, so the ignore rule has nothing left
-        to protect and is gone. A later bump happens by an explicit PR, not by the group.
+        ignored everything after it (#653, #750, #770). The migration to 3.0.5 (#704) rebuilt the
+        typed view pool as components/shared/TypedDynamicScroller.vue on the library's own
+        `useDynamicScroller`, copying its props, slots and the composable's return values. A
+        minor release can change exactly those, and the unit test stubs RecycleScroller, so a
+        minor or major bump comes as an explicit PR that compares the wrapper with the new
+        source, not inside the grouped client PR.
         """
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         npm_entry = config.split("- package-ecosystem: npm", 1)[1].split("- package-ecosystem:", 1)[0]
-        assert "dependency-name: vue-virtual-scroller" not in npm_entry, "the beta ignore must be gone"
+        scroller = npm_entry.split("dependency-name: vue-virtual-scroller", 1)[1].split("- dependency-name:", 1)[0]
+        assert "version-update:semver-minor" in scroller and "version-update:semver-major" in scroller
+        assert "versions:" not in scroller, "no blanket version ignore: patches must still come"
 
         package = json.loads((REPO_ROOT / "client" / "package.json").read_text(encoding="utf-8"))
         pinned = package["dependencies"]["vue-virtual-scroller"]
