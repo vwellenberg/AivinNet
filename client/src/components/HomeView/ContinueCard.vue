@@ -529,6 +529,10 @@ function resume() {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    // Above the text block: every child of the card sits at z-index 1, and the
+    // info column comes later in the DOM with its dot veil (72 % card fill), so it
+    // painted over the ✕ and turned the ink glyph grey on the lavender card.
+    z-index: 2;
 
     svg {
       width: 1.1rem;
