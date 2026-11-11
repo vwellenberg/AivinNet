@@ -3,11 +3,13 @@
          filled in currentColor and stroked with the same 2.4 px edge as the
          outline set.
 
-         The EDGE is fixed ink, like heart.fill.svg and for the same reason: the
-         picker and the Now Playing button colour the body yellow, and yellow
-         measures under the 3:1 of WCAG 1.4.11 on the light panel. The fill says
-         which state, the edge says where the glyph is. Where the body follows
-         the row colour (track rows), an ink edge is invisible on ink and a thin
-         rim on paper — the shape stays the same. -->
-    <polygon points="12.00,3.20 14.41,9.28 20.94,9.70 15.90,13.87 17.53,20.20 12.00,16.70 6.47,20.20 8.10,13.87 3.06,9.70 9.59,9.28" stroke="#17171A" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" />
+         The edge is `--star-edge`, falling back to currentColor. Track rows set
+         nothing: body and edge follow the row's colour, as before. The picker
+         and the Now Playing button colour the body yellow and set the edge to
+         the panel's glyph colour, the colour of the EMPTY stars beside it — so
+         set and empty stars are one size and one outline in both themes, and
+         the edge carries the 3:1 of WCAG 1.4.11 that yellow alone misses on
+         the light panel. A fixed ink edge (heart.fill) vanished on the dark
+         panel and left a visibly smaller star (measured 2026-11-11). -->
+    <polygon points="12.00,3.20 14.41,9.28 20.94,9.70 15.90,13.87 17.53,20.20 12.00,16.70 6.47,20.20 8.10,13.87 3.06,9.70 9.59,9.28" stroke="var(--star-edge, currentColor)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" fill="currentColor" />
 </svg>

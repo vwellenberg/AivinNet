@@ -149,7 +149,20 @@ function showMenu(e: MouseEvent) {
         padding: 0 0.7rem;
       }
 
-      // Set = yellow body with the asset's ink edge, like the stars it opens.
+      // Set = yellow body in the glyph-colour outline, like the stars it opens
+      // (star.fill.svg). The edge is named, not `currentColor`: an unregistered
+      // custom property resolves `currentColor` where it is USED, i.e. on the
+      // yellow glyph. On hover it turns with the label to the contrast plate.
+      &.rated {
+        --star-edge: #{$mem-content-text};
+
+        @media (hover: hover) {
+          &:hover {
+            --star-edge: var(--mem-hover-text);
+          }
+        }
+      }
+
       &.rated .track-rating-glyph {
         color: $mem-yellow;
       }

@@ -73,13 +73,14 @@ function pick(n: number) {
         @include btn-quiet($size: 2.75rem, $glyph: 1.75rem);
 
         // Empty stars in the panel's glyph colour; set stars yellow — this
-        // design's "active" — with the ink edge the asset carries.
+        // design's "active" — inside the SAME outline (star.fill.svg).
         .star-glyph {
             color: $mem-content-text;
         }
 
         &.filled .star-glyph {
             color: $mem-yellow;
+            --star-edge: #{$mem-content-text};
         }
 
         // The preview IS the hover here, so the role's plate stays away: no
