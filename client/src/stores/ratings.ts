@@ -6,6 +6,12 @@ import { clearTrackRating, getAllTrackRatings, setTrackRating } from '@/requests
 const latest = new Map<string, number>()
 let calls = 0
 
+/** Test helper: forget which call was the latest (module state outlives a fresh Pinia). */
+export function __resetRatingsTestState() {
+    latest.clear()
+    calls = 0
+}
+
 /**
  * What a rating change in this session decided, keyed by trackhash (#777).
  *
@@ -25,12 +31,6 @@ let calls = 0
  * browser holds copies from before a rating (or before ratings existed), and
  * their `rating` would otherwise show until the track is loaded again.
  */
-/** Test helper: forget which call was the latest (module state outlives a fresh Pinia). */
-export function __resetRatingsTestState() {
-    latest.clear()
-    calls = 0
-}
-
 export default defineStore('ratings', {
     state: () => ({
         // trackhash -> rating, or null for "cleared". A Map so a row only

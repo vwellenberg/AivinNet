@@ -9,7 +9,7 @@ track happened to be first.
 
 Unlike the album hash, the title is load-bearing: the trackhash is derived from
 the title and the album. Renaming an album therefore **changes the trackhash of
-every track in it**, and playlists, favourites, scrobbles and mixes all point at
+every track in it**, and playlists, favourites, scrobbles, ratings and mixes all point at
 trackhashes. So this migration does not just rewrite the tracks — it carries
 every reference across with them, using the hash the server stores for them
 (`runtime_trackhash`), not the column's (#433).
@@ -147,6 +147,13 @@ def _remap_references(conn, mapping: dict[str, str]) -> dict[str, int]:
                 .values(trackhash=new)
             )
             moved["scrobbles"] += result.rowcount or 0
+
+    # Ratings (#777) are unique per (track, user), so they cannot follow by a
+    # plain UPDATE; the reference migration's mover handles collisions (the
+    # rating already on the new hash wins) and swaps.
+    from aivinnet.lib.reference_migration import _move_ratings
+
+    _move_ratings(conn, mapping)
 
     return moved
 
