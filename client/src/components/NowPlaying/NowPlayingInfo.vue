@@ -74,6 +74,8 @@ function showMenu(e: MouseEvent) {
 // `min-width: 0` is what makes that possible here, because a flex item with
 // `nowrap` would otherwise push the actions out instead of shrinking.
 .now-playing-info {
+  // The containing block of the rating picker (below).
+  position: relative;
   display: flex;
   align-items: center;
   gap: $small;
@@ -153,8 +155,14 @@ function showMenu(e: MouseEvent) {
       }
     }
 
-    // Opens upward over the cover and right-aligned to the button: below the
-    // plate is the queue, and the plate sits near the card's right edge.
+    // The picker hangs off the PLATE, not the button: anchored to the button,
+    // its 252px reached 27px past the left edge of a 390px phone (measured).
+    // The plate spans the card, so its right edge keeps the picker on screen.
+    .track-rating-anchor {
+      position: static;
+    }
+
+    // Opens upward over the cover: below the plate is the queue.
     .rating-picker {
       top: auto;
       bottom: calc(100% + 0.6rem);
