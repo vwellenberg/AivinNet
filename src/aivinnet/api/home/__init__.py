@@ -7,8 +7,8 @@ from flask_openapi3 import APIBlueprint, Tag
 from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
-from aivinnet.api.scrobble import discovered_in
-from aivinnet.db.userdata import NotInterestedTable, UserTable
+from aivinnet.api.scrobble import discovered_in, rewind_years_of
+from aivinnet.db.userdata import ContinueDismissTable, NotInterestedTable, UserTable
 from aivinnet.lib.home.advent_calendar import advent_calendar
 from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
@@ -58,11 +58,32 @@ def get_recent_plays(query: RecentsQuery):
 
 class HomepageItem(BaseModel):
     limit: int = Field(default=9, description="The max number of items per group to return")
+    # The same as `GET /nothome/stations`: the season's station goes first.
+    season: str | None = Field(default=None, description="The season on the client, see /nothome/stations")
 
 
 @api.get("/")
 def homepage_items(query: HomepageItem):
-    return HomepageStore.get_homepage_items(limit=query.limit)
+    """
+    Home in one answer (#776): `rows` in the user's order, `stations` (the
+    radio's dial, `GET /nothome/stations`), the date cards `recap` and `advent`,
+    and `rewind` (`GET /scrobble/rewind/years`). Everything above the rows
+    arrives with them instead of after them, so nothing pushes them down. Each
+    part reads the cache its own endpoint reads.
+    """
+    userid = get_current_userid()
+    today = recap_today()
+    return {
+        "rows": HomepageStore.get_homepage_items(limit=query.limit),
+        "stations": _stations(userid, query.season),
+        # The date cards (#776): what is already computed, never a wait. A card
+        # whose data is still being computed is simply absent on this load.
+        "recap": _recap_card(userid, today),
+        "advent": _advent_card(userid, today),
+        # The years a Rewind opens for: the January card and New Year's Eve's
+        # "Your year in music" decide from them on the client's date.
+        "rewind": rewind_years_of(userid),
+    }
 
 
 def _layout_rows(layout: Layout) -> dict:
@@ -193,6 +214,51 @@ def remove_not_interested(body: NotInterestedBody):
     return {"msg": "Removed"}
 
 
+class ContinueDismissBody(BaseModel):
+    type: Literal["album", "playlist"] = Field(description="What the hash names")
+    hash: str = Field(
+        description="The album hash, or the playlist id, as Home sent it in a card's `dismiss`",
+        min_length=1,
+        max_length=64,
+    )
+
+
+@api.post("/continue/dismiss")
+def dismiss_continue(body: ContinueDismissBody):
+    """
+    Remove an album or playlist from "Continue listening" (#776, the ✕ on a
+    card). Home leaves it out at once, and it is back on the first play after
+    this. Dismissing it again moves the stamp on.
+
+    The album must be in the library, checked before anything is stored (404).
+    A playlist id is not checked: a dismissal of nothing hides nothing.
+    """
+    userid = get_current_userid()
+    if _is_guest(userid):
+        return {"msg": "The guest account has the default Home"}, 403
+
+    if body.type == "album" and AlbumStore.get_album_by_hash(body.hash) is None:
+        return {"msg": "No such album"}, 404
+
+    ContinueDismissTable.dismiss(userid, body.type, body.hash)
+    return {"msg": "Dismissed"}, 200
+
+
+@api.delete("/continue/dismiss")
+def undismiss_continue(body: ContinueDismissBody):
+    """
+    Take a dismissal back (the undo of the ✕). The card is back on the next
+    Home. Taking back a dismissal that was never made is a no-op, and no store
+    check: an album that left the library can still be taken back.
+    """
+    userid = get_current_userid()
+    if _is_guest(userid):
+        return {"msg": "The guest account has the default Home"}, 403
+
+    ContinueDismissTable.undo(userid, body.type, body.hash)
+    return {"msg": "Removed"}, 200
+
+
 @api.get("/surprise")
 def surprise_album():
     """
@@ -225,9 +291,12 @@ def get_stations(query: StationsQuery):
     decades, each as its playlist id, `kind` ("season" | "mix" | "genre" |
     "decade") and `name`. RAM only; `[]` when the user has none yet.
     """
-    userid = get_current_userid()
+    return _stations(get_current_userid(), query.season)
+
+
+def _stations(userid: int, season: str | None) -> list[dict[str, str]]:
     mixes = HomepageStore.entries["your_mixes"].mixes.get(userid, [])
-    return station_listing(mixes, StationStore.of(userid), season=query.season)
+    return station_listing(mixes, StationStore.of(userid), season=season)
 
 
 # SECTION: THE RECAP CARD (#530)
@@ -315,6 +384,32 @@ def get_recap():
         return {"recap": None}, 200
 
     return {"recap": _recap_for(userid, period)}, 200
+
+
+# The date cards of Home, folded into `GET /nothome/` (#776), so they arrive
+# with the rows instead of after them and push nothing down. Computed in the
+# request, exactly as `GET /nothome/recap` and `GET /nothome/advent` always did,
+# behind the same caches: the recap once per user and period, the Advent plays
+# once per user until their next play. A first draft warmed both on a thread and
+# answered without the card until it was ready; the client never asks again,
+# so the first Home of a Monday had no recap, and a later refetch popped the
+# card in above the rows — the very jump this change removes.
+
+
+def _recap_card(userid: int, today: date) -> dict | None:
+    period = recap_period(today)
+    if period is None:
+        return None
+
+    dismissed = UserTable.get_extra(userid).get(RECAP_DISMISSED_KEY)
+    if not is_news(period, dismissed if isinstance(dismissed, str) else None):
+        return None
+
+    return _recap_for(userid, period)
+
+
+def _advent_card(userid: int, today: date) -> dict:
+    return advent_calendar(userid, today)
 
 
 class RecapDismissBody(BaseModel):

@@ -1,14 +1,18 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getWeeklyRecap, dismissWeeklyRecap, push, setStatsPeriod } = vi.hoisted(() => ({
-    getWeeklyRecap: vi.fn(),
+import type { WeeklyRecap as RecapCard } from '@/requests/home'
+import useHome from '@/stores/home'
+
+const { dismissWeeklyRecap, push, setStatsPeriod } = vi.hoisted(() => ({
     dismissWeeklyRecap: vi.fn(),
     push: vi.fn(),
     setStatsPeriod: vi.fn(),
 }))
 
-vi.mock('@/requests/home', () => ({ getWeeklyRecap, dismissWeeklyRecap }))
+// The recap comes with Home's answer (#776): the store holds it, the card reads it.
+vi.mock('@/requests/home', () => ({ dismissWeeklyRecap }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/router', () => ({ Routes: { Stats: 'StatsView' } }))
 vi.mock('@/stores/settings', () => ({ default: () => ({ setStatsPeriod }) }))
@@ -27,14 +31,15 @@ const week = {
 }
 
 async function card(recap: unknown, status = 200) {
-    getWeeklyRecap.mockResolvedValue({ status, data: { recap } })
+    // A failed answer carries no recap, as Home's answer does not then either.
+    useHome().recap = status === 200 ? ((recap ?? null) as RecapCard | null) : null
     const w = mount(WeeklyRecap)
     await flushPromises()
     return w
 }
 
 beforeEach(() => {
-    getWeeklyRecap.mockReset()
+    setActivePinia(createPinia())
     dismissWeeklyRecap.mockReset().mockResolvedValue({ status: 200, data: { msg: 'Dismissed' } })
     push.mockReset()
     setStatsPeriod.mockReset()

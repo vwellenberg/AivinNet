@@ -1331,6 +1331,68 @@ class DeviceTable(Base):
         )
 
 
+class ContinueDismissTable(Base):
+    """
+    "Remove from Continue listening" (#776, the ✕ on a card): the album or
+    playlist leaves Home until it is played again. `timestamp` is when the user
+    dismissed it; Home hides the entry while its last play is not newer than
+    that, so the first play after the dismissal brings it back by itself.
+
+    Its own table, like `NotInterestedTable`: read on every Home (an undo shows
+    at once), and a restore keeps the stamps (#564).
+    """
+
+    __tablename__ = "continue_dismissed"
+    __table_args__ = (UniqueConstraint("type", "hash", "userid", name="uq_continue_dismissed_type_hash_userid"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[str] = mapped_column(String())
+    hash: Mapped[str] = mapped_column(String())
+    timestamp: Mapped[int] = mapped_column(Integer())
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+
+    @classmethod
+    def dismiss(cls, userid: int, type: str, hash: str, timestamp: int | None = None) -> None:
+        """
+        Dismiss an entry, or move its stamp on when it is dismissed again. One
+        statement, so two dismissals at once cannot both insert.
+
+        `timestamp` only for a restore (#564).
+        """
+        stmt = sqlite_insert(cls).values(
+            userid=userid,
+            type=type,
+            hash=hash,
+            timestamp=int(time.time()) if timestamp is None else timestamp,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["type", "hash", "userid"],
+            set_={"timestamp": stmt.excluded.timestamp},
+        )
+        next(cls.execute(stmt, commit=True))
+
+    @classmethod
+    def undo(cls, userid: int, type: str, hash: str) -> None:
+        next(
+            cls.execute(
+                delete(cls).where(and_(cls.userid == userid, cls.type == type, cls.hash == hash)),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def of_user(cls, userid: int) -> dict[tuple[str, str], int]:
+        """`(type, hash) -> dismissed at` of one user. Read on every Home, so no sort."""
+        rows = next(cls.execute(select(cls.type, cls.hash, cls.timestamp).where(cls.userid == userid))).all()
+        return {(row.type, row.hash): row.timestamp for row in rows}
+
+    @classmethod
+    def everyone(cls) -> list[dict]:
+        """Every user's dismissals, for the instance backup (#776): `{userid, type, hash, timestamp}`."""
+        rows = next(cls.execute(select(cls.userid, cls.type, cls.hash, cls.timestamp).order_by(cls.id))).all()
+        return [{"userid": r.userid, "type": r.type, "hash": r.hash, "timestamp": r.timestamp} for r in rows]
+
+
 class NotInterestedTable(Base):
     """
     What a user said "Not interested" to on Home (#531): albums in "Never

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from aivinnet.db.userdata import ContinueDismissTable
 from aivinnet.lib.first_play_cache import first_plays_of
+from aivinnet.lib.home.homerows import CONTINUE_MAX_ITEMS
 from aivinnet.lib.home.recover_items import recover_items
 
 
@@ -96,6 +98,39 @@ class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):
     # NOTE: This extends RecentlyPlayedHomepageEntry because
     # the shape of the data is the same.
     pass
+
+
+def _dismissed(item: dict[str, Any], dismissed: dict[tuple[str, str], int]) -> bool:
+    """Hidden while the last play is not newer than the dismissal (#776)."""
+    at = dismissed.get((item["type"], item["hash"]))
+    return at is not None and item["timestamp"] <= at
+
+
+class ContinueEntry(GenericRecoverableEntry):
+    """
+    "Continue listening" (#776): an album or playlist the user removed with ✕
+    stays out until it is played again. Every card carries `dismiss` (its type
+    and hash), so the client removes it by the same key the server stores.
+
+    Read on every Home, not cached: an undo brings the card back on the very
+    next Home. Each stored item is recovered on its own, because recovery skips
+    the items it cannot resolve, and a list zipped against it would misalign.
+    """
+
+    def get_items(self, userid: int, limit: int | None = None):
+        dismissed = ContinueDismissTable.of_user(userid)
+        # The routine keeps spares behind the row (CONTINUE_SPARE_ITEMS); Home shows
+        # at most CONTINUE_MAX_ITEMS of what is left after the dismissals.
+        most = CONTINUE_MAX_ITEMS if limit is None else min(limit, CONTINUE_MAX_ITEMS)
+        shown = [item for item in self.items.get(userid, []) if not _dismissed(item, dismissed)][:most]
+
+        cards = []
+        for item in shown:
+            for card in recover_items([item]):
+                card["dismiss"] = {"type": item["type"], "hash": item["hash"]}
+                cards.append(card)
+
+        return {"title": self.title, "description": self.description, "items": cards}
 
 
 class PersonalTitleEntry(GenericRecoverableEntry):

@@ -3,6 +3,20 @@
        when the CARD is wide enough, whatever the window or sidebars do. -->
   <div class="continue-wrap">
   <div class="continue-card" :class="`ent-${entry.type}`">
+    <!-- The ✕ (#776): leaves "Continue listening" until the next play. A card
+         without a `dismiss` key (an older server) has none. -->
+    <button
+      v-if="entry.dismiss"
+      class="btn-quiet continue-dismiss"
+      type="button"
+      aria-label="Remove from Continue listening"
+      title="Remove from Continue listening"
+      @click.stop.prevent="dismiss"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" fill="none" stroke-width="2.4" stroke-linecap="round" />
+      </svg>
+    </button>
     <RouterLink class="cover" :to="link">
       <!-- A playlist without its own picture shows the album collage, exactly
            like its card in the rows below (PlaylistCard.vue). -->
@@ -26,10 +40,13 @@
         <span class="text">Continue</span>
       </button>
     </div>
-    <ol v-if="upNext.length" class="up-next">
+    <!-- Always there, with its three slots (#776): the column takes its space
+         from the first frame, and the tracks fill the slots when they arrive,
+         so the card does not grow. A card with no tracks after the load hides it. -->
+    <ol class="up-next" :class="{ 'up-next-none': upNextLoaded && !upNext.length }">
       <li class="kicker">Up next</li>
-      <li v-for="row in upNext" :key="row.track.trackhash">
-        <button class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
+      <li v-for="(row, i) in upNextSlots" :key="i">
+        <button v-if="row" class="next-row" :class="{ current: row.current }" @click="playTrack(row.track)">
           <span class="glyph" v-html="row.current ? PlayIcon : NoteIcon"></span>
           <span class="words">
             <b class="title ellip">{{ row.track.title }}</b>
@@ -39,6 +56,7 @@
           </span>
           <span v-if="row.track.duration" class="dur">{{ formatSeconds(row.track.duration) }}</span>
         </button>
+        <span v-else class="next-slot-empty" aria-hidden="true"></span>
       </li>
     </ol>
   </div>
@@ -49,6 +67,7 @@
 import { computed, ref, watch } from "vue";
 
 import { paths } from "@/config";
+import { removeFromContinue } from "@/helpers/continueDismiss";
 import { playAlbumAt, playPlaylistAt, resumeIndex } from "@/helpers/usePlayFrom";
 import { AlbumIcon, PlayIcon, PlaylistIcon } from "@/icons";
 import { Track } from "@/interfaces";
@@ -73,6 +92,8 @@ const props = defineProps<{
   entry: {
     type: string;
     item?: any;
+    // The ✕ key (#776): absent on a server that predates it.
+    dismiss?: { type: string; hash: string };
   };
 }>();
 
@@ -110,6 +131,11 @@ const link = computed(() =>
 // inside it (the server's index can be off by orphans, see resumeIndex).
 const UP_NEXT = 3;
 const upNext = ref<{ track: Track; current: boolean }[]>([]);
+// The three slots exist from the first frame (#776): the column is as tall as its
+// tracks will be, so the rows arriving fill it instead of growing the card.
+const upNextSlots = computed(() => Array.from({ length: UP_NEXT }, (_, i) => upNext.value[i] ?? null));
+// Set once the tracks are in, empty or not: an empty answer hides the column.
+const upNextLoaded = ref(false);
 
 async function loadUpNext() {
   const item = props.entry.item;
@@ -127,12 +153,16 @@ async function loadUpNext() {
     tracks = data?.tracks ?? [];
   }
 
-  if (!tracks.length) return;
+  if (!tracks.length) {
+    upNextLoaded.value = true;
+    return;
+  }
 
   const at = resumeIndex(tracks, item.resume_trackhash, index - offset);
   // No position number in front of the title: many titles carry their own
   // track number ("19. Rittersleut"), and "3 · 19. …" read as noise.
   upNext.value = tracks.slice(at, at + UP_NEXT).map((track, i) => ({ track, current: i === 0 }));
+  upNextLoaded.value = true;
 }
 
 // A primitive key: a getter that builds a new array is "changed" every time
@@ -148,6 +178,11 @@ function playTrack(track: Track) {
   const index = props.entry.item?.track_index ?? 0;
   if (props.entry.type === "album") playAlbumAt(hash.value, index, track.trackhash);
   else playPlaylistAt(hash.value, index, track.trackhash);
+}
+
+// The ✕: the card leaves at once, the server keeps it out (helpers/continueDismiss.ts).
+function dismiss() {
+  if (props.entry.dismiss) void removeFromContinue(props.entry.dismiss, name.value);
 }
 
 function resume() {
@@ -178,6 +213,7 @@ function resume() {
   // its value, Continue pops, the Up next rows step in. All of it on the
   // shared vocabulary (Global/_button-classes.scss), nothing local.
   animation: mem-plate-rise $motion-settle ease-out;
+  position: relative;
   display: grid;
   grid-template-columns: 8.5rem minmax(0, 1fr);
   gap: 1.25rem;
@@ -378,11 +414,25 @@ function resume() {
     // 2026-10-11: the rows read as dead without it). The words, the glyph and the
     // duration take their own covers, so no stroke crosses a letter or an icon.
     // The fill stays the static panel: the card under it is a static pastel.
+    // A card with no tracks after the load: the column is not there at all.
+    &.up-next-none {
+      display: none;
+    }
+
+    // Every slot, filled or not, is the same height (#776): a row that arrives
+    // takes exactly the place its blank slot held.
+    .next-slot-empty {
+      display: block;
+      height: 3.1rem;
+    }
+
     .next-row {
       @include mem-row-plate($hatch: true);
       --row-fill: var(--card-inlay-fill, #{$mem-panel-static});
       color: var(--card-inlay-text, #{$mem-ink});
       width: 100%;
+      height: 3.1rem;
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       // Buttons centre their content app-wide; a list row reads from the left.
@@ -465,6 +515,33 @@ function resume() {
         }
       }
     }
+  }
+
+  // The ✕ (#776) in the top right corner. The role gives the 44 px target, the
+  // pointer-only hover and both themes. The title and the info column keep clear
+  // of it, so a long name never runs under the button.
+  .continue-dismiss {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: $bar-control;
+    height: $bar-control;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    // Above the text block: every child of the card sits at z-index 1, and the
+    // info column comes later in the DOM with its dot veil (72 % card fill), so it
+    // painted over the ✕ and turned the ink glyph grey on the lavender card.
+    z-index: 2;
+
+    svg {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+  }
+
+  &:has(.continue-dismiss) .info {
+    padding-right: $bar-control;
   }
 
   // Once risen, it stays risen — the latch the rows have (utils/arrivalLatch.ts

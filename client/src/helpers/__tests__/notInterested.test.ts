@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // "Not interested" on a Home card (#531): which cards offer it, and what the
 // entry does when the server agrees, refuses, or is asked to undo.
-const { markNotInterested, unmarkNotInterested, dropCard, putBack, fetchAll, showError, notify, guest } = vi.hoisted(
+const { markNotInterested, unmarkNotInterested, dropCard, putBack, refreshIfLoaded, showError, notify, guest } = vi.hoisted(
     () => ({
         markNotInterested: vi.fn(),
         unmarkNotInterested: vi.fn(),
         dropCard: vi.fn(),
         putBack: vi.fn(),
-        fetchAll: vi.fn(),
+        refreshIfLoaded: vi.fn(),
         showError: vi.fn(),
         notify: vi.fn(),
         guest: { value: false },
@@ -17,7 +17,7 @@ const { markNotInterested, unmarkNotInterested, dropCard, putBack, fetchAll, sho
 )
 
 vi.mock('@/requests/home', () => ({ markNotInterested, unmarkNotInterested }))
-vi.mock('@/stores/home', () => ({ default: () => ({ dropCard, fetchAll }) }))
+vi.mock('@/stores/home', () => ({ default: () => ({ dropCard, refreshIfLoaded }) }))
 vi.mock('@/settings/utils', () => ({ loggedInUserIsGuest: () => guest.value }))
 vi.mock('@/stores/notification', () => ({
     NotifType: { Info: 'info', Error: 'error' },
@@ -34,7 +34,7 @@ import { notInterested, notInterestedMenu } from '@/helpers/notInterested'
 const PRIMUS = { type: 'album' as const, hash: 'a0000000000000pr', name: 'Frizzle Fry' }
 
 beforeEach(() => {
-    for (const fn of [markNotInterested, unmarkNotInterested, dropCard, putBack, fetchAll, showError, notify]) fn.mockReset()
+    for (const fn of [markNotInterested, unmarkNotInterested, dropCard, putBack, refreshIfLoaded, showError, notify]) fn.mockReset()
     dropCard.mockReturnValue(putBack)
     markNotInterested.mockResolvedValue({ status: 200, data: { msg: 'Marked' } })
     unmarkNotInterested.mockResolvedValue({ status: 200, data: { msg: 'Removed' } })
@@ -82,7 +82,7 @@ describe('marking a card', () => {
         expect(notify).not.toHaveBeenCalled()
     })
 
-    it('undoes from the toast: takes the mark back and fetches Home again', async () => {
+    it('undoes from the toast: takes the mark back and refreshes Home with its season', async () => {
         await notInterested('never_played', PRIMUS)
         const action = notify.mock.calls[0][2] as { label: string; handler: () => Promise<void> }
         expect(action.label).toBe('Undo')
@@ -91,7 +91,7 @@ describe('marking a card', () => {
         await flushPromises()
 
         expect(unmarkNotInterested).toHaveBeenCalledWith('album', PRIMUS.hash)
-        expect(fetchAll).toHaveBeenCalled()
+        expect(refreshIfLoaded).toHaveBeenCalled()
     })
 
     it('says so when the undo does not go through, and leaves Home as it is', async () => {
@@ -101,6 +101,6 @@ describe('marking a card', () => {
         await (notify.mock.calls[0][2] as { handler: () => Promise<void> }).handler()
 
         expect(showError).toHaveBeenCalledWith('Could not bring Frizzle Fry back')
-        expect(fetchAll).not.toHaveBeenCalled()
+        expect(refreshIfLoaded).not.toHaveBeenCalled()
     })
 })

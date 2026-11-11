@@ -52,7 +52,7 @@ def listed(api):
 def never_played(api, limit=9):
     res = api.get(f"/nothome/?limit={limit}")
     assert res.status_code == 200, res.text
-    row = next((r["never_played"] for r in res.get_json() if "never_played" in r), None)
+    row = next((r["never_played"] for r in res.get_json()["rows"] if "never_played" in r), None)
     if row is None:
         return [], []
     chips = [[i["item"]["albumhash"] for i in c["items"]] for c in row.get("chips", [])]

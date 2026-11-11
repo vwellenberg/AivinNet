@@ -142,7 +142,8 @@ def run_routines():
 def rows(api):
     res = api.get("/nothome/?limit=9")
     assert res.status_code == 200, res.text
-    return {k: v for row in res.get_json() for k, v in row.items()}, [k for row in res.get_json() for k in row]
+    rows = res.get_json()["rows"]
+    return {k: v for row in rows for k, v in row.items()}, [k for row in rows for k in row]
 
 
 def test_new_rows_their_shape_and_order(home):

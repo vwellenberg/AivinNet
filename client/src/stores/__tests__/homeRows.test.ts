@@ -8,7 +8,9 @@ vi.mock('../content-width', async () => {
 
     return { maxAbumCards: ref(6), fetchCardCount: ref(6) }
 })
-vi.mock('@/requests/home', () => ({ getHomePageData: (n: number) => fetchHome(n) }))
+vi.mock('@/requests/home', () => ({
+    getHomePageData: async (n: number) => ({ rows: await fetchHome(n), stations: [] }),
+}))
 
 import useHome from '../home'
 

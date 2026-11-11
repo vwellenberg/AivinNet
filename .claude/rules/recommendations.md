@@ -39,7 +39,16 @@ Die Crons stehen in `crons/__init__.py` und laufen in einer `schedule`-Schleife,
 
 - **„Continue listening“** (`lib/recipes/continuelistening.py`): bis zu drei Karten. Das sind die
   zuletzt gehörten, nicht beendeten Alben bzw. Playlists aus den neuesten 200 Scrobbles mit
-  `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu.
+  `al:`/`pl:`-Quelle. Gefüllt wird beim Start, danach nach jeder Wiedergabe neu. Das ✕ auf einer Karte (#776) legt einen
+Eintrag in `continue_dismissed` (pro User, mit Zeitstempel) an: `ContinueEntry.get_items` lässt ihn aus,
+solange sein letzter Play nicht neuer ist als die Entfernung; der erste Play danach bringt ihn zurück.
+Undo nimmt die Entfernung zurück (`DELETE /nothome/continue/dismiss`). Im Backup als Abschnitt
+`continue_dismissed`. Die Routine hält `CONTINUE_SPARE_ITEMS` (5) Einträge mehr, als die Zeile zeigt,
+damit nach einem ✕ der nächste nachrückt, statt dass die Zeile bis zum nächsten Lauf schrumpft (dieselbe
+Idee wie bei „Not interested“). Die Dismissals ziehen bei einem Retag **nicht** mit, bewusst: Die
+Continue-Einträge hängen an der `al:`-Quelle der Scrobbles, und die zieht ebenso nicht mit
+(`track-tags.md`). Nach einem Retag steht die Karte also unter dem neuen Hash, und nur ein neuer Play
+legt sie dort an — der ist dann ohnehin neuer als die Entfernung.
 - **Rückblick-Karte** (#530, `api/home` `GET /nothome/recap`, Regeln in `lib/home/recap.py`, pur und strikt):
   oben auf Home, **nicht** in der Reihenfolge (wie Rewind, nicht in `DEFAULT_ORDER`): am Montag
   die letzte Woche, am 1. der letzte Monat (ein 1. auf einen Montag zeigt nur den Monat). Zeitraum
@@ -295,8 +304,10 @@ Datenschutz-Versprechen. Die Quelle gehört dann unten in die Tabelle und in die
 ## Radio-Stationen: Genre und Jahrzehnt (#640)
 
 Der Dial (`client/src/components/HomeView/RadioDial.vue`, #542) stimmt zwischen **Mixes, Genres,
-Jahrzehnten** ab. Die Liste liefert `GET /nothome/stations` (`api/home`): `{id, kind, name}` in
-Dial-Reihenfolge, nur belegte Plätze. Jeder Eintrag ist eine erzeugte Playlist mit derselben Id.
+Jahrzehnten** ab. Die Liste kommt mit den Zeilen in `GET /nothome/` (`stations`, #776): der Home-Store hält sie, der
+Dial fragt nie selbst nach, und ein Saisonwechsel lädt Home neu. `GET /nothome/stations` liefert
+dieselbe Liste allein (`{id, kind, name}` in
+Dial-Reihenfolge, nur belegte Plätze). Jeder Eintrag ist eine erzeugte Playlist mit derselben Id.
 
 - **Regeln** in `lib/home/stations.py` (pur, strikt): Genre = meistgespielte Genres der letzten 180
   Tage (ab 3 Plays), Jahrzehnt = meistgespielte Jahrzehnte aus dem Erscheinungsjahr. Beides ab 20
@@ -351,7 +362,14 @@ weil sie die Jahre mockten (#729). Probe dafür: `scripts/demo/rehearsal.sh` (fa
 
 ## Der Advent-Kalender (1.–24. Dezember)
 
-Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
+Seit #776 kommt die Karte mit `GET /nothome/` (`advent`, ebenso `recap`), **gerechnet in der Anfrage**,
+hinter denselben Caches wie die Einzel-Endpunkte (Recap einmal je User und Zeitraum, Advent-Plays bis zum
+nächsten Play). ⚠️ Ein erster Entwurf rechnete sie auf einem Thread vor und ließ sie bis dahin weg: Der
+Client fragt nie nach, also fehlte der Montags-Rückblick beim ersten Home, und ein späterer Refetch ließ
+die Karte über den Zeilen aufploppen — genau der Sprung, den #776 entfernt. Eine Karte, die mit den
+Zeilen kommen soll, ist in der ersten Antwort oder gar nicht da. Dasselbe gilt für `rewind` (die Jahre aus
+`GET /logger/rewind/years`, gelesen von der Januar-Karte und „Your year in music“ an Silvester): Beide
+Karten stehen über den Zeilen und entscheiden selbst nach dem Datum, ob sie sich zeigen. Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
 blendet sie nicht aus). `GET /nothome/advent` (`api/home`) liefert `{day, doors}`: `day` ist 0 außerhalb
 des Fensters, sonst die Tür von heute, `doors` die Türen 1 bis heute mit je einem Album (Karten-Form wie
 „Recently played“). Regeln in `lib/home/advent.py` (pur, strikt): Reihenfolge eines Jahres ist quiet

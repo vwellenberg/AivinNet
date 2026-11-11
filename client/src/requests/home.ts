@@ -1,6 +1,7 @@
 import { paths } from '@/config'
-import type { Album } from '@/interfaces'
+import type { Album, HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
+import type { RewindYears } from './stats'
 import useAxios from './useAxios'
 
 export async function getRecents(path: string, limit: number) {
@@ -20,13 +21,34 @@ export async function getRecentlyPlayed(limit: number) {
     return getRecents(paths.api.home.recentlyPlayed, limit)
 }
 
-export async function getHomePageData(limit: number) {
+/** Home in one answer (#776): the rows in display order, and the radio's stations. */
+export interface HomeData {
+    rows: { [key: string]: HomePageItem }[]
+    stations: StationEntry[]
+    // The date cards (#776): null when there is none on this load (not the day,
+    // or still being computed on the server).
+    recap: WeeklyRecap | null
+    advent: AdventCalendar | null
+    // The years a Rewind opens for (#776): read by the January card and New
+    // Year's Eve's "Your year in music". Null from a server that does not send it.
+    rewind: RewindYears | null
+}
+
+export async function getHomePageData(limit: number, season?: string | null): Promise<HomeData> {
+    const query = '?limit=' + limit + (season ? '&season=' + encodeURIComponent(season) : '')
     const { data } = await useAxios({
-        url: paths.api.home.base + '/?limit=' + limit,
+        url: paths.api.home.base + '/' + query,
         method: 'GET',
     })
 
-    return data
+    const advent = data?.advent && data.advent.day > 0 ? (data.advent as AdventCalendar) : null
+    return {
+        rows: data?.rows ?? [],
+        stations: Array.isArray(data?.stations) ? data.stations : [],
+        recap: data?.recap ?? null,
+        advent,
+        rewind: data?.rewind && Array.isArray(data.rewind.years) ? (data.rewind as RewindYears) : null,
+    }
 }
 
 /**
@@ -118,6 +140,27 @@ export async function markNotInterested(type: NotInterestedType, hash: string) {
 export async function unmarkNotInterested(type: NotInterestedType, hash: string) {
     return await useAxios({
         url: paths.api.home.notInterested,
+        method: 'DELETE',
+        props: { type, hash },
+    })
+}
+
+/** What a "Continue listening" card is dismissed by: its `dismiss` key (#776). */
+export type ContinueType = 'album' | 'playlist'
+
+/** Remove an album or playlist from "Continue listening" (the ✕, #776). */
+export async function dismissContinue(type: ContinueType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.continueDismiss,
+        method: 'POST',
+        props: { type, hash },
+    })
+}
+
+/** Take a "Continue listening" dismissal back: the undo of the ✕. */
+export async function undismissContinue(type: ContinueType, hash: string) {
+    return await useAxios({
+        url: paths.api.home.continueDismiss,
         method: 'DELETE',
         props: { type, hash },
     })

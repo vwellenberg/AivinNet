@@ -1,10 +1,17 @@
-import { computed, reactive, toRaw } from 'vue'
+import { computed, reactive, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 
-import { getHomePageData } from '@/requests/home'
+import { type AdventCalendar, getHomePageData, type WeeklyRecap } from '@/requests/home'
+import type { RewindYears } from '@/requests/stats'
 import { HomePageItem } from '@/interfaces'
+import type { StationEntry } from '@/utils/radioDial'
 import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
 import { fetchCardCount, maxAbumCards } from './content-width'
+
+/** A "Continue listening" card's key for the ✕ (#776), as the server sent it. */
+function dismissKey(card: unknown): { type: string; hash: string } | undefined {
+    return (card as { dismiss?: { type: string; hash: string } }).dismiss
+}
 
 export default defineStore('homepage', () => {
     const homepageData = reactive(<HomePageItem[]>{})
@@ -46,11 +53,41 @@ export default defineStore('homepage', () => {
     // server has answered since.
     let fetches = 0
 
-    async function fetchAll() {
+    // The radio's stations (#776): they come with the rows, in the same answer.
+    const stations = ref<StationEntry[]>([])
+    // The date cards (#776): the recap of the week or month, the Advent calendar.
+    // Each comes with the rows; null means no card on this load.
+    const recap = ref<WeeklyRecap | null>(null)
+    const advent = ref<AdventCalendar | null>(null)
+    // The Rewind years (#776), for the January and New Year's Eve cards above the rows.
+    const rewind = ref<RewindYears | null>(null)
+
+    /** The recap card is closed (the ✕): gone at once, the server keeps the answer. */
+    function clearRecap() {
+        recap.value = null
+    }
+    // The season the last fetch asked for; a refetch keeps it.
+    let lastSeason: string | null = null
+    // Only the newest fetch writes. An older answer (another season, a narrower
+    // window) arriving last overwrote the rows while its dial was dropped, so rows
+    // and dial came from two different answers.
+    let latestFetch = 0
+
+    async function fetchAll(season: string | null = null) {
         fetches++
         const limit = fetchCardCount.value
         fetchedLimit = limit
-        const data: { [key: string]: HomePageItem }[] = await getHomePageData(limit)
+        lastSeason = season
+        const mine = ++latestFetch
+        const { rows: data, stations: list, recap: card, advent: calendar, rewind: years } = await getHomePageData(
+            limit,
+            season,
+        )
+        if (mine !== latestFetch) return
+        stations.value = list
+        recap.value = card
+        advent.value = calendar
+        rewind.value = years
         let keys = []
 
         for (const [index, item] of data.entries()) {
@@ -92,7 +129,7 @@ export default defineStore('homepage', () => {
 
         inflight = true
         try {
-            await fetchAll()
+            await fetchAll(lastSeason)
         } finally {
             inflight = false
         }
@@ -136,17 +173,50 @@ export default defineStore('homepage', () => {
      * rows: a layout that hides every row leaves `homepageData` empty, and
      * Home is still loaded. One that was never loaded fetches when it opens.
      */
-    async function refreshIfLoaded() {
-        if (fetchedLimit) await fetchAll()
+    async function refreshIfLoaded(season: string | null = lastSeason) {
+        if (fetchedLimit) await fetchAll(season)
+    }
+
+    /**
+     * Take one entry out of "Continue listening" at once — the ✕ (#776) — and
+     * return how to put it back if the server refuses. Put back where it stood;
+     * after a fetch in between, nothing is put back: the server's answer is there.
+     */
+    function dropContinue(type: string, hash: string): () => void {
+        // @ts-ignore
+        const entry: HomePageItem | undefined = homepageData.continue_listening
+        if (!entry) return () => {}
+
+        const index = entry.items.findIndex(item => {
+            const key = dismissKey(item)
+            return key?.type === type && key?.hash === hash
+        })
+        if (index < 0) return () => {}
+
+        const [card] = entry.items.splice(index, 1)
+        const fetched = fetches
+
+        return () => {
+            // @ts-ignore
+            const now: HomePageItem | undefined = homepageData.continue_listening
+            if (!now || fetches !== fetched) return
+            now.items.splice(index, 0, toRaw(card))
+        }
     }
 
     return {
         homepageData,
         homepageItems,
         continueListening,
+        stations,
+        recap,
+        advent,
+        rewind,
+        clearRecap,
         fetchAll,
         refetchIfWider,
         refreshIfLoaded,
         dropCard,
+        dropContinue,
     }
 })

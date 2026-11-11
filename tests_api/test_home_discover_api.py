@@ -185,7 +185,7 @@ def run_routines():
 def rows(api):
     res = api.get("/nothome/?limit=9")
     assert res.status_code == 200, res.text
-    body = res.get_json()
+    body = res.get_json()["rows"]
     return {k: v for row in body for k, v in row.items()}, [k for row in body for k in row]
 
 

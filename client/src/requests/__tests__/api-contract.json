@@ -22,6 +22,19 @@
       "type": "json"
     }
   },
+  "DELETE /nothome/continue/dismiss": {
+    "body": {
+      "allowed": [
+        "hash",
+        "type"
+      ],
+      "required": [
+        "hash",
+        "type"
+      ],
+      "type": "json"
+    }
+  },
   "DELETE /nothome/not-interested": {
     "body": {
       "allowed": [
@@ -354,7 +367,8 @@
   "GET /nothome/": {
     "query": {
       "allowed": [
-        "limit"
+        "limit",
+        "season"
       ],
       "required": []
     }
@@ -977,6 +991,19 @@
         "retry_failed"
       ],
       "required": [],
+      "type": "json"
+    }
+  },
+  "POST /nothome/continue/dismiss": {
+    "body": {
+      "allowed": [
+        "hash",
+        "type"
+      ],
+      "required": [
+        "hash",
+        "type"
+      ],
       "type": "json"
     }
   },

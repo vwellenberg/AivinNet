@@ -54,8 +54,22 @@ function arrivalTarget(e: AnimationEvent): Element | null {
     if (!(e.target instanceof Element)) return null
     // Every button in the app pops; outside a scroller nothing moves it, and
     // marking them all would only leave attributes nobody reads.
-    if (SCROLLER_ONLY.has(e.animationName) && !e.target.closest(SCROLLER_VIEW)) return null
+    if (SCROLLER_ONLY.has(e.animationName) && !inLatchScope(e, e.target)) return null
     return e.target
+}
+
+/**
+ * Home (#776): its row captions are no scroller views, but a row that is
+ * inserted above them moves them, and the caption slaps a second time. So a
+ * caption on Home latches like one in a view. The scope is narrow on purpose:
+ * only the sticker, only inside `.homepageview`.
+ */
+export const HOME_VIEW = '.homepageview'
+const HOME_LATCHED: ReadonlySet<string> = new Set(['mem-sticker-slap'])
+
+function inLatchScope(e: AnimationEvent, target: Element): boolean {
+    if (target.closest(SCROLLER_VIEW)) return true
+    return HOME_LATCHED.has(e.animationName) && target.closest(HOME_VIEW) !== null
 }
 export const ARRIVED_ATTR = 'data-arrived'
 /** Set when the entrance starts; seeing it again at a start means a RESTART. */
@@ -76,10 +90,36 @@ function onAnimationStart(e: AnimationEvent) {
     else el.setAttribute(STARTED_ATTR, '')
 }
 
+/**
+ * The Continue card's entrance (`mem-plate-rise`) is a plate with moving parts
+ * that start after it: the progress fill, the Continue button's pop and the dot
+ * wave (ContinueCard.vue). Latching at the plate's end cut them mid-flight,
+ * because `[data-arrived]` switches their animations off. So the plate latches
+ * once every finite animation under it has ended. An infinite one never ends
+ * and is not waited for.
+ */
+export const SETTLING_ANIMATIONS: ReadonlySet<string> = new Set(['mem-plate-rise'])
+
+function latchWhenSettled(el: Element) {
+    const pending = el.getAnimations({ subtree: true }).filter(anim => {
+        if (anim.playState === 'finished' || anim.playState === 'idle') return false
+        return Number.isFinite(anim.effect?.getComputedTiming().endTime ?? Infinity)
+    })
+    if (pending.length === 0) {
+        el.setAttribute(ARRIVED_ATTR, '')
+        return
+    }
+    // allSettled: a cancelled animation rejects `finished`, and it is over all the same.
+    void Promise.allSettled(pending.map(anim => anim.finished)).then(() => el.setAttribute(ARRIVED_ATTR, ''))
+}
+
 function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
     // report the row as their target — only the element's own entrance counts.
-    arrivalTarget(e)?.setAttribute(ARRIVED_ATTR, '')
+    const el = arrivalTarget(e)
+    if (!el) return
+    if (SETTLING_ANIMATIONS.has(e.animationName)) latchWhenSettled(el)
+    else el.setAttribute(ARRIVED_ATTR, '')
 }
 
 // ---------------------------------------------------------------------------

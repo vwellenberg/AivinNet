@@ -7,6 +7,7 @@ from aivinnet.lib.recipes import records
 from aivinnet.models.user import HOME_LAYOUT_KEY
 from aivinnet.store.homepageentries import (
     ChipsEntry,
+    ContinueEntry,
     GenericRecoverableEntry,
     HomepageEntry,
     MixesEntry,
@@ -47,7 +48,7 @@ class HomepageStore:
 
     # INFO: map of entry names to entry objects
     entries: dict[str, HomepageEntry] = {
-        "continue_listening": GenericRecoverableEntry(
+        "continue_listening": ContinueEntry(
             title="Continue listening",
         ),
         # Playlist cards "Mix 1" … from the user's own sessions (#526).

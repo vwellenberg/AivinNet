@@ -85,11 +85,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { inject, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
 import useHome from '@/stores/home'
+import { SEASON_KEY } from '@/utils/seasonLogo'
 import { maxAbumCards } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 
@@ -149,10 +150,17 @@ function playOne(items: Parameters<typeof pickRowAlbum>[0]) {
     if (pick) playFromAlbumCard(pick.albumhash, pick.title)
 }
 
+// The season (App.vue, or a Settings preview) goes with the fetch: the dial's
+// season station comes back in the same answer as the rows (#776).
+const season = inject(SEASON_KEY, ref(null))
+
 onMounted(async () => {
     updatePageTitle('Home')
-    await home.fetchAll()
+    await home.fetchAll(season.value)
 })
+
+// A season starts or ends: the server answers again, rows and dial together.
+watch(season, () => void home.refreshIfLoaded(season.value))
 
 // Dragging the window wider adds columns; the rows only fill them if we fetch
 // more. Debounced so a drag is one request, not one per pixel.

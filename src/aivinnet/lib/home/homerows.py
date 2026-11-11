@@ -37,6 +37,12 @@ CONTINUE_SEARCH_LIMIT = 200
 # on an ultrawide); three is the most any screen shows.
 CONTINUE_MAX_ITEMS = 3
 
+# How many more the routine keeps behind those, for the ✕ (#776): Home leaves a
+# dismissed entry out, and the next unfinished one moves up instead of the row
+# shrinking with every dismissal until the routine runs again. The same idea as
+# "Not interested", which asks for as many extra cards as are marked.
+CONTINUE_SPARE_ITEMS = 5
+
 # "Rediscover": an album qualifies with at least this many plays over all time
 # and none in the last QUIET_DAYS. 5 plays = more than one full listen of most
 # EPs and a deliberate return to most albums; lower and every album that was

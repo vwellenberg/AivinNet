@@ -109,7 +109,8 @@ export interface HomePageItem {
     key?: string
     title?: string
     description?: string
-    items: { type: string; item?: any; with_helptext?: boolean }[]
+    // `dismiss`: the ✕ key of a "Continue listening" card (#776), absent on other rows.
+    items: { type: string; item?: any; with_helptext?: boolean; dismiss?: { type: string; hash: string } }[]
     /** Chips above the row ("Never played": one per genre), each with its own items. */
     chips?: { key: string; label: string; items: { type: string; item?: any }[] }[]
     path?: string

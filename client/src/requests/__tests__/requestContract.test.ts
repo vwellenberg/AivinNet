@@ -206,6 +206,8 @@ const CALLS: Record<string, unknown[]> = {
     'home/getNotInterested': [],
     'home/markNotInterested': ['album', 'a0000000000000pr'],
     'home/unmarkNotInterested': ['artist', 'b0000000000000mi'],
+    'home/dismissContinue': ['album', 'a0000000000000pr'],
+    'home/undismissContinue': ['playlist', '12'],
     'home/getWeeklyRecap': [],
     'home/dismissWeeklyRecap': ['week:2026-10-19'],
     'home/getAdvent': [],
