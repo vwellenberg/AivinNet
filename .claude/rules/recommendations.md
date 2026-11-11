@@ -295,8 +295,10 @@ Datenschutz-Versprechen. Die Quelle gehört dann unten in die Tabelle und in die
 ## Radio-Stationen: Genre und Jahrzehnt (#640)
 
 Der Dial (`client/src/components/HomeView/RadioDial.vue`, #542) stimmt zwischen **Mixes, Genres,
-Jahrzehnten** ab. Die Liste liefert `GET /nothome/stations` (`api/home`): `{id, kind, name}` in
-Dial-Reihenfolge, nur belegte Plätze. Jeder Eintrag ist eine erzeugte Playlist mit derselben Id.
+Jahrzehnten** ab. Die Liste kommt mit den Zeilen in `GET /nothome/` (`stations`, #776): der Home-Store hält sie, der
+Dial fragt nie selbst nach, und ein Saisonwechsel lädt Home neu. `GET /nothome/stations` liefert
+dieselbe Liste allein (`{id, kind, name}` in
+Dial-Reihenfolge, nur belegte Plätze). Jeder Eintrag ist eine erzeugte Playlist mit derselben Id.
 
 - **Regeln** in `lib/home/stations.py` (pur, strikt): Genre = meistgespielte Genres der letzten 180
   Tage (ab 3 Plays), Jahrzehnt = meistgespielte Jahrzehnte aus dem Erscheinungsjahr. Beides ab 20
