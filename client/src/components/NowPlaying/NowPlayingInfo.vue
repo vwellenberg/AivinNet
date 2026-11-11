@@ -12,6 +12,15 @@
       </span>
     </div>
     <div class="actions">
+      <!-- The rating lives in the track's own plate, beside the heart: "★ 4",
+           or a hollow star when unrated; a tap opens the five stars above the
+           plate. It used to be a free row of five stars under the plate — the
+           one control in the card without a plate of its own (user, 2026-11-11). -->
+      <TrackRating
+        v-if="queue.currenttrack"
+        :trackhash="queue.currenttrack.trackhash"
+        :rating="queue.currenttrack.rating ?? null"
+      />
       <HeartSvg
         btn_role="action"
         :state="queue.currenttrackIsFav"
@@ -32,6 +41,7 @@ import { ref } from "vue";
 
 import ArtistName from "../shared/ArtistName.vue";
 import HeartSvg from "../shared/HeartSvg.vue";
+import TrackRating from "../shared/SongItem/TrackRating.vue";
 
 import OptionSvg from "@/assets/icons/more.svg";
 import { showTrackContextMenu } from "@/helpers/contextMenuHandler";
@@ -118,6 +128,37 @@ function showMenu(e: MouseEvent) {
         border-color: $mem-line;
         color: $mem-ink;
       }
+    }
+
+    // The rating button: same role and height as heart and ⋮ beside it. Rated
+    // it carries a word (the value), so the hatch rings the label instead of
+    // running through it (styling.md, role table).
+    .track-rating {
+      @include btn-action($size: 2.75rem, $width: auto, $hatch: label);
+      min-width: 2.75rem;
+      font-variant-numeric: tabular-nums;
+
+      &.unrated {
+        padding: 0;
+      }
+
+      &.rated {
+        gap: 0.3rem;
+        padding: 0 0.7rem;
+      }
+
+      // Set = yellow body with the asset's ink edge, like the stars it opens.
+      &.rated .track-rating-glyph {
+        color: $mem-yellow;
+      }
+    }
+
+    // Opens upward over the cover and right-aligned to the button: below the
+    // plate is the queue, and the plate sits near the card's right edge.
+    .rating-picker {
+      top: auto;
+      bottom: calc(100% + 0.6rem);
+      z-index: 30;
     }
   }
 
