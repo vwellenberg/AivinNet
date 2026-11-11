@@ -54,8 +54,22 @@ function arrivalTarget(e: AnimationEvent): Element | null {
     if (!(e.target instanceof Element)) return null
     // Every button in the app pops; outside a scroller nothing moves it, and
     // marking them all would only leave attributes nobody reads.
-    if (SCROLLER_ONLY.has(e.animationName) && !e.target.closest(SCROLLER_VIEW)) return null
+    if (SCROLLER_ONLY.has(e.animationName) && !inLatchScope(e, e.target)) return null
     return e.target
+}
+
+/**
+ * Home (#776): its row captions are no scroller views, but a row that is
+ * inserted above them moves them, and the caption slaps a second time. So a
+ * caption on Home latches like one in a view. The scope is narrow on purpose:
+ * only the sticker, only inside `.homepageview`.
+ */
+export const HOME_VIEW = '.homepageview'
+const HOME_LATCHED: ReadonlySet<string> = new Set(['mem-sticker-slap'])
+
+function inLatchScope(e: AnimationEvent, target: Element): boolean {
+    if (target.closest(SCROLLER_VIEW)) return true
+    return HOME_LATCHED.has(e.animationName) && target.closest(HOME_VIEW) !== null
 }
 export const ARRIVED_ATTR = 'data-arrived'
 /** Set when the entrance starts; seeing it again at a start means a RESTART. */

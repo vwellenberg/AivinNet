@@ -6,6 +6,7 @@ import {
     ARRIVAL_ANIMATION,
     ARRIVAL_ANIMATIONS,
     ARRIVED_ATTR,
+    HOME_VIEW,
     NOW_PLAYING_ANIMATIONS,
     NOW_PLAYING_ARRIVED_ATTR,
     NOW_PLAYING_CLASS,
@@ -169,6 +170,29 @@ describe('arrival latch', () => {
         animationEnd(toggle, 'mem-sticker-slap')
         expect(toggle.hasAttribute(STARTED_ATTR)).toBe(false)
         expect(toggle.hasAttribute(ARRIVED_ATTR)).toBe(false)
+    })
+
+    it('latches a caption sticker on Home when a row above it moves it (#776)', () => {
+        // The Home rows are not scroller views, but the caption of a row slaps
+        // again when a row is inserted above it. The second start latches it.
+        const home = document.createElement('div')
+        home.className = 'homepageview'
+        document.body.appendChild(home)
+        const caption = document.createElement('span')
+        home.appendChild(caption)
+
+        animationStart(caption, 'mem-sticker-slap')
+        expect(caption.hasAttribute(ARRIVED_ATTR), 'the first start is the arrival').toBe(false)
+        animationStart(caption, 'mem-sticker-slap')
+        expect(caption.hasAttribute(ARRIVED_ATTR)).toBe(true)
+    })
+
+    it('leaves a caption sticker outside Home and every scroller view alone', () => {
+        const elsewhere = document.createElement('span')
+        document.body.appendChild(elsewhere)
+        animationStart(elsewhere, 'mem-sticker-slap')
+        animationStart(elsewhere, 'mem-sticker-slap')
+        expect(elsewhere.hasAttribute(ARRIVED_ATTR)).toBe(false)
     })
 
     it('does not count pseudo-elements or other animations as a restart', () => {
@@ -363,7 +387,7 @@ describe('the two halves agree', () => {
         expect(body, `${head} not found`).toContain(`animation: ${name} `)
         expect(body).toMatch(
             new RegExp(
-                `\\${SCROLLER_VIEW} &\\[${ARRIVED_ATTR}\\](,\\s*\\${SCROLLER}\\[${SCROLLED_ATTR}\\] \\${SCROLLER_VIEW} &:not\\(\\[${STARTED_ATTR}\\]\\))?\\s*\\{\\s*animation: none;`
+                `\\${SCROLLER_VIEW} &\\[${ARRIVED_ATTR}\\](,\\s*\\${HOME_VIEW} &\\[${ARRIVED_ATTR}\\])?(,\\s*\\${SCROLLER}\\[${SCROLLED_ATTR}\\] \\${SCROLLER_VIEW} &:not\\(\\[${STARTED_ATTR}\\]\\))?\\s*\\{\\s*animation: none;`
             )
         )
     })
@@ -411,6 +435,15 @@ describe('the two halves agree', () => {
                 `&\\[${NOW_PLAYING_ARRIVED_ATTR}\\]::before,\\s*&\\[${NOW_PLAYING_ARRIVED_ATTR}\\]::after\\s*\\{\\s*animation: none;`
             )
         )
+    })
+
+    it('latches Home captions in the shared mixin too, so the JS scope and the CSS scope agree', () => {
+        const candy = readFileSync('src/assets/scss/_candy.scss', 'utf8')
+        const at = candy.indexOf('@mixin mem-sticker')
+        const body = candy.slice(at, at + candy.slice(at).search(/^}/m) + 1)
+        expect(body, 'the mixin keeps its Home selector').toMatch(/\.homepageview &\[data-arrived\]/)
+        expect(body).toContain('.vue-recycle-scroller__item-view &[data-arrived]')
+        expect(HOME_VIEW).toBe('.homepageview')
     })
 
     it('is installed for the app', () => {

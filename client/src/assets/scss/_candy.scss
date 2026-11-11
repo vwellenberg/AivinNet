@@ -829,7 +829,10 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Knoten ~300 ms nach dem Scrollen um, und das Umhängen startete den
   // Anschlag erneut (utils/arrivalLatch.ts setzt das Attribut).
   // Und nach dem ersten Scrollen kommt dort nichts mehr an (mem-arrival).
+  // Auf Home (#776) wandern die Reihen mit ihren Captions, wenn eine Reihe
+  // darüber erscheint: dort gilt dieselbe Einmal-Sperre, ohne Scroller.
   .vue-recycle-scroller__item-view &[data-arrived],
+  .homepageview &[data-arrived],
   .vue-recycle-scroller[data-scrolled] .vue-recycle-scroller__item-view &:not([data-arrival-started]) {
     animation: none;
   }
