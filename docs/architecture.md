@@ -132,7 +132,7 @@ Eine SQLite-Datei, WAL-Modus, Zugriff über `DbEngine.manager()`. Alle Tabellen 
 | Modul | Tabellen |
 |---|---|
 | `db/libdata.py` | `track` — die einzige persistierte Bibliothekstabelle |
-| `db/userdata.py` | `user`, `favorite`, `scrobble`, `playlist`, `playlistfolder`, `page` (Collections), `artistdata`, `notlastfm_similar_artists`, `plugin`, `device` |
+| `db/userdata.py` | `user`, `favorite`, `scrobble`, `playlist`, `playlistfolder`, `page` (Collections), `artistdata`, `notlastfm_similar_artists`, `plugin`, `device`, `track_rating` (persönliche Bewertungen 1–5, #777) |
 
 ⚠️ **`Base.execute` liefert sein Result aus einem bereits geschlossenen Session-Scope.** Wer dort
 eine gemappte Entity materialisiert (`select(cls)` + `.scalar()`), bekommt „identity map is no
@@ -161,7 +161,7 @@ nicht durchgehend dem Modulnamen:
 | Präfix | Modul | Inhalt |
 |---|---|---|
 | `/album` `/artist` `/track` `/folder` | gleichnamig | Detailansichten |
-| `/playlists` `/playlistfolders` `/favorites` | gleichnamig | Bibliotheks-Mutationen |
+| `/playlists` `/playlistfolders` `/favorites` `/ratings` | gleichnamig | Bibliotheks-Mutationen |
 | `/smartplaylists` | gleichnamig | Regel-Playlists: Regeln gespeichert, Titel beim Lesen ausgewertet (`lib/smart_playlists.py`) |
 | `/search` `/getall` | gleichnamig | Suche, paginierte Listen |
 | `/file` | `stream.py` | Audio-Auslieferung |

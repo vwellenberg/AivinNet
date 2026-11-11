@@ -51,6 +51,8 @@
         -->
         <TrackDuration
             :duration="track.duration || 0"
+            :trackhash="track.trackhash"
+            :rating="track.rating ?? null"
             :help_text="showPlaysColumn ? undefined : track.help_text"
             :is_fav="is_fav"
             :showFavIcon="!isFavoritesPage"
