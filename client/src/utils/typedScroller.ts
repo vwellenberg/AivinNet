@@ -13,22 +13,15 @@
 // and the scroller's re-sort moved them and replayed it (utils/arrivalLatch.ts
 // takes care of that second half).
 //
-// `RecycleScroller` already keeps a separate pool per item `type`
-// (`typeField`, default "type"); `DynamicScroller` just never passes one — its
-// rows are `{ item, id, size }`. This copy adds `type: item.component`, so a
-// view only ever shows the component it was built for and the scroller reuses
-// it as it is. Registered under the library's own name in main.ts, so every
-// page gets it without knowing. A plain `RecycleScroller` with mixed rows takes
-// `type-field="component"` instead (SearchView/tracks.vue).
-//
-// The library object is copied, not patched: its own `DynamicScroller` stays as
-// shipped, and a version bump that renames the computed fails loudly in
-// typedScroller.test.ts instead of silently dropping the type.
+// `RecycleScroller` keeps a separate pool per row `type` (`typeField`, default
+// "type"). The library's DynamicScroller (3.x) builds rows `{ item, id, size }`
+// without a type, so the app's `DynamicScroller` (components/shared/
+// TypedDynamicScroller.vue) adds one per row through `typedRows()` below.
+// A plain `RecycleScroller` with mixed rows takes `type-field="component"`
+// instead (SearchView/tracks.vue).
 // ---------------------------------------------------------------------------
 
 import { toRaw } from 'vue'
-// @ts-ignore — the library ships no type declarations
-import { DynamicScroller } from 'vue-virtual-scroller'
 
 /**
  * The pool a scroller item's view belongs to: the component it renders. Raw,
@@ -40,17 +33,7 @@ export function viewType(item: unknown): unknown {
     return component && typeof component === 'object' ? toRaw(component) : component
 }
 
-const baseItemsWithSize: (this: unknown) => { item: unknown; type?: unknown }[] =
-    DynamicScroller.computed.itemsWithSize
-
-export const TypedDynamicScroller = {
-    ...DynamicScroller,
-    computed: {
-        ...DynamicScroller.computed,
-        itemsWithSize(this: unknown) {
-            const rows = baseItemsWithSize.call(this)
-            for (const row of rows) row.type = viewType(row.item)
-            return rows
-        },
-    },
+/** Copies each library row with its pool type; the library's own fields stay as they are. */
+export function typedRows<T extends { item: unknown }>(rows: T[]): (T & { type: unknown })[] {
+    return rows.map((row) => ({ ...row, type: viewType(row.item) }))
 }

@@ -1,54 +1,57 @@
 import { readFileSync } from 'node:fs'
 
-import { describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 
-// @ts-ignore — the library ships no type declarations
-import { DynamicScroller } from 'vue-virtual-scroller'
-
-import { TypedDynamicScroller, viewType } from '@/utils/typedScroller'
+import TypedDynamicScroller from '@/components/shared/TypedDynamicScroller.vue'
+import { typedRows, viewType } from '@/utils/typedScroller'
 
 // ---------------------------------------------------------------------------
 // One view pool per component. With one pool for the whole page, the album
 // head was rebuilt inside a view that had shown a card row at the bottom, and
 // its buttons popped in again on the way back up (twice, with the re-sort).
-// RecycleScroller keeps a pool per row `type`; the copy hands it one.
+// RecycleScroller keeps a pool per row `type`; the app's DynamicScroller hands
+// it one through typedRows().
 // ---------------------------------------------------------------------------
+
+// The real RecycleScroller needs layout (ResizeObserver, element sizes), which
+// jsdom does not have. The stub records what the wrapper hands it — the rows
+// and the `type-field` — and renders nothing. useDynamicScroller stays real.
+const recycle = vi.hoisted(() => ({ calls: [] as { items: unknown[]; attrs: Record<string, unknown> }[] }))
+
+vi.mock('vue-virtual-scroller', async (importOriginal) => {
+    const real = await importOriginal<typeof import('vue-virtual-scroller')>()
+    const RecycleScroller = defineComponent({
+        name: 'RecycleScroller',
+        inheritAttrs: false,
+        props: { items: { type: Array, default: () => [] } },
+        setup(props, { attrs }) {
+            return () => {
+                recycle.calls.push({ items: props.items as unknown[], attrs: { ...attrs } })
+                return h('div')
+            }
+        },
+    })
+    return { ...real, RecycleScroller }
+})
 
 const Header = { name: 'Header' }
 const SongItem = { name: 'SongItem' }
 
-/** What `DynamicScroller`'s computed reads from `this`. */
-function scrollerThis(items: unknown[], sizes: Record<string, number> = {}) {
-    return {
-        items,
-        keyField: 'id',
-        simpleArray: false,
-        vscrollData: { sizes },
-        $_undefinedMap: {},
-    }
-}
-
-describe('typed DynamicScroller', () => {
-    const itemsWithSize = TypedDynamicScroller.computed.itemsWithSize
-
+describe('typed rows', () => {
     it('gives every row the component it renders as its pool type', () => {
-        const rows = itemsWithSize.call(
-            scrollerThis([
-                { id: 'album-header', component: Header },
-                { id: 'a.mp3', component: SongItem },
-                { id: 'b.mp3', component: SongItem },
-            ])
-        )
-        expect(rows.map((r: { type?: unknown }) => r.type)).toEqual([Header, SongItem, SongItem])
+        const rows = typedRows([
+            { item: { id: 'album-header', component: Header }, id: 'album-header', size: 0 },
+            { item: { id: 'a.mp3', component: SongItem }, id: 'a.mp3', size: 72 },
+            { item: { id: 'b.mp3', component: SongItem }, id: 'b.mp3', size: 72 },
+        ])
+        expect(rows.map((r) => r.type)).toEqual([Header, SongItem, SongItem])
     })
 
     it("keeps the library's own row fields (item, id, measured size)", () => {
         const item = { id: 'a.mp3', component: SongItem }
-        const [row] = itemsWithSize.call(scrollerThis([item], { 'a.mp3': 72 })) as unknown as {
-            item: unknown
-            id: unknown
-            size: unknown
-        }[]
+        const [row] = typedRows([{ item, id: 'a.mp3', size: 72 }])
         expect(row).toMatchObject({ item, id: 'a.mp3', size: 72 })
     })
 
@@ -57,25 +60,40 @@ describe('typed DynamicScroller', () => {
         expect(viewType(null)).toBeUndefined()
         expect(viewType({ id: 1 })).toBeUndefined()
     })
+})
 
-    it("is the library's component otherwise — render, props, provide — and leaves that one untouched", () => {
-        // A version bump that renames the computed must fail HERE, not drop the
-        // type silently and bring the rebuilt heads back.
-        expect(typeof DynamicScroller.computed.itemsWithSize).toBe('function')
-        expect(TypedDynamicScroller.render).toBe(DynamicScroller.render)
-        expect(TypedDynamicScroller.props).toBe(DynamicScroller.props)
-        expect(TypedDynamicScroller.provide).toBe(DynamicScroller.provide)
-        expect(DynamicScroller.computed.itemsWithSize).not.toBe(itemsWithSize)
+describe('TypedDynamicScroller', () => {
+    it('hands RecycleScroller rows that carry a type, under type-field "type"', () => {
+        recycle.calls.length = 0
+        mount(TypedDynamicScroller, {
+            props: {
+                items: [
+                    { id: 'album-header', component: Header },
+                    { id: 'a.mp3', component: SongItem },
+                    { id: 'b.mp3', component: SongItem },
+                ],
+                minItemSize: 64,
+            },
+        })
+        const last = recycle.calls.at(-1)
+        expect(last).toBeDefined()
+        expect(last!.attrs['type-field']).toBe('type')
+        expect(last!.attrs['key-field']).toBe('id')
+        expect(last!.items.map((r) => (r as { type: unknown }).type)).toEqual([Header, SongItem, SongItem])
     })
 
-    it('reaches RecycleScroller under the field it reads the type from', () => {
-        // `typeField` defaults to "type"; DynamicScroller passes no other.
-        const src = readFileSync('node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.esm.js', 'utf8')
-        expect(src).toMatch(/typeField:\s*\{\s*type: String,\s*default: 'type',/)
+    it('keeps the library row shape: item, id and the measured size', () => {
+        recycle.calls.length = 0
+        const item = { id: 'a.mp3', component: SongItem }
+        mount(TypedDynamicScroller, { props: { items: [item] } })
+        const row = recycle.calls.at(-1)!.items[0] as Record<string, unknown>
+        expect(row).toMatchObject({ item, id: 'a.mp3' })
+        expect(typeof row.size).toBe('number')
     })
 
     it('is what the app registers as DynamicScroller', () => {
         const main = readFileSync('src/main.ts', 'utf8')
         expect(main).toMatch(/app\.component\("DynamicScroller", TypedDynamicScroller\)/)
+        expect(main).toMatch(/import TypedDynamicScroller from "\.\/components\/shared\/TypedDynamicScroller\.vue"/)
     })
 })
