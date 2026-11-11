@@ -8,6 +8,7 @@ from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
     map_favorites,
+    map_ratings,
     map_scrobble_data,
 )
 from aivinnet.lib.name_cleanup import carry_cleaned_names
@@ -64,6 +65,7 @@ def _index_everything():
 
     map_scrobble_data()
     map_favorites()
+    map_ratings()
 
     CordinateMedia(instance_key=str(time()))
     gc.collect()

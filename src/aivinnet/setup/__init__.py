@@ -15,6 +15,7 @@ from aivinnet.lib.mapstuff import (
     map_album_colors,
     map_artist_colors,
     map_favorites,
+    map_ratings,
     map_scrobble_data,
 )
 from aivinnet.lib.name_cleanup import carry_cleaned_names
@@ -72,6 +73,7 @@ def load_into_mem():
 
     map_scrobble_data()
     map_favorites()
+    map_ratings()
     map_artist_colors()
     map_album_colors()
     # Reads files, so in the background and only for rows never read (#643).

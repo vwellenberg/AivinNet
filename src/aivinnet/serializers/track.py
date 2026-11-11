@@ -1,6 +1,7 @@
 from dataclasses import asdict
 
 from aivinnet.models.track import Track
+from aivinnet.utils.auth import get_current_userid
 
 
 def serialize_track(
@@ -34,6 +35,7 @@ def serialize_track(
         "artist_hashes",
         "created_date",
         "fav_userids",
+        "rated_by",
         # NOTE: "playcount" is intentionally kept in the payload so clients can
         # show per-track play counts (e.g. the "Plays" column on artist Top
         # Tracks). "playduration"/"lastplayed" remain stripped to save bandwidth.
@@ -60,6 +62,9 @@ def serialize_track(
 
     # is_favorite @property is not included in `asdict`
     album_dict["is_favorite"] = track.is_favorite if userid is None else userid in track.fav_userids
+    # The current user's personal rating, null when unrated (#777). Like the
+    # favourite flag, so the client needs no request per row.
+    album_dict["rating"] = track.rating_of(get_current_userid() if userid is None else userid)
 
     return album_dict
 

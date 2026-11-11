@@ -1407,3 +1407,69 @@ class NotInterestedTable(Base):
         for row in rows:
             marked.setdefault(row.type, set()).add(row.hash)
         return marked
+
+
+class TrackRatingTable(Base):
+    """
+    A user's personal rating of a track, 1 to 5 (#777). One row per
+    (trackhash, user); clearing a rating deletes the row.
+
+    Keyed by the trackhash, which follows the tags: a retag moves the rows along
+    (`reference_migration._move_ratings`). Its own table rather than
+    `FavoritesTable` with another type, so the favourites' counters and their
+    startup mapping stay as they are. Favourites and ratings do not touch.
+    """
+
+    __tablename__ = "track_rating"
+    __table_args__ = (UniqueConstraint("trackhash", "userid", name="uq_track_rating_hash_userid"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    trackhash: Mapped[str] = mapped_column(String())
+    rating: Mapped[int] = mapped_column(Integer())
+    timestamp: Mapped[int] = mapped_column(Integer())
+    userid: Mapped[int] = mapped_column(Integer(), ForeignKey("user.id", ondelete="cascade"), index=True)
+
+    @classmethod
+    def set_rating(cls, trackhash: str, userid: int, rating: int, timestamp: int | None = None) -> None:
+        """Insert or overwrite in one statement, so two writes at once cannot both insert."""
+        stamp = int(time.time()) if timestamp is None else timestamp
+        next(
+            cls.execute(
+                sqlite_insert(cls)
+                .values(trackhash=trackhash, userid=userid, rating=rating, timestamp=stamp)
+                .on_conflict_do_update(
+                    index_elements=["trackhash", "userid"],
+                    set_={"rating": rating, "timestamp": stamp},
+                ),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def clear_rating(cls, trackhash: str, userid: int) -> None:
+        next(
+            cls.execute(
+                delete(cls).where(and_(cls.trackhash == trackhash, cls.userid == userid)),
+                commit=True,
+            )
+        )
+
+    @classmethod
+    def of_user(cls, userid: int) -> dict[str, int]:
+        """`trackhash -> rating` of one user."""
+        rows = next(cls.execute(select(cls.trackhash, cls.rating).where(cls.userid == userid))).all()
+        return {row.trackhash: row.rating for row in rows}
+
+    @classmethod
+    def everyone(cls) -> list[dict[str, Any]]:
+        """Every user's ratings, for the instance backup: `{userid, trackhash, rating, timestamp}`."""
+        rows = next(cls.execute(select(cls.userid, cls.trackhash, cls.rating, cls.timestamp).order_by(cls.id))).all()
+        return [
+            {"userid": r.userid, "trackhash": r.trackhash, "rating": r.rating, "timestamp": r.timestamp} for r in rows
+        ]
+
+    @classmethod
+    def all_rows(cls) -> list[tuple[int, str, int]]:
+        """`(userid, trackhash, rating)` of every user, for the startup mapping."""
+        rows = next(cls.execute(select(cls.userid, cls.trackhash, cls.rating))).all()
+        return [(r.userid, r.trackhash, r.rating) for r in rows]

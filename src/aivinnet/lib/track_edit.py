@@ -125,7 +125,7 @@ def _carry_favourite_users(kind: str, old_entry, new_hash: str) -> None:
 # over every tag edit showed the track, its album and its artists as
 # un-favourited and unplayed, and dropped the artist colour — until a restart
 # re-derived it. The tables themselves were never touched.
-_DERIVED_STATE = ("fav_userids", "playcount", "playduration", "lastplayed", "color")
+_DERIVED_STATE = ("fav_userids", "rated_by", "playcount", "playduration", "lastplayed", "color")
 
 
 def _carry_over(old, new, names: tuple[str, ...] = _DERIVED_STATE) -> None:
@@ -135,7 +135,11 @@ def _carry_over(old, new, names: tuple[str, ...] = _DERIVED_STATE) -> None:
         value = getattr(old, name)
         if name == "color" and not value:
             continue
-        setattr(new, name, list(value) if isinstance(value, list) else value)
+        if isinstance(value, list):
+            value = list(value)
+        elif isinstance(value, dict):
+            value = dict(value)
+        setattr(new, name, value)
 
 
 def _reconcile_album(albumhash: str) -> None:

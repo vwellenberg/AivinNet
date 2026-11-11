@@ -258,6 +258,8 @@ def _migrate_many(session: Any, mapping: dict[str, str]) -> None:
         .values(trackhash=case(mapping, value=ScrobbleTable.trackhash))
     )
 
+    _move_ratings(session, mapping)
+
     log.info("Batch edit: moved the references of %s renamed track(s) at once", len(mapping))
 
 
@@ -498,3 +500,40 @@ def _migrate(session: Any, old_trackhash: str, new_trackhash: str) -> None:
     session.execute(
         update(ScrobbleTable).where(ScrobbleTable.trackhash == old_trackhash).values(trackhash=new_trackhash)
     )
+
+    _move_ratings(session, {old_trackhash: new_trackhash})
+
+
+def _move_ratings(session: Any, mapping: dict[str, str]) -> None:
+    """
+    Carry personal ratings (#777) to the new trackhashes, the way favourites move.
+
+    Rows are unique per (trackhash, user). A swap renames A onto B while B's
+    rows still exist, so every involved row first moves to a placeholder, then
+    onto its target: dropped only where that user already rated the target
+    (the existing rating wins).
+    """
+    from sqlalchemy import delete, select, update
+
+    from aivinnet.db.userdata import TrackRatingTable
+
+    moving = session.execute(
+        select(TrackRatingTable.id, TrackRatingTable.trackhash, TrackRatingTable.userid).where(
+            TrackRatingTable.trackhash.in_(list(mapping))
+        )
+    ).all()
+
+    for row_id, _old, _userid in moving:
+        session.execute(
+            update(TrackRatingTable).where(TrackRatingTable.id == row_id).values(trackhash=f"moving_{row_id}")
+        )
+
+    for row_id, old, userid in moving:
+        target = mapping[old]
+        taken = session.execute(
+            select(TrackRatingTable.id).where(TrackRatingTable.trackhash == target, TrackRatingTable.userid == userid)
+        ).first()
+        if taken:
+            session.execute(delete(TrackRatingTable).where(TrackRatingTable.id == row_id))
+        else:
+            session.execute(update(TrackRatingTable).where(TrackRatingTable.id == row_id).values(trackhash=target))

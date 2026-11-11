@@ -53,6 +53,16 @@ class TrackGroup:
         for track in self.tracks:
             track.toggle_favorite_user(userid)
 
+    def set_rating(self, rating: int | None, userid: int | None = None):
+        """
+        Set the user's rating on every track of the group (#777). None clears it.
+        """
+        if userid is None:
+            userid = get_current_userid()
+
+        for track in self.tracks:
+            track.set_rating(userid, rating)
+
     def set_favorite_user(self, favorited: bool, userid: int | None = None):
         """
         Set the favorite state of the group explicitly, instead of flipping it.

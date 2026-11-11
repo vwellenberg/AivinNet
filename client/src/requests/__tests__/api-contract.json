@@ -411,6 +411,8 @@
     }
   },
   "GET /plugins/": {},
+  "GET /ratings": {},
+  "GET /ratings/{trackhash}": {},
   "GET /search/": {
     "query": {
       "allowed": [
@@ -1167,6 +1169,30 @@
       "required": [
         "plugin",
         "settings"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /ratings/clear": {
+    "body": {
+      "allowed": [
+        "trackhash"
+      ],
+      "required": [
+        "trackhash"
+      ],
+      "type": "json"
+    }
+  },
+  "POST /ratings/set": {
+    "body": {
+      "allowed": [
+        "rating",
+        "trackhash"
+      ],
+      "required": [
+        "rating",
+        "trackhash"
       ],
       "type": "json"
     }

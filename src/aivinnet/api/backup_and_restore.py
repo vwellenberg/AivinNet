@@ -17,6 +17,7 @@ from aivinnet.db.userdata import (
     NotInterestedTable,
     PlaylistTable,
     ScrobbleTable,
+    TrackRatingTable,
     UserTable,
 )
 from aivinnet.lib.backups import get_backup_root
@@ -209,12 +210,16 @@ def backup():
     # a restore brings back every card each user had hidden.
     not_interested = NotInterestedTable.everyone()
 
+    # Personal track ratings (#777), every user's, like the other sections.
+    ratings = TrackRatingTable.everyone()
+
     data = {
         "favorites": favorites,
         "scrobbles": scrobbles,
         "playlists": playlist_dicts,
         "collections": collections_dicts,
         "not_interested": not_interested,
+        "ratings": ratings,
     }
 
     with open(backup_file, "w") as f:
@@ -228,6 +233,7 @@ def backup():
         "playlists": len(playlist_dicts),
         "collections": len(collections_dicts),
         "not_interested": len(not_interested),
+        "ratings": len(ratings),
     }, 200
 
 
@@ -296,7 +302,39 @@ class RestoreBackup:
             "collections": self.restore_collections(self.data.get("collections", [])),
             # Backups older than #564 have no such section.
             "not_interested": self.restore_not_interested(self.data.get("not_interested", [])),
+            # Backups older than #777 have no such section.
+            "ratings": self.restore_ratings(self.data.get("ratings", [])),
         }
+
+    def restore_ratings(self, ratings: list[dict]) -> SectionReport:
+        """
+        A rating is identified by **(owner, trackhash)**, the table's unique key.
+
+        An existing rating of the same user wins over the backup's: the restore
+        only fills gaps, like the other sections. The hash is restored as it
+        stands; after a retag it points at nothing and simply shows nothing.
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {(row["userid"], row["trackhash"]) for row in TrackRatingTable.everyone()}
+
+        for row in ratings:
+            owner = resolve_owner(row)
+            key = (owner, row["trackhash"])
+
+            if key in existing:
+                report.skipped += 1
+                continue
+
+            try:
+                TrackRatingTable.set_rating(row["trackhash"], owner, row["rating"], timestamp=row.get("timestamp"))
+                existing.add(key)
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("rating", row, error)
+
+        return report
 
     def restore_playlist_images(self) -> SectionReport:
         """
@@ -560,7 +598,15 @@ def restore(body: RestoreBackupBody):
     # to look like a complete one in the response.
     totals = {
         section: SectionReport()
-        for section in ("favorites", "playlists", "playlist_images", "scrobbles", "collections", "not_interested")
+        for section in (
+            "favorites",
+            "playlists",
+            "playlist_images",
+            "scrobbles",
+            "collections",
+            "not_interested",
+            "ratings",
+        )
     }
 
     def run(directory: Path):

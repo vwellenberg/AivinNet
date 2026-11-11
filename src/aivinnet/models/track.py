@@ -58,6 +58,9 @@ class Track:
     _score: float = 0
     explicit: bool = False
     fav_userids: list[int] = field(default_factory=list)
+    # Each user's personal rating (1-5, #777), `userid -> rating`. A user with
+    # no entry has not rated the track. Read through `rating_of`.
+    rated_by: dict[int, int] = field(default_factory=dict)
     # When the file came into the library (`track.added`), for "Recently added"
     # and every "Date added". Not `last_mod`: a tag edit moves that one.
     added: int = 0
@@ -83,6 +86,16 @@ class Track:
     @property
     def pathhash(self):
         return create_hash(self.folder)
+
+    def rating_of(self, userid: int) -> int | None:
+        return self.rated_by.get(userid)
+
+    def set_rating(self, userid: int, rating: int | None):
+        """Set one user's rating, or clear it with None. Explicit, never a toggle."""
+        if rating is None:
+            self.rated_by.pop(userid, None)
+        else:
+            self.rated_by[userid] = rating
 
     def toggle_favorite_user(self, userid: int):
         """
