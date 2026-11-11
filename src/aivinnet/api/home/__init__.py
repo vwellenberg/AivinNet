@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from aivinnet.api.apischemas import GenericLimitSchema, JsonBodyModel
 from aivinnet.api.scrobble import discovered_in
-from aivinnet.db.userdata import NotInterestedTable, UserTable
+from aivinnet.db.userdata import ContinueDismissTable, NotInterestedTable, UserTable
 from aivinnet.lib.home.advent_calendar import advent_calendar
 from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
@@ -202,6 +202,51 @@ def remove_not_interested(body: NotInterestedBody):
 
     NotInterestedTable.remove(userid, body.type, body.hash)
     return {"msg": "Removed"}
+
+
+class ContinueDismissBody(BaseModel):
+    type: Literal["album", "playlist"] = Field(description="What the hash names")
+    hash: str = Field(
+        description="The album hash, or the playlist id, as Home sent it in a card's `dismiss`",
+        min_length=1,
+        max_length=64,
+    )
+
+
+@api.post("/continue/dismiss")
+def dismiss_continue(body: ContinueDismissBody):
+    """
+    Remove an album or playlist from "Continue listening" (#776, the ✕ on a
+    card). Home leaves it out at once, and it is back on the first play after
+    this. Dismissing it again moves the stamp on.
+
+    The album must be in the library, checked before anything is stored (404).
+    A playlist id is not checked: a dismissal of nothing hides nothing.
+    """
+    userid = get_current_userid()
+    if _is_guest(userid):
+        return {"msg": "The guest account has the default Home"}, 403
+
+    if body.type == "album" and AlbumStore.get_album_by_hash(body.hash) is None:
+        return {"msg": "No such album"}, 404
+
+    ContinueDismissTable.dismiss(userid, body.type, body.hash)
+    return {"msg": "Dismissed"}, 200
+
+
+@api.delete("/continue/dismiss")
+def undismiss_continue(body: ContinueDismissBody):
+    """
+    Take a dismissal back (the undo of the ✕). The card is back on the next
+    Home. Taking back a dismissal that was never made is a no-op, and no store
+    check: an album that left the library can still be taken back.
+    """
+    userid = get_current_userid()
+    if _is_guest(userid):
+        return {"msg": "The guest account has the default Home"}, 403
+
+    ContinueDismissTable.undo(userid, body.type, body.hash)
+    return {"msg": "Removed"}, 200
 
 
 @api.get("/surprise")

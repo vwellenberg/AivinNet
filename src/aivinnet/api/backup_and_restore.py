@@ -13,6 +13,7 @@ from aivinnet.api.apischemas import JsonBodyModel
 from aivinnet.api.auth import admin_required
 from aivinnet.db.userdata import (
     CollectionTable,
+    ContinueDismissTable,
     FavoritesTable,
     NotInterestedTable,
     PlaylistTable,
@@ -228,6 +229,8 @@ def backup():
     # "Not interested" on Home (#531, #564): a convenience list, but without it
     # a restore brings back every card each user had hidden.
     not_interested = NotInterestedTable.everyone()
+    # The ✕ on "Continue listening" (#776): the same reasons, a restore keeps the stamps.
+    continue_dismissed = ContinueDismissTable.everyone()
 
     # Personal track ratings (#777), every user's, like the other sections.
     ratings = TrackRatingTable.everyone()
@@ -239,6 +242,7 @@ def backup():
         "collections": collections_dicts,
         "not_interested": not_interested,
         "ratings": ratings,
+        "continue_dismissed": continue_dismissed,
     }
 
     with open(backup_file, "w") as f:
@@ -253,6 +257,7 @@ def backup():
         "collections": len(collections_dicts),
         "not_interested": len(not_interested),
         "ratings": len(ratings),
+        "continue_dismissed": len(continue_dismissed),
     }, 200
 
 
@@ -323,6 +328,8 @@ class RestoreBackup:
             "not_interested": self.restore_not_interested(self.data.get("not_interested", [])),
             # Backups older than #777 have no such section.
             "ratings": self.restore_ratings(self.data.get("ratings", [])),
+            # Backups older than #776 have no such section.
+            "continue_dismissed": self.restore_continue_dismissed(self.data.get("continue_dismissed", [])),
         }
 
     def restore_ratings(self, ratings: list[dict]) -> SectionReport:
@@ -603,6 +610,36 @@ class RestoreBackup:
 
         return report
 
+    def restore_continue_dismissed(self, dismissals: list[dict]) -> SectionReport:
+        """
+        A dismissal is identified by **(owner, type, hash)**, the table's unique
+        key (#776, like the marks of #564). The stamp comes back with it, so an
+        entry dismissed before the backup stays hidden until its next play.
+        """
+        report = SectionReport()
+        resolve_owner = owner_resolver()
+
+        existing = {(row["userid"], row["type"], row["hash"]) for row in ContinueDismissTable.everyone()}
+
+        for dismissal in dismissals:
+            owner = resolve_owner(dismissal)
+            key = (owner, dismissal["type"], dismissal["hash"])
+
+            if key in existing:
+                report.skipped += 1
+                continue
+
+            try:
+                ContinueDismissTable.dismiss(
+                    owner, dismissal["type"], dismissal["hash"], timestamp=dismissal.get("timestamp")
+                )
+                existing.add(key)
+                report.restored += 1
+            except sqlalchemy.exc.IntegrityError as error:
+                report.discard("continue dismissed", dismissal, error)
+
+        return report
+
 
 class RestoreBackupBody(JsonBodyModel):
     backup_dir: str | None = Field(
@@ -633,6 +670,7 @@ def restore(body: RestoreBackupBody):
             "collections",
             "not_interested",
             "ratings",
+            "continue_dismissed",
         )
     }
 
@@ -716,12 +754,14 @@ def list_backups():
                 backup_info["playlists"] = len(data.get("playlists", []))
                 backup_info["collections"] = len(data.get("collections", []))
                 backup_info["not_interested"] = len(data.get("not_interested", []))
+                backup_info["continue_dismissed"] = len(data.get("continue_dismissed", []))
         else:
             backup_info["scrobbles"] = 0
             backup_info["favorites"] = 0
             backup_info["playlists"] = 0
             backup_info["collections"] = 0
             backup_info["not_interested"] = 0
+            backup_info["continue_dismissed"] = 0
 
         backups.append(backup_info)
 
