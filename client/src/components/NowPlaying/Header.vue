@@ -15,11 +15,6 @@
                 <img class="rounded" :src="paths.images.thumb.large + queue.currenttrack?.image" />
             </RouterLink>
             <NowPlayingInfo @handle-fav="handleFav" />
-            <!-- Five large stars, always visible (#777). Tapping the current value
-                 again clears the rating. Favourites stay a separate control. -->
-            <div v-if="queue.currenttrack" class="np-rating">
-                <RatingStars :value="currentRating" @pick="setCurrentRating" />
-            </div>
             <!-- Played time, bar, total time on ONE line: the two times label
                  the bar, so they belong beside it. They used to stand at the
                  far ends of the button row below, where they read as two more
@@ -78,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 
 import { paths } from '@/config'
 import { dropSources, favType } from '@/enums'
@@ -91,8 +86,6 @@ import { formatSeconds } from '@/utils'
 import { syncLauflicht } from '@/utils/lauflicht'
 
 import Progress from '@/components/LeftSidebar/NP/Progress.vue'
-import RatingStars from '../shared/RatingStars.vue'
-import useRatings from '@/stores/ratings'
 import Buttons from '../BottomBar/Right.vue'
 import Volume from '../BottomBar/Volume.vue'
 import SongItem from '../shared/SongItem.vue'
@@ -105,21 +98,6 @@ const tracklist = useTracklist()
 // The player-bar cover has been running its comet since the app loaded; this
 // one starts now. Same angle on both (utils/lauflicht.ts).
 onMounted(() => syncLauflicht())
-
-const ratings = useRatings()
-
-// The session's answer for the playing track, else the rating its copy carries.
-const currentRating = computed<number | null>(() =>
-    queue.currenttrack
-        ? ratings.rating(queue.currenttrack.trackhash, queue.currenttrack.rating ?? null)
-        : null
-)
-
-function setCurrentRating(rating: number | null) {
-    const track = queue.currenttrack
-    if (!track) return
-    ratings.rate(track.trackhash, rating, track.rating ?? null)
-}
 
 function handleFav() {
     favoriteHandler(
@@ -134,12 +112,6 @@ function handleFav() {
 
 <style lang="scss">
 .now-playing-header {
-    .np-rating {
-        display: flex;
-        justify-content: center;
-        margin: $smaller 0;
-    }
-
     padding-bottom: $smaller;
     position: relative;
 

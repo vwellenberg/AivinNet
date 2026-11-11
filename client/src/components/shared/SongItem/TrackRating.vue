@@ -100,7 +100,7 @@ onClickOutside(anchorRef, () => {
     width: $songlist-rating-slot;
     justify-content: center;
 
-    // Phones rate from the ⋯ menu ("Rate ›") and the Now Playing stars: a value
+    // Phones rate from the ⋯ menu ("Rate ›") and the Now Playing star button: a value
     // in every row was one item too many on a 390px row (user, 2026-11-11).
     @include allPhones {
         display: none;

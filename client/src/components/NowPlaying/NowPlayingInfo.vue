@@ -12,6 +12,18 @@
       </span>
     </div>
     <div class="actions">
+      <!-- The rating lives in the track's own plate, beside the heart: "★ 4",
+           or a hollow star when unrated; a tap opens the five stars above the
+           plate. It used to be a free row of five stars under the plate — the
+           one control in the card without a plate of its own (user, 2026-11-11).
+           Keyed by track: a picker left open into the next song would rate
+           THAT song with the click meant for the one before. -->
+      <TrackRating
+        v-if="queue.currenttrack"
+        :key="queue.currenttrack.trackhash"
+        :trackhash="queue.currenttrack.trackhash"
+        :rating="queue.currenttrack.rating ?? null"
+      />
       <HeartSvg
         btn_role="action"
         :state="queue.currenttrackIsFav"
@@ -32,6 +44,7 @@ import { ref } from "vue";
 
 import ArtistName from "../shared/ArtistName.vue";
 import HeartSvg from "../shared/HeartSvg.vue";
+import TrackRating from "../shared/SongItem/TrackRating.vue";
 
 import OptionSvg from "@/assets/icons/more.svg";
 import { showTrackContextMenu } from "@/helpers/contextMenuHandler";
@@ -64,6 +77,8 @@ function showMenu(e: MouseEvent) {
 // `min-width: 0` is what makes that possible here, because a flex item with
 // `nowrap` would otherwise push the actions out instead of shrinking.
 .now-playing-info {
+  // The containing block of the rating picker (below).
+  position: relative;
   display: flex;
   align-items: center;
   gap: $small;
@@ -118,6 +133,53 @@ function showMenu(e: MouseEvent) {
         border-color: $mem-line;
         color: $mem-ink;
       }
+    }
+
+    // The rating button: same role and height as heart and ⋮ beside it. Rated
+    // it carries a word (the value), so the hatch rings the label instead of
+    // running through it (styling.md, role table).
+    .track-rating {
+      @include btn-action($size: 2.75rem, $width: auto, $hatch: label);
+      min-width: 2.75rem;
+      font-variant-numeric: tabular-nums;
+
+      &.unrated {
+        padding: 0;
+      }
+
+      // Set = yellow body in the glyph-colour outline, like the stars it opens
+      // (star.fill.svg). The edge is named, not `currentColor`: an unregistered
+      // custom property resolves `currentColor` where it is USED, i.e. on the
+      // yellow glyph. On hover it turns with the label to the contrast plate.
+      &.rated {
+        gap: 0.3rem;
+        padding: 0 0.7rem;
+        --star-edge: #{$mem-content-text};
+
+        @media (hover: hover) {
+          &:hover {
+            --star-edge: var(--mem-hover-text);
+          }
+        }
+
+        .track-rating-glyph {
+          color: $mem-yellow;
+        }
+      }
+    }
+
+    // The picker hangs off the PLATE, not the button: anchored to the button,
+    // its 252px reached 27px past the left edge of a 390px phone (measured).
+    // The plate spans the card, so its right edge keeps the picker on screen.
+    .track-rating-anchor {
+      position: static;
+    }
+
+    // Opens upward over the cover: below the plate is the queue.
+    .rating-picker {
+      top: auto;
+      bottom: calc(100% + 0.6rem);
+      z-index: 30;
     }
   }
 
