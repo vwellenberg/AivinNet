@@ -57,12 +57,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
-import { getStations } from '@/requests/home'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
-import { SEASON_KEY } from '@/utils/seasonLogo'
 import { useElementSize } from '@vueuse/core'
 import {
   dragPosition,
@@ -83,28 +81,11 @@ import type { Station } from '@/utils/radioDial'
 // INFO: AivinNet FM (#542, #640), a dial on Home between the continue cards
 // and the rows. A station is a generated playlist, and the server lists the
 // ones the user has in dial order: the mixes, the genre stations and the
-// decade stations (`GET /nothome/stations`). Home's refresh asks again.
+// decade stations. The list comes with the rows, in Home's own answer (#776):
+// the dial is there when the rows are, and pushes nothing down.
 
 const home = useHome()
-// The season on the client (App.vue, or a Settings preview): the server puts its
-// station first. A change asks the server again.
-const season = inject(SEASON_KEY, ref(null))
-const stations = ref<Station[]>([])
-// Each request is numbered: an answer to an older one (a season that has since
-// changed) is dropped, so the list on the dial is always the one asked for last.
-let loadSeq = 0
-
-async function loadStations() {
-  const mine = ++loadSeq
-  let list: Station[]
-  try {
-    list = stationsFromList(await getStations(season.value))
-  } catch {
-    // The dial is an extra on Home: when the list cannot be had, there is no dial.
-    list = []
-  }
-  if (mine === loadSeq) setStations(list)
-}
+const stations = ref<Station[]>(stationsFromList(home.stations))
 
 /**
  * Put a new list on the dial and keep the station the needle rests on and the
@@ -137,16 +118,14 @@ const still = ref(false)
 
 onMounted(() => {
   still.value = prefersReducedMotion()
-  void loadStations()
 })
 
+// A new list from Home's answer (a refetch, a season change): keep the station
+// under the needle and the one playing by their ids (setStations).
 watch(
-  () => home.homepageItems,
-  () => void loadStations()
+  () => home.stations,
+  list => setStations(stationsFromList(list))
 )
-
-// A season starts or ends, or a Settings preview is toggled: the server lists its station (or not).
-watch(season, () => void loadStations())
 
 watch(
   () => stations.value.length,

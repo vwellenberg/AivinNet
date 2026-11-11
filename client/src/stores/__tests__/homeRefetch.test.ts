@@ -10,7 +10,10 @@ vi.mock('../content-width', async () => {
 
     return { maxAbumCards: ref(6), fetchCardCount: ref(6) }
 })
-vi.mock('@/requests/home', () => ({ getHomePageData: (n: number) => fetchHome(n) }))
+// The answer is the rows and the stations (#776); these tests are about the rows.
+vi.mock('@/requests/home', () => ({
+    getHomePageData: async (n: number) => ({ rows: await fetchHome(n), stations: [] }),
+}))
 
 import * as widths from '../content-width'
 import useHome from '../home'

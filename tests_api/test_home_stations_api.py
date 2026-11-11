@@ -187,6 +187,23 @@ def listing(radio):
     return res.get_json()
 
 
+def test_home_carries_the_dial_with_its_rows(radio, history):
+    """
+    #776: `GET /nothome/` answers the rows and the dial in one response, so the
+    dial is there with the rows instead of after them. Same list as
+    `GET /nothome/stations`, the season included.
+    """
+    run_routine()
+
+    body = radio.get("/nothome/?limit=9").get_json()
+    assert set(body) == {"rows", "stations"}
+    assert body["stations"] == listing(radio)
+
+    seasonal = radio.get("/nothome/?limit=9&season=christmas").get_json()
+    assert seasonal["stations"][0] == SEASON_CHRISTMAS
+    assert seasonal["stations"] == radio.get("/nothome/stations?season=christmas").get_json()
+
+
 def test_the_user_sees_genre_and_decade_stations_in_dial_order(radio, history):
     run_routine()
 

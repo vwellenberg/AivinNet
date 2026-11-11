@@ -58,11 +58,22 @@ def get_recent_plays(query: RecentsQuery):
 
 class HomepageItem(BaseModel):
     limit: int = Field(default=9, description="The max number of items per group to return")
+    # The same as `GET /nothome/stations`: the season's station goes first.
+    season: str | None = Field(default=None, description="The season on the client, see /nothome/stations")
 
 
 @api.get("/")
 def homepage_items(query: HomepageItem):
-    return HomepageStore.get_homepage_items(limit=query.limit)
+    """
+    Home in one answer (#776): `rows` in the user's order, and `stations`, the
+    radio's dial (`GET /nothome/stations`), so the dial arrives with the rows
+    instead of after them and pushes nothing down. Both are RAM only.
+    """
+    userid = get_current_userid()
+    return {
+        "rows": HomepageStore.get_homepage_items(limit=query.limit),
+        "stations": _stations(userid, query.season),
+    }
 
 
 def _layout_rows(layout: Layout) -> dict:
@@ -225,9 +236,12 @@ def get_stations(query: StationsQuery):
     decades, each as its playlist id, `kind` ("season" | "mix" | "genre" |
     "decade") and `name`. RAM only; `[]` when the user has none yet.
     """
-    userid = get_current_userid()
+    return _stations(get_current_userid(), query.season)
+
+
+def _stations(userid: int, season: str | None) -> list[dict[str, str]]:
     mixes = HomepageStore.entries["your_mixes"].mixes.get(userid, [])
-    return station_listing(mixes, StationStore.of(userid), season=query.season)
+    return station_listing(mixes, StationStore.of(userid), season=season)
 
 
 # SECTION: THE RECAP CARD (#530)

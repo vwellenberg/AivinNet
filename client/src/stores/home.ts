@@ -1,8 +1,9 @@
-import { computed, reactive, toRaw } from 'vue'
+import { computed, reactive, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 
 import { getHomePageData } from '@/requests/home'
 import { HomePageItem } from '@/interfaces'
+import type { StationEntry } from '@/utils/radioDial'
 import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
 import { fetchCardCount, maxAbumCards } from './content-width'
 
@@ -46,11 +47,21 @@ export default defineStore('homepage', () => {
     // server has answered since.
     let fetches = 0
 
-    async function fetchAll() {
+    // The radio's stations (#776): they come with the rows, in the same answer.
+    const stations = ref<StationEntry[]>([])
+    // The season the last fetch asked for; a refetch keeps it.
+    let lastSeason: string | null = null
+    // An answer to an older fetch (another season) does not overwrite the dial.
+    let stationsSeq = 0
+
+    async function fetchAll(season: string | null = null) {
         fetches++
         const limit = fetchCardCount.value
         fetchedLimit = limit
-        const data: { [key: string]: HomePageItem }[] = await getHomePageData(limit)
+        lastSeason = season
+        const mine = ++stationsSeq
+        const { rows: data, stations: list } = await getHomePageData(limit, season)
+        if (mine === stationsSeq) stations.value = list
         let keys = []
 
         for (const [index, item] of data.entries()) {
@@ -92,7 +103,7 @@ export default defineStore('homepage', () => {
 
         inflight = true
         try {
-            await fetchAll()
+            await fetchAll(lastSeason)
         } finally {
             inflight = false
         }
@@ -136,14 +147,15 @@ export default defineStore('homepage', () => {
      * rows: a layout that hides every row leaves `homepageData` empty, and
      * Home is still loaded. One that was never loaded fetches when it opens.
      */
-    async function refreshIfLoaded() {
-        if (fetchedLimit) await fetchAll()
+    async function refreshIfLoaded(season: string | null = lastSeason) {
+        if (fetchedLimit) await fetchAll(season)
     }
 
     return {
         homepageData,
         homepageItems,
         continueListening,
+        stations,
         fetchAll,
         refetchIfWider,
         refreshIfLoaded,

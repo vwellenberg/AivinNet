@@ -1,5 +1,5 @@
 import { paths } from '@/config'
-import type { Album } from '@/interfaces'
+import type { Album, HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
 import useAxios from './useAxios'
 
@@ -20,13 +20,20 @@ export async function getRecentlyPlayed(limit: number) {
     return getRecents(paths.api.home.recentlyPlayed, limit)
 }
 
-export async function getHomePageData(limit: number) {
+/** Home in one answer (#776): the rows in display order, and the radio's stations. */
+export interface HomeData {
+    rows: { [key: string]: HomePageItem }[]
+    stations: StationEntry[]
+}
+
+export async function getHomePageData(limit: number, season?: string | null): Promise<HomeData> {
+    const query = '?limit=' + limit + (season ? '&season=' + encodeURIComponent(season) : '')
     const { data } = await useAxios({
-        url: paths.api.home.base + '/?limit=' + limit,
+        url: paths.api.home.base + '/' + query,
         method: 'GET',
     })
 
-    return data
+    return { rows: data?.rows ?? [], stations: Array.isArray(data?.stations) ? data.stations : [] }
 }
 
 /**
