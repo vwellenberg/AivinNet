@@ -24,6 +24,10 @@ export async function getRecentlyPlayed(limit: number) {
 export interface HomeData {
     rows: { [key: string]: HomePageItem }[]
     stations: StationEntry[]
+    // The date cards (#776): null when there is none on this load (not the day,
+    // or still being computed on the server).
+    recap: WeeklyRecap | null
+    advent: AdventCalendar | null
 }
 
 export async function getHomePageData(limit: number, season?: string | null): Promise<HomeData> {
@@ -33,7 +37,13 @@ export async function getHomePageData(limit: number, season?: string | null): Pr
         method: 'GET',
     })
 
-    return { rows: data?.rows ?? [], stations: Array.isArray(data?.stations) ? data.stations : [] }
+    const advent = data?.advent && data.advent.day > 0 ? (data.advent as AdventCalendar) : null
+    return {
+        rows: data?.rows ?? [],
+        stations: Array.isArray(data?.stations) ? data.stations : [],
+        recap: data?.recap ?? null,
+        advent,
+    }
 }
 
 /**

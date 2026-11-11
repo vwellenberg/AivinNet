@@ -39,15 +39,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import AlbumCard from '@/components/shared/AlbumCard.vue'
-import { type AdventCalendar, getAdvent } from '@/requests/home'
+import useHome from '@/stores/home'
 import { ADVENT_DOORS, doorOpenable, readOpened, rememberOpened } from '@/utils/advent'
 
 // The year is the device's: the server's answer carries only the day.
 const year = new Date().getFullYear()
-const calendar = ref<AdventCalendar | null>(null)
+// The calendar comes with Home's answer (#776): no request of its own. Null when
+// there is none on this load (not December, or still being computed).
+const home = useHome()
+const calendar = computed(() => home.advent)
 const opened = ref<number[]>(readOpened(year))
 const selected = ref<number | null>(null)
 
@@ -76,19 +79,15 @@ function openDoor(door: number) {
     selected.value = door
 }
 
-onMounted(async () => {
-    try {
-        const res = await getAdvent()
-        const body = res.status === 200 ? (res.data as AdventCalendar) : null
-        calendar.value = body && body.day > 0 ? body : null
-    } catch {
-        // No calendar when the server cannot say: Home just has no card.
-        calendar.value = null
-    }
-
-    // Today's door, opened earlier on this device, shows its album again.
-    if (calendar.value && isOpened(calendar.value.day)) selected.value = calendar.value.day
-})
+// Today's door, opened earlier on this device, shows its album again. Asked when
+// the calendar arrives (and at once, if it is already there).
+watch(
+    calendar,
+    body => {
+        if (body && isOpened(body.day)) selected.value = body.day
+    },
+    { immediate: true }
+)
 </script>
 
 <style lang="scss">

@@ -357,7 +357,9 @@ weil sie die Jahre mockten (#729). Probe dafür: `scripts/demo/rehearsal.sh` (fa
 
 ## Der Advent-Kalender (1.–24. Dezember)
 
-Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
+Seit #776 kommt die Karte mit `GET /nothome/` (`advent`, ebenso `recap`): was schon berechnet ist, steht
+in der Antwort; fehlt es, startet `api/home` die Berechnung auf einem Thread (`_compute_advent`,
+`_compute_recap`) und die Karte fehlt bei diesem Laden. Nichts in der Anfrage wartet darauf. Karte oben auf Home, wie die Rückblick- und Recap-Karte **nicht** in `DEFAULT_ORDER` (Settings → Home
 blendet sie nicht aus). `GET /nothome/advent` (`api/home`) liefert `{day, doors}`: `day` ist 0 außerhalb
 des Fensters, sonst die Tür von heute, `doors` die Türen 1 bis heute mit je einem Album (Karten-Form wie
 „Recently played“). Regeln in `lib/home/advent.py` (pur, strikt): Reihenfolge eines Jahres ist quiet

@@ -14,25 +14,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { dismissWeeklyRecap, getWeeklyRecap, type WeeklyRecap } from '@/requests/home'
+import { dismissWeeklyRecap } from '@/requests/home'
 import { Routes } from '@/router'
+import useHome from '@/stores/home'
 import useSettings from '@/stores/settings'
 import { recapLines, recapStatsPeriod } from '@/utils/weeklyRecap'
 
 const router = useRouter()
 const settings = useSettings()
-const recap = ref<WeeklyRecap | null>(null)
+// The recap comes with Home's answer (#776): no request of its own, so the card
+// is there with the rows, not after them.
+const home = useHome()
+const recap = computed(() => home.recap)
 const lines = computed(() => (recap.value ? recapLines(recap.value) : { kicker: '', headline: '', detail: '' }))
-
-onMounted(async () => {
-    // Asked on every Home: the server answers `recap: null` on the days there
-    // is no card, so a plain Home costs one answer and no listening history.
-    const res = await getWeeklyRecap()
-    recap.value = res.status === 200 ? (res.data?.recap ?? null) : null
-})
 
 // The card opens Stats on the period it tells about: the previous week or month,
 // which the tabs reach as "last week" / "last month" (the period is the stats
@@ -47,7 +44,7 @@ function open() {
 function dismiss() {
     const closed = recap.value
     if (!closed) return
-    recap.value = null
+    home.clearRecap()
     void dismissWeeklyRecap(closed.key)
 }
 </script>

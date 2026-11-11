@@ -138,6 +138,7 @@ ignore = [
 "tests_api/test_home_not_interested_api.py" = ["F811"]
 "tests_api/test_home_continue_dismiss_api.py" = ["F811"]
 "tests_api/test_backup_continue_dismissed.py" = ["F811"]
+"tests_api/test_home_date_cards_api.py" = ["F811"]
 "tests_api/test_recently_added_stamp_api.py" = ["F811"]
 
 [tool.ruff.lint.isort]

@@ -1,10 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 
-const { getAdvent } = vi.hoisted(() => ({ getAdvent: vi.fn() }))
+import type { AdventCalendar as AdventCalendarCard } from '@/requests/home'
+import useHome from '@/stores/home'
 
-vi.mock('@/requests/home', () => ({ getAdvent }))
 // The shared album card has its own tests; here it only shows which album it got.
 vi.mock('@/components/shared/AlbumCard.vue', () => ({
     default: defineComponent({
@@ -39,7 +40,10 @@ function calendar(day: number) {
 }
 
 async function card(body: unknown, status = 200) {
-    getAdvent.mockResolvedValue({ status, data: body })
+    // The calendar comes with Home's answer (#776): the store holds it. No day
+    // means no card, as the server's answer for a day without doors.
+    const calendar = status === 200 && body && (body as { day: number }).day > 0 ? body : null
+    useHome().advent = calendar as AdventCalendarCard | null
     const w = mount(AdventCalendar)
     await flushPromises()
     return w
@@ -48,7 +52,7 @@ async function card(body: unknown, status = 200) {
 const doors = (w: ReturnType<typeof mount>) => w.findAll('.advent-door')
 
 beforeEach(() => {
-    getAdvent.mockReset()
+    setActivePinia(createPinia())
     localStorage.clear()
 })
 

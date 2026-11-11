@@ -1,7 +1,7 @@
 import { computed, reactive, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 
-import { getHomePageData } from '@/requests/home'
+import { type AdventCalendar, getHomePageData, type WeeklyRecap } from '@/requests/home'
 import { HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
 import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
@@ -54,6 +54,15 @@ export default defineStore('homepage', () => {
 
     // The radio's stations (#776): they come with the rows, in the same answer.
     const stations = ref<StationEntry[]>([])
+    // The date cards (#776): the recap of the week or month, the Advent calendar.
+    // Each comes with the rows; null means no card on this load.
+    const recap = ref<WeeklyRecap | null>(null)
+    const advent = ref<AdventCalendar | null>(null)
+
+    /** The recap card is closed (the ✕): gone at once, the server keeps the answer. */
+    function clearRecap() {
+        recap.value = null
+    }
     // The season the last fetch asked for; a refetch keeps it.
     let lastSeason: string | null = null
     // An answer to an older fetch (another season) does not overwrite the dial.
@@ -65,8 +74,12 @@ export default defineStore('homepage', () => {
         fetchedLimit = limit
         lastSeason = season
         const mine = ++stationsSeq
-        const { rows: data, stations: list } = await getHomePageData(limit, season)
-        if (mine === stationsSeq) stations.value = list
+        const { rows: data, stations: list, recap: card, advent: calendar } = await getHomePageData(limit, season)
+        if (mine === stationsSeq) {
+            stations.value = list
+            recap.value = card
+            advent.value = calendar
+        }
         let keys = []
 
         for (const [index, item] of data.entries()) {
@@ -188,6 +201,9 @@ export default defineStore('homepage', () => {
         homepageItems,
         continueListening,
         stations,
+        recap,
+        advent,
+        clearRecap,
         fetchAll,
         refetchIfWider,
         refreshIfLoaded,
