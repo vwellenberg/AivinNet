@@ -64,7 +64,7 @@ export interface SkipRow {
     trackhash: string
     plays: number
     share: number
-    track: { trackhash: string; title: string; artists: { name: string }[] }
+    track: { trackhash: string; title: string; artists: { name: string }[]; image?: string }
     skipped?: number
     finished?: number
 }
