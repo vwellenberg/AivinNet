@@ -177,7 +177,7 @@ watch(
     .skip-note {
         margin: 0;
         padding-top: 0.75rem;
-        border-top: 1px dashed rgba(127, 127, 127, 0.45);
+        border-top: $mem-hairline-w dashed $mem-line;
         font-size: 0.8rem;
         opacity: 0.7;
     }
