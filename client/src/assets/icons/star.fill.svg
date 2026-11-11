@@ -3,10 +3,10 @@
          filled in currentColor and stroked with the same 2.4 px edge as the
          outline set.
 
-         The edge is the custom property star-edge (two leading dashes: XML forbids
-         them inside a comment, the build fails on it), falling back to
-         currentColor. Track rows set
-         nothing: body and edge follow the row's colour, as before. The picker
+         The edge is the custom property star-edge (written without its two
+         leading dashes: XML forbids them in a comment and the build fails),
+         falling back to currentColor. Track rows set nothing: body and edge
+         follow the row's colour, as before. The picker
          and the Now Playing button colour the body yellow and set the edge to
          the panel's glyph colour, the colour of the EMPTY stars beside it — so
          set and empty stars are one size and one outline in both themes, and

@@ -15,9 +15,12 @@
       <!-- The rating lives in the track's own plate, beside the heart: "★ 4",
            or a hollow star when unrated; a tap opens the five stars above the
            plate. It used to be a free row of five stars under the plate — the
-           one control in the card without a plate of its own (user, 2026-11-11). -->
+           one control in the card without a plate of its own (user, 2026-11-11).
+           Keyed by track: a picker left open into the next song would rate
+           THAT song with the click meant for the one before. -->
       <TrackRating
         v-if="queue.currenttrack"
+        :key="queue.currenttrack.trackhash"
         :trackhash="queue.currenttrack.trackhash"
         :rating="queue.currenttrack.rating ?? null"
       />
@@ -144,16 +147,13 @@ function showMenu(e: MouseEvent) {
         padding: 0;
       }
 
-      &.rated {
-        gap: 0.3rem;
-        padding: 0 0.7rem;
-      }
-
       // Set = yellow body in the glyph-colour outline, like the stars it opens
       // (star.fill.svg). The edge is named, not `currentColor`: an unregistered
       // custom property resolves `currentColor` where it is USED, i.e. on the
       // yellow glyph. On hover it turns with the label to the contrast plate.
       &.rated {
+        gap: 0.3rem;
+        padding: 0 0.7rem;
         --star-edge: #{$mem-content-text};
 
         @media (hover: hover) {
@@ -161,10 +161,10 @@ function showMenu(e: MouseEvent) {
             --star-edge: var(--mem-hover-text);
           }
         }
-      }
 
-      &.rated .track-rating-glyph {
-        color: $mem-yellow;
+        .track-rating-glyph {
+          color: $mem-yellow;
+        }
       }
     }
 
