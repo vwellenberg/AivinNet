@@ -622,6 +622,20 @@ class RestoreBackup:
         existing = {(row["userid"], row["type"], row["hash"]) for row in ContinueDismissTable.everyone()}
 
         for dismissal in dismissals:
+            # A hand-edited or foreign backup: a missing key stopped the whole
+            # section with a KeyError, an unknown type would hide nothing forever.
+            if (
+                not isinstance(dismissal, dict)
+                or dismissal.get("type") not in ("album", "playlist")
+                or not isinstance(dismissal.get("hash"), str)
+                or not dismissal["hash"]
+                or isinstance(dismissal.get("timestamp"), bool)
+                or not isinstance(dismissal.get("timestamp", 0), int)
+            ):
+                shown = dismissal if isinstance(dismissal, dict) else {"row": dismissal}
+                report.discard("continue dismissed", shown, ValueError("malformed dismissal"))
+                continue
+
             owner = resolve_owner(dismissal)
             key = (owner, dismissal["type"], dismissal["hash"])
 

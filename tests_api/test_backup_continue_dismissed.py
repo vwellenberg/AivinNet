@@ -68,3 +68,28 @@ def test_a_backup_from_before_the_section_restores_as_before(backups):
 
     assert res.status_code == 200, res.text
     assert res.get_json()["restored"]["continue_dismissed"] == {"restored": 0, "skipped": 0, "discarded": 0}
+
+
+def test_a_malformed_dismissal_is_discarded_not_fatal(backups):
+    import json
+
+    wipe()
+    rows = [
+        {"userid": 1, "type": "artist", "hash": ALBUM, "timestamp": 1},  # not a Continue type
+        {"userid": 1, "type": "album", "timestamp": 1},  # no hash: used to raise KeyError
+        {"userid": 1, "type": "album", "hash": ALBUM, "timestamp": "today"},
+        "not a row",
+        {"userid": 1, "type": "album", "hash": ALBUM, "timestamp": 1_700_000_000},
+    ]
+    backup = backups.root / "backup.1700000001"
+    backup.mkdir(parents=True)
+    (backup / "data.json").write_text(
+        json.dumps({"favorites": [], "scrobbles": [], "playlists": [], "continue_dismissed": rows})
+    )
+
+    res = backups.post("/backup/restore", json={"backup_dir": backup.name})
+
+    assert res.status_code == 200, res.text
+    assert res.get_json()["restored"]["continue_dismissed"] == {"restored": 1, "skipped": 0, "discarded": 4}
+    assert dismissals() == [(1, "album", ALBUM, 1_700_000_000)]
+    wipe()

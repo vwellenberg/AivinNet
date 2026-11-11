@@ -9,8 +9,8 @@
       v-if="entry.dismiss"
       class="btn-quiet continue-dismiss"
       type="button"
-      aria-label="Aus Weiterhören entfernen"
-      title="Aus Weiterhören entfernen"
+      aria-label="Remove from Continue listening"
+      title="Remove from Continue listening"
       @click.stop.prevent="dismiss"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
