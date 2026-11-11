@@ -540,24 +540,27 @@ class TestPinnedBuildInputs:
         assert (REPO_ROOT / "client" / "yarn.lock").is_file()
         assert (REPO_ROOT / "mcp_server" / "requirements.txt").is_file()
 
-    def test_the_scroller_stays_on_the_beta_until_its_migration(self):
-        """vue-virtual-scroller from 2.0.0 on is the rewrite that crashes the app (#653, #704).
+    def test_the_scroller_is_the_v3_migration_with_minor_bumps_by_hand(self):
+        """vue-virtual-scroller is on 3.x, exact; Dependabot brings patches, never minors or majors.
 
-        The ignore rule covered only the semver-major update, so 2.0.1 came in through the
-        minor/patch group (#750), and the caret range in package.json would have taken it on any
-        lock-free install. A rule "from 2.0.0" then let 2.0.0-beta.10 in (#770): beta.9 and
-        beta.10 (2026) are already the rewrite under the old prerelease name, and they sort below
-        2.0.0. Both doors stay shut until #704 removes them together.
+        History: 2.0.0 and later are the rewrite (a `<script setup>` DynamicScroller without
+        `computed`) that crashed the app, so the pin stayed on 2.0.0-beta.8 and Dependabot
+        ignored everything after it (#653, #750, #770). The migration to 3.0.5 (#704) rebuilt the
+        typed view pool as components/shared/TypedDynamicScroller.vue on the library's own
+        `useDynamicScroller`, copying its props, slots and the composable's return values. A
+        minor release can change exactly those, and the unit test stubs RecycleScroller, so a
+        minor or major bump comes as an explicit PR that compares the wrapper with the new
+        source, not inside the grouped client PR.
         """
         config = (REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         npm_entry = config.split("- package-ecosystem: npm", 1)[1].split("- package-ecosystem:", 1)[0]
         scroller = npm_entry.split("dependency-name: vue-virtual-scroller", 1)[1].split("- dependency-name:", 1)[0]
-        assert 'versions: [">=2.0.0-beta.9"]' in scroller, "ignore everything after beta.8, not only majors"
+        assert "version-update:semver-minor" in scroller and "version-update:semver-major" in scroller
+        assert "versions:" not in scroller, "no blanket version ignore: patches must still come"
 
         package = json.loads((REPO_ROOT / "client" / "package.json").read_text(encoding="utf-8"))
         pinned = package["dependencies"]["vue-virtual-scroller"]
-        # beta.8 (2023) is the last release before the rewrite; beta.9 and later are the rewrite.
-        assert re.fullmatch(r"2\.0\.0-beta\.[1-8]", pinned), f"pin an exact pre-rewrite beta, not {pinned!r}"
+        assert re.fullmatch(r"3\.\d+\.\d+", pinned), f"pin an exact 3.x release, not {pinned!r}"
 
     def test_dependabot_moves_the_backend_floors(self):
         """The floors in pyproject.toml follow uv.lock.

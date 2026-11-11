@@ -1530,13 +1530,15 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   2 Starts). Diese drei stehen jetzt im Latch, ihre Sperre greift aber **nur innerhalb von
   `.vue-recycle-scroller__item-view`**: `btn-toggle-on` ploppt beim Einschalten absichtlich
   erneut, und außerhalb eines Scrollers hängt niemand den Knoten um.
-  ⚠️ **Ein View-Pool pro KOMPONENTE, sonst baut der Scroller Köpfe neu.** `DynamicScroller`
-  reicht keinen `type` an `RecycleScroller` weiter, also teilten Kopf, Zeilen, Disc-Leiste und
-  Kartenreihen *einen* Pool: Der View, der unten „More from …“ zeigte, wurde oben zum Kopf, und
-  `<component :is>` baute ihn neu, samt Auftritt. `utils/typedScroller.ts` gibt jeder Zeile
-  `type: item.component`; registriert unter dem Bibliotheksnamen in `main.ts`, also gilt es für
-  jede Seite; ein nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"`
-  (Suche → Tracks). Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
+  ⚠️ **Ein View-Pool pro KOMPONENTE, sonst baut der Scroller Köpfe neu.** Der `DynamicScroller`
+  der Bibliothek (3.x) reicht keinen `type` an `RecycleScroller` weiter, also teilten Kopf, Zeilen,
+  Disc-Leiste und Kartenreihen *einen* Pool: Der View, der unten „More from …“ zeigte, wurde oben
+  zum Kopf, und `<component :is>` baute ihn neu, samt Auftritt. Deshalb ist `DynamicScroller` in
+  `main.ts` der App-eigene `components/shared/TypedDynamicScroller.vue`: dieselbe Komposition aus
+  `useDynamicScroller`, die jeder Zeile über `typedRows()` (`utils/typedScroller.ts`) `type:
+  item.component` mitgibt. Registriert unter dem Bibliotheksnamen, also gilt es für jede Seite; ein
+  nackter `RecycleScroller` mit gemischten Zeilen nimmt `type-field="component"` (Suche → Tracks).
+  Danach startet beim Zurückscrollen auf der Album-Seite **keine** Ankunft mehr.
   ⚠️ **Angekommen wird beim Seitenaufbau, nicht beim Scrollen** (Entscheidung des Nutzers,
   2026-10-20). Ein Scrollsprung, der weiter reicht als der gerenderte Bereich, ist für die
   Bibliothek „nicht kontinuierlich“ und legt **neue** Views an, statt die alten freizugeben;

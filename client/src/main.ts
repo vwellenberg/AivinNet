@@ -16,7 +16,7 @@ import vContextMenu from "./directives/vContextMenu";
 import vWave from "./directives/vWave";
 import vTip from "./directives/vTip";
 import { installArrivalLatch } from "./utils/arrivalLatch";
-import { TypedDynamicScroller } from "./utils/typedScroller";
+import TypedDynamicScroller from "./components/shared/TypedDynamicScroller.vue";
 import { installTouchActive } from "./utils/touchActive";
 import { installImageRetry } from "./utils/imageRetry";
 

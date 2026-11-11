@@ -13,22 +13,15 @@
 // and the scroller's re-sort moved them and replayed it (utils/arrivalLatch.ts
 // takes care of that second half).
 //
-// `RecycleScroller` already keeps a separate pool per item `type`
-// (`typeField`, default "type"); `DynamicScroller` just never passes one — its
-// rows are `{ item, id, size }`. This copy adds `type: item.component`, so a
-// view only ever shows the component it was built for and the scroller reuses
-// it as it is. Registered under the library's own name in main.ts, so every
-// page gets it without knowing. A plain `RecycleScroller` with mixed rows takes
-// `type-field="component"` instead (SearchView/tracks.vue).
-//
-// The library object is copied, not patched: its own `DynamicScroller` stays as
-// shipped, and a version bump that renames the computed fails loudly in
-// typedScroller.test.ts instead of silently dropping the type.
+// `RecycleScroller` keeps a separate pool per row `type` (`typeField`, default
+// "type"). The library's DynamicScroller (3.x) builds rows `{ item, id, size }`
+// without a type, so the app's `DynamicScroller` (components/shared/
+// TypedDynamicScroller.vue) adds one per row through `typedRows()` below.
+// A plain `RecycleScroller` with mixed rows takes `type-field="component"`
+// instead (SearchView/tracks.vue).
 // ---------------------------------------------------------------------------
 
 import { toRaw } from 'vue'
-// @ts-ignore — the library ships no type declarations
-import { DynamicScroller } from 'vue-virtual-scroller'
 
 /**
  * The pool a scroller item's view belongs to: the component it renders. Raw,
@@ -40,17 +33,18 @@ export function viewType(item: unknown): unknown {
     return component && typeof component === 'object' ? toRaw(component) : component
 }
 
-const baseItemsWithSize: (this: unknown) => { item: unknown; type?: unknown }[] =
-    DynamicScroller.computed.itemsWithSize
-
-export const TypedDynamicScroller = {
-    ...DynamicScroller,
-    computed: {
-        ...DynamicScroller.computed,
-        itemsWithSize(this: unknown) {
-            const rows = baseItemsWithSize.call(this)
-            for (const row of rows) row.type = viewType(row.item)
-            return rows
-        },
-    },
+/**
+ * Gives each of the library's rows its pool type, IN PLACE, and hands back the same array.
+ *
+ * Not a copy on purpose: when only a measured size changes, the library keeps its row array and
+ * re-triggers it. A fresh array per flush would fire RecycleScroller's items watcher every time,
+ * rebuilding its key and type arrays over all rows while scrolling a long playlist — work the
+ * library's own DynamicScroller never does. Writing the same value again does not re-trigger.
+ */
+export function typeRows<T extends { item: unknown; type?: unknown }>(rows: T[]): (T & { type: unknown })[] {
+    for (const row of rows) {
+        const type = viewType(row.item)
+        if (row.type !== type) row.type = type
+    }
+    return rows as (T & { type: unknown })[]
 }
