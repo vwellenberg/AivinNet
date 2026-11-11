@@ -41,11 +41,39 @@ describe('SkipRate', () => {
 
         const headings = w.findAll('.skip-heading').map(h => h.text())
         expect(headings).toEqual(['Most skipped', 'Always to the end'])
-        const rows = w.findAll('.skip-row').map(r => r.text())
-        expect(rows[0]).toContain('Blue')
-        expect(rows[0]).toContain('100 % · 6 of 6 plays')
-        expect(rows[1]).toContain('Red')
-        expect(rows[1]).toContain('100 % · 5 of 5 plays')
+        const rows = w.findAll('.skip-row')
+        expect(rows[0].find('.skip-title').text()).toBe('Blue')
+        expect(rows[0].find('.skip-percent').text()).toBe('100 %')
+        expect(rows[0].find('.skip-count').text()).toBe('6 of 6 plays')
+        expect(rows[1].find('.skip-title').text()).toBe('Red')
+        expect(rows[1].find('.skip-count').text()).toBe('5 of 5 plays')
+        expect(w.find('.skip-total').text()).toBe('5 of 20 plays')
+    })
+
+    it('ranks the rows, draws each share as a bar and shows the cover when there is one', async () => {
+        const blue = { ...track('Blue'), image: 'abc.webp?pathhash=123' }
+        vi.mocked(getSkipRate).mockResolvedValue(
+            answer(
+                payload({
+                    most_skipped: [
+                        { trackhash: 'x', plays: 6, skipped: 3, share: 0.5, track: blue },
+                        { trackhash: 'z', plays: 5, skipped: 1, share: 0.2, track: track('Green') },
+                    ],
+                })
+            )
+        )
+
+        const w = mount(SkipRate, { props: { period: 'week' } })
+        await flushPromises()
+
+        const rows = w.find('.skip-list.is-skipped').findAll('.skip-row')
+        expect(rows.map(r => r.find('.skip-rank').text())).toEqual(['1', '2'])
+        expect(rows[0].find('.skip-bar span').attributes('style')).toContain('width: 50%')
+        expect(rows[0].find('img.skip-thumb').attributes('src')).toMatch(/abc\.webp\?pathhash=123$/)
+        // Without an image a blank tile keeps the rows aligned.
+        expect(rows[1].find('img').exists()).toBe(false)
+        expect(rows[1].find('.skip-thumb').exists()).toBe(true)
+        expect(w.find('.skip-meter span').attributes('style')).toContain('width: 25%')
     })
 
     it('draws nothing without a counted play', async () => {

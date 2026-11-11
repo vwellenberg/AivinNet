@@ -20,8 +20,13 @@ describe('RewindLink', () => {
         expect(JSON.parse(a.attributes('data-to')!)).toEqual({ name: 'RewindView', params: { year: 2025 } })
     })
 
+    it('stands under a heading of its own, like the sections above it', () => {
+        expect(link(2025).find('.section-title').text()).toBe('Rewind')
+    })
+
     it('is not there before a year with music has ended, or while the years are unknown', () => {
         expect(link(undefined).find('a').exists()).toBe(false)
         expect(link(null).find('a').exists()).toBe(false)
+        expect(link(null).find('.section-title').exists()).toBe(false)
     })
 })
