@@ -3,7 +3,7 @@
         <button
             type="button"
             class="mem-sticker track-rating"
-            :class="{ rated: shown !== null, unrated: shown === null, open: showPicker }"
+            :class="{ rated: shown !== null, unrated: shown === null }"
             :aria-label="shown === null ? 'Rate track' : `Rated ${shown} of 5 — change rating`"
             :aria-expanded="showPicker"
             :title="shown === null ? 'Rate track' : `${shown} of 5 stars`"
@@ -19,7 +19,15 @@
             </template>
         </button>
 
-        <div v-if="showPicker" class="rating-picker rounded shadow-lg" role="dialog" aria-label="Rate track">
+        <!-- The panel is a child of the row: a click or double-click in it must not
+             reach the row (which plays on double-click). -->
+        <div
+            v-if="showPicker"
+            class="rating-picker rounded shadow-lg"
+            role="dialog"
+            aria-label="Rate track"
+            @dblclick.stop
+        >
             <RatingStars :value="shown" @pick="onPick" />
             <button
                 v-if="shown !== null"
@@ -130,6 +138,13 @@ onClickOutside(anchorRef, () => {
 
 .songlist-item.current > .options-and-duration .track-rating.unrated {
     color: $mem-ink;
+}
+
+// The row with an open picker paints above its neighbours: the rows are
+// positioned siblings, and the next one would otherwise cover the picker.
+.songlist-item:has(.rating-picker),
+.vue-recycle-scroller__item-view:has(.rating-picker) {
+    z-index: 40;
 }
 
 .rating-picker {
