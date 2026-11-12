@@ -53,7 +53,7 @@ with upstream.
 - 🆕 **Per-album cover fetch** — a button on the album header pulls a missing cover
   from MusicBrainz / Cover Art Archive; the icon spins while fetching and the cover
   refreshes on success.
-- 🆕 **Batch fetch in Settings** — an "Album Cover" section fetches *all* missing
+- 🆕 **Batch fetch in Settings** — a "Covers" section (Settings → Library) fetches *all* missing
   covers in one background batch, with a live remaining-count, progress percentage
   (polled every 2 s), an "all covers present ✓" state, and a retry action for albums
   with no match. Re-attaches to an already-running batch.
