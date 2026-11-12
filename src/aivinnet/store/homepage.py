@@ -14,6 +14,7 @@ from aivinnet.store.homepageentries import (
     PlayableEntry,
     RecentlyAddedHomepageEntry,
     RecentlyPlayedHomepageEntry,
+    TopRatedEntry,
 )
 from aivinnet.store.stations import StationStore
 from aivinnet.utils.auth import get_current_userid
@@ -95,6 +96,13 @@ class HomepageStore:
             title="Forgotten favorites",
             description="Favorites you have not played in a while",
             playlist="forgottenfavorites",
+        ),
+        # Track cards by the routine (#788): the tracks the user rated 4 or 5, the
+        # longest unplayed first. "Play all" plays playlist "toprated".
+        "top_rated": TopRatedEntry(
+            title="Your top rated",
+            description="Tracks you rated 4 or 5 that you have not heard lately",
+            playlist="toprated",
         ),
         "rediscover": GenericRecoverableEntry(
             title="Rediscover",

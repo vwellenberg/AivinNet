@@ -57,6 +57,7 @@ GENERATED_PLAYLISTS = {
     "onrepeat": _row("get_on_repeat_playlist"),
     "onthisday": _row("get_on_this_day_playlist"),
     "forgottenfavorites": _row("get_forgotten_favorites_playlist"),
+    "toprated": _row("get_top_rated_playlist"),
     "becauseyoulistened": _row("get_because_playlist"),
     "almostcomplete": _row("get_almost_complete_playlist"),
     "deepcuts": _row("get_deep_cuts_playlist"),

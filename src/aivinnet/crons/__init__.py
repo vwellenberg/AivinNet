@@ -17,6 +17,7 @@ from aivinnet.lib.recipes.homerows import (
     OnRepeat,
     OnThisDay,
     Rediscover,
+    TopRated,
     YourMixes,
 )
 from aivinnet.lib.recipes.recents import RecentlyAdded, RecentlyPlayed
@@ -143,6 +144,7 @@ def _run_cron_jobs():
         ArtistsYouMightLike,
         DeepCuts,
         ForgottenFavorites,
+        TopRated,
         YourMixes,
         AlmostComplete,
         RadioStations,

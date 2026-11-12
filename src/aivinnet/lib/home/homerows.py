@@ -60,6 +60,7 @@ CUSTOM_PLAYLISTS = {
     "onrepeat",
     "onthisday",
     "forgottenfavorites",
+    "toprated",
     "becauseyoulistened",
     "almostcomplete",
     "deepcuts",

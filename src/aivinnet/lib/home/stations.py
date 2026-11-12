@@ -28,7 +28,15 @@ from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass, field
 from datetime import date
 
-from aivinnet.lib.home.discover import DAY, Play, TrackFacts, _artists, _resolve
+from aivinnet.lib.home.discover import (
+    DAY,
+    RATING_DISLIKED,
+    RATING_LIKED,
+    Play,
+    TrackFacts,
+    _artists,
+    _resolve,
+)
 from aivinnet.utils.dates import tag_year
 
 # The taste of the last half year, as "Your mixes" reads it.
@@ -194,27 +202,43 @@ def station_tracks(
     seed: int,
     length: int = STATION_LENGTH,
     max_per_album: int = STATION_MAX_PER_ALBUM,
+    ratings: Mapping[str, int] | None = None,
 ) -> list[str]:
     """
     One station's tracks. Well-known: the pool's tracks the user has played,
     most played lately first; the top twice `length` of them are drawn from with
     the seed, so the list changes from day to day. Never played: drawn with the
     seed too. They alternate, at most `max_per_album` per album, each track once.
+
+    `ratings` (trackhash -> 1 to 5, #788): the well-known tracks rated
+    `RATING_LIKED` or more come first in the draw; a track rated `RATING_DISLIKED`
+    is never picked, known or never played.
     """
     rng = random.Random(seed)
+    rated = ratings or {}
     album_of = dict(pool)
 
     # From the user's plays, not the pool: a genre can be most of the library,
     # the played tracks are a few thousand at most.
+    # The cut keeps the most played, as without ratings: sorting the liked ones in
+    # BEFORE the cut let a user with many 4s and 5s lose every unrated favourite.
     known = sorted(
-        (t for t in all_plays if all_plays[t] and t in album_of),
+        (t for t in all_plays if all_plays[t] and t in album_of and rated.get(t) != RATING_DISLIKED),
         key=lambda t: (-window_plays.get(t, 0), -all_plays[t], t),
     )[: 2 * length]
-    fresh = sorted(t for t in album_of if not all_plays.get(t, 0))
-    rng.shuffle(known)
-    rng.shuffle(fresh)
+    fresh = sorted(t for t in album_of if not all_plays.get(t, 0) and rated.get(t) != RATING_DISLIKED)
+    # Without ratings each liked list is empty, and shuffling an empty list draws
+    # nothing from `rng`: the draw is the one from before #788.
+    known_liked = [t for t in known if rated.get(t, 0) >= RATING_LIKED]
+    known_rest = [t for t in known if rated.get(t, 0) < RATING_LIKED]
+    rng.shuffle(known_liked)
+    rng.shuffle(known_rest)
+    fresh_liked = [t for t in fresh if rated.get(t, 0) >= RATING_LIKED]
+    fresh_rest = [t for t in fresh if rated.get(t, 0) < RATING_LIKED]
+    rng.shuffle(fresh_liked)
+    rng.shuffle(fresh_rest)
 
-    sides = [deque(known), deque(fresh)]
+    sides = [deque([*known_liked, *known_rest]), deque([*fresh_liked, *fresh_rest])]
     picked: list[str] = []
     taken: set[str] = set()
     per_album: Counter[str] = Counter()
@@ -244,6 +268,7 @@ def build_stations(
     day: int,
     genre_names: Mapping[str, str],
     skip: Callable[[str], bool] = lambda artisthash: False,
+    ratings: Mapping[str, int] | None = None,
 ) -> tuple[list[Station], list[Station]]:
     """
     The user's genre stations and decade stations, most played first, each
@@ -277,8 +302,9 @@ def build_stations(
         window_plays,
         all_plays,
         day,
+        ratings,
     )
-    decades = _stations(DECADE, decade_plays, pools.decades, decade_name, window_plays, all_plays, day)
+    decades = _stations(DECADE, decade_plays, pools.decades, decade_name, window_plays, all_plays, day, ratings)
     return genres, decades
 
 
@@ -290,6 +316,7 @@ def _stations(
     window_plays: Mapping[str, int],
     all_plays: Mapping[str, int],
     day: int,
+    ratings: Mapping[str, int] | None = None,
 ) -> list[Station]:
     ranked = sorted(
         (key for key, n in plays.items() if n >= STATION_MIN_PLAYS and len(pools.get(key, ())) >= STATION_MIN_TRACKS),
@@ -300,7 +327,7 @@ def _stations(
     for key in ranked:
         if len(found) >= STATION_COUNT:
             break
-        tracks = station_tracks(pools[key], window_plays, all_plays, _seed(day, kind, key))
+        tracks = station_tracks(pools[key], window_plays, all_plays, _seed(day, kind, key), ratings=ratings)
         if len(tracks) < STATION_MIN_PICKED:
             continue
         found.append(Station(kind, key, name_of(key), tracks))
@@ -344,6 +371,7 @@ def build_season_stations(
     day: int,
     year_start: int,
     year_end: int,
+    ratings: Mapping[str, int] | None = None,
 ) -> list[Station]:
     """
     The user's seasonal stations, built whatever the season is (the listing
@@ -358,7 +386,7 @@ def build_season_stations(
         all_plays = Counter(p.trackhash for p in plays)
         start = now - STATION_DAYS * DAY
         window_plays = Counter(p.trackhash for p in plays if start <= p.timestamp <= now)
-        tracks = station_tracks(christmas, window_plays, all_plays, _seed(day, SEASON, CHRISTMAS))
+        tracks = station_tracks(christmas, window_plays, all_plays, _seed(day, SEASON, CHRISTMAS), ratings=ratings)
         if tracks:
             found.append(Station(SEASON, CHRISTMAS, "Christmas", tracks))
 

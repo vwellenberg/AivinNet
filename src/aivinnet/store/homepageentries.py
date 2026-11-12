@@ -5,6 +5,7 @@ from aivinnet.db.userdata import ContinueDismissTable
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CONTINUE_MAX_ITEMS
 from aivinnet.lib.home.recover_items import recover_items
+from aivinnet.lib.home.toprated import TOP_RATED_MIN, TOP_RATED_ROW_LIMIT
 
 
 class HomepageEntry(ABC):
@@ -98,6 +99,42 @@ class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):
     # NOTE: This extends RecentlyPlayedHomepageEntry because
     # the shape of the data is the same.
     pass
+
+
+class TopRatedEntry(GenericRecoverableEntry):
+    """
+    "Your top rated" (#788): the routine keeps up to `TOP_RATED_PLAYLIST_LIMIT`
+    for "Play all", the row shows at most `TOP_RATED_ROW_LIMIT` of them.
+    """
+
+    def current(self, userid: int) -> list[dict[str, Any]]:
+        """
+        The stored items whose track the user still rates `TOP_RATED_MIN` or more.
+        The routine runs every 6 hours; a track lowered to 1 or cleared leaves the
+        row and "Play all" at once, from the RAM rating that `/ratings` keeps current.
+        """
+        from aivinnet.store.tracks import TrackStore
+
+        kept = []
+        for item in self.items.get(userid, []):
+            group = TrackStore.trackhashmap.get(item["hash"])
+            rating = group.tracks[0].rating_of(userid) if group and group.tracks else None
+            if rating is not None and rating >= TOP_RATED_MIN:
+                kept.append(item)
+        return kept
+
+    def get_items(self, userid: int, limit: int | None = None):
+        most = TOP_RATED_ROW_LIMIT if limit is None else min(limit, TOP_RATED_ROW_LIMIT)
+        # Built here rather than through the parent: it reads `self.items`, and swapping
+        # that for the filtered list could clobber a routine writing it at the same time.
+        row = {
+            "title": self.title,
+            "description": self.description,
+            "items": recover_items(self.current(userid)[:most]),
+        }
+        if self.playlist:
+            row["playlist"] = self.playlist
+        return row
 
 
 def _dismissed(item: dict[str, Any], dismissed: dict[tuple[str, str], int]) -> bool:

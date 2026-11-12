@@ -64,6 +64,12 @@ def get_forgotten_favorites_playlist():
     return _row_playlist("forgotten_favorites", "forgottenfavorites", "Forgotten favorites")
 
 
+def get_top_rated_playlist():
+    # What the user rates 4 or 5 NOW (`TopRatedEntry.current`), not as of the last run.
+    items = HomepageStore.entries["top_rated"].current(get_current_userid())
+    return _playlist("toprated", "Your top rated", [item["hash"] for item in items])
+
+
 def get_deep_cuts_playlist():
     return _row_playlist("deep_cuts", "deepcuts", "Deep cuts")
 

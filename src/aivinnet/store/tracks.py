@@ -151,6 +151,20 @@ class TrackStore:
         print("Done!")
 
     @classmethod
+    def ratings_of(cls, userid: int) -> dict[str, int]:
+        """
+        `trackhash -> rating` of one user (#777), from RAM. `api/ratings.py` keeps
+        `rated_by` current on every change, so the routines need no database read.
+        """
+        ratings: dict[str, int] = {}
+        for trackhash, group in list(cls.trackhashmap.items()):
+            if group.tracks:
+                rating = group.tracks[0].rating_of(userid)
+                if rating is not None:
+                    ratings[trackhash] = rating
+        return ratings
+
+    @classmethod
     def add_track(cls, track: Track):
         """
         Adds a single track to the store.

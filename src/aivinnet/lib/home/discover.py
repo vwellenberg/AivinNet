@@ -28,6 +28,12 @@ from pendulum.tz import local_timezone
 
 DAY = 86400
 
+# The user's own ratings (#777) where the rules read them: a track rated this
+# high is one the user wants (mixes and stations put it first), and one rated
+# DISLIKED is one they never want to hear there.
+RATING_LIKED = 4
+RATING_DISLIKED = 1
+
 # A pause longer than this between two plays starts a new listening session.
 # Measured from play START to play start, so it also covers a long track.
 SESSION_GAP = 30 * 60
