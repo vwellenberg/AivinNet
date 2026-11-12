@@ -426,6 +426,7 @@
   },
   "GET /plugins/": {},
   "GET /ratings": {},
+  "GET /ratings/import-from-files/job/{job_id}": {},
   "GET /ratings/{trackhash}": {},
   "GET /search/": {
     "query": {
@@ -1211,6 +1212,7 @@
       "type": "json"
     }
   },
+  "POST /ratings/import-from-files": {},
   "POST /ratings/set": {
     "body": {
       "allowed": [

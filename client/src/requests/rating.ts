@@ -1,5 +1,6 @@
 import { paths } from '@/config'
 import { NotifType } from '@/enums'
+import { pollJob } from './metadata'
 import useAxios from './useAxios'
 
 import { useToast as notif } from '@/stores/notification'
@@ -47,4 +48,37 @@ export async function getAllTrackRatings(): Promise<Record<string, number>> {
     if (error || !data) return {}
 
     return (data as { ratings: Record<string, number> }).ratings ?? {}
+}
+
+export interface RatingImportReport {
+    imported: number
+    skipped: number
+    unreadable: number
+}
+
+const IMPORT_TIMEOUT_MS = 15 * 60_000
+
+/**
+ * Reads every library file's rating into the current user's ratings (admin only).
+ * Starts the job and polls it until the report is in, through the shared
+ * `pollJob`: it rides out a few failed polls instead of giving up on the first.
+ */
+export async function importRatingsFromFiles(): Promise<{ report: RatingImportReport | null; error: string | null }> {
+    const { data, status } = await useAxios({
+        url: paths.api.importRatings,
+        props: {},
+    })
+
+    const jobId = (data?.job as string) || null
+    if (!jobId) {
+        const reason = status === 409 ? 'An import is already running' : 'The import could not start'
+        return { report: null, error: (data?.msg as string) || reason }
+    }
+
+    const { result, error } = await pollJob<RatingImportReport>(jobId, {
+        timeout: IMPORT_TIMEOUT_MS,
+        what: 'import',
+        base: `${paths.api.importRatings}/job`,
+    })
+    return { report: result, error }
 }

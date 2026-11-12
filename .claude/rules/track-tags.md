@@ -525,3 +525,51 @@ w.save()
 
 Bei anderen Formaten reicht `add_tags()` + `save()` — danach die Datei aber **neu öffnen**,
 sonst greift das vereinfachte Interface nicht (`'…' not a Frame instance`).
+
+## Bewertungen in den Dateien (#789)
+
+Opt-in über `writeRatingsToFiles` (Einstellungen → Bibliothek → Ratings, Admin, ab Werk aus).
+Code: `lib/rating_tags.py` (reine Abbildung + mutagen-I/O), `lib/rating_files.py` (Jobs),
+`api/ratings.py`.
+
+- **Formate:** MP3 und WAV: ID3 `POPM` mit E-Mail `Windows Media Player 9 Series`, 1..5 → 1/64/128/196/255.
+  FLAC, Ogg Vorbis, Opus: Vorbis-Kommentar `RATING` mit 20/40/60/80/100. M4A/MP4: Atom `rate`, derselbe
+  0..100-String. Andere Formate: `unsupported`, Datei unberührt.
+- **Lesen:** Ein POPM mit WMP-E-Mail gewinnt, sonst das erste POPM beliebiger E-Mail. Bytes zurück über
+  1–31→1, 32–95→2, 96–159→3, 160–223→4, 224–255→5; `RATING` und `rate` werden auf 1..5 gerundet, 0 heißt „keine“.
+- **Löschen** entfernt nur, was wir schreiben (WMP-POPM, `RATING`, `rate`). Ein POPM anderer E-Mail bleibt.
+- **Mehrere User:** Es gibt nur ein Feld pro Datei. Geschrieben wird die Bewertung des User, der **zuletzt**
+  bewertet hat (`TrackRatingTable.latest_rating_of_track`: jüngster Zeitstempel). Der Job liest das beim
+  Lauf aus der Datenbank, nicht aus dem Request. Das ist dokumentiert, nicht versteckt.
+- **Ein Hash, mehrere Dateien:** Alle Dateien des Hashs bekommen dieselbe Bewertung (`TrackStore.trackhashmap`).
+- **Job, nie im Request:** `rating_files.queue_write` über `mbjobs` mit `writes=True`; pro Datei
+  `WRITERS.active()`, und `stopping()` wird vor jeder Datei geprüft. Ein serieller Schreib-Lock hält
+  zwei Jobs für dieselbe Datei auseinander.
+- **Backup wie der Tag-Editor:** `.bak`-Kopie vor dem Schreiben, bei Fehler zurückkopiert, danach gelöscht.
+  Ein übrig gebliebenes `.bak` blockiert das Schreiben und bleibt liegen. Der Preis ist ein Kopieren der
+  ganzen Datei pro Bewertung; er steht im Job, nicht im Request.
+- **mtime und `added`:** Das Schreiben ändert die mtime. Der nächste Scan liest die Datei neu. Weil
+  `filter_modded` das `added` der Zeile mitnimmt und `tag_untagged` es übernimmt, bleibt `added` erhalten.
+  Der trackhash hängt an Titel, Album und Interpret, nicht an der Bewertung, und ändert sich deshalb nicht.
+  Die RAM-Zeile hat bis zum Rescan eine veraltete `last_mod`; das ist harmlos, weil der Rescan sie ersetzt.
+- **Import** (`POST /ratings/import-from-files`, Admin, Job, 409 solange einer läuft): liest jede Datei und
+  legt die Bewertung des auslösenden Users an, wo er keine hat (bestehende gewinnt). Gezählt wird pro
+  Track (trackhash): `imported`, `skipped` (schon bewertet, keine Bewertung in den Dateien, oder kein
+  lesbares Format), `unreadable` (unterstütztes Format, aber nicht lesbar). Danach RAM `rated_by` **aus der
+  Tabelle** setzen, nicht aus den Dateien: Eine Bewertung, die der User während des Imports vergeben hat,
+  gewinnt in der Tabelle (`ON CONFLICT DO NOTHING`) und muss es im RAM auch. Kein automatischer Import beim Scan.
+- ⚠️ **Fremde Player schreiben RATING in drei Skalen:** 0..100 (MediaMonkey, diese App), 1..5 (foobar2000),
+  0.0..1.0 (Kodi). `stars_from_text` liest alle drei; als 0..100 gelesen wurde eine foobar-5 zu 1 Stern, und
+  ein Dezimalwert machte die Datei „unlesbar“. Geschrieben wird 20..100.
+- ⚠️ **Die ID3-Version bleibt.** mutagen speichert ab Werk v2.4; eine v2.3-Datei (Mp3tag, WMP) kam mit der
+  ersten Bewertung als v2.4 zurück, und ältere Windows- und Autoradio-Player lesen ihre Tags dann nicht mehr
+  — ausgerechnet die Player, für die die Bewertung in die Datei geht (`_save_id3`).
+- **Ein Klick, ein Job — aber nur einer pro Track in der Warteschlange.** Der Job liest die Bewertung erst
+  beim Start; wartet schon einer für den Track, legt ein weiterer Klick keinen zweiten an (sonst je Klick
+  eine Kopie der ganzen Datei). Ein Fehlschlag steht im Log (`Rating not written into …`), denn niemand
+  fragt den Schreib-Job ab.
+- **Löschen schreibt die neueste VERBLIEBENE Bewertung** eines anderen Users, falls es eine gibt: Die Datei
+  trägt immer die jüngste Bewertung, die es gibt. Bei Gleichstand in derselben Sekunde entscheidet die
+  jüngere Zeile; genauer messen die Zeitstempel nicht.
+- **Ein Stopp schreibt nichts mehr:** Der Import bricht vor dem Einfügen ab, und das Einfügen läuft unter
+  `WRITERS.active()`, damit der Stopp nicht den DB-Pool darunter schließt (CLAUDE.md, „STOPPEN“).

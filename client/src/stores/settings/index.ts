@@ -57,6 +57,7 @@ export default defineStore('settings', {
         merge_albums: false,
         show_albums_as_singles: false,
         write_cover_to_files: true,
+        write_ratings_to_files: false,
         online_metadata: false,
         separators: <string[]>[],
 
@@ -138,6 +139,7 @@ export default defineStore('settings', {
             this.separators = settings.artistSeparators
             this.show_albums_as_singles = settings.showAlbumsAsSingles
             this.write_cover_to_files = settings.writeCoverToFiles
+            this.write_ratings_to_files = settings.writeRatingsToFiles
             this.online_metadata = settings.enableOnlineMetadata
 
             this.lastfm_api_key = settings.lastfmApiKey
@@ -419,6 +421,9 @@ export default defineStore('settings', {
         },
         async toggleWriteCoverToFiles() {
             return await this.genericToggleSetting('writeCoverToFiles', !this.write_cover_to_files, 'write_cover_to_files')
+        },
+        async toggleWriteRatingsToFiles() {
+            return await this.genericToggleSetting('writeRatingsToFiles', !this.write_ratings_to_files, 'write_ratings_to_files')
         },
         async toggleOnlineMetadata() {
             return await this.genericToggleSetting('enableOnlineMetadata', !this.online_metadata, 'online_metadata')

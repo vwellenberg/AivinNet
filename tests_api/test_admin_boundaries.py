@@ -383,7 +383,7 @@ def test_ordinary_settings_still_write(api_client, as_role):
         UserConfig().usersOnLogin = before
 
 
-@pytest.mark.parametrize("key", ["enableOnlineMetadata", "writeCoverToFiles"])
+@pytest.mark.parametrize("key", ["enableOnlineMetadata", "writeCoverToFiles", "writeRatingsToFiles"])
 def test_the_switches_the_settings_screen_now_offers_write(api_client, as_role, key):
     """Both were config fields without a switch in the app — the docs pointed to
     "the settings" for them anyway. The client now sends exactly these keys."""

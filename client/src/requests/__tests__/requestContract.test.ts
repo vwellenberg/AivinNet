@@ -189,6 +189,7 @@ const CALLS: Record<string, unknown[]> = {
     'rating/setTrackRating': ['a1b2c3d4e5f60718', 4],
     'rating/clearTrackRating': ['a1b2c3d4e5f60718'],
     'rating/getAllTrackRatings': [],
+    'rating/importRatingsFromFiles': [],
     'folders/getFiles': ['/music'],
     'folders/openInFiles': ['/music/a.flac'],
     'folders/getTracksInPath': ['/music'],

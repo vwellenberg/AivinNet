@@ -95,6 +95,7 @@ export interface DBSettings {
   mergeAlbums: boolean;
   showAlbumsAsSingles: boolean;
   writeCoverToFiles: boolean;
+  writeRatingsToFiles: boolean;
   enableOnlineMetadata: boolean;
   plugins: Plugin[];
   version: string;
