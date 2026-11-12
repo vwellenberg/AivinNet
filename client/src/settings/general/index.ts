@@ -24,7 +24,8 @@ import BackupSvg from '@/assets/icons/backup.svg?raw'
 import CoverSvg from '@/assets/icons/cover.svg?raw'
 import FolderSvg from '@/assets/icons/folder.svg?raw'
 import TrackSvg from '@/assets/icons/note.svg?raw'
-import RatingSvg from '@/assets/icons/heart.svg?raw'
+// The star, not the heart: the heart is the favourite in this app (#777).
+import RatingSvg from '@/assets/icons/star.svg?raw'
 import AppearanceSvg from '@/assets/icons/paintbrush.svg?raw'
 
 const npStrings = strings.nowPlayingStrings
