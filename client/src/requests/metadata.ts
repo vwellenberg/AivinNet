@@ -124,13 +124,18 @@ async function start(url: string, props: object): Promise<{ job: string | null; 
  */
 export async function pollJob<T>(
     jobId: string,
-    { timeout = LOOKUP_TIMEOUT_MS, what = 'lookup' }: { timeout?: number; what?: string } = {}
+    {
+        timeout = LOOKUP_TIMEOUT_MS,
+        what = 'lookup',
+        base = '/metadata/job',
+    }: { timeout?: number; what?: string; base?: string } = {}
 ): Promise<{ result: T | null; error: string | null }> {
     const deadline = Date.now() + timeout
     let misses = 0
 
     while (Date.now() < deadline) {
-        const { data, status } = await useAxios({ url: `/metadata/job/${jobId}`, method: 'GET' })
+        // `base`: the job's status route; the ratings import has its own, admin-only one (#789).
+        const { data, status } = await useAxios({ url: `${base}/${jobId}`, method: 'GET' })
 
         // Only the server saying so means the job is gone.
         if (status === 404) {

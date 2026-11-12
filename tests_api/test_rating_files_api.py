@@ -401,3 +401,55 @@ def test_a_second_import_while_one_runs_is_refused(ratings_api, admin, import_li
 
 def test_an_unknown_import_job_is_404(ratings_api, admin):
     assert ratings_api.get("/ratings/import-from-files/job/deadbeef").status_code == 404
+
+
+# --- review of #789 ---------------------------------------------------------
+
+
+def test_clicks_before_the_job_starts_queue_one_write(monkeypatch):
+    """Each click used to start a job and a whole-file backup copy; the job reads the rating when it runs."""
+    from aivinnet.lib import mbjobs, rating_files
+
+    started: list = []
+    monkeypatch.setattr(mbjobs, "spawn", lambda job_id, work, writes=False: started.append(work))
+    monkeypatch.setattr(rating_files, "write_group", lambda trackhash: {"written": 1})
+
+    first = rating_files.queue_write("hash-x")
+    second = rating_files.queue_write("hash-x")
+    assert first is not None and second is None
+    assert len(started) == 1
+
+    started[0]()  # the job runs and leaves the queue: the next click queues again
+    assert rating_files.queue_write("hash-x") is not None
+
+
+def test_a_stopping_import_writes_nothing(import_library, two_users, monkeypatch):
+    """A stop closes the DB pool; an insert after it is the SIGSEGV / leftover-WAL case."""
+    from aivinnet.lib import rating_files
+    from aivinnet.utils.shutdown import WRITERS
+
+    monkeypatch.setattr(WRITERS, "stopping", lambda: True)
+
+    report = rating_files.read_group(1)
+
+    assert report.get("stopped") is True
+    assert _stored() == {}
+
+
+def test_ram_follows_the_table_after_an_import(import_library, two_users, monkeypatch):
+    """A rating the user set while the import read the files wins in the table AND in RAM."""
+    from aivinnet.db.userdata import TrackRatingTable
+    from aivinnet.lib import rating_files
+
+    real_insert = TrackRatingTable.insert_missing.__func__
+
+    def user_rated_meanwhile(cls, userid, ratings, timestamp=None):
+        TrackRatingTable.set_rating("hash-a", userid, 5)  # arrives during the import
+        real_insert(cls, userid, ratings, timestamp)
+
+    monkeypatch.setattr(TrackRatingTable, "insert_missing", classmethod(user_rated_meanwhile))
+
+    rating_files.read_group(1)
+
+    assert _stored()[("hash-a", 1)] == 5
+    assert import_library["hash-a"].tracks[0].rating_of(1) == 5

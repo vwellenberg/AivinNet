@@ -279,3 +279,44 @@ def test_module_exposes_the_formats_it_writes():
     assert rating_tags.is_supported("a.opus")
     assert rating_tags.is_supported("a.m4a")
     assert not rating_tags.is_supported("a.wma")
+
+
+# --- review of #789 ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "stars"),
+    [
+        ("80", 4),  # 0..100, MediaMonkey and this app
+        ("100", 5),
+        ("5", 5),  # 1..5, foobar2000: read as 0..100 it was 1 star
+        ("3", 3),
+        ("0.8", 4),  # 0.0..1.0, Kodi: int() made the file "unreadable"
+        ("4.0", 4),
+        (b"60", 3),  # an MP4 atom handed over as bytes
+        ("0", None),
+    ],
+)
+def test_other_players_rating_scales_are_read(raw, stars):
+    assert rating_tags.stars_from_text(raw) == stars
+
+
+def test_a_rating_that_is_no_number_is_unreadable():
+    with pytest.raises(RatingTagError):
+        rating_tags.stars_from_text("five")
+
+
+def test_an_id3v23_tag_stays_v23(tmp_path):
+    """mutagen saves v2.4 by default; older Windows and car players read v2.3 only."""
+    from mutagen.id3 import ID3, TIT2
+
+    path = tmp_path / "old.mp3"
+    _make_mp3(path)
+    tags = ID3()
+    tags.add(TIT2(encoding=1, text="Song"))
+    tags.save(str(path), v2_version=3)
+
+    rating_tags.write_rating(str(path), 4)
+
+    assert ID3(str(path)).version[:2] == (2, 3)
+    assert rating_tags.read_rating(str(path)) == 4

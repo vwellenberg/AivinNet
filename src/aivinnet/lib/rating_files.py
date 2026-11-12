@@ -41,6 +41,12 @@ _write_lock = threading.Lock()
 # One import at a time: a second one would count the same ratings twice.
 _import_lock = threading.Lock()
 
+# Tracks with a write queued but not started. Clicking through the stars queued a
+# job (and a whole-file backup copy) per click; the job reads the rating when it
+# runs, so one waiting job per track already writes the last state.
+_queued: set[str] = set()
+_queued_lock = threading.Lock()
+
 
 def _group_filepaths(trackhash: str) -> list[str]:
     group = TrackStore.trackhashmap.get(trackhash)
@@ -98,6 +104,8 @@ def write_group(trackhash: str) -> dict:
                 with WRITERS.active():
                     result = _write_one(filepath, stars)
             except (RatingTagError, OSError) as exc:
+                # Nobody polls a write job: the log is where a failure is seen.
+                log.warning("Rating not written into %s: %s", filepath, exc)
                 report["failed"].append({"filepath": filepath, "error": str(exc)})
                 continue
 
@@ -111,11 +119,23 @@ def write_group(trackhash: str) -> dict:
     return report
 
 
-def queue_write(trackhash: str) -> str:
-    """Start `write_group` in a job and return its id."""
+def queue_write(trackhash: str) -> str | None:
+    """Start `write_group` in a job and return its id; None when one is already waiting for the track."""
+    with _queued_lock:
+        if trackhash in _queued:
+            return None
+        _queued.add(trackhash)
+
+    def work() -> dict:
+        # Leaves the queue before reading the rating: a click after this point
+        # queues a new job, which then writes the newer state.
+        with _queued_lock:
+            _queued.discard(trackhash)
+        return write_group(trackhash)
+
     job_id = mbjobs.create()
     # writes=True: a non-daemon thread, so a stop waits for the file in hand.
-    mbjobs.spawn(job_id, lambda: write_group(trackhash), writes=True)
+    mbjobs.spawn(job_id, work, writes=True)
     return job_id
 
 
@@ -135,7 +155,10 @@ def read_group(userid: int) -> dict:
 
     for trackhash, group in list(TrackStore.trackhashmap.items()):
         if WRITERS.stopping():
-            break
+            # Nothing is written when stopping: the shutdown closes the database
+            # pool, and an insert racing it is the SIGSEGV / leftover-WAL case.
+            report["stopped"] = True
+            return report
 
         if trackhash in existing:
             report["skipped"] += 1
@@ -154,8 +177,9 @@ def read_group(userid: int) -> dict:
                 log.warning("Rating import: %s", exc)
                 continue
             readable += 1
-            if value is not None and rating is None:
+            if value is not None:
                 rating = value
+                break  # one rating per track; the other files need not be opened
 
         if rating is not None:
             found[trackhash] = rating
@@ -165,11 +189,16 @@ def read_group(userid: int) -> dict:
             report["skipped"] += 1
 
     if found:
-        TrackRatingTable.insert_missing(userid, found)
-        for trackhash, rating in found.items():
+        # Held as a writer, so a stop waits for the insert instead of closing the pool under it.
+        with WRITERS.active():
+            TrackRatingTable.insert_missing(userid, found)
+            # RAM from the table, not from the files: a rating the user set while the
+            # import ran survives the insert (existing wins), and RAM must say the same.
+            stored = TrackRatingTable.of_user(userid)
+        for trackhash in found:
             group = TrackStore.trackhashmap.get(trackhash)
-            if group is not None:
-                group.set_rating(userid, rating)
+            if group is not None and trackhash in stored:
+                group.set_rating(userid, stored[trackhash])
     report["imported"] = len(found)
     return report
 

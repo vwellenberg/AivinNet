@@ -555,5 +555,21 @@ Code: `lib/rating_tags.py` (reine Abbildung + mutagen-I/O), `lib/rating_files.py
 - **Import** (`POST /ratings/import-from-files`, Admin, Job, 409 solange einer läuft): liest jede Datei und
   legt die Bewertung des auslösenden Users an, wo er keine hat (bestehende gewinnt). Gezählt wird pro
   Track (trackhash): `imported`, `skipped` (schon bewertet, keine Bewertung in den Dateien, oder kein
-  lesbares Format), `unreadable` (unterstütztes Format, aber nicht lesbar). Danach RAM `rated_by` aktualisieren.
-  Kein automatischer Import beim Scan.
+  lesbares Format), `unreadable` (unterstütztes Format, aber nicht lesbar). Danach RAM `rated_by` **aus der
+  Tabelle** setzen, nicht aus den Dateien: Eine Bewertung, die der User während des Imports vergeben hat,
+  gewinnt in der Tabelle (`ON CONFLICT DO NOTHING`) und muss es im RAM auch. Kein automatischer Import beim Scan.
+- ⚠️ **Fremde Player schreiben RATING in drei Skalen:** 0..100 (MediaMonkey, diese App), 1..5 (foobar2000),
+  0.0..1.0 (Kodi). `stars_from_text` liest alle drei; als 0..100 gelesen wurde eine foobar-5 zu 1 Stern, und
+  ein Dezimalwert machte die Datei „unlesbar“. Geschrieben wird 20..100.
+- ⚠️ **Die ID3-Version bleibt.** mutagen speichert ab Werk v2.4; eine v2.3-Datei (Mp3tag, WMP) kam mit der
+  ersten Bewertung als v2.4 zurück, und ältere Windows- und Autoradio-Player lesen ihre Tags dann nicht mehr
+  — ausgerechnet die Player, für die die Bewertung in die Datei geht (`_save_id3`).
+- **Ein Klick, ein Job — aber nur einer pro Track in der Warteschlange.** Der Job liest die Bewertung erst
+  beim Start; wartet schon einer für den Track, legt ein weiterer Klick keinen zweiten an (sonst je Klick
+  eine Kopie der ganzen Datei). Ein Fehlschlag steht im Log (`Rating not written into …`), denn niemand
+  fragt den Schreib-Job ab.
+- **Löschen schreibt die neueste VERBLIEBENE Bewertung** eines anderen Users, falls es eine gibt: Die Datei
+  trägt immer die jüngste Bewertung, die es gibt. Bei Gleichstand in derselben Sekunde entscheidet die
+  jüngere Zeile; genauer messen die Zeitstempel nicht.
+- **Ein Stopp schreibt nichts mehr:** Der Import bricht vor dem Einfügen ab, und das Einfügen läuft unter
+  `WRITERS.active()`, damit der Stopp nicht den DB-Pool darunter schließt (CLAUDE.md, „STOPPEN“).

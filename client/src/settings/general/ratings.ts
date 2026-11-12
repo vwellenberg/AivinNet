@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+
 import { Setting } from '@/interfaces/settings'
 import { SettingType } from '../enums'
 import { importRatingsFromFiles } from '@/requests/rating'
@@ -19,7 +21,8 @@ const write_ratings_to_files: Setting = {
     action: () => settings().toggleWriteRatingsToFiles(),
 }
 
-let importing = false
+// A ref, not a plain `let`: the settings page re-renders the button from it.
+const importing = ref(false)
 
 // Takes the ratings the files already carry into this account, where it has none.
 // The report comes back as a notification: imported, skipped, unreadable.
@@ -28,10 +31,10 @@ const import_ratings: Setting = {
     desc: 'Takes the ratings the files carry (from other players too) for this account. Existing ratings are kept.',
     type: SettingType.button,
     state: null,
-    inactive: () => importing,
-    button_text: () => (importing ? 'Importing…' : 'Import'),
+    inactive: () => importing.value,
+    button_text: () => (importing.value ? 'Importing…' : 'Import'),
     action: async () => {
-        importing = true
+        importing.value = true
         try {
             const { report, error } = await importRatingsFromFiles()
             if (error || !report) {
@@ -43,7 +46,7 @@ const import_ratings: Setting = {
                 report.unreadable > 0 ? NotifType.Info : NotifType.Success
             )
         } finally {
-            importing = false
+            importing.value = false
         }
     },
 }

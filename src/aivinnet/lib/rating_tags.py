@@ -77,6 +77,29 @@ def stars_from_percent(value: int) -> int | None:
     return max(1, min(5, (value + 10) // 20))
 
 
+def stars_from_text(raw: object) -> int | None:
+    """
+    Stars for a Vorbis RATING or MP4 `rate` value as other players write it.
+
+    Three scales are in the wild: 0..100 (MediaMonkey, this app), 1..5 (foobar2000)
+    and 0.0..1.0 (Kodi, some MusicBee setups). Reading them all as 0..100 turned a
+    foobar 5 into 1 star, and a decimal made the whole file "unreadable".
+    """
+    text = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
+    text = text.strip()
+    try:
+        value = float(text)
+    except ValueError as exc:
+        raise RatingTagError(f"Not a rating: {text!r}") from exc
+    if value <= 0:
+        return None
+    if value <= 1 and "." in text:
+        return max(1, min(5, round(value * 5)))
+    if value <= 5:
+        return max(1, min(5, round(value)))
+    return stars_from_percent(round(value))
+
+
 def rating_from_popm(frames: list[tuple[str, int]]) -> int | None:
     """
     The rating of a file from its POPM frames, given as (email, byte) pairs.
@@ -172,13 +195,26 @@ def _write_id3(filepath: str, stars: int | None) -> None:
     if stars is None:
         if audio.tags is not None and key in audio.tags:
             del audio.tags[key]
-            audio.save()
+            _save_id3(audio)
         return
     if audio.tags is None:
         audio.add_tags()
     # The frame's hash key is "POPM:<email>", so adding replaces this email's frame only.
     audio.tags.add(POPM(email=WMP_EMAIL, rating=popm_value(stars), count=0))
-    audio.save()
+    _save_id3(audio)
+
+
+def _save_id3(audio) -> None:
+    """
+    Keep the tag's ID3 version. mutagen saves v2.4 by default, and a v2.3 file
+    (Mp3tag, WMP) upgraded to v2.4 loses its tags in older Windows and car
+    players, the very players the rating is written for.
+    """
+    version = getattr(audio.tags, "version", (2, 4, 0))
+    if version[:2] == (2, 3):
+        audio.save(v2_version=3)
+    else:
+        audio.save()
 
 
 def _read_id3(filepath: str) -> int | None:
@@ -215,7 +251,7 @@ def _read_vorbis(filepath: str) -> int | None:
     values = audio.tags.get("RATING")
     if not values:
         return None
-    return stars_from_percent(int(str(values[0]).strip()))
+    return stars_from_text(values[0])
 
 
 def _write_mp4(filepath: str, stars: int | None) -> None:
@@ -242,4 +278,4 @@ def _read_mp4(filepath: str) -> int | None:
     values = audio.tags.get("rate")
     if not values:
         return None
-    return stars_from_percent(int(values[0]))
+    return stars_from_text(values[0])
