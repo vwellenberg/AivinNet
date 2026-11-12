@@ -462,6 +462,37 @@ def test_play_all_plays_more_forgotten_favorites_than_the_row_shows(home, histor
     assert len(home.get("/playlists/forgottenfavorites").get_json()["tracks"]) == 10
 
 
+def test_your_top_rated_is_a_row_and_a_playlist(home, history, monkeypatch):
+    """#788: rated 4 or 5, never played first; a rating of 3 stays out. The row
+    and "Play all" are the same tracks, the row shows its own limit."""
+    import aivinnet.lib.home.onrepeat as onrepeat
+    from aivinnet.db.userdata import TrackRatingTable
+    from aivinnet.lib.recipes.homerows import TopRated
+
+    monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
+    TrackRatingTable.set_rating(th(FNM, 4), 1, 5)
+    TrackRatingTable.set_rating(th(MILES, 1), 1, 4)
+    TrackRatingTable.set_rating(th(PRIMUS, 1), 1, 3)
+    TopRated()
+
+    data, _ = rows(home)
+    items = data["top_rated"]["items"]
+    assert [i["item"]["trackhash"] for i in items] == [th(MILES, 1), th(FNM, 4)]
+    assert items[0]["item"]["help_text"] == "rated 4 · not played yet"
+    assert items[1]["item"]["help_text"].startswith("rated 5 · last ")
+    assert data["top_rated"]["playlist"] == "toprated"
+
+    res = home.get("/playlists/toprated")
+    assert res.status_code == 200, res.text
+    body = res.get_json()
+    assert body["info"]["name"] == "Your top rated"
+    assert [t["trackhash"] for t in body["tracks"]] == [th(MILES, 1), th(FNM, 4)]
+
+    home.userid = 2
+    _, order = rows(home)
+    assert "top_rated" not in order
+
+
 def test_because_you_listened_plays_as_a_mix(home, history, monkeypatch):
     """ "Play mix" (#524): one track per album of the row — the one the user
     played most. Faith No More 1 to 3 tie at 11 plays; 3 was played last."""
@@ -532,6 +563,7 @@ def test_every_row_playlist_is_one_the_server_generates():
         "because_you_listened": "becauseyoulistened",
         "on_repeat": "onrepeat",
         "forgotten_favorites": "forgottenfavorites",
+        "top_rated": "toprated",
         "on_this_day": "onthisday",
         "almost_complete": "almostcomplete",
         "deep_cuts": "deepcuts",

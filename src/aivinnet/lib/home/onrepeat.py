@@ -64,6 +64,10 @@ def get_forgotten_favorites_playlist():
     return _row_playlist("forgotten_favorites", "forgottenfavorites", "Forgotten favorites")
 
 
+def get_top_rated_playlist():
+    return _row_playlist("top_rated", "toprated", "Your top rated")
+
+
 def get_deep_cuts_playlist():
     return _row_playlist("deep_cuts", "deepcuts", "Deep cuts")
 

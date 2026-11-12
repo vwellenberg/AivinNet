@@ -163,6 +163,43 @@ def test_well_known_and_never_played_alternate():
     assert known[:8] == [True, False] * 4
 
 
+def test_personal_ratings_no_ratings_is_the_same_draw():
+    library = library_of(*[album_tracks(f"a{n}", 3) for n in range(10)])
+    played = {"a0/1", "a1/1", "a2/1", "a3/1"}
+    all_plays = Counter(p.trackhash for t in played for p in plays_of(t, 4))
+    pool = [(t, t.split("/")[0]) for t in library]
+
+    assert station_tracks(pool, all_plays, all_plays, seed=7) == station_tracks(
+        pool, all_plays, all_plays, seed=7, ratings={}
+    )
+
+
+def test_a_track_rated_one_is_never_picked_known_or_fresh():
+    library = library_of(*[album_tracks(f"a{n}", 3) for n in range(10)])
+    played = {"a0/1", "a1/1", "a2/1", "a3/1"}
+    all_plays = Counter(p.trackhash for t in played for p in plays_of(t, 4))
+    pool = [(t, t.split("/")[0]) for t in library]
+
+    plain = station_tracks(pool, all_plays, all_plays, seed=7)
+    rated = {"a0/1": 1, next(t for t in plain if t not in played): 1}
+    tracks = station_tracks(pool, all_plays, all_plays, seed=7, ratings=rated)
+
+    # The library has 30 tracks: two gone leave 28, nothing else gets picked instead.
+    assert not set(rated) & set(tracks)
+    assert len(tracks) == 28
+
+
+def test_a_well_known_track_rated_high_is_drawn_first():
+    library = library_of(*[album_tracks(f"a{n}", 3) for n in range(10)])
+    played = {"a0/1", "a1/1", "a2/1", "a3/1"}
+    all_plays = Counter(p.trackhash for t in played for p in plays_of(t, 4))
+    pool = [(t, t.split("/")[0]) for t in library]
+
+    tracks = station_tracks(pool, all_plays, all_plays, seed=7, ratings={"a2/1": 5})
+
+    assert tracks[0] == "a2/1"
+
+
 def test_the_draw_is_the_same_for_a_day_and_changes_with_the_day():
     library = library_of(*[album_tracks(f"a{n}", 3) for n in range(10)])
     plays = plays_of("a0/1", 5)

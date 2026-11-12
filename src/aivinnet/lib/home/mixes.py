@@ -18,11 +18,21 @@ library tracks of an artist. Testable in the fast lane, strict under mypy.
 import math
 import random
 from collections import Counter, defaultdict, deque
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from aivinnet.lib.home.discover import DAY, Play, TrackFacts, _artists, _resolve, _Resolved, _sessions
+from aivinnet.lib.home.discover import (
+    DAY,
+    RATING_DISLIKED,
+    RATING_LIKED,
+    Play,
+    TrackFacts,
+    _artists,
+    _resolve,
+    _Resolved,
+    _sessions,
+)
 
 # The taste of the last half year: older sessions say who the user was.
 MIX_DAYS = 180
@@ -198,6 +208,7 @@ def mix_tracks(
     seed: int,
     length: int = MIX_LENGTH,
     max_per_album: int = MIX_MAX_PER_ALBUM,
+    ratings: Mapping[str, int] | None = None,
 ) -> list[str]:
     """
     The tracks of one mix: artist by artist in turn (the group's order), each
@@ -209,15 +220,28 @@ def mix_tracks(
     the artist's trackhashes in the library. The album of every track comes
     from `facts_of`, known or not, so the cap counts one album one way. The
     never-played tracks are shuffled with `seed`, so the mix changes from day
-    to day; the known ones stay in order.
+    to day; the known ones stay in order, the ones the user rated high first.
+    `ratings` (trackhash -> 1 to 5) leaves out what is rated `RATING_DISLIKED`,
+    known or not.
     """
     rng = random.Random(seed)
+    rated = ratings or {}
     queues: list[deque[str]] = []
 
     for artist in artists:
-        fresh = [trackhash for trackhash in sorted(set(tracks_of(artist))) if trackhash not in played]
+        fresh = [
+            trackhash
+            for trackhash in sorted(set(tracks_of(artist)))
+            if trackhash not in played and rated.get(trackhash) != RATING_DISLIKED
+        ]
         rng.shuffle(fresh)
-        favourites = [t for t, _ in sorted(known[artist].items(), key=lambda kv: (-kv[1], kv[0]))]
+        favourites = [
+            t
+            for t, _ in sorted(
+                ((t, n) for t, n in known[artist].items() if rated.get(t) != RATING_DISLIKED),
+                key=lambda kv: (-(rated.get(kv[0], 0) >= RATING_LIKED), -kv[1], kv[0]),
+            )
+        ]
 
         queue: deque[str] = deque()
         for i in range(max(len(favourites), len(fresh))):
@@ -260,6 +284,7 @@ def build_mixes(
     day: int,
     skip: Callable[[str], bool] = lambda artisthash: False,
     min_tracks: int = MIX_MIN_TRACKS,
+    ratings: Mapping[str, int] | None = None,
 ) -> list[Mix] | None:
     """
     The user's mixes, or None below the history threshold (`group_artists`).
@@ -275,7 +300,7 @@ def build_mixes(
     known, played = known_tracks(resolved, skip, since=now - MIX_DAYS * DAY)
     mixes = []
     for index, artists in enumerate(groups):
-        tracks = mix_tracks(artists, known, played, facts_of, tracks_of, seed=day * 31 + index)
+        tracks = mix_tracks(artists, known, played, facts_of, tracks_of, seed=day * 31 + index, ratings=ratings)
         if len(tracks) >= min_tracks:
             mixes.append(Mix(artists, tracks))
 

@@ -11,7 +11,7 @@ import logging
 
 import pendulum
 
-from aivinnet.db.userdata import ScrobbleTable
+from aivinnet.db.userdata import ScrobbleTable, TrackRatingTable
 from aivinnet.lib.home.stations import (
     STATION_COUNT,
     Station,
@@ -126,8 +126,14 @@ class RadioStations(HomepageRoutine):
                 return
 
             plays = list(ScrobbleTable.get_all(0, None, userid=userid))
-            genres, decades = build_stations(pools, plays, track_facts, now.timestamp(), day, names, skip=_skip)
-            seasons = build_season_stations(christmas, plays, library, now.timestamp(), day, year_start, year_end)
+            # Rated 1 is never picked, rated 4 and 5 come first (#788).
+            ratings = TrackRatingTable.of_user(userid)
+            genres, decades = build_stations(
+                pools, plays, track_facts, now.timestamp(), day, names, skip=_skip, ratings=ratings
+            )
+            seasons = build_season_stations(
+                christmas, plays, library, now.timestamp(), day, year_start, year_end, ratings=ratings
+            )
 
             if not genres and not decades and not seasons:
                 log.info("radio-stations: no genre, decade or season of user %s has enough plays and tracks", userid)

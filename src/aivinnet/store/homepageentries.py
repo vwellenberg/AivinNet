@@ -5,6 +5,7 @@ from aivinnet.db.userdata import ContinueDismissTable
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.homerows import CONTINUE_MAX_ITEMS
 from aivinnet.lib.home.recover_items import recover_items
+from aivinnet.lib.home.toprated import TOP_RATED_ROW_LIMIT
 
 
 class HomepageEntry(ABC):
@@ -98,6 +99,17 @@ class GenericRecoverableEntry(RecentlyPlayedHomepageEntry):
     # NOTE: This extends RecentlyPlayedHomepageEntry because
     # the shape of the data is the same.
     pass
+
+
+class TopRatedEntry(GenericRecoverableEntry):
+    """
+    "Your top rated" (#788): the routine keeps up to `TOP_RATED_PLAYLIST_LIMIT`
+    for "Play all", the row shows at most `TOP_RATED_ROW_LIMIT` of them.
+    """
+
+    def get_items(self, userid: int, limit: int | None = None):
+        most = TOP_RATED_ROW_LIMIT if limit is None else min(limit, TOP_RATED_ROW_LIMIT)
+        return super().get_items(userid, most)
 
 
 def _dismissed(item: dict[str, Any], dismissed: dict[tuple[str, str], int]) -> bool:

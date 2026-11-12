@@ -237,6 +237,45 @@ class TestBuild:
         assert MIX_PLAYLIST_IDS == ("mix1", "mix2", "mix3", "mix4")
 
 
+class TestRatings:
+    """Personal ratings (#788): 1 is never picked, 4 and 5 come first among the known."""
+
+    def _draw(self, ratings=None):
+        known, played = known_tracks(_resolved(two_tastes()))
+        return mix_tracks(["rhcp", "fnm", "primus"], known, played, facts, tracks_of, seed=1, ratings=ratings)
+
+    def test_no_ratings_is_the_same_draw_as_before(self):
+        assert self._draw() == self._draw(ratings={})
+
+    def test_a_track_rated_one_is_never_picked_known_or_fresh(self):
+        plain = self._draw()
+        played = {"rhcp1/1", "fnm1/1", "primus1/1", "rhcp1/2", "rhcp2/3"}
+        fresh = next(t for t in plain if t not in played)
+        rated = {"rhcp1/1": 1, "rhcp2/3": 1, fresh: 1}
+
+        tracks = self._draw(ratings=rated)
+
+        assert not set(rated) & set(tracks)
+        assert len(tracks) == len(plain)
+
+    def test_a_track_rated_high_comes_first_among_the_known(self):
+        # RHCP 1/5 is played once, RHCP 1/1 many times: rated 5, it leads RHCP.
+        plays = [*two_tastes(), Play("rhcp1/5", NOW - 2 * DAY)]
+        known, played = known_tracks(_resolved(plays))
+
+        plain = mix_tracks(["rhcp"], known, played, facts, tracks_of, seed=1)
+        rated = mix_tracks(["rhcp"], known, played, facts, tracks_of, seed=1, ratings={"rhcp1/5": 5})
+
+        assert plain[0] == "rhcp1/1"
+        assert rated[0] == "rhcp1/5"
+
+    def test_build_mixes_passes_the_ratings_down(self):
+        mixes = build_mixes(two_tastes(), facts, tracks_of, NOW, day=1, ratings={"rhcp1/1": 1})
+
+        assert mixes is not None
+        assert all("rhcp1/1" not in mix.tracks for mix in mixes)
+
+
 class TestPlaces:
     """A mix is served by its slot ("mix2"): it keeps the slot while its core does."""
 

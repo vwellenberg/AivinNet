@@ -2,7 +2,7 @@
 Routines for the personal homepage rows "Rediscover", "On this day",
 "Because you listened to …", "On repeat", "Never played", "Your <weekday>
 <evenings>", "Artists you might like", "Deep cuts", "Forgotten favorites",
-"Your mixes" and "Almost complete". The rules
+"Your mixes", "Your top rated" and "Almost complete". The rules
 themselves live in `lib/home/homerows.py` and `lib/home/discover.py`.
 
 Scheduled by `crons/__init__.py` (`schedule.every(cls.hours)`), deliberately
@@ -18,7 +18,7 @@ import logging
 import pendulum
 from pendulum.tz import local_timezone
 
-from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable
+from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable, TrackRatingTable
 from aivinnet.lib.albumslib import sort_by_track_no
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.almost_complete import (
@@ -69,6 +69,12 @@ from aivinnet.lib.home.homerows import (
     rediscover_item,
 )
 from aivinnet.lib.home.mixes import MIX_NAMED_ARTISTS, MIX_PLAYLIST_IDS, build_mixes, place_mixes
+from aivinnet.lib.home.toprated import (
+    TOP_RATED_MIN,
+    TOP_RATED_PLAYLIST_LIMIT,
+    rank_top_rated,
+    top_rated_item,
+)
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES, PLACEHOLDER_ARTIST_NAMES
 from aivinnet.lib.recipes import HomepageRoutine
 from aivinnet.lib.recipes.continuelistening import all_userids
@@ -580,6 +586,39 @@ class ForgottenFavorites(HomepageRoutine):
             HomepageStore.entries[self.store_key].items[userid] = [forgotten_favorite_item(*r) for r in ranked]
 
 
+class TopRated(HomepageRoutine):
+    """
+    "Your top rated" (#788): the tracks the user rated 4 or 5, the longest
+    unheard first (`lib/home/toprated.py`). Per user, every 6 hours.
+    """
+
+    hours = 6
+    store_key = "top_rated"
+
+    @property
+    def is_valid(self):
+        return True
+
+    def run(self):
+        for userid in all_userids():
+            if _stopping():
+                return
+
+            ratings = TrackRatingTable.of_user(userid)
+            if not any(rating >= TOP_RATED_MIN for rating in ratings.values()):
+                HomepageStore.entries[self.store_key].items[userid] = []
+                log.info("top-rated: user %s has no track rated %d or more", userid, TOP_RATED_MIN)
+                continue
+
+            scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            # More than the row shows: the rest are what "Play all" plays.
+            ranked = rank_top_rated(ratings, scrobbles, track_facts, limit=TOP_RATED_PLAYLIST_LIMIT)
+            if not ranked:
+                log.info("top-rated: no track rated %d or more of user %s is in the library", TOP_RATED_MIN, userid)
+
+            HomepageStore.entries[self.store_key].items[userid] = [top_rated_item(*r) for r in ranked]
+
+
 class AlmostComplete(HomepageRoutine):
     """
     "Almost complete" (#529): albums the user has heard at least 60 % of, with
@@ -686,6 +725,8 @@ class YourMixes(HomepageRoutine):
                 now.timestamp(),
                 day,
                 skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
+                # Rated 1 is never mixed in, rated 4 and 5 come first (#788).
+                ratings=TrackRatingTable.of_user(userid),
             )
 
             if mixes is None:

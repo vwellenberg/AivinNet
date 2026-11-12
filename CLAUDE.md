@@ -69,7 +69,7 @@ uvx --with xxhash --with unidecode --with pendulum --with requests \
   pytest tests/ -v --cov --cov-report=term-missing --cov-fail-under=10
 
 # Type checking (nur die strikten Module)
-uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/listening_clock.py src/aivinnet/lib/skip_rate.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py src/aivinnet/lib/home/layout.py src/aivinnet/lib/discoveries.py src/aivinnet/lib/listening_sources.py src/aivinnet/lib/home/almost_complete.py src/aivinnet/lib/records.py src/aivinnet/lib/home/recap.py src/aivinnet/lib/listening_devices.py src/aivinnet/lib/library_stats.py src/aivinnet/lib/replaygain.py src/aivinnet/lib/home/stations.py src/aivinnet/lib/home/advent.py src/aivinnet/lib/smart_playlists.py --config-file pyproject.toml
+uvx --with xxhash --with unidecode --with pendulum mypy@2.4.0 src/aivinnet/utils/hashing.py src/aivinnet/utils/dates.py src/aivinnet/utils/parsers.py src/aivinnet/utils/__init__.py src/aivinnet/lib/playlist_maintenance.py src/aivinnet/lib/home/discover.py src/aivinnet/lib/home/mixes.py src/aivinnet/lib/name_cleanup.py src/aivinnet/lib/reference_migration.py src/aivinnet/lib/listening_calendar.py src/aivinnet/lib/listening_clock.py src/aivinnet/lib/skip_rate.py src/aivinnet/lib/date_added.py src/aivinnet/lib/rewind.py src/aivinnet/lib/home/layout.py src/aivinnet/lib/discoveries.py src/aivinnet/lib/listening_sources.py src/aivinnet/lib/home/almost_complete.py src/aivinnet/lib/records.py src/aivinnet/lib/home/recap.py src/aivinnet/lib/listening_devices.py src/aivinnet/lib/library_stats.py src/aivinnet/lib/replaygain.py src/aivinnet/lib/home/stations.py src/aivinnet/lib/home/toprated.py src/aivinnet/lib/home/advent.py src/aivinnet/lib/smart_playlists.py --config-file pyproject.toml
 ```
 
 **Beide Testbahnen laufen auf Windows grün:** `uv run --frozen pytest tests_api/`
@@ -361,7 +361,7 @@ Wiedergabe für Android Auto, Scrobbles aus dem Player. Bauen, Sideload und Auto
 Hörsitzung“. Home zeigt oben die Rückblick-Karte (Mo: letzte Woche, am 1.: letzter Monat, #530; nicht in der Reihenfolge), dann Continue listening, Your mixes (lokale Mixes aus den eigenen
 Sitzungen, #526), Because you listened, On repeat, Recently played,
 Your weekday evenings (Zeitfenster), Never played, Artists you might like (aus den eigenen
-Playlists), Deep cuts, Forgotten favorites, Rediscover, Almost complete, On this day und Recently added. Welche davon und in
+Playlists), Deep cuts, Forgotten favorites, Your top rated (eigene Bewertungen 4–5, #788), Rediscover, Almost complete, On this day und Recently added. Welche davon und in
 welcher Reihenfolge, wählt jeder User selbst (Settings → Home, #532). Die früheren Mixes (an
 `smcloud.mungaist.com`) sind entfernt, weil der Dienst ab Ende Mai 2026 durchgehend mit 502
 antwortete; „Your mixes“ ersetzt sie ohne Dienst. Externe Quellen dürfen nur **anreichern**, nie die einzige Quelle einer Zeile sein.
