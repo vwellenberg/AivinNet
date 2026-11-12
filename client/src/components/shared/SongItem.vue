@@ -166,7 +166,9 @@ const dragOverClass = computed(() => {
 // so a list recompute handing over a fresh object for the SAME track would
 // reset a drag in progress.
 watch(
-    () => `${props.track.trackhash}:${props.index}`,
+    // `queue_index` too: the queue's sections each count from 1, so a track
+    // queued twice can show the same number in two of them.
+    () => `${props.track.trackhash}:${props.index}:${props.queue_index ?? ''}`,
     () => {
         context_menu_showing.value = false
         dragging.value = false
