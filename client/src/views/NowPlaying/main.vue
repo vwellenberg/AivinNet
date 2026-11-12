@@ -57,7 +57,7 @@ import SongItem from "@/components/shared/SongItem.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
 import { pageTint } from "@/utils/colortools/pageGradient";
 import { createDragAutoScroller } from "@/utils/dragAutoScroll";
-import { trackBandFade } from "@/utils/songItemMethods";
+import { queueRowProps } from "./queueRow";
 
 
 const queue = useQueueStore();
@@ -107,22 +107,7 @@ const scrollerItems = computed(() => {
     return {
       id: index,
       component: SongItem,
-      props: {
-        track,
-        index: index + 1,
-        is_first: index === 0,
-        is_last: index === store.tracklist.length - 1,
-        isCurrent: index === queue.currentindex,
-        isCurrentPlaying: index === queue.currentindex && queue.playing,
-        isQueueTrack: true,
-        // These rows ARE the queue, so that is the drop source — not the label
-        // of wherever the queue was originally filled from. `track.index` is
-        // overwritten with the queue position just above, so the index the drag
-        // carries is a queue index.
-        droppable: true,
-        source: dropSources.queue,
-        band_fade: trackBandFade(index + 1, store.tracklist.length),
-      },
+      props: queueRowProps(track, index, store.tracklist.length),
     };
   });
 
