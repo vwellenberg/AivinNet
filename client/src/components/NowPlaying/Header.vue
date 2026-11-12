@@ -44,31 +44,38 @@
                  looking for it. -->
             <Volume v-if="isMobile" class="np-volume" />
         </div>
-        <h3 v-if="queue.next" class="nowplaying_title">Up Next</h3>
-        <SongItem
-            v-if="queue.next"
-            :track="queue.next"
-            :index="queue.nextindex + 1"
-            :is_first="true"
-            :is_last="true"
-            :source="dropSources.folder"
-            @play-this="queue.playNext"
-        />
-        <h3 class="nowplaying_title">
-            Queue
-            <!-- The rows under this caption ARE `tracklist` (see the scroller in
-                 views/NowPlaying/main.vue), so its length is the queue's length —
-                 not a separate count that could drift from what is listed.
+        <!-- Under shuffle the list below is NOT the play order: the next track
+             is rolled at random. So the one honest "next" stays up here, and
+             the list is the whole queue with a marker in it. Without shuffle
+             the list itself is split into Played / Now playing / Up next
+             (views/NowPlaying/queueRow.ts) and needs neither caption. -->
+        <template v-if="settings.shuffle">
+            <h3 v-if="queue.next" class="nowplaying_title">Up Next</h3>
+            <SongItem
+                v-if="queue.next"
+                :track="queue.next"
+                :index="queue.nextindex + 1"
+                :is_first="true"
+                :is_last="true"
+                :source="dropSources.folder"
+                @play-this="queue.playNext"
+            />
+            <h3 class="nowplaying_title">
+                Queue
+                <!-- The rows under this caption ARE `tracklist` (see the scroller in
+                     views/NowPlaying/main.vue), so its length is the queue's length —
+                     not a separate count that could drift from what is listed.
 
-                 `aria-hidden`: inside the <h3> the number would become part of
-                 the heading's accessible name ("Queue 43") and change on every
-                 queue mutation, so heading navigation would announce a moving
-                 target. The count is a visual shorthand for the numbered rows
-                 right below it — which a screen reader reads anyway. -->
-            <span v-if="tracklist.tracklist.length" class="queue-count" aria-hidden="true">{{
-                tracklist.tracklist.length
-            }}</span>
-        </h3>
+                     `aria-hidden`: inside the <h3> the number would become part of
+                     the heading's accessible name ("Queue 43") and change on every
+                     queue mutation, so heading navigation would announce a moving
+                     target. The count is a visual shorthand for the numbered rows
+                     right below it — which a screen reader reads anyway. -->
+                <span v-if="tracklist.tracklist.length" class="queue-count" aria-hidden="true">{{
+                    tracklist.tracklist.length
+                }}</span>
+            </h3>
+        </template>
     </div>
 </template>
 
@@ -82,6 +89,7 @@ import { Routes } from '@/router'
 import { isMobile, isSmallPhone } from '@/stores/content-width'
 import useQueueStore from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
+import useSettings from '@/stores/settings'
 import { formatSeconds } from '@/utils'
 import { syncLauflicht } from '@/utils/lauflicht'
 
@@ -94,6 +102,7 @@ import PlayingFrom from './PlayingFrom.vue'
 
 const queue = useQueueStore()
 const tracklist = useTracklist()
+const settings = useSettings()
 
 // The player-bar cover has been running its comet since the app loaded; this
 // one starts now. Same angle on both (utils/lauflicht.ts).
