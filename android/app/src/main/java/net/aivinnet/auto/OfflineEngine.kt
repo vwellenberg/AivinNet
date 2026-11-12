@@ -40,6 +40,7 @@ class OfflineEngine private constructor(context: Context) {
 
     val store: OfflineStore
     val scrobbles: ScrobbleOutbox
+    val ratings: RatingOutbox
 
     /** One sync at a time: the worker, the activity and the manual button can all start one. */
     val syncLock = Mutex()
@@ -62,6 +63,16 @@ class OfflineEngine private constructor(context: Context) {
                 emptyList(),
                 OfflineJson::decodeQueue,
                 OfflineJson::encodeQueue,
+                ::offlineLog,
+            ),
+            ::offlineLog,
+        )
+        ratings = RatingOutbox(
+            JsonFile<List<QueuedRating>>(
+                File(context.filesDir, RATING_QUEUE_FILE),
+                emptyList(),
+                OfflineJson::decodeRatings,
+                OfflineJson::encodeRatings,
                 ::offlineLog,
             ),
             ::offlineLog,
@@ -113,10 +124,23 @@ class OfflineEngine private constructor(context: Context) {
         scrobbles.flush(owner) { sendScrobble(it, api::logPlay, ::offlineLog) }
     }
 
+    /** Sets (or clears, when [rating] is null) a rating: sent now, or kept in the queue if the server cannot take it. */
+    suspend fun recordRating(api: AivinApi, trackhash: String, rating: Int?) {
+        val owner = api.store.accountKey ?: return
+        ratings.record(owner, trackhash, rating) { sendRating(it, api, ::offlineLog) }
+    }
+
+    /** Sends the rating changes waiting for the signed-in account. */
+    suspend fun flushRatings(api: AivinApi) {
+        val owner = api.store.accountKey ?: return
+        ratings.flush(owner) { sendRating(it, api, ::offlineLog) }
+    }
+
     companion object {
         private const val CACHE_DIR = "media"
         private const val STORE_FILE = "offline.json"
         private const val SCROBBLE_QUEUE_FILE = "scrobble-queue.json"
+        private const val RATING_QUEUE_FILE = "rating-queue.json"
         private const val MAX_PARALLEL_DOWNLOADS = 3
 
         /** Used by [PlatformScheduler] for the job that restarts downloads when requirements are met again. */

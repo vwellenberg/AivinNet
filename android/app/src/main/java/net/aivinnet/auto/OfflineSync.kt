@@ -68,6 +68,7 @@ class OfflineSync(
         val direct = submit(adds, diff.toRemove)
 
         engine.flushScrobbles(api)
+        engine.flushRatings(api)
 
         Report(
             signedIn = true,

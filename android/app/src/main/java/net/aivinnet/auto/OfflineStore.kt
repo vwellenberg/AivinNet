@@ -111,6 +111,32 @@ object OfflineJson {
         }
     }
 
+    /** `{"version":1,"ratings":[{owner, trackhash, rating}]}`; a null rating means "clear". */
+    fun encodeRatings(entries: List<QueuedRating>): String {
+        val ratings = JSONArray()
+        for (entry in entries) {
+            ratings.put(
+                JSONObject()
+                    .put("owner", entry.owner)
+                    .put("trackhash", entry.trackhash)
+                    .put("rating", entry.rating ?: JSONObject.NULL),
+            )
+        }
+        return JSONObject().put("version", VERSION).put("ratings", ratings).toString()
+    }
+
+    fun decodeRatings(text: String): List<QueuedRating> {
+        val ratings = JSONObject(text).getJSONArray("ratings")
+        return (0 until ratings.length()).map { index ->
+            val obj = ratings.getJSONObject(index)
+            QueuedRating(
+                owner = obj.getString("owner"),
+                trackhash = obj.getString("trackhash"),
+                rating = if (obj.isNull("rating")) null else obj.getInt("rating"),
+            )
+        }
+    }
+
     private fun encodePlaylist(detail: PlaylistDetail): JSONObject {
         val tracks = JSONArray()
         detail.tracks.forEach { tracks.put(encodeTrack(it)) }

@@ -184,6 +184,32 @@ class AivinApi private constructor(
         if (code !in 200..299) throw ServerException(code, "Play nicht gemeldet (HTTP $code)")
     }
 
+    /** `POST /ratings/set`: rates the track (1–5), overwriting an earlier rating. */
+    suspend fun setRating(trackhash: String, rating: Int) = withContext(Dispatchers.IO) {
+        postJson("/ratings/set", RatingJson.setBody(trackhash, rating), "Bewertung nicht gespeichert")
+    }
+
+    /** `POST /ratings/clear`: removes the rating. Clearing an unrated track is a no-op on the server. */
+    suspend fun clearRating(trackhash: String) = withContext(Dispatchers.IO) {
+        postJson("/ratings/clear", RatingJson.clearBody(trackhash), "Bewertung nicht entfernt")
+    }
+
+    /** `GET /ratings/<trackhash>`: the current rating, or null when the track is unrated. */
+    suspend fun ratingOf(trackhash: String): Int? = withContext(Dispatchers.IO) {
+        val (code, text) = authedGet("/ratings/$trackhash")
+        if (code !in 200..299) throw ServerException(code, "Bewertung nicht abrufbar (HTTP $code)")
+        AivinJson.parseRating(text)
+    }
+
+    private fun postJson(path: String, body: String, failure: String) {
+        val request = Request.Builder()
+            .url(requireBaseUrl() + path)
+            .post(body.toRequestBody(JSON_TYPE))
+            .build()
+        val (code, _) = execute(authedClient, request)
+        if (code !in 200..299) throw ServerException(code, "$failure (HTTP $code)")
+    }
+
     /** The server URL, or [AuthExpiredException] when nobody is signed in. */
     fun requireBaseUrl(): String = store.baseUrl?.takeIf { store.isLoggedIn }
         ?: throw AuthExpiredException()
