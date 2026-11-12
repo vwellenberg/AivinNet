@@ -179,11 +179,11 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { SmartPlaylist } from '@/interfaces'
 import { DeleteIcon } from '@/icons'
 import { createSmartPlaylist, updateSmartPlaylist } from '@/requests/smartPlaylists'
+import useModal from '@/stores/modal'
 import useSmartPlaylistsStore from '@/stores/pages/smartPlaylists'
 import useSmartPlaylistPageStore from '@/stores/pages/smartPlaylist'
 import {
@@ -221,8 +221,6 @@ const emit = defineEmits<{
     (e: 'setTitle', title: string): void
     (e: 'hideModal'): void
 }>()
-
-const router = useRouter()
 
 emit('setTitle', props.playlist ? 'Edit smart playlist' : 'New smart playlist')
 
@@ -303,9 +301,10 @@ async function save() {
     const page = useSmartPlaylistPageStore()
     if (props.playlist && page.info.id === saved.value.id) void page.fetchPage(saved.value.id, true)
 
-    emit('hideModal')
-
-    if (!props.playlist) router.push({ name: 'SmartPlaylistView', params: { smartid: saved.value.id } })
+    // A new playlist opens its page. Through the modal store: closing pops a
+    // history entry, and a push of our own would be cancelled by it.
+    if (props.playlist) emit('hideModal')
+    else useModal().closeAndNavigate({ name: 'SmartPlaylistView', params: { smartid: saved.value.id } })
 }
 </script>
 

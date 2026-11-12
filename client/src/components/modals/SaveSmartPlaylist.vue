@@ -22,9 +22,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { saveSmartPlaylistAsPlaylist } from '@/requests/smartPlaylists'
+import useModal from '@/stores/modal'
 import usePlaylistListPageStore from '@/stores/pages/playlists'
 
 const props = defineProps<{
@@ -36,8 +36,6 @@ const emit = defineEmits<{
   (e: 'setTitle', title: string): void
   (e: 'hideModal'): void
 }>()
-
-const router = useRouter()
 
 emit('setTitle', 'Save as playlist')
 
@@ -64,8 +62,9 @@ async function save() {
 
   // The new playlist belongs in the list the playlists page shows.
   await usePlaylistListPageStore().fetchAll()
-  emit('hideModal')
-  router.push({ name: 'PlaylistView', params: { pid: saved.value.id } })
+  // Through the modal store: closing pops a history entry, and a push of our
+  // own would be cancelled by it.
+  useModal().closeAndNavigate({ name: 'PlaylistView', params: { pid: saved.value.id } })
 }
 </script>
 

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { RouteLocationRaw } from 'vue-router'
 
 import { Track } from '@/interfaces'
 
@@ -32,6 +33,8 @@ export default defineStore('newModal', {
         visible: false,
         /** Set while the open modal is doing something that must not be abandoned. */
         locked: false,
+        /** Where to go once the modal is closed: set by `closeAndNavigate`, taken by `modal.vue`. */
+        navigateTo: <RouteLocationRaw | null>null,
     }),
     actions: {
         showModal(modalOption: ModalOptions, props: any = {}) {
@@ -125,6 +128,24 @@ export default defineStore('newModal', {
 
             this.visible = false
             this.setTitle('')
+        },
+        /**
+         * Close the modal and go to `to`. Hiding it and then calling `router.push`
+         * does NOT work: `modal.vue` pops the history entry it pushed when the modal
+         * opened, and that Back cancels the navigation that has just started (the
+         * library check's "Open" closed the dialog and stayed on the page).
+         * `modal.vue` does the navigation instead, in place of the pop.
+         */
+        closeAndNavigate(to: RouteLocationRaw) {
+            if (this.locked) return
+            this.navigateTo = to
+            this.hideModal()
+        },
+        /** The pending `closeAndNavigate` target, cleared as it is read. */
+        takeNavigation(): RouteLocationRaw | null {
+            const to = this.navigateTo
+            this.navigateTo = null
+            return to
         },
         setLocked(locked: boolean) {
             this.locked = locked

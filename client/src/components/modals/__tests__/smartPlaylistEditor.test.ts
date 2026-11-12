@@ -22,6 +22,7 @@ vi.mock('vue-router', async importOriginal => ({
 }))
 
 import SmartPlaylistEditor from '@/components/modals/SmartPlaylistEditor.vue'
+import useModal from '@/stores/modal'
 
 const saved = {
     id: 9,
@@ -73,8 +74,10 @@ describe('SmartPlaylistEditor', () => {
             limit: 100,
             sort: { field: 'date_added', order: 'desc' },
         })
-        // A new playlist opens on its own page.
-        expect(pushMock).toHaveBeenCalledWith({ name: 'SmartPlaylistView', params: { smartid: 9 } })
+        // A new playlist opens on its own page, through the modal store: closing
+        // pops a history entry, and a push of the editor's own was cancelled by it.
+        expect(useModal().navigateTo).toEqual({ name: 'SmartPlaylistView', params: { smartid: 9 } })
+        expect(pushMock).not.toHaveBeenCalled()
     })
 
     it('shows the refusal the server answers with, and keeps the form', async () => {
@@ -90,7 +93,7 @@ describe('SmartPlaylistEditor', () => {
         await flushPromises()
 
         expect(w.find('[role="alert"]').text()).toBe('rule 2 (year between): low (2000) is above high (1990)')
-        expect(pushMock).not.toHaveBeenCalled()
+        expect(useModal().navigateTo).toBeNull()
         expect((w.find('#smart-name').element as HTMLInputElement).value).toBe('Broken')
     })
 
