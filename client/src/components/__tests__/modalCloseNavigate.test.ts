@@ -48,6 +48,7 @@ function makeRouter(): Router {
                 beforeEnter: () => new Promise(resolve => setTimeout(() => resolve(true), 30)),
             },
             { path: '/playlists/:pid', name: 'PlaylistView', component: Page },
+            { path: '/refused', name: 'Refused', component: Page, beforeEnter: () => false },
         ],
     })
 }
@@ -135,6 +136,47 @@ describe('closing a modal to go somewhere', () => {
         expect(modal.visible).toBe(true)
         expect(modal.navigateTo).toBeNull()
         expect(router.currentRoute.value.fullPath).toBe('/')
+        w.unmount()
+    })
+
+    it('a close-and-go on a modal the user already dismissed still goes, and leaves nothing pending', async () => {
+        const w = mount(ModalHost, { global: { plugins: [router] }, attachTo: document.body })
+        const modal = useModal()
+        modal.showModal(-1 as never)
+        await settle()
+        modal.hideModal() // the backdrop, while the dialog was still saving
+        await settle()
+
+        modal.closeAndNavigate({ name: 'PlaylistView', params: { pid: 7 } })
+        await settle()
+        expect(router.currentRoute.value.fullPath).toBe('/playlists/7')
+        expect(modal.navigateTo).toBeNull()
+
+        // The next, unrelated close goes nowhere.
+        await router.push('/')
+        modal.showModal(-1 as never)
+        await settle()
+        modal.hideModal()
+        await settle()
+        expect(router.currentRoute.value.fullPath).toBe('/')
+        w.unmount()
+    })
+
+    it('a refused destination leaves no copy of the page behind in history', async () => {
+        const w = mount(ModalHost, { global: { plugins: [router] }, attachTo: document.body })
+        const modal = useModal()
+        const before = history.length
+        modal.showModal(-1 as never)
+        await settle()
+
+        modal.closeAndNavigate({ name: 'Refused' })
+        await settle()
+
+        expect(router.currentRoute.value.fullPath).toBe('/')
+        expect(history.state?.aivinnetModal).toBeFalsy()
+        // Back from here leaves this page instead of landing on a copy of it.
+        expect(history.state?.current).toBe('/')
+        expect(history.length).toBeGreaterThanOrEqual(before)
         w.unmount()
     })
 })

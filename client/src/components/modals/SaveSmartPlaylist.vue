@@ -37,7 +37,6 @@ const emit = defineEmits<{
   (e: 'hideModal'): void
 }>()
 
-
 emit('setTitle', 'Save as playlist')
 
 const name = ref(props.name ?? '')

@@ -222,7 +222,6 @@ const emit = defineEmits<{
     (e: 'hideModal'): void
 }>()
 
-
 emit('setTitle', props.playlist ? 'Edit smart playlist' : 'New smart playlist')
 
 // Each row carries a key of its own, so removing one does not re-use the

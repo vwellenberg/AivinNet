@@ -19,7 +19,11 @@ export function leaveModal(router: Pick<Router, 'push' | 'replace'>, to: RouteLo
             // destination would carry the mark, and a later close on that page
             // would take it for its own entry and go Back from a real page.
             history.replaceState({ ...history.state, aivinnetModal: false }, '')
-            void router.replace(to)
+            // Refused (a guard said no): the entry is still ours, under the old
+            // URL. Pop it, or Back would first land on a copy of this page.
+            void router.replace(to).then(failure => {
+                if (failure) history.back()
+            })
         } else {
             void router.push(to)
         }

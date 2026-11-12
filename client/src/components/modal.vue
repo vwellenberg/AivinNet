@@ -151,8 +151,13 @@ const modalWidth = computed(() => {
 let pushed = false
 const isBackDismissable = () => modal.visible && modal.component !== ModalOptions.login
 
+// The pending `closeAndNavigate` target is part of the source: called on a modal
+// the user already dismissed (while it was saving), `visible` does not change,
+// and the target would otherwise wait for the NEXT close of some other modal.
+// One watcher, not two: two ran in an order that let a plain pop cancel the
+// navigation again.
 watch(
-    () => modal.visible && modal.component,
+    () => [modal.visible && modal.component, modal.navigateTo],
     () => {
         if (isBackDismissable() && !pushed) {
             history.pushState({ aivinnetModal: true }, '')

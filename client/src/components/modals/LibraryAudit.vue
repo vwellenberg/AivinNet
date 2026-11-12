@@ -27,32 +27,31 @@
                         <span class="why">{{ reasonHelp(reason, album) }}</span>
                     </li>
                 </ul>
-                <div v-if="album.reasons.includes('split')" class="merge-row">
+                <div v-if="album.reasons.includes('split')" class="fix">
                     <label :for="`merge-${index}`">Album artist for all {{ album.trackcount }} tracks</label>
-                    <select
-                        :id="`merge-${index}`"
-                        v-model="mergeArtist[album.key]"
-                        class="rounded-sm"
-                        :disabled="busy !== null"
-                    >
-                        <option v-for="name in album.merge_candidates" :key="name" :value="name">{{ name }}</option>
-                    </select>
-                    <button
-                        type="button"
-                        class="merge rounded-sm btn-pill"
-                        :disabled="busy !== null"
-                        @click="merge(album)"
-                    >
-                        {{ busy === album.key ? 'Merging…' : 'Merge' }}
-                    </button>
+                    <div class="fix-row">
+                        <select
+                            :id="`merge-${index}`"
+                            v-model="mergeArtist[album.key]"
+                            class="rounded-sm"
+                            :disabled="busy !== null"
+                        >
+                            <option v-for="name in album.merge_candidates" :key="name" :value="name">{{ name }}</option>
+                        </select>
+                        <button type="button" class="merge btn-primary" :disabled="busy !== null" @click="merge(album)">
+                            <span class="text">{{ busy === album.key ? 'Merging…' : 'Merge' }}</span>
+                        </button>
+                    </div>
                 </div>
+                <!-- Same two buttons in the same place on every card; the one that
+                     writes (Merge) sits with its picker above, teal, on its own. -->
                 <div class="actions">
-                    <button type="button" class="rounded-sm btn-pill" :disabled="busy !== null" @click="open(album)">
+                    <button type="button" class="btn-pill" :disabled="busy !== null" @click="open(album)">
                         Open album
                     </button>
                     <button
                         type="button"
-                        class="rounded-sm btn-pill"
+                        class="ignore btn-pill"
                         title="Hide it from this list until its tags change"
                         :disabled="busy !== null"
                         @click="ignore(album)"
@@ -262,28 +261,45 @@ onMounted(load)
         line-height: 1.4;
     }
 
-    .merge-row {
-        display: flex;
-        flex-wrap: wrap;
+    .fix {
+        display: grid;
         gap: $smaller;
-        align-items: center;
+        padding-top: $smaller;
+        border-top: $mem-hairline-w dashed $mem-line;
 
         label {
-            flex-basis: 100%;
             font-size: $medium;
             font-weight: 600;
         }
+    }
+
+    .fix-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: $small;
+        align-items: center;
 
         select {
-            max-width: 14rem;
+            flex: 1 1 10rem;
+            max-width: 18rem;
+            height: 2.75rem;
+            padding: 0 $smaller;
         }
     }
 
     .actions {
         display: flex;
-        flex-wrap: wrap;
-        gap: $smaller;
+        gap: $small;
         align-items: center;
+        margin-top: $smaller;
+        padding-top: $small;
+        border-top: $mem-hairline-w dashed $mem-line;
+
+        // Ignore at the far end: it is the "not now" of the card, away from
+        // the button that takes you somewhere.
+        .ignore {
+            margin-left: auto;
+        }
     }
 }
 </style>
