@@ -33,8 +33,6 @@
           <component
             :is="item.component"
             v-bind="item.props"
-            @playThis="playFromQueue(item.props.index - 1)"
-            @trackDropped="onTrackDropped"
           ></component>
         </DynamicScrollerItem>
       </template>
@@ -43,21 +41,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ScrollerItem, Track } from "@/interfaces";
 
 import useColors from "@/stores/colors";
 import useQueueStore from "@/stores/queue";
 import useTracklist from "@/stores/queue/tracklist";
-import { isMedium, isSmall } from "@/stores/content-width";
+import { isMedium, isMobile, isSmall } from "@/stores/content-width";
 import { dropSources } from "@/enums";
 
 import Header from "@/components/NowPlaying/Header.vue";
+import QueueCaption from "@/components/NowPlaying/QueueCaption.vue";
 import SongItem from "@/components/shared/SongItem.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
 import { pageTint } from "@/utils/colortools/pageGradient";
 import { createDragAutoScroller } from "@/utils/dragAutoScroll";
-import { queueRowProps } from "./queueRow";
+import useSettings from "@/stores/settings";
+import { buildQueueRows } from "./queueRow";
 
 
 const queue = useQueueStore();
@@ -65,6 +65,7 @@ const queue = useQueueStore();
 // the same `bg` the album / playlist pages take from their own cover.
 const colors = useColors();
 const store = useTracklist();
+const settings = useSettings();
 
 function playFromQueue(index: number) {
   queue.play(index);
@@ -99,19 +100,51 @@ function stopAutoScroll() {
   autoScroller.stop();
 }
 
-const scrollerItems = computed(() => {
-  const items: ScrollerItem[] = [];
+// Folded by default: what already played is one line until someone asks for it.
+const historyOpen = ref(false);
 
-  const trackComponents = store.tracklist.map((track, index) => {
-    track.index = index; // used in context menu to remove from queue
-    return {
-      id: index,
-      component: SongItem,
-      props: queueRowProps(track, index, store.tracklist.length),
-    };
+// The rows carry their own listeners (`onPlayThis` …) instead of the template
+// binding them on every `<component>`: a caption row has no `playThis`, and a
+// listener it does not declare would land on its root element as a native one.
+const scrollerItems = computed<ScrollerItem[]>(() => {
+  // Used by the context menu ("remove from queue") and as the index a drag carries.
+  store.tracklist.forEach((track, index) => (track.index = index));
+
+  const rows = buildQueueRows(store.tracklist, queue.currentindex, {
+    split: !settings.shuffle,
+    historyOpen: historyOpen.value,
+    wraps: settings.repeat === "all",
+    showCurrent: !isMobile.value,
   });
 
-  return items.concat(trackComponents);
+  return rows.map(row => {
+    if (row.kind === "track") {
+      return {
+        id: row.id,
+        component: SongItem,
+        props: {
+          ...row.props,
+          onPlayThis: () => playFromQueue(row.queueIndex),
+          onTrackDropped,
+        },
+      };
+    }
+
+    if (row.kind === "note") {
+      return { id: row.id, component: QueueCaption, props: { note: row.text } };
+    }
+
+    return {
+      id: row.id,
+      component: QueueCaption,
+      props: {
+        text: row.text,
+        count: row.count,
+        open: row.open,
+        onToggle: () => (historyOpen.value = !historyOpen.value),
+      },
+    };
+  });
 });
 
 onMounted(() => updatePageTitle("Now Playing"));

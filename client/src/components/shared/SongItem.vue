@@ -93,7 +93,11 @@ const props = defineProps<{
     track: Track
     index: number | string
     hide_album?: boolean
-    is_queue_track?: boolean
+    // Set on rows of the play queue: where this row sits IN the queue. The queue
+    // marks a position, not a track — the same track can be queued twice — and
+    // `index` is only the number the row shows (the queue's sections each count
+    // from 1).
+    queue_index?: number
     // Opt in to reordering by drag. This alone decides it: the `draggable`
     // binding used to additionally require `source === playlist`, which quietly
     // made the flag a no-op everywhere else — the Now Playing queue set
@@ -243,8 +247,8 @@ function showMenu(e: MouseEvent) {
 }
 
 function isCurrent() {
-    if (props.is_queue_track) {
-        return queue.currentindex == parseInt(props.index as string) - 1
+    if (props.queue_index !== undefined) {
+        return queue.currentindex === props.queue_index
     }
 
     return queue.currenttrackhash == props.track.trackhash
