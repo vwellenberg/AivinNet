@@ -120,10 +120,11 @@ watch(
         place-items: center;
         width: 2.5rem;
         height: 2.5rem;
-        background-color: var(--device-accent);
+        // A look without accent badges (Boring): the glyph alone, in white.
+        background-color: var(--look-stat-badge-fill, var(--device-accent));
         border: $candy-border;
         border-radius: $candy-radius-sm;
-        color: $mem-ink;
+        color: var(--look-stat-badge-text, #{$mem-ink});
 
         svg {
             width: 1.4rem;
@@ -155,7 +156,7 @@ watch(
             display: block;
             height: 100%;
             border-radius: inherit;
-            background-color: var(--device-accent);
+            background-color: var(--look-stat-bar, var(--device-accent));
         }
     }
 

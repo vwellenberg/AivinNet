@@ -198,21 +198,23 @@ function getRouterParams() {
         justify-content: center;
         font-size: 1.2rem;
         font-weight: 900;
-        background-color: $mem-panel;
-        color: $mem-content-text;
+        background-color: var(--look-stat-badge-fill, #{$mem-panel});
+        color: var(--look-stat-badge-text, #{$mem-content-text});
         border: $candy-border;
         border-radius: $candy-radius-sm;
         box-shadow: mem-shadow(3px, 3px);
-        transform: rotate(-4deg);
+        // `--shape-tilt` lets a look stand the stickers straight (Boring: 0).
+        transform: rotate(calc(-4deg * var(--shape-tilt, 1)));
 
         &.tilt-right {
-            transform: rotate(3deg);
+            transform: rotate(calc(3deg * var(--shape-tilt, 1)));
         }
     }
 
-    &.r1 .rank { background-color: $mem-yellow; color: $mem-ink; }
-    &.r2 .rank { background-color: $mem-lavender; color: $mem-ink; }
-    &.r3 .rank { background-color: $mem-pink; color: $mem-ink; }
+    // A look without accent badges (Boring) keeps the plain figure for all.
+    &.r1 .rank { background-color: var(--look-stat-badge-fill, #{$mem-yellow}); color: var(--look-stat-badge-text, #{$mem-ink}); }
+    &.r2 .rank { background-color: var(--look-stat-badge-fill, #{$mem-lavender}); color: var(--look-stat-badge-text, #{$mem-ink}); }
+    &.r3 .rank { background-color: var(--look-stat-badge-fill, #{$mem-pink}); color: var(--look-stat-badge-text, #{$mem-ink}); }
 
     // Play-duration meter: the leaderboard made visible. Lavender by default
     // (teal means play, yellow means playing); the top 3 take their badge's
@@ -228,13 +230,13 @@ function getRouterParams() {
         i {
             display: block;
             height: 100%;
-            background-color: $mem-lavender;
+            background-color: var(--look-stat-bar, #{$mem-lavender});
         }
     }
 
-    &.r1 .meter i { background-color: $mem-yellow; }
-    &.r2 .meter i { background-color: $mem-lavender; }
-    &.r3 .meter i { background-color: $mem-pink; }
+    &.r1 .meter i { background-color: var(--look-stat-bar, #{$mem-yellow}); }
+    &.r2 .meter i { background-color: var(--look-stat-bar, #{$mem-lavender}); }
+    &.r3 .meter i { background-color: var(--look-stat-bar, #{$mem-pink}); }
 
     .chartimage.artist {
         border-radius: 50%;

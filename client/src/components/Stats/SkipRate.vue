@@ -162,7 +162,7 @@ watch(
         border: $candy-border;
 
         span {
-            background-color: $mem-coral;
+            background-color: var(--look-stat-bar, #{$mem-coral});
         }
     }
 
@@ -205,10 +205,11 @@ watch(
     }
 
     .skip-heading {
-        @include mem-sticker($fill: var(--skip-accent));
+        @include mem-sticker($fill: var(--look-stat-label-fill, var(--skip-accent)));
         margin: 0 0 0.6rem 0;
         font-size: 0.95rem;
-        color: $mem-ink;
+        // A look without accent labels (Boring) keeps the word, in its grey.
+        color: var(--look-stat-label-text, #{$mem-ink});
     }
 
     ol {
@@ -273,7 +274,7 @@ watch(
         margin-top: 0.25rem;
 
         span {
-            background-color: var(--skip-accent);
+            background-color: var(--look-stat-bar, var(--skip-accent));
         }
     }
 

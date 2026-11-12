@@ -1001,6 +1001,26 @@ transparent`, stärkerer und weiter laufender Verlauf (`--look-veil-top/-mid/-en
 (`--shape-detail-title`, plus die Phone-Variante). Der Play-CTA nimmt die Look-Farbe
 (`--look-play-fill`/`-glyph`), in Memphis weiterhin Teal mit Ink-Glyph.
 
+**Home und Stats (2026-11-12, „hier nicht so knallig, ist ja sonst eher gesetzter“):** Die
+Continue-Karte (Entitäts-Pastell), die Stat-Kacheln, die Akzent-Etiketten, Rangplaketten und
+Balken standen in Boring in **voller Hell-Modus-Stärke** da: `--mem-pastel-base` und
+`--mem-tile-depth` setzt nur `body.theme-dark:not(.theme-stream)`, unter Boring fiel also alles
+auf Papier bzw. 100 % Akzent zurück. Jetzt Panels mit weißen Zahlen und grauen Etiketten
+(`--look-tile-*`, `--look-stat-*`, `--shape-tilt`), und die Continue-Karte trägt statt des
+Pastells **die Farbe ihres Covers** (gleiche Extraktion wie die Detailseiten,
+`setColorsToStore`). `boringQuiet.test.ts` hält den Zensus: jede Akzentfüllung auf Stats geht
+durch ein Look-Token. Zwei Fallen dabei:
+
+- **Ein `--look-*`-Token kann keinen Wert pro Element tragen.** Tokens stehen auf `body`, und
+  ein `var()` in einer Custom Property löst **dort** auf — `--look-continue-fill:
+  linear-gradient(var(--card-tint) …)` sähe die Cover-Farbe der Karte nie. Das Token trägt
+  deshalb nur einen **Anteil** (`--look-continue-tint: 70%`), die Komponente hält die Farbe
+  (`--card-tint` inline) und baut den Verlauf selbst; Memphis setzt den Anteil nicht, also 0 %.
+- **Ein Verlauf auf einer Karte mit unsichtbarem Rahmen braucht `background-origin:
+  border-box`.** Vom Padding-Rand aus kachelt das Bild in den transparenten 3-px-Rahmen hinein
+  — rechts stand ein Streifen Cover-Farbe (gemessen, 3 px). Die Hintergrundfarbe reicht von
+  sich aus unter den Rahmen, das Bild nicht.
+
 Drei Stellen, an denen es beim Bauen gehakt hat:
 
 - **Eine gefüllte Zeile pinnt ihre Textfarbe.** Die laufende Zeile ist in Memphis gelb und setzt

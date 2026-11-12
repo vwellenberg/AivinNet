@@ -6,6 +6,7 @@ import {
     fixedMode,
     lookHasModes,
     lookHasPalettes,
+    lookTintsFromCovers,
     normalizeLook,
     normalizePalette,
     paletteHtmlClasses,
@@ -129,5 +130,14 @@ describe('the Colour scheme setting', () => {
         // the schemes the date paints, never ones the user picks.
         const SEASONAL = ['halloween', 'christmas', 'newyear']
         expect((setting?.options ?? []).map((o) => o.value)).toEqual(PALETTES.filter((p) => !SEASONAL.includes(p)))
+    })
+})
+
+describe('lookTintsFromCovers', () => {
+    // Gates the Continue card's colour extraction: Memphis paints the entity
+    // pastel and would pay for a cover read it never shows.
+    it('only Boring tints its cards from the cover', () => {
+        expect(lookTintsFromCovers('stream')).toBe(true)
+        expect(lookTintsFromCovers('memphis')).toBe(false)
     })
 })
