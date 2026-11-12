@@ -89,6 +89,15 @@ export function lookHasPalettes(look: Look): boolean {
     return look === 'memphis'
 }
 
+/**
+ * Whether the look tints a card with its cover's colour instead of a palette
+ * fill (the Continue card, `--look-continue-tint`). Only then is the colour
+ * worth extracting: Memphis paints the entity pastel and never reads it.
+ */
+export function lookTintsFromCovers(look: Look): boolean {
+    return look === 'stream'
+}
+
 type PaletteClass = `palette-${Exclude<Palette, 'memphis'>}`
 
 /**

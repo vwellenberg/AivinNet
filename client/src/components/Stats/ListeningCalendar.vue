@@ -236,12 +236,13 @@ onMounted(async () => {
     }
 
     .streak-label {
-        @include mem-sticker($fill: var(--peak-accent), $pad: 0.15rem 0.55rem);
+        @include mem-sticker($fill: var(--look-stat-label-fill, var(--peak-accent)), $pad: 0.15rem 0.55rem);
         font-size: 0.75rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: $mem-ink;
+        // A look without accent labels (Boring) keeps the word, in its grey.
+        color: var(--look-stat-label-text, #{$mem-ink});
     }
 
     .calendar-scroll {

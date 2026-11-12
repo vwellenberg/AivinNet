@@ -280,11 +280,12 @@ onMounted(async () => {
 
         // ON state. Yellow is this design system's "active" signal; blush
         // would collide with the pointer signal (see SortBanner).
+        // A look's own "selected" pair (Boring: the white chip) wins.
         .pagesize.active,
         .pagesize.active:hover {
-            background-color: $mem-yellow;
+            background-color: var(--look-selected-fill, #{$mem-yellow});
             border-color: $mem-line;
-            color: $mem-ink;
+            color: var(--look-selected-text, #{$mem-ink});
             --label-hatch: var(--mem-hatch-accent);
         }
 

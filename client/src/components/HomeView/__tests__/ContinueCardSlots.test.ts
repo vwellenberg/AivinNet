@@ -9,12 +9,28 @@ vi.mock('@/requests/album', () => ({ getAlbumTracks }))
 vi.mock('@/requests/playlists', () => ({ getPlaylist: vi.fn(async () => ({ tracks: [] })) }))
 vi.mock('@/helpers/usePlayFrom', () => ({ playAlbumAt: vi.fn(), playPlaylistAt: vi.fn(), resumeIndex: () => 0 }))
 vi.mock('@/helpers/continueDismiss', () => ({ removeFromContinue: vi.fn() }))
+// The look decides whether the cover's colour is read at all (Boring tints the card with it).
+const { settings, setColorsToStore } = vi.hoisted(() => ({
+    settings: { look: 'memphis' },
+    setColorsToStore: vi.fn((store: { colors: { bg: string } }, _url: string) => {
+        store.colors.bg = '#3a2f1c'
+    }),
+}))
+vi.mock('@/stores/settings', () => ({ default: () => settings }))
+vi.mock('@/utils/colortools/setColorsToStore', () => ({ default: setColorsToStore }))
 
 import ContinueCard from '@/components/HomeView/ContinueCard.vue'
 
 const entry = {
     type: 'album',
-    item: { albumhash: 'a0000000000000pr', title: 'Album', track_index: 1, track_total: 5, time: '20 min' },
+    item: {
+        albumhash: 'a0000000000000pr',
+        title: 'Album',
+        image: 'a0000000000000pr.webp?pathhash=1f3c9d',
+        track_index: 1,
+        track_total: 5,
+        time: '20 min',
+    },
     dismiss: { type: 'album', hash: 'a0000000000000pr' },
 }
 
@@ -51,5 +67,27 @@ describe('ContinueCard: up next holds its space from the first frame (#776)', ()
         await flushPromises()
 
         expect(w.find('.up-next').classes()).toContain('up-next-none')
+    })
+
+    it('reads no cover colour under Memphis, which paints the entity pastel', async () => {
+        settings.look = 'memphis'
+        setColorsToStore.mockClear()
+        getAlbumTracks.mockResolvedValue([])
+        const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
+        await flushPromises()
+        expect(setColorsToStore).not.toHaveBeenCalled()
+        expect(w.find('.continue-card').attributes('style') ?? '').not.toContain('--card-tint')
+    })
+
+    it('tints the card from its cover under Boring', async () => {
+        settings.look = 'stream'
+        setColorsToStore.mockClear()
+        getAlbumTracks.mockResolvedValue([])
+        const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
+        await flushPromises()
+        expect(setColorsToStore).toHaveBeenCalledTimes(1)
+        expect(setColorsToStore.mock.calls[0][1]).toContain('a0000000000000pr.webp?pathhash=1f3c9d')
+        expect(w.find('.continue-card').attributes('style')).toContain('--card-tint: #3a2f1c')
+        settings.look = 'memphis'
     })
 })

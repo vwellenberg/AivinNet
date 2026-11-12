@@ -323,6 +323,14 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 //   --look-display-adjust           `font-size-adjust` for that face (a small-x-height
 //                                   face reads a size smaller than the body text)
 //   --shape-frame · -frame-style    the plate frame's colour and border style
+//   --look-continue-fill · -base    the Continue card's fill, and the ground under
+//   --look-continue-tint · -muted   its cover tint; that tint's share; its grey text
+//   --look-card-inlay-fill · -text  the Up next rows on the Continue card
+//   --look-tile-fill · -text · -muted  a stat tile (StatItem.vue)
+//   --look-stat-label-fill · -text  the accent labels on the Stats panels
+//   --look-stat-badge-fill · -text  the top-3 rank badges and the device badges
+//   --look-stat-bar                 every bar and meter on Stats
+//   --shape-tilt                    a factor on the crooked rank stickers' tilt
 //
 // Everything from `--look-sticker-image` on was cut for Desktop 98 (#241) and
 // Virtual Grid (#259), a few of the earlier ones were widened for them. Both

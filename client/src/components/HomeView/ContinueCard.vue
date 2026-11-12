@@ -2,7 +2,7 @@
   <!-- The wrapper is the size container: the "Up next" column appears only
        when the CARD is wide enough, whatever the window or sidebars do. -->
   <div class="continue-wrap">
-  <div class="continue-card" :class="`ent-${entry.type}`">
+  <div class="continue-card" :class="`ent-${entry.type}`" :style="tintStyle">
     <!-- The ✕ (#776): leaves "Continue listening" until the next play. A card
          without a `dismiss` key (an older server) has none. -->
     <button
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 
 import { paths } from "@/config";
 import { removeFromContinue } from "@/helpers/continueDismiss";
@@ -73,6 +73,10 @@ import { AlbumIcon, PlayIcon, PlaylistIcon } from "@/icons";
 import { Track } from "@/interfaces";
 import { getAlbumTracks } from "@/requests/album";
 import { getPlaylist } from "@/requests/playlists";
+import setColorsToStore from "@/utils/colortools/setColorsToStore";
+import { imageName } from "@/utils/playlistImages";
+import { lookTintsFromCovers } from "@/utils/theme";
+import useSettings from "@/stores/settings";
 
 import PlaylistImages from "@/components/shared/PlaylistImages.vue";
 import NoteIcon from "@/assets/icons/note.svg?raw";
@@ -118,6 +122,23 @@ const image = computed(() => {
   if (props.entry.type === "album") return item.image ? paths.images.thumb.large + item.image : "";
   return item.thumb ? paths.images.playlist + item.thumb : "";
 });
+
+// The cover's own colour, for a look that tints the card with it instead of
+// the entity pastel (Boring: `--look-continue-tint`). The same extraction as
+// the album and playlist pages, so the card wears the tint its page has, and
+// the same answer for a placeholder cover: none. Memphis never reads it, so
+// it is only extracted under a look that does.
+const settings = useSettings();
+const tint = reactive({ colors: { bg: "", bg2: "", btn: "", placeholder: false } });
+const tintSource = computed(() => {
+  if (!lookTintsFromCovers(settings.look)) return "";
+  if (image.value) return image.value;
+  // Medium, not small: the size the collage tile itself shows, and a small
+  // thumb gives the dominant-swatch pick too few pixels (stores/pages/*).
+  return collage.value.length ? paths.images.thumb.medium + imageName(collage.value[0]) : "";
+});
+watch(tintSource, (url) => (url ? setColorsToStore(tint, url) : (tint.colors.bg = "")), { immediate: true });
+const tintStyle = computed(() => (tint.colors.bg ? { "--card-tint": tint.colors.bg } : {}));
 
 const link = computed(() =>
   props.entry.type === "album"
@@ -220,8 +241,22 @@ function resume() {
   align-items: center;
   padding: 1rem;
   position: relative;
-  --row-fill: #{$mem-panel};
+  --row-fill: var(--look-continue-fill, #{$mem-panel});
   @include candy-box(var(--row-fill), $candy-radius);
+  // A look that drops the pastel (Boring) paints the card here instead: its
+  // own ground, with the cover's colour (`--card-tint`, set from the cover in
+  // the script) running in from the left. Memphis sets neither token: both
+  // layers are transparent over the pastel above, and nothing changes.
+  background-image:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--card-tint, transparent) var(--look-continue-tint, 0%), transparent),
+      transparent 85%
+    ),
+    linear-gradient(var(--look-continue-base, transparent), var(--look-continue-base, transparent));
+  // From the frame's outer edge: from the padding box, the tint repeated into
+  // the (invisible) right frame as a 3px strip of cover colour.
+  background-origin: border-box;
   @include candy-shadow(4px, 4px);
   // The panel's own text: `$mem-ink` stays dark in dark mode (panelText.test.ts).
   color: $mem-text;
@@ -247,7 +282,7 @@ function resume() {
 
   @each $name in album, playlist {
     &.ent-#{$name} {
-      --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
+      --row-fill: var(--look-continue-fill, #{mem-pastel(map-get($mem-entities, $name))});
     }
   }
 
@@ -257,8 +292,8 @@ function resume() {
   // they take the ground and paper text; the card keeps its tint and ink text.
   // Read through custom properties, not set on the rows: the rows' hover sets
   // `--row-fill` and `color` itself and must keep winning.
-  --card-inlay-fill: #{$mem-panel-static};
-  --card-inlay-text: #{$mem-ink};
+  --card-inlay-fill: var(--look-card-inlay-fill, #{$mem-panel-static});
+  --card-inlay-text: var(--look-card-inlay-text, #{$mem-ink});
 
   body.theme-dark:not(.theme-stream) & {
     --card-inlay-fill: #{$mem-ground};
@@ -316,6 +351,13 @@ function resume() {
     max-width: 100%;
   }
 
+  // The kicker and the meta line step back where a look has a grey for them
+  // (Boring); in Memphis they keep the card's ink.
+  .kicker,
+  .meta {
+    color: var(--look-continue-muted, currentColor);
+  }
+
   .kicker {
     font-size: 0.7rem;
     font-weight: 700;
@@ -337,16 +379,18 @@ function resume() {
   .progress {
     width: min(100%, 22rem);
     height: 0.6rem;
-    border: $mem-ring-w solid $mem-ink;
+    // A look with a slider palette (Boring) draws it like the seek bar: its
+    // track and played colours, no ring.
+    border: $mem-ring-w solid var(--look-badge-line, #{$mem-ink});
     border-radius: $candy-radius-pill;
-    background-color: var(--card-inlay-fill, #{$mem-panel-static});
+    background-color: var(--look-track, var(--card-inlay-fill, #{$mem-panel-static}));
     overflow: hidden;
     margin: 0.25rem 0 0.4rem;
 
     span {
       display: block;
       height: 100%;
-      background-color: var(--card-inlay-text, #{$mem-ink});
+      background-color: var(--look-track-played, var(--card-inlay-text, #{$mem-ink}));
       // Runs from the left to where they are, once the plate is up.
       transform-origin: left;
       animation: mem-fill-grow $motion-settle $motion-curve-settle $motion-after-plate backwards;

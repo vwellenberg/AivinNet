@@ -68,8 +68,9 @@ describe('dark mode: darker and quieter', () => {
     it('what sits on the Continue card reads the inlay tokens, ground and paper in Memphis dark', () => {
         const card = read('src/components/HomeView/ContinueCard.vue')
         expect(card).toMatch(/\.next-row \{\s*@include mem-row-plate\(\$hatch: true\);\s*--row-fill: var\(--card-inlay-fill, #\{\$mem-panel-static\}\);\s*color: var\(--card-inlay-text, #\{\$mem-ink\}\);/)
-        expect(card).toMatch(/\.progress \{[^}]*background-color: var\(--card-inlay-fill, #\{\$mem-panel-static\}\);/)
-        expect(card).toMatch(/span \{[^}]*background-color: var\(--card-inlay-text, #\{\$mem-ink\}\);/)
+        // Behind a look's slider colours (Boring: `--look-track*`), which Memphis never sets.
+        expect(card).toMatch(/\.progress \{(?:[^}]|#\{[^}]*\})*background-color: var\(--look-track, var\(--card-inlay-fill, #\{\$mem-panel-static\}\)\);/)
+        expect(card).toMatch(/span \{[^}]*background-color: var\(--look-track-played, var\(--card-inlay-text, #\{\$mem-ink\}\)\);/)
         expect(card).toMatch(/body\.theme-dark:not\(\.theme-stream\) & \{\s*--card-inlay-fill: #\{\$mem-ground\};\s*--card-inlay-text: #\{\$mem-text\};/)
         // Nothing on the card paints the static white directly any more.
         expect(card).not.toMatch(/(background-color|--row-fill): (#\{)?\$mem-panel-static\}?;/)

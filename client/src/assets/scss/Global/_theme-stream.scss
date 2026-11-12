@@ -120,6 +120,37 @@ body.theme-dark.theme-stream {
     --look-play-fill: #{$brand-green};
     --look-play-glyph: #0a0a0a;
 
+    // --- Home and Stats: the cover and the figures carry it, not the palette -
+    // Memphis tells its cards apart by accent: a lavender album, a pink
+    // playlist, a yellow tile beside a blush one, a coral label over a teal
+    // one. On the near-black ground those fills were the loudest things on the
+    // screen, all at their light-mode strength (user, 2026-11-12: "not so
+    // loud here, it is more sober otherwise"). Here they are panels with white
+    // figures and grey labels, and the one colour a card keeps is its cover's.
+    //
+    // Continue card: the panel, with the cover's dominant colour running in
+    // from the left (the card sets `--card-tint` from its own cover). The
+    // pastel goes to transparent, so the text block's dot veil, which paints
+    // the card fill, paints nothing.
+    --look-continue-fill: transparent;
+    --look-continue-base: #181818;
+    --look-continue-tint: 70%;
+    --look-continue-muted: #b3b3b3;
+    --look-card-inlay-fill: rgba(255, 255, 255, 0.06);
+    --look-card-inlay-text: #ffffff;
+    // Stats: tiles are panels, labels are grey words, ranks are plain
+    // figures, every bar one neutral tone.
+    --look-tile-fill: #181818;
+    --look-tile-text: #ffffff;
+    --look-tile-muted: #b3b3b3;
+    --look-stat-label-fill: transparent;
+    --look-stat-label-text: #b3b3b3;
+    --look-stat-badge-fill: transparent;
+    --look-stat-badge-text: #ffffff;
+    --look-stat-bar: #b3b3b3;
+    // The crooked rank stickers stand straight (a factor on their tilt).
+    --shape-tilt: 0;
+
     --mem-scrollbar-thumb: rgba(255, 255, 255, 0.25);
     --mem-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
 

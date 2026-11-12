@@ -337,9 +337,10 @@ const motif = computed(() => {
 
 // In Memphis dark the tile keeps `--mem-tile-depth` of its accent and takes the
 // rest from the dusk base, like every pastel there (Global/index.scss). Light
-// mode sets neither, so the mix is the accent itself.
+// mode sets neither, so the mix is the accent itself. A look without accent
+// tiles (Boring) replaces the whole fill with `--look-tile-fill`.
 const tileStyle = computed(() => ({
-    backgroundColor: `color-mix(in srgb, ${defaultBackgroundStyles.value} var(--mem-tile-depth, 100%), var(--mem-pastel-base, var(--mem-paper)))`,
+    backgroundColor: `var(--look-tile-fill, color-mix(in srgb, ${defaultBackgroundStyles.value} var(--mem-tile-depth, 100%), var(--mem-pastel-base, var(--mem-paper))))`,
 }))
 </script>
 
@@ -356,8 +357,9 @@ const tileStyle = computed(() => ({
     // `:active` also matches ANCESTORS — pressing that link would push the
     // whole tile down. 4px is the card offset; rows and buttons take 3px.
     @include candy-shadow(4px, 4px);
-    // Accent-filled tiles (blush/lavender/teal/yellow) → static ink text.
-    color: $mem-ink;
+    // Accent-filled tiles (blush/lavender/teal/yellow) → static ink text; a
+    // look's own tile fill brings its own text colour.
+    color: var(--look-tile-text, #{$mem-ink});
     height: 12rem;
     aspect-ratio: 1;
     overflow: hidden;
@@ -450,6 +452,7 @@ const tileStyle = computed(() => ({
         .title {
             font-size: 14px;
             font-weight: 500;
+            color: var(--look-tile-muted, currentColor);
         }
     }
 
@@ -459,7 +462,7 @@ const tileStyle = computed(() => ({
         left: 1rem;
         width: 1.5rem;
         z-index: 1;
-        color: $mem-ink;
+        color: var(--look-tile-muted, #{$mem-ink});
     }
 
     .statplay {
@@ -476,7 +479,7 @@ const tileStyle = computed(() => ({
         width: 1.5rem;
         height: 1.5rem;
         z-index: 1;
-        color: $mem-ink;
+        color: var(--look-tile-muted, #{$mem-ink});
         transform: rotate(90deg);
         transition: transform $motion-move $motion-curve;
     }
