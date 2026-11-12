@@ -1,6 +1,6 @@
 """
 "Your top rated" (#788, part 1): the tracks the user rated 4 or 5 that they
-have not heard lately, longest unplayed first.
+have not heard in `TOP_RATED_QUIET_DAYS`, longest unplayed first.
 
 Pure rules like the rest of `lib/home/` (no database, no stores): the routine
 in `lib/recipes/homerows.py` hands in the user's ratings, their plays and the
@@ -10,7 +10,7 @@ facts of a track. Testable in the fast lane, strict under mypy.
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
-from aivinnet.lib.home.discover import Play, TrackFacts, _month
+from aivinnet.lib.home.discover import DAY, Play, TrackFacts, _month
 
 # A rating from this up puts a track in the row (the user's 4 and 5).
 TOP_RATED_MIN = 4
@@ -18,22 +18,29 @@ TOP_RATED_MIN = 4
 TOP_RATED_ROW_LIMIT = 15
 TOP_RATED_PLAYLIST_LIMIT = 100
 TOP_RATED_MAX_PER_ALBUM = 2
+# "Not heard lately": a track played within these days is not in the row. The row
+# is the way back to what the user loves; one played last week needs no reminder.
+TOP_RATED_QUIET_DAYS = 30
 
 
 def rank_top_rated(
     ratings: Mapping[str, int],
     plays: Iterable[Play],
     facts_of: Callable[[str], TrackFacts | None],
+    now: float,
     limit: int = TOP_RATED_ROW_LIMIT,
     max_per_album: int = TOP_RATED_MAX_PER_ALBUM,
+    quiet_days: int = TOP_RATED_QUIET_DAYS,
 ) -> list[tuple[str, int, int | None]]:
     """
     The user's tracks rated `TOP_RATED_MIN` or more, as `(trackhash, rating,
     last played or None)`. A track never played counts as the oldest, so it
     comes first; then the longest unplayed; ties by the higher rating, then by
-    trackhash. Tracks not in the library (`facts_of` is None) are left out, and
-    at most `max_per_album` per album.
+    trackhash. Tracks played in the last `quiet_days` before `now` and tracks not
+    in the library (`facts_of` is None) are left out, and at most `max_per_album`
+    per album.
     """
+    quiet_since = now - quiet_days * DAY
     last: dict[str, int] = {}
     for play in plays:
         last[play.trackhash] = max(last.get(play.trackhash, play.timestamp), play.timestamp)
@@ -41,6 +48,9 @@ def rank_top_rated(
     candidates: list[tuple[str, int, int | None, str]] = []
     for trackhash, rating in ratings.items():
         if rating < TOP_RATED_MIN:
+            continue
+        played = last.get(trackhash)
+        if played is not None and played >= quiet_since:
             continue
         facts = facts_of(trackhash)
         if facts is None:

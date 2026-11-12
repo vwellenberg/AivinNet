@@ -11,7 +11,7 @@ import logging
 
 import pendulum
 
-from aivinnet.db.userdata import ScrobbleTable, TrackRatingTable
+from aivinnet.db.userdata import ScrobbleTable
 from aivinnet.lib.home.stations import (
     STATION_COUNT,
     Station,
@@ -127,7 +127,7 @@ class RadioStations(HomepageRoutine):
 
             plays = list(ScrobbleTable.get_all(0, None, userid=userid))
             # Rated 1 is never picked, rated 4 and 5 come first (#788).
-            ratings = TrackRatingTable.of_user(userid)
+            ratings = TrackStore.ratings_of(userid)
             genres, decades = build_stations(
                 pools, plays, track_facts, now.timestamp(), day, names, skip=_skip, ratings=ratings
             )

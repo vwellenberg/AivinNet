@@ -305,3 +305,35 @@ def _resolved(plays):
     from aivinnet.lib.home.discover import _resolve
 
     return _resolve(plays, facts)
+
+
+def test_without_ratings_the_mix_is_the_one_from_before_788():
+    """Golden, captured from master before #788: the unrated draw did not change."""
+    from aivinnet.lib.home.discover import TrackFacts
+    from aivinnet.lib.home.mixes import mix_tracks
+
+    known = {"A": {f"a{i}": (i % 4) + 1 for i in range(8)}, "B": {f"b{i}": i + 1 for i in range(5)}}
+    played = set(known["A"]) | set(known["B"])
+    lib = {"A": [f"a{i}" for i in range(14)], "B": [f"b{i}" for i in range(10)]}
+
+    def facts(t):
+        return TrackFacts(albumhash="alb" + t[0] + str(int(t[1:]) % 3), artists=(t[0],))
+
+    assert mix_tracks(["A", "B"], known, played, facts, lambda a: lib[a], seed=777) == [
+        "a3", "b4", "a10", "b8", "a7", "b3", "a12", "b9", "a2", "b2", "a9",
+        "b6", "a8", "b1", "a1", "b5", "a5", "b7",
+    ]  # fmt: skip
+
+
+def test_a_never_played_track_rated_high_comes_first_among_the_fresh():
+    from aivinnet.lib.home.discover import TrackFacts
+    from aivinnet.lib.home.mixes import mix_tracks
+
+    lib = {"A": [f"a{i}" for i in range(10)]}
+
+    def facts(t):
+        return TrackFacts(albumhash=f"alb{t}", artists=("A",))
+
+    got = mix_tracks(["A"], {"A": {}}, set(), facts, lambda a: lib[a], seed=3, ratings={"a7": 5})
+
+    assert got[0] == "a7"

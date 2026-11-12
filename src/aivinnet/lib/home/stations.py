@@ -220,18 +220,25 @@ def station_tracks(
 
     # From the user's plays, not the pool: a genre can be most of the library,
     # the played tracks are a few thousand at most.
+    # The cut keeps the most played, as without ratings: sorting the liked ones in
+    # BEFORE the cut let a user with many 4s and 5s lose every unrated favourite.
     known = sorted(
         (t for t in all_plays if all_plays[t] and t in album_of and rated.get(t) != RATING_DISLIKED),
-        key=lambda t: (-(rated.get(t, 0) >= RATING_LIKED), -window_plays.get(t, 0), -all_plays[t], t),
+        key=lambda t: (-window_plays.get(t, 0), -all_plays[t], t),
     )[: 2 * length]
-    liked = [t for t in known if rated.get(t, 0) >= RATING_LIKED]
-    rest = [t for t in known if rated.get(t, 0) < RATING_LIKED]
     fresh = sorted(t for t in album_of if not all_plays.get(t, 0) and rated.get(t) != RATING_DISLIKED)
-    rng.shuffle(liked)
-    rng.shuffle(rest)
-    rng.shuffle(fresh)
+    # Without ratings each liked list is empty, and shuffling an empty list draws
+    # nothing from `rng`: the draw is the one from before #788.
+    known_liked = [t for t in known if rated.get(t, 0) >= RATING_LIKED]
+    known_rest = [t for t in known if rated.get(t, 0) < RATING_LIKED]
+    rng.shuffle(known_liked)
+    rng.shuffle(known_rest)
+    fresh_liked = [t for t in fresh if rated.get(t, 0) >= RATING_LIKED]
+    fresh_rest = [t for t in fresh if rated.get(t, 0) < RATING_LIKED]
+    rng.shuffle(fresh_liked)
+    rng.shuffle(fresh_rest)
 
-    sides = [deque([*liked, *rest]), deque(fresh)]
+    sides = [deque([*known_liked, *known_rest]), deque([*fresh_liked, *fresh_rest])]
     picked: list[str] = []
     taken: set[str] = set()
     per_album: Counter[str] = Counter()

@@ -18,7 +18,7 @@ import logging
 import pendulum
 from pendulum.tz import local_timezone
 
-from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable, TrackRatingTable
+from aivinnet.db.userdata import NotInterestedTable, PlaylistTable, ScrobbleTable
 from aivinnet.lib.albumslib import sort_by_track_no
 from aivinnet.lib.first_play_cache import first_plays_of
 from aivinnet.lib.home.almost_complete import (
@@ -604,7 +604,7 @@ class TopRated(HomepageRoutine):
             if _stopping():
                 return
 
-            ratings = TrackRatingTable.of_user(userid)
+            ratings = TrackStore.ratings_of(userid)
             if not any(rating >= TOP_RATED_MIN for rating in ratings.values()):
                 HomepageStore.entries[self.store_key].items[userid] = []
                 log.info("top-rated: user %s has no track rated %d or more", userid, TOP_RATED_MIN)
@@ -612,7 +612,9 @@ class TopRated(HomepageRoutine):
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
             # More than the row shows: the rest are what "Play all" plays.
-            ranked = rank_top_rated(ratings, scrobbles, track_facts, limit=TOP_RATED_PLAYLIST_LIMIT)
+            ranked = rank_top_rated(
+                ratings, scrobbles, track_facts, pendulum.now().timestamp(), limit=TOP_RATED_PLAYLIST_LIMIT
+            )
             if not ranked:
                 log.info("top-rated: no track rated %d or more of user %s is in the library", TOP_RATED_MIN, userid)
 
@@ -726,7 +728,7 @@ class YourMixes(HomepageRoutine):
                 day,
                 skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
                 # Rated 1 is never mixed in, rated 4 and 5 come first (#788).
-                ratings=TrackRatingTable.of_user(userid),
+                ratings=TrackStore.ratings_of(userid),
             )
 
             if mixes is None:

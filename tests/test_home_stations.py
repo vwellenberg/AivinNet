@@ -311,3 +311,37 @@ def test_the_listing_is_mixes_then_genres_then_decades():
 
 def test_the_listing_of_a_user_without_stations_is_empty():
     assert station_listing([], {}) == []
+
+
+def test_without_ratings_the_draw_is_the_one_from_before_788():
+    """Golden: captured from master before #788 (same pool, seed). Comparing the new code
+    with itself (None vs {}) could not catch a changed draw; this does."""
+    from collections import Counter
+
+    pool = [(f"t{i:02}", f"alb{i % 7}") for i in range(40)]
+    all_plays = Counter({f"t{i:02}": (i % 5) + 1 for i in range(0, 40, 2)})
+    window = Counter({f"t{i:02}": i % 3 for i in range(0, 40, 4)})
+
+    assert station_tracks(pool, window, all_plays, seed=12345) == [
+        "t36", "t25", "t10", "t13", "t04", "t19", "t34", "t37", "t30", "t31", "t38",
+        "t05", "t06", "t15", "t12", "t01", "t32", "t21", "t16", "t35", "t00",
+    ]  # fmt: skip
+
+
+def test_a_liked_track_does_not_crowd_out_the_most_played():
+    """Review of #788: the liked ones come first only INSIDE the cut by plays."""
+    from collections import Counter
+
+    pool = [(f"t{i:02}", f"alb{i}") for i in range(30)]
+    # t00..t19 played, the most played are t00..t03; t10..t19 liked but played once.
+    all_plays = Counter({f"t{i:02}": (50 - i if i < 4 else 1) for i in range(20)})
+    liked = {f"t{i:02}": 5 for i in range(10, 20)}
+
+    picked = station_tracks(pool, Counter(), all_plays, seed=1, length=4, ratings=liked)
+
+    known_picked = [t for t in picked if t in all_plays]
+    # The cut (2 x length = 8) is the 8 most played: t00..t07. The liked ones, played
+    # once and sorted after t07, are outside it. Sorting them in before the cut made
+    # every known pick a liked track.
+    assert known_picked
+    assert set(known_picked) <= {f"t{i:02}" for i in range(8)}

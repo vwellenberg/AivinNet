@@ -37,7 +37,7 @@ def facts_of(trackhash: str) -> TrackFacts | None:
 
 
 def rank(ratings, plays=(), **kw):
-    return rank_top_rated(ratings, plays, facts_of, **kw)
+    return rank_top_rated(ratings, plays, facts_of, NOW, **kw)
 
 
 def test_only_four_and_five_make_the_row():
@@ -46,14 +46,14 @@ def test_only_four_and_five_make_the_row():
 
 
 def test_a_never_played_track_comes_first_then_the_longest_unplayed():
-    plays = [Play("t4", NOW - 10 * DAY), Play("t5", NOW - 300 * DAY), Play("t5", NOW - 2 * DAY)]
+    plays = [Play("t4", NOW - 40 * DAY), Play("t5", NOW - 300 * DAY), Play("t5", NOW - 32 * DAY)]
     got = rank({"t4": 5, "t5": 5, "t6": 4}, plays)
 
     # t6 was never played: oldest of all. t5 last played 300 days ago, but
     # played again 2 days ago, so its last play is the recent one.
     assert [trackhash for trackhash, _, _ in got] == ["t6", "t4", "t5"]
     assert got[0][2] is None
-    assert got[1][2] == NOW - 10 * DAY
+    assert got[1][2] == NOW - 40 * DAY
 
 
 def test_ties_go_by_higher_rating_then_trackhash():
@@ -77,9 +77,9 @@ def test_the_row_limit_caps_the_result_and_the_playlist_limit_keeps_more():
     def wide_facts(trackhash: str) -> TrackFacts | None:
         return TrackFacts(albumhash=library[trackhash], artists=("a",)) if trackhash in library else None
 
-    row = rank_top_rated(ratings, [], wide_facts)
+    row = rank_top_rated(ratings, [], wide_facts, NOW)
     assert len(row) == TOP_RATED_ROW_LIMIT == 15
-    assert len(rank_top_rated(ratings, [], wide_facts, limit=100)) == 40
+    assert len(rank_top_rated(ratings, [], wide_facts, NOW, limit=100)) == 40
 
 
 def test_nothing_rated_high_gives_nothing():
@@ -93,3 +93,14 @@ def test_the_card_says_the_rating_and_the_last_play():
 
     played = top_rated_item("t1", 4, NOW)
     assert played["help_text"].startswith("rated 4 · last ")
+
+
+def test_a_track_heard_lately_is_not_in_the_row():
+    """ "Not heard lately": a play inside the quiet window keeps the track out (review of #788)."""
+    from aivinnet.lib.home.toprated import TOP_RATED_QUIET_DAYS
+
+    plays = [Play("t4", NOW - DAY), Play("t5", NOW - (TOP_RATED_QUIET_DAYS + 1) * DAY)]
+
+    got = rank({"t4": 5, "t5": 5}, plays)
+
+    assert [t for t, _, _ in got] == ["t5"]

@@ -123,9 +123,10 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   Mix ist ein **leerer** „Mix n“, kein 404. Nach einem Neustart (RAM leer) gilt wieder
   „stärkster zuerst“. Alle vier Ids stehen in `DATED_PLAYLISTS` (täglich neu gemischt).
   **Bewertungen (#788):** `build_mixes(…, ratings=)` gibt sie an `mix_tracks` weiter (die Routine liest
-  `TrackRatingTable.of_user` einmal pro User). Bekannte Tracks mit **4–5** kommen in der Ziehung zuerst
-  (vor den Abspielzahlen), Tracks mit **1** fallen aus beiden Seiten, bekannt wie nie gespielt — nie im Mix.
-  Ohne Bewertungen ändert sich nichts an der Ziehung.
+  sie aus dem RAM, `TrackStore.ratings_of`; `/ratings` hält `rated_by` aktuell). Tracks mit **4–5**
+  kommen auf beiden Seiten zuerst, bekannt wie nie gespielt (bewerten geht ohne Play); Tracks mit **1**
+  fallen aus beiden Seiten — nie im Mix. Ohne Bewertungen ist die Ziehung exakt die alte: Ein leerer
+  Teil-Liste mischt nichts aus `rng`, und ein Golden-Test hält die Ziehung von vor #788 fest.
 - **„Because you listened to <Artist>“** (alle 6 h): Seed ist der Album-Artist mit den meisten
   Plays der letzten 7 Tage, sonst der letzten 30 (Platzhalter wie „Various Artists“ nie).
   „Ähnlich“ heißt: **lief in derselben Hörsitzung** (Pause > 30 min = neue Sitzung). Jede Sitzung
@@ -193,10 +194,13 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   (`?limit=`), „Play all“ spielt alle.
 
 - **„Your top rated“** (alle 6 h, #788, Regeln in `lib/home/toprated.py`, pur und strikt): die
-  Tracks, die der User mit **4 oder 5** bewertet hat (`TrackRatingTable`, #777), die am längsten nicht
-  gehört sind; nie gehörte zuerst (gelten als ältestes), dann nach dem letzten Play, Gleichstand nach
+  Tracks, die der User mit **4 oder 5** bewertet hat (#777) und seit `TOP_RATED_QUIET_DAYS` (30) nicht
+  gehört hat — die Zeile ist der Weg zurück zu dem, was man liebt, nicht zu dem von gestern; nie gehörte zuerst (gelten als ältestes), dann nach dem letzten Play, Gleichstand nach
   höherer Bewertung, dann Trackhash. Höchstens 2 pro Album, Zeile höchstens 15 (`TopRatedEntry`
-  kappt; „Play all“ spielt bis zu 100). Karte „rated 5 · last March 2025“. Keine Bewertung 4+ oder
+  kappt; „Play all“ spielt bis zu 100). ⚠️ Die Routine läuft alle 6 h, aber **ausgeliefert wird nach der
+  aktuellen Bewertung** (`TopRatedEntry.current`, aus dem RAM): Wer einen Track auf 1 setzt oder die
+  Bewertung löscht, sieht ihn sofort nicht mehr, weder in der Zeile noch in „Play all“. Neu hoch
+  Bewertetes kommt erst mit dem nächsten Lauf dazu. Karte „rated 5 · last March 2025“. Keine Bewertung 4+ oder
   kein Track in der Bibliothek: leere Zeile mit Log-Grund. Erzeugte Playlist `toprated` (in
   `CUSTOM_PLAYLISTS`, **nicht** in `DATED_PLAYLISTS`: der Inhalt hängt nicht am Datum). Ohne
   Bewertungen fehlt die Zeile. Platz in `DEFAULT_ORDER` nach „Forgotten favorites“.
@@ -329,7 +333,9 @@ Dial-Reihenfolge, nur belegte Plätze). Jeder Eintrag ist eine erzeugte Playlist
   `StationStore` (`store/stations.py`, RAM). Plätze wie bei „Your mixes“: ein Station behält
   ihren Platz (`genre2` bleibt Rock), solange ihr Schlüssel bleibt.
 - **Bewertungen (#788):** wie bei den Mixes. `station_tracks` nimmt `ratings=` (Routine:
-  `RadioStations`, je User einmal `TrackRatingTable.of_user`): bekannte 4–5 zuerst, 1 nie gezogen.
+  `RadioStations`, je User einmal `TrackStore.ratings_of`): 4–5 zuerst, bekannt wie nie gespielt, 1 nie
+  gezogen. ⚠️ „Zuerst“ gilt **innerhalb** des Schnitts auf die 2 × 30 meistgehörten: Vor dem Schnitt
+  einsortiert, verdrängten viele 4er und 5er jeden ungewerteten Liebling aus dem Sender.
   Die Saison-Sender nutzen dieselbe Ziehung nur beim Weihnachts-Sender; **„Countdown“ rechnet
   nicht nach Bewertungen** (er ist ein Ranking nach Abspielzahl, kein Ziehen).
 - **Ids** `genre1…genre4`, `decade1…decade4` — in `GENERATED_PLAYLISTS` **und**

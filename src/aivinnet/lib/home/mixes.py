@@ -229,12 +229,18 @@ def mix_tracks(
     queues: list[deque[str]] = []
 
     for artist in artists:
-        fresh = [
+        fresh_all = [
             trackhash
             for trackhash in sorted(set(tracks_of(artist)))
             if trackhash not in played and rated.get(trackhash) != RATING_DISLIKED
         ]
-        rng.shuffle(fresh)
+        # Rated 4 or 5 but never played (rating needs no play) comes first too. Without
+        # ratings `fresh_liked` is empty and its shuffle draws nothing: the old draw.
+        fresh_liked = [t for t in fresh_all if rated.get(t, 0) >= RATING_LIKED]
+        fresh_rest = [t for t in fresh_all if rated.get(t, 0) < RATING_LIKED]
+        rng.shuffle(fresh_liked)
+        rng.shuffle(fresh_rest)
+        fresh = [*fresh_liked, *fresh_rest]
         favourites = [
             t
             for t, _ in sorted(

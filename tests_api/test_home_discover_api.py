@@ -468,11 +468,20 @@ def test_your_top_rated_is_a_row_and_a_playlist(home, history, monkeypatch):
     import aivinnet.lib.home.onrepeat as onrepeat
     from aivinnet.db.userdata import TrackRatingTable
     from aivinnet.lib.recipes.homerows import TopRated
+    from aivinnet.store.tracks import TrackStore
+
+    def rate(trackhash: str, rating: int | None) -> None:
+        """As `/ratings/set` and `/ratings/clear` do: the table and the RAM the routine reads."""
+        if rating is None:
+            TrackRatingTable.clear_rating(trackhash, 1)
+        else:
+            TrackRatingTable.set_rating(trackhash, 1, rating)
+        TrackStore.trackhashmap[trackhash].set_rating(1, rating)
 
     monkeypatch.setattr(onrepeat, "get_current_userid", lambda: home.userid)
-    TrackRatingTable.set_rating(th(FNM, 4), 1, 5)
-    TrackRatingTable.set_rating(th(MILES, 1), 1, 4)
-    TrackRatingTable.set_rating(th(PRIMUS, 1), 1, 3)
+    rate(th(FNM, 4), 5)
+    rate(th(MILES, 1), 4)
+    rate(th(PRIMUS, 1), 3)
     TopRated()
 
     data, _ = rows(home)
@@ -487,6 +496,13 @@ def test_your_top_rated_is_a_row_and_a_playlist(home, history, monkeypatch):
     body = res.get_json()
     assert body["info"]["name"] == "Your top rated"
     assert [t["trackhash"] for t in body["tracks"]] == [th(MILES, 1), th(FNM, 4)]
+
+    # A rating cleared after the run leaves the row and "Play all" at once, not
+    # with the next run 6 hours later (review of #788).
+    rate(th(MILES, 1), None)
+    data, _ = rows(home)
+    assert [i["item"]["trackhash"] for i in data["top_rated"]["items"]] == [th(FNM, 4)]
+    assert [t["trackhash"] for t in home.get("/playlists/toprated").get_json()["tracks"]] == [th(FNM, 4)]
 
     home.userid = 2
     _, order = rows(home)
