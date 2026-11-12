@@ -40,18 +40,19 @@ describe("the settings pane list", () => {
     // every assertion below trivially true.
     expect(ENTRIES.map((entry) => entry.title)).toEqual([
       "Appearance",
+      "Layout",
       "Home",
       "Profile",
       "Pair device",
       "Accounts",
+      "Playback",
       "Folders",
       "Tracks",
       "Albums",
       "Artists",
-      "Album Cover",
+      "Covers",
       "Ratings",
       "Backup",
-      "Playback",
       "Lyrics",
       "About",
     ]);

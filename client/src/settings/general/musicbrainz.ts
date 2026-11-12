@@ -5,7 +5,7 @@ import { SettingType } from '../enums'
 
 const store = () => useMusicBrainzStore()
 
-const fetchMissingCovers: Setting = {
+export const fetchMissingCoversRow: Setting = {
     title: 'Fetch missing covers online',
     desc: 'Searches MusicBrainz, then the iTunes and Deezer stores (~1s per album). Albums whose tags cannot be verified are skipped rather than guessed at.',
     type: SettingType.button,
@@ -40,7 +40,8 @@ const fetchMissingCovers: Setting = {
 
 // The list is worked out on the server from the library as it stands, so it is
 // current after every scan; the button only opens it.
-const checkLibrary: Setting = {
+// Shown under Library → Albums: its findings are albums, and none is about covers.
+export const checkLibrary: Setting = {
     title: 'Check library for broken tags',
     desc: 'Lists albums that fell apart into several, have a track number as their artist, or placeholder titles. Nothing is changed until you choose to.',
     type: SettingType.button,
@@ -49,4 +50,3 @@ const checkLibrary: Setting = {
     action: () => useModal().showLibraryAuditModal(),
 }
 
-export default [fetchMissingCovers, checkLibrary]

@@ -36,7 +36,8 @@ const show_albums_as_singles: Setting = {
 // The one setting that MODIFIES the user's files (config.py::writeCoverToFiles).
 // On by default, but anyone whose tags are kept by another program must be able
 // to say no — which needs a switch they can actually reach.
-const write_cover_to_files: Setting = {
+// Shown under Library → Covers, with the other cover setting (not an album rule).
+export const write_cover_to_files: Setting = {
     title: 'Write changed covers into the files',
     desc: "Changing an album's cover also embeds it in the album's audio files, so other players show it too",
     type: SettingType.binary,
@@ -44,4 +45,4 @@ const write_cover_to_files: Setting = {
     action: () => settings().toggleWriteCoverToFiles(),
 }
 
-export default [clean_album_titles, merge_album_versions, show_albums_as_singles, write_cover_to_files]
+export default [clean_album_titles, merge_album_versions, show_albums_as_singles]

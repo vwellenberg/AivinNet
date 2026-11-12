@@ -2297,7 +2297,7 @@ Titel 20 px. Unter ~624 px quer passt es weiterhin nicht (568×320). Tests:
 
 ## ⚠️ Die Kachelgröße ist die Einstellung des Nutzers — und hat drei Stellen, die zusammenbewegen (Tile size)
 
-Settings → Appearance → Tile size (128–288 px, Standard 192 = das alte `$cardwidth: 12rem`).
+Settings → Layout → Tile size (128–288 px, Standard 192 = das alte `$cardwidth: 12rem`).
 Der Wert ist die **Mindest-Spaltenbreite** jedes Kartenrasters (`minmax($cardwidth, 1fr)`), die
 Kacheln dehnen sich danach auf den Rest.
 

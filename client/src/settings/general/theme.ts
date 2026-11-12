@@ -86,7 +86,7 @@ const seasonPreviewRow: Setting = {
  * (Global/index.scss).
  */
 const theme: Setting = {
-    title: 'Mode',
+    title: 'Light or dark',
     desc: 'Light grid paper or the near-black dark ground. Boring is always dark.',
     type: SettingType.select,
     options: [
@@ -179,4 +179,17 @@ const auto_theme_dark_from: Setting = {
     inactive: autoInactive,
 }
 
-export default [look, palette, seasonal, seasonPreviewRow, theme, auto_theme, auto_theme_zone, auto_theme_light_from, auto_theme_dark_from]
+// Light or dark first: it is the one switch everybody looks for (reported: dark
+// mode sat below the seasonal colours). Then the look itself, then the
+// seasons, which only apply to Memphis and only on a few days a year.
+export default [
+    theme,
+    auto_theme,
+    auto_theme_zone,
+    auto_theme_light_from,
+    auto_theme_dark_from,
+    look,
+    palette,
+    seasonal,
+    seasonPreviewRow,
+]

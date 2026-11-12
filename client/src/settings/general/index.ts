@@ -3,10 +3,10 @@ import { loggedInUserIsAdmin } from '../utils'
 
 import { SettingCategory } from '@/interfaces/settings'
 import * as strings from '../strings'
-import albums from './albums'
+import albums, { write_cover_to_files as writeCoverToFiles } from './albums'
 import restore from './backup'
 import font from './font'
-import musicbrainz from './musicbrainz'
+import { checkLibrary, fetchMissingCoversRow } from './musicbrainz'
 import nowPlaying from './now-playing-group'
 import onlineMetadata from './online-metadata'
 import pageGradient from './page-gradient'
@@ -27,6 +27,7 @@ import TrackSvg from '@/assets/icons/note.svg?raw'
 // The star, not the heart: the heart is the favourite in this app (#777).
 import RatingSvg from '@/assets/icons/star.svg?raw'
 import AppearanceSvg from '@/assets/icons/paintbrush.svg?raw'
+import LayoutSvg from '@/assets/icons/layout.svg?raw'
 
 const npStrings = strings.nowPlayingStrings
 const rootRootStrings = strings.manageRootDirsStrings
@@ -36,16 +37,17 @@ export const general = {
     groups: [
         {
             title: 'Appearance',
-            desc: 'Settings for various parts of the user interface.',
+            desc: 'Light or dark, theme, colours and font.',
             icon: AppearanceSvg,
-            settings: [
-                ...theme,
-                ...pageGradient,
-                ...font,
-                ...tileSize,
-                ...sidebarSettings,
-                ...nowPlaying,
-            ],
+            settings: [...theme, ...font],
+        },
+        {
+            // What sits where and how big: split off Appearance, which had grown
+            // to fourteen rows with dark mode somewhere in the middle.
+            title: 'Layout',
+            desc: 'Tile size, the sidebar, and what pages and Now Playing show.',
+            icon: LayoutSvg,
+            settings: [...tileSize, ...pageGradient, ...nowPlaying, ...sidebarSettings],
         },
     ],
 } as SettingCategory
@@ -73,8 +75,8 @@ export const library = {
             show_if: () => useSettings().feat !== null,
             title: 'Albums',
             icon: AlbumSvg,
-            desc: 'Settings relating to album information',
-            settings: [...albums],
+            desc: 'How albums are put together, and a check for albums whose tags look broken',
+            settings: [...albums, checkLibrary],
         },
         {
             // null means settings table is not created yet
@@ -86,10 +88,10 @@ export const library = {
         },
         {
             show_if: () => useSettings().feat !== null,
-            title: 'Album Cover',
+            title: 'Covers',
             icon: CoverSvg,
-            desc: 'Fetch missing album covers from MusicBrainz, iTunes and Deezer',
-            settings: [...musicbrainz],
+            desc: 'Fetch missing album covers, and whether a new cover goes into the files',
+            settings: [fetchMissingCoversRow, writeCoverToFiles],
         },
         {
             show_if: () => useSettings().feat !== null,
