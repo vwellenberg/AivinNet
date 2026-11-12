@@ -438,12 +438,6 @@ class PlaybackService : MediaLibraryService() {
 
     // endregion
 
-    // region Scrobbling
-
-    /**
-     * Adds up the time each track really plays and sends it when the track changes, the queue
-     * ends, or the service is destroyed. Only the player's thread touches it.
-     */
     // region Rating button
 
     /** Whether a controller may browse the library (and so sees the rating button). */
@@ -514,6 +508,12 @@ class PlaybackService : MediaLibraryService() {
 
     // endregion
 
+    // region Scrobbling
+
+    /**
+     * Adds up the time each track really plays and sends it when the track changes, the queue
+     * ends, or the service is destroyed. Only the player's thread touches it.
+     */
     private inner class Scrobbler : Player.Listener {
 
         private val timer = ListeningTimer()
