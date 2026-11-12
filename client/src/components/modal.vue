@@ -107,6 +107,7 @@ import usePlaylistsStore from '@/stores/pages/playlists'
 import { useRouter } from 'vue-router'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { peeking } from '@/utils/settingsPeek'
+import { leaveModal } from '@/utils/modalHistory'
 
 import AuthLogin from './modals/AuthLogin.vue'
 import ConfirmModal from './modals/ConfirmModal.vue'
@@ -156,9 +157,10 @@ watch(
         if (isBackDismissable() && !pushed) {
             history.pushState({ aivinnetModal: true }, '')
             pushed = true
-        } else if (!modal.visible && pushed) {
+        } else if (!modal.visible) {
+            const wasPushed = pushed
             pushed = false
-            if (history.state && history.state.aivinnetModal) history.back()
+            leaveModal(router, modal.takeNavigation(), wasPushed)
         }
     }
 )
