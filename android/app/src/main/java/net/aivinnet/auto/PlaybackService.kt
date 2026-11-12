@@ -28,8 +28,10 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -79,7 +81,11 @@ class PlaybackService : MediaLibraryService() {
      */
     private var ratedTrack: String? = null
     private var shownRating: Int? = null
+    /** False until the lookup for [ratedTrack] has answered: a press then asks first instead of guessing. */
+    private var ratingKnown = false
     private var ratingEpoch = 0
+    /** The lookup for the playing track; a newer track change cancels it instead of letting it run on. */
+    private var ratingLookup: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -174,7 +180,7 @@ class PlaybackService : MediaLibraryService() {
         /** Shows the rating button to a controller that may browse; the player-only ones never see it. */
         override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
             if (mayBrowse(controller)) {
-                session.setCustomLayout(controller, ratingLayout())
+                session.setMediaButtonPreferences(controller, ratingLayout())
             }
         }
 
@@ -195,13 +201,26 @@ class PlaybackService : MediaLibraryService() {
             val trackhash = ratedTrack
                 ?: return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
 
-            val next = RatingRules.toggle(shownRating)
-            ratingEpoch++
-            shownRating = next
-            showRatingButton()
+            val known = ratingKnown
+            val shown = shownRating
+            val epoch = ++ratingEpoch
+            ratingLookup?.cancel()
+            if (known) showRating(trackhash, RatingRules.toggle(shown), epoch)
 
-            return browseScope.future {
-                offline.recordRating(api, trackhash, next)
+            // scrobbleScope, not browseScope: a press must still reach the server when the car stops
+            // playback and the service goes away, as a play does.
+            return scrobbleScope.future {
+                // Pressed before the lookup answered: ask first. Toggling from "unknown" set 5 on a
+                // track already rated 5, so the first press did nothing visible.
+                val next = if (known) RatingRules.toggle(shown) else RatingRules.toggle(loadRating(trackhash))
+                if (!known) withContext(Dispatchers.Main) { showRating(trackhash, next, epoch) }
+
+                val result = offline.recordRating(api, trackhash, next)
+                // Refused for good (e.g. 404, the track is gone on the server): show what the server holds.
+                if (result != null && trackhash in result.rejectedTracks) {
+                    val actual = loadRating(trackhash)
+                    withContext(Dispatchers.Main) { showRating(trackhash, actual, epoch) }
+                }
                 SessionResult(SessionResult.RESULT_SUCCESS)
             }
         }
@@ -458,20 +477,25 @@ class PlaybackService : MediaLibraryService() {
             val trackhash = (MediaIds.parse(mediaItem?.mediaId) as? MediaRef.Track)?.trackhash
             ratedTrack = trackhash
             shownRating = null
+            ratingKnown = false
             val epoch = ++ratingEpoch
+            ratingLookup?.cancel()
             showRatingButton()
             if (trackhash == null) return
 
-            browseScope.launch {
+            ratingLookup = browseScope.launch {
                 val rating = loadRating(trackhash)
-                withContext(Dispatchers.Main) {
-                    if (ratingEpoch == epoch) {
-                        shownRating = rating
-                        showRatingButton()
-                    }
-                }
+                withContext(Dispatchers.Main) { showRating(trackhash, rating, epoch) }
             }
         }
+    }
+
+    /** Shows [rating] for [trackhash], unless the track or a newer press has moved on. Main thread only. */
+    private fun showRating(trackhash: String, rating: Int?, epoch: Int) {
+        if (ratedTrack != trackhash || ratingEpoch != epoch) return
+        shownRating = rating
+        ratingKnown = true
+        showRatingButton()
     }
 
     private suspend fun loadRating(trackhash: String): Int? {
@@ -479,8 +503,12 @@ class PlaybackService : MediaLibraryService() {
         if (owner != null) offline.ratings.pending(owner, trackhash)?.let { return it.rating }
         return try {
             api.ratingOf(trackhash)
-        } catch (e: IOException) {
-            Log.i(TAG, "Rating of the playing track unknown offline", e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Any failure, not only IOException: this runs in a launch without a handler, and an
+            // uncaught exception there would end the service, and the music in the car with it.
+            Log.i(TAG, "Rating of the playing track unknown", e)
             null
         }
     }
@@ -489,7 +517,7 @@ class PlaybackService : MediaLibraryService() {
     private fun showRatingButton() {
         val layout = ratingLayout()
         for (controller in session.connectedControllers) {
-            if (mayBrowse(controller)) session.setCustomLayout(controller, layout)
+            if (mayBrowse(controller)) session.setMediaButtonPreferences(controller, layout)
         }
     }
 
@@ -501,6 +529,8 @@ class PlaybackService : MediaLibraryService() {
         )
             .setDisplayName(getString(if (rated) R.string.rating_rated else R.string.rating_rate))
             .setSessionCommand(RATING_COMMAND)
+            // Next to the transport buttons where there is room, in the overflow otherwise.
+            .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
             .setEnabled(ratedTrack != null)
             .build()
         return ImmutableList.of(button)

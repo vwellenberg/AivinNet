@@ -125,9 +125,9 @@ class OfflineEngine private constructor(context: Context) {
     }
 
     /** Sets (or clears, when [rating] is null) a rating: sent now, or kept in the queue if the server cannot take it. */
-    suspend fun recordRating(api: AivinApi, trackhash: String, rating: Int?) {
-        val owner = api.store.accountKey ?: return
-        ratings.record(owner, trackhash, rating) { sendRating(it, api, ::offlineLog) }
+    suspend fun recordRating(api: AivinApi, trackhash: String, rating: Int?): RatingQueue.DrainResult? {
+        val owner = api.store.accountKey ?: return null
+        return ratings.record(owner, trackhash, rating) { sendRating(it, api, ::offlineLog) }
     }
 
     /** Sends the rating changes waiting for the signed-in account. */

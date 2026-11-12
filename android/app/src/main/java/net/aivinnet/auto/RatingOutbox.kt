@@ -19,6 +19,14 @@ class RatingOutbox(
     private val mutex = Mutex()
     private val queue = RatingQueue(file.load())
 
+    /**
+     * What is queued, as of the last change. [pending] reads it without [mutex]: the mutex is held
+     * for a whole drain, network included, and the button's lookup on a track change must not wait
+     * up to the HTTP timeouts behind sends of other tracks.
+     */
+    @Volatile
+    private var waiting: List<QueuedRating> = queue.snapshot()
+
     /** Stores the change, then sends the waiting changes of [owner], oldest first. */
     suspend fun record(
         owner: String,
@@ -38,8 +46,8 @@ class RatingOutbox(
     ): RatingQueue.DrainResult = mutex.withLock { drainAndPersist(owner, send) }
 
     /** The change still waiting for this track, if any: it is the truth until the server has it. */
-    suspend fun pending(owner: String, trackhash: String): QueuedRating? =
-        mutex.withLock { queue.pending(owner, trackhash) }
+    fun pending(owner: String, trackhash: String): QueuedRating? =
+        waiting.lastOrNull { it.owner == owner && it.trackhash == trackhash }
 
     private suspend fun drainAndPersist(
         owner: String,
@@ -47,6 +55,7 @@ class RatingOutbox(
     ): RatingQueue.DrainResult = queue.drain(owner, send).also { persist() }
 
     private fun persist() {
+        waiting = queue.snapshot()
         try {
             file.save(queue.snapshot())
         } catch (e: IOException) {

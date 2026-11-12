@@ -82,7 +82,7 @@ class RatingQueueTest {
             if (it.trackhash == "a") SendOutcome.REJECTED else SendOutcome.SENT
         }
 
-        assertEquals(RatingQueue.DrainResult(sent = 1, rejected = 1, pending = 0), result)
+        assertEquals(RatingQueue.DrainResult(sent = 1, rejected = 1, pending = 0, rejectedTracks = setOf("a")), result)
         assertEquals(0, queue.size)
     }
 
@@ -104,5 +104,20 @@ class RatingQueueTest {
         val decoded = OfflineJson.decodeRatings(OfflineJson.encodeRatings(entries))
 
         assertEquals(entries, decoded)
+    }
+
+    @Test
+    fun `a broken entry in the queue file is skipped, not the whole queue`() {
+        val text = """{"version":1,"ratings":[
+            {"owner":"alice","trackhash":"a","rating":5},
+            {"owner":"alice","trackhash":"b","rating":7},
+            {"owner":"alice","rating":3},
+            "not an entry",
+            {"owner":"alice","trackhash":"c","rating":null}
+        ]}"""
+
+        val decoded = OfflineJson.decodeRatings(text)
+
+        assertEquals(listOf(QueuedRating("alice", "a", 5), QueuedRating("alice", "c", null)), decoded)
     }
 }

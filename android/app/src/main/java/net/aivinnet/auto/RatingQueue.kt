@@ -35,6 +35,7 @@ class RatingQueue(initial: List<QueuedRating> = emptyList(), private val capacit
     suspend fun drain(owner: String, send: suspend (QueuedRating) -> SendOutcome): DrainResult {
         var sent = 0
         var rejected = 0
+        val rejectedTracks = HashSet<String>()
         while (true) {
             val next = entries.firstOrNull { it.owner == owner } ?: break
             when (send(next)) {
@@ -44,15 +45,27 @@ class RatingQueue(initial: List<QueuedRating> = emptyList(), private val capacit
                 }
                 SendOutcome.REJECTED -> {
                     rejected++
+                    rejectedTracks.add(next.trackhash)
                     entries.remove(next)
                 }
                 SendOutcome.RETRY -> break
             }
         }
-        return DrainResult(sent = sent, rejected = rejected, pending = entries.count { it.owner == owner })
+        return DrainResult(
+            sent = sent,
+            rejected = rejected,
+            pending = entries.count { it.owner == owner },
+            rejectedTracks = rejectedTracks,
+        )
     }
 
-    data class DrainResult(val sent: Int, val rejected: Int, val pending: Int)
+    /** [rejectedTracks]: the tracks whose change the server refused for good, so the button can show the truth. */
+    data class DrainResult(
+        val sent: Int,
+        val rejected: Int,
+        val pending: Int,
+        val rejectedTracks: Set<String> = emptySet(),
+    )
 
     companion object {
         /** Ratings are tiny; the cap only bounds the file after a very long offline stretch. */

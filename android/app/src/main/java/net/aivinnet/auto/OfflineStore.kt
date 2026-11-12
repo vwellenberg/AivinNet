@@ -125,15 +125,20 @@ object OfflineJson {
         return JSONObject().put("version", VERSION).put("ratings", ratings).toString()
     }
 
+    /**
+     * Entry by entry: one broken entry (a hand-edited file, a future format) is skipped instead of
+     * throwing and losing every queued rating with it. A rating outside 1..5 would only be refused
+     * by the server (422) and dropped, so it is dropped here.
+     */
     fun decodeRatings(text: String): List<QueuedRating> {
-        val ratings = JSONObject(text).getJSONArray("ratings")
-        return (0 until ratings.length()).map { index ->
-            val obj = ratings.getJSONObject(index)
-            QueuedRating(
-                owner = obj.getString("owner"),
-                trackhash = obj.getString("trackhash"),
-                rating = if (obj.isNull("rating")) null else obj.getInt("rating"),
-            )
+        val ratings = JSONObject(text).optJSONArray("ratings") ?: return emptyList()
+        return (0 until ratings.length()).mapNotNull { index ->
+            val obj = ratings.optJSONObject(index) ?: return@mapNotNull null
+            val owner = obj.optString("owner").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val trackhash = obj.optString("trackhash").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val rating = if (obj.isNull("rating")) null else obj.optInt("rating", 0)
+            if (rating != null && rating !in 1..5) return@mapNotNull null
+            QueuedRating(owner = owner, trackhash = trackhash, rating = rating)
         }
     }
 
