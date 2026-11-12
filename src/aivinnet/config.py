@@ -85,6 +85,11 @@ class UserConfig(metaclass=Singleton):
     # in here that MODIFIES the user's files — anyone who keeps their tags
     # under another program's control needs to be able to say no.
     writeCoverToFiles: bool = True
+    # Ratings (#789) written into the files as well: POPM for MP3/WAV, RATING for
+    # FLAC/Ogg/Opus, the `rate` atom for M4A. Off by default: it changes the
+    # user's files, and only ONE rating fits per file, so with several users the
+    # last one to rate wins (documented in .claude/rules/track-tags.md).
+    writeRatingsToFiles: bool = False
 
     # misc
     # Largest album or playlist that may be downloaded as one archive, in MB.

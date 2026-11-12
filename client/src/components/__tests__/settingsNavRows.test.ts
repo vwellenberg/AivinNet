@@ -49,6 +49,7 @@ describe("the settings pane list", () => {
       "Albums",
       "Artists",
       "Album Cover",
+      "Ratings",
       "Backup",
       "Playback",
       "Lyrics",

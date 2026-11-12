@@ -10,6 +10,7 @@ import musicbrainz from './musicbrainz'
 import nowPlaying from './now-playing-group'
 import onlineMetadata from './online-metadata'
 import pageGradient from './page-gradient'
+import ratings from './ratings'
 import rootDirSettings from './root-dirs'
 import separators from './separators'
 import sidebarSettings from './sidebar'
@@ -23,6 +24,7 @@ import BackupSvg from '@/assets/icons/backup.svg?raw'
 import CoverSvg from '@/assets/icons/cover.svg?raw'
 import FolderSvg from '@/assets/icons/folder.svg?raw'
 import TrackSvg from '@/assets/icons/note.svg?raw'
+import RatingSvg from '@/assets/icons/heart.svg?raw'
 import AppearanceSvg from '@/assets/icons/paintbrush.svg?raw'
 
 const npStrings = strings.nowPlayingStrings
@@ -87,6 +89,13 @@ export const library = {
             icon: CoverSvg,
             desc: 'Fetch missing album covers from MusicBrainz, iTunes and Deezer',
             settings: [...musicbrainz],
+        },
+        {
+            show_if: () => useSettings().feat !== null,
+            title: 'Ratings',
+            icon: RatingSvg,
+            desc: 'Your 1 to 5 star ratings, and how they reach the audio files',
+            settings: [...ratings],
         },
         {
             title: "Backup",

@@ -1537,6 +1537,46 @@ class TrackRatingTable(Base):
         return {row.userid: row.rating for row in rows}
 
     @classmethod
+    def latest_rating_of_track(cls, trackhash: str) -> int | None:
+        """
+        The rating of the user who rated this track LAST, whoever that is (#789).
+
+        The file carries one rating field, so "last rater wins" is decided here:
+        the newest timestamp, ties broken by the newer row.
+        """
+        row = next(
+            cls.execute(
+                select(cls.rating)
+                .where(cls.trackhash == trackhash)
+                .order_by(cls.timestamp.desc(), cls.id.desc())
+                .limit(1)
+            )
+        ).first()
+        return row.rating if row else None
+
+    @classmethod
+    def insert_missing(cls, userid: int, ratings: dict[str, int], timestamp: int | None = None) -> None:
+        """
+        Create `userid`'s rating for each trackhash that has none; an existing row wins (#789).
+
+        One statement per chunk, so a whole library import is a handful of commits.
+        """
+        stamp = int(time.time()) if timestamp is None else timestamp
+        items = [
+            {"trackhash": trackhash, "userid": userid, "rating": rating, "timestamp": stamp}
+            for trackhash, rating in ratings.items()
+        ]
+        for start in range(0, len(items), 500):
+            next(
+                cls.execute(
+                    sqlite_insert(cls)
+                    .values(items[start : start + 500])
+                    .on_conflict_do_nothing(index_elements=["trackhash", "userid"]),
+                    commit=True,
+                )
+            )
+
+    @classmethod
     def everyone(cls) -> list[dict[str, Any]]:
         """Every user's ratings, for the instance backup: `{userid, trackhash, rating, timestamp}`."""
         rows = next(cls.execute(select(cls.userid, cls.trackhash, cls.rating, cls.timestamp).order_by(cls.id))).all()

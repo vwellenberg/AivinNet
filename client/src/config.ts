@@ -64,6 +64,9 @@ export const paths = {
         get allRatings() {
             return this.ratings
         },
+        get importRatings() {
+            return this.ratings + '/import-from-files'
+        },
         artist: '/artist',
         track: '/track',
         lyrics: '/lyrics',
