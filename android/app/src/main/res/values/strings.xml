@@ -14,6 +14,8 @@
     <string name="browse_mixes">Mixes</string>
     <string name="browse_playlists">Playlists</string>
     <string name="browse_offline">Offline</string>
+    <string name="rating_rate">5 Sterne geben</string>
+    <string name="rating_rated">Mit 5 Sternen bewertet</string>
     <string name="offline_title">Offline</string>
     <string name="offline_hint">Markierte Mixes und Playlists laden sich über WLAN herunter und bleiben aktuell. Im Auto spielen sie dann auch ohne Netz.</string>
     <string name="offline_status_storage">Speicher: %1$s</string>

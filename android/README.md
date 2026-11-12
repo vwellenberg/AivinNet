@@ -10,6 +10,9 @@ Browse-Baum auf.
 - **Offline:** markierte Mixes und Playlists werden aufs Telefon geladen und spielen auch ohne Netz (unten)
 - **Scrobbles:** `POST /logger/track/log` für jeden Titel, der mindestens 5 s lief; was ohne Netz
   nicht ankommt, wird gespeichert und nachgereicht
+- **Bewertung:** Im Player gibt es einen Knopf (Stern), der den laufenden Titel mit 5 bewertet. Ein
+  zweiter Druck auf einen Titel mit 5 entfernt die Bewertung. Der Knopf zeigt den Stand als gefüllten
+  Stern („Mit 5 Sternen bewertet“) oder leeren Stern („5 Sterne geben“). Unten: Offline-Verhalten
 - **Noch nicht:** Cover (der Bild-Endpoint braucht den Authorization-Header, den das Auto nicht
   senden kann), Suche, Sprachbefehle
 
@@ -79,6 +82,7 @@ dann auch ohne Netz.
   - `files/media/`: die Titel (SimpleCache, Schlüssel = Trackhash)
   - `files/offline.json`: welche Listen offline sind, mit dem Stand beim letzten Abgleich
   - `files/scrobble-queue.json`: Plays, die der Server noch nicht bekommen hat
+  - `files/rating-queue.json`: Bewertungswünsche, die der Server noch nicht bekommen hat
   - Die Anzeige in der App zählt die fertigen Downloads. **Offline-Daten löschen** entfernt Titel
     und Markierungen. **Abmelden** lässt sie liegen: wer sich wieder anmeldet, hat sie sofort.
 - **Konten:** Markierungen gelten pro Server und Benutzer, denn `mix1` ist für jeden Benutzer eine
@@ -94,6 +98,16 @@ und mit dem ursprünglichen Zeitstempel nachgereicht, in Reihenfolge, beim näch
 oder erfolgreichen Play. Antwortet der Server mit 400, 404 oder 422, ist der Play abgelehnt und fällt
 weg. 401, 408, 429, 5xx und Netzfehler lassen ihn in der Schlange. Höchstens 5000 Plays; danach fallen
 die ältesten weg.
+
+**Bewertungs-Knopf (Details):** Der Knopf wirkt auf den Titel, der gerade läuft. Sein Stand kommt in
+dieser Reihenfolge: eine noch wartende Änderung in der Warteschlange, sonst `GET /ratings/<trackhash>`
+beim Titelwechsel. Ohne Netz und ohne wartende Änderung ist der Stand unbekannt, und ein Druck setzt 5.
+Ein Druck ändert den Knopf sofort, dann geht die Änderung über `POST /ratings/set` bzw.
+`POST /ratings/clear` an den Server. Antwortet der Server nicht, wandert sie in
+`files/rating-queue.json`. Pro Konto und Titel gilt die letzte Änderung: Wer offline dreimal drückt,
+schickt nur den Endstand. Abgleich ist wie bei den Scrobbles (Start der App bzw. des Dienstes, jeder
+Sync). Antwortet der Server mit einem 4xx außer 401, 408 und 429 (z. B. 404, Titel unbekannt), wird die
+Änderung verworfen; 401, 408, 429, 5xx und Netzfehler lassen sie in der Warteschlange.
 
 **Grenzen:** Eine Playlist, die im Netz gestartet wurde, behält ihre volle Warteschlange, auch die
 nicht geladenen Titel. Fährt man danach in ein Funkloch, bricht die Wiedergabe beim ersten nicht

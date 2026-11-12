@@ -111,6 +111,37 @@ object OfflineJson {
         }
     }
 
+    /** `{"version":1,"ratings":[{owner, trackhash, rating}]}`; a null rating means "clear". */
+    fun encodeRatings(entries: List<QueuedRating>): String {
+        val ratings = JSONArray()
+        for (entry in entries) {
+            ratings.put(
+                JSONObject()
+                    .put("owner", entry.owner)
+                    .put("trackhash", entry.trackhash)
+                    .put("rating", entry.rating ?: JSONObject.NULL),
+            )
+        }
+        return JSONObject().put("version", VERSION).put("ratings", ratings).toString()
+    }
+
+    /**
+     * Entry by entry: one broken entry (a hand-edited file, a future format) is skipped instead of
+     * throwing and losing every queued rating with it. A rating outside 1..5 would only be refused
+     * by the server (422) and dropped, so it is dropped here.
+     */
+    fun decodeRatings(text: String): List<QueuedRating> {
+        val ratings = JSONObject(text).optJSONArray("ratings") ?: return emptyList()
+        return (0 until ratings.length()).mapNotNull { index ->
+            val obj = ratings.optJSONObject(index) ?: return@mapNotNull null
+            val owner = obj.optString("owner").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val trackhash = obj.optString("trackhash").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val rating = if (obj.isNull("rating")) null else obj.optInt("rating", 0)
+            if (rating != null && rating !in 1..5) return@mapNotNull null
+            QueuedRating(owner = owner, trackhash = trackhash, rating = rating)
+        }
+    }
+
     private fun encodePlaylist(detail: PlaylistDetail): JSONObject {
         val tracks = JSONArray()
         detail.tracks.forEach { tracks.put(encodeTrack(it)) }

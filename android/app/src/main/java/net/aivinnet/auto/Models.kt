@@ -67,6 +67,12 @@ object AivinJson {
         )
     }
 
+    /** `GET /ratings/<trackhash>` → `{"rating": n | null}`. */
+    fun parseRating(body: String): Int? = parsing {
+        val json = JSONObject(body)
+        if (json.isNull("rating")) null else json.getInt("rating")
+    }
+
     fun parsePlaylists(body: String): List<PlaylistSummary> = parsing {
         val data = JSONObject(body).optJSONArray("data") ?: JSONArray()
         (0 until data.length()).map { index ->

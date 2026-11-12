@@ -1,6 +1,7 @@
 package net.aivinnet.auto
 
 import android.content.Intent
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -13,19 +14,24 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionCommands
 import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -33,6 +39,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * The media service Android Auto browses and plays from. The phone UI is only the login screen.
@@ -67,14 +74,30 @@ class PlaybackService : MediaLibraryService() {
     /** Playlists as last shown in the car, so a tap plays exactly that list. */
     private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
 
+    /**
+     * The rating button acts on the playing track. [ratedTrack] is its trackhash, [shownRating] the
+     * rating the button shows. Only the main thread touches these. [ratingEpoch] changes with every
+     * track change and press, so a slow lookup for an older state cannot overwrite a newer one.
+     */
+    private var ratedTrack: String? = null
+    private var shownRating: Int? = null
+    /** False until the lookup for [ratedTrack] has answered: a press then asks first instead of guessing. */
+    private var ratingKnown = false
+    private var ratingEpoch = 0
+    /** The lookup for the playing track; a newer track change cancels it instead of letting it run on. */
+    private var ratingLookup: Job? = null
+
     override fun onCreate() {
         super.onCreate()
         api = AivinApi.create(this)
         offline = OfflineEngine.get(this)
         browseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        // Plays that failed without network (a dead spot) are sent now, before anything else.
-        scrobbleScope.launch { offline.flushScrobbles(api) }
+        // Plays and ratings that failed without network (a dead spot) are sent now, before anything else.
+        scrobbleScope.launch {
+            offline.flushScrobbles(api)
+            offline.flushRatings(api)
+        }
 
         // Downloaded tracks play from disk, the rest streams. The cache is read-only here, and that is
         // deliberate: it never evicts, so a stream written into it would grow with every track played.
@@ -96,6 +119,7 @@ class PlaybackService : MediaLibraryService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
         player.addListener(scrobbler)
+        player.addListener(RatingTracker())
 
         session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
     }
@@ -138,14 +162,11 @@ class PlaybackService : MediaLibraryService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
-            val mayBrowse = ControllerTrust.mayBrowse(
-                packageName = controller.packageName,
-                packageVerified = controller.isPackageNameVerified,
-                systemTrusted = controller.isTrusted,
-                ownPackage = packageName,
-            )
-            val sessionCommands = if (mayBrowse) {
+            val sessionCommands = if (mayBrowse(controller)) {
                 MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                    .buildUpon()
+                    .add(RATING_COMMAND)
+                    .build()
             } else {
                 Log.i(TAG, "Player-only connection for ${controller.packageName}")
                 SessionCommands.EMPTY
@@ -154,6 +175,54 @@ class PlaybackService : MediaLibraryService() {
                 .setAvailableSessionCommands(sessionCommands)
                 .setAvailablePlayerCommands(MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
                 .build()
+        }
+
+        /** Shows the rating button to a controller that may browse; the player-only ones never see it. */
+        override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+            if (mayBrowse(controller)) {
+                session.setMediaButtonPreferences(controller, ratingLayout())
+            }
+        }
+
+        /**
+         * The rating button's press. It toggles the rating of the track that is playing (see
+         * [RatingRules]), shows the result at once, and sends it, or queues it when the server
+         * cannot be reached. The future resolves after the send attempt; the car never waits on it.
+         */
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            if (customCommand.customAction != ACTION_TOGGLE_RATING || !mayBrowse(controller)) {
+                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
+            }
+            val trackhash = ratedTrack
+                ?: return Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_BAD_VALUE))
+
+            val known = ratingKnown
+            val shown = shownRating
+            val epoch = ++ratingEpoch
+            ratingLookup?.cancel()
+            if (known) showRating(trackhash, RatingRules.toggle(shown), epoch)
+
+            // scrobbleScope, not browseScope: a press must still reach the server when the car stops
+            // playback and the service goes away, as a play does.
+            return scrobbleScope.future {
+                // Pressed before the lookup answered: ask first. Toggling from "unknown" set 5 on a
+                // track already rated 5, so the first press did nothing visible.
+                val next = if (known) RatingRules.toggle(shown) else RatingRules.toggle(loadRating(trackhash))
+                if (!known) withContext(Dispatchers.Main) { showRating(trackhash, next, epoch) }
+
+                val result = offline.recordRating(api, trackhash, next)
+                // Refused for good (e.g. 404, the track is gone on the server): show what the server holds.
+                if (result != null && trackhash in result.rejectedTracks) {
+                    val actual = loadRating(trackhash)
+                    withContext(Dispatchers.Main) { showRating(trackhash, actual, epoch) }
+                }
+                SessionResult(SessionResult.RESULT_SUCCESS)
+            }
         }
 
         override fun onGetLibraryRoot(
@@ -388,6 +457,87 @@ class PlaybackService : MediaLibraryService() {
 
     // endregion
 
+    // region Rating button
+
+    /** Whether a controller may browse the library (and so sees the rating button). */
+    private fun mayBrowse(controller: MediaSession.ControllerInfo): Boolean = ControllerTrust.mayBrowse(
+        packageName = controller.packageName,
+        packageVerified = controller.isPackageNameVerified,
+        systemTrusted = controller.isTrusted,
+        ownPackage = packageName,
+    )
+
+    /**
+     * Resets the button for each new track and looks up its rating. The lookup prefers a rating still
+     * waiting in the queue (that is what the user last did), then the server; offline without a queued
+     * change the state stays unknown and a press sets 5.
+     */
+    private inner class RatingTracker : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val trackhash = (MediaIds.parse(mediaItem?.mediaId) as? MediaRef.Track)?.trackhash
+            ratedTrack = trackhash
+            shownRating = null
+            ratingKnown = false
+            val epoch = ++ratingEpoch
+            ratingLookup?.cancel()
+            showRatingButton()
+            if (trackhash == null) return
+
+            ratingLookup = browseScope.launch {
+                val rating = loadRating(trackhash)
+                withContext(Dispatchers.Main) { showRating(trackhash, rating, epoch) }
+            }
+        }
+    }
+
+    /** Shows [rating] for [trackhash], unless the track or a newer press has moved on. Main thread only. */
+    private fun showRating(trackhash: String, rating: Int?, epoch: Int) {
+        if (ratedTrack != trackhash || ratingEpoch != epoch) return
+        shownRating = rating
+        ratingKnown = true
+        showRatingButton()
+    }
+
+    private suspend fun loadRating(trackhash: String): Int? {
+        val owner = api.store.accountKey
+        if (owner != null) offline.ratings.pending(owner, trackhash)?.let { return it.rating }
+        return try {
+            api.ratingOf(trackhash)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Any failure, not only IOException: this runs in a launch without a handler, and an
+            // uncaught exception there would end the service, and the music in the car with it.
+            Log.i(TAG, "Rating of the playing track unknown", e)
+            null
+        }
+    }
+
+    /** Pushes the button to every controller that may browse. Main thread only. */
+    private fun showRatingButton() {
+        val layout = ratingLayout()
+        for (controller in session.connectedControllers) {
+            if (mayBrowse(controller)) session.setMediaButtonPreferences(controller, layout)
+        }
+    }
+
+    /** One button: a filled star when the track is rated 5, an outline star otherwise. */
+    private fun ratingLayout(): ImmutableList<CommandButton> {
+        val rated = shownRating == RatingRules.FULL_MARK
+        val button = CommandButton.Builder(
+            if (rated) CommandButton.ICON_STAR_FILLED else CommandButton.ICON_STAR_UNFILLED,
+        )
+            .setDisplayName(getString(if (rated) R.string.rating_rated else R.string.rating_rate))
+            .setSessionCommand(RATING_COMMAND)
+            // Next to the transport buttons where there is room, in the overflow otherwise.
+            .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
+            .setEnabled(ratedTrack != null)
+            .build()
+        return ImmutableList.of(button)
+    }
+
+    // endregion
+
     // region Scrobbling
 
     /**
@@ -444,5 +594,9 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         private const val TAG = "PlaybackService"
+
+        /** The custom command of the rating button. The action is what the car sends back on a press. */
+        const val ACTION_TOGGLE_RATING = "net.aivinnet.auto.TOGGLE_RATING"
+        private val RATING_COMMAND = SessionCommand(ACTION_TOGGLE_RATING, Bundle.EMPTY)
     }
 }
