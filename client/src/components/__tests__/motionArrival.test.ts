@@ -276,6 +276,23 @@ describe('a plate rises', () => {
         expect(card).toMatch(/@include btn-pop;\s*--btn-pop-delay: #\{\$motion-after-plate/)
     })
 
+    it('prints the dots on the card: they arrive with it and never move', () => {
+        // The dots built up after the plate, each one growing from nothing
+        // (`mem-dots-wave`): a whole surface in motion behind the text, and
+        // the last thing on Home to come to rest (measured: it started 250 ms
+        // after the plate and ended ~470 ms after it). Reported as restless
+        // (user, 2026-11-13). A texture is part of its plate, not a part that
+        // moves on it.
+        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
+        const style = card.slice(card.indexOf('<style')).replace(/\/\/[^\n]*/g, '')
+        const dots = style.match(/&::before \{[^}]*mem-halftone[^}]*\}/)
+
+        expect(dots, 'the halftone layer of the Continue card was not found').toBeTruthy()
+        expect(dots![0], 'the dots animate again').not.toMatch(/animation|mem-dots-wave/)
+        // And the wave is gone as a tool, so the next plate cannot pick it up.
+        expect(ALL).not.toMatch(/mem-dots-(wave|grow)/)
+    })
+
     it('rises ONCE, even when Home reorders the cards under it', () => {
         // Eine CSS-Animation startet neu, sobald Vue ihren Knoten umhängt — und
         // die Karten sind ein `v-for` mit Key: kommt `fetchAll()` mit neuer
