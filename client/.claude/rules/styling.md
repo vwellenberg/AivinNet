@@ -1530,6 +1530,21 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   Animation dann ab). Ein Attribut, keine Klasse: Vue schreibt `class` bei jeder gebundenen
   Änderung neu. Messen mit `animationstart`-Listener **und einer Pause nach dem Scrollen** —
   wer direkt nach dem letzten Rad-Schritt aufhört, sieht das Nachsortieren nie.
+  ⚠️ **Ein Neustart wird erst NACH seiner Verzögerung gemeldet — bis dahin ist das Element
+  unsichtbar.** `animationstart` feuert, wenn das `animation-delay` abgelaufen ist, und
+  `backwards` hält so lange den ersten Frame (Deckkraft 0). Die Sperre „zweiter Start ⇒
+  angekommen" hört von einer umgehängten, gestaffelten Kachel also erst, nachdem sie für ihre
+  ganze Verzögerung verschwunden war. Und der Scroller sortiert seine Views ~300 ms nach **jedem**
+  Update, auch dem ersten — nicht nur nach dem Scrollen. Auf `/artists` und `/albums` kamen die
+  Kacheln ab der vierten einer Reihe (Verzögerung ≥ 135 ms, bei 300 ms noch unterwegs) an,
+  verschwanden für 135–360 ms und schnappten zurück (gemessen 1440×900: 8 Kacheln, Neustart
+  297 ms nach dem Mount; gemeldet als „Flackern", 2026-11-13; auf dem Stand davor genauso
+  messbar). Deshalb sperrt `arrivalLatch.ts` das **Umhängen selbst**: Ein `MutationObserver`
+  erkennt einen Knoten, der in einem Schub entfernt und wieder eingefügt wurde, und markiert jede
+  darin noch laufende Ankunft sofort — als Microtask, also vor dem nächsten Frame. Beim Messen
+  reicht der Zähler „`animationstart` pro Element" nicht aus, um das zu sehen, was der Nutzer
+  sieht: Er zeigt den Neustart, aber nicht die unsichtbare Zeit davor. Dafür den Film schneiden
+  (25 fps) oder `animationcancel` mitzählen.
   ⚠️ **Die Sperre gilt pro Animation, nicht pro Knoten — und Pseudo-Elemente animieren mit.**
   Die laufende Zeile zieht ihren Zustand auf `::before`/`::after` auf (`mem-texture-wipe`,
   `mem-band-drop`), und dieselbe Umhängung startet auch die neu. #370 latchte nur
