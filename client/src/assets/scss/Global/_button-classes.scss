@@ -124,6 +124,14 @@
   @include btn-pill;
 }
 
+// The submit button of a dialog is as wide as the dialog and carries one or
+// two words (Save, Create, "Save as playlist"), so the strokes come back
+// closer to the label than on a pill of unknown text (`$mem-label-clear`).
+// 9rem holds the longest of them; a longer label raises it here.
+form .btn-pill[type="submit"] {
+  --label-clear: 9rem;
+}
+
 // A pill that has to wrap: long labels in settings rows ("All covers present").
 // Height becomes a floor instead of a fixed value, so the label can take a
 // second line rather than overflowing its box.

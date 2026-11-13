@@ -58,6 +58,27 @@ describe("mem-label-hatch", () => {
     expect(body).not.toMatch(/content-box|mask-composite:\s*xor/);
   });
 
+  // User, 2026-11-13: the Save button of a dialog is as wide as the dialog,
+  // and the ring was measured from the BUTTON's edges — a thin hatched frame
+  // around an empty plate. With `$clear` the strokes come back beside a
+  // centred label; `max()`/`min()` leave a button narrower than the band alone.
+  it("clears only a label-wide band on a wide button, and only when asked", () => {
+    expect(body).toMatch(/@if \$clear \{/);
+    expect(body).toMatch(/var\(--label-clear, #\{\$clear\}\)/);
+    expect(body).toMatch(/transparent max\(#\{\$ring-x\} \+ #\{\$fade\}, 50% - #\{\$half\}\)/);
+    expect(body).toMatch(/transparent min\(100% - #\{\$ring-x\} - #\{\$fade\}, 50% \+ #\{\$half\}\)/);
+    // The band has to hold the longest label a pill carries: 11rem ran the
+    // strokes into "New music added to your library" (measured).
+    expect(CANDY).toMatch(/^\$mem-label-clear: 20rem !default;/m);
+    // Only the pill passes it: it centres its label. A left-aligned host
+    // would get the strokes behind its text.
+    const pill = mixin(BUTTONS, "btn-pill");
+    expect(pill).toMatch(/justify-content:\s*center/);
+    expect(pill).toMatch(/\$clear: \$mem-label-clear/);
+    const callers = [...strip(CANDY + BUTTONS).matchAll(/\$clear: \$mem-label-clear/g)];
+    expect(callers).toHaveLength(1);
+  });
+
   it("reads the stroke colour from --label-hatch, so a state can change it", () => {
     expect(body).toMatch(/background-image:\s*var\(--label-hatch\)/);
   });
@@ -103,7 +124,7 @@ describe("mem-text-veil (label covers and card captions)", () => {
     expect(CANDY).toMatch(/^\$mem-hatch-veil-strength: 1;/m);
     expect(CANDY).toMatch(/^\$mem-hatch-veil-rest: mem-alpha\(#000, 1 - \$mem-hatch-veil-strength\);/m);
     expect(CANDY).toMatch(/@mixin mem-hatch-clear\(\$buffer: 34px\)/);
-    expect(CANDY).toMatch(/@mixin mem-label-hatch\(\$size: 26px, \$on: surface, \$ring-x: 0\.3rem, \$ring-y: 0\.45rem, \$fade: 6px\)/);
+    expect(CANDY).toMatch(/@mixin mem-label-hatch\(\$size: 26px, \$on: surface, \$ring-x: 0\.3rem, \$ring-y: 0\.45rem, \$fade: 6px, \$clear: null\)/);
     const dots = mixin(CANDY, "mem-dots-veil");
     expect(dots).toMatch(/\$strength: \$mem-veil-strength/);
     expect(dots).toMatch(/@include mem-veil-layer\(\$strength\);/);

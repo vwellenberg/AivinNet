@@ -190,6 +190,15 @@ $control-compact-glyph: 1rem;
 $control-dense: 1.75rem;
 $control-dense-glyph: 1rem;
 
+// A stroked glyph that stands ALONE on a plate (no button around it) is drawn
+// at this size at least. The chrome set is 2.4 units of stroke on a 24-unit
+// grid, so the rendered stroke is 2.4 x size / 24: 2px at 20px — the ring
+// width (`$mem-ring-w`), the thinnest ink line a plate carries. The sidebar's
+// pin stood at 0.95rem, a 1.5px stroke between 3px frames and a 2px ring, and
+// read as borrowed from another set (user, 2026-11-13; measured per glyph as
+// computed stroke-width x rendered width / viewBox width).
+$glyph-lone: 1.25rem;
+
 // ---------------------------------------------------------------------------
 // The keyboard focus ring. `Global/basic.scss` gives it to every <button>; this
 // mixin exists because a control that WEARS a button role is not always a
@@ -654,7 +663,10 @@ $control-dense-glyph: 1rem;
   @include mem-label-hatch(
     26px,
     $on: if($fill == $mem-panel or $fill == $mem-soft, surface, accent),
-    $ring-y: if($h == auto, 0.2rem, 0.45rem)
+    $ring-y: if($h == auto, 0.2rem, 0.45rem),
+    // A pill centres its label (`justify-content: center` above), so on a
+    // wide one the strokes may come back beside it.
+    $clear: $mem-label-clear
   );
   // A pill is a LABEL button by definition — every call site in the app is a
   // word: Save, Login, Cancel, Delete, Load More, New Playlist, the search

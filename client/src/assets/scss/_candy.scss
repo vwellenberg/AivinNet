@@ -1344,7 +1344,14 @@ $mem-hatch-veil-rest: mem-alpha(#000, 1 - $mem-hatch-veil-strength);
 // Takes the `::before` of its host: `btn-primary` owns that pseudo-element for
 // its sprinkle, so the two never meet on one element.
 // ---------------------------------------------------------------------------
-@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.3rem, $ring-y: 0.45rem, $fade: 6px) {
+// How wide the stroke-free band around a CENTRED label is at most (`$clear`
+// below; `btn-pill` passes it). The mask cannot see the text, so the band has
+// to hold the longest label a pill carries: 20rem is some 45 characters, and
+// a pill up to about 21rem wide is untouched. 11rem was the first try and ran
+// the strokes into the ends of "New music added to your library" (a 253px
+// pill around a 225px label). `--label-clear` on a button overrides it.
+$mem-label-clear: 20rem !default;
+@mixin mem-label-hatch($size: 26px, $on: surface, $ring-x: 0.3rem, $ring-y: 0.45rem, $fade: 6px, $clear: null) {
   --label-hatch: #{if($on == accent, var(--mem-hatch-accent), var(--mem-hatch))};
   position: relative;
 
@@ -1371,6 +1378,24 @@ $mem-hatch-veil-rest: mem-alpha(#000, 1 - $mem-hatch-veil-strength);
     // middle went fully clear (`$mem-hatch-veil-rest`): the same "less hatch
     // around the text" as the row labels, chosen from the same preview.
     $sides: linear-gradient(to right, #000 $ring-x, transparent calc(#{$ring-x} + #{$fade}), transparent calc(100% - #{$ring-x} - #{$fade}), #000 calc(100% - #{$ring-x}));
+    // `$clear`: the clear band is only as wide as a LABEL, not as the button
+    // (user, 2026-11-13). The ring is measured from the button's edges, so a
+    // Save button as wide as its dialog was a thin hatched frame around an
+    // empty plate. Past `$clear` around the centre the strokes come back,
+    // over `$wide-fade`. A button narrower than the band is untouched: both
+    // `max()`/`min()` then fall back to the ring. Only for hosts that CENTRE
+    // their label; a left-aligned one would get the strokes behind its text.
+    @if $clear {
+      $half: calc(var(--label-clear, #{$clear}) / 2);
+      $wide-fade: 2rem;
+      $sides: linear-gradient(
+        to right,
+        #000 max(#{$ring-x}, 50% - #{$half} - #{$wide-fade}),
+        transparent max(#{$ring-x} + #{$fade}, 50% - #{$half}),
+        transparent min(100% - #{$ring-x} - #{$fade}, 50% + #{$half}),
+        #000 min(100% - #{$ring-x}, 50% + #{$half} + #{$wide-fade})
+      );
+    }
     $ends: linear-gradient(#000 max(0px, #{$ring-y} - #{$fade}), transparent min(#{$ring-y}, 50%), transparent max(100% - #{$ring-y}, 50%), #000 min(100%, 100% - #{$ring-y} + #{$fade}));
     -webkit-mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
     mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
