@@ -83,6 +83,110 @@ describe('arrival latch', () => {
         expect(source).toMatch(/\.continue-wrap \{[^}]*@include mem-arrival;/)
     })
 
+    // -----------------------------------------------------------------------
+    // The move itself is latched, not its echo. `animationstart` fires when the
+    // animation's DELAY is over, and `backwards` holds opacity 0 through it: a
+    // staggered tile that the scroller moved (it re-sorts its views ~300 ms
+    // after every update, the first included) vanished for its whole delay
+    // before the second start was reported. Measured on /artists (1440×900):
+    // 8 tiles restarted 297 ms after their rows mounted; in the film they came
+    // in, disappeared and snapped back. Reported as "flicker" on Artists.
+    // -----------------------------------------------------------------------
+    describe('a moved node', () => {
+        /** A running CSS animation as `getAnimations()` reports it. */
+        function running(target: Element, animationName: string, pseudoElement: string | null = null) {
+            return { animationName, effect: { target, pseudoElement } }
+        }
+        function withAnimations(node: Element, animations: unknown[]) {
+            Object.defineProperty(node, 'getAnimations', { value: () => animations, configurable: true })
+        }
+        const mutationsDelivered = () => new Promise(resolve => setTimeout(resolve, 0))
+
+        function viewWithTile() {
+            const wrapper = document.createElement('div')
+            const first = document.createElement('div')
+            const view = document.createElement('div')
+            view.className = SCROLLER_VIEW.slice(1)
+            const tile = document.createElement('a')
+            view.appendChild(tile)
+            wrapper.append(first, view)
+            document.body.appendChild(wrapper)
+            return { wrapper, first, view, tile }
+        }
+
+        it('latches a tile whose arrival still runs when its view is moved', async () => {
+            const { wrapper, first, view, tile } = viewWithTile()
+            await mutationsDelivered()
+            withAnimations(view, [running(tile, ARRIVAL_ANIMATION)])
+
+            // What Vue does for the scroller's re-sort: the same node, elsewhere.
+            wrapper.insertBefore(view, first)
+            await mutationsDelivered()
+
+            // No `animationstart` was dispatched: the tile sits in its delay.
+            expect(tile.hasAttribute(ARRIVED_ATTR)).toBe(true)
+        })
+
+        it('leaves a NEW node alone: it has yet to arrive', async () => {
+            const { view, tile } = viewWithTile()
+            withAnimations(view, [running(tile, ARRIVAL_ANIMATION)])
+            await mutationsDelivered()
+            expect(tile.hasAttribute(ARRIVED_ATTR)).toBe(false)
+        })
+
+        it('leaves a node alone that was only taken out', async () => {
+            const { view, tile } = viewWithTile()
+            await mutationsDelivered()
+            withAnimations(view, [running(tile, ARRIVAL_ANIMATION)])
+            view.remove()
+            await mutationsDelivered()
+            expect(tile.hasAttribute(ARRIVED_ATTR)).toBe(false)
+        })
+
+        it('marks only the element the arrival runs on, never a pseudo-element host', async () => {
+            const { wrapper, first, view, tile } = viewWithTile()
+            await mutationsDelivered()
+            withAnimations(view, [running(tile, ARRIVAL_ANIMATION, '::before'), running(tile, 'fav-shard-fly')])
+            wrapper.insertBefore(view, first)
+            await mutationsDelivered()
+            expect(tile.hasAttribute(ARRIVED_ATTR)).toBe(false)
+        })
+
+        it('keeps the scope: a button that pops outside a scroller is not marked', async () => {
+            const box = document.createElement('div')
+            const first = document.createElement('span')
+            const button = document.createElement('button')
+            box.append(first, button)
+            document.body.appendChild(box)
+            await mutationsDelivered()
+            withAnimations(button, [running(button, 'btn-pop')])
+
+            box.insertBefore(button, first)
+            await mutationsDelivered()
+            expect(button.hasAttribute(ARRIVED_ATTR)).toBe(false)
+
+            // The same move inside a scroller view is latched.
+            const { wrapper, first: head, view } = viewWithTile()
+            const inView = document.createElement('button')
+            view.appendChild(inView)
+            await mutationsDelivered()
+            withAnimations(view, [running(inView, 'btn-pop')])
+            wrapper.insertBefore(view, head)
+            await mutationsDelivered()
+            expect(inView.hasAttribute(ARRIVED_ATTR)).toBe(true)
+        })
+
+        it('stops watching when the latch is uninstalled', async () => {
+            const { wrapper, first, view, tile } = viewWithTile()
+            await mutationsDelivered()
+            withAnimations(view, [running(tile, ARRIVAL_ANIMATION)])
+            uninstall()
+            wrapper.insertBefore(view, first)
+            await mutationsDelivered()
+            expect(tile.hasAttribute(ARRIVED_ATTR)).toBe(false)
+        })
+    })
+
     it('ignores every other animation', () => {
         animationEnd(row, 'mem-band-drop')
         animationEnd(row, 'fav-shard-fly') // a click effect, not an arrival

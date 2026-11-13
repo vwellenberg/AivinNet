@@ -46,14 +46,18 @@ export const ARRIVAL_ANIMATIONS: ReadonlySet<string> = new Set([
 export const SCROLLER_VIEW = '.vue-recycle-scroller__item-view'
 const SCROLLER_ONLY: ReadonlySet<string> = new Set(['btn-pop', 'mem-sticker-slap', 'mem-motif-pop'])
 
-/** The element whose own arrival this event is, if it is one the latch keeps. */
-function arrivalTarget(e: AnimationEvent): Element | null {
-    if (!ARRIVAL_ANIMATIONS.has(e.animationName) || e.pseudoElement) return null
-    if (!(e.target instanceof Element)) return null
+/** Whether `name`, running on `target` itself, is an arrival the latch keeps. */
+function keepsArrival(name: string, target: Element): boolean {
+    if (!ARRIVAL_ANIMATIONS.has(name)) return false
     // Every button in the app pops; outside a scroller nothing moves it, and
     // marking them all would only leave attributes nobody reads.
-    if (SCROLLER_ONLY.has(e.animationName) && !inLatchScope(e, e.target)) return null
-    return e.target
+    return !SCROLLER_ONLY.has(name) || inLatchScope(name, target)
+}
+
+/** The element whose own arrival this event is, if it is one the latch keeps. */
+function arrivalTarget(e: AnimationEvent): Element | null {
+    if (e.pseudoElement || !(e.target instanceof Element)) return null
+    return keepsArrival(e.animationName, e.target) ? e.target : null
 }
 
 /**
@@ -65,9 +69,9 @@ function arrivalTarget(e: AnimationEvent): Element | null {
 export const HOME_VIEW = '.homepageview'
 const HOME_LATCHED: ReadonlySet<string> = new Set(['mem-sticker-slap'])
 
-function inLatchScope(e: AnimationEvent, target: Element): boolean {
+function inLatchScope(name: string, target: Element): boolean {
     if (target.closest(SCROLLER_VIEW)) return true
-    return HOME_LATCHED.has(e.animationName) && target.closest(HOME_VIEW) !== null
+    return HOME_LATCHED.has(name) && target.closest(HOME_VIEW) !== null
 }
 export const ARRIVED_ATTR = 'data-arrived'
 /** Set when the entrance starts; seeing it again at a start means a RESTART. */
@@ -92,6 +96,61 @@ function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
     // report the row as their target — only the element's own entrance counts.
     arrivalTarget(e)?.setAttribute(ARRIVED_ATTR, '')
+}
+
+// ---------------------------------------------------------------------------
+// ⚠️ A restart is only REPORTED after its delay — and until then the element is
+// invisible.
+//
+// The second `animationstart` above catches a restart, but the event fires when
+// the animation's DELAY has run out, and `backwards` holds the first keyframe
+// (opacity 0) through that delay. A staggered tile that is moved therefore
+// vanishes for its whole delay before the latch hears of it. The scroller
+// re-sorts its views ~300 ms after EVERY update, the first one included, so
+// this happened on every build of a card grid: on Artists and Albums the tiles
+// from the fourth of a row on (delay ≥ 135 ms, still running at 300 ms) came
+// in, disappeared for 135 to 360 ms and snapped back. Measured (1440×900,
+// /artists): 8 tiles restarted 297 ms after their rows were mounted; reported
+// as "flicker" (user, 2026-11-13).
+//
+// So the MOVE is what gets latched, not its echo. A node that is taken out and
+// put back in one batch of mutations has been moved; every arrival still
+// running in it is marked at once. A MutationObserver runs as a microtask of
+// the task that moved the node, so before the next frame: the restarted
+// animation is never painted. A tile that was still waiting for its turn is
+// simply there, a few frames early.
+// ---------------------------------------------------------------------------
+
+/** The arrivals still running on `node` or below it, as the elements they run on. */
+function runningArrivals(node: Element): Element[] {
+    // jsdom has no Web Animations API; the tests hand a node its own.
+    if (typeof node.getAnimations !== 'function') return []
+    const targets: Element[] = []
+    for (const anim of node.getAnimations({ subtree: true })) {
+        // A CSS animation carries its keyframes' name; a transition or a script's has none.
+        const name = (anim as Animation & { animationName?: string }).animationName
+        const effect = anim.effect as KeyframeEffect | null
+        const target = effect?.target
+        if (!name || !target || effect.pseudoElement) continue
+        if (keepsArrival(name, target)) targets.push(target)
+    }
+    return targets
+}
+
+function onMutations(records: MutationRecord[]) {
+    const removed = new Set<Node>()
+    for (const record of records) for (const node of record.removedNodes) removed.add(node)
+    if (removed.size === 0) return
+
+    // Read first, write after: an attribute written between two reads makes
+    // every following `getAnimations()` recalculate styles again.
+    const targets: Element[] = []
+    for (const record of records) {
+        for (const node of record.addedNodes) {
+            if (node instanceof Element && node.isConnected && removed.has(node)) targets.push(...runningArrivals(node))
+        }
+    }
+    for (const target of targets) target.setAttribute(ARRIVED_ATTR, '')
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +257,10 @@ export function installArrivalLatch(root: Document = document): () => void {
     // Before the scroller's own handler, so the views it builds for this very
     // scroll already find the flag.
     root.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    const moving = new MutationObserver(onMutations)
+    moving.observe(root, { childList: true, subtree: true })
     return () => {
+        moving.disconnect()
         root.removeEventListener('animationstart', onAnimationStart, true)
         root.removeEventListener('animationend', onAnimationEnd, true)
         root.removeEventListener('animationstart', onOrnamentStart, true)
