@@ -99,7 +99,7 @@ describe('StatItem motif styling', () => {
         // The dots were cut off at the tile's rounded corners and ran behind the
         // number; the caption needed a cover to stay readable. The motif ends
         // above the text, so none of that is needed any more.
-        expect(style).not.toMatch(/mem-halftone|mem-dots-wave/)
+        expect(style).not.toMatch(/mem-halftone/)
         // A `::before` that paints is the old layer; the count box's one is an
         // invisible sizer (text only, `visibility: hidden`).
         expect(style).not.toMatch(/&::before\s*\{[^}]*(background|mem-)/s)

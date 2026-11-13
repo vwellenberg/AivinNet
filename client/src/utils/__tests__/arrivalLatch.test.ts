@@ -80,8 +80,8 @@ describe('arrival latch', () => {
     })
 
     it('latches the Continue card only once its inner animations have settled', async () => {
-        // The card's plate ends at ~250 ms, but the progress fill, the resume
-        // pop and the dot wave run on until ~500 ms. Latching at the plate's end
+        // The card's plate ends at ~250 ms, but the progress fill and the resume
+        // pop run on after it. Latching at the plate's end
         // switched them off mid-flight (`[data-arrived]`): the snap.
         const card = document.createElement('div')
         document.body.appendChild(card)

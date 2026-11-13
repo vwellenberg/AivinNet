@@ -92,8 +92,8 @@ function onAnimationStart(e: AnimationEvent) {
 
 /**
  * The Continue card's entrance (`mem-plate-rise`) is a plate with moving parts
- * that start after it: the progress fill, the Continue button's pop and the dot
- * wave (ContinueCard.vue). Latching at the plate's end cut them mid-flight,
+ * that start after it: the progress fill and the Continue button's pop
+ * (ContinueCard.vue). Latching at the plate's end cut them mid-flight,
  * because `[data-arrived]` switches their animations off. So the plate latches
  * once every finite animation under it has ended. An infinite one never ends
  * and is not waited for.

@@ -1615,8 +1615,8 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   ist ein `v-for` mit Key — sortiert ein Refetch um, hängt Vue sie um und sie stiege erneut auf;
   deshalb steht `mem-plate-rise` mit in der Einmal-Sperre (`ARRIVAL_ANIMATIONS`).
   ⚠️ **Die Karte sperrt erst, wenn ihre inneren Animationen fertig sind** (#776, `SETTLING_ANIMATIONS`
-  in `arrivalLatch.ts`): Fortschrittsfüllung, Resume-Pop und Punktewelle laufen nach dem Aufstieg
-  noch bis ~500 ms, und die Sperre `[data-arrived]` schaltet sie ab. Die Sperre am Ende des Platten-
+  in `arrivalLatch.ts`): Fortschrittsfüllung und Resume-Pop laufen nach dem Aufstieg
+  noch weiter, und die Sperre `[data-arrived]` schaltet sie ab. Die Sperre am Ende des Platten-
   Aufstiegs schnitt sie mitten im Lauf ab. Endliche Animationen unter der Karte werden gewartet,
   unendliche nie (sonst stünde die Sperre ewig aus).
 - **Auf Home sperren auch die Caption-Sticker** (#776, `HOME_VIEW`): Die Reihen dort sind keine

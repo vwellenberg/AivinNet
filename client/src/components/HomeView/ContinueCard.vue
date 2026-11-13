@@ -269,10 +269,11 @@ function resume() {
   // words wherever those end, instead of stopping at a fixed line that a short
   // title left a gap before and a long one ran into. The children sit above
   // the dots.
+  // They are printed on the card and arrive with it. They used to build up
+  // after it, each dot growing from nothing (`mem-dots-wave`): a whole surface
+  // in motion behind the text, reported as restless (user, 2026-11-13).
   &::before {
     @include mem-halftone($reach: null, $on: accent);
-    // The wave starts when the plate has risen (its own arrival above).
-    @include mem-dots-wave($motion-settle);
   }
 
   > * {
@@ -593,10 +594,6 @@ function resume() {
   // them, Vue moves the node and every animation inside restarts with it.
   &[data-arrived] {
     animation: none;
-
-    &::before {
-      animation: none;
-    }
 
     .progress span,
     .resume {
