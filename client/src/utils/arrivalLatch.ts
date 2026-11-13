@@ -26,10 +26,9 @@
 /** The staggered entrance of rows and tiles — the arrival `mem-arrival` runs. */
 export const ARRIVAL_ANIMATION = 'mem-step-in'
 /**
- * Every keyframe that counts as an arrival. `mem-plate-rise` is the Continue
- * card on Home: a keyed `v-for` item, so a refetch that changes the order of
- * the cards moves its node — and the card rose a second time, fill and pop
- * included.
+ * Every keyframe that counts as an arrival. The Continue cards on Home are
+ * covered by the first: a keyed `v-for`, so a refetch that changes their order
+ * moves the nodes, and a moved card would arrive a second time.
  *
  * The last three are the arrivals of whatever ELSE sits in a scroller view: a
  * button's pop, a caption sticker's slap, a stat tile's motif. The same move
@@ -39,7 +38,6 @@ export const ARRIVAL_ANIMATION = 'mem-step-in'
  */
 export const ARRIVAL_ANIMATIONS: ReadonlySet<string> = new Set([
     ARRIVAL_ANIMATION,
-    'mem-plate-rise',
     'btn-pop',
     'mem-sticker-slap',
     'mem-motif-pop',
@@ -90,36 +88,10 @@ function onAnimationStart(e: AnimationEvent) {
     else el.setAttribute(STARTED_ATTR, '')
 }
 
-/**
- * The Continue card's entrance (`mem-plate-rise`) is a plate with moving parts
- * that start after it: the progress fill and the Continue button's pop
- * (ContinueCard.vue). Latching at the plate's end cut them mid-flight,
- * because `[data-arrived]` switches their animations off. So the plate latches
- * once every finite animation under it has ended. An infinite one never ends
- * and is not waited for.
- */
-export const SETTLING_ANIMATIONS: ReadonlySet<string> = new Set(['mem-plate-rise'])
-
-function latchWhenSettled(el: Element) {
-    const pending = el.getAnimations({ subtree: true }).filter(anim => {
-        if (anim.playState === 'finished' || anim.playState === 'idle') return false
-        return Number.isFinite(anim.effect?.getComputedTiming().endTime ?? Infinity)
-    })
-    if (pending.length === 0) {
-        el.setAttribute(ARRIVED_ATTR, '')
-        return
-    }
-    // allSettled: a cancelled animation rejects `finished`, and it is over all the same.
-    void Promise.allSettled(pending.map(anim => anim.finished)).then(() => el.setAttribute(ARRIVED_ATTR, ''))
-}
-
 function onAnimationEnd(e: AnimationEvent) {
     // The row's pseudo-elements animate too (band drop, texture wipe) and
     // report the row as their target — only the element's own entrance counts.
-    const el = arrivalTarget(e)
-    if (!el) return
-    if (SETTLING_ANIMATIONS.has(e.animationName)) latchWhenSettled(el)
-    else el.setAttribute(ARRIVED_ATTR, '')
+    arrivalTarget(e)?.setAttribute(ARRIVED_ATTR, '')
 }
 
 // ---------------------------------------------------------------------------

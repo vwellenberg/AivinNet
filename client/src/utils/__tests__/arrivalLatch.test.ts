@@ -71,49 +71,16 @@ describe('arrival latch', () => {
 
     it('latches the Continue card too, which Home reorders under it', () => {
         // A keyed `v-for` item: a refetch with a new order moves its node, and
-        // the move restarts its rise — the same restart the scroller causes.
+        // the move restarts its arrival, the same restart the scroller causes.
+        // It arrives like a tile (`mem-arrival`), so the tiles' latch holds it.
         const card = document.createElement('div')
         document.body.appendChild(card)
-        animationStart(card, 'mem-plate-rise')
-        animationStart(card, 'mem-plate-rise')
+        animationStart(card, ARRIVAL_ANIMATION)
+        animationStart(card, ARRIVAL_ANIMATION)
         expect(card.hasAttribute(ARRIVED_ATTR)).toBe(true)
-    })
 
-    it('latches the Continue card only once its inner animations have settled', async () => {
-        // The card's plate ends at ~250 ms, but the progress fill and the resume
-        // pop run on after it. Latching at the plate's end
-        // switched them off mid-flight (`[data-arrived]`): the snap.
-        const card = document.createElement('div')
-        document.body.appendChild(card)
-        let finish!: () => void
-        const inner = {
-            playState: 'running',
-            finished: new Promise<void>(resolve => (finish = resolve)),
-            effect: { getComputedTiming: () => ({ endTime: 340 }) },
-        }
-        Object.defineProperty(card, 'getAnimations', { value: () => [inner] })
-
-        animationEnd(card, 'mem-plate-rise')
-        await new Promise(resolve => setTimeout(resolve, 0))
-        expect(card.hasAttribute(ARRIVED_ATTR), 'an inner animation still runs').toBe(false)
-
-        finish()
-        await new Promise(resolve => setTimeout(resolve, 0))
-        expect(card.hasAttribute(ARRIVED_ATTR)).toBe(true)
-    })
-
-    it('does not wait for an infinite inner animation', () => {
-        const card = document.createElement('div')
-        document.body.appendChild(card)
-        const forever = {
-            playState: 'running',
-            finished: new Promise<void>(() => {}),
-            effect: { getComputedTiming: () => ({ endTime: Infinity }) },
-        }
-        Object.defineProperty(card, 'getAnimations', { value: () => [forever] })
-
-        animationEnd(card, 'mem-plate-rise')
-        expect(card.hasAttribute(ARRIVED_ATTR)).toBe(true)
+        const source = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
+        expect(source).toMatch(/\.continue-wrap \{[^}]*@include mem-arrival;/)
     })
 
     it('ignores every other animation', () => {

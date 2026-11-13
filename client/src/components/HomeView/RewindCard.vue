@@ -47,6 +47,8 @@ watch(
 // A reading plate on the ground (styling.md, `--mem-veil`): the plate is not
 // pressable, its one button is.
 .rewind-card {
+    // Laid down like every plate on Home (ContinueCard.vue); alone, so no stagger.
+    @include mem-arrival($steps: 0);
     display: flex;
     flex-wrap: wrap;
     align-items: center;

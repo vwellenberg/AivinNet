@@ -1606,19 +1606,32 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   nur CSS-Animationen und -Übergänge; was JavaScript Frame für Frame als Inline-Style schreibt,
   läuft an „weniger Bewegung" vorbei. So fiel das Modal bis 2026-10-07 auf einer
   `@vueuse/motion`-Feder 100 px herein — für alle, auch mit „weniger Bewegung", und mit Dauern
-  außerhalb von `_motion.scss`. Jetzt `mem-plate-rise` (große Platten: Modal, Continue-Karte);
+  außerhalb von `_motion.scss`. Jetzt `mem-plate-rise` (große Platten: Modal, Rewind);
   `motionArrival.test.ts` verbietet `v-motion` und JS-Animationsbibliotheken in den
   Abhängigkeiten. (`v-auto-animate` ist geduldet: es fragt `prefers-reduced-motion` selbst ab.)
 - **Eine Ankunfts-Keyframe ohne 100-%-Frame landet auf dem DEKLARIERTEN Wert.** `mem-plate-rise`
-  startet ohne Schatten und nennt keinen Endschatten — so landet die Karte auf 4 px und das Modal
-  auf 6 px, ohne Sprung am Ende. Ein fester Endwert passte nur zu einer der beiden. Die Karte
-  ist ein `v-for` mit Key — sortiert ein Refetch um, hängt Vue sie um und sie stiege erneut auf;
-  deshalb steht `mem-plate-rise` mit in der Einmal-Sperre (`ARRIVAL_ANIMATIONS`).
-  ⚠️ **Die Karte sperrt erst, wenn ihre inneren Animationen fertig sind** (#776, `SETTLING_ANIMATIONS`
-  in `arrivalLatch.ts`): Fortschrittsfüllung und Resume-Pop laufen nach dem Aufstieg
-  noch weiter, und die Sperre `[data-arrived]` schaltet sie ab. Die Sperre am Ende des Platten-
-  Aufstiegs schnitt sie mitten im Lauf ab. Endliche Animationen unter der Karte werden gewartet,
-  unendliche nie (sonst stünde die Sperre ewig aus).
+  startet ohne Schatten und nennt keinen Endschatten — so landet eine Rewind-Platte auf 4 px und
+  das Modal auf 6 px, ohne Sprung am Ende. Ein fester Endwert passte nur zu einer der beiden.
+- ⚠️ **Home wird HINGELEGT: eine Geste für jede Platte, und auf einer Platte bewegt sich nichts**
+  (Nutzer, 2026-11-13: „alles soll so comic-artig als Karten hingelegt werden"). Gemessen per
+  `animationstart`-Zensus beim Aufbau (1440×900) liefen **sechs** Gesten nebeneinander: Kacheln
+  traten ein, Sticker wurden aufgeklebt, die Continue-Karte stieg auf (`mem-plate-rise`), ihr
+  Balken lief, ihr Knopf poppte, ihre Punkte bauten sich auf — und die Radio-Platten hatten gar
+  keine Ankunft, standen also einen Frame vor allem anderen da. Die Karte kam ~470 ms nach ihrer
+  Umgebung zur Ruhe. Jede dieser Bewegungen war für sich begründet (die Choreografie der Karte
+  stammt vom 2026-10-07, als sie noch stumm erschien); unruhig war die Summe. Jetzt nimmt **jede
+  Platte auf Home `mem-arrival`** — Continue-Karten und die zwei Radio-Platten gestaffelt, die
+  Datums-Karten (Recap, Rewind, Silvester, Advent) mit `$steps: 0` — und kommt als EIN Objekt an,
+  mit allem, was darauf gedruckt ist (Punkte, Balken, Knopf). Sticker behalten ihren Anschlag.
+  Die Up-next-Zeilen treten weiter ein: Sie brauchen einen eigenen Request und kommen nach der
+  Karte. Wer auf Home eine neue Platte baut, bindet `mem-arrival` ein und gibt ihren Teilen
+  **keine** eigene Ankunft; Zensus in `motionArrival.test.ts` („Home is laid down as cards").
+  Die Continue-Karten sind ein `v-for` mit Key und werden beim Umsortieren umgehängt; die
+  Einmal-Sperre der Kacheln (`mem-step-in` in `ARRIVAL_ANIMATIONS`) hält sie mit.
+- **`mem-arrival($steps: 0)` ist die einzelne Platte.** Dieselbe Geste ohne `:nth-child`-Staffel,
+  für eine Karte zwischen Geschwistern anderer Art: Gezählt hinge ihre Verzögerung davon ab, was
+  gerade über ihr gerendert ist. ⚠️ Sass zählt `@for $i from 1 through 0` **rückwärts** (1, 0)
+  statt gar nicht, deshalb steht die Schleife im Mixin hinter `@if $steps > 0`.
 - **Auf Home sperren auch die Caption-Sticker** (#776, `HOME_VIEW`): Die Reihen dort sind keine
   Scroller-Views, aber eine Reihe, die darüber erscheint, verschiebt ihre Captions, und der Anschlag
   lief ein zweites Mal. `mem-sticker-slap` latcht deshalb innerhalb `.homepageview` (Mixin:

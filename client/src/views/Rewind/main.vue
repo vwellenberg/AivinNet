@@ -358,8 +358,8 @@ watch(
         border-radius: $candy-radius;
         @include candy-shadow;
         color: $mem-content-text;
-        // The large plates' arrival (modal, Continue card) — in the motion
-        // policy and the one-shot latch, unlike a hand-made keyframe.
+        // The large plates' arrival (the modal's) — in the motion policy,
+        // unlike a hand-made keyframe.
         animation: mem-plate-rise $motion-settle ease-out;
     }
 
