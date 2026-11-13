@@ -162,27 +162,42 @@ describe("card plate rhythm", () => {
     expect(components.size).toBeGreaterThanOrEqual(5);
   });
 
-  // ⚠️ The height of the pinned plate is a FLOOR, never a fixed track. A fixed
+  // ⚠️ The height of the pinned plate is a FLOOR, never a fixed height. A fixed
   // one has to be re-derived by hand every time a line changes its type size,
   // and when it is wrong the plate eats its own text instead of saying so.
-  // `minmax(…, max-content)` costs a row that is a pixel out of true in that
-  // case — visible, and not at the cost of the text.
+  // A `min-height` costs a row that is a pixel out of true in that case —
+  // visible, and not at the cost of the text.
   it("pins the plate in a row as a floor, not as a fixed height", () => {
     // The row geometry lives in a NESTED rule, so the whole block is read —
     // not the block plus the rest of the file, which would happily pick up a
-    // `grid-template-rows` belonging to some later selector.
+    // declaration belonging to some later selector.
     const row = ruleBody(scss, /^\.cardscroller\s*\{/m, "full");
     expect(row, `${ANATOMY_FILE} has no .cardscroller block`).not.toBeNull();
 
-    const tracks = (row as string).match(/grid-template-rows:\s*([^;]+);/);
-    expect(tracks, "the row geometry sets no grid-template-rows for the tiles").toBeTruthy();
-
+    const plate = ruleBody(row as string, /\.card-plate\s*\{/);
+    expect(plate, "the row geometry gives the tiles' plate no rule of its own").not.toBeNull();
+    expect(plate, "the plate inside .cardscroller has no floor (min-height)").toMatch(/\bmin-height:\s*[^;]+;/);
     expect(
-      (tracks as RegExpMatchArray)[1],
-      "the plate track inside .cardscroller is a fixed length. A card whose caption lines " +
+      plate,
+      "the plate inside .cardscroller has a fixed height. A card whose caption lines " +
         "outgrow it loses the bottom of its last line to `overflow: hidden` — silently, because " +
-        "the clipped line still measures its full height. Use minmax(<floor>, max-content)."
-    ).toMatch(/minmax\(/);
+        "the clipped line still measures its full height. Use min-height."
+    ).not.toMatch(/(^|[\s;])(max-)?height:/);
+  });
+
+  // ⚠️ The tile's rows are IMPLICIT. A look can hide the type label
+  // (`--look-type-label: none`, Boring does), and a template that counts three
+  // tracks then keeps one nobody fills: artwork and plate move up a track, and
+  // the last track — floored at the plate's height inside a row — stays empty
+  // at the bottom of every tile. On Home that was 104px of nothing under each
+  // card of "Your mixes" in Boring (2026-11-13, phone screenshot).
+  it("counts no rows, so a hidden type label leaves no empty track", () => {
+    expect(scss, "the tile anatomy no longer declares implicit rows").toMatch(/grid-auto-rows:\s*max-content/);
+    expect(
+      scss,
+      "a card grid declares grid-template-rows. Its track count is the number of parts the " +
+        "author had in mind; a look that hides one (the type label) leaves an empty track at the bottom."
+    ).not.toMatch(/grid-template-rows:/);
   });
 
   // The single source for the spacing between caption lines, and the reason
