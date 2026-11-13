@@ -48,9 +48,19 @@ $card-cover-pad: 6px;
 
 #{$card-types} {
     display: grid;
-    // label · artwork · plate. The rows size to their content everywhere except
-    // inside a mixed row, where the plate is pinned (see .cardscroller below).
-    grid-template-rows: max-content max-content max-content;
+    // label · artwork · plate, each row sized to its content. Inside a row the
+    // plate has a floor (see .cardscroller below).
+    //
+    // ⚠️ IMPLICIT rows, never a template that counts the parts. A look can
+    // take the type label away (`--look-type-label: none`, Boring does), and a
+    // three-track template then keeps a track nobody fills: the artwork moves
+    // up into the label's track, the plate into the artwork's, and the plate's
+    // track stays empty at the bottom of the tile — its height plus one gap of
+    // nothing. Under the 5.5rem plate floor that was 104px of empty tile on
+    // every card of a Home row (2026-11-13, phone screenshot: "Your mixes"
+    // stood a card-height above "Because you listened"). Auto rows follow
+    // whatever is rendered.
+    grid-auto-rows: max-content;
     align-content: start;
     // Stufe B aus der Abstands-Runde: 16px statt 8px zwischen Etikett, Cover
     // und Platte. Die Kachel bleibt ein Objekt, atmet aber.
@@ -377,11 +387,17 @@ $card-cover-pad: 6px;
         // is that stack plus the plate's 14.4px padding, its 6px of frame and
         // ~2.5px of air at each edge.
         //
-        // And `minmax(…, max-content)` rather than a fixed height so the same
-        // bug cannot come back silently: whatever a future line does to the
+        // And a `min-height` rather than a fixed height so the same bug
+        // cannot come back silently: whatever a future line does to the
         // stack, the plate grows and the row is a pixel out of true — visible,
         // and not at the cost of the text.
-        grid-template-rows: max-content max-content minmax(5.5rem, max-content);
+        //
+        // On the PLATE, not as the third track of a template: the tile's rows
+        // are implicit (see the anatomy above), because a look may hide the
+        // type label and a counted template then floors the wrong track.
+        .card-plate {
+            min-height: 5.5rem;
+        }
     }
 
     // Version badges vary per album and would rock the fixed plate; they stay

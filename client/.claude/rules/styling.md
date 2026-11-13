@@ -1076,6 +1076,13 @@ Was aus beiden Looks **für jeden künftigen Look** gilt:
 - **Rahmenfarbe ≠ `--mem-line`.** `--mem-line` färbt auch Glyphen, Ringe und den Fokus-Ring.
   Plattenrahmen nehmen `$mem-frame`/`$mem-frame-style` (Tokens `--shape-frame`/`-frame-style`),
   Tintenlinien bleiben bei `$mem-line`. Wer einen Rahmen von Hand schreibt, prüft, welches gemeint ist.
+- ⚠️ **Ein Look, der ein Teil ausblendet, trifft jedes Grid, das Teile ZÄHLT.** Boring setzt
+  `--look-type-label: none`, die Kacheln trugen aber `grid-template-rows` mit drei Spuren
+  (Etikett · Cover · Platte): Cover und Platte rutschten eine Spur hoch, die dritte blieb leer —
+  in einer Kartenzeile samt 5,5-rem-Boden plus Gap, also 104 px Nichts unter jeder Karte
+  (gemeldet als zu großer Abstand unter „Your mixes“ am Handy, 2026-11-13). Seitdem
+  `grid-auto-rows`, der Boden sitzt als `min-height` an der Platte (`cardPlateRhythm.test.ts`).
+  Wer ein Teil per Look-Token ausblendbar macht, sucht die Grids, die es mitzählen.
 - **Eine Custom Property kann nicht auf sich selbst zurückfallen** — deshalb `--row-fill-rest`
   neben `--row-fill` (`mem-row-plate-tint` / `mem-row-marker`).
 - **Eine gefüllte Zeile darf keine Tinte festnageln.** Titel und „…" auf einer gefüllten Zeile
