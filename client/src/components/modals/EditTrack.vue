@@ -97,7 +97,10 @@ function save() {
         new Notification('Title is required', NotifType.Error)
         return
     }
-    if (ar.length === 0) {
+    // Artists are only required when this edit would REMOVE them. A file that
+    // never had one (a rip with no artist tag) can still be retitled, renumbered
+    // and renamed: the field is not sent, so the server has nothing to reject.
+    if (ar.length === 0 && origArtists.length > 0) {
         new Notification('At least one artist is required', NotifType.Error)
         return
     }

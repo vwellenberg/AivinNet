@@ -100,4 +100,27 @@ describe('the track editor renames the file (#144)', () => {
 
         expect(sent()).toEqual({ track: 50, title: 'Saint Wenceslaus Theme', rename_file: true })
     })
+
+    // Reported 2026-11-13: a YouTube rip with no artist tag could not be
+    // retitled or renamed — "At least one artist is required", for a field the
+    // edit never touched.
+    it('saves and renames a track that never had an artist', async () => {
+        const t = { ...track(), artists: [], albumartists: [] }
+        const w = mount(EditTrack, { props: { track: t } })
+        await w.find('#et-title').setValue('Elwynn Forest')
+        await w.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(sent()).toEqual({ title: 'Elwynn Forest', rename_file: true })
+    })
+
+    it('still refuses to remove the last artist', async () => {
+        const w = mount(EditTrack, { props: { track: track() } })
+        ;(w.vm as any).artists = []
+        await w.find('#et-title').setValue('Elwynn Forest')
+        await w.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(editTrackTags).not.toHaveBeenCalled()
+    })
 })
