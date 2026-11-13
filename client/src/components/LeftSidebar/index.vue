@@ -770,6 +770,10 @@ onBeforeUnmount(teardown);
 </script>
 
 <style lang="scss">
+// The thumbnail of a sidebar row (playlist cover, folder cover): the row's
+// radius minus its frame, so the small box sits concentric in its plate (7px).
+$sidebar-thumb-radius: calc(#{$candy-radius-sm} - #{$candy-border-w});
+
 // Drag & drop: rows are positioned so the drop line can sit on their edge.
 .sidebar-playlist-item,
 .sidebar-folder-header {
@@ -1150,7 +1154,7 @@ $sidebar-label-opacity: 0.85;
         @include mem-entity-tint("playlist");
         // Framed like the thumbnails below (`.sidebar-pl-img`).
         border: $mem-ring-w solid $mem-line;
-        border-radius: 7px;
+        border-radius: $sidebar-thumb-radius;
         flex-shrink: 0;
         width: $control-dense;
         height: $control-dense;
@@ -1327,8 +1331,10 @@ $sidebar-label-opacity: 0.85;
       // Pushed to the far edge now that the label no longer fills the row.
       margin-left: auto;
       flex-shrink: 0;
-      width: 0.95rem;
-      height: 0.95rem;
+      // `$glyph-lone`: at 0.95rem its strokes rendered 1.5px, the thinnest
+      // line in a sidebar of 3px frames and 2px rings.
+      width: $glyph-lone;
+      height: $glyph-lone;
       color: $candy-text;
       // Tilt the thumbtack like a real pin (📌): head top-right, point lower-left.
       transform: rotate(35deg);
@@ -1353,6 +1359,10 @@ $sidebar-label-opacity: 0.85;
     // $candy-border: at 28px a 3px frame eats too much cover and runs into the
     // row's own 3px plate border. Border-box (global), so the box stays 28px.
     border: $mem-ring-w solid $mem-line;
+    // Not the row's own radius (`rounded-sm`, 10px): on a 28px box that rounds
+    // away a third of each side, and the 2px ring read as a heavy blob next
+    // to the folder cover above, which had 7px (user, 2026-11-13).
+    border-radius: $sidebar-thumb-radius;
 
     img {
       width: 100%;

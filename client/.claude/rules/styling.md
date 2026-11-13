@@ -381,6 +381,17 @@ Drei Bedingungen, alle tragend:
      die Strichfarbe über die Füllung, und mit dem Ink-Sprite verschwand der Ring der Such-Tabs im
      Dark-Theme. Gilt für jede neue Füllung: erst nachsehen, ob sie eine Theme-Variable ist.
 
+   ⚠️ **Der Ring misst von den Kanten des BUTTONS, nicht vom Text** (Nutzer, 2026-11-13). Ein
+   Speichern-Knopf, der so breit ist wie sein Dialog, war deshalb ein dünner Schraffur-Rahmen um
+   eine leere Platte. `mem-label-hatch` nimmt dafür `$clear`: Die freie Zone ist höchstens so
+   breit (zentriert), daneben kommen die Striche zurück. Nur `btn-pill` reicht es durch
+   (`$mem-label-clear`, 20rem), denn nur ein Wirt mit **zentriertem** Label darf es; ein Pill
+   schmaler als die Zone bleibt unverändert (`max()`/`min()` fallen auf den Ring zurück). Die Maske
+   sieht den Text nicht: Der erste Wurf (11rem für alle) ließ die Striche in die Enden von „New
+   music added to your library" laufen (253-px-Pill, 225-px-Label). Dialog-Submits tragen kurze
+   Wörter und setzen `--label-clear: 9rem` (`form .btn-pill[type="submit"]`); ein längeres Label
+   dort hebt den Wert an.
+
    Icon-Buttons sind davon unberührt: Ein Glyph ist eine Strichzeichnung mit eigenem Kontrast,
    kein Fließtext — sie tragen die Textur über die ganze Fläche. Zensus: `labelHatch.test.ts`.
 
@@ -826,6 +837,17 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   Tastaturnutzer verfolgt. Die Hairline ist eine Rolle, keine Nachlässigkeit — ein 3-px-Rahmen um einen 6-px-Punkt
   oder ein 40-px-Zahlenfeld ist schwerer als das, was er einfasst. Ein literales `1px` in `border`
   oder `outline` erfindet eine dritte Stärke und ist getestet.
+- ⚠️ **Die Strichstärke eines Glyphs entscheidet seine GRÖSSE** (2026-11-13). Der Chrome-Satz ist
+  fest gezeichnet (2,4 Einheiten auf 24), gerendert sind das `2,4 × Größe / 24`: 2,4 px bei 24 px,
+  1,6 px bei 16 px. Ein Glyph, der **allein** auf einer Platte steht, nimmt `$glyph-lone` (20 px =
+  2 px, die Ringstärke): Der Pin der Sidebar stand bei 0,95 rem und war mit 1,5 px die dünnste
+  Linie zwischen 3-px-Rahmen. Gemessen wird pro `<svg>` im laufenden Client (berechnete
+  `stroke-width` × gerenderte Breite / viewBox-Breite; ein gedrehtes Glyph nicht über
+  `getBoundingClientRect()`). Die 16-px-Glyphen **in** kleinen Knöpfen (`$control-*-glyph`,
+  1,6 px) sind davon bewusst nicht berührt. Zensus: `loneGlyphStroke.test.ts`.
+- **Die Vorschaubilder der Sidebar-Zeilen** (Playlist-Cover, Ordner-Cover) tragen denselben
+  2-px-Ring und denselben Radius, `$sidebar-thumb-radius` (Zeilenradius minus Rahmen, 7 px). Mit
+  dem Zeilenradius selbst (10 px auf 28 px) wirkte der Ring wie ein Klecks.
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben
   bewusst höher. 2 px war Drift an drei Elementen gegen über tausend; `.shadow-sm` gibt es nicht
   mehr, die Nutzer tragen `.shadow-md`.
