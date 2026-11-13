@@ -50,6 +50,8 @@ function dismiss(): void {
 // A reading plate on the ground (styling.md, `--mem-veil`), the same shape as the
 // January Rewind card: the plate is not pressable, its buttons are.
 .year-music-card {
+    // Laid down like every plate on Home (ContinueCard.vue); alone, so no stagger.
+    @include mem-arrival($steps: 0);
     display: flex;
     flex-wrap: wrap;
     align-items: center;

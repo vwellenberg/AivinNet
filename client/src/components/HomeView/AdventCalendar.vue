@@ -94,6 +94,8 @@ watch(
 // A reading plate with a grid of doors (styling.md: the plate is not pressable,
 // each door is its own button and carries its role).
 .advent-card {
+    // Laid down like every plate on Home (ContinueCard.vue); alone, so no stagger.
+    @include mem-arrival($steps: 0);
     margin-bottom: 2rem;
     padding: 1rem 1.25rem 1.25rem;
     @include candy-box($mem-panel, $candy-radius);

@@ -284,6 +284,14 @@ function onUp(event: PointerEvent) {
     gap: 0.75rem;
     align-items: stretch;
 
+    // The two plates are laid down like the tiles of the rows, readout first.
+    // They had no arrival at all and stood there a frame before everything
+    // around them had begun to arrive. The body holds nothing but these two,
+    // so `:nth-child` counts only them.
+    > * {
+      @include mem-arrival;
+    }
+
     @include allPhones {
       grid-template-columns: minmax(0, 1fr);
     }

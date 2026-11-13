@@ -2,10 +2,6 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-import { ARRIVAL_ANIMATIONS } from '@/utils/arrivalLatch'
-
-const ARRIVALS = [...ARRIVAL_ANIMATIONS]
-
 // ---------------------------------------------------------------------------
 // Wie Dinge ANKOMMEN (#143) — die drei Entscheidungen, die man beim Lesen der
 // Regel nicht sieht und beim Ändern zerstört.
@@ -66,7 +62,6 @@ describe('arrival animations', () => {
             'mem-band-drop',
             'mem-texture-wipe',
             'mem-plate-rise',
-            'mem-fill-grow',
         ]) {
             expect(ALL, `${name} has no @keyframes`).toContain(`@keyframes ${name}`)
 
@@ -133,7 +128,6 @@ describe('arrival animations', () => {
         ['die Songzeilen', 'src/assets/scss/Global/app-grid.scss', 'drop'],
         // Nicht virtualisiert: eine feste Seite aus zehn Zeilen, alle im Bild.
         ['die Chart-Zeilen', 'src/components/Stats/ChartItem.vue', 'hold'],
-        ['die Up-next-Zeilen der Continue-Karte', 'src/components/HomeView/ContinueCard.vue', 'drop'],
         ['die Ordner-Wahl beim ersten Start', 'src/components/modals/RootDirsPrompt.vue', 'drop'],
     ])('%s nehmen die geteilte Ankunft (%s, $beyond: %s)', (_label, file, beyond) => {
         // Aufrufstellen statt Schreibweisen: wer `mem-step-in` von Hand
@@ -234,12 +228,9 @@ describe('arrival animations', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Die große Platte (2026-10-07). Die Continue-Karte — das größte Objekt der
-// Startseite — kam ohne jede eigene Bewegung an: gemessen per
-// `animationstart`-Zensus auf Home null Animationen an `.continue-card`,
-// während jede Kachel und jede Caption darunter eintraf. Und das Modal fiel als
-// einziges Element der App auf einer JS-Feder (@vueuse/motion) 100 px herein,
-// außerhalb des Vokabulars und außerhalb von `prefers-reduced-motion`.
+// Die große Platte (2026-10-07): das Modal fiel als einziges Element der App
+// auf einer JS-Feder (@vueuse/motion) 100 px herein, außerhalb des Vokabulars
+// und außerhalb von `prefers-reduced-motion`. Es steigt seitdem auf.
 // ---------------------------------------------------------------------------
 
 describe('a plate rises', () => {
@@ -252,58 +243,80 @@ describe('a plate rises', () => {
         // Startet ohne Schatten — das Gegenstück zum Drücken.
         expect(body).toMatch(/0% \{[^}]*box-shadow: 0 0 0 var\(--mem-shadow\)/)
         // Kein 100-%-Frame: ohne ihn läuft jede Eigenschaft auf den Wert des
-        // Elements zu — 4 px an der Karte, 6 px am Modal. Ein fester Endwert
-        // hier wäre an einer der beiden Stellen ein Sprung am Ende.
+        // Elements zu — 4 px an einer Rewind-Platte, 6 px am Modal. Ein fester
+        // Endwert hier wäre an einer der beiden Stellen ein Sprung am Ende.
         expect(body, 'ein fester Endframe springt am Ende auf den deklarierten Schatten').not.toMatch(/100% \{/)
     })
 
-    it.each([
-        ['die Continue-Karte', 'src/components/HomeView/ContinueCard.vue'],
-        ['das Modal', 'src/components/modal.vue'],
-    ])('%s steigt auf', (_label, file) => {
-        const source = readFileSync(file, 'utf8')
+    it('das Modal steigt auf', () => {
+        const source = readFileSync('src/components/modal.vue', 'utf8')
         expect(source).toMatch(/animation: mem-plate-rise \$motion-settle/)
     })
+})
 
-    it('lets the moving parts of the Continue card follow the plate, not ride along', () => {
-        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
+// ---------------------------------------------------------------------------
+// Home wird HINGELEGT (Nutzer, 2026-11-13: „alles soll so comic-artig als
+// Karten hingelegt werden"). Gemessen per `animationstart`-Zensus beim Aufbau
+// (1440×900): sechs Gesten liefen nebeneinander — Kacheln traten ein, Sticker
+// wurden aufgeklebt, die Continue-Karte stieg auf, ihr Balken lief, ihr Knopf
+// poppte, ihre Punkte bauten sich auf —, und die Radio-Platten hatten gar
+// keine und standen einen Frame vor allem anderen da. Die Karte kam ~470 ms
+// nach ihrer Umgebung zur Ruhe.
+//
+// Jetzt: jede PLATTE auf Home kommt mit der einen Ankunft der Kacheln
+// (`mem-arrival`), als EIN Objekt mit allem, was darauf gedruckt ist. Sticker
+// werden weiter aufgeklebt, das ist ihre eigene Geste. Sonst bewegt sich nichts.
+// ---------------------------------------------------------------------------
 
-        // Der Balken läuft auf seinen Wert, nach der Platte; `backwards`, sonst
-        // steht er während der Wartezeit schon voll da und springt auf null.
-        expect(card).toMatch(/animation: mem-fill-grow [^;]*\$motion-after-plate backwards/)
-        // Continue poppt — ein Primärknopf, der einmal pro Besuch entsteht,
-        // holt sich den Pop an der Aufrufstelle (btn-primary hat keinen).
-        expect(card).toMatch(/@include btn-pop;\s*--btn-pop-delay: #\{\$motion-after-plate/)
+describe('Home is laid down as cards', () => {
+    const style = (file: string) => {
+        const source = readFileSync(file, 'utf8')
+        return source.slice(source.indexOf('<style')).replace(/\/\/[^\n]*/g, '')
+    }
+    const HOME = 'src/components/HomeView'
+    const card = style(`${HOME}/ContinueCard.vue`)
+
+    it.each([
+        // In a row of their own kind: staggered, left to right.
+        ['die Continue-Karten', `${HOME}/ContinueCard.vue`, /\.continue-wrap \{[^}]*@include mem-arrival;/],
+        ['die beiden Radio-Platten', `${HOME}/RadioDial.vue`, /\.radio-body \{[\s\S]*?> \* \{\s*@include mem-arrival;/],
+        // Alone among siblings of other kinds: the same gesture, no stagger.
+        ['die Recap-Karte', `${HOME}/WeeklyRecap.vue`, /\.recap-card \{\s*@include mem-arrival\(\$steps: 0\);/],
+        ['die Rewind-Karte', `${HOME}/RewindCard.vue`, /\.rewind-card \{\s*@include mem-arrival\(\$steps: 0\);/],
+        ['die Silvester-Karte', `${HOME}/YearInMusicCard.vue`, /\.year-music-card \{\s*@include mem-arrival\(\$steps: 0\);/],
+        ['der Adventskalender', `${HOME}/AdventCalendar.vue`, /\.advent-card \{\s*@include mem-arrival\(\$steps: 0\);/],
+    ])('%s kommen wie die Kacheln an', (_label, file, call) => {
+        expect(style(file as string)).toMatch(call as RegExp)
+    })
+
+    it('lets nothing ON the Continue card move on its own', () => {
+        // One animation in the whole block, and it is the Up next rows': they
+        // need a request of their own and arrive after the card, top-down.
+        const animations = card.match(/animation:|@include (mem-arrival|btn-pop|mem-motif-pop)[^;]*;/g) ?? []
+        expect(animations).toEqual(['@include mem-arrival;', '@include mem-arrival($beyond: drop);'])
+        expect(card).toMatch(/> li \{\s*@include mem-arrival\(\$beyond: drop\);/)
     })
 
     it('prints the dots on the card: they arrive with it and never move', () => {
         // The dots built up after the plate, each one growing from nothing
-        // (`mem-dots-wave`): a whole surface in motion behind the text, and
-        // the last thing on Home to come to rest (measured: it started 250 ms
-        // after the plate and ended ~470 ms after it). Reported as restless
-        // (user, 2026-11-13). A texture is part of its plate, not a part that
-        // moves on it.
-        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
-        const style = card.slice(card.indexOf('<style')).replace(/\/\/[^\n]*/g, '')
-        const dots = style.match(/&::before \{[^}]*mem-halftone[^}]*\}/)
+        // (`mem-dots-wave`): a whole surface in motion behind the text.
+        const dots = card.match(/&::before \{[^}]*mem-halftone[^}]*\}/)
 
         expect(dots, 'the halftone layer of the Continue card was not found').toBeTruthy()
         expect(dots![0], 'the dots animate again').not.toMatch(/animation|mem-dots-wave/)
-        // And the wave is gone as a tool, so the next plate cannot pick it up.
-        expect(ALL).not.toMatch(/mem-dots-(wave|grow)/)
+        // The tools of the old choreography are gone, so nothing picks them up.
+        expect(ALL).not.toMatch(/mem-dots-(wave|grow)|mem-fill-grow|\$motion-after-plate/)
     })
 
-    it('rises ONCE, even when Home reorders the cards under it', () => {
-        // Eine CSS-Animation startet neu, sobald Vue ihren Knoten umhängt — und
-        // die Karten sind ein `v-for` mit Key: kommt `fetchAll()` mit neuer
-        // Reihenfolge zurück, stieg die verschobene Karte samt Balken und Pop
-        // ein zweites Mal auf. Dieselbe Einmal-Sperre wie die Zeilen.
-        expect(ARRIVALS).toContain('mem-plate-rise')
-        const card = readFileSync('src/components/HomeView/ContinueCard.vue', 'utf8')
-        const latched = card.slice(card.indexOf('&[data-arrived]'))
-        expect(latched, 'die Karte hat keine Einmal-Sperre').toMatch(/^&\[data-arrived\] \{\s*animation: none;/)
-        // Die Kinder hängen mit um und starten mit neu — sie gehören in dieselbe Sperre.
-        expect(latched.slice(0, latched.indexOf('\n  }'))).toMatch(/\.progress span[\s\S]*\.resume[\s\S]*animation: none;/)
+    it('gives a lone plate the gesture without a stagger', () => {
+        // `$steps: 0`: no `:nth-child` delay at all. The date cards are children
+        // of the page next to the header and each other; counted, their delay
+        // would depend on which card happens to render above them.
+        const candy = SHEETS['src/assets/scss/_candy.scss']
+        const mixin = candy.slice(candy.indexOf('@mixin mem-arrival'))
+        // Sass counts `from 1 through 0` DOWN (1, 0) instead of not at all.
+        expect(mixin).toMatch(/@if \$steps > 0 \{\s*@for \$i from 1 through \$steps/)
+        expect(mixin).toMatch(/@if \$beyond == hold and \$steps > 0/)
     })
 })
 

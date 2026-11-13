@@ -223,17 +223,21 @@ function resume() {
 // to the rows below belongs to the row of cards (HomeView/main.vue).
 .continue-wrap {
   container-type: inline-size;
+  // The arrival: the card is laid down like every tile on Home, as ONE object
+  // with everything printed on it, and two cards side by side come one after
+  // the other (`mem-arrival` on the wrap: it is the child the row counts).
+  //
+  // It had a choreography of its own before (2026-10-07): the plate rose out
+  // of the page, then the progress fill ran to its value, Continue popped and
+  // the dots built up. Next to tiles that step in and captions that are
+  // slapped on, that was a third gesture with four moving parts, and the card
+  // came to rest ~470 ms after everything around it (user, 2026-11-13: too
+  // restless, everything should be laid down as cards). The Up next rows still
+  // step in: they need a request of their own and arrive after the card.
+  @include mem-arrival;
 }
 
 .continue-card {
-  // The arrival (reported 2026-10-07: "no animation when it appears, or a very
-  // subtle one"). It had none of its own — the only movement was the page's
-  // 22px slide, and on a fetch that finished after it, not even that. The
-  // biggest object on Home now arrives like a plate rising out of the page,
-  // then its moving parts follow in reading order: the progress fill runs to
-  // its value, Continue pops, the Up next rows step in. All of it on the
-  // shared vocabulary (Global/_button-classes.scss), nothing local.
-  animation: mem-plate-rise $motion-settle ease-out;
   position: relative;
   display: grid;
   grid-template-columns: 8.5rem minmax(0, 1fr);
@@ -392,17 +396,11 @@ function resume() {
       display: block;
       height: 100%;
       background-color: var(--look-track-played, var(--card-inlay-text, #{$mem-ink}));
-      // Runs from the left to where they are, once the plate is up.
-      transform-origin: left;
-      animation: mem-fill-grow $motion-settle $motion-curve-settle $motion-after-plate backwards;
     }
   }
 
   .resume {
-    // A primary that mounts once per visit opts into the pop at its call site
-    // (btn-primary carries none, see Global/_buttons.scss) — after the fill.
-    @include btn-pop;
-    --btn-pop-delay: #{$motion-after-plate + $motion-stagger};
+    // No pop of its own: the button is printed on the card and arrives with it.
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -587,18 +585,6 @@ function resume() {
 
   &:has(.continue-dismiss) .info {
     padding-right: $bar-control;
-  }
-
-  // Once risen, it stays risen — the latch the rows have (utils/arrivalLatch.ts
-  // marks the card). The cards are a keyed `v-for`: when a refetch reorders
-  // them, Vue moves the node and every animation inside restarts with it.
-  &[data-arrived] {
-    animation: none;
-
-    .progress span,
-    .resume {
-      animation: none;
-    }
   }
 
   @include allPhones {

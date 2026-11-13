@@ -62,12 +62,6 @@ $motion-spin: 0.45s;
 // right instead of all at once (#279).
 $motion-stagger: 45ms;
 
-// How long the moving parts of a rising plate (`mem-plate-rise`) wait before
-// they follow — the Continue card's progress fill and its Continue pop. Two
-// stagger steps: the plate is visibly up by then, so they land ON it instead
-// of riding along with it, and the whole arrival still ends inside ~0.35s.
-$motion-after-plate: $motion-stagger * 2;
-
 // How far the hard offset shadow trails the surface it belongs to.
 //
 // The shadow is the signature of this design, and it used to move in perfect

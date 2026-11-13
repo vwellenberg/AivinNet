@@ -865,6 +865,11 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
 //   UNTEREINANDER — Zeile 9 steht unter der Falz, niemand sieht sie zu früh
 //   ankommen. (Was ein virtueller Scroller erst beim Scrollen baut, kommt
 //   ohnehin nicht an, siehe `data-scrolled` unten.)
+//
+// `$steps: 0` ist die EINZELNE Platte: dieselbe Geste, keine Staffel. Für eine
+// Karte, die allein in ihrem Container steht oder Geschwister anderer Art hat
+// (die Datums-Karten der Startseite): `:nth-child` zählte dort Fremde mit, und
+// die Verzögerung hinge davon ab, welche Karte gerade über ihr gerendert ist.
 // ---------------------------------------------------------------------------
 @mixin mem-arrival($steps: 8, $beyond: hold) {
   // `backwards` hält den Startzustand während der Verzögerung — ohne das blitzt
@@ -873,9 +878,12 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // deklarierte `transform` (styling.md).
   animation: mem-step-in $motion-move $motion-curve backwards;
 
-  @for $i from 1 through $steps {
-    &:nth-child(#{$i}) {
-      animation-delay: $motion-stagger * ($i - 1);
+  // Sass zählt `from 1 through 0` RÜCKWÄRTS (1, 0), statt nichts zu tun.
+  @if $steps > 0 {
+    @for $i from 1 through $steps {
+      &:nth-child(#{$i}) {
+        animation-delay: $motion-stagger * ($i - 1);
+      }
     }
   }
 
@@ -883,7 +891,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   // Platz 9 und 10 standen fertig da (Deckkraft 1,00), während Platz 8 noch bei
   // 0,27 lief. Die Staffel las sich rückwärts, und das sieht nach einem Fehler
   // aus, nicht nach einer Welle.
-  @if $beyond == hold {
+  @if $beyond == hold and $steps > 0 {
     &:nth-child(n + #{$steps + 1}) {
       animation-delay: $motion-stagger * $steps;
     }

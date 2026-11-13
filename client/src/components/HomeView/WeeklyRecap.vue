@@ -53,6 +53,8 @@ function dismiss() {
 // The Continue card's frame (HomeView/ContinueCard.vue): a candy plate in the
 // panel colour with the dots on top, one line of kicker, headline and detail.
 .recap-card {
+    // Laid down like every plate on Home (ContinueCard.vue); alone, so no stagger.
+    @include mem-arrival($steps: 0);
     position: relative;
     display: flex;
     align-items: stretch;
