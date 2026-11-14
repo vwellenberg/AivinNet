@@ -1,14 +1,25 @@
 <template>
-    <button class="theme-toggle" :class="settings.theme === 'light' ? 'to-dark' : 'to-light'" :title="title" @click="settings.toggleTheme">
+    <button
+        v-context-menu="openMenu"
+        class="theme-toggle"
+        :class="settings.theme === 'light' ? 'to-dark' : 'to-light'"
+        :title="title"
+        @click="settings.toggleTheme"
+    >
         <MoonSvg v-if="settings.theme === 'light'" />
         <SunSvg v-else />
+        <span v-if="settings.auto_theme" class="auto-badge" aria-hidden="true">A</span>
     </button>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { ContextSrc } from '@/enums'
+import useContextStore from '@/stores/context'
+import useModalStore from '@/stores/modal'
 import useSettings from '@/stores/settings'
+import { themeMenuOptions } from '@/utils/themeMenu'
 
 import MoonSvg from '@/assets/icons/moon.svg'
 import SunSvg from '@/assets/icons/sun.svg'
@@ -20,8 +31,18 @@ const settings = useSettings()
 // side effect matters: toggling by hand turns automatic switching off.
 const title = computed(() => {
     const target = settings.theme === 'light' ? 'dark' : 'light'
-    return settings.auto_theme ? `Switch to ${target} mode (turns off Auto dark mode)` : `Switch to ${target} mode`
+    return settings.auto_theme
+        ? `Auto dark mode is on. Click: switch to ${target} (turns Auto off). Right-click or long-press for options`
+        : `Switch to ${target} mode. Right-click or long-press for Auto`
 })
+
+// Long-press, right-click and the context-menu key come in through the
+// v-context-menu directive: iOS never fires a plain contextmenu listener for a
+// touch (styling.md, "iOS feuert kein contextmenu").
+function openMenu(e: MouseEvent) {
+    const options = () => themeMenuOptions(settings, () => useModalStore().showSettingsModal())
+    useContextStore().showContextMenu(e, options, ContextSrc.ThemeToggle)
+}
 </script>
 
 <style lang="scss">
@@ -42,6 +63,29 @@ const title = computed(() => {
     // glyph on top of them. 28px is the button tile — the play CTA's.
     @include mem-hatch(28px, $on: accent);
     color: $candy-black;
+    // Anchor for the auto badge in the bottom-right corner.
+    position: relative;
+
+    // "A" tag while Auto dark mode is on. Decorative only: the button stays
+    // the one control, so the badge takes no pointer of its own.
+    .auto-badge {
+        position: absolute;
+        right: -4px;
+        bottom: -4px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        height: 16px;
+        padding: 0 3px;
+        border: $mem-ring-w solid $mem-ink;
+        border-radius: 4px;
+        background-color: var(--look-on-fill, #{$mem-yellow});
+        color: var(--look-on-glyph, #{$mem-ink});
+        font-size: 0.65rem;
+        font-weight: 700;
+        line-height: 1;
+        pointer-events: none;
+    }
 
     // The fill follows the GLYPH, not the theme: the moon (switch to dark)
     // sits on lavender, the sun (switch to light) on yellow. The button says

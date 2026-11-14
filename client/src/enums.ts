@@ -40,6 +40,7 @@ export enum ContextSrc {
   ArtistHeader = "ArtistHeader",
   Queue = "Queue",
   SleepTimer = "SleepTimer",
+  ThemeToggle = "ThemeToggle",
 }
 
 export const FuseTrackOptions = {
