@@ -216,5 +216,14 @@ const handleMouseWheel = (event: WheelEvent) => {
             display: none;
         }
     }
+
+    // A narrow laptop: the slider is the one thing in the bar that can go
+    // without losing a control — the speaker stays, and the wheel over it
+    // still sets the level (`handleMouseWheel`). See `narrowDesktopBar`.
+    @include narrowDesktopBar {
+        .volume-wrap {
+            display: none;
+        }
+    }
 }
 </style>

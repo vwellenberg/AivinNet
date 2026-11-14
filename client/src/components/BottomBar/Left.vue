@@ -435,6 +435,15 @@ defineEmits<{
         // exposed — the box was 12px wide and the words were still there.
         overflow: hidden;
 
+        // On the desktop bar the title is what the centre track gives way
+        // to (BottomBar.vue): with `min-width: 0` the grid counted the title
+        // as nothing, grew the centre to its full 30rem first, and a 1100px
+        // window was left with 56px of title ("Parad…"). 7rem keeps
+        // about a dozen letters. Phones have their own bar and rules.
+        @media only screen and (min-width: 901px) {
+            min-width: 7rem;
+        }
+
         // The words sit on the veil, like every label on the ground: a dot
         // behind a letter costs legibility (styling.md, text on the ground).
         .title {
