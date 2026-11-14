@@ -860,7 +860,7 @@ $sidebar-label-opacity: 0.85;
   // Same inset as the scroller below; no bottom padding — the LIBRARY
   // heading's top padding is the gap between the two.
   .sidebar-nav {
-    padding: 1.875rem $sidebar-inset 0;
+    padding: $sidebar-nav-top $sidebar-inset 0;
     position: relative;
     z-index: 2;
   }
@@ -991,7 +991,9 @@ $sidebar-label-opacity: 0.85;
   // row, which is also where the scrolled rows are cut off.
   // Right: the panel inset plus the shadow reserve every sidebar row has
   // (#397), so the [+] ends where the plates above and below it end.
-  padding: 2.4rem calc(#{$sidebar-inset} + #{$small}) 0.6rem $sidebar-inset;
+  // Top is $sidebar-library-gap (it was 2.4rem): the sticker separates the two
+  // lists by itself and needs less air than a bare hairline did.
+  padding: $sidebar-library-gap calc(#{$sidebar-inset} + #{$small}) $small $sidebar-inset;
   letter-spacing: 0.05em;
 
   // The heading IS the divider now. The 1px grey hairline that used to sit
@@ -1096,16 +1098,16 @@ $sidebar-label-opacity: 0.85;
       display: flex;
       align-items: center;
       gap: $small;
-      // 38px, NOT the 44px a playlist row is — and that difference is the
+      // A row's height MINUS the folder's frame, and that difference is the
       // point. The head sits INSIDE the folder's plate, so the box adds its own
       // 3px frame above and below: a head as tall as a row made the collapsed
-      // folder 50px against 44 everywhere else, visible as one row sticking out
-      // of the rhythm. 38 + 2x3 = 44.
-      min-height: 2.375rem;
+      // folder 6px taller than every other row, visible as one row sticking
+      // out of the rhythm. 32 + 2x3 = 38 ($sidebar-lib-row).
+      min-height: calc(#{$sidebar-lib-row} - 2 * #{$candy-border-w});
       // NO plate of its own: the head is the top section of the folder's box.
       // But it IS the pressable part of that box, so it carries the hatch —
       // as a ring in its own padding, like every other row.
-      padding: 5px $small;
+      padding: calc((#{$sidebar-lib-row} - 2 * #{$candy-border-w} - #{$control-dense}) / 2) $small;
       // White like every other library row (the kraft tint of #335 went
       // again on 2026-10-04 at the user's request: the library is data and
       // stays white; colour belongs to the navigation and the tiles).
@@ -1222,8 +1224,8 @@ $sidebar-label-opacity: 0.85;
       //
       // A background tile starts at its own element's corner, so every resting
       // row used to print the same 38px tile from the same origin. The rows are
-      // all 44px and stand 2px apart, so the folder showed the identical
-      // arrangement of strokes stacked five times (reported 2026-10-05: "the
+      // all one height ($sidebar-lib-row) and stand 2px apart, so the folder
+      // showed the identical arrangement of strokes stacked five times (reported 2026-10-05: "the
       // same sprinkles on every playlist in a folder"). The body is one
       // surface — the folder is one plate — so it carries one texture, and the
       // resting rows below are transparent windows onto it. That also closes
@@ -1302,9 +1304,9 @@ $sidebar-label-opacity: 0.85;
     // navigation above. The earlier split (500, shorter rows) was a deliberate
     // "structure vs. data" distinction and it read as two half-finished lists
     // instead — the plates are the same object, so they look the same.
-    // 28px thumbnail + 2x5px padding + 2x3px border = 44px, the navigation's
-    // 24px glyph + 2x7px + 2x3px.
-    padding: 5px $small;
+    // 28px thumbnail + 2x2px padding + 2x3px border = 38px ($sidebar-lib-row).
+    // The nav above is 36: its 24px glyph is smaller than a 28px thumbnail.
+    padding: calc((#{$sidebar-lib-row} - #{$control-dense} - 2 * #{$candy-border-w}) / 2) $small;
     font-size: $sidebar-row-font;
     font-weight: 700;
 

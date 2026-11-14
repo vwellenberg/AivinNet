@@ -646,6 +646,19 @@ zwei Hälften, sobald die Navigation Platten bekam.
   Kosten gemessen: 986 → 1046 px über 19 Einträge (+6 %), komplett in den Abständen.
   ⚠️ **Auch unten** — ohne `padding-bottom` verlor die letzte Zeile ihren Schatten (Stats war die
   eine Platte ohne, #397).
+- **Die Sidebar ist dichter als die Chrome** (Nutzer, 2026-11-14, Vorschau-Variante „Kompakt“):
+  Menü-Platten 36 px, Bibliotheks-Zeilen 38 px (28-px-Thumbnail + 2 × 2 + 2 × 3 Rahmen), 14 px
+  über „Home“, 12 px zwischen den Menügruppen, 18 px über LIBRARY — alles als Tokens in
+  `_variables.scss` (`$sidebar-nav-row`, `$sidebar-lib-row`, …), die Paddings daraus gerechnet.
+  Nur am Desktop (`min-width: 901px`): Am Handy ist dieselbe Liste die Bottom-Bar mit
+  44-px-Zielen. Gemessen bei 1440 × 900: Menü 467 → 366 px, LIBRARY-Kopf 76 → 54 px, sichtbare
+  Bibliotheks-Zeilen 3 → 6. `utils/sidebarFit.ts` rechnet mit der Zeilenhöhe — wer sie ändert,
+  zieht `LIBRARY_ROW` und die Messwerte in `sidebarFit.test.ts` mit.
+  ⚠️ **Der Abstand zwischen den Menügruppen war 33 px, nicht 17.** Der Trenner ist ein
+  `.separator`, und die globale Regel in `Global/basic.scss` gibt ihm `margin: 8px 0` — zu den
+  zwei Zeilenabständen und seinem 1-px-Körper. Im Quelltext von `NavButtons.vue` stand davon
+  nichts; erst die Messung im Browser zeigte es. Der Desktop-Block setzt deshalb `margin-block`
+  selbst.
 - **Die Beschriftung IST der Trenner** (#422). Über LIBRARY stand eine 1-px-Haarlinie in Grau —
   das einzige Element dieser Stärke in einer Sidebar aus 3-px-Ink-Rahmen; sie las sich wie aus
   einem anderen Bausatz (#355 sammelt dieselbe Diskrepanz anderswo). Die Überschrift trägt
