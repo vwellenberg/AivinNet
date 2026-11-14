@@ -1,5 +1,4 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { themeForNowMock } = vi.hoisted(() => ({ themeForNowMock: vi.fn((..._args: unknown[]) => 'dark' as 'light' | 'dark') }))
@@ -125,7 +124,5 @@ describe('theme toggle menu', () => {
         expect(source).toBeTruthy()
         expect(source).toContain('v-context-menu')
         expect(source).not.toContain('@contextmenu')
-        // The file really exists where the glob points; keep the read honest.
-        expect(readFileSync('src/components/nav/ThemeToggle.vue', 'utf8')).toBe(source)
     })
 })

@@ -4,7 +4,6 @@
         class="theme-toggle"
         :class="settings.theme === 'light' ? 'to-dark' : 'to-light'"
         :title="title"
-        aria-haspopup="menu"
         @click="settings.toggleTheme"
     >
         <MoonSvg v-if="settings.theme === 'light'" />
@@ -33,8 +32,8 @@ const settings = useSettings()
 const title = computed(() => {
     const target = settings.theme === 'light' ? 'dark' : 'light'
     return settings.auto_theme
-        ? `Auto dark mode is on. Click: switch to ${target} (turns Auto off) — hold or right-click for options`
-        : `Switch to ${target} mode — hold or right-click for Auto`
+        ? `Auto dark mode is on. Click: switch to ${target} (turns Auto off). Right-click or long-press for options`
+        : `Switch to ${target} mode. Right-click or long-press for Auto`
 })
 
 // Long-press, right-click and the context-menu key come in through the

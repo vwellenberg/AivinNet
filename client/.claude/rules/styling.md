@@ -1911,7 +1911,7 @@ eigenen Long-Press (500 ms ruhiger Finger; Bewegung > 10 px, Scroll, zweiter Fin
 
 Der Zensus in `cardAnatomy.test.ts` verlangt `v-context-menu` auf der Wurzel **jeder** Kachel und
 verbietet `@contextmenu` darin; bewusst menülose Kacheln stehen mit Begründung in `NO_MENU`.
-Außerhalb der Kacheln nutzt es bisher nur die Ordner-Zeile (`FolderItem.vue`). Mit
+Außerhalb der Kacheln nutzen es die Ordner-Zeile (`FolderItem.vue`) und der Theme-Knopf oben (`nav/ThemeToggle.vue`: Klick schaltet hell/dunkel, Long-Press bzw. Rechtsklick öffnet Light · Dark · Auto, `utils/themeMenu.ts`). Ein Knopf mit eigenem Klick bekommt sein Menü so als Zweitgeste — die Direktive schluckt den Klick nach dem Long-Press, sonst schaltete der Finger beim Loslassen zusätzlich um. Mit
 `@contextmenu` allein stehen noch `SongItem` (hat einen ⋮-Knopf), `SidebarPlaylistItem` und die
 Ordner-/Album-Zeilen in `LeftSidebar/index.vue` — wer dort anfasst, stellt um.
 

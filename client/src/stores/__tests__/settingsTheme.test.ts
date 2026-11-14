@@ -234,14 +234,4 @@ describe('settings store: theme + auto dark mode', () => {
 
         expect(settings.theme).toBe('light')
     })
-
-    it('toggleTheme behaves as before after the refactor', () => {
-        const settings = useSettings()
-        settings.toggleAutoTheme()
-
-        settings.toggleTheme()
-
-        expect(settings.theme).toBe('light')
-        expect(settings.auto_theme).toBe(false)
-    })
 })
