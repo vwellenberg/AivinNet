@@ -1102,7 +1102,7 @@ $sidebar-label-opacity: 0.85;
       // point. The head sits INSIDE the folder's plate, so the box adds its own
       // 3px frame above and below: a head as tall as a row made the collapsed
       // folder 6px taller than every other row, visible as one row sticking
-      // out of the rhythm. 32 + 2x3 = 38 ($sidebar-lib-row).
+      // out of the rhythm. 38 + 2x3 = 44 ($sidebar-lib-row).
       min-height: calc(#{$sidebar-lib-row} - 2 * #{$candy-border-w});
       // NO plate of its own: the head is the top section of the folder's box.
       // But it IS the pressable part of that box, so it carries the hatch —
@@ -1304,8 +1304,8 @@ $sidebar-label-opacity: 0.85;
     // navigation above. The earlier split (500, shorter rows) was a deliberate
     // "structure vs. data" distinction and it read as two half-finished lists
     // instead — the plates are the same object, so they look the same.
-    // 28px thumbnail + 2x2px padding + 2x3px border = 38px ($sidebar-lib-row).
-    // The nav above is 36: its 24px glyph is smaller than a 28px thumbnail.
+    // 28px thumbnail + 2x5px padding + 2x3px border = 44px ($sidebar-lib-row),
+    // the same height as the nav plates above.
     padding: calc((#{$sidebar-lib-row} - #{$control-dense} - 2 * #{$candy-border-w}) / 2) $small;
     font-size: $sidebar-row-font;
     font-weight: 700;

@@ -73,11 +73,9 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     padding: 5px $small;
     font-size: $sidebar-row-font;
 
-    // The desktop sidebar is denser than the 44px chrome: the plate takes its
-    // height from the token and centres the glyph row in it, so a glyph-size
-    // change cannot move the row height (24px glyph + 2x2 cover + 2x3 frame
-    // fits 36 with 1px to spare). Not on phones, where this list is the bottom
-    // bar and every entry a 44px target.
+    // On the desktop sidebar the plate takes its height from the token and
+    // centres the glyph row in it, so a glyph-size change cannot move the row
+    // height. Phones keep their own padding: there this list is the bottom bar.
     @media only screen and (min-width: 901px) {
       height: $sidebar-nav-row;
       padding-block: 0;
