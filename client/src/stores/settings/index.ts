@@ -167,6 +167,11 @@ export default defineStore('settings', {
         setTheme(theme: 'light' | 'dark') {
             this.theme = theme
         },
+        /** A light/dark choice made by hand: takes control away from the schedule. */
+        setThemeManually(theme: 'light' | 'dark') {
+            this.auto_theme = false
+            this.theme = theme
+        },
         toggleTheme() {
             this.theme = this.theme === 'light' ? 'dark' : 'light'
             // Picking a theme by hand is taking control: automatic switching

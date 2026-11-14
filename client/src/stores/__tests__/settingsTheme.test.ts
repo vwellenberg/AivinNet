@@ -212,4 +212,36 @@ describe('settings store: theme + auto dark mode', () => {
         settings.setAutoThemeZone('Asia/Tokyo')
         expect(settings.auto_theme_zone).toBe('Asia/Tokyo')
     })
+
+    it('setThemeManually sets the mode and turns auto off', () => {
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+        expect(settings.auto_theme).toBe(true)
+
+        settings.setThemeManually('dark')
+
+        expect(settings.auto_theme).toBe(false)
+        expect(settings.theme).toBe('dark')
+    })
+
+    it('setThemeManually stays put on the next check', () => {
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+        settings.setThemeManually('light')
+
+        themeForNowMock.mockReturnValue('dark')
+        settings.applyAutoTheme()
+
+        expect(settings.theme).toBe('light')
+    })
+
+    it('toggleTheme behaves as before after the refactor', () => {
+        const settings = useSettings()
+        settings.toggleAutoTheme()
+
+        settings.toggleTheme()
+
+        expect(settings.theme).toBe('light')
+        expect(settings.auto_theme).toBe(false)
+    })
 })
