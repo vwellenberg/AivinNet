@@ -2028,6 +2028,28 @@ man den Unterschied ablesen könnte. Gemeldet als „warum ist beim Song oben ne
 und Name stehen jetzt nebeneinander in derselben Funktion und lassen sich gegeneinander lesen;
 `playingFrom.test.ts` verbietet, dass die eine in der anderen vorkommt.
 
+## ⚠️ Lyrics: eine Pille neben großer Schrift sitzt NICHT auf der Grundlinie
+
+Die Zeit-Pille der Lyrics-Zeile stand per `align-items: baseline` neben dem Text. Für eine Box mit
+eigenem Rahmen heißt das: ihre *Text*-Grundlinie fluchtet, die Box hängt darunter — gemessen 4 px
+unter der Textmitte, halb auf dem Weg zum Scrubber (gemeldet als „Zeitanzeige passt irgendwie
+nicht", 2026-11-14). Jetzt `align-items: start` und die Pille per `margin-top` auf die **erste**
+Textzeile zentriert (`--lyric-lh` = Schriftgröße × Zeilenhöhe der Lyrics; `lh` läse die eigene
+Zeilenhöhe der Pille). Bricht eine Zeile um, bleibt die Pille bei den ersten Wörtern.
+
+Das Wort-Highlighting der laufenden Zeile (`utils/lyricsWords.ts`) liest Wort-Stempel aus
+erweitertem LRC (`<mm:ss.xx>`, vom Server als `words`), sonst verteilt es die Zeit nach
+Wortlänge (gedeckelt auf 150 ms/Zeichen, damit eine Zeile vor einer langen Pause nicht kriecht).
+Zwei Dinge, die daran hängen:
+
+- **Der Marker verschiebt keinen Buchstaben**: Füllung plus `box-shadow`-Spread, nie Padding,
+  und die Leerzeichen stehen *außerhalb* der Wort-Spans — sonst lief der Marker übers Leerzeichen.
+- **Die Store-Uhr ist für Wörter zu grob**: `timeupdate` kommt ~4×/s, ein Wort dauert oft
+  weniger. `composables/usePlaybackClock.ts` rechnet zwischen zwei Meldungen per
+  `requestAnimationFrame` weiter, gedeckelt auf 400 ms (ein hängender Stream läuft sonst davon).
+- Noch nicht gesungene Wörter: Ink bei **60 %** = 3,8:1 auf Memphis-Gelb; 50 % lagen bei 2,9:1,
+  unter den 3:1 für große Schrift.
+
 ## ⚠️ Ein Kind im Scroller deckt den Scrollbar-Gutter NICHT
 
 Ein absolut positioniertes Kind spannt die **Padding-Box** seines Containing Blocks. Der Gutter,

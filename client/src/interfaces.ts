@@ -349,9 +349,18 @@ export interface ScrollerItem {
     props?: Record<string, unknown>
 }
 
+export interface LyricsWord {
+    /** When the word starts, in milliseconds — on the same clock as the line. */
+    time: number
+    /** The word with the spacing that follows it; the words join to the line's text. */
+    text: string
+}
+
 export interface LyricsLine {
     time: number
     text: string
+    /** Only for enhanced LRC (a stamp per word). Absent on plain line-synced lyrics. */
+    words?: LyricsWord[]
 }
 
 // Auth

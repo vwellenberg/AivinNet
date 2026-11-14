@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import re
 from pathlib import Path
 
 from aivinnet.store.tracks import TrackStore
@@ -120,6 +121,67 @@ def parse_time_tag(lines: list[dict]) -> list[dict]:
     return parsed_times
 
 
+def _stamp_millis(minutes: str, seconds: str) -> float:
+    """
+    `mm` and `ss[.fff]` of an LRC stamp as milliseconds.
+
+    The digits after the dot are a FRACTION of a second: LRC writes hundredths
+    (`[00:12.34]` is 12.34 s), some files thousandths. Read as a count of
+    milliseconds, ".34" was 34 ms and every line landed up to 0.9 s early.
+    """
+    whole, _, fraction = seconds.partition(".")
+    milli = int(fraction[:3].ljust(3, "0")) if fraction else 0
+
+    delta = datetime.timedelta(minutes=int(minutes), seconds=int(whole), milliseconds=milli)
+    return delta.total_seconds() * 1000
+
+
+# Enhanced LRC ("A2"): a stamp in angle brackets before each word of a line,
+# `[00:12.00]<00:12.00>Light <00:12.40>up <00:12.71>the <00:12.90>night`.
+_WORD_STAMP = re.compile(r"<(\d+):(\d+(?:\.\d+)?)>")
+
+
+def _split_word_stamps(body: str, offset: float = 0) -> tuple[str, list[dict]]:
+    """
+    Split a line body into its plain text and its timed words.
+
+    A line without word stamps comes back unchanged with no words. With them,
+    the text is the line with every stamp removed — before this, the stamps were
+    shown as part of the lyric — and each word carries the time it starts. The
+    text of the words joins back to exactly that text, spaces included, so the
+    client can lay them out one after the other.
+
+    A stamp with nothing after it (the closing stamp of a line) only ends the
+    word before it and is dropped.
+    """
+    parts = _WORD_STAMP.split(body)
+    if len(parts) == 1:
+        return body, []
+
+    # parts = [lead, min, sec, text, min, sec, text, ...]
+    lead, rest = parts[0], parts[1:]
+    words: list[dict] = []
+
+    for k in range(0, len(rest), 3):
+        minutes, seconds, text = rest[k], rest[k + 1], rest[k + 2]
+        if not text.strip():
+            # Nothing to sing after this stamp (the line's closing stamp, maybe
+            # with a trailing space): it only ends the word before. Its spacing
+            # stays with that word, so the words still join to the text.
+            if words:
+                words[-1]["text"] += text
+            continue
+        words.append({"time": _stamp_millis(minutes, seconds) - offset, "text": text})
+
+    # Text before the first stamp has no time of its own: it belongs to the
+    # first word (and so starts with the line).
+    if lead and words:
+        words[0]["text"] = lead + words[0]["text"]
+
+    text = "".join(word["text"] for word in words) or lead
+    return text, words
+
+
 # # # # # # # # # # # # # # # # # # # #
 #  Lyrics class for simplified usage  #
 # # # # # # # # # # # # # # # # # # # #
@@ -199,28 +261,27 @@ class Lyrics:
 
         lyrics = []
 
-        time_tags = parse_time_tag(self.parsed_lyrics)
+        offset = 0
+        if "offset" in self.meta:
+            offset = int(self.meta["offset"])  # offset in milliseconds
 
-        for entry in time_tags:
-            minutes = entry["minute"]
-            # The digits after the dot are a FRACTION of a second: LRC writes
-            # hundredths (`[00:12.34]` is 12.34 s), some files thousandths.
-            # Read as a count of milliseconds, ".34" was 34 ms and every line
-            # landed up to 0.9 s early.
-            seconds, _, fraction = entry["seconds"].partition(".")
+        for entry in parse_time_tag(self.parsed_lyrics):
+            time = _stamp_millis(entry["minute"], entry["seconds"]) - offset
+            text, words = _split_word_stamps(entry["body"], offset)
 
-            minutes = int(minutes)
-            seconds = int(seconds)
-            milli = int(fraction[:3].ljust(3, "0")) if fraction else 0
+            # One body under several line stamps (`[00:10][01:30]<00:10>Hey …`)
+            # carries the word stamps of its FIRST occurrence; on a repeat they
+            # would all lie in the past and the line would light up at once.
+            # Such words are moved with their line, the first starting with it.
+            if words and words[0]["time"] < time:
+                shift = time - words[0]["time"]
+                words = [{**word, "time": word["time"] + shift} for word in words]
 
-            seconds = datetime.timedelta(minutes=minutes, seconds=seconds, milliseconds=milli).total_seconds()
+            line: dict = {"time": time, "text": text}
+            if words:
+                line["words"] = words
 
-            offset = 0
-            if "offset" in self.meta:
-                offset = int(self.meta["offset"])  # offset in milliseconds
-
-            milliseconds = seconds * 1000 - offset
-            lyrics.append({"time": milliseconds, "text": entry["body"]})
+            lyrics.append(line)
 
         return lyrics
 
