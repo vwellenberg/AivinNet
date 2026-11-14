@@ -72,6 +72,16 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // visibly out of step. 24px glyph + 4 + 2x5 + 2x3 border = 44px.
     padding: 5px $small;
     font-size: $sidebar-row-font;
+
+    // The desktop sidebar is denser than the 44px chrome: the plate takes its
+    // height from the token and centres the glyph row in it, so a glyph-size
+    // change cannot move the row height (24px glyph + 2x2 cover + 2x3 frame
+    // fits 36 with 1px to spare). Not on phones, where this list is the bottom
+    // bar and every entry a 44px target.
+    @media only screen and (min-width: 901px) {
+      height: $sidebar-nav-row;
+      padding-block: 0;
+    }
     // 700, one step above the library below. The navigation is a layer, not a
     // list of data — and next to 3px frames and this design's headings, 500
     // read lighter than everything around it.
@@ -217,6 +227,13 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     border: none;
     background: none;
     box-shadow: none;
+
+    // Two row gaps plus this 1px spacer made 17px between the groups; the
+    // desktop sidebar wants $sidebar-group-gap, so the spacer gives the rest
+    // back as negative margin (12 = 8 + 1 - 2.5 - 2.5 + 8).
+    @media only screen and (min-width: 901px) {
+      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - 1px) / 2);
+    }
   }
 
   @include allPhones {
