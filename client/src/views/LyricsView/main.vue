@@ -23,7 +23,19 @@
           @click="queue.seek(line.time / 1000)"
         >
           <span class="stamp">{{ formatSeconds(line.time / 1000) }}</span>
-          <span class="text">{{ line.text }}</span>
+          <span
+            v-if="index == lyrics.currentLine && currentWords.length"
+            class="text words"
+            ><template v-for="(word, w) in currentWords" :key="w"
+              >{{ word.lead
+              }}<span
+                class="word"
+                :class="{ sung: w < currentWord, singing: w == currentWord }"
+                >{{ word.core }}</span
+              >{{ word.trail }}</template
+            ></span
+          >
+          <span v-else class="text">{{ line.text }}</span>
         </button>
       </div>
       <div v-if="!lyrics.synced && hasLyrics" class="lyrics-plate unsynced">
@@ -53,6 +65,8 @@ import useSettings from "@/stores/settings";
 
 import LyricsHead from "./Head.vue";
 import PluginFind from "./Plugins/Find.vue";
+import usePlaybackClock from "@/composables/usePlaybackClock";
+import { currentWordIndex, lineWords, splitSpacing } from "@/utils/lyricsWords";
 import formatSeconds from "@/utils/useFormatSeconds";
 import updatePageTitle from "@/utils/updatePageTitle";
 
@@ -62,30 +76,55 @@ const settings = useSettings();
 
 const hasLyrics = computed(() => !!lyrics.lyrics && lyrics.lyrics.length > 0);
 
+// Playback position in ms, carried forward between the audio's ~250 ms reports
+// so the word highlight and the scrubber move with the music, not in steps.
+// Only while there is a synced line to time: no frame loop otherwise.
+const clock = usePlaybackClock(
+  () => queue.duration.current,
+  () => queue.playing && lyrics.synced && hasLyrics.value
+);
+
 /**
- * How far playback has run INTO the current line, 0 → 1.
- *
- * The line's own timestamp is its start; the next line's is its end. The last
- * line has no successor, so it ends with the track — and if the duration is not
- * known yet, it stays at 0 rather than jumping to full.
+ * Start and end of the current line, in ms. The line's own timestamp is its
+ * start; the next line's is its end. The last line has no successor, so it ends
+ * with the track — 0 while the duration is not known yet.
  */
-const lineProgress = computed(() => {
+const currentSpan = computed(() => {
   const index = lyrics.currentLine;
   const lines = lyrics.lyrics;
 
-  if (!lyrics.synced || index < 0 || index >= lines.length) return 0;
+  if (!lyrics.synced || index < 0 || index >= lines.length) return null;
 
-  const start = lines[index].time;
   const end =
     index + 1 < lines.length
       ? lines[index + 1].time
       : queue.duration.full * 1000;
 
-  if (!(end > start)) return 0;
-
-  const millis = queue.duration.current * 1000;
-  return Math.min(Math.max((millis - start) / (end - start), 0), 1);
+  return { line: lines[index], start: lines[index].time, end };
 });
+
+/** How far playback has run INTO the current line, 0 → 1. */
+const lineProgress = computed(() => {
+  const span = currentSpan.value;
+  if (!span || !(span.end > span.start)) return 0;
+
+  return Math.min(
+    Math.max((clock.value - span.start) / (span.end - span.start), 0),
+    1
+  );
+});
+
+const currentLineWords = computed(() => {
+  const span = currentSpan.value;
+  return span ? lineWords(span.line, span.end).words : [];
+});
+
+const currentWords = computed(() =>
+  currentLineWords.value.map((word) => splitSpacing(word.text))
+);
+const currentWord = computed(() =>
+  currentWordIndex(currentLineWords.value, clock.value)
+);
 
 const currentLineStyle = computed(() => ({
   "--line-progress": `${lineProgress.value * 100}%`,
@@ -155,7 +194,15 @@ onMounted(() => {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: $small;
-    align-items: baseline;
+    // NOT baseline: the pill is a box with its own frame, and a box set on the
+    // lyric's baseline hangs below the words — its centre sat 4px under the
+    // line it labels, halfway down to the scrubber (reported 2026-11-14). It is
+    // centred on the FIRST line of the lyric instead (see .stamp), so a lyric
+    // that wraps keeps its pill beside its opening words.
+    align-items: start;
+    // One line of lyric, so the pill can centre on it. Restated with the font
+    // size below; `lh` would read the pill's own line-height, not the lyric's.
+    --lyric-lh: calc(1.55rem * 1.22);
     width: 100%;
     // EVERY line reserves what the current state paints — the frame (a
     // transparent border, like candy-row-base), the room the zigzag needs on
@@ -177,6 +224,7 @@ onMounted(() => {
     @include allPhones {
       gap: $smaller;
       font-size: 1.2rem;
+      --lyric-lh: calc(1.2rem * 1.22);
     }
 
     // Two steps, not the five-rung opacity ladder this view used to carry:
@@ -209,8 +257,14 @@ onMounted(() => {
     // HH:MM:SS, and a fixed column would push the pill under the lyric. Every
     // line of a given track formats the same way, so the column stays even.
     min-width: 3.6rem;
-    padding: 0.1rem 0.35rem;
-    text-align: center;
+    $stamp-h: 1.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: $stamp-h;
+    margin-top: calc((var(--lyric-lh) - #{$stamp-h}) / 2);
+    padding: 0 0.35rem;
+    line-height: 1;
     background-color: $mem-panel;
     border: $mem-ring-w solid $mem-line;
     border-radius: $candy-radius-pill;
@@ -257,6 +311,32 @@ onMounted(() => {
       background-image: linear-gradient($mem-teal, $mem-teal);
       background-repeat: no-repeat;
       background-size: var(--line-progress, 0%) 100%;
+    }
+
+    // Word by word: what is still to come is held back, what has been sung
+    // stands in full ink, and the word being sung right now carries the teal
+    // marker. The marker is a fill plus a box-shadow spread, never padding —
+    // it paints around the word without moving a single letter, so the line
+    // never reflows while it is being sung. Spaces sit outside the word spans,
+    // so the marker ends at the last letter.
+    //
+    // Contrast: the held-back words are ink at 60 %, which measures 3.8:1 on
+    // the Memphis yellow (#f5b23c) — above the 3:1 this large bold text needs;
+    // 50 % fell just under it (2.9:1). Ink on teal is the pairing the play
+    // buttons already use.
+    .word {
+      opacity: 0.6;
+      border-radius: 0.2em;
+    }
+
+    .word.sung,
+    .word.singing {
+      opacity: 1;
+    }
+
+    .word.singing {
+      background-color: $mem-teal;
+      box-shadow: 0 0 0 0.08em $mem-teal;
     }
   }
 
