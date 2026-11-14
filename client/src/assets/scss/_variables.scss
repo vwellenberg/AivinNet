@@ -43,11 +43,11 @@ $sidebar-row-radius: $candy-radius-sm;
 $sidebar-row-font: 0.9375rem; // 15px — a step up from the old 14px
 
 // The sidebar's vertical rhythm (user pick "Kompakt", 2026-11-14: the same
-// sidebar with less air, previewed against 44px rows). Desktop only — the
-// phone bar renders the nav as 44px touch targets and has no library.
-// Measured at a 740px panel: 4 playlists visible before, 6 after.
-$sidebar-nav-row: 2.25rem; // 36px nav plate
-$sidebar-lib-row: 2.375rem; // 38px library row (28px thumbnail + 2x2 + 2x3 frame)
+// sidebar with less air). The plates went to 36/38px first and came back to
+// 44px the same day at the user's request ("die alte Buttonhöhe zurück"): the
+// gain stays in the spacing below, the rows keep the chrome's height.
+$sidebar-nav-row: 2.75rem; // 44px nav plate
+$sidebar-lib-row: 2.75rem; // 44px library row (28px thumbnail + 2x5 + 2x3 frame)
 $sidebar-nav-top: 0.875rem; // 14px from the panel's top frame to "Home"
 $sidebar-group-gap: 0.75rem; // 12px between the two nav groups (Artists → Search)
 $sidebar-library-gap: 1.125rem; // 18px from the last nav plate to the LIBRARY sticker

@@ -646,14 +646,16 @@ zwei Hälften, sobald die Navigation Platten bekam.
   Kosten gemessen: 986 → 1046 px über 19 Einträge (+6 %), komplett in den Abständen.
   ⚠️ **Auch unten** — ohne `padding-bottom` verlor die letzte Zeile ihren Schatten (Stats war die
   eine Platte ohne, #397).
-- **Die Sidebar ist dichter als die Chrome** (Nutzer, 2026-11-14, Vorschau-Variante „Kompakt“):
-  Menü-Platten 36 px, Bibliotheks-Zeilen 38 px (28-px-Thumbnail + 2 × 2 + 2 × 3 Rahmen), 14 px
-  über „Home“, 12 px zwischen den Menügruppen, 18 px über LIBRARY — alles als Tokens in
-  `_variables.scss` (`$sidebar-nav-row`, `$sidebar-lib-row`, …), die Paddings daraus gerechnet.
-  Nur am Desktop (`min-width: 901px`): Am Handy ist dieselbe Liste die Bottom-Bar mit
-  44-px-Zielen. Gemessen bei 1440 × 900: Menü 467 → 366 px, LIBRARY-Kopf 76 → 54 px, sichtbare
-  Bibliotheks-Zeilen 3 → 6. `utils/sidebarFit.ts` rechnet mit der Zeilenhöhe — wer sie ändert,
-  zieht `LIBRARY_ROW` und die Messwerte in `sidebarFit.test.ts` mit.
+- **Die Sidebar hat engere Abstände als früher, aber die Höhe der Chrome** (Nutzer, 2026-11-14):
+  14 px über „Home“, 12 px zwischen den Menügruppen, 18 px über LIBRARY, Platten und
+  Bibliotheks-Zeilen 44 px. Alles als Tokens in `_variables.scss` (`$sidebar-nav-row`,
+  `$sidebar-lib-row`, …), die Paddings daraus gerechnet, nur am Desktop (`min-width: 901px`).
+  ⚠️ **Die Plattenhöhe war einmal 36/38 px („Kompakt“, #804) und kam am selben Tag zurück**
+  („möchte doch gerne die alte Buttonhöhe zurück“): Die Zeilen sind das Ziel für den Zeiger und
+  lesen sich mit 44 px wie die übrige Chrome. Wer Platz will, nimmt ihn aus den Abständen.
+  Gemessen bei 1440 × 900: Menü 467 → 430 px, LIBRARY-Kopf 76 → 54 px, sichtbare
+  Bibliotheks-Zeilen 3 → 4. `utils/sidebarFit.ts` rechnet mit der Zeilenhöhe, ein Test bindet
+  `LIBRARY_ROW` an `$sidebar-lib-row`.
   ⚠️ **Der Abstand zwischen den Menügruppen war 33 px, nicht 17.** Der Trenner ist ein
   `.separator`, und die globale Regel in `Global/basic.scss` gibt ihm `margin: 8px 0` — zu den
   zwei Zeilenabständen und seinem 1-px-Körper. Im Quelltext von `NavButtons.vue` stand davon
