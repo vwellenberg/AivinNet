@@ -1967,6 +1967,27 @@ Und eine Stufe höher dasselbe Prinzip: Steht der Wrapper selbst in einer Zeile 
 die Zeit-Pillen die Leiste im Now-Playing-Kopf), gehört der Abstand an die **Zeile**. Auf dem
 Wrapper würde er die Leiste aus der Mittellinie ihrer Nachbarn schieben.
 
+## ⚠️ Die Mitte der Player-Leiste ist eine SPUR, keine feste Breite
+
+Die Desktop-Leiste ist ein Raster `1fr · Mitte · 1fr`. Die Mitte hatte eine feste Breite: 30rem,
+unter 1080 px `20rem !important`. 20rem ist schmaler als ihr eigener Inhalt (Uhr · fünf Knöpfe ·
+Uhr, gemessen 382 px), also lief sie auf schmalen Laptops unter den Lyrics-Knopf (gemessen 21 px
+Überlappung bei 1000 px, gemeldet 2026-11-14). Über 1080 px nahm die feste Breite dem Titel links
+den Platz („Parad…“ bei 1100 px). Jetzt `minmax(max-content, 30rem)`: Das Raster misst erst die
+Seiten nach ihrem Inhalt und gibt der Mitte nur, was übrig bleibt.
+
+Zwei Dinge, die daran hängen:
+
+- **Ein Titel mit `min-width: 0` zählt für das Raster als nichts.** Die Mitte wächst dann zuerst
+  auf 30rem. Deshalb hat `.track-info` am Desktop einen Boden von 7rem (Left.vue).
+- **Zwischen 901 und 1120 px passen die drei Gruppen in voller Größe nicht nebeneinander**
+  (382 + 344 + 288 px + Rand, ein laufender Sleep-Timer +55 px Beschriftung). `narrowDesktopBar`
+  nimmt dort den Lautstärke-Schieber weg (der Lautsprecher bleibt, das Mausrad darüber regelt
+  weiter), die Timer-Beschriftung (der gelbe An-Zustand bleibt) und setzt beide Seitengruppen auf
+  `$bar-gap-tight`. Gemessen an 901–1440 px: keine Überlappung, kein seitliches Scrollen, Titel
+  ≥ 112 px. Wer der Leiste einen Knopf hinzufügt, misst das neu, die Zahlen stehen am Mixin.
+  Zensus: `BottomBar/__tests__/barFit.test.ts`.
+
 ## ⚠️ `space-between` verteilt nur POSITIVEN Freiraum — Abstände in einer gedeckelten Zeile ableiten
 
 Eine Steuergruppe, die zentriert mit einem festen Abstand stehen soll, baut man **nicht** aus

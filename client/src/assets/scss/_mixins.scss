@@ -110,6 +110,24 @@
   }
 }
 
+/* A desktop bar too narrow for all three groups at full size. Measured at
+   rest: centre (clock · transport · clock) 382px, right group with the
+   volume slider 344px, left group with a readable title (its 7rem floor in
+   Left.vue) 288px — 1014px plus the bar's 2 × 16px padding, so below ~1046px
+   they ran past the window (1px of page scroll at 1041px, 33px at 901px).
+   A running sleep timer adds its label on top ("End of album": +55px), which
+   needs ~1101px — hence 1120.
+   Here the slider goes (the speaker stays, the mouse wheel over it still sets
+   the volume — Volume.vue), the sleep timer drops its label, and both side
+   groups take the tight gap: 236px + 12px less per gap, which fits down to
+   901px with ~11px to spare.
+   Phones (<= 900px) have their own bar; see BottomBar.vue. */
+@mixin narrowDesktopBar {
+  @media only screen and (min-width: 901px) and (max-width: 1120px) {
+    @content;
+  }
+}
+
 @mixin for-desktop-down {
   @media only screen and (max-width: 1600px) {
     @content;

@@ -65,7 +65,18 @@ function handleFav() {
         position: relative;
         z-index: 1;
     }
-    grid-template-columns: 1fr max-content 1fr;
+    // The centre is a TRACK that gives way first: never narrower than its own
+    // content (clock · five transport buttons · clock, ~382px), never wider
+    // than 30rem. Grid sizes the 1fr sides to their content before it grows the
+    // centre, so the centre only takes what the two groups leave over.
+    //
+    // ⚠️ It used to be `max-content` with the centre's WIDTH fixed — 30rem, and
+    // `20rem !important` below 1080px. 20rem is narrower than the transport
+    // row inside it, so on a narrow laptop the clock and the repeat button ran
+    // under the right group's lyrics button (reported 2026-11-14, measured: 21px
+    // overlap at 1000px). Above 1080px the fixed 30rem squeezed the title on
+    // the left to a few letters instead.
+    grid-template-columns: 1fr minmax(max-content, 30rem) 1fr;
     align-items: center;
     z-index: 1;
     // Moved here from the deleted assets/scss/BottomBar/BottomBar.scss, which
@@ -166,6 +177,28 @@ function handleFav() {
         }
     }
 
+    // A narrow laptop: both side groups move closer together so the three
+    // groups still fit next to each other (the arithmetic is on the mixin).
+    // The slider half of this lives in Volume.vue.
+    @include narrowDesktopBar {
+        .left-group,
+        .right-group {
+            gap: $bar-gap-tight;
+        }
+
+        // A running sleep timer widens its button by its label ("End of
+        // album": +55px measured), and nothing here has that to spare. The
+        // yellow on-state still says a timer runs; the tooltip names the time.
+        .sleep-timer-btn.active {
+            width: $bar-control;
+            padding: 0;
+
+            .sleep-timer-label {
+                display: none;
+            }
+        }
+    }
+
     // There is deliberately no `.b-bar button { … }` rule here any more.
     //
     // It used to hand every descendant button a 3rem width, a transparent fill
@@ -208,12 +241,8 @@ function handleFav() {
         display: grid;
         align-items: center;
         gap: 0.625rem;
-
-        width: 30rem;
-
-        @media only screen and (max-width: 1080px) {
-            width: 20rem !important;
-        }
+        // The width is the grid track's (see `grid-template-columns` above).
+        min-width: 0;
 
         @include allPhones {
             width: 100% !important;
