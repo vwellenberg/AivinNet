@@ -151,6 +151,23 @@ describe("now-playing row", () => {
     expect(mixin).toMatch(/>\s*\*\s*\{[^}]*z-index/);
   });
 
+  // The playing row used to clip its ornament with `overflow: hidden`, which
+  // clipped everything else that leaves the row too: its rating picker opened
+  // into nothing, the next row showing where the stars should be — only on
+  // the playing row (user, 2026-11-15). The corners now live on the
+  // pseudo-elements themselves.
+  it("clips nothing: popups like the rating picker leave the row", () => {
+    const candy = readFileSync(CANDY_FILE, "utf-8");
+    const mixin = (blockFor(candy, `@mixin ${MIXIN}`) ?? "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+    expect(mixin).toContain("::before");
+    expect(mixin).not.toMatch(/overflow(-[xy])?\s*:\s*(hidden|clip)/);
+    expect(mixin).not.toMatch(/contain\s*:\s*[^;]*paint/);
+    // Both ornaments round their own corners instead.
+    expect(blockFor(mixin, "&::before")).toMatch(/border-radius\s*:/);
+    expect(blockFor(mixin, "&::after")).toMatch(/border-radius\s*:/);
+  });
+
   // The ornament's once-only latch (utils/arrivalLatch.ts) is RELEASED when the
   // row loses this class, so the next time it plays the band drops in again.
   // A host that marked the state any other way would latch its row for good.

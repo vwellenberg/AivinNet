@@ -109,11 +109,11 @@ defineEmits<{
     // other image surface in this app wears, plus a slight tilt. The 1px hairline
     // it replaces was the one picture frame in the design that wasn't one.
     //
-    // The shadow survives here because the row only clips on the state that
-    // fills it (`overflow: hidden` comes with mem-now-playing-row), and even
-    // there the cover sits an inset and an index column clear of the edge —
-    // the case .claude/rules/styling.md warns about is a box sized exactly to
-    // its content, which this is not.
+    // The shadow survives here because no row clips (the playing row rounds
+    // its own pseudo-elements instead, mem-now-playing-row), and the cover
+    // sits an inset and an index column clear of the edge anyway — the case
+    // .claude/rules/styling.md warns about is a box sized exactly to its
+    // content, which this is not.
     .album-art {
       display: block;
       width: 3rem;
