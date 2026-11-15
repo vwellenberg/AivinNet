@@ -34,27 +34,27 @@
         <!-- The readout: the station under the knob, big. It follows a drag. -->
         <div class="radio-display" aria-hidden="true">
           <div class="radio-readout">
-          <div class="radio-top">
-            <span
-              v-if="display.station"
-              class="radio-kind"
-              :class="'kind-' + display.station.kind"
-            >{{ KIND_LABEL[display.station.kind] }}</span>
-            <span class="radio-air" :class="'is-' + air">
-              <i class="radio-lamp"></i>
-              <span>{{ airText }}</span>
-              <span class="radio-signal">
-                <i v-for="n in 4" :key="n" :class="{ on: n <= bars }"></i>
+            <div class="radio-top">
+              <span
+                v-if="display.station"
+                class="radio-kind"
+                :class="'kind-' + display.station.kind"
+              >{{ KIND_LABEL[display.station.kind] }}</span>
+              <span class="radio-air" :class="'is-' + air">
+                <i class="radio-lamp"></i>
+                <span>{{ airText }}</span>
+                <span class="radio-signal">
+                  <i v-for="n in 4" :key="n" :class="{ on: n <= bars }"></i>
+                </span>
               </span>
-            </span>
-          </div>
-          <div class="radio-freq">{{ display.frequency }}<small>MHz</small></div>
-          <div class="radio-name-row">
-            <span class="radio-display-name">{{ display.station?.name ?? '' }}</span>
-            <span class="radio-level" :class="{ 'is-on': air === 'on' }">
-              <i v-for="n in 7" :key="n"></i>
-            </span>
-          </div>
+            </div>
+            <div class="radio-freq">{{ display.frequency }}<small>MHz</small></div>
+            <div class="radio-name-row">
+              <span class="radio-display-name">{{ display.station?.name ?? '' }}</span>
+              <span class="radio-level" :class="{ 'is-on': air === 'on' }">
+                <i v-for="n in 7" :key="n"></i>
+              </span>
+            </div>
           </div>
           <!-- Wide screens only (the container query in the styles): what plays now. -->
           <div class="radio-now">
