@@ -171,6 +171,18 @@ describe("now-playing row", () => {
     expect(blockFor(mixin, "&::after")).toMatch(/border-bottom-left-radius\s*:\s*inherit/);
   });
 
+  it("wipes the texture in without painting outside the row", () => {
+    // The sprinkle slides in from translateX(-100%); the row's clip used to
+    // hide the part still left of the row. With the clip gone the keyframes
+    // cut it themselves, in step with the slide.
+    const sheet = readFileSync("src/assets/scss/Global/_button-classes.scss", "utf-8");
+    const wipe = blockFor(sheet, "@keyframes mem-texture-wipe") ?? "";
+
+    expect(wipe).toMatch(/translateX\(-100%\)/);
+    expect(blockFor(wipe, "0%")).toMatch(/clip-path:\s*inset\(0 0 0 100%\)/);
+    expect(blockFor(wipe, "100%")).toMatch(/clip-path:\s*inset\(0( 0 0 0)?\)/);
+  });
+
   // The ornament's once-only latch (utils/arrivalLatch.ts) is RELEASED when the
   // row loses this class, so the next time it plays the band drops in again.
   // A host that marked the state any other way would latch its row for good.

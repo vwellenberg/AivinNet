@@ -210,13 +210,21 @@ form .btn-pill[type="submit"] {
 // Die Textur wischt quer herein. Bewusst `translateX` und nicht `opacity`: die
 // Farbe dieser Zeile ist ein Schnitt (styling.md), ein Aufblenden wäre ein
 // Verstoß dagegen — eine Fläche, die durchs Bild fährt, ist es nicht.
+//
+// Der `clip-path` läuft im Gleichschritt mit und schneidet weg, was noch links
+// außerhalb der Zeile steht: bei Verschiebung −(1−t)·100 % liegt der sichtbare
+// Teil ab (1−t)·100 % der eigenen Breite, beide Werte linear in t, gleiche
+// Kurve. Bis 2026-11-15 erledigte das ein `overflow: hidden` an der laufenden
+// Zeile — das schnitt aber auch die Sterne-Auswahl ab (mem-now-playing-row).
 @keyframes mem-texture-wipe {
   0% {
     transform: translateX(-100%);
+    clip-path: inset(0 0 0 100%);
   }
 
   100% {
     transform: translateX(0);
+    clip-path: inset(0 0 0 0);
   }
 }
 
