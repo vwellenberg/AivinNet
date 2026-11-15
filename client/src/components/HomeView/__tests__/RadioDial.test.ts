@@ -40,16 +40,12 @@ import RadioDial from '@/components/HomeView/RadioDial.vue'
 const dialOf = (ids: string[]) => ids.map((id, i) => ({ id, kind: 'genre', name: `Mix ${i + 1}` }))
 const mixes = (ids: string[]) => ids.map((id, i) => ({ id, kind: 'mix', name: `Mix ${i + 1}` }))
 
+// The slider is the knob's grip (the scale is gone since 2026-11-15).
 const dial = (w: ReturnType<typeof mount>) => w.get('[role="slider"]')
 
 // Every dial mounted by a test: one still watching the shared home mock would
 // read the list again in a later test.
 const mounted: ReturnType<typeof mount>[] = []
-
-// The dial's pointer maths reads the scale's clientWidth (jsdom: 0).
-function dialWidth(px: number) {
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => px })
-}
 
 // VTU cannot set `button` or `pointerId` on jsdom's MouseEvent (read-only), so
 // the pointer events are dispatched by hand.
@@ -96,7 +92,6 @@ describe('RadioDial', () => {
     afterEach(() => {
         for (const w of mounted.splice(0)) w.unmount()
         vi.unstubAllGlobals()
-        delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth
         queueMock.playing = false
     })
 
@@ -135,7 +130,7 @@ describe('RadioDial', () => {
         expect(dial(w).attributes('aria-valuemax')).toBe('4')
         expect(dial(w).attributes('aria-valuetext')).toBe('Mix 1, 87.5 FM')
         // Each kind keeps the order the server listed it in: the display reads the
-        // station under the needle, the first one here is the mix.
+        // station under the knob, the first one here is the mix.
         expect(w.find('.radio-display-name').text()).toBe('Mix 1')
     })
 
@@ -221,16 +216,19 @@ describe('RadioDial', () => {
         expect(w.text()).not.toContain('Subspace')
     })
 
-    it('puts the fixed band labels on the scale, never the station names', async () => {
+    it('has no frequency scale: no track, ticks, notches, needle or band labels', async () => {
         const w = await mountWith([
             { id: 'mix1', kind: 'mix', name: 'Mix 1' },
             { id: 'genre1', kind: 'genre', name: 'Jazz' },
-            { id: 'genre2', kind: 'genre', name: 'rock' },
             { id: 'decade1', kind: 'decade', name: '1990s' },
         ])
 
-        expect(w.findAll('.radio-label').map(label => label.text())).toEqual(['88', '92', '96', '100', '104', '108'])
-        expect(w.find('.radio-scale').text()).not.toMatch(/Mix|Jazz|rock|1990s/)
+        for (const selector of ['.radio-scale', '.radio-track', '.radio-line', '.radio-minor', '.radio-label', '.radio-notch', '.radio-needle']) {
+            expect(w.find(selector).exists(), selector).toBe(false)
+        }
+        // The dial still reads out the station, and the knob is the one control.
+        expect(w.find('.radio-display-name').text()).toBe('Mix 1')
+        expect(w.findAll('[role="slider"]')).toHaveLength(1)
     })
 
     it('the display shows the station tuned in: its name, its kind and its frequency', async () => {
@@ -251,13 +249,12 @@ describe('RadioDial', () => {
         expect(w.find('.radio-freq').text()).toBe('108.0MHz')
     })
 
-    it('the display follows a drag over the station under the needle, before the tune-in', async () => {
-        dialWidth(300)
+    it('the display follows a drag of the knob over the station under it, before the tune-in', async () => {
         const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
 
-        pointer(w, 'pointerdown', { pointerId: 1, clientX: 0 })
-        // 150 px of a 300 px dial over 3 stations is one station: the second.
-        pointer(w, 'pointermove', { pointerId: 1, clientX: 150 })
+        pointer(w, 'pointerdown', { pointerId: 1, clientX: 0, clientY: 0 })
+        // 26 px up is one station (KNOB_PX_PER_STATION): the second.
+        pointer(w, 'pointermove', { pointerId: 1, clientX: 0, clientY: -26 })
         await w.vm.$nextTick()
 
         expect(w.find('.radio-display-name').text()).toBe('Mix 2')
@@ -265,7 +262,7 @@ describe('RadioDial', () => {
         expect(w.find('.radio-freq').text()).toBe('97.8MHz')
         expect(tuneStation).not.toHaveBeenCalled()
 
-        pointer(w, 'pointerup', { pointerId: 1, clientX: 150 })
+        pointer(w, 'pointerup', { pointerId: 1, clientX: 0, clientY: -26 })
         await flushPromises()
 
         expect(tuneStation).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'mix2' }))
@@ -291,32 +288,39 @@ describe('RadioDial', () => {
         expect(dial(w).attributes('aria-valuemax')).toBe('2')
     })
 
-    it('under reduced motion the needle does not animate', async () => {
+    it('under reduced motion the knob does not swing', async () => {
         vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }))
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await w.vm.$nextTick()
 
-        expect(dial(w).classes()).toContain('is-still')
+        expect(w.get('.radio-knob').classes()).toContain('is-still')
     })
 
-    it('without the preference the needle keeps its movement', async () => {
+    it('without the preference the knob keeps its swing', async () => {
         vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query }))
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await w.vm.$nextTick()
 
-        expect(dial(w).classes()).not.toContain('is-still')
+        expect(w.get('.radio-knob').classes()).not.toContain('is-still')
     })
 
-    it('the knob is decoration: hidden from assistive tech and not in the tab order', async () => {
-        const w = await mountWith(dialOf(['mix1', 'mix2']))
+    it('the knob is the slider: focusable, named, carrying its values, and visible to assistive tech', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
+        const grip = w.get('.radio-grip')
 
-        expect(w.find('.radio-knob').attributes('aria-hidden')).toBe('true')
-        expect(w.find('.radio-grip').attributes('tabindex')).toBeUndefined()
+        expect(w.find('.radio-knob').attributes('aria-hidden')).toBeUndefined()
+        expect(grip.element).toBe(dial(w).element)
+        expect(grip.attributes('role')).toBe('slider')
+        expect(grip.attributes('tabindex')).toBe('0')
+        expect(grip.attributes('aria-label')).toBe('AivinNet FM')
+        expect(grip.attributes('aria-valuemin')).toBe('1')
+        expect(grip.attributes('aria-valuemax')).toBe('3')
+        expect(grip.attributes('aria-valuenow')).toBe('1')
+        expect(grip.attributes('aria-valuetext')).toBe('Mix 1, 87.5 FM')
         expect(w.findAll('[role="slider"]')).toHaveLength(1)
     })
 
     it('knob drag turns the knob: up and right move on, and tunes the station on release', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
         const grip = w.find('.radio-grip').element
 
@@ -362,7 +366,6 @@ describe('RadioDial', () => {
     })
 
     it('the air state reads STANDBY, then ON AIR once music plays from the tuned station, then TUNING while dragged', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         expect(w.find('.radio-air').text()).toBe('STANDBY')
 
@@ -383,7 +386,6 @@ describe('RadioDial', () => {
     })
 
     it('is not ON AIR when something else plays after tuning in (an album from its page)', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
 
@@ -432,7 +434,6 @@ describe('RadioDial', () => {
     })
 
     it('the folded strip names the station on air, and shows nothing of it otherwise', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
         await w.get('.radio-toggle').trigger('click')
@@ -448,7 +449,6 @@ describe('RadioDial', () => {
     })
 
     it('a station tuned in but not playing leaves the folded strip without a chip', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
         await w.get('.radio-toggle').trigger('click')
@@ -459,7 +459,6 @@ describe('RadioDial', () => {
     })
 
     it('the live status stays rendered while folded and still names the station tuned in', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2']))
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
         await w.get('.radio-toggle').trigger('click')
@@ -471,10 +470,9 @@ describe('RadioDial', () => {
     })
 
     it('folding in the middle of a drag ends it and brings the music back', async () => {
-        dialWidth(300)
         const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
-        pointer(w, 'pointerdown', { pointerId: 7, clientX: 0 })
-        pointer(w, 'pointermove', { pointerId: 7, clientX: 150 })
+        pointer(w, 'pointerdown', { pointerId: 7, clientX: 0, clientY: 0 })
+        pointer(w, 'pointermove', { pointerId: 7, clientX: 0, clientY: -26 })
         await w.vm.$nextTick()
         expect(muteForTuning).toHaveBeenCalled()
 
