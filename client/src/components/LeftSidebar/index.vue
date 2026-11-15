@@ -62,7 +62,7 @@
                 </div>
                 <span class="ellip">{{ entry.folder.name }}</span>
                 <span class="folder-count">{{ entry.folder.playlists.length }}</span>
-                <RightArrowSvg class="folder-chevron" :class="{ open: !folderStore.isCollapsed(entry.id) }" />
+                <FolderChevronSvg class="folder-chevron" :class="{ open: !folderStore.isCollapsed(entry.id) }" />
                 <!-- Last, so it lines up with the pin of every other row. -->
                 <PushPinSvg v-if="zone.top" class="folder-pin" title="Pinned" />
               </div>
@@ -190,7 +190,7 @@ import PushPinSvg from "@/assets/icons/push-pin.svg";
 // 2026-11-09), and the two are told apart by their tint now: playlist pink
 // for a playlist folder, folder kraft for a music folder.
 import FolderSvg from "@/assets/icons/folder.svg";
-import RightArrowSvg from "@/assets/icons/right-arrow.svg";
+import FolderChevronSvg from "@/assets/icons/expand.svg";
 import PlusSvg from "@/assets/icons/plus.svg";
 
 import useQueue from "@/stores/queue";
@@ -1232,10 +1232,12 @@ $sidebar-label-opacity: 0.85;
 
       .folder-chevron {
         // Expand/collapse affordance on the right; points right when collapsed,
-        // rotates down when open.
+        // rotates down when open. The chrome set's disclosure chevron at the
+        // pin's size: as a 0.7rem arrow its stroke rendered ~1px next to the
+        // pin's 2px (user, 2026-11-15).
         flex-shrink: 0;
-        width: 0.7rem;
-        height: 0.7rem;
+        width: $glyph-lone;
+        height: $glyph-lone;
         transition: transform $motion-tint ease;
 
         &.open {
@@ -1267,8 +1269,9 @@ $sidebar-label-opacity: 0.85;
       // folders below the zone carry none.
       .folder-pin {
         flex-shrink: 0;
-        width: 0.95rem;
-        height: 0.95rem;
+        // Same size as the playlist pin (`.pl-pin`): both stand in one column.
+        width: $glyph-lone;
+        height: $glyph-lone;
         color: $candy-text;
         // No tilt here: the glyph is drawn on the diagonal (push-pin.svg).
       }
