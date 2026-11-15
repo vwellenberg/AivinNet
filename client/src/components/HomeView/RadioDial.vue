@@ -28,7 +28,7 @@
               <i class="radio-lamp"></i>
               <span>{{ airText }}</span>
               <span class="radio-signal">
-                <i v-for="n in 4" :key="n" :class="{ on: n <= display.bars }"></i>
+                <i v-for="n in 4" :key="n" :class="{ on: n <= bars }"></i>
               </span>
             </span>
           </div>
@@ -98,7 +98,7 @@
         </div>
 
         <!-- Decoration for pointers only: the scale above does everything the knob does. -->
-        <div class="radio-knob" :class="{ 'is-still': still }" aria-hidden="true">
+        <div class="radio-knob" :class="{ 'is-still': still, 'is-tuning': drag !== null }" aria-hidden="true">
           <div class="radio-knob-dial">
             <svg class="radio-bezel" viewBox="0 0 120 120">
               <line
@@ -151,6 +151,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
 import useQueue from '@/stores/queue'
+import useTracklist from '@/stores/queue/tracklist'
 import {
   AIR_TEXT,
   airState,
@@ -169,6 +170,7 @@ import {
   kindsOnDial,
   litBezelTick,
   neighbours,
+  playsStation,
   prefersReducedMotion,
   snapIndex,
   stationFraction,
@@ -188,6 +190,7 @@ import type { Station } from '@/utils/radioDial'
 
 const home = useHome()
 const queue = useQueue()
+const tracklist = useTracklist()
 const stations = ref<Station[]>(stationsFromList(home.stations))
 
 /**
@@ -264,17 +267,25 @@ const display = computed(() => {
   return {
     station,
     frequency: station ? stationFrequency(at, count.value) : '',
-    bars: signalBars(position.value),
     at,
   }
 })
 
 const neighbourPair = computed(() => neighbours(stations.value, display.value.at))
 
+// ON AIR only while the queue still plays the tuned station: an album started
+// from its own page afterwards is not the radio, whatever `tuned` remembers.
 const air = computed(() =>
-  airState({ tuned: tuned.value >= 0, playing: queue.playing, dragging: drag.value !== null })
+  airState({
+    tuned: tuned.value >= 0 && playsStation(tracklist.from, stations.value[tuned.value]?.id),
+    playing: queue.playing,
+    dragging: drag.value !== null,
+  })
 )
 const airText = computed(() => AIR_TEXT[air.value])
+// Signal only while the radio is on or being tuned: full bars beside STANDBY
+// contradicted each other.
+const bars = computed(() => (air.value === 'off' ? 0 : signalBars(position.value)))
 
 // Static scale furniture: the band's ticks and labels never change.
 const ticks = bandTicks()
@@ -323,6 +334,12 @@ function onWheel(event: WheelEvent) {
 
 function beginDrag(event: PointerEvent, mode: 'scale' | 'knob') {
   if (stations.value.length === 0 || event.button > 0) return
+  const width = track.value?.clientWidth ?? 0
+  // A scale not laid out yet measures 0, and every move would land on the
+  // first station and retune it. The knob does not need the width.
+  if (mode === 'scale' && width <= 0) return
+  // No text selection while the pointer sweeps across the housing.
+  if (event.pointerType === 'mouse') event.preventDefault()
   const target = event.currentTarget as HTMLElement
   dragTarget = target
   target.setPointerCapture?.(event.pointerId)
@@ -332,7 +349,7 @@ function beginDrag(event: PointerEvent, mode: 'scale' | 'knob') {
     startX: event.clientX,
     startY: event.clientY,
     start: index.value,
-    width: track.value?.clientWidth ?? 0,
+    width,
     last: index.value,
   }
   // The music goes quiet while the needle is between stations.
@@ -408,7 +425,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     overflow: hidden;
     padding: 0.75rem 0.9rem 0.9rem;
     background-color: $mem-lavender;
-    border: $candy-border-w solid $mem-ink;
+    border: $candy-border;
     border-radius: $candy-radius;
     box-shadow: mem-shadow(3px, 3px);
 
@@ -465,7 +482,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
 
   .radio-band-range {
     padding: 2px 8px;
-    border-radius: 5px;
+    border-radius: $candy-radius-xs;
     background: $mem-ink;
     color: $glass-text;
     font-variant-numeric: tabular-nums;
@@ -500,7 +517,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // The speaker grille: a panel with a dot grid in the text colour, so the
   // holes read on the dark panel too (ink dots vanished there).
   .radio-grille {
-    border: $candy-border-w solid $mem-ink;
+    border: $candy-border;
     border-radius: $candy-radius-sm;
     background-color: $mem-panel;
     background-image: radial-gradient($mem-content-text 2.2px, transparent 2.8px);
@@ -520,7 +537,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     padding: 0.55rem 1rem 0.6rem;
     background: $mem-ink;
     color: $glass-text;
-    border: $candy-border-w solid $mem-ink;
+    border: $candy-border;
     border-radius: $candy-radius-sm;
     box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
   }
@@ -535,7 +552,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-kind {
     padding: 1px 7px;
     border: $mem-ring-w solid $mem-ink;
-    border-radius: 5px;
+    border-radius: $candy-radius-xs;
     background: var(--kind);
     color: $mem-ink;
     font-size: 0.68rem;
@@ -667,9 +684,13 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     gap: 3px;
     height: 2.4rem;
 
+    // Animated through `transform`, not `height`: the meter runs for as long
+    // as music plays, and a height loop re-ran layout every frame.
     i {
       width: 4px;
-      height: 15%;
+      height: 100%;
+      transform: scaleY(0.15);
+      transform-origin: bottom;
       border-radius: 1px;
       background: $glass-text;
       opacity: 0.35;
@@ -713,21 +734,21 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
 
   @keyframes radio-level {
     0% {
-      height: 15%;
+      transform: scaleY(0.15);
     }
     100% {
-      height: 100%;
+      transform: scaleY(1);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .radio-level.is-on i {
       animation: none;
-      height: 60%;
+      transform: scaleY(0.6);
     }
 
     .radio-level.is-on i:nth-child(odd) {
-      height: 35%;
+      transform: scaleY(0.35);
     }
   }
 
@@ -759,7 +780,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     min-width: 0;
     min-height: 7rem;
     background: $mem-ink;
-    border: $candy-border-w solid $mem-ink;
+    border: $candy-border;
     border-radius: $candy-radius-sm;
     box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
     touch-action: none;
@@ -933,9 +954,12 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-grip {
     position: absolute;
     inset: 13%;
-    filter: drop-shadow(3px 3px 0 $mem-ink);
+    // The plates' offset, through the shape token, as a drop-shadow: a box
+    // shadow would turn with the knob's square box.
+    filter: drop-shadow(mem-shadow(3px, 3px));
     cursor: grab;
     touch-action: none;
+    user-select: none;
 
     &.is-dragging {
       cursor: grabbing;
@@ -949,7 +973,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   }
 
   .radio-knob.is-still .radio-turn,
-  .radio-grip.is-dragging .radio-turn {
+  .radio-knob.is-tuning .radio-turn {
     transition: none;
   }
 

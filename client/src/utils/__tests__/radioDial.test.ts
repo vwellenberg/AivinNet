@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
     airState,
+    playsStation,
     bandLabels,
     bandTicks,
     bezelTick,
@@ -373,6 +374,16 @@ describe('airState (ON AIR, TUNING, STANDBY)', () => {
     it('is TUNING while the dial is dragged, whatever plays', () => {
         expect(airState({ tuned: true, playing: true, dragging: true })).toBe('tuning')
         expect(airState({ tuned: false, playing: false, dragging: true })).toBe('tuning')
+    })
+})
+
+describe('playsStation', () => {
+    it('is the station only when the queue came from its generated playlist', () => {
+        expect(playsStation({ type: 'playlist', id: 'genre2' }, 'genre2')).toBe(true)
+        expect(playsStation({ type: 'playlist', id: 'genre1' }, 'genre2')).toBe(false)
+        expect(playsStation({ type: 'album', id: 'genre2' }, 'genre2')).toBe(false)
+        expect(playsStation({}, 'genre2')).toBe(false)
+        expect(playsStation({ type: 'playlist', id: 'genre2' }, undefined)).toBe(false)
     })
 })
 

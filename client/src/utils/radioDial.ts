@@ -245,6 +245,15 @@ export function airState(state: { tuned: boolean; playing: boolean; dragging: bo
     return state.tuned && state.playing ? 'on' : 'off'
 }
 
+/**
+ * Whether the queue plays a station: `tuneStation` sets the queue from the
+ * station's generated playlist, whose id is the station's id. Anything else
+ * started later (an album, another playlist) is not the radio.
+ */
+export function playsStation(from: { type?: string; id?: unknown } | undefined, stationId: string | undefined): boolean {
+    return !!from && !!stationId && from.type === 'playlist' && String(from.id) === stationId
+}
+
 /** The text of an air state on the display. */
 export const AIR_TEXT: Record<AirState, string> = { on: 'ON AIR', tuning: 'TUNING', off: 'STANDBY' }
 

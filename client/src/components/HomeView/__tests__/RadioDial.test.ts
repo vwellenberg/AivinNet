@@ -4,12 +4,14 @@ import { ref, type Ref } from 'vue'
 
 // The station list is Home's store (#776): it comes with the rows, and the dial
 // follows the store's list.
-const { homeMock, queueMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
+const { homeMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
   const { reactive } = await import('vue')
   return {
     homeMock: reactive({ homepageItems: [] as any[], stations: [] as any[] }),
     // The queue's `playing` flag decides ON AIR (the player is playing).
     queueMock: reactive({ playing: false }),
+    // Where the queue came from: ON AIR also needs it to be the tuned station.
+    tracklistMock: reactive({ from: {} as { type?: string; id?: unknown } }),
     tuneStation: vi.fn(async () => {}),
     resumeMusic: vi.fn(),
     muteForTuning: vi.fn(),
@@ -19,6 +21,7 @@ const { homeMock, queueMock, tuneStation, resumeMusic, muteForTuning, crackle } 
 
 vi.mock('@/stores/home', () => ({ default: () => homeMock }))
 vi.mock('@/stores/queue', () => ({ default: () => queueMock }))
+vi.mock('@/stores/queue/tracklist', () => ({ default: () => tracklistMock }))
 vi.mock('@/helpers/radio', () => ({ tuneStation, resumeMusic, muteForTuning, crackle }))
 
 import RadioDial from '@/components/HomeView/RadioDial.vue'
@@ -77,6 +80,7 @@ describe('RadioDial', () => {
         muteForTuning.mockClear()
         crackle.mockClear()
         queueMock.playing = false
+        tracklistMock.from = {}
     })
 
     afterEach(() => {
@@ -356,6 +360,7 @@ describe('RadioDial', () => {
         expect(w.find('.radio-air').text()).toBe('STANDBY')
 
         queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix2' }
         await w.vm.$nextTick()
         expect(w.find('.radio-air').text()).toBe('ON AIR')
 
@@ -365,5 +370,18 @@ describe('RadioDial', () => {
 
         pointer(w, 'pointerup', { pointerId: 3, clientX: 0 })
         await flushPromises()
+    })
+
+    it('is not ON AIR when something else plays after tuning in (an album from its page)', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+
+        queueMock.playing = true
+        tracklistMock.from = { type: 'album', id: 'a1b2c3d4' }
+        await w.vm.$nextTick()
+        expect(w.find('.radio-air').text()).toBe('STANDBY')
+        // No signal beside STANDBY.
+        expect(w.findAll('.radio-signal i.on')).toHaveLength(0)
     })
 })
