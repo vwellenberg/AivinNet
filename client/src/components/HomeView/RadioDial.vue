@@ -31,7 +31,6 @@
       </div>
 
       <div v-if="open" id="radio-body" class="radio-body">
-
         <!-- The readout: the station under the needle, big. It follows a drag. -->
         <div class="radio-display" aria-hidden="true">
           <div class="radio-top">
@@ -212,6 +211,8 @@ const open = computed(() => settings.radio_open)
 function onCaseClick(event: MouseEvent) {
   const target = event.target as Element | null
   if (target?.closest('.radio-body')) return
+  // The end of a drag that selected the title or the legend is a click too.
+  if (window.getSelection?.()?.isCollapsed === false) return
   toggleOpen()
 }
 
@@ -467,6 +468,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-case {
     @include mem-arrival;
     position: relative;
+    // Clickable, but without the hatch a pressable plate wears: the housing
+    // already carries its halftone dots, and strokes over dots read as noise.
+    // The toggle button in it is the plate that says "press".
     cursor: pointer;
     overflow: hidden;
     padding: 0.75rem 0.9rem 0.9rem;
@@ -887,7 +891,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-track {
     position: absolute;
     top: 50%;
-    height: 4.5rem;
+    height: 3.6rem;
     transform: translateY(-50%);
     left: 1.25rem;
     right: 1.25rem;
@@ -901,14 +905,14 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     position: absolute;
     left: 0;
     right: 0;
-    top: 1.75rem;
+    top: 1.2rem;
     height: $mem-ring-w;
     background: $glass-dim;
   }
 
   .radio-minor {
     position: absolute;
-    top: 1.75rem;
+    top: 1.2rem;
     width: 1.5px;
     height: 5px;
     margin-left: -0.75px;
@@ -927,7 +931,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // Fixed band labels: 88, 92 … 108. Centred on their tick.
   .radio-label {
     position: absolute;
-    top: 2.55rem;
+    top: 2rem;
     transform: translateX(-50%);
     color: $glass-text;
     font-size: 0.72rem;
@@ -939,7 +943,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // The station notches ("Kerben"): a bar per station across the line in its kind's colour.
   .radio-notch {
     position: absolute;
-    top: calc(1.75rem - 11px);
+    top: calc(1.2rem - 11px);
     width: 4px;
     height: 22px;
     margin-left: -2px;
@@ -957,8 +961,8 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // overshoots a little, like a dial turned by hand.
   .radio-needle {
     position: absolute;
-    top: 0.25rem;
-    height: 3.5rem;
+    top: 0.1rem;
+    height: 3rem;
     width: 3px;
     margin-left: -1.5px;
     background: $mem-coral;
