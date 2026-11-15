@@ -44,16 +44,17 @@ describe('Navigation: Reihenfolge', () => {
         // Orte, an die man will — mehrmals pro Sitzung angesteuert.
         const ziele = menus.slice(0, trennerIndex).map(m => m.name)
 
-        // Albums und Artists seit 2026-10-04 (Entscheidung des Nutzers, auf
-        // dem Desktop statt der Browse-Library-Kacheln auf Home).
-        expect(ziele).toEqual(['home', 'playlists', 'favorites', 'albums', 'artists'])
+        // Albums und Artists standen hier vom 2026-10-04 bis 2026-11-14; seitdem
+        // sind sie wieder Unterseiten von Home (Browse Library).
+        expect(ziele).toEqual(['home', 'playlists', 'favorites'])
     })
 
     it('stellt die WERKZEUGE darunter', () => {
-        // Womit man etwas sucht, plus die Statistik als Gelegenheitsbesuch.
+        // Das Stöbern im Dateibaum, plus die Statistik als Gelegenheitsbesuch.
+        // Die Suche steht seit 2026-11-14 am Desktop nur in der Top-Bar.
         const werkzeuge = menus.slice(trennerIndex + 1).map(m => m.name)
 
-        expect(werkzeuge).toEqual(['search', 'folders', 'stats'])
+        expect(werkzeuge).toEqual(['stats', 'folders'])
     })
 
 })
@@ -67,13 +68,17 @@ describe('Navigation: Telefon', () => {
         expect(telefon).toEqual(['home', 'search', 'favorites', 'playlists', 'folders'])
     })
 
-    it('zeigt fünf Einträge ohne Trenner, alle aus der Seitenleiste', () => {
+    it('zeigt fünf Einträge ohne Trenner, dieselben Objekte wie die Seitenleiste', () => {
         // Fünf passen in die Zeile (die Breiten-Rechnung steht in
-        // NavButtons.vue). Jeder Eintrag ist DERSELBE wie in der Seitenleiste,
-        // damit Route und Füllung an beiden Stellen gleich bleiben.
+        // NavButtons.vue). Was in beiden Listen steht, ist DERSELBE Eintrag,
+        // damit Route und Füllung an beiden Stellen gleich bleiben. Nur die
+        // Suche ist telefon-eigen: am Desktop sitzt sie in der Top-Bar.
         expect(phoneMenus).toHaveLength(5)
         expect(phoneMenus.some(m => m.separator)).toBe(false)
-        for (const eintrag of phoneMenus) expect(menus).toContain(eintrag)
+        for (const eintrag of phoneMenus) {
+            if (eintrag.name === 'search') continue
+            expect(menus).toContain(eintrag)
+        }
     })
 
     it('lässt die häufigen Ziele sichtbar', () => {

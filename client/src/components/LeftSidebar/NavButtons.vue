@@ -226,11 +226,20 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     background: none;
     box-shadow: none;
 
-    // Two row gaps plus this 1px spacer made 17px between the groups; the
-    // desktop sidebar wants $sidebar-group-gap, so the spacer gives the rest
-    // back as negative margin (12 = 8 + 1 - 2.5 - 2.5 + 8).
+    // On the desktop sidebar the spacer is a short ink dash between the two
+    // groups (user, 2026-11-14: "kleiner Trenner"), centred under the plates.
+    // A full-width line would read as one more frame; a dash in the frame's
+    // own weight reads as a pause. The two row gaps plus the dash plus its
+    // margins make $sidebar-group-gap. Phones lay this list out as a row and
+    // hide the separator (below).
     @media only screen and (min-width: 901px) {
-      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - 1px) / 2);
+      $dash: $candy-border-w;
+      align-self: center;
+      width: 2.5rem;
+      height: $dash;
+      border-radius: $candy-radius-pill;
+      background-color: $mem-line;
+      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dash}) / 2);
     }
   }
 

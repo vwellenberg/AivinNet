@@ -90,7 +90,7 @@ describe('colour schemes: the data (#395)', () => {
         // A parser that silently matched nothing would leave every rule below green.
         expect(MAP_ROLES).toContain('teal')
         expect(MAP_ROLES).toContain('home')
-        expect(NAV.length).toBe(8)
+        expect(NAV.length).toBe(5)
         expect(ENTITIES.length).toBe(6)
     })
 

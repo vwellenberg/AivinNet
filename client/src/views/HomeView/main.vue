@@ -25,7 +25,7 @@
              stays away while there are only mixes, which the row below already
              shows (utils/radioDial.ts::dialIsWorthShowing). -->
         <RadioDial />
-        <Browse class="browse-phones-only" />
+        <Browse />
         <PageItem
             v-for="item in home.homepageItems"
             :key="item.key"
@@ -285,14 +285,5 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
         }
     }
 
-    // Albums and Artists have their own entries in the left navigation, so the
-    // block that links to them is only for phones, whose nav bar does not.
-    // `display: none` takes its caption and padding with it: no gap, no stray
-    // "Browse Library". Complement of the `allPhones` mixin (max-width: 900px).
-    @media only screen and (min-width: 901px) {
-        .browse-phones-only {
-            display: none;
-        }
-    }
 }
 </style>

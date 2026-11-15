@@ -41,7 +41,8 @@ interface BrowseItem {
   action?: () => void;
 }
 
-// INFO: Library shortcuts on the home page (phones only, #345). Four tiles of
+// INFO: Library shortcuts on the home page (every screen since 2026-11-14; the
+// only way to Albums and Artists, which have no navigation entry). Four tiles of
 // one size: the favourites are ONE tile to the Favorites page, which lists
 // tracks, albums and artists itself — three "Fav. …" tiles were three ways
 // into the same page (2026-10-05, the user's call).

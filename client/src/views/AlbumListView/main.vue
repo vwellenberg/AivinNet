@@ -38,12 +38,11 @@ import { computed, ref } from "vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from "vue-router";
 
 import useCardGridColumns from "@/helpers/useCardGridColumns";
-import { isMobile } from "@/stores/content-width";
 import { useAlbumList, useArtistList } from "@/stores/pages/itemlist";
 
 import Fetcher from "@/components/ArtistView/AlbumsFetcher.vue";
 import CardRow from "@/components/shared/CardRow.vue";
-import GenericHeader from "@/components/shared/GenericHeader.vue";
+import ListHeader from "./ListHeader.vue";
 import SortBanner from "@/components/CardListView/SortBanner.vue";
 import updatePageTitle from "@/utils/updatePageTitle";
 
@@ -64,19 +63,16 @@ const columns = useCardGridColumns(gridprobe);
 const scrollerItems = computed(() => {
   const items = [];
 
-  // Empty head: the left navigation names this page; it stays for the
-  // spacing above the first row on the phone ($phone-page-start). NOT on any
-  // wider layout, where the container gives the page its start ($page-start)
-  // and the head would add nothing — and an item of 0px is one the
-  // DynamicScroller never counts as measured: it kept the 64px estimate, and
-  // the chips stood 64px below every other page's first line. `isMobile` is
-  // the same 900px window line as `allPhones`/`desktopPage` in the styles.
-  if (isMobile.value) {
-    items.push({
-      id: "header",
-      component: GenericHeader,
-    });
-  }
+  // The page names itself: since 2026-11-14 the left navigation has no
+  // Albums/Artists entries (they are reached from Home's Browse Library), so
+  // the head carries the title on every layout. It is never empty, so the
+  // DynamicScroller measures it like any other row (an empty 0px head was
+  // never counted as measured and pushed the chips 64px down).
+  items.push({
+    id: "header",
+    component: ListHeader,
+    props: { entity: route.name == Routes.AlbumList ? "album" : "artist" },
+  });
 
   items.push({
     id: "sortbanner",

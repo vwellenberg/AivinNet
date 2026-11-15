@@ -106,9 +106,13 @@ describe("desktop page start", () => {
     );
   });
 
-  it("drops the empty head from the album list above the phone, where a 0px scroller item counts as 64px", () => {
+  it("gives the album list a head that is never empty, so the scroller measures it", () => {
+    // Until 2026-11-14 the head was empty and pushed on phones only: a 0px
+    // scroller item never counts as measured and kept its 64px estimate. Now
+    // it carries the page title (ListHeader) on every layout.
     const view = read("views/AlbumListView/main.vue");
-    expect(view).toMatch(/if \(isMobile\.value\) \{\s*items\.push\(\{\s*id: "header",\s*component: GenericHeader,/);
+    expect(view).toMatch(/items\.push\(\{\s*id: "header",\s*component: ListHeader,/);
+    expect(view).not.toMatch(/isMobile/);
   });
 
   it("is given by the search page and the folder view, which own their scrollers", () => {
