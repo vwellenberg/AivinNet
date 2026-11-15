@@ -691,7 +691,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
       flex: 0 1 14rem;
     }
 
-    .radio-level {
+    // Scoped through the readout: the base `.radio-level` rule stands later in
+    // this file and won the tie (seen on the demo instance at 1800 px).
+    .radio-readout .radio-level {
       display: none;
     }
 
