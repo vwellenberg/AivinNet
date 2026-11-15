@@ -602,9 +602,12 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
   }
 
+  // The readout keeps its own width; on a wide display the rest goes to what
+  // plays (user, 2026-11-15: the title was cut off right while the readout
+  // stood in a sea of empty glass on the left).
   .radio-readout {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
     flex-direction: column;
     justify-content: center;
     gap: 2px;
@@ -618,9 +621,13 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   }
 
   @container (min-width: 760px) {
+    .radio-readout {
+      flex: 0 1 17rem;
+    }
+
     .radio-now {
       display: flex;
-      flex: 0 0 14.5rem;
+      flex: 1 1 0;
       flex-direction: column;
       justify-content: center;
       gap: 6px;
@@ -660,13 +667,17 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     min-width: 0;
   }
 
+  // Two lines before it is cut: most titles fit whole in the wider column.
   .radio-now-title {
+    display: -webkit-box;
     overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     color: $glass-text;
     font-size: 0.92rem;
     font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.25;
   }
 
   .radio-now-artist {
