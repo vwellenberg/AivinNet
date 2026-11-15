@@ -11,7 +11,6 @@ import {
     dragPosition,
     FM_HIGH_MHZ,
     FM_LOW_MHZ,
-    kindBands,
     kindsOnDial,
     keyTarget,
     knobAngle,
@@ -314,33 +313,6 @@ describe('bandLabels (fixed labels for the band)', () => {
         expect(labels.map(label => label.label)).toEqual(['88', '92', '96', '100', '104', '108'])
         expect(labels[0].fraction).toBeCloseTo(0.5 / 20.5)
         expect(labels[labels.length - 1].fraction).toBeCloseTo(1)
-    })
-})
-
-describe('kindBands (one coloured segment per kind)', () => {
-    const stations = [
-        { id: 'mix1', kind: 'mix' as const, name: 'Mix 1' },
-        { id: 'mix2', kind: 'mix' as const, name: 'Mix 2' },
-        { id: 'genre1', kind: 'genre' as const, name: 'Jazz' },
-        { id: 'decade1', kind: 'decade' as const, name: '1990s' },
-        { id: 'decade2', kind: 'decade' as const, name: '2000s' },
-    ]
-
-    it('runs from half a step before the first station of a kind to half a step after its last', () => {
-        // Five stations: a step is 1/4, a half step 1/8.
-        const bands = kindBands(stations)
-
-        expect(bands).toEqual([
-            { kind: 'mix', from: 0, to: 0.25 + 0.125 },
-            { kind: 'genre', from: 0.5 - 0.125, to: 0.5 + 0.125 },
-            { kind: 'decade', from: 0.75 - 0.125, to: 1 },
-        ])
-    })
-
-    it('gives a kind with a single station a small segment around it, and skips kinds not on the dial', () => {
-        const bands = kindBands([{ id: 'genre1', kind: 'genre', name: 'Jazz' }])
-
-        expect(bands).toEqual([{ kind: 'genre', from: 0.45, to: 0.55 }])
     })
 })
 

@@ -2,7 +2,9 @@
   <section v-if="dialIsWorthShowing(stations)" class="radio-card">
     <!-- One housing, one plate: it arrives as a whole, its parts get no arrival
          of their own (styling.md, "Eine segmentierte Leiste kommt als EIN Objekt"). -->
-    <div class="radio-case" :class="{ 'is-still': still, 'is-open': open }">
+    <!-- The housing's own surface opens and closes it too (a pointer
+         convenience; the button is the control for keyboards and readers). -->
+    <div class="radio-case" :class="{ 'is-still': still, 'is-open': open }" @click="onCaseClick">
       <div class="radio-head">
         <div class="radio-title"><b>AivinNet FM</b></div>
         <!-- Folded: the strip says the radio plays, and nothing else. -->
@@ -22,14 +24,13 @@
           :aria-expanded="open ? 'true' : 'false'"
           :aria-controls="open ? 'radio-body' : undefined"
           :aria-label="open ? 'Close radio' : 'Open radio'"
-          @click="toggleOpen"
+          @click.stop="toggleOpen"
         >
           <ExpandSvg />
         </button>
       </div>
 
       <div v-if="open" id="radio-body" class="radio-body">
-        <div class="radio-grille" aria-hidden="true"></div>
 
         <!-- The readout: the station under the needle, big. It follows a drag. -->
         <div class="radio-display" aria-hidden="true">
@@ -80,13 +81,6 @@
           @pointercancel="onUp"
         >
           <div ref="track" class="radio-track" aria-hidden="true">
-            <span
-              v-for="band in bands"
-              :key="band.kind"
-              class="radio-band"
-              :class="'kind-' + band.kind"
-              :style="{ left: pct(band.from), width: pct(band.to - band.from) }"
-            ></span>
             <span class="radio-line"></span>
             <span
               v-for="(tick, i) in ticks"
@@ -183,7 +177,6 @@ import {
   knobAngle,
   knobDragPosition,
   KNOB_PX_PER_STATION,
-  kindBands,
   kindsOnDial,
   litBezelTick,
   neighbours,
@@ -211,6 +204,17 @@ const tracklist = useTracklist()
 const settings = useSettings()
 // Folded by default (Home declutter, 2026-11-15); the choice is per device.
 const open = computed(() => settings.radio_open)
+/**
+ * A click on the housing's bare surface (the head strip, the margins) toggles
+ * it. Inside the body it does nothing: tuning on the scale or the knob, or a
+ * tap on the display, must never fold the radio away.
+ */
+function onCaseClick(event: MouseEvent) {
+  const target = event.target as Element | null
+  if (target?.closest('.radio-body')) return
+  toggleOpen()
+}
+
 function toggleOpen() {
   // Folding mid-drag removes the scale and the knob under the pointer, so
   // their pointerup never comes: end the drag here, unmute, keep the station.
@@ -332,7 +336,6 @@ const bars = computed(() => (air.value === 'off' ? 0 : signalBars(position.value
 // Static scale furniture: the band's ticks and labels never change.
 const ticks = bandTicks()
 const labels = bandLabels()
-const bands = computed(() => kindBands(stations.value))
 const legend = computed(() => kindsOnDial(stations.value))
 
 const bezel = Array.from({ length: BEZEL_TICK_COUNT }, (_, index) => ({ index, ...bezelTick(index) }))
@@ -464,6 +467,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-case {
     @include mem-arrival;
     position: relative;
+    cursor: pointer;
     overflow: hidden;
     padding: 0.75rem 0.9rem 0.9rem;
     background-color: $mem-lavender;
@@ -506,7 +510,10 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     font-weight: 700;
   }
 
+  // The legend stands on the housing's dots: a veil in the housing's lavender
+  // under it, or the small caps drown in the dots (user, 2026-11-15).
   .radio-legend {
+    --row-fill: #{$mem-lavender};
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -515,6 +522,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     font-weight: 700;
     letter-spacing: 0.1em;
     color: $mem-ink;
+    @include mem-dots-veil(6px, 10px, 0.9);
 
     > span {
       display: inline-flex;
@@ -572,24 +580,30 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     margin-left: auto;
   }
 
-  .radio-toggle.is-open svg {
+  // The chevron says where the radio goes: down to open, up to close (the
+  // glyph points right, so it turns either way).
+  .radio-toggle svg {
     transform: rotate(90deg);
   }
 
-  // Grille, display, scale, knob: four columns on a desktop, the grille gone
-  // on a phone, the display on a row of its own, the scale and the knob under it.
+  .radio-toggle.is-open svg {
+    transform: rotate(-90deg);
+  }
+
+  // Display, scale, knob: three columns on a desktop; on a phone the display on
+  // a row of its own, the scale and the knob under it. (A speaker grille stood
+  // left of the display until 2026-11-15 and was removed: decoration that read
+  // as a rendering fault in both themes.)
   .radio-body {
+    // The housing around it clicks open and shut; the instrument inside does not.
+    cursor: default;
     display: grid;
-    grid-template-columns: 4.2rem minmax(12rem, 15rem) minmax(0, 1fr) 7rem;
+    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr) 7rem;
     gap: 0.75rem;
     align-items: stretch;
 
     @include allPhones {
       grid-template-columns: minmax(0, 1fr) 6.2rem;
-
-      .radio-grille {
-        display: none;
-      }
 
       .radio-display {
         grid-column: 1 / -1;
@@ -600,18 +614,6 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
         height: 6.2rem;
       }
     }
-  }
-
-  // The speaker grille: a panel with a dot grid in the text colour, so the
-  // holes read on the dark panel too (ink dots vanished there).
-  .radio-grille {
-    border: $candy-border;
-    border-radius: $candy-radius-sm;
-    background-color: $mem-panel;
-    background-image: radial-gradient($mem-content-text 2.2px, transparent 2.8px);
-    background-size: 10px 10px;
-    background-position: 3px 3px;
-    box-shadow: inset 2px 2px 0 mem-alpha($mem-ink, 0.18);
   }
 
   // The display: dark glass, the readout of the station under the needle.
@@ -892,15 +894,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     pointer-events: none;
   }
 
-  .radio-band {
-    position: absolute;
-    top: 0.7rem;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--kind);
-    opacity: 0.85;
-  }
-
+  // One line in one colour. Coloured segments per kind stood above it until
+  // 2026-11-15 and read as a line cut into pieces (user); the kinds are in the
+  // notches' colours and the legend.
   .radio-line {
     position: absolute;
     left: 0;

@@ -494,4 +494,30 @@ describe('RadioDial', () => {
         expect(w.get('.radio-onair').text()).toContain('ON AIR')
         expect(w.get('.radio-onair').text()).toContain('Mix 2')
     })
+
+    it('a click on the housing opens and closes it; a click inside the instrument does not', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, false)
+
+        await w.get('.radio-head').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(true)
+
+        // Tuning and reading stay put.
+        await w.get('.radio-display').trigger('click')
+        await dial(w).trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(true)
+
+        await w.get('.radio-case').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(false)
+    })
+
+    it('the toggle button flips once, not twice through the housing', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, false)
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(true)
+    })
 })
+
