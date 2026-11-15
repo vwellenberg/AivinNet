@@ -49,7 +49,7 @@
         <div
           ref="scale"
           class="radio-scale"
-          :class="{ 'is-still': still, 'is-dragging': drag?.mode === 'scale' }"
+          :class="{ 'is-still': still, 'is-dragging': drag?.mode === 'scale', 'is-tuning': drag !== null }"
           role="slider"
           tabindex="0"
           aria-label="AivinNet FM"
@@ -497,12 +497,13 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
-  // The speaker grille: a panel with an ink dot grid.
+  // The speaker grille: a panel with a dot grid in the text colour, so the
+  // holes read on the dark panel too (ink dots vanished there).
   .radio-grille {
     border: $candy-border-w solid $mem-ink;
     border-radius: $candy-radius-sm;
     background-color: $mem-panel;
-    background-image: radial-gradient($mem-ink 2.2px, transparent 2.8px);
+    background-image: radial-gradient($mem-content-text 2.2px, transparent 2.8px);
     background-size: 10px 10px;
     background-position: 3px 3px;
     box-shadow: inset 2px 2px 0 mem-alpha($mem-ink, 0.18);
@@ -770,10 +771,13 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
+  // Centred in the glass, as tall as the band needs: at the top the ticks
+  // left an empty half below them (seen on the demo instance).
   .radio-track {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 50%;
+    height: 4.5rem;
+    transform: translateY(-50%);
     left: 1.25rem;
     right: 1.25rem;
     pointer-events: none;
@@ -836,7 +840,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     margin-left: -2px;
     border-radius: 2px;
     background: var(--kind);
-    opacity: 0.45;
+    opacity: 0.6;
 
     &.is-tuned {
       opacity: 1;
@@ -848,8 +852,8 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // overshoots a little, like a dial turned by hand.
   .radio-needle {
     position: absolute;
-    top: 0.5rem;
-    bottom: 0.5rem;
+    top: 0.25rem;
+    height: 3.5rem;
     width: 3px;
     margin-left: -1.5px;
     background: $mem-coral;
@@ -870,8 +874,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
+  // No travel while a drag (scale or knob) moves the needle by hand.
   .radio-scale.is-still .radio-needle,
-  .radio-scale.is-dragging .radio-needle {
+  .radio-scale.is-tuning .radio-needle {
     transition: none;
   }
 
