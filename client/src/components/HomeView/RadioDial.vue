@@ -68,14 +68,14 @@
                 </div>
               </div>
             </template>
-            <span v-else class="radio-now-idle">Turn the knob</span>
+            <span v-else-if="air !== 'on'" class="radio-now-idle">Turn the knob</span>
           </div>
         </div>
 
         <!-- The knob is THE slider: keyboard, wheel, pointer and screen readers use it. -->
         <div class="radio-knob" :class="{ 'is-still': still, 'is-tuning': drag !== null }">
           <div class="radio-knob-dial">
-            <svg class="radio-bezel" viewBox="0 0 120 120">
+            <svg class="radio-bezel" viewBox="0 0 120 120" aria-hidden="true">
               <line
                 v-for="tick in bezel"
                 :key="tick.index"
@@ -355,6 +355,9 @@ function onKnobDown(event: PointerEvent) {
   // No text selection while the pointer sweeps across the housing.
   if (event.pointerType === 'mouse') event.preventDefault()
   const target = event.currentTarget as HTMLElement
+  // preventDefault above also cancels the focus a mousedown gives: focus by
+  // hand, so the wheel tunes after a click (onWheel asks for focus).
+  target.focus({ preventScroll: true })
   dragTarget = target
   target.setPointerCapture?.(event.pointerId)
   drag.value = {
@@ -387,8 +390,19 @@ function onUp(event: PointerEvent) {
   drag.value = null
   dragTarget?.releasePointerCapture?.(event.pointerId)
   dragTarget = null
+  // A click without a turn only takes the focus (for the wheel and the keys):
+  // it must not tune in, nor restart the station that plays.
+  const moved = Math.abs(event.clientX - current.startX) + Math.abs(event.clientY - current.startY) > KNOB_CLICK_SLOP_PX
+  if (!moved) {
+    position.value = index.value
+    resumeMusic()
+    return
+  }
   land(snapIndex(position.value, stations.value.length))
 }
+
+/** Pointer travel below which a press on the knob is a click, not a turn. */
+const KNOB_CLICK_SLOP_PX = 4
 </script>
 
 <style lang="scss">
@@ -636,7 +650,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     height: 4.6rem;
     object-fit: cover;
     border: $mem-ring-w solid $glass-dim;
-    border-radius: $candy-radius-xs;
+    border-radius: $candy-radius-sm;
   }
 
   .radio-now-text {

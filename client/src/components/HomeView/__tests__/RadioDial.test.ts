@@ -398,10 +398,15 @@ describe('RadioDial', () => {
     it('shows no "next" line in the now-playing column', async () => {
         queueMock.playing = true
         tracklistMock.from = { type: 'playlist', id: 'mix1' }
-        tracklistMock.tracklist = [{ id: 't1', title: 'Blue in Green', image: 'None', artists: [{ name: 'Miles Davis' }] }]
+        tracklistMock.tracklist = [
+            { id: 't1', title: 'Blue in Green', image: 'None', artists: [{ name: 'Miles Davis' }] },
+            { id: 't2', title: 'So What', image: 'None', artists: [{ name: 'Miles Davis' }] },
+        ]
         const w = await mountWith(dialOf(['mix1', 'mix2']))
 
         expect(w.get('.radio-now').text()).not.toMatch(/next/i)
+        // Whatever the wording: the following track is nowhere on the radio.
+        expect(w.text()).not.toContain('So What')
     })
 
     it('otherwise the now-playing column asks the listener to turn the knob', async () => {
@@ -565,6 +570,30 @@ describe('RadioDial', () => {
         await w.get('.radio-toggle').trigger('click')
         await flushPromises()
         expect(settingsMock.radio_open).toBe(true)
+    })
+
+    it('a click on the knob without turning it only takes the focus: no tuning', async () => {
+        // Attached: focus needs a document.
+        const w = await mountWith(dialOf(['mix1', 'mix2']), { attachTo: document.body })
+        const grip = w.get('.radio-grip').element
+
+        pointer(w, 'pointerdown', { pointerId: 9, clientX: 10, clientY: 10 }, grip)
+        pointer(w, 'pointerup', { pointerId: 9, clientX: 11, clientY: 10 }, grip)
+        await flushPromises()
+
+        expect(tuneStation).not.toHaveBeenCalled()
+        expect(resumeMusic).toHaveBeenCalled()
+        expect(document.activeElement).toBe(grip)
+    })
+
+    it('ON AIR before the track is in the list: the column stays empty, it does not say "Turn the knob"', async () => {
+        queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix1' }
+        tracklistMock.tracklist = []
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.get('.radio-air').text()).toBe('ON AIR')
+        expect(w.find('.radio-now-idle').exists()).toBe(false)
     })
 })
 
