@@ -356,13 +356,15 @@ onMounted(() => {
     }
 
     // A narrow card (the 901–1200px sidebar column is one): three full sleeves
-    // would reach up under the count pill, so the row shrinks from its
-    // bottom-right anchor and clears it vertically. This replaces the old
+    // would reach in under the name and count, so the row shrinks from its
+    // bottom-right anchor until it starts right of them. This replaces the old
     // viewport-width rule for 901–1200px: it asked the viewport, but what
-    // decides the overlap is the card's own width.
+    // decides the overlap is the card's own width. 0.8, measured at 1100px
+    // (card content 325px): the row then starts ~20px right of the count pill;
+    // 0.6 left a third of the card empty again.
     @container (max-width: 360px) {
       .covers {
-        transform: scale(0.6);
+        transform: scale(0.8);
         transform-origin: bottom right;
       }
     }
@@ -416,7 +418,11 @@ onMounted(() => {
 
       .covers {
         right: 0.75rem;
-        transform: scale(0.55);
+        // Lower than on the desktop (0.5rem instead of 1.2rem), so more of each
+        // sleeve stands behind the board: at 1.2rem the scaled row reached up
+        // under the count pill on a 390px phone.
+        bottom: 0.5rem;
+        transform: scale(0.5);
         transform-origin: bottom right;
       }
 
