@@ -1261,7 +1261,7 @@ $sidebar-label-opacity: 0.85;
         font-weight: 700;
       }
 
-      // Pinned folders carry the same tilted thumbtack as pinned playlists and
+      // Pinned folders carry the same sewing pin as pinned playlists and
       // albums, and in the same place: the last thing in the row, so all pins
       // stand in one column (count and chevron sit to its left). The un-pinned
       // folders below the zone carry none.
@@ -1270,7 +1270,7 @@ $sidebar-label-opacity: 0.85;
         width: 0.95rem;
         height: 0.95rem;
         color: $candy-text;
-        transform: rotate(35deg);
+        // No tilt here: the glyph is drawn on the diagonal (push-pin.svg).
       }
     }
 
@@ -1398,8 +1398,10 @@ $sidebar-label-opacity: 0.85;
       width: $glyph-lone;
       height: $glyph-lone;
       color: $candy-text;
-      // Tilt the thumbtack like a real pin (📌): head top-right, point lower-left.
-      transform: rotate(35deg);
+      // No CSS tilt: the sewing pin is DRAWN on the diagonal, head top-right,
+      // point lower-left (push-pin.svg). The 35deg tilt belonged to the upright
+      // thumbtack before it; on top of the new glyph it laid the pin almost flat.
+      // Pinned in sidebarPinTilt.test.ts.
     }
   }
 
