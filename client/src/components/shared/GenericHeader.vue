@@ -1,6 +1,6 @@
 <template>
     <!-- No `name` slot, no title: the pages the left navigation already names
-         (Home, Playlists, Favorites, Stats, Albums, Artists) leave it out, so
+         (Home, Playlists, Favorites, Stats) leave it out, so
          the head carries only what else it was given (#right, #after). -->
     <div class="generichead" :class="{ 'is-empty': !painted }">
         <div class="before">
@@ -33,7 +33,7 @@ defineProps<{
 
 // Whether the head paints anything. `#description` does not count: it is never
 // shown (see the note at the end of the style block). An empty head on the
-// desktop takes no room at all — Home, Albums, Artists and the charts have one.
+// desktop takes no room at all — Home and the charts have one.
 const slots = useSlots()
 const painted = computed(() => Boolean(slots.name || slots.right || slots.after))
 </script>

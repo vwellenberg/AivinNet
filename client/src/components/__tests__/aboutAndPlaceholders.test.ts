@@ -88,10 +88,12 @@ describe("Home", () => {
     expect(home).not.toMatch(/#name/);
   });
 
-  it("shows Browse Library on phones only", () => {
+  it("shows Browse Library on every screen", () => {
+    // Albums and Artists have no navigation entry (2026-11-14): Home's Browse
+    // Library block is the way to them on the desktop too.
     const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
-    expect(home).toMatch(/<Browse class="browse-phones-only"/);
-    expect(home).toMatch(/min-width:\s*901px\)\s*\{\s*\.browse-phones-only\s*\{\s*display:\s*none;/);
+    expect(home).toMatch(/<Browse\s*\/>/);
+    expect(home).not.toMatch(/browse-phones-only/);
   });
 });
 
@@ -103,9 +105,18 @@ describe("page titles", () => {
       // Charts carries the Stats PAGE head; views/Stats/main.vue keeps its
       // "Stats" SECTION heading over the weekly numbers, so it is not listed.
       "components/Stats/Charts.vue",
-      "views/AlbumListView/main.vue",
     ]) {
       expect(readFileSync(join("src", file), "utf-8"), file).not.toMatch(/<template #name>/);
     }
+  });
+
+  it("are shown where the navigation does not name the page", () => {
+    // Albums and Artists left the left navigation (2026-11-14), so their
+    // list page names itself on every layout.
+    const head = readFileSync("src/views/AlbumListView/ListHeader.vue", "utf-8");
+    expect(head).toMatch(/<template #name>/);
+    const page = readFileSync("src/views/AlbumListView/main.vue", "utf-8");
+    expect(page).toMatch(/component: ListHeader/);
+    expect(page).not.toMatch(/if \(isMobile\.value\)/);
   });
 });

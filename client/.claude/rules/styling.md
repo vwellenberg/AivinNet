@@ -647,7 +647,7 @@ zwei Hälften, sobald die Navigation Platten bekam.
   ⚠️ **Auch unten** — ohne `padding-bottom` verlor die letzte Zeile ihren Schatten (Stats war die
   eine Platte ohne, #397).
 - **Die Sidebar hat engere Abstände als früher, aber die Höhe der Chrome** (Nutzer, 2026-11-14):
-  14 px über „Home“, 12 px zwischen den Menügruppen, 18 px über LIBRARY, Platten und
+  14 px über „Home“, 28 px zwischen den Menügruppen (der Bobbel in der Mitte), 18 px über LIBRARY, Platten und
   Bibliotheks-Zeilen 44 px. Alles als Tokens in `_variables.scss` (`$sidebar-nav-row`,
   `$sidebar-lib-row`, …), die Paddings daraus gerechnet, nur am Desktop (`min-width: 901px`).
   ⚠️ **Die Plattenhöhe war einmal 36/38 px („Kompakt“, #804) und kam am selben Tag zurück**
@@ -661,6 +661,14 @@ zwei Hälften, sobald die Navigation Platten bekam.
   zwei Zeilenabständen und seinem 1-px-Körper. Im Quelltext von `NavButtons.vue` stand davon
   nichts; erst die Messung im Browser zeigte es. Der Desktop-Block setzt deshalb `margin-block`
   selbst.
+- **Die Navigation ist schlank** (Nutzer, 2026-11-14/15): Home · Playlists · Favorites · Bobbel ·
+  Stats · Folders. Albums und Artists sind Unterseiten von Home (Browse Library, die
+  „Plattenkiste“: zwei Karten mit Anzahl und einem Fächer aus drei Bildern, geladen über
+  `GET /getall/<typ>?limit=3`), die Suche steht am Desktop nur in der Top-Bar. Seiten, die kein
+  Menüeintrag mehr benennt, benennen sich selbst (`AlbumListView/ListHeader.vue`). Der Trenner ist
+  der **Bobbel**: ein gelber Punkt mit statischem Ink-Rand und 3-px-Versatz, wie ein Konfetti-Stück
+  vom Grund — eine Linie läse sich als weiterer Rahmen. Stats steht vor Folders, weil Gold neben
+  Kraft im Schema Lagune nur ΔE 18,5 misst (`paletteSchemes.test.ts` verlangt 20).
 - **Die Beschriftung IST der Trenner** (#422). Über LIBRARY stand eine 1-px-Haarlinie in Grau —
   das einzige Element dieser Stärke in einer Sidebar aus 3-px-Ink-Rahmen; sie las sich wie aus
   einem anderen Bausatz (#355 sammelt dieselbe Diskrepanz anderswo). Die Überschrift trägt

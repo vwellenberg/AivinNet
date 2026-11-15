@@ -9,8 +9,6 @@ import PlaylistSvg from "@/assets/icons/playlist-1.svg";
 import SearchSvg from "@/assets/icons/search.svg";
 import HomeSvg from "@/assets/icons/home.svg";
 import ChartSvg from "@/assets/icons/chart.svg";
-import AlbumSvg from "@/assets/icons/album.svg";
-import ArtistSvg from "@/assets/icons/artist.svg";
 
 // A sidebar/bottom-bar navigation entry. Only `separator: true` entries omit
 // the route fields; `icon` is `any` because that's what the `*.svg` module
@@ -39,7 +37,11 @@ interface NavItem {
   // computes the CIE76 distance of the real pastels from _candy.scss and
   // wants ≥ 20 — and the two red-ish fills (pink, coral) never touch:
   //
-  //   sea · pink · gold · lavender · lime  —  separator —  coral · kraft · orchid
+  //   sea · pink · gold  —  separator  —  orchid · kraft
+  //
+  // (Since 2026-11-14. Stats stands before Folders on purpose: gold next to
+  // kraft measured ΔE 18.5 in the Lagune scheme, under the 20 the rule asks.
+  // Phone bar: sea · coral · gold · pink · kraft.)
   //
   // (2026-10-04, user picks: Home takes the doodle teal, Favorites gold,
   // Folders the folder kraft, Stats the doodle orchid.) This replaced a
@@ -98,28 +100,19 @@ const stats = {
   tint: "tint-orchid",
 };
 
-// Albums and Artists joined the navigation on 2026-10-04 (user decision, "to
-// test"): on desktop they replace Home's Browse Library block. Their fills
-// are their entity colours, so the entry matches every album/artist tile.
-const albums = {
-  name: "albums",
-  route_name: Routes.AlbumList,
-  icon: AlbumSvg,
-  tint: "tint-lavender",
-};
-
-const artists = {
-  name: "artists",
-  route_name: Routes.ArtistList,
-  icon: ArtistSvg,
-  tint: "tint-lime",
-};
+// Albums and Artists were sidebar entries from 2026-10-04 to 2026-11-14 (the
+// user's test). They are reached from Home's Browse Library block again, on
+// every screen, and the list pages name themselves (AlbumListView/ListHeader).
 
 // ZIELE oben, WERKZEUGE unten — das ist die Bedeutung des Trenners.
 //
 // Oben stehen die Orte, an die man WILL (Start, die eigenen Listen, das
-// Gemerkte); unten das, womit man etwas SUCHT, plus die Statistik als
-// Gelegenheitsbesuch. Vorher stand der Trenner zwischen zwei Gruppen, die
+// Gemerkte); unten das Stöbern im Dateibaum plus die Statistik als
+// Gelegenheitsbesuch.
+//
+// Seit 2026-11-14 (Nutzer) schlanker: Albums und Artists sind wieder Unterseiten
+// von Home (Browse Library), und die Suche steht am Desktop nur noch in der
+// Top-Bar — ein zweiter Eintrag dafür war doppelt. Vorher stand der Trenner zwischen zwei Gruppen, die
 // niemand benennen konnte (`home · folders · search` gegen `favorites ·
 // playlists · stats`) — und Playlists, eines der häufigsten Ziele, lag an
 // fünfter Stelle hinter zwei Werkzeugen.
@@ -132,14 +125,11 @@ export const menus: NavItem[] = [
   home,
   playlists,
   favorites,
-  albums,
-  artists,
   {
     separator: true,
   },
-  search,
-  folder,
   stats,
+  folder,
 ];
 
 // Die Navigationszeile am Telefon: fünf Plätze, eigene Reihenfolge
@@ -149,8 +139,8 @@ export const menus: NavItem[] = [
 // Werkzeug unter dem Trenner", sondern der zweithäufigste Weg in die
 // Bibliothek — und stand dort bisher an vierter Stelle. Deshalb direkt hinter
 // Home, mittig unter dem Daumen. Albums, Artists und Stats haben hier keinen
-// Platz; Albums und Artists bleiben über Homes Browse-Library-Block
-// erreichbar, den das Telefon genau dafür behält.
+// Platz; Albums und Artists sind über Homes Browse-Library-Block erreichbar
+// (seit 2026-11-14 auch am Desktop der einzige Weg).
 //
 // Früher war das keine eigene Liste, sondern `menus` mit per CSS
 // ausgeblendeten Einträgen (`phoneHidden`, `:last-child`). Damit hing die
