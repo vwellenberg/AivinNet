@@ -151,6 +151,38 @@ describe("now-playing row", () => {
     expect(mixin).toMatch(/>\s*\*\s*\{[^}]*z-index/);
   });
 
+  // The playing row used to clip its ornament with `overflow: hidden`, which
+  // clipped everything else that leaves the row too: its rating picker opened
+  // into nothing, the next row showing where the stars should be — only on
+  // the playing row (user, 2026-11-15). The corners now live on the
+  // pseudo-elements themselves.
+  it("clips nothing: popups like the rating picker leave the row", () => {
+    const candy = readFileSync(CANDY_FILE, "utf-8");
+    const mixin = (blockFor(candy, `@mixin ${MIXIN}`) ?? "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+    expect(mixin).toContain("::before");
+    expect(mixin).not.toMatch(/overflow(-[xy])?\s*:\s*(hidden|clip)/);
+    expect(mixin).not.toMatch(/contain\s*:\s*[^;]*paint/);
+    // Both ornaments round their own corners instead — the row's ACTUAL ones
+    // (`inherit`): the song-list inlay squares the row, and a radius computed
+    // from the mixin's parameter rounded the band on a square row.
+    expect(blockFor(mixin, "&::before")).toMatch(/border-radius\s*:\s*inherit/);
+    expect(blockFor(mixin, "&::after")).toMatch(/border-top-left-radius\s*:\s*inherit/);
+    expect(blockFor(mixin, "&::after")).toMatch(/border-bottom-left-radius\s*:\s*inherit/);
+  });
+
+  it("wipes the texture in without painting outside the row", () => {
+    // The sprinkle slides in from translateX(-100%); the row's clip used to
+    // hide the part still left of the row. With the clip gone the keyframes
+    // cut it themselves, in step with the slide.
+    const sheet = readFileSync("src/assets/scss/Global/_button-classes.scss", "utf-8");
+    const wipe = blockFor(sheet, "@keyframes mem-texture-wipe") ?? "";
+
+    expect(wipe).toMatch(/translateX\(-100%\)/);
+    expect(blockFor(wipe, "0%")).toMatch(/clip-path:\s*inset\(0 0 0 100%\)/);
+    expect(blockFor(wipe, "100%")).toMatch(/clip-path:\s*inset\(0( 0 0 0)?\)/);
+  });
+
   // The ornament's once-only latch (utils/arrivalLatch.ts) is RELEASED when the
   // row loses this class, so the next time it plays the band drops in again.
   // A host that marked the state any other way would latch its row for good.
