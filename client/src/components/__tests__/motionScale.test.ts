@@ -63,6 +63,12 @@ const EXCEPTIONS: Record<string, { values: string[]; why: string }> = {
         values: ['0.54s', '0.62s', '0.78s', '0.9s'],
         why: 'deliberately out-of-step meter bars',
     },
+    // The radio's lamp, level meter and tuning blink run on loops, and the level
+    // bars are out of step on purpose (like PlayingMeter): one speed would read as a progress bar.
+    'src/components/HomeView/RadioDial.vue': {
+        values: ['0.5s', '0.62s', '0.68s', '0.71s', '0.81s', '0.9s', '0.93s', '0.97s', '1.07s', '1.6s'],
+        why: 'radio lamp and tuning loops, deliberately out-of-step level meter bars',
+    },
     // Slower than the interaction range on purpose.
     'src/assets/scss/Global/index.scss': { values: ['300ms'], why: 'modal dimmer fade' },
     'src/components/RightSideBar/SearchInput.vue': { values: ['0.3s'], why: 'clear-button fade' },
