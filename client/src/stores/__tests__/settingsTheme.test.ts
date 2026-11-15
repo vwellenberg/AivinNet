@@ -33,6 +33,14 @@ describe('settings store: theme + auto dark mode', () => {
         expect(settings.auto_theme).toBe(false)
     })
 
+    it('AivinNet FM on Home starts folded, and the setter writes the flag', () => {
+        const settings = useSettings()
+        expect(settings.radio_open).toBe(false)
+
+        settings.setRadioOpen(true)
+        expect(settings.radio_open).toBe(true)
+    })
+
     it('applyAutoTheme does nothing while auto is off', () => {
         const settings = useSettings()
         settings.applyAutoTheme()

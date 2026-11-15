@@ -4,10 +4,17 @@ import { ref, type Ref } from 'vue'
 
 // The station list is Home's store (#776): it comes with the rows, and the dial
 // follows the store's list.
-const { homeMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
+const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
   const { reactive } = await import('vue')
   return {
     homeMock: reactive({ homepageItems: [] as any[], stations: [] as any[] }),
+    // The per-device flag: folded (false) by default. The setter writes it, as the store does.
+    settingsMock: reactive({
+      radio_open: false,
+      setRadioOpen(value: boolean) {
+        this.radio_open = value
+      },
+    }),
     // The queue's `playing` flag decides ON AIR (the player is playing).
     queueMock: reactive({ playing: false }),
     // Where the queue came from: ON AIR also needs it to be the tuned station.
@@ -20,6 +27,7 @@ const { homeMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTun
 })
 
 vi.mock('@/stores/home', () => ({ default: () => homeMock }))
+vi.mock('@/stores/settings', () => ({ default: () => settingsMock }))
 vi.mock('@/stores/queue', () => ({ default: () => queueMock }))
 vi.mock('@/stores/queue/tracklist', () => ({ default: () => tracklistMock }))
 vi.mock('@/helpers/radio', () => ({ tuneStation, resumeMusic, muteForTuning, crackle }))
@@ -62,9 +70,10 @@ function pointer(
     target.dispatchEvent(event)
 }
 
-/** Mount the dial with these stations listed, and let the list arrive. */
-async function mountWith(stations: any[], options: Record<string, unknown> = {}) {
+/** Mount the dial with these stations listed, and let the list arrive. Open unless told otherwise. */
+async function mountWith(stations: any[], options: Record<string, unknown> = {}, open = true) {
     homeMock.stations = stations
+    settingsMock.radio_open = open
     const w = mount(RadioDial, options)
     mounted.push(w)
     await flushPromises()
@@ -81,6 +90,7 @@ describe('RadioDial', () => {
         crackle.mockClear()
         queueMock.playing = false
         tracklistMock.from = {}
+        settingsMock.radio_open = false
     })
 
     afterEach(() => {
@@ -383,5 +393,77 @@ describe('RadioDial', () => {
         expect(w.find('.radio-air').text()).toBe('STANDBY')
         // No signal beside STANDBY.
         expect(w.findAll('.radio-signal i.on')).toHaveLength(0)
+    })
+    it('is folded by default: no slider in the tab order, the toggle says so', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, false)
+
+        expect(w.find('[role="slider"]').exists()).toBe(false)
+        const toggle = w.get('.radio-toggle')
+        expect(toggle.attributes('type')).toBe('button')
+        expect(toggle.attributes('aria-expanded')).toBe('false')
+        expect(toggle.attributes('aria-controls')).toBe('radio-body')
+        expect(toggle.attributes('aria-label')).toBe('Open radio')
+    })
+
+    it('the toggle opens the radio and writes the setting, and closes it again', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, false)
+
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(true)
+        expect(w.find('[role="slider"]').exists()).toBe(true)
+        expect(w.get('.radio-toggle').attributes('aria-expanded')).toBe('true')
+        expect(w.get('.radio-toggle').attributes('aria-label')).toBe('Close radio')
+
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(false)
+        expect(w.find('[role="slider"]').exists()).toBe(false)
+    })
+
+    it('a setting of true mounts the radio open', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        expect(w.find('[role="slider"]').exists()).toBe(true)
+        expect(w.get('.radio-toggle').attributes('aria-expanded')).toBe('true')
+    })
+
+    it('the folded strip names the station on air, and shows nothing of it otherwise', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+        expect(w.find('.radio-onair').exists()).toBe(false)
+
+        // Still folded: the music starts from the tuned station.
+        queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix2' }
+        await w.vm.$nextTick()
+        expect(w.find('[role="slider"]').exists()).toBe(false)
+        expect(w.find('.radio-onair').text()).toBe('ON AIR · Mix 2')
+    })
+
+    it('a station tuned in but not playing leaves the folded strip without a chip', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+
+        expect(w.find('.radio-onair').exists()).toBe(false)
+        expect(w.text()).not.toContain('ON AIR')
+    })
+
+    it('the live status stays rendered while folded and still names the station tuned in', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+
+        expect(w.find('[role="slider"]').exists()).toBe(false)
+        expect(w.get('.radio-status').attributes('aria-live')).toBe('polite')
+        expect(w.get('.radio-status').text()).toBe('Tuned in: Mix 2, 108.0 FM')
     })
 })

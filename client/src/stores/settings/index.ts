@@ -63,6 +63,8 @@ export default defineStore('settings', {
 
         // client
         font: <UiFont>'default',
+        // AivinNet FM on Home: folded (false) by default, open or folded per device.
+        radio_open: false,
         // Minimum width of a cover tile in px (utils/tileSize.ts), per device.
         tile_size: TILE_DEFAULT,
 
@@ -267,6 +269,9 @@ export default defineStore('settings', {
         },
         setFont(value: UiFont) {
             this.font = value
+        },
+        setRadioOpen(value: boolean) {
+            this.radio_open = value
         },
         toggleFont() {
             this.font = this.font === 'figtree' ? 'default' : 'figtree'
