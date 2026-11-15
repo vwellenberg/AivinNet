@@ -95,6 +95,15 @@ describe("Home", () => {
     expect(home).toMatch(/<Browse\s*\/>/);
     expect(home).not.toMatch(/browse-phones-only/);
   });
+
+  it("puts Browse Library right under Continue listening, ahead of the radio", () => {
+    // The way to Albums and Artists has to be quick to reach (user, 2026-11-15).
+    const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
+    const at = (needle: RegExp) => home.search(needle);
+    expect(at(/class="continue-row"/)).toBeGreaterThan(-1);
+    expect(at(/<Browse\s*\/>/)).toBeGreaterThan(at(/class="continue-row"/));
+    expect(at(/<RadioDial\s*\/>/)).toBeGreaterThan(at(/<Browse\s*\/>/));
+  });
 });
 
 describe("page titles", () => {
