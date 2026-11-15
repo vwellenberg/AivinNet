@@ -32,8 +32,9 @@
 
       <div v-if="open" id="radio-body" class="radio-body">
         <!-- The readout: the station under the knob, big. It follows a drag. -->
-        <div class="radio-display" aria-hidden="true">
-          <div class="radio-readout">
+        <!-- Not aria-hidden as a whole: the wide display's buttons must stay reachable. -->
+        <div class="radio-display">
+          <div class="radio-readout" aria-hidden="true">
             <div class="radio-top">
               <span
                 v-if="display.station"
@@ -58,14 +59,39 @@
           </div>
           <!-- Wide screens only (the container query in the styles): what plays now. -->
           <div class="radio-now">
-            <template v-if="air === 'on' && nowTrack">
-              <span class="radio-now-label">NOW PLAYING</span>
-              <div class="radio-now-body">
-                <img v-if="nowCover" class="radio-now-cover" :src="nowCover" alt="" loading="lazy" />
-                <div class="radio-now-text">
-                  <span class="radio-now-title">{{ nowTrack.title }}</span>
-                  <span class="radio-now-artist">{{ nowArtists }}</span>
-                </div>
+            <!-- A faint spectrum behind the song: decoration, hidden from readers. -->
+            <div v-show="nowOn" class="radio-spectrum" :class="{ 'is-live': nowOn }" aria-hidden="true">
+              <i v-for="n in SPECTRUM_BARS" :key="n"></i>
+            </div>
+            <template v-if="nowOn">
+              <img v-if="nowCover" class="radio-now-cover" :src="nowCover" alt="" loading="lazy" aria-hidden="true" />
+              <div v-else class="radio-now-cover is-empty" aria-hidden="true"></div>
+              <div class="radio-now-meta" aria-hidden="true">
+                <span class="radio-now-label">NOW PLAYING</span>
+                <span class="radio-now-title">{{ nowTrack?.title }}</span>
+                <span class="radio-now-artist">{{ nowArtists }}</span>
+                <span v-if="nowAlbum" class="radio-now-album">{{ nowAlbum }}</span>
+              </div>
+              <div class="radio-now-acts">
+                <button
+                  type="button"
+                  class="radio-gbtn"
+                  :class="{ 'is-on': nowFav }"
+                  aria-label="Favorite"
+                  :aria-pressed="nowFav ? 'true' : 'false'"
+                  @click="toggleFav"
+                >
+                  <HeartFillSvg v-if="nowFav" />
+                  <HeartOutlineSvg v-else />
+                </button>
+                <button type="button" class="radio-gbtn" aria-label="Next song" @click="queue.playNext()">
+                  <NextSvg />
+                </button>
+              </div>
+              <div class="radio-now-prog" aria-hidden="true">
+                <span>{{ elapsedText }}</span>
+                <span class="radio-now-bar"><i :style="{ width: progress + '%' }"></i></span>
+                <span>{{ remainText }}</span>
               </div>
             </template>
             <span v-else-if="air !== 'on'" class="radio-now-idle">Turn the knob</span>
@@ -134,12 +160,20 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import ExpandSvg from '@/assets/icons/expand.svg'
+import HeartFillSvg from '@/assets/icons/heart.fill.svg'
+import HeartOutlineSvg from '@/assets/icons/heart.svg'
+import NextSvg from '@/assets/icons/next.svg'
+import { favType } from '@/enums'
 import { paths } from '@/config'
+import favoriteHandler from '@/helpers/favoriteHandler'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
+import useFavorites from '@/stores/favorites'
 import useHome from '@/stores/home'
 import useSettings from '@/stores/settings'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
+import { releaseYear } from '@/utils/dates'
+import formatSeconds from '@/utils/useFormatSeconds'
 import {
   AIR_TEXT,
   airState,
@@ -296,6 +330,12 @@ const nowCover = computed(() => {
   return image && image !== 'None' ? paths.images.thumb.small + image : ''
 })
 const nowArtists = computed(() => (nowTrack.value?.artists ?? []).map(artist => artist.name).join(', '))
+// "Album · 2019": the year leaves out when the track has no date (0 is unknown).
+const nowAlbum = computed(() => {
+  const track = nowTrack.value
+  if (!track) return ''
+  return [track.album, releaseYear(track.date ?? 0)].filter(Boolean).join(' · ')
+})
 
 // ON AIR only while the queue still plays the tuned station: an album started
 // from its own page afterwards is not the radio, whatever `tuned` remembers.
@@ -307,6 +347,30 @@ const air = computed(() =>
   })
 )
 const airText = computed(() => AIR_TEXT[air.value])
+
+// The now-playing zone is live only with a track to show; the spectrum runs
+// exactly then. Read from the queue's own fields, not `queue.currenttrack`.
+const nowOn = computed(() => air.value === 'on' && nowTrack.value !== null)
+const SPECTRUM_BARS = 40
+// The queue's clock: the player bar's seek bar reads the same two numbers.
+const progress = computed(() => {
+  const full = queue.duration.full
+  if (!full) return 0
+  return Math.min(100, Math.max(0, (queue.duration.current / full) * 100))
+})
+const elapsedText = computed(() => formatSeconds(queue.duration.current || 0))
+const remainText = computed(() => `-${formatSeconds(Math.max(0, (queue.duration.full || 0) - (queue.duration.current || 0)))}`)
+// The same favourite state the player bar shows: the registry first, then the copy.
+const nowFav = computed(() => {
+  const track = nowTrack.value
+  if (!track) return false
+  return useFavorites().flag(favType.track, track.trackhash) ?? track.is_favorite ?? false
+})
+function toggleFav() {
+  const track = nowTrack.value
+  if (!track) return
+  void favoriteHandler(nowFav.value, favType.track, track.trackhash, () => null, () => null)
+}
 // The name of the station on air: the folded strip shows it.
 const onAirStation = computed(() => (air.value === 'on' ? (stations.value[tuned.value]?.name ?? '') : ''))
 // Signal only while the radio is on or being tuned: full bars beside STANDBY
@@ -614,27 +678,139 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     min-width: 0;
   }
 
-  // The now-playing column: a dashed divider, then what plays, beside the readout.
-  // Wide screens only: below ~760 px the card is a phone's and the column is gone.
+  // The now-playing zone: a dashed divider, then what plays, beside the readout.
+  // Wide screens only: below ~760 px the card is a phone's and the zone is gone.
   .radio-now {
     display: none;
   }
 
+  // On wide screens the readout keeps a narrow column (kind, air, frequency,
+  // station); the small level meter steps aside, the zone takes the rest.
   @container (min-width: 760px) {
     .radio-readout {
-      flex: 0 1 17rem;
+      flex: 0 1 14rem;
+    }
+
+    .radio-level {
+      display: none;
     }
 
     .radio-now {
-      display: flex;
+      display: grid;
+      position: relative;
       flex: 1 1 0;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
+      grid-template-columns: 6.4rem minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      align-items: center;
+      column-gap: 0.8rem;
+      row-gap: 0.35rem;
       min-width: 0;
       padding-left: 0.9rem;
       border-left: $mem-hairline-w dashed $glass-dim;
+
+      // Everything but the spectrum sits above it.
+      > :not(.radio-spectrum) {
+        position: relative;
+        z-index: 1;
+      }
+
+      > .radio-now-idle {
+        grid-column: 1 / -1;
+        justify-self: start;
+      }
+
+      // Cover left, meta and progress in the middle, the buttons right.
+      > .radio-now-cover {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+      }
+
+      > .radio-now-meta {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      > .radio-now-acts {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+      }
+
+      > .radio-now-prog {
+        grid-column: 2;
+        grid-row: 2;
+      }
     }
+  }
+
+  // The faint spectrum behind the song: from ~46 % of the zone to the buttons,
+  // clear of the progress row. Masked in from the left, dim, decoration only.
+  .radio-spectrum {
+    position: absolute;
+    z-index: 0;
+    left: 46%;
+    right: 6.4rem;
+    top: 0.4rem;
+    bottom: 1.8rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    opacity: 0.22;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 18%);
+    mask-image: linear-gradient(to right, transparent, #000 18%);
+
+    i {
+      flex: 1;
+      height: 100%;
+      transform-origin: bottom;
+      transform: scaleY(0.12);
+      border-radius: 1px;
+      background: $glass-text;
+    }
+
+    // Running only while ON AIR with a track. Durations and delays step through
+    // the level meter's values, so the bars never fall into step.
+    &.is-live i {
+      animation: radio-level 0.9s ease-in-out infinite alternate;
+    }
+  }
+
+  $spectrum-durations: 0.62s, 0.71s, 0.81s, 0.93s, 0.97s, 1.07s, 0.68s, 0.9s;
+  $spectrum-delays: -0.3s, -0.1s, -0.5s, -0.2s, -0.4s, -0.15s;
+
+  @for $n from 1 through 40 {
+    .radio-spectrum.is-live i:nth-child(#{$n}) {
+      animation-duration: nth($spectrum-durations, ($n % 8) + 1);
+      animation-delay: nth($spectrum-delays, ($n % 6) + 1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .radio-spectrum.is-live i {
+      animation: none;
+      transform: scaleY(0.3);
+    }
+
+    .radio-spectrum.is-live i:nth-child(odd) {
+      transform: scaleY(0.5);
+    }
+  }
+
+  // The cover: a square with the glass ring, the album art or nothing.
+  .radio-now-cover {
+    display: block;
+    width: 6.4rem;
+    height: 6.4rem;
+    object-fit: cover;
+    border: $mem-ring-w solid $glass-dim;
+    border-radius: $candy-radius-sm;
+  }
+
+  .radio-now-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
   }
 
   .radio-now-label {
@@ -642,29 +818,6 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.14em;
-  }
-
-  .radio-now-body {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    min-width: 0;
-  }
-
-  .radio-now-cover {
-    flex: none;
-    width: 4.6rem;
-    height: 4.6rem;
-    object-fit: cover;
-    border: $mem-ring-w solid $glass-dim;
-    border-radius: $candy-radius-sm;
-  }
-
-  .radio-now-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
   }
 
   // Two lines before it is cut: most titles fit whole in the wider column.
@@ -675,18 +828,89 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     -webkit-line-clamp: 2;
     line-clamp: 2;
     color: $glass-text;
-    font-size: 0.92rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    line-height: 1.25;
+    line-height: 1.2;
+    text-shadow: 0 0 8px $glass-glow;
   }
 
-  .radio-now-artist {
+  .radio-now-artist,
+  .radio-now-album {
     overflow: hidden;
     color: $glass-dim;
-    font-size: 0.74rem;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .radio-now-artist {
+    font-size: 0.74rem;
+  }
+
+  .radio-now-album {
+    font-size: 0.7rem;
+  }
+
+  // ♥ and ⏭: round glass buttons, 44 px like the chrome, the ring in the glass dim.
+  .radio-now-acts {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .radio-gbtn {
+    @include focus-ring;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: $bar-control;
+    height: $bar-control;
+    padding: 0;
+    border: $mem-ring-w solid $glass-dim;
+    border-radius: 50%;
+    background: transparent;
+    color: $glass-text;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $glass-text;
+    }
+
+    &.is-on {
+      color: $mem-coral;
+      border-color: $mem-coral;
+    }
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  .radio-now-prog {
+    display: grid;
+    grid-column: 2;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    color: $glass-dim;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .radio-now-bar {
+    position: relative;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: $glass-edge;
+
+    i {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: $glass-text;
+      box-shadow: 0 0 6px $glass-glow;
+    }
   }
 
   .radio-now-idle {
