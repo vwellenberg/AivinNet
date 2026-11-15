@@ -368,8 +368,8 @@ describe('RadioDial', () => {
         const w = await mountWith(dialOf(['mix1', 'mix2']))
 
         expect(w.find('.radio-level').exists()).toBe(true)
-        expect(w.get('.radio-display .radio-readout .radio-level').exists()).toBe(true)
-        expect(w.get('.radio-display > .radio-now').exists()).toBe(true)
+        expect(w.find('.radio-display .radio-readout .radio-level').exists()).toBe(true)
+        expect(w.find('.radio-display > .radio-now').exists()).toBe(true)
     })
 
     it('while ON AIR the now-playing column names the track and its artists, from the queue', async () => {
