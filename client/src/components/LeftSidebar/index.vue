@@ -11,8 +11,12 @@
         <PlusSvg />
       </button>
     </div>
-    <div class="scrollable">
-      <div class="sidebar-library">
+    <!-- Rows fade out softly at the scroller's edges while more lies beyond them
+         (user report 2026-11-15, "harter Cut beim Scrollen"; "Ausblenden" was
+         picked from a preview over a hard shelf line). A mask, not a
+         background, so the halftone of the panel behind stays untouched. -->
+    <div ref="scrollEl" class="scrollable" :class="{ 'fade-top': fadeTop, 'fade-bottom': fadeBottom }">
+      <div ref="libraryEl" class="sidebar-library">
         <!-- Two zones, one template, so a playlist folder is the same box in
              both. Top: the manually ordered zone — pinned playlist folders,
              pinned albums, pinned music folders and pinned playlists, freely
@@ -163,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import useSettingsStore from "@/stores/settings";
 import usePStore from "@/stores/pages/playlists";
@@ -202,6 +206,7 @@ import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon, PushPinIcon } from 
 import { getPlaylist } from "@/requests/playlists";
 import { useResizeObserver } from "@vueuse/core";
 import { sidebarScrollsWhole } from "@/utils/sidebarFit";
+import { scrollEdges } from "@/utils/scrollEdges";
 import { NotifType, useToast } from "@/stores/notification";
 
 const ctxFlag = ref(false);
@@ -219,6 +224,26 @@ useResizeObserver(sidebarEl, () => {
     titleEl.value.offsetHeight
   );
 });
+
+// Fade edges of the playlist scroller (see the template comment).
+const scrollEl = ref<HTMLElement | null>(null);
+const libraryEl = ref<HTMLElement | null>(null);
+const fadeTop = ref(false);
+const fadeBottom = ref(false);
+function updateFade() {
+  // Whole-panel scrolling: the list does not scroll on its own, so no fade.
+  const el = scrollEl.value;
+  const edges =
+    el && !scrollsWhole.value
+      ? scrollEdges(el.scrollTop, el.clientHeight, el.scrollHeight)
+      : { top: false, bottom: false };
+  fadeTop.value = edges.top;
+  fadeBottom.value = edges.bottom;
+}
+// The scroller's own size and its content's size both change the answer.
+useResizeObserver(scrollEl, updateFade);
+useResizeObserver(libraryEl, updateFade);
+watch(scrollsWhole, updateFade);
 
 const settings = useSettingsStore();
 const playlists = usePStore();
@@ -764,9 +789,14 @@ onMounted(() => {
     pinnedFolders.fetchAll();
   }
   folderStore.fetch();
+  scrollEl.value?.addEventListener("scroll", updateFade, { passive: true });
+  updateFade();
 });
 
-onBeforeUnmount(teardown);
+onBeforeUnmount(() => {
+  scrollEl.value?.removeEventListener("scroll", updateFade);
+  teardown();
+});
 </script>
 
 <style lang="scss">
@@ -892,6 +922,16 @@ $sidebar-label-opacity: 0.85;
     // swallow `.sidebar-resize-handle`, which hangs 4px outside on purpose.)
     border-radius: calc(#{$candy-radius} - #{$candy-border-w});
 
+    // Soft edges (template comment): a MASK on the scroller, so only the rows
+    // fade and the halftone of the panel behind stays where it is. Zero by
+    // default; the classes set the fade depth at each edge that has content.
+    --fade-top: 0px;
+    --fade-bottom: 0px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+    &.fade-top { --fade-top: 2.25rem; }
+    &.fade-bottom { --fade-bottom: 2.25rem; }
+
     // Scrollbar is hidden until the sidebar is hovered. The width/`thin` track
     // stays constant so showing the thumb never reflows the list.
     // Firefox + standard-properties path (Chrome 121+): transparent thumb by default.
@@ -938,6 +978,9 @@ $sidebar-label-opacity: 0.85;
     .scrollable {
       height: auto;
       overflow: visible;
+      // Nothing scrolls inside here, so nothing may fade.
+      -webkit-mask-image: none;
+      mask-image: none;
     }
   }
 
