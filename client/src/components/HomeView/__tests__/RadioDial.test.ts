@@ -4,10 +4,12 @@ import { ref, type Ref } from 'vue'
 
 // The station list is Home's store (#776): it comes with the rows, and the dial
 // follows the store's list.
-const { homeMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
+const { homeMock, queueMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
   const { reactive } = await import('vue')
   return {
     homeMock: reactive({ homepageItems: [] as any[], stations: [] as any[] }),
+    // The queue's `playing` flag decides ON AIR (the player is playing).
+    queueMock: reactive({ playing: false }),
     tuneStation: vi.fn(async () => {}),
     resumeMusic: vi.fn(),
     muteForTuning: vi.fn(),
@@ -16,6 +18,7 @@ const { homeMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.
 })
 
 vi.mock('@/stores/home', () => ({ default: () => homeMock }))
+vi.mock('@/stores/queue', () => ({ default: () => queueMock }))
 vi.mock('@/helpers/radio', () => ({ tuneStation, resumeMusic, muteForTuning, crackle }))
 
 import RadioDial from '@/components/HomeView/RadioDial.vue'
@@ -32,24 +35,6 @@ const dial = (w: ReturnType<typeof mount>) => w.get('[role="slider"]')
 // read the list again in a later test.
 const mounted: ReturnType<typeof mount>[] = []
 
-// jsdom has no ResizeObserver and no layout, so the scale measures 0 px. A test
-// that needs a width stubs both: the observer reports `px` as soon as it
-// observes the scale.
-function scaleWidth(px: number) {
-    class FakeResizeObserver {
-        cb: (entries: unknown[], observer: unknown) => void
-        constructor(cb: (entries: unknown[], observer: unknown) => void) {
-            this.cb = cb
-        }
-        observe(target: unknown) {
-            this.cb([{ contentRect: { width: px, height: 0 }, target }], this)
-        }
-        unobserve() {}
-        disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
-}
-
 // The dial's pointer maths reads the scale's clientWidth (jsdom: 0).
 function dialWidth(px: number) {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => px })
@@ -57,10 +42,21 @@ function dialWidth(px: number) {
 
 // VTU cannot set `button` or `pointerId` on jsdom's MouseEvent (read-only), so
 // the pointer events are dispatched by hand.
-function pointer(w: ReturnType<typeof mount>, type: string, init: { pointerId: number; clientX: number }) {
-    const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: init.clientX })
+function pointer(
+    w: ReturnType<typeof mount>,
+    type: string,
+    init: { pointerId: number; clientX: number; clientY?: number },
+    target: Element = dial(w).element
+) {
+    const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: init.clientX,
+        clientY: init.clientY ?? 0,
+    })
     Object.defineProperty(event, 'pointerId', { value: init.pointerId })
-    dial(w).element.dispatchEvent(event)
+    target.dispatchEvent(event)
 }
 
 /** Mount the dial with these stations listed, and let the list arrive. */
@@ -80,12 +76,14 @@ describe('RadioDial', () => {
         resumeMusic.mockClear()
         muteForTuning.mockClear()
         crackle.mockClear()
+        queueMock.playing = false
     })
 
     afterEach(() => {
         for (const w of mounted.splice(0)) w.unmount()
         vi.unstubAllGlobals()
         delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth
+        queueMock.playing = false
     })
 
     it('shows nothing without stations', async () => {
@@ -209,8 +207,7 @@ describe('RadioDial', () => {
         expect(w.text()).not.toContain('Subspace')
     })
 
-    it('puts frequencies on the scale, never the station names', async () => {
-        scaleWidth(600)
+    it('puts the fixed band labels on the scale, never the station names', async () => {
         const w = await mountWith([
             { id: 'mix1', kind: 'mix', name: 'Mix 1' },
             { id: 'genre1', kind: 'genre', name: 'Jazz' },
@@ -218,22 +215,8 @@ describe('RadioDial', () => {
             { id: 'decade1', kind: 'decade', name: '1990s' },
         ])
 
-        expect(w.findAll('.radio-label').map(label => label.text())).toEqual(['87.5', '94.3', '101.2', '108.0'])
+        expect(w.findAll('.radio-label').map(label => label.text())).toEqual(['88', '92', '96', '100', '104', '108'])
         expect(w.find('.radio-scale').text()).not.toMatch(/Mix|Jazz|rock|1990s/)
-    })
-
-    it('labels only every second station when the scale is too narrow for all', async () => {
-        // 120 px for 4 stations: 40 px apart, and a label takes 36 px plus a gap of 8.
-        scaleWidth(120)
-        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3', 'mix4']))
-
-        expect(w.findAll('.radio-label').map(label => label.text())).toEqual(['87.5', '101.2'])
-    })
-
-    it('shows only the first frequency until the scale has a width', async () => {
-        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
-
-        expect(w.findAll('.radio-label').map(label => label.text())).toEqual(['87.5'])
     })
 
     it('the display shows the station tuned in: its name, its kind and its frequency', async () => {
@@ -244,12 +227,14 @@ describe('RadioDial', () => {
         ])
 
         expect(w.find('.radio-display-name').text()).toBe('Mix 1')
-        expect(w.find('.radio-display-kind').text()).toBe('MIX · 87.5 FM')
+        expect(w.find('.radio-kind').text()).toBe('MIX')
+        expect(w.find('.radio-freq').text()).toBe('87.5MHz')
 
         await dial(w).trigger('keydown', { key: 'End' })
 
         expect(w.find('.radio-display-name').text()).toBe('1990s')
-        expect(w.find('.radio-display-kind').text()).toBe('DECADE · 108.0 FM')
+        expect(w.find('.radio-kind').text()).toBe('DECADE')
+        expect(w.find('.radio-freq').text()).toBe('108.0MHz')
     })
 
     it('the display follows a drag over the station under the needle, before the tune-in', async () => {
@@ -262,7 +247,8 @@ describe('RadioDial', () => {
         await w.vm.$nextTick()
 
         expect(w.find('.radio-display-name').text()).toBe('Mix 2')
-        expect(w.find('.radio-display-kind').text()).toBe('GENRE · 97.8 FM')
+        expect(w.find('.radio-kind').text()).toBe('GENRE')
+        expect(w.find('.radio-freq').text()).toBe('97.8MHz')
         expect(tuneStation).not.toHaveBeenCalled()
 
         pointer(w, 'pointerup', { pointerId: 1, clientX: 150 })
@@ -305,5 +291,79 @@ describe('RadioDial', () => {
         await w.vm.$nextTick()
 
         expect(dial(w).classes()).not.toContain('is-still')
+    })
+
+    it('the knob is decoration: hidden from assistive tech and not in the tab order', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.find('.radio-knob').attributes('aria-hidden')).toBe('true')
+        expect(w.find('.radio-grip').attributes('tabindex')).toBeUndefined()
+        expect(w.findAll('[role="slider"]')).toHaveLength(1)
+    })
+
+    it('knob drag turns the knob: up and right move on, and tunes the station on release', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
+        const grip = w.find('.radio-grip').element
+
+        pointer(w, 'pointerdown', { pointerId: 2, clientX: 0, clientY: 0 }, grip)
+        // 52 px up over 26 px per station: two stations on.
+        pointer(w, 'pointermove', { pointerId: 2, clientX: 0, clientY: -52 }, grip)
+        await w.vm.$nextTick()
+
+        expect(w.find('.radio-display-name').text()).toBe('Mix 3')
+        expect(tuneStation).not.toHaveBeenCalled()
+
+        pointer(w, 'pointerup', { pointerId: 2, clientX: 0, clientY: -52 }, grip)
+        await flushPromises()
+
+        expect(tuneStation).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'mix3' }))
+        expect(dial(w).attributes('aria-valuetext')).toBe('Mix 3, 108.0 FM')
+    })
+
+    it('the legend lists only the kinds on the dial, in dial order', async () => {
+        const w = await mountWith([
+            { id: 'decade1', kind: 'decade', name: '1990s' },
+            { id: 'genre1', kind: 'genre', name: 'Jazz' },
+            { id: 'mix1', kind: 'mix', name: 'Mix 1' },
+        ])
+
+        expect(w.find('.radio-legend').text()).toContain('MIX')
+        expect(w.find('.radio-legend').text()).toContain('GENRE')
+        expect(w.find('.radio-legend').text()).toContain('DECADE')
+        expect(w.find('.radio-legend').text()).not.toContain('SEASON')
+    })
+
+    it('shows the neighbour stations, and nothing past the ends of the dial', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
+        const nbr = () => w.find('.radio-nbr').findAll('span').map(s => s.text())
+
+        expect(nbr()).toEqual(['', 'Mix 2 ▸'])
+
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        expect(nbr()).toEqual(['◂ Mix 1', 'Mix 3 ▸'])
+
+        await dial(w).trigger('keydown', { key: 'End' })
+        expect(nbr()).toEqual(['◂ Mix 2', ''])
+    })
+
+    it('the air state reads STANDBY, then ON AIR once music plays from the tuned station, then TUNING while dragged', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        expect(w.find('.radio-air').text()).toBe('STANDBY')
+
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        expect(w.find('.radio-air').text()).toBe('STANDBY')
+
+        queueMock.playing = true
+        await w.vm.$nextTick()
+        expect(w.find('.radio-air').text()).toBe('ON AIR')
+
+        pointer(w, 'pointerdown', { pointerId: 3, clientX: 0 })
+        await w.vm.$nextTick()
+        expect(w.find('.radio-air').text()).toBe('TUNING')
+
+        pointer(w, 'pointerup', { pointerId: 3, clientX: 0 })
+        await flushPromises()
     })
 })

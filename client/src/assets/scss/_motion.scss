@@ -91,3 +91,8 @@ $motion-curve-settle: cubic-bezier(0.22, 1, 0.36, 1);
 // The one curve that anticipates — it dips below its start before moving. Keep
 // it rare: it is a character moment, not a default.
 $motion-curve-back: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+// The one curve that overshoots at the end: it runs past its target and settles
+// back. The radio's needle and knob use it (RadioDial.vue): the needle lands on
+// a station with a small swing, like a dial that is turned by hand.
+$motion-curve-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);

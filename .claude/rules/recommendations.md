@@ -341,10 +341,7 @@ Dial-Reihenfolge, nur belegte Plätze). Jeder Eintrag ist eine erzeugte Playlist
 - **Ids** `genre1…genre4`, `decade1…decade4` — in `GENERATED_PLAYLISTS` **und**
   `homerows.CUSTOM_PLAYLISTS` und `DATED_PLAYLISTS` (Inhalt ändert sich täglich). Spielen geht über
   denselben Weg wie ein Mix (`helpers/radio.ts::tuneStation` → Queue → Gruppen-Seam).
-- **Anzeige** („AivinNet FM“, `RadioDial.vue`): Die Skala zeigt Frequenzen, keine Namen
-  (`utils/radioDial.ts::stationFrequency`, 87,5–108,0 MHz nach Platz). Den Namen zeigt das Display
-  darüber, auch während eines Drags. Jede k-te Frequenz trägt die Skala (`labelEvery`, aus der
-  gemessenen Breite), damit sich nie zwei überlappen; Breite unbekannt heißt nur die erste.
+- **Anzeige** („AivinNet FM“, `RadioDial.vue`): Ein Gehäuse aus einer Platte (lavendel, Halbton-Punkte, ein `mem-arrival`), darin Kopfleiste (Sticker, Legende der Arten, die auf dem Dial stehen, „FM 87.5–108“), Anzeige, Skala und Riffelknopf. Anzeige und Skala sind dunkles Glas in beiden Themes (`$mem-ink`). Die Skala zeigt Frequenzen, keine Namen (`utils/radioDial.ts::stationFrequency`, 87,5–108,0 MHz nach Platz): ein farbiges Band über der Linie je Art, Kerben (4×22 px) je Sender, die eingestellte voll mit Glanz. Die Beschriftung ist fest (88 · 92 · 96 · 100 · 104 · 108, `bandLabels()`), sie überlappt nie, also gibt es kein `labelEvery` und keine Breitenmessung mehr. Die Anzeige nennt den Sender unter der Nadel, „ON AIR“ (Sender eingestellt und Musik läuft, `queue.playing`), „TUNING“ beim Ziehen, sonst „STANDBY“; dazu Signalbalken und die nächsten Nachbarn. Der Riffelknopf ist nur Dekoration für Zeiger (`aria-hidden`, nicht fokussierbar): Die Skala bleibt der eine Regler für Tastatur und Screenreader. Dreht man den Knopf, dreht er sich in 26 px je Sender (`knobDragPosition`) und stimmt beim Loslassen wie die Skala ab.
 
 ⚠️ **Das Erscheinungsjahr ist nur dort eines, wo ein Tag steht.** `taglib.py` schreibt die mtime
 als `track.date`, wenn die Datei kein Jahr trägt. `track_facts` setzt `TrackFacts.release` deshalb

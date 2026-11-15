@@ -279,7 +279,8 @@ describe('Home is laid down as cards', () => {
     it.each([
         // In a row of their own kind: staggered, left to right.
         ['die Continue-Karten', `${HOME}/ContinueCard.vue`, /\.continue-wrap \{[^}]*@include mem-arrival;/],
-        ['die beiden Radio-Platten', `${HOME}/RadioDial.vue`, /\.radio-body \{[\s\S]*?> \* \{\s*@include mem-arrival;/],
+        // One housing, one plate: the case arrives as a whole, its parts get none of their own.
+        ['das Radio-Gehäuse', `${HOME}/RadioDial.vue`, /\.radio-case \{\s*@include mem-arrival;/],
         // Alone among siblings of other kinds: the same gesture, no stagger.
         ['die Recap-Karte', `${HOME}/WeeklyRecap.vue`, /\.recap-card \{\s*@include mem-arrival\(\$steps: 0\);/],
         ['die Rewind-Karte', `${HOME}/RewindCard.vue`, /\.rewind-card \{\s*@include mem-arrival\(\$steps: 0\);/],

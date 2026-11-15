@@ -1,20 +1,29 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+    airState,
+    bandLabels,
+    bandTicks,
+    bezelTick,
     buildStations,
     dialIsWorthShowing,
     dragPosition,
     FM_HIGH_MHZ,
     FM_LOW_MHZ,
-    frequencyLabelWidth,
+    kindBands,
+    kindsOnDial,
     keyTarget,
-    labelEvery,
+    knobAngle,
+    knobDragPosition,
+    litBezelTick,
+    neighbours,
     prefersReducedMotion,
     snapIndex,
     stationFraction,
     stationFrequency,
     stationReadout,
     stationsFromList,
+    signalBars,
     wheelSteps,
 } from '@/utils/radioDial'
 import type { Station } from '@/utils/radioDial'
@@ -272,49 +281,6 @@ describe('stationReadout', () => {
     })
 })
 
-describe('frequencyLabelWidth', () => {
-    it('estimates a label in em of its font, rounded up', () => {
-        expect(frequencyLabelWidth(12)).toBe(36)
-        expect(frequencyLabelWidth(13)).toBe(39)
-    })
-})
-
-describe('labelEvery (which stations carry a frequency label)', () => {
-    it('labels every station when the scale is wide enough', () => {
-        expect(labelEvery(600, 4, 36)).toBe(1)
-    })
-
-    it('labels every k-th station when the scale is too narrow for all', () => {
-        // 280 px for 12 stations: 25 px apart, a label needs 36 + 8 = 44 px: every second.
-        expect(labelEvery(280, 12, 36)).toBe(2)
-        // 120 px for 4 stations: 40 px apart, so every second.
-        expect(labelEvery(120, 4, 36)).toBe(2)
-    })
-
-    it('never shows two labels that would overlap, at any width', () => {
-        for (const count of [2, 4, 8, 12]) {
-            for (let width = 40; width <= 900; width += 13) {
-                const every = labelEvery(width, count, 36)
-                // One label left (the first): nothing next to it to overlap.
-                if (every >= count) continue
-                const spacing = width / (count - 1)
-                // Labels sit on every `every`-th station: their centres are `every` apart.
-                expect(every * spacing).toBeGreaterThanOrEqual(36 + 8 - 1e-9)
-            }
-        }
-    })
-
-    it('shows only the first label while the width is not known', () => {
-        expect(labelEvery(0, 4, 36)).toBe(4)
-        expect(labelEvery(Number.NaN, 4, 36)).toBe(4)
-    })
-
-    it('labels a lone station, and never asks for more steps than there are stations', () => {
-        expect(labelEvery(300, 1, 36)).toBe(1)
-        expect(labelEvery(1, 3, 36)).toBe(3)
-    })
-})
-
 describe('stationReadout of a season station', () => {
     it('names the station as it is called, and the kind line says SEASON', () => {
         const christmas = { id: 'christmas', name: 'Christmas', kind: 'season' as const }
@@ -324,5 +290,130 @@ describe('stationReadout of a season station', () => {
             kind: 'SEASON · 87.5 FM',
             valueText: 'Christmas, 87.5 FM',
         })
+    })
+})
+
+describe('bandTicks (the minor and major ticks of the band)', () => {
+    it('ticks every half MHz from 87.5 to 108.0: 42 ticks, the whole MHz are majors', () => {
+        const ticks = bandTicks()
+
+        expect(ticks).toHaveLength(42)
+        expect(ticks[0]).toEqual({ fraction: 0, major: false })
+        expect(ticks[1]).toEqual({ fraction: 0.5 / 20.5, major: true })
+        expect(ticks[ticks.length - 1]).toEqual({ fraction: 1, major: true })
+        // 88 to 108, every whole MHz: 21 majors.
+        expect(ticks.filter(tick => tick.major)).toHaveLength(21)
+    })
+})
+
+describe('bandLabels (fixed labels for the band)', () => {
+    it('labels 88, 92, 96, 100, 104 and 108 at their place on the band', () => {
+        const labels = bandLabels()
+
+        expect(labels.map(label => label.label)).toEqual(['88', '92', '96', '100', '104', '108'])
+        expect(labels[0].fraction).toBeCloseTo(0.5 / 20.5)
+        expect(labels[labels.length - 1].fraction).toBeCloseTo(1)
+    })
+})
+
+describe('kindBands (one coloured segment per kind)', () => {
+    const stations = [
+        { id: 'mix1', kind: 'mix' as const, name: 'Mix 1' },
+        { id: 'mix2', kind: 'mix' as const, name: 'Mix 2' },
+        { id: 'genre1', kind: 'genre' as const, name: 'Jazz' },
+        { id: 'decade1', kind: 'decade' as const, name: '1990s' },
+        { id: 'decade2', kind: 'decade' as const, name: '2000s' },
+    ]
+
+    it('runs from half a step before the first station of a kind to half a step after its last', () => {
+        // Five stations: a step is 1/4, a half step 1/8.
+        const bands = kindBands(stations)
+
+        expect(bands).toEqual([
+            { kind: 'mix', from: 0, to: 0.25 + 0.125 },
+            { kind: 'genre', from: 0.5 - 0.125, to: 0.5 + 0.125 },
+            { kind: 'decade', from: 0.75 - 0.125, to: 1 },
+        ])
+    })
+
+    it('gives a kind with a single station a small segment around it, and skips kinds not on the dial', () => {
+        const bands = kindBands([{ id: 'genre1', kind: 'genre', name: 'Jazz' }])
+
+        expect(bands).toEqual([{ kind: 'genre', from: 0.45, to: 0.55 }])
+    })
+})
+
+describe('kindsOnDial (the legend)', () => {
+    it('lists only the kinds with a station, in the dial order', () => {
+        expect(
+            kindsOnDial([
+                { id: 'decade1', kind: 'decade', name: '1990s' },
+                { id: 'mix1', kind: 'mix', name: 'Mix 1' },
+            ])
+        ).toEqual(['mix', 'decade'])
+    })
+})
+
+describe('signalBars (the signal on the display)', () => {
+    it('shows all four bars on a station and none half way between two', () => {
+        expect(signalBars(3)).toBe(4)
+        expect(signalBars(2.5)).toBe(0)
+        expect(signalBars(2.25)).toBe(2)
+        expect(signalBars(2.75)).toBe(2)
+    })
+})
+
+describe('airState (ON AIR, TUNING, STANDBY)', () => {
+    it('is ON AIR only for a tuned station with music playing', () => {
+        expect(airState({ tuned: true, playing: true, dragging: false })).toBe('on')
+        expect(airState({ tuned: true, playing: false, dragging: false })).toBe('off')
+        expect(airState({ tuned: false, playing: true, dragging: false })).toBe('off')
+    })
+
+    it('is TUNING while the dial is dragged, whatever plays', () => {
+        expect(airState({ tuned: true, playing: true, dragging: true })).toBe('tuning')
+        expect(airState({ tuned: false, playing: false, dragging: true })).toBe('tuning')
+    })
+})
+
+describe('knobAngle and the knob drag', () => {
+    it('sweeps from -135 degrees at the first station to +135 at the last', () => {
+        expect(knobAngle(0, 5)).toBe(-135)
+        expect(knobAngle(4, 5)).toBe(135)
+        expect(knobAngle(2, 5)).toBe(0)
+    })
+
+    it('turns right or up to move on, and stops at both ends of the dial', () => {
+        expect(knobDragPosition(1, 26, 0, 5, 26)).toBe(2)
+        expect(knobDragPosition(1, 0, -52, 5, 26)).toBe(3)
+        expect(knobDragPosition(1, 0, 500, 5, 26)).toBe(0)
+        expect(knobDragPosition(3, 500, 0, 5, 26)).toBe(4)
+    })
+
+    it('is station 0 for a lone station or a knob with no travel', () => {
+        expect(knobDragPosition(0, 100, 0, 1, 26)).toBe(0)
+        expect(knobDragPosition(2, 100, 0, 5, 0)).toBe(0)
+    })
+
+    it('lights the bezel tick nearest the knob angle, and draws every other tick as a minor or major', () => {
+        expect(litBezelTick(0, 5)).toBe(0)
+        expect(litBezelTick(2, 5)).toBe(10)
+        expect(litBezelTick(4, 5)).toBe(20)
+        expect(bezelTick(0).major).toBe(true)
+        expect(bezelTick(1).major).toBe(false)
+    })
+})
+
+describe('neighbours (the stations either side)', () => {
+    const stations = [
+        { id: 'a', kind: 'mix' as const, name: 'A' },
+        { id: 'b', kind: 'mix' as const, name: 'B' },
+        { id: 'c', kind: 'mix' as const, name: 'C' },
+    ]
+
+    it('names the station before and after, and nothing past the ends', () => {
+        expect(neighbours(stations, 1)).toEqual({ prev: stations[0], next: stations[2] })
+        expect(neighbours(stations, 0)).toEqual({ prev: null, next: stations[1] })
+        expect(neighbours(stations, 2)).toEqual({ prev: stations[1], next: null })
     })
 })
