@@ -3,17 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Home's Browse Library block: the way to Albums and Artists, which have no
 // navigation entry since 2026-11-14. Each card is a record crate: a count, a
-// row of up to seven covers read through the list endpoint the pages use, and
-// a front board labelled NEW IN or MOST PLAYED. How many covers show is CSS
-// (container queries), so the census here checks what is rendered, not shown.
+// fan of up to twelve covers read through the list endpoint the pages use, and
+// a front board labelled NEW IN or MOST PLAYED. A cover the server answers with
+// its placeholder is not shown. How many covers fit is decided by the card's
+// measured width (utils/crateFan.ts); jsdom measures 0, so every picture renders.
 
-const { getAllItems } = vi.hoisted(() => ({ getAllItems: vi.fn() }))
+const { getAllItems, coverIsPlaceholder } = vi.hoisted(() => ({
+    getAllItems: vi.fn(),
+    coverIsPlaceholder: vi.fn(),
+}))
 
 vi.mock('@/requests/getall', () => ({ getAllItems }))
 vi.mock('@/router', () => ({ Routes: { AlbumList: 'AlbumList', ArtistList: 'ArtistList' } }))
 vi.mock('@/config', () => ({
     paths: { images: { thumb: { medium: '/img/thumbnail/medium/' }, artist: { medium: '/img/artist/medium/' } } },
 }))
+vi.mock('@/utils/colortools/placeholderCover', () => ({ coverIsPlaceholder }))
 
 import Browse, { __resetBrowseCrates } from '@/components/HomeView/Browse.vue'
 
@@ -32,6 +37,9 @@ const ALBUM_ITEMS = [
 const ALBUMS = { status: 200, data: { total: 1284, items: ALBUM_ITEMS } }
 const ARTISTS = { status: 200, data: { total: 1, items: [{ image: 'd1b2c3d4e5f6a7b8.webp', help_text: '12 plays' }] } }
 
+// Twenty distinct albums, for the cap.
+const many = (n: number) => Array.from({ length: n }, (_, i) => ({ image: `album${i}.webp?pathhash=${i}` }))
+
 function mountBrowse() {
     return mount(Browse, { global: { stubs: { RouterLink } } })
 }
@@ -45,6 +53,8 @@ describe('Browse Library', () => {
         __resetBrowseCrates()
         getAllItems.mockReset()
         getAllItems.mockImplementation((type: string) => Promise.resolve(type === 'albums' ? ALBUMS : ARTISTS))
+        coverIsPlaceholder.mockReset()
+        coverIsPlaceholder.mockResolvedValue(false)
     })
 
     it('links to the album and the artist list, and nothing else', () => {
@@ -52,11 +62,11 @@ describe('Browse Library', () => {
         expect(links).toEqual(['AlbumList', 'ArtistList'])
     })
 
-    it('asks for seven of each: the newest albums, the most-played artists', async () => {
+    it('asks for sixteen of each: the newest albums, the most-played artists', async () => {
         mountBrowse()
         await flushPromises()
-        expect(getAllItems).toHaveBeenCalledWith('albums', { start: 0, limit: 7, sortby: 'created_date', reverse: '1' })
-        expect(getAllItems).toHaveBeenCalledWith('artists', { start: 0, limit: 7, sortby: 'playcount', reverse: '1' })
+        expect(getAllItems).toHaveBeenCalledWith('albums', { start: 0, limit: 16, sortby: 'created_date', reverse: '1' })
+        expect(getAllItems).toHaveBeenCalledWith('artists', { start: 0, limit: 16, sortby: 'playcount', reverse: '1' })
     })
 
     it('shows the count and renders every fetched cover in the row', async () => {
@@ -65,7 +75,7 @@ describe('Browse Library', () => {
         const [albums, artists] = wrapper.findAll('a')
 
         expect(albums.find('.count').text()).toBe(`${(1284).toLocaleString()} albums`)
-        // All seven are in the DOM; the card's width hides the ones it cannot fit.
+        // jsdom measures no card, so every picture gets a slot; a real card decides by its width.
         expect(srcsOf(albums, '.covers img')).toEqual(ALBUM_ITEMS.map(it => '/img/thumbnail/medium/' + it.image))
         // One artist: singular, and a round row of one.
         expect(artists.find('.count').text()).toBe('1 artist')
@@ -73,13 +83,54 @@ describe('Browse Library', () => {
         expect(artists.findAll('.covers img')).toHaveLength(1)
     })
 
-    it('renders at most seven covers, even if the endpoint sends more', async () => {
-        const nine = { status: 200, data: { total: 9, items: [...ALBUM_ITEMS, { image: 'g.webp' }, { image: 'h.webp' }] } }
-        getAllItems.mockImplementation((type: string) => Promise.resolve(type === 'albums' ? nine : ARTISTS))
+    it('renders at most twelve covers, even if the endpoint sends more', async () => {
+        getAllItems.mockImplementation((type: string) =>
+            Promise.resolve(type === 'albums' ? { status: 200, data: { total: 20, items: many(20) } } : ARTISTS)
+        )
         const [albums] = mountBrowse().findAll('a')
         await flushPromises()
 
-        expect(albums.findAll('.covers img')).toHaveLength(7)
+        expect(albums.findAll('.covers img')).toHaveLength(12)
+    })
+
+    it('does not render a picture the server answers with its placeholder', async () => {
+        coverIsPlaceholder.mockImplementation((url: string) => Promise.resolve(url.includes('b1b2c3d4')))
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        const srcs = srcsOf(albums, '.covers img')
+        expect(srcs).toHaveLength(ALBUM_ITEMS.length - 1)
+        expect(srcs).not.toContain('/img/thumbnail/medium/b1b2c3d4e5f6a7b8.webp?pathhash=22')
+        expect(coverIsPlaceholder).toHaveBeenCalledWith('/img/thumbnail/medium/a1b2c3d4e5f6a7b8.webp?pathhash=11')
+    })
+
+    it('fills the twelve from the placeholder-free rest of the sixteen', async () => {
+        // The first four are placeholders: twelve real covers stand from positions five to sixteen.
+        getAllItems.mockImplementation((type: string) =>
+            Promise.resolve(type === 'albums' ? { status: 200, data: { total: 16, items: many(16) } } : ARTISTS)
+        )
+        coverIsPlaceholder.mockImplementation((url: string) =>
+            Promise.resolve(['album0.', 'album1.', 'album2.', 'album3.'].some(p => url.includes(p)))
+        )
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        const srcs = srcsOf(albums, '.covers img')
+        expect(srcs).toHaveLength(12)
+        expect(srcs[0]).toBe('/img/thumbnail/medium/album4.webp?pathhash=4')
+        expect(srcs[11]).toBe('/img/thumbnail/medium/album15.webp?pathhash=15')
+    })
+
+    it('with only placeholders, the crate has no covers and no board', async () => {
+        coverIsPlaceholder.mockResolvedValue(true)
+        const [albums, artists] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        expect(albums.find('.name').text()).toBe('Albums')
+        expect(albums.findAll('.covers').length).toBe(0)
+        expect(albums.findAll('.board').length).toBe(0)
+        expect(artists.findAll('.covers').length).toBe(0)
+        expect(artists.findAll('.board').length).toBe(0)
     })
 
     it('labels the board NEW IN for albums and MOST PLAYED for artists with plays', async () => {
@@ -100,7 +151,7 @@ describe('Browse Library', () => {
         await flushPromises()
         const [, artists] = wrapper.findAll('a')
 
-        expect(getAllItems).toHaveBeenCalledWith('artists', { start: 0, limit: 7, sortby: 'created_date', reverse: '1' })
+        expect(getAllItems).toHaveBeenCalledWith('artists', { start: 0, limit: 16, sortby: 'created_date', reverse: '1' })
         expect(srcsOf(artists, '.covers img')).toEqual(['/img/artist/medium/d1b2c3d4e5f6a7b8.webp'])
         expect(artists.find('.board .tag').text()).toBe('NEW IN')
     })

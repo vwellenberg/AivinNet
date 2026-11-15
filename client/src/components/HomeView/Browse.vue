@@ -1,7 +1,7 @@
 <template>
   <div class="homebrowse">
     <div class="btitle"><b>Browse Library</b></div>
-    <div class="browselist">
+    <div ref="list" class="browselist">
       <RouterLink
         v-for="crate in crates"
         :key="crate.entity"
@@ -13,13 +13,32 @@
           <span class="name">{{ crate.title }}</span>
           <span v-if="crate.total !== null" class="count">{{ crate.countLabel }}</span>
         </div>
-        <!-- A row of record sleeves standing in the crate: the newest albums,
-             the most-played artists (or the newest, see `order`). Every fetched
-             picture is rendered; the card's width decides how many show (CSS
-             container queries), so the rest are display:none. Decoration — the
-             card's name says where it goes, so the pictures carry no alt text. -->
-        <div v-if="crate.images.length" class="covers" :class="{ round: crate.entity === 'artist' }" aria-hidden="true">
-          <img v-for="(src, i) in crate.images" :key="i" :src="src" alt="" draggable="false" loading="lazy" />
+        <!-- A fan of record sleeves standing in the crate, across the whole card
+             (utils/crateFan.ts decides how many and where, from the card's measured
+             size). Decoration — the card's name says where it goes, so the pictures
+             carry no alt text. -->
+        <div
+          v-if="crate.images.length"
+          class="covers"
+          :class="{ round: crate.entity === 'artist' }"
+          :style="{ height: crate.fan.size + 'px' }"
+          aria-hidden="true"
+        >
+          <img
+            v-for="(slot, i) in crate.fan.slots"
+            :key="i"
+            :src="crate.images[i]"
+            :style="{
+              left: slot.left + 'px',
+              bottom: slot.lift + 'px',
+              width: crate.fan.size + 'px',
+              height: crate.fan.size + 'px',
+              transform: `rotate(${slot.rotate}deg)`,
+            }"
+            alt=""
+            draggable="false"
+            loading="lazy"
+          />
         </div>
         <!-- The crate's front board: the label says what the row is. -->
         <div v-if="crate.images.length" class="board" aria-hidden="true">
@@ -67,21 +86,25 @@ export function __resetBrowseCrates() {
 </script>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { paths } from "@/config";
 import { getAllItems } from "@/requests/getall";
 import { Routes } from "@/router";
+import { coverIsPlaceholder } from "@/utils/colortools/placeholderCover";
+import { crateFan } from "@/utils/crateFan";
 
 // Home's way into the two library lists (Albums and Artists have no
 // navigation entry since 2026-11-14). Each card is a record crate: its name,
-// how many there are, a row of sleeves standing in it, and a front board
-// that says what the row is. The user picked this from a preview on
-// 2026-11-15 ("Kacheln wirken auf größeren Bildschirmen leer" — the old
-// three-picture fan left wide cards empty). Playlists and Favorites are not
-// here: they keep their navigation entries.
+// how many there are, a fan of sleeves standing in it across the whole card,
+// and a front board that says what the row is. Playlists and Favorites are
+// not here: they keep their navigation entries.
 
-const SHOWN_MAX = 7;
+// Asked for more than shown: a picture the server only has a placeholder for
+// is dropped (see the check in `load`), and the rest make up the row.
+const FETCH_LIMIT = 16;
+const SHOWN_MAX = 12;
 
 const crates = computed(() => [
   {
@@ -91,6 +114,7 @@ const crates = computed(() => [
     ...data.album,
     countLabel: countLabel(data.album.total, "album"),
     tag: tagFor(data.album.order),
+    fan: crateFan(data.album.images.length, cardWidth.value, cardHeight.value),
   },
   {
     entity: "artist" as const,
@@ -99,8 +123,28 @@ const crates = computed(() => [
     ...data.artist,
     countLabel: countLabel(data.artist.total, "artist"),
     tag: tagFor(data.artist.order),
+    fan: crateFan(data.artist.images.length, cardWidth.value, cardHeight.value),
   },
 ]);
+
+// The card size the fan is laid out against. The list is two equal columns,
+// so one card is (list width - column gap) / 2 wide. Measured, not guessed:
+// the card is 12rem tall on desktop and 9rem on phones.
+const list = ref<HTMLElement | null>(null);
+const { width, height } = useElementSize(list);
+const cardWidth = ref(0);
+const cardHeight = ref(0);
+
+function measure() {
+  const el = list.value;
+  const first = el?.querySelector<HTMLElement>(".browseitem");
+  if (!el || !first) return;
+  const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+  cardWidth.value = Math.max(0, (el.clientWidth - gap) / 2);
+  cardHeight.value = first.clientHeight;
+}
+
+watch([width, height], measure);
 
 function countLabel(total: number | null, noun: string) {
   if (total === null) return "";
@@ -114,21 +158,26 @@ function tagFor(order: Order) {
 type Item = { image?: string; help_text?: string };
 
 async function fetchShown(type: "albums" | "artists", sortby: string) {
-  const res = await getAllItems(type, { start: 0, limit: SHOWN_MAX, sortby, reverse: "1" });
+  const res = await getAllItems(type, { start: 0, limit: FETCH_LIMIT, sortby, reverse: "1" });
   if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
-  // Capped here too: the row has seven slots, whatever the endpoint sends.
-  return { total: res.data.total, items: (res.data.items as Item[]).slice(0, SHOWN_MAX) };
+  // Capped here too: the endpoint may send more than was asked for.
+  return { total: res.data.total, items: (res.data.items as Item[]).slice(0, FETCH_LIMIT) };
 }
 
 const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
 
-// Up to SHOWN_MAX of each, through the list endpoint the pages themselves use:
+// Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
 // the newest albums (what came in last is what one looks for), the most-played
 // artists. The board says "MOST PLAYED", so an artist with no plays never
 // stands in that row: a library with two played artists shows those two, not
 // five arbitrary ones beside them. While nothing has been played yet, the row
-// is the newest artists and says "NEW IN". A failed request leaves the card
-// as name only: still a working link, nothing half-drawn.
+// is the newest artists and says "NEW IN".
+//
+// A picture the server answers with its placeholder (X-Aivinnet-Placeholder)
+// is dropped: a sleeve with no artwork of its own is not shown. What is left
+// is capped at SHOWN_MAX. If nothing with artwork remains, the crate has no
+// covers and no board. A failed request leaves the card as name only: still a
+// working link, nothing half-drawn.
 async function load(entity: CrateEntity) {
   try {
     let order: Order = FIRST_ORDER[entity];
@@ -146,8 +195,12 @@ async function load(entity: CrateEntity) {
     if (!page) return;
 
     const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
+    const urls = page.items.filter((it) => it.image).map((it) => base + it.image);
+    const placeholder = await Promise.all(urls.map((url) => coverIsPlaceholder(url)));
+    const images = urls.filter((_, i) => !placeholder[i]).slice(0, SHOWN_MAX);
+
     data[entity].total = typeof page.total === "number" ? page.total : null;
-    data[entity].images = page.items.filter((it) => it.image).map((it) => base + it.image);
+    data[entity].images = images;
     data[entity].order = order;
   } catch {
     // Decoration only: the card works without it.
@@ -155,6 +208,7 @@ async function load(entity: CrateEntity) {
 }
 
 onMounted(() => {
+  measure();
   if (data.album.total === null) load("album");
   if (data.artist.total === null) load("artist");
 });
@@ -198,9 +252,11 @@ onMounted(() => {
     min-width: 0;
     font-weight: 500;
     padding: 1.25rem 1rem;
-    // A pressable card carries the hatch (#378). The label sits on a smooth
-    // cover patch that reads the same `--row-fill` as the card itself, so a
-    // fill swap can never split surface and cover — the mem-row-plate pattern.
+    // The board's height; the phone block changes it, and the fan's bottom
+    // follows it (40 % of it stands behind the board).
+    --board-h: 2.5rem;
+    // A pressable card carries the hatch (#378). The name sticker reads the
+    // same `--row-fill` as the card itself, so a fill swap carries over.
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
     @include mem-hatch(38px, $on: surface);
@@ -219,25 +275,25 @@ onMounted(() => {
     // sich der Überschwinger als Wackeln, gemessen an denselben Kacheln in #162.
     @include mem-arrival;
 
-    // The card is a container: the row of sleeves below asks the card's own
-    // width (not the viewport's) how many of its pictures fit.
-    container-type: inline-size;
-
-    // The crate: name and count top left, a row of sleeves standing in it
-    // from the bottom right, and the front board across the bottom.
+    // The crate: the name sticker top left, a fan of sleeves across the whole
+    // card underneath it, and the front board across the bottom.
     position: relative;
     overflow: hidden;
     height: 12rem;
     display: block;
 
+    // The name and count, as a sticker plate that reads over the sleeves. No
+    // hatch: a caption is not a control (styling.md).
     .label {
       position: relative;
-      z-index: 1;
+      z-index: 3;
       display: inline-flex;
       flex-direction: column;
       align-items: flex-start;
       gap: $smaller;
-      @include mem-hatch-clear(4px);
+      padding: 0.3rem 0.6rem;
+      @include candy-box(var(--row-fill), $candy-radius-sm);
+      box-shadow: mem-shadow(3px, 3px);
     }
 
     .name {
@@ -259,53 +315,25 @@ onMounted(() => {
       color: $mem-ink;
     }
 
-    // The row of record sleeves standing in the crate: a right-aligned flex
-    // row, each cover a sticker of its own (ink frame, hard offset), each
-    // overlapping the one before it and tilted and lifted a little differently.
-    // Later ones paint above earlier ones (DOM order). The row's bottom edge
-    // sits 1.2rem up, so the lower part of the covers hides behind the board.
+    // The fan of record sleeves: each one is positioned and tilted inline
+    // (utils/crateFan.ts), spanning the whole card. The container's bottom sits
+    // at 40 % of the board's height, so the lower part of every sleeve stands
+    // behind the board. Later sleeves paint above earlier ones (DOM order).
     .covers {
       position: absolute;
-      right: 1rem;
-      bottom: 1.2rem;
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-end;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--board-h) * 0.4);
       pointer-events: none;
-      --cover: 7.5rem;
 
       img {
-        position: relative;
-        // One size, set on the row (`--cover`); each cover is pulled back
-        // 48 % of it, so the step between two is 52 % (3.9rem at 7.5rem).
-        flex: 0 0 var(--cover);
-        width: var(--cover);
-        height: var(--cover);
-        margin-left: calc(var(--cover) * -0.48);
+        position: absolute;
         object-fit: cover;
         border: $candy-border;
         border-radius: $candy-radius-sm;
         box-shadow: mem-shadow(3px, 3px);
         // No background of its own: a placeholder cover is a transparent tile
         // that Global/cover-placeholders.scss tints by its route.
-
-        &:first-child {
-          margin-left: 0;
-        }
-
-        // Tilt and lift, one per slot.
-        &:nth-child(1) { transform: rotate(-5deg); }
-        &:nth-child(2) { transform: translateY(-10px) rotate(3deg); }
-        &:nth-child(3) { transform: translateY(-4px) rotate(-2deg); }
-        &:nth-child(4) { transform: translateY(-14px) rotate(4deg); }
-        &:nth-child(5) { transform: translateY(-2px) rotate(-4deg); }
-        &:nth-child(6) { transform: translateY(-8px) rotate(2deg); }
-        &:nth-child(7) { transform: rotate(-3deg); }
-
-        // Hidden until the card is wide enough for them (see the queries below).
-        &:nth-child(n + 4) {
-          display: none;
-        }
       }
 
       // Artists stand as round portraits, not sleeves.
@@ -315,7 +343,7 @@ onMounted(() => {
     }
 
     // The board: the crate's front edge, full width, across the bottom. It
-    // paints over the covers' lower part. Its fill is a darker shade of the
+    // paints over the sleeves' lower part. Its fill is a darker shade of the
     // card's own fill, read through `--row-fill`, so the hover swap carries over.
     .board {
       position: absolute;
@@ -323,7 +351,7 @@ onMounted(() => {
       right: 0;
       bottom: 0;
       z-index: 2;
-      height: 2.5rem;
+      height: var(--board-h);
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -346,58 +374,16 @@ onMounted(() => {
       line-height: 1.3;
       white-space: nowrap;
     }
-
-    // How many sleeves show, by the card's CONTENT width (a container query
-    // measures the content box, so the 1rem padding on each side is not
-    // counted). Measured on the demo instance, every 7px from 901 to 2560px
-    // viewport (the sidebar open): each threshold is the narrowest card at
-    // which one more sleeve still starts right of the name and count, with
-    // ~15px to spare. Above 700px the sleeves grow instead: seven 7.5rem
-    // sleeves left ~190px of a 2560px card empty.
-    @container (min-width: 420px) {
-      .covers img:nth-child(4) { display: block; }
-    }
-    @container (min-width: 490px) {
-      .covers img:nth-child(5) { display: block; }
-    }
-    @container (min-width: 550px) {
-      .covers img:nth-child(6) { display: block; }
-    }
-    @container (min-width: 620px) {
-      .covers img:nth-child(7) { display: block; }
-    }
-    @container (min-width: 700px) {
-      .covers { --cover: 8.5rem; }
-    }
-
-    // Narrow cards (the 901–1200px sidebar column holds them): three full
-    // sleeves would reach in under the name and count. Up to 310px the row
-    // shrinks to 0.8 and still starts right of them. Below that nothing fits
-    // beside the label, so the row stands lower instead, deeper in the crate
-    // and below the count. This replaces the old viewport rule for
-    // 901–1200px: what decides the overlap is the card's own width.
-    @container (max-width: 360px) {
-      .covers {
-        transform: scale(0.8);
-        transform-origin: bottom right;
-      }
-    }
-    @container (max-width: 310px) {
-      .covers {
-        bottom: 0.4rem;
-        transform: scale(0.62);
-      }
-    }
   }
 
   // Colour coding: the card's FILL is its entity's pastel tint from the
   // shared palette — the same lavender/lime an album or artist wears in the
   // card rows. The shadow stays ink like every other plate; colour lives on
-  // the surface, not the edge. Through `--row-fill`, so the cover under the
-  // label takes the same tint (one source, see mem-hatch-clear). The tint is static, so the
-  // hatch switches to the accent sprite (ink strokes in both themes) and the
-  // text to static ink. Placed BEFORE the hover rule: same specificity, so the
-  // hover flip below still wins by order.
+  // the surface, not the edge. Through `--row-fill`, so the name sticker takes
+  // the same tint (one source). The tint is static, so the hatch switches to
+  // the accent sprite (ink strokes in both themes) and the text to static ink.
+  // Placed BEFORE the hover rule: same specificity, so the hover flip below
+  // still wins by order.
   @each $name in album, artist {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
@@ -417,11 +403,9 @@ onMounted(() => {
     color: var(--mem-hover-text);
   }
 
-  // Phones: the two crates side by side, each smaller. The row is scaled down
-  // from its bottom-right anchor, so it stays in the card's corner, and the
-  // board and its label shrink with the card. The card stays 9rem tall. The
-  // narrow-card container rule above also applies here; this block comes later
-  // and wins with the phone's own scale.
+  // Phones: the two crates side by side, each smaller. The card stays 9rem
+  // tall, and the board and its label shrink with it; the fan follows the
+  // card's size and the board's height through `--board-h`.
   @include mediumPhones {
     .browselist {
       gap: 0.75rem;
@@ -431,23 +415,13 @@ onMounted(() => {
       width: auto;
       height: 9rem;
       padding: 0.9rem 0.75rem;
+      --board-h: 1.8rem;
 
       .name {
         font-size: 1.2rem;
       }
 
-      .covers {
-        right: 0.75rem;
-        // Lower than on the desktop (0.5rem instead of 1.2rem), so more of each
-        // sleeve stands behind the board: at 1.2rem the scaled row reached up
-        // under the count pill on a 390px phone.
-        bottom: 0.5rem;
-        transform: scale(0.5);
-        transform-origin: bottom right;
-      }
-
       .board {
-        height: 1.8rem;
         padding: 0 0.75rem;
       }
 
