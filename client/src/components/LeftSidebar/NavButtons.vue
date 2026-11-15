@@ -238,7 +238,7 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // History: a yellow dot was picked from a preview on 2026-11-15 morning,
     // and replaced the same day: yellow right under the gold Favorites plate
     // read like a second, small control. A dash is a divider, not a control:
-    // no frame, no shadow, and the line colour at 40 %. Centred under the
+    // no frame, no shadow, in the muted text colour. Centred under the
     // plates; the two row gaps plus the dash plus its margins make
     // $sidebar-group-gap. Phones hide it (below).
     @media only screen and (min-width: 901px) {
@@ -248,7 +248,9 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
       width: $dash-w;
       height: $dash-h;
       border-radius: 2px;
-      background-color: mem-alpha($mem-line, 0.4);
+      // Muted text, not the frame colour: themes that hide frames set the
+      // line colour to transparent (stream), and the dash went with it.
+      background-color: mem-alpha($mem-text-muted, 0.55);
       margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dash-h}) / 2);
     }
   }

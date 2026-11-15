@@ -243,7 +243,8 @@ function updateFade() {
 // The scroller's own size and its content's size both change the answer.
 useResizeObserver(scrollEl, updateFade);
 useResizeObserver(libraryEl, updateFade);
-watch(scrollsWhole, updateFade);
+// After the DOM update: the class swap changes what the scroller measures.
+watch(scrollsWhole, updateFade, { flush: "post" });
 
 const settings = useSettingsStore();
 const playlists = usePStore();
@@ -923,12 +924,28 @@ $sidebar-label-opacity: 0.85;
     border-radius: calc(#{$candy-radius} - #{$candy-border-w});
 
     // Soft edges (template comment): a MASK on the scroller, so only the rows
-    // fade and the halftone of the panel behind stays where it is. Zero by
-    // default; the classes set the fade depth at each edge that has content.
+    // fade and the halftone of the panel behind stays where it is. Set only
+    // while an edge has content beyond it: a mask costs a composited layer,
+    // and a list that does not overflow needs none.
+    // Two layers: the gradient over the rows, and a solid strip down the right
+    // edge, where the scrollbar rides. The scroller IS the scrollport, so a
+    // single gradient faded its own thumb into nothing at either end. The rows
+    // never reach that strip (`.sidebar-library` ends at the nav's inset).
     --fade-top: 0px;
     --fade-bottom: 0px;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+    &.fade-top,
+    &.fade-bottom {
+      $fade: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
+      $strip: linear-gradient(#000, #000);
+      -webkit-mask-image: $fade, $strip;
+      mask-image: $fade, $strip;
+      -webkit-mask-size: 100% 100%, 12px 100%;
+      mask-size: 100% 100%, 12px 100%;
+      -webkit-mask-position: 0 0, right 0 top 0;
+      mask-position: 0 0, right 0 top 0;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+    }
     &.fade-top { --fade-top: 2.25rem; }
     &.fade-bottom { --fade-bottom: 2.25rem; }
 

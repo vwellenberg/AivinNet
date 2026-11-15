@@ -113,25 +113,35 @@ function tagFor(order: Order) {
 
 type Item = { image?: string; help_text?: string };
 
-async function fetchSeven(type: "albums" | "artists", sortby: string) {
+async function fetchShown(type: "albums" | "artists", sortby: string) {
   const res = await getAllItems(type, { start: 0, limit: SHOWN_MAX, sortby, reverse: "1" });
   if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
+  // Capped here too: the row has seven slots, whatever the endpoint sends.
   return { total: res.data.total, items: (res.data.items as Item[]).slice(0, SHOWN_MAX) };
 }
 
-// Seven of each, through the list endpoint the pages themselves use: the
-// newest albums (what came in last is what one looks for), the most-played
-// artists — or, while nothing has been played yet (every count is 0 and the
-// order would be arbitrary), the newest artists too. A failed request leaves
-// the card as name only: still a working link, nothing half-drawn.
+const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
+
+// Up to SHOWN_MAX of each, through the list endpoint the pages themselves use:
+// the newest albums (what came in last is what one looks for), the most-played
+// artists. The board says "MOST PLAYED", so an artist with no plays never
+// stands in that row: a library with two played artists shows those two, not
+// five arbitrary ones beside them. While nothing has been played yet, the row
+// is the newest artists and says "NEW IN". A failed request leaves the card
+// as name only: still a working link, nothing half-drawn.
 async function load(entity: CrateEntity) {
   try {
     let order: Order = FIRST_ORDER[entity];
     let page =
-      entity === "album" ? await fetchSeven("albums", "created_date") : await fetchSeven("artists", "playcount");
-    if (entity === "artist" && page && page.items.every((it) => /^0 play/.test(it.help_text || ""))) {
-      page = await fetchSeven("artists", "created_date");
-      order = "newest";
+      entity === "album" ? await fetchShown("albums", "created_date") : await fetchShown("artists", "playcount");
+    if (entity === "artist" && page) {
+      const played = page.items.filter((it) => !unplayed(it));
+      if (played.length) {
+        page = { ...page, items: played };
+      } else {
+        page = await fetchShown("artists", "created_date");
+        order = "newest";
+      }
     }
     if (!page) return;
 
@@ -262,14 +272,16 @@ onMounted(() => {
       justify-content: flex-end;
       align-items: flex-end;
       pointer-events: none;
+      --cover: 7.5rem;
 
       img {
         position: relative;
-        flex: 0 0 7.5rem;
-        width: 7.5rem;
-        height: 7.5rem;
-        // Step of 3.9rem between covers: 7.5rem wide, pulled 3.6rem back.
-        margin-left: -3.6rem;
+        // One size, set on the row (`--cover`); each cover is pulled back
+        // 48 % of it, so the step between two is 52 % (3.9rem at 7.5rem).
+        flex: 0 0 var(--cover);
+        width: var(--cover);
+        height: var(--cover);
+        margin-left: calc(var(--cover) * -0.48);
         object-fit: cover;
         border: $candy-border;
         border-radius: $candy-radius-sm;
@@ -337,12 +349,12 @@ onMounted(() => {
 
     // How many sleeves show, by the card's CONTENT width (a container query
     // measures the content box, so the 1rem padding on each side is not
-    // counted). Each cover steps 3.9rem; the row must end at least ~8rem right
-    // of the card's left edge, or it runs under the name and count. Estimated
-    // from the font metrics, not yet measured in a browser: 3 covers are 15.3rem
-    // wide, 4 are 19.2rem, 5 are 23.1rem, 6 are 27rem, 7 are 30.9rem. The
-    // thresholds sit a little above the bare arithmetic.
-    @container (min-width: 430px) {
+    // counted). Measured on the demo instance, every 7px from 901 to 2560px
+    // viewport (the sidebar open): each threshold is the narrowest card at
+    // which one more sleeve still starts right of the name and count, with
+    // ~15px to spare. Above 700px the sleeves grow instead: seven 7.5rem
+    // sleeves left ~190px of a 2560px card empty.
+    @container (min-width: 420px) {
       .covers img:nth-child(4) { display: block; }
     }
     @container (min-width: 490px) {
@@ -354,18 +366,26 @@ onMounted(() => {
     @container (min-width: 620px) {
       .covers img:nth-child(7) { display: block; }
     }
+    @container (min-width: 700px) {
+      .covers { --cover: 8.5rem; }
+    }
 
-    // A narrow card (the 901–1200px sidebar column is one): three full sleeves
-    // would reach in under the name and count, so the row shrinks from its
-    // bottom-right anchor until it starts right of them. This replaces the old
-    // viewport-width rule for 901–1200px: it asked the viewport, but what
-    // decides the overlap is the card's own width. 0.8, measured at 1100px
-    // (card content 325px): the row then starts ~20px right of the count pill;
-    // 0.6 left a third of the card empty again.
+    // Narrow cards (the 901–1200px sidebar column holds them): three full
+    // sleeves would reach in under the name and count. Up to 310px the row
+    // shrinks to 0.8 and still starts right of them. Below that nothing fits
+    // beside the label, so the row stands lower instead, deeper in the crate
+    // and below the count. This replaces the old viewport rule for
+    // 901–1200px: what decides the overlap is the card's own width.
     @container (max-width: 360px) {
       .covers {
         transform: scale(0.8);
         transform-origin: bottom right;
+      }
+    }
+    @container (max-width: 310px) {
+      .covers {
+        bottom: 0.4rem;
+        transform: scale(0.62);
       }
     }
   }

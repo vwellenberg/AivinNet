@@ -105,6 +105,31 @@ describe('Browse Library', () => {
         expect(artists.find('.board .tag').text()).toBe('NEW IN')
     })
 
+    it('never puts an unplayed artist under MOST PLAYED', async () => {
+        // Two played, two never played: the playcount sort returns all four,
+        // and the two at 0 plays are in arbitrary order. Only the played stand.
+        const mixed = {
+            status: 200,
+            data: {
+                total: 4,
+                items: [
+                    { image: 'p1.webp', help_text: '31 plays' },
+                    { image: 'p2.webp', help_text: '1 play' },
+                    { image: 'u1.webp', help_text: '0 plays' },
+                    { image: 'u2.webp', help_text: '0 plays' },
+                ],
+            },
+        }
+        getAllItems.mockImplementation((type: string) => Promise.resolve(type === 'albums' ? ALBUMS : mixed))
+        const wrapper = mountBrowse()
+        await flushPromises()
+        const [, artists] = wrapper.findAll('a')
+
+        expect(srcsOf(artists, '.covers img')).toEqual(['/img/artist/medium/p1.webp', '/img/artist/medium/p2.webp'])
+        expect(artists.find('.board .tag').text()).toBe('MOST PLAYED')
+        expect(getAllItems).not.toHaveBeenCalledWith('artists', expect.objectContaining({ sortby: 'created_date' }))
+    })
+
     it('stays a working link with just its name when the request fails, and has no board', async () => {
         getAllItems.mockResolvedValue({ status: 500, data: null, error: 'boom' })
         const wrapper = mountBrowse()
