@@ -20,7 +20,7 @@
           class="radio-toggle"
           :class="{ 'is-open': open }"
           :aria-expanded="open ? 'true' : 'false'"
-          aria-controls="radio-body"
+          :aria-controls="open ? 'radio-body' : undefined"
           :aria-label="open ? 'Close radio' : 'Open radio'"
           @click="toggleOpen"
         >
@@ -212,6 +212,14 @@ const settings = useSettings()
 // Folded by default (Home declutter, 2026-11-15); the choice is per device.
 const open = computed(() => settings.radio_open)
 function toggleOpen() {
+  // Folding mid-drag removes the scale and the knob under the pointer, so
+  // their pointerup never comes: end the drag here, unmute, keep the station.
+  if (drag.value !== null) {
+    drag.value = null
+    dragTarget = null
+    position.value = index.value
+    resumeMusic()
+  }
   settings.setRadioOpen(!settings.radio_open)
 }
 const stations = ref<Station[]>(stationsFromList(home.stations))
@@ -250,6 +258,15 @@ const still = ref(false)
 
 onMounted(() => {
   still.value = prefersReducedMotion()
+  // Back on Home while a station plays (another page, a reload): the queue
+  // still comes from its playlist, so the dial rests on it and the folded
+  // strip says ON AIR. `tuned` alone lives only as long as this component.
+  const playing = stations.value.findIndex(station => playsStation(tracklist.from, station.id))
+  if (playing >= 0) {
+    tuned.value = playing
+    index.value = playing
+    position.value = playing
+  }
 })
 
 // A new list from Home's answer (a refetch, a season change): keep the station

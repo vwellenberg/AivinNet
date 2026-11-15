@@ -93,6 +93,28 @@ describe('Browse Library', () => {
         expect(albums.findAll('.covers img')).toHaveLength(12)
     })
 
+    it('probes a few at a time and stops once the row is full', async () => {
+        getAllItems.mockImplementation((type: string) =>
+            Promise.resolve(type === 'albums' ? { status: 200, data: { total: 20, items: many(16) } } : ARTISTS)
+        )
+        mountBrowse()
+        await flushPromises()
+
+        const albumProbes = coverIsPlaceholder.mock.calls.filter(([url]) => String(url).includes('/thumbnail/'))
+        // Twelve real covers are found after three batches of four: the last four are never asked.
+        expect(albumProbes).toHaveLength(12)
+    })
+
+    it('shows the count before the pictures are checked', async () => {
+        let release: (v: boolean) => void = () => {}
+        coverIsPlaceholder.mockImplementation(() => new Promise<boolean>(r => (release = r)))
+        const wrapper = mountBrowse()
+        await flushPromises()
+
+        expect(wrapper.findAll('a')[0].find('.count').text()).toBe(`${(1284).toLocaleString()} albums`)
+        release(false)
+    })
+
     it('does not render a picture the server answers with its placeholder', async () => {
         coverIsPlaceholder.mockImplementation((url: string) => Promise.resolve(url.includes('b1b2c3d4')))
         const [albums] = mountBrowse().findAll('a')

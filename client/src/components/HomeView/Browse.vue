@@ -20,7 +20,7 @@
         <div
           v-if="crate.images.length"
           class="covers"
-          :class="{ round: crate.entity === 'artist' }"
+          :class="{ round: crate.entity === 'artist', unmeasured: cardWidth === 0 }"
           :style="{ height: crate.fan.size + 'px' }"
           aria-hidden="true"
         >
@@ -127,9 +127,8 @@ const crates = computed(() => [
   },
 ]);
 
-// The card size the fan is laid out against. The list is two equal columns,
-// so one card is (list width - column gap) / 2 wide. Measured, not guessed:
-// the card is 12rem tall on desktop and 9rem on phones.
+// The card size the fan is laid out against, measured on the first card
+// whenever the list resizes: the card is 12rem tall on desktop, 9rem on phones.
 const list = ref<HTMLElement | null>(null);
 const { width, height } = useElementSize(list);
 const cardWidth = ref(0);
@@ -139,8 +138,9 @@ function measure() {
   const el = list.value;
   const first = el?.querySelector<HTMLElement>(".browseitem");
   if (!el || !first) return;
-  const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
-  cardWidth.value = Math.max(0, (el.clientWidth - gap) / 2);
+  // The card itself: the sleeves are placed against its padding box, which is
+  // what clientWidth measures, whatever the column count.
+  cardWidth.value = first.clientWidth;
   cardHeight.value = first.clientHeight;
 }
 
@@ -165,6 +165,22 @@ async function fetchShown(type: "albums" | "artists", sortby: string) {
 }
 
 const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
+
+// Checked a few at a time, and only until the row is full: the server answers
+// one request at a time (bjoern), and 32 probes at once queued Home's own
+// requests behind them.
+const PROBE_BATCH = 4;
+
+/** The URLs whose answer is real artwork, not the placeholder, at most SHOWN_MAX. */
+async function withArtwork(urls: string[]): Promise<string[]> {
+  const kept: string[] = [];
+  for (let i = 0; i < urls.length && kept.length < SHOWN_MAX; i += PROBE_BATCH) {
+    const batch = urls.slice(i, i + PROBE_BATCH);
+    const placeholder = await Promise.all(batch.map((url) => coverIsPlaceholder(url)));
+    kept.push(...batch.filter((_, j) => !placeholder[j]));
+  }
+  return kept.slice(0, SHOWN_MAX);
+}
 
 // Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
 // the newest albums (what came in last is what one looks for), the most-played
@@ -194,14 +210,13 @@ async function load(entity: CrateEntity) {
     }
     if (!page) return;
 
+    // The count does not wait for the pictures.
+    data[entity].total = typeof page.total === "number" ? page.total : null;
+    data[entity].order = order;
+
     const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
     const urls = page.items.filter((it) => it.image).map((it) => base + it.image);
-    const placeholder = await Promise.all(urls.map((url) => coverIsPlaceholder(url)));
-    const images = urls.filter((_, i) => !placeholder[i]).slice(0, SHOWN_MAX);
-
-    data[entity].total = typeof page.total === "number" ? page.total : null;
-    data[entity].images = images;
-    data[entity].order = order;
+    data[entity].images = await withArtwork(urls);
   } catch {
     // Decoration only: the card works without it.
   }
@@ -325,6 +340,12 @@ onMounted(() => {
       right: 0;
       bottom: calc(var(--board-h) * 0.4);
       pointer-events: none;
+
+      // Until the card is measured every sleeve sits at x=0: hidden, not piled
+      // up in the corner for a frame.
+      &.unmeasured {
+        visibility: hidden;
+      }
 
       img {
         position: absolute;

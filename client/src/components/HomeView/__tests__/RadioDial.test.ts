@@ -401,7 +401,8 @@ describe('RadioDial', () => {
         const toggle = w.get('.radio-toggle')
         expect(toggle.attributes('type')).toBe('button')
         expect(toggle.attributes('aria-expanded')).toBe('false')
-        expect(toggle.attributes('aria-controls')).toBe('radio-body')
+        // Folded, the body is not in the DOM: no reference to a missing id.
+        expect(toggle.attributes('aria-controls')).toBeUndefined()
         expect(toggle.attributes('aria-label')).toBe('Open radio')
     })
 
@@ -414,6 +415,8 @@ describe('RadioDial', () => {
         expect(w.find('[role="slider"]').exists()).toBe(true)
         expect(w.get('.radio-toggle').attributes('aria-expanded')).toBe('true')
         expect(w.get('.radio-toggle').attributes('aria-label')).toBe('Close radio')
+        expect(w.get('.radio-toggle').attributes('aria-controls')).toBe('radio-body')
+        expect(w.find('#radio-body').exists()).toBe(true)
 
         await w.get('.radio-toggle').trigger('click')
         await flushPromises()
@@ -465,5 +468,30 @@ describe('RadioDial', () => {
         expect(w.find('[role="slider"]').exists()).toBe(false)
         expect(w.get('.radio-status').attributes('aria-live')).toBe('polite')
         expect(w.get('.radio-status').text()).toBe('Tuned in: Mix 2, 108.0 FM')
+    })
+
+    it('folding in the middle of a drag ends it and brings the music back', async () => {
+        dialWidth(300)
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
+        pointer(w, 'pointerdown', { pointerId: 7, clientX: 0 })
+        pointer(w, 'pointermove', { pointerId: 7, clientX: 150 })
+        await w.vm.$nextTick()
+        expect(muteForTuning).toHaveBeenCalled()
+
+        await w.get('.radio-toggle').trigger('click')
+        await flushPromises()
+        expect(resumeMusic).toHaveBeenCalled()
+        expect(tuneStation).not.toHaveBeenCalled()
+        expect(w.find('.radio-air').exists()).toBe(false)
+    })
+
+    it('back on Home while a station plays, the folded strip still says ON AIR', async () => {
+        // A fresh mount (another page, a reload): only the queue remembers.
+        queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix2' }
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, false)
+
+        expect(w.get('.radio-onair').text()).toContain('ON AIR')
+        expect(w.get('.radio-onair').text()).toContain('Mix 2')
     })
 })
