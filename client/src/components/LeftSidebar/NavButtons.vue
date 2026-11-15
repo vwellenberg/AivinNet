@@ -2,7 +2,7 @@
   <div class="side-nav-container">
     <template v-for="(menu, index) in items" :key="index">
       <!-- The separator is not a link: it was a router-link to an empty route
-           name, harmless while it was an invisible 1px spacer, but the bobble is
+           name, harmless while it was an invisible 1px spacer, but the dash is
            visible and was focusable and clickable (a "No match" navigation). -->
       <div v-if="menu.separator" class="nav-item separator" role="separator"></div>
       <router-link
@@ -234,23 +234,24 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     background: none;
     box-shadow: none;
 
-    // On the desktop sidebar the spacer is a "bobble" between the two groups
-    // (user pick from a preview, 2026-11-15): a yellow dot with the plates'
-    // frame and offset, like a piece of the confetti on the page ground. A
-    // line would read as one more frame; a dot reads as a pause. Frame, fill
-    // and shadow go through the look tokens like every plate (a look without
-    // tints shows a ring). Centred under the plates; the two row gaps plus the
-    // dot plus its margins make $sidebar-group-gap. Phones hide it (below).
+    // On the desktop sidebar the spacer is a quiet dash between the two groups.
+    // History: a yellow dot was picked from a preview on 2026-11-15 morning,
+    // and replaced the same day: yellow right under the gold Favorites plate
+    // read like a second, small control. A dash is a divider, not a control:
+    // no frame, no shadow, in the muted text colour. Centred under the
+    // plates; the two row gaps plus the dash plus its margins make
+    // $sidebar-group-gap. Phones hide it (below).
     @media only screen and (min-width: 901px) {
-      $dot: 1rem;
+      $dash-w: 1.6rem;
+      $dash-h: 3px;
       align-self: center;
-      width: $dot;
-      height: $dot;
-      border: $candy-border;
-      border-radius: 50%;
-      background-color: var(--look-tint, #{$mem-yellow});
-      box-shadow: mem-shadow(3px, 3px);
-      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dot}) / 2);
+      width: $dash-w;
+      height: $dash-h;
+      border-radius: 2px;
+      // Muted text, not the frame colour: themes that hide frames set the
+      // line colour to transparent (stream), and the dash went with it.
+      background-color: mem-alpha($mem-text-muted, 0.55);
+      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dash-h}) / 2);
     }
   }
 

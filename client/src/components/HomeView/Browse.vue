@@ -13,11 +13,17 @@
           <span class="name">{{ crate.title }}</span>
           <span v-if="crate.total !== null" class="count">{{ crate.countLabel }}</span>
         </div>
-        <!-- A fan of what lies behind the card: the three newest albums, the
-             three most-played artists. Decoration — the card's name says
-             where it goes, so the pictures carry no alt text. -->
-        <div v-if="crate.images.length" class="fan" :class="{ round: crate.entity === 'artist' }" aria-hidden="true">
+        <!-- A row of record sleeves standing in the crate: the newest albums,
+             the most-played artists (or the newest, see `order`). Every fetched
+             picture is rendered; the card's width decides how many show (CSS
+             container queries), so the rest are display:none. Decoration — the
+             card's name says where it goes, so the pictures carry no alt text. -->
+        <div v-if="crate.images.length" class="covers" :class="{ round: crate.entity === 'artist' }" aria-hidden="true">
           <img v-for="(src, i) in crate.images" :key="i" :src="src" alt="" draggable="false" loading="lazy" />
+        </div>
+        <!-- The crate's front board: the label says what the row is. -->
+        <div v-if="crate.images.length" class="board" aria-hidden="true">
+          <span class="tag">{{ crate.tag }}</span>
         </div>
       </RouterLink>
     </div>
@@ -28,11 +34,17 @@
 import { reactive } from "vue";
 
 type CrateEntity = "album" | "artist";
+// How the shown pictures were chosen. Albums are always the newest; artists
+// are the most-played, or the newest while nothing has been played yet.
+type Order = "newest" | "most-played";
 
 interface CrateData {
   total: number | null;
   images: string[];
+  order: Order;
 }
+
+const FIRST_ORDER: Record<CrateEntity, Order> = { album: "newest", artist: "most-played" };
 
 // Module scope (a plain <script>, not <script setup>, which runs per
 // instance): a return to Home shows the crates at once instead of name-only
@@ -40,15 +52,16 @@ interface CrateData {
 // session, and again after a failure. A count that grows while the app is
 // open shows on the next reload.
 const data = reactive<Record<CrateEntity, CrateData>>({
-  album: { total: null, images: [] },
-  artist: { total: null, images: [] },
+  album: { total: null, images: [], order: FIRST_ORDER.album },
+  artist: { total: null, images: [], order: FIRST_ORDER.artist },
 });
 
 /** Tests only: forget what was loaded. */
 export function __resetBrowseCrates() {
-  for (const crate of Object.values(data)) {
-    crate.total = null;
-    crate.images = [];
+  for (const entity of Object.keys(data) as CrateEntity[]) {
+    data[entity].total = null;
+    data[entity].images = [];
+    data[entity].order = FIRST_ORDER[entity];
   }
 }
 </script>
@@ -61,10 +74,14 @@ import { getAllItems } from "@/requests/getall";
 import { Routes } from "@/router";
 
 // Home's way into the two library lists (Albums and Artists have no
-// navigation entry since 2026-11-14). A "crate" per list: its name, how many
-// there are, and a fan of three pictures from it — the user picked this over
-// four plain bars ("so irgendwie etwas lahm"). Playlists and Favorites are
-// not here: they keep their navigation entries.
+// navigation entry since 2026-11-14). Each card is a record crate: its name,
+// how many there are, a row of sleeves standing in it, and a front board
+// that says what the row is. The user picked this from a preview on
+// 2026-11-15 ("Kacheln wirken auf größeren Bildschirmen leer" — the old
+// three-picture fan left wide cards empty). Playlists and Favorites are not
+// here: they keep their navigation entries.
+
+const SHOWN_MAX = 7;
 
 const crates = computed(() => [
   {
@@ -73,6 +90,7 @@ const crates = computed(() => [
     route: Routes.AlbumList,
     ...data.album,
     countLabel: countLabel(data.album.total, "album"),
+    tag: tagFor(data.album.order),
   },
   {
     entity: "artist" as const,
@@ -80,6 +98,7 @@ const crates = computed(() => [
     route: Routes.ArtistList,
     ...data.artist,
     countLabel: countLabel(data.artist.total, "artist"),
+    tag: tagFor(data.artist.order),
   },
 ]);
 
@@ -88,31 +107,48 @@ function countLabel(total: number | null, noun: string) {
   return `${total.toLocaleString()} ${noun}${total === 1 ? "" : "s"}`;
 }
 
-type Item = { image?: string; help_text?: string };
-
-async function fetchThree(type: "albums" | "artists", sortby: string) {
-  const res = await getAllItems(type, { start: 0, limit: 3, sortby, reverse: "1" });
-  if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
-  return { total: res.data.total, items: res.data.items as Item[] };
+function tagFor(order: Order) {
+  return order === "newest" ? "NEW IN" : "MOST PLAYED";
 }
 
-// Three of each, through the list endpoint the pages themselves use: the
-// newest albums (what came in last is what one looks for), the most-played
-// artists — or, while nothing has been played yet (every count is 0 and the
-// order would be arbitrary), the newest artists too. A failed request leaves
-// the card as name only: still a working link, nothing half-drawn.
+type Item = { image?: string; help_text?: string };
+
+async function fetchShown(type: "albums" | "artists", sortby: string) {
+  const res = await getAllItems(type, { start: 0, limit: SHOWN_MAX, sortby, reverse: "1" });
+  if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
+  // Capped here too: the row has seven slots, whatever the endpoint sends.
+  return { total: res.data.total, items: (res.data.items as Item[]).slice(0, SHOWN_MAX) };
+}
+
+const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
+
+// Up to SHOWN_MAX of each, through the list endpoint the pages themselves use:
+// the newest albums (what came in last is what one looks for), the most-played
+// artists. The board says "MOST PLAYED", so an artist with no plays never
+// stands in that row: a library with two played artists shows those two, not
+// five arbitrary ones beside them. While nothing has been played yet, the row
+// is the newest artists and says "NEW IN". A failed request leaves the card
+// as name only: still a working link, nothing half-drawn.
 async function load(entity: CrateEntity) {
   try {
+    let order: Order = FIRST_ORDER[entity];
     let page =
-      entity === "album" ? await fetchThree("albums", "created_date") : await fetchThree("artists", "playcount");
-    if (entity === "artist" && page && page.items.every((it) => /^0 play/.test(it.help_text || ""))) {
-      page = await fetchThree("artists", "created_date");
+      entity === "album" ? await fetchShown("albums", "created_date") : await fetchShown("artists", "playcount");
+    if (entity === "artist" && page) {
+      const played = page.items.filter((it) => !unplayed(it));
+      if (played.length) {
+        page = { ...page, items: played };
+      } else {
+        page = await fetchShown("artists", "created_date");
+        order = "newest";
+      }
     }
     if (!page) return;
 
     const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
     data[entity].total = typeof page.total === "number" ? page.total : null;
     data[entity].images = page.items.filter((it) => it.image).map((it) => base + it.image);
+    data[entity].order = order;
   } catch {
     // Decoration only: the card works without it.
   }
@@ -183,8 +219,12 @@ onMounted(() => {
     // sich der Überschwinger als Wackeln, gemessen an denselben Kacheln in #162.
     @include mem-arrival;
 
-    // The crate: name and count top left, the fan of pictures leaning out of
-    // the bottom right edge (the card clips it, like a crate's front board).
+    // The card is a container: the row of sleeves below asks the card's own
+    // width (not the viewport's) how many of its pictures fit.
+    container-type: inline-size;
+
+    // The crate: name and count top left, a row of sleeves standing in it
+    // from the bottom right, and the front board across the bottom.
     position: relative;
     overflow: hidden;
     height: 12rem;
@@ -219,22 +259,29 @@ onMounted(() => {
       color: $mem-ink;
     }
 
-    // Three pictures, fanned: each one is a little sticker of its own (ink
-    // frame, hard offset), the middle one lifted. Pinned to the bottom right
-    // and half out of the card, so the stack reads as standing IN the crate.
-    .fan {
+    // The row of record sleeves standing in the crate: a right-aligned flex
+    // row, each cover a sticker of its own (ink frame, hard offset), each
+    // overlapping the one before it and tilted and lifted a little differently.
+    // Later ones paint above earlier ones (DOM order). The row's bottom edge
+    // sits 1.2rem up, so the lower part of the covers hides behind the board.
+    .covers {
       position: absolute;
       right: 1rem;
-      bottom: -0.6rem;
-      width: 15rem;
-      height: 9rem;
+      bottom: 1.2rem;
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-end;
       pointer-events: none;
+      --cover: 7.5rem;
 
       img {
-        position: absolute;
-        bottom: 0;
-        width: 7rem;
-        height: 7rem;
+        position: relative;
+        // One size, set on the row (`--cover`); each cover is pulled back
+        // 48 % of it, so the step between two is 52 % (3.9rem at 7.5rem).
+        flex: 0 0 var(--cover);
+        width: var(--cover);
+        height: var(--cover);
+        margin-left: calc(var(--cover) * -0.48);
         object-fit: cover;
         border: $candy-border;
         border-radius: $candy-radius-sm;
@@ -242,13 +289,103 @@ onMounted(() => {
         // No background of its own: a placeholder cover is a transparent tile
         // that Global/cover-placeholders.scss tints by its route.
 
-        &:nth-child(1) { left: 0; transform: rotate(-12deg); }
-        &:nth-child(2) { left: 4rem; bottom: 0.9rem; transform: rotate(-3deg); }
-        &:nth-child(3) { left: 8rem; transform: rotate(8deg); }
+        &:first-child {
+          margin-left: 0;
+        }
+
+        // Tilt and lift, one per slot.
+        &:nth-child(1) { transform: rotate(-5deg); }
+        &:nth-child(2) { transform: translateY(-10px) rotate(3deg); }
+        &:nth-child(3) { transform: translateY(-4px) rotate(-2deg); }
+        &:nth-child(4) { transform: translateY(-14px) rotate(4deg); }
+        &:nth-child(5) { transform: translateY(-2px) rotate(-4deg); }
+        &:nth-child(6) { transform: translateY(-8px) rotate(2deg); }
+        &:nth-child(7) { transform: rotate(-3deg); }
+
+        // Hidden until the card is wide enough for them (see the queries below).
+        &:nth-child(n + 4) {
+          display: none;
+        }
       }
 
+      // Artists stand as round portraits, not sleeves.
       &.round img {
         border-radius: 50%;
+      }
+    }
+
+    // The board: the crate's front edge, full width, across the bottom. It
+    // paints over the covers' lower part. Its fill is a darker shade of the
+    // card's own fill, read through `--row-fill`, so the hover swap carries over.
+    .board {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 1rem;
+      border-top: $candy-border;
+      background-color: color-mix(in srgb, var(--row-fill) 75%, #{$mem-ink});
+      pointer-events: none;
+    }
+
+    // The label on the board: a small white ticket with an ink frame.
+    .tag {
+      padding: 0.15rem 0.5rem;
+      border: $mem-ring-w solid $mem-ink;
+      border-radius: 5px;
+      background-color: $mem-panel-static;
+      color: $mem-ink;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    // How many sleeves show, by the card's CONTENT width (a container query
+    // measures the content box, so the 1rem padding on each side is not
+    // counted). Measured on the demo instance, every 7px from 901 to 2560px
+    // viewport (the sidebar open): each threshold is the narrowest card at
+    // which one more sleeve still starts right of the name and count, with
+    // ~15px to spare. Above 700px the sleeves grow instead: seven 7.5rem
+    // sleeves left ~190px of a 2560px card empty.
+    @container (min-width: 420px) {
+      .covers img:nth-child(4) { display: block; }
+    }
+    @container (min-width: 490px) {
+      .covers img:nth-child(5) { display: block; }
+    }
+    @container (min-width: 550px) {
+      .covers img:nth-child(6) { display: block; }
+    }
+    @container (min-width: 620px) {
+      .covers img:nth-child(7) { display: block; }
+    }
+    @container (min-width: 700px) {
+      .covers { --cover: 8.5rem; }
+    }
+
+    // Narrow cards (the 901–1200px sidebar column holds them): three full
+    // sleeves would reach in under the name and count. Up to 310px the row
+    // shrinks to 0.8 and still starts right of them. Below that nothing fits
+    // beside the label, so the row stands lower instead, deeper in the crate
+    // and below the count. This replaces the old viewport rule for
+    // 901–1200px: what decides the overlap is the card's own width.
+    @container (max-width: 360px) {
+      .covers {
+        transform: scale(0.8);
+        transform-origin: bottom right;
+      }
+    }
+    @container (max-width: 310px) {
+      .covers {
+        bottom: 0.4rem;
+        transform: scale(0.62);
       }
     }
   }
@@ -280,18 +417,11 @@ onMounted(() => {
     color: var(--mem-hover-text);
   }
 
-  // A narrow desktop column (901–1200px, sidebar open: ~280px a card): the
-  // fixed 15rem fan would reach under the name and count, so it shrinks
-  // from its bottom-right anchor.
-  @media only screen and (min-width: 901px) and (max-width: 1200px) {
-    .browseitem .fan {
-      transform: scale(0.75);
-      transform-origin: bottom right;
-    }
-  }
-
-  // Phones: the two crates side by side, each smaller, the fan scaled down
-  // with it (its anchor is the card's bottom right, so it stays in place).
+  // Phones: the two crates side by side, each smaller. The row is scaled down
+  // from its bottom-right anchor, so it stays in the card's corner, and the
+  // board and its label shrink with the card. The card stays 9rem tall. The
+  // narrow-card container rule above also applies here; this block comes later
+  // and wins with the phone's own scale.
   @include mediumPhones {
     .browselist {
       gap: 0.75rem;
@@ -306,10 +436,24 @@ onMounted(() => {
         font-size: 1.2rem;
       }
 
-      .fan {
-        right: 0.25rem;
-        transform: scale(0.55);
+      .covers {
+        right: 0.75rem;
+        // Lower than on the desktop (0.5rem instead of 1.2rem), so more of each
+        // sleeve stands behind the board: at 1.2rem the scaled row reached up
+        // under the count pill on a 390px phone.
+        bottom: 0.5rem;
+        transform: scale(0.5);
         transform-origin: bottom right;
+      }
+
+      .board {
+        height: 1.8rem;
+        padding: 0 0.75rem;
+      }
+
+      .tag {
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
       }
     }
   }
