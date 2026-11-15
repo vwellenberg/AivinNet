@@ -16,9 +16,10 @@ const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMus
       },
     }),
     // The queue's `playing` flag decides ON AIR (the player is playing).
-    queueMock: reactive({ playing: false }),
+    queueMock: reactive({ playing: false, currentindex: 0 }),
     // Where the queue came from: ON AIR also needs it to be the tuned station.
-    tracklistMock: reactive({ from: {} as { type?: string; id?: unknown } }),
+    // `tracklist` is the queue's list: the now-playing column reads its current track.
+    tracklistMock: reactive({ from: {} as { type?: string; id?: unknown }, tracklist: [] as any[] }),
     tuneStation: vi.fn(async () => {}),
     resumeMusic: vi.fn(),
     muteForTuning: vi.fn(),
@@ -85,7 +86,9 @@ describe('RadioDial', () => {
         muteForTuning.mockClear()
         crackle.mockClear()
         queueMock.playing = false
+        queueMock.currentindex = 0
         tracklistMock.from = {}
+        tracklistMock.tracklist = []
         settingsMock.radio_open = false
     })
 
@@ -352,17 +355,63 @@ describe('RadioDial', () => {
         expect(w.find('.radio-legend').text()).not.toContain('SEASON')
     })
 
-    it('shows the neighbour stations, and nothing past the ends of the dial', async () => {
+    it('has no neighbours row: nothing says what comes next', async () => {
         const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']))
-        const nbr = () => w.find('.radio-nbr').findAll('span').map(s => s.text())
-
-        expect(nbr()).toEqual(['', 'Mix 2 ▸'])
-
         await dial(w).trigger('keydown', { key: 'ArrowRight' })
-        expect(nbr()).toEqual(['◂ Mix 1', 'Mix 3 ▸'])
 
-        await dial(w).trigger('keydown', { key: 'End' })
-        expect(nbr()).toEqual(['◂ Mix 2', ''])
+        expect(w.find('.radio-nbr').exists()).toBe(false)
+        expect(w.text()).not.toContain('▸')
+        expect(w.text()).not.toContain('◂')
+    })
+
+    it('keeps the level meter: the now-playing column sits beside the readout, not in place of it', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.find('.radio-level').exists()).toBe(true)
+        expect(w.get('.radio-display .radio-readout .radio-level').exists()).toBe(true)
+        expect(w.get('.radio-display > .radio-now').exists()).toBe(true)
+    })
+
+    it('while ON AIR the now-playing column names the track and its artists, from the queue', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+        tracklistMock.tracklist = [
+            {
+                id: 't1',
+                title: 'Blue in Green',
+                image: 'a1b2c3d4e5f6.webp?pathhash=9f8e7d6c',
+                artists: [{ name: 'Miles Davis' }, { name: 'Bill Evans' }],
+            },
+        ]
+        queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix1' }
+        await dial(w).trigger('keydown', { key: 'ArrowRight' })
+        tracklistMock.from = { type: 'playlist', id: 'mix2' }
+        await w.vm.$nextTick()
+
+        expect(w.get('.radio-now-label').text()).toBe('NOW PLAYING')
+        expect(w.get('.radio-now-title').text()).toBe('Blue in Green')
+        expect(w.get('.radio-now-artist').text()).toBe('Miles Davis, Bill Evans')
+        expect(w.get('.radio-now-cover').attributes('src')).toContain('a1b2c3d4e5f6.webp?pathhash=9f8e7d6c')
+        expect(w.find('.radio-now-idle').exists()).toBe(false)
+    })
+
+    it('shows no "next" line in the now-playing column', async () => {
+        queueMock.playing = true
+        tracklistMock.from = { type: 'playlist', id: 'mix1' }
+        tracklistMock.tracklist = [{ id: 't1', title: 'Blue in Green', image: 'None', artists: [{ name: 'Miles Davis' }] }]
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.get('.radio-now').text()).not.toMatch(/next/i)
+    })
+
+    it('otherwise the now-playing column asks the listener to turn the knob', async () => {
+        tracklistMock.tracklist = [{ id: 't1', title: 'Blue in Green', image: 'None', artists: [{ name: 'Miles Davis' }] }]
+        queueMock.playing = true
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.get('.radio-now-idle').text()).toBe('Turn the knob')
+        expect(w.find('.radio-now-title').exists()).toBe(false)
+        expect(w.text()).not.toContain('Blue in Green')
     })
 
     it('the air state reads STANDBY, then ON AIR once music plays from the tuned station, then TUNING while dragged', async () => {

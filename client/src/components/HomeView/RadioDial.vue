@@ -33,6 +33,7 @@
       <div v-if="open" id="radio-body" class="radio-body">
         <!-- The readout: the station under the knob, big. It follows a drag. -->
         <div class="radio-display" aria-hidden="true">
+          <div class="radio-readout">
           <div class="radio-top">
             <span
               v-if="display.station"
@@ -54,9 +55,20 @@
               <i v-for="n in 7" :key="n"></i>
             </span>
           </div>
-          <div class="radio-nbr">
-            <span>{{ neighbourPair.prev ? '◂ ' + neighbourPair.prev.name : '' }}</span>
-            <span>{{ neighbourPair.next ? neighbourPair.next.name + ' ▸' : '' }}</span>
+          </div>
+          <!-- Wide screens only (the container query in the styles): what plays now. -->
+          <div class="radio-now">
+            <template v-if="air === 'on' && nowTrack">
+              <span class="radio-now-label">NOW PLAYING</span>
+              <div class="radio-now-body">
+                <img v-if="nowCover" class="radio-now-cover" :src="nowCover" alt="" loading="lazy" />
+                <div class="radio-now-text">
+                  <span class="radio-now-title">{{ nowTrack.title }}</span>
+                  <span class="radio-now-artist">{{ nowArtists }}</span>
+                </div>
+              </div>
+            </template>
+            <span v-else class="radio-now-idle">Turn the knob</span>
           </div>
         </div>
 
@@ -122,6 +134,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import ExpandSvg from '@/assets/icons/expand.svg'
+import { paths } from '@/config'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
 import useSettings from '@/stores/settings'
@@ -140,7 +153,6 @@ import {
   KNOB_PX_PER_STATION,
   kindsOnDial,
   litBezelTick,
-  neighbours,
   playsStation,
   prefersReducedMotion,
   snapIndex,
@@ -276,7 +288,14 @@ const display = computed(() => {
   }
 })
 
-const neighbourPair = computed(() => neighbours(stations.value, display.value.at))
+// What plays now: the queue's current track. Read from the list, not from
+// `queue.currenttrack`, whose getter fires a favourite request on every read.
+const nowTrack = computed(() => tracklist.tracklist[queue.currentindex] ?? null)
+const nowCover = computed(() => {
+  const image = nowTrack.value?.image
+  return image && image !== 'None' ? paths.images.thumb.small + image : ''
+})
+const nowArtists = computed(() => (nowTrack.value?.artists ?? []).map(artist => artist.name).join(', '))
 
 // ON AIR only while the queue still plays the tuned station: an album started
 // from its own page afterwards is not the radio, whatever `tuned` remembers.
@@ -382,7 +401,9 @@ $glass-glow: mem-alpha($mem-lavender, 0.55);
 $glass-edge: mem-alpha($mem-paper, 0.14);
 
 .radio-card {
-  // The page's own edge, like the Browse tiles above the rows.
+  // The page's own edge, like the Browse tiles above the rows. A size container:
+  // the now-playing column is a container query on it (wide screens only).
+  container-type: inline-size;
   padding: 0 0 1.5rem;
 
   // Station kinds: one colour each, read through `--kind` by every part that
@@ -555,9 +576,8 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // The display: dark glass, the readout of the station under the knob.
   .radio-display {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
+    align-items: stretch;
+    gap: 0.9rem;
     min-width: 0;
     min-height: 7rem;
     padding: 0.55rem 1rem 0.6rem;
@@ -566,6 +586,89 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     border: $candy-border;
     border-radius: $candy-radius-sm;
     box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
+  }
+
+  .radio-readout {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  // The now-playing column: a dashed divider, then what plays, beside the readout.
+  // Wide screens only: below ~760 px the card is a phone's and the column is gone.
+  .radio-now {
+    display: none;
+  }
+
+  @container (min-width: 760px) {
+    .radio-now {
+      display: flex;
+      flex: 0 0 14.5rem;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+      padding-left: 0.9rem;
+      border-left: $mem-hairline-w dashed $glass-dim;
+    }
+  }
+
+  .radio-now-label {
+    color: $glass-dim;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  .radio-now-body {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .radio-now-cover {
+    flex: none;
+    width: 4.6rem;
+    height: 4.6rem;
+    object-fit: cover;
+    border: $mem-ring-w solid $glass-dim;
+    border-radius: $candy-radius-xs;
+  }
+
+  .radio-now-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .radio-now-title {
+    overflow: hidden;
+    color: $glass-text;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .radio-now-artist {
+    overflow: hidden;
+    color: $glass-dim;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .radio-now-idle {
+    color: $glass-dim;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
 
   .radio-top {
@@ -775,27 +878,6 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
 
     .radio-level.is-on i:nth-child(odd) {
       transform: scaleY(0.35);
-    }
-  }
-
-  // The neighbours: what the next turn brings, either side.
-  .radio-nbr {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 6px;
-    padding-top: 5px;
-    border-top: $mem-hairline-w dashed $glass-dim;
-    color: $glass-dim;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-
-    span {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
   }
 

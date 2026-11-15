@@ -13,7 +13,6 @@ import {
     knobAngle,
     knobDragPosition,
     litBezelTick,
-    neighbours,
     prefersReducedMotion,
     snapIndex,
     stationFraction,
@@ -343,16 +342,3 @@ describe('knobAngle and the knob drag', () => {
     })
 })
 
-describe('neighbours (the stations either side)', () => {
-    const stations = [
-        { id: 'a', kind: 'mix' as const, name: 'A' },
-        { id: 'b', kind: 'mix' as const, name: 'B' },
-        { id: 'c', kind: 'mix' as const, name: 'C' },
-    ]
-
-    it('names the station before and after, and nothing past the ends', () => {
-        expect(neighbours(stations, 1)).toEqual({ prev: stations[0], next: stations[2] })
-        expect(neighbours(stations, 0)).toEqual({ prev: null, next: stations[1] })
-        expect(neighbours(stations, 2)).toEqual({ prev: stations[1], next: null })
-    })
-})

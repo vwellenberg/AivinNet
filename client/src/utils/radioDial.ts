@@ -236,11 +236,3 @@ export function bezelTick(index: number): { x1: number; y1: number; x2: number; 
         major,
     }
 }
-
-/** The stations either side of the one at `index`: null at the ends of the dial. */
-export function neighbours(stations: Station[], index: number): { prev: Station | null; next: Station | null } {
-    return {
-        prev: index > 0 ? (stations[index - 1] ?? null) : null,
-        next: index < stations.length - 1 ? (stations[index + 1] ?? null) : null,
-    }
-}
