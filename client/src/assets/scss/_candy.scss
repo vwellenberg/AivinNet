@@ -1535,18 +1535,13 @@ $mem-label-clear: 20rem !default;
 // reason; that is the pattern to copy, not `::before`.
 // ---------------------------------------------------------------------------
 @mixin mem-now-playing-row($radius: $candy-radius-sm) {
-  // The pseudo-elements carry the corners themselves (`$inner` below) instead
+  // The pseudo-elements carry the corners themselves (`inherit` below) instead
   // of the row clipping: `overflow: hidden` here clipped EVERYTHING that leaves
   // the row, and the playing row was the one row whose rating picker opened
   // into nothing — the next row showed through where the stars should be
   // (user, 2026-11-15). Popups hang off rows; the row must not clip.
   position: relative;
   @include candy-box(var(--look-playing-fill, #{$mem-yellow}), $radius);
-
-  // The padding box's corner: what `overflow: hidden` used to clip to. The
-  // pseudo-elements sit inside the frame, so their curve is the frame's minus
-  // its width (a negative result clamps to 0).
-  $inner: calc(#{$radius} - #{$candy-border-w});
 
   // The row's own content sits ABOVE the texture: a positioned pseudo-element
   // paints over static in-flow children, so without this the sprinkle would
@@ -1560,7 +1555,11 @@ $mem-label-clear: 20rem !default;
     content: "";
     position: absolute;
     inset: 0;
-    border-radius: $inner;
+    // The row's ACTUAL corners, not `$radius`: a host may square the row
+    // (the song-list inlay sets `border-radius: 0`, app-grid.scss), and a
+    // computed curve then rounded the band on a square row (measured). Inset
+    // by the frame, the same radius stays inside the frame's inner curve.
+    border-radius: inherit;
     pointer-events: none;
     opacity: 0.34;
     @include mem-sprinkle(42px);
@@ -1589,8 +1588,9 @@ $mem-label-clear: 20rem !default;
     top: 0;
     bottom: 0;
     width: 10px;
-    // Only the leading corners: the band hugs the row's left edge.
-    border-radius: $inner 0 0 $inner;
+    // Only the leading corners, the row's actual ones (see `::before`).
+    border-top-left-radius: inherit;
+    border-bottom-left-radius: inherit;
     pointer-events: none;
     background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><path d="M0 0 H3 L10 7 L3 14 H0 Z" fill="%2317171A"/></svg>'));
     background-size: 10px 14px;

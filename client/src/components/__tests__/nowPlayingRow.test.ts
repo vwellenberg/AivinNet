@@ -163,9 +163,12 @@ describe("now-playing row", () => {
     expect(mixin).toContain("::before");
     expect(mixin).not.toMatch(/overflow(-[xy])?\s*:\s*(hidden|clip)/);
     expect(mixin).not.toMatch(/contain\s*:\s*[^;]*paint/);
-    // Both ornaments round their own corners instead.
-    expect(blockFor(mixin, "&::before")).toMatch(/border-radius\s*:/);
-    expect(blockFor(mixin, "&::after")).toMatch(/border-radius\s*:/);
+    // Both ornaments round their own corners instead — the row's ACTUAL ones
+    // (`inherit`): the song-list inlay squares the row, and a radius computed
+    // from the mixin's parameter rounded the band on a square row.
+    expect(blockFor(mixin, "&::before")).toMatch(/border-radius\s*:\s*inherit/);
+    expect(blockFor(mixin, "&::after")).toMatch(/border-top-left-radius\s*:\s*inherit/);
+    expect(blockFor(mixin, "&::after")).toMatch(/border-bottom-left-radius\s*:\s*inherit/);
   });
 
   // The ornament's once-only latch (utils/arrivalLatch.ts) is RELEASED when the
