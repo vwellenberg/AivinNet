@@ -45,6 +45,7 @@ const REGIONS: Record<string, string> = {
   "components/shared/AlbumCard.vue": "an event stopper inside the card, so the artist line does not open the album",
   "components/shared/ArtistName.vue": "an event stopper around router links",
   "components/shared/SongItem/TrackTitle.vue": "the track row itself is the control; these repeat its action",
+  "components/HomeView/RadioDial.vue": "the radio housing opens and closes on a click (user, 2026-11-15); the toggle <button> in it is the control for keyboards and readers",
 };
 
 /** Genuine controls still to convert — with why each was not mechanical. */

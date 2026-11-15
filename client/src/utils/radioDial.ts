@@ -199,30 +199,6 @@ export function bandLabels(): { fraction: number; label: string }[] {
     return BAND_LABELS_MHZ.map(mhz => ({ fraction: bandFraction(mhz), label: String(mhz) }))
 }
 
-/** A stretch of the kind's colour on the band: from one fraction to another. */
-export interface KindBand {
-    kind: StationKind
-    from: number
-    to: number
-}
-
-/**
- * One coloured segment per kind on the dial, from half a step before its first
- * station to half a step after its last. A lone station gets a small segment
- * around its place.
- */
-export function kindBands(stations: Station[]): KindBand[] {
-    const count = stations.length
-    const half = count > 1 ? 0.5 / (count - 1) : 0.05
-    return KIND_ORDER.flatMap(kind => {
-        const at = stations.flatMap((station, i) => (station.kind === kind ? [i] : []))
-        if (at.length === 0) return []
-        const first = stationFraction(at[0], count)
-        const last = stationFraction(at[at.length - 1], count)
-        return [{ kind, from: Math.max(0, first - half), to: Math.min(1, last + half) }]
-    })
-}
-
 /** The kinds that have a station on the dial, in dial order: the legend lists these. */
 export function kindsOnDial(stations: Station[]): StationKind[] {
     return KIND_ORDER.filter(kind => stations.some(station => station.kind === kind))
