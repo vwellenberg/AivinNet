@@ -21,11 +21,14 @@
                 />
             </div>
         </div>
+        <!-- Right under "Continue listening" (user, 2026-11-15): Albums and
+             Artists have no navigation entry, so the way to them must be quick
+             to reach, ahead of the radio. -->
+        <Browse />
         <!-- Subspace radio (#542, #640): mixes, genre and decade stations. It
              stays away while there are only mixes, which the row below already
              shows (utils/radioDial.ts::dialIsWorthShowing). -->
         <RadioDial />
-        <Browse />
         <PageItem
             v-for="item in home.homepageItems"
             :key="item.key"
