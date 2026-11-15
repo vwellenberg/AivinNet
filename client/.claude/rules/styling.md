@@ -678,12 +678,16 @@ zwei Hälften, sobald die Navigation Platten bekam.
   darauf blendet also auch den eigenen Scrollbalken aus. Die Maske hat deshalb eine zweite,
   deckende Ebene über dem rechten 12-px-Streifen, in dem der Balken läuft und keine Zeile.
 - **Browse Library ist eine Plattenkiste** (2026-11-15, „Kacheln wirken auf größeren
-  Bildschirmen leer“): zwei Karten mit Anzahl, einer Reihe Cover hinter einem Vorderbrett und
-  einem Etikett darauf („NEW IN“ / „MOST PLAYED“), geladen über `GET /getall/<typ>?limit=7`. Wie
-  viele Cover stehen, entscheiden Container-Queries an der **Karte**, nicht am Viewport. Die
-  Schwellen sind gemessen (Viewport 901–2560 px in 7-px-Schritten, Sidebar offen): Kein Cover
-  reicht oberhalb der Anzahl unter Name und Anzahl. Unter 310 px Kartenbreite passt nichts
-  daneben, dort steht die Reihe tiefer in der Kiste statt kleiner. Unter „MOST PLAYED“ steht nie
+  Bildschirmen leer“, Nachtrag „füllender, fächerartig, ein Album ohne eigenes Bild darf nicht
+  erscheinen“): zwei Karten mit Anzahl und einem Vorderbrett mit Etikett („NEW IN“ / „MOST
+  PLAYED“). Der Name sitzt als **Sticker** oben links (Fläche `--row-fill`, Ink-Rahmen, harter
+  Schatten, **keine** Schraffur) und liegt über den Covers. Die Cover fächern über die **volle
+  Kartenbreite**, auch unter dem Namen: Größe `round(Höhe × 0.62)`, Anzahl, Abstand und Neigung
+  rechnet `utils/crateFan.ts` aus der gemessenen Karte (`useElementSize` auf der Liste, Breite =
+  (Listenbreite − Spalte) / 2). Die Reihe steht unten mit 40 % der Brettshöhe hinter dem Brett.
+  Geladen wird `GET /getall/<typ>?limit=16`; jedes Bild, zu dem der Server per HEAD
+  `X-Aivinnet-Placeholder` meldet, fällt weg (`coverIsPlaceholder`), der Rest ist auf 12 begrenzt.
+  Bleibt nichts mit Bild übrig, gibt es weder Cover noch Brett. Unter „MOST PLAYED“ steht nie
   ein Artist ohne Plays: Die Sortierung nach Plays liefert die ungespielten in beliebiger
   Reihenfolge mit.
 - **Die Beschriftung IST der Trenner** (#422). Über LIBRARY stand eine 1-px-Haarlinie in Grau —

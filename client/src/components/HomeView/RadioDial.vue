@@ -2,18 +2,33 @@
   <section v-if="dialIsWorthShowing(stations)" class="radio-card">
     <!-- One housing, one plate: it arrives as a whole, its parts get no arrival
          of their own (styling.md, "Eine segmentierte Leiste kommt als EIN Objekt"). -->
-    <div class="radio-case" :class="{ 'is-still': still }">
+    <div class="radio-case" :class="{ 'is-still': still, 'is-open': open }">
       <div class="radio-head">
         <div class="radio-title"><b>AivinNet FM</b></div>
-        <div class="radio-legend" aria-hidden="true">
+        <!-- Folded: the strip says the radio plays, and nothing else. -->
+        <span v-if="!open && onAirStation" class="radio-onair" aria-hidden="true">
+          <i class="radio-onair-lamp"></i>ON AIR · {{ onAirStation }}
+        </span>
+        <div v-if="open" class="radio-legend" aria-hidden="true">
           <span v-for="kind in legend" :key="kind">
             <i :class="'kind-' + kind"></i>{{ KIND_LABEL[kind] }}
           </span>
           <span class="radio-band-range">FM 87.5–108</span>
         </div>
+        <button
+          type="button"
+          class="radio-toggle"
+          :class="{ 'is-open': open }"
+          :aria-expanded="open ? 'true' : 'false'"
+          :aria-controls="open ? 'radio-body' : undefined"
+          :aria-label="open ? 'Close radio' : 'Open radio'"
+          @click="toggleOpen"
+        >
+          <ExpandSvg />
+        </button>
       </div>
 
-      <div class="radio-body">
+      <div v-if="open" id="radio-body" class="radio-body">
         <div class="radio-grille" aria-hidden="true"></div>
 
         <!-- The readout: the station under the needle, big. It follows a drag. -->
@@ -148,8 +163,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
+import ExpandSvg from '@/assets/icons/expand.svg'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
+import useSettings from '@/stores/settings'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import {
@@ -191,6 +208,20 @@ import type { Station } from '@/utils/radioDial'
 const home = useHome()
 const queue = useQueue()
 const tracklist = useTracklist()
+const settings = useSettings()
+// Folded by default (Home declutter, 2026-11-15); the choice is per device.
+const open = computed(() => settings.radio_open)
+function toggleOpen() {
+  // Folding mid-drag removes the scale and the knob under the pointer, so
+  // their pointerup never comes: end the drag here, unmute, keep the station.
+  if (drag.value !== null) {
+    drag.value = null
+    dragTarget = null
+    position.value = index.value
+    resumeMusic()
+  }
+  settings.setRadioOpen(!settings.radio_open)
+}
 const stations = ref<Station[]>(stationsFromList(home.stations))
 
 /**
@@ -227,6 +258,15 @@ const still = ref(false)
 
 onMounted(() => {
   still.value = prefersReducedMotion()
+  // Back on Home while a station plays (another page, a reload): the queue
+  // still comes from its playlist, so the dial rests on it and the folded
+  // strip says ON AIR. `tuned` alone lives only as long as this component.
+  const playing = stations.value.findIndex(station => playsStation(tracklist.from, station.id))
+  if (playing >= 0) {
+    tuned.value = playing
+    index.value = playing
+    position.value = playing
+  }
 })
 
 // A new list from Home's answer (a refetch, a season change): keep the station
@@ -283,6 +323,8 @@ const air = computed(() =>
   })
 )
 const airText = computed(() => AIR_TEXT[air.value])
+// The name of the station on air: the folded strip shows it.
+const onAirStation = computed(() => (air.value === 'on' ? (stations.value[tuned.value]?.name ?? '') : ''))
 // Signal only while the radio is on or being tuned: full bars beside STANDBY
 // contradicted each other.
 const bars = computed(() => (air.value === 'off' ? 0 : signalBars(position.value)))
@@ -439,6 +481,15 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
+  // Folded: the housing is the strip alone, a shorter plate, nothing below it.
+  .radio-case:not(.is-open) {
+    padding: 0.5rem 0.9rem;
+
+    > .radio-head {
+      margin-bottom: 0;
+    }
+  }
+
   // The header strip: the sticker, the legend of the kinds on the dial, the band.
   .radio-head {
     display: flex;
@@ -486,6 +537,43 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     background: $mem-ink;
     color: $glass-text;
     font-variant-numeric: tabular-nums;
+  }
+
+  // Folded strip: the glass chip with the station on air, lamp first.
+  .radio-onair {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 2px 8px;
+    border-radius: $candy-radius-xs;
+    background: $mem-ink;
+    color: $glass-text;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .radio-onair-lamp {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $mem-coral;
+  }
+
+  // The disclosure button: the shared action plate, 44 px like the chrome.
+  // The chevron points right folded and down open; it turns, it is not scaled.
+  .radio-toggle {
+    @include btn-action;
+    margin-left: auto;
+  }
+
+  .radio-toggle.is-open svg {
+    transform: rotate(90deg);
   }
 
   // Grille, display, scale, knob: four columns on a desktop, the grille gone
