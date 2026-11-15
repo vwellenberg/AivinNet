@@ -34,10 +34,30 @@ describe("a lone glyph is drawn heavy enough", () => {
     expect((stroke * rem * 16) / grid).toBeGreaterThanOrEqual(2);
   });
 
-  it("the sidebar pin takes it instead of a literal", () => {
-    const pin = block(SIDEBAR, ".pl-pin");
+  // Both sidebar pins, playlist and folder: they stand in one column, and the
+  // folder pin kept the old 0.95rem literal after the playlist pin moved to the
+  // token, so it drew visibly smaller in the same column (user, 2026-11-15).
+  it.each([".pl-pin", ".folder-pin"])("the sidebar pin %s takes it instead of a literal", (selector) => {
+    const pin = block(SIDEBAR, selector);
     expect(pin).toMatch(/width: \$glyph-lone;/);
     expect(pin).toMatch(/height: \$glyph-lone;/);
+  });
+});
+
+describe("the folder head's chevron", () => {
+  // It stood at 0.7rem next to the 1.25rem pin: an arrow with a ~1px stroke
+  // beside a 2px one, reported as "too thin" (user, 2026-11-15). Scaling the
+  // arrow up to reach 2px made it the loudest thing in the row; the chrome
+  // set's disclosure chevron (expand.svg) reaches it at the same size as the pin.
+  it("is the disclosure chevron, not the arrow", () => {
+    expect(SIDEBAR).toMatch(/import FolderChevronSvg from "@\/assets\/icons\/expand\.svg";/);
+    expect(SIDEBAR).toMatch(/<FolderChevronSvg class="folder-chevron"/);
+  });
+
+  it("takes the lone-glyph size", () => {
+    const chevron = block(SIDEBAR, ".folder-chevron");
+    expect(chevron).toMatch(/width: \$glyph-lone;/);
+    expect(chevron).toMatch(/height: \$glyph-lone;/);
   });
 });
 
