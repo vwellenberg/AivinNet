@@ -1,28 +1,32 @@
 <template>
   <div class="side-nav-container">
-    <router-link
-      v-for="(menu, index) in items"
-      :key="index"
-      :to="{
-        name: menu.route_name || '',
-        params: menu?.params,
-        query: menu.query && menu.query(),
-      }"
-      class="nav-item"
-      :class="[
-        menu.tint,
-        {
-          separator: menu.separator,
-          active: $route.name === menu.route_name,
-        },
-      ]"
-      @click="menu.action && menu.action()"
-    >
-      <div v-if="!menu.separator">
-        <component :is="menu.icon" />
-        <span>{{ menu.name }}</span>
-      </div>
-    </router-link>
+    <template v-for="(menu, index) in items" :key="index">
+      <!-- The separator is not a link: it was a router-link to an empty route
+           name, harmless while it was an invisible 1px spacer, but the bobble is
+           visible and was focusable and clickable (a "No match" navigation). -->
+      <div v-if="menu.separator" class="nav-item separator" role="separator"></div>
+      <router-link
+        v-else
+        :to="{
+          name: menu.route_name || '',
+          params: menu?.params,
+          query: menu.query && menu.query(),
+        }"
+        class="nav-item"
+        :class="[
+          menu.tint,
+          {
+            active: $route.name === menu.route_name,
+          },
+        ]"
+        @click="menu.action && menu.action()"
+      >
+        <div>
+          <component :is="menu.icon" />
+          <span>{{ menu.name }}</span>
+        </div>
+      </router-link>
+    </template>
   </div>
 </template>
 
@@ -222,24 +226,31 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   .nav-item.separator {
     height: 1px;
     padding: 0;
+    // Not a control: no pointer, no hover plate (it shares `.nav-item` for
+    // the column's layout only).
+    pointer-events: none;
+    cursor: default;
     border: none;
     background: none;
     box-shadow: none;
 
-    // On the desktop sidebar the spacer is a short ink dash between the two
-    // groups (user, 2026-11-14: "kleiner Trenner"), centred under the plates.
-    // A full-width line would read as one more frame; a dash in the frame's
-    // own weight reads as a pause. The two row gaps plus the dash plus its
-    // margins make $sidebar-group-gap. Phones lay this list out as a row and
-    // hide the separator (below).
+    // On the desktop sidebar the spacer is a "bobble" between the two groups
+    // (user pick from a preview, 2026-11-15): a yellow dot with the plates'
+    // frame and offset, like a piece of the confetti on the page ground. A
+    // line would read as one more frame; a dot reads as a pause. Frame, fill
+    // and shadow go through the look tokens like every plate (a look without
+    // tints shows a ring). Centred under the plates; the two row gaps plus the
+    // dot plus its margins make $sidebar-group-gap. Phones hide it (below).
     @media only screen and (min-width: 901px) {
-      $dash: $candy-border-w;
+      $dot: 1rem;
       align-self: center;
-      width: 2.5rem;
-      height: $dash;
-      border-radius: $candy-radius-pill;
-      background-color: $mem-line;
-      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dash}) / 2);
+      width: $dot;
+      height: $dot;
+      border: $candy-border;
+      border-radius: 50%;
+      background-color: var(--look-tint, #{$mem-yellow});
+      box-shadow: mem-shadow(3px, 3px);
+      margin-block: calc((#{$sidebar-group-gap} - 2 * #{$small} - #{$dot}) / 2);
     }
   }
 

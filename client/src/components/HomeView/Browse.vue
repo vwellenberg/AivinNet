@@ -3,75 +3,125 @@
     <div class="btitle"><b>Browse Library</b></div>
     <div class="browselist">
       <RouterLink
-        v-for="i in browselist"
-        :key="i.title"
+        v-for="crate in crates"
+        :key="crate.entity"
         class="browseitem rounded-sm"
-        :to="{ name: i.route || '', params: i.params }"
-        @click="i.action && i.action()"
-        :class="`ent-${i.entity}`"
+        :class="`ent-${crate.entity}`"
+        :to="{ name: crate.route }"
       >
-        <div class="icon">
-          <span class="glyph" v-html="i.icon"></span>
-        </div>
         <div class="label">
-          {{ i.title }}
+          <span class="name">{{ crate.title }}</span>
+          <span v-if="crate.total !== null" class="count">{{ crate.countLabel }}</span>
+        </div>
+        <!-- A fan of what lies behind the card: the three newest albums, the
+             three most-played artists. Decoration — the card's name says
+             where it goes, so the pictures carry no alt text. -->
+        <div v-if="crate.images.length" class="fan" :class="{ round: crate.entity === 'artist' }" aria-hidden="true">
+          <img v-for="(src, i) in crate.images" :key="i" :src="src" alt="" draggable="false" loading="lazy" />
         </div>
       </RouterLink>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import type { RouteParamsRaw } from "vue-router";
+<script lang="ts">
+import { reactive } from "vue";
 
-import { AlbumIcon, ArtistIcon, BookmarkIcon, PlaylistIcon } from "@/icons";
-import { Routes } from "@/router";
+type CrateEntity = "album" | "artist";
 
-// The keys of `$mem-entities` (_candy.scss) a tile can be coloured by.
-type BrowseEntity = "album" | "artist" | "playlist" | "favorite";
-
-// A library shortcut card. `icon` is a raw svg string rendered via `v-html`.
-// `entity` colours the tile's fill (what you will find behind it).
-interface BrowseItem {
-  title: string;
-  route: string;
-  icon: string;
-  entity: BrowseEntity;
-  params?: RouteParamsRaw;
-  action?: () => void;
+interface CrateData {
+  total: number | null;
+  images: string[];
 }
 
-// INFO: Library shortcuts on the home page (every screen since 2026-11-14; the
-// only way to Albums and Artists, which have no navigation entry). Four tiles of
-// one size: the favourites are ONE tile to the Favorites page, which lists
-// tracks, albums and artists itself — three "Fav. …" tiles were three ways
-// into the same page (2026-10-05, the user's call).
-const browselist: BrowseItem[] = [
+// Module scope (a plain <script>, not <script setup>, which runs per
+// instance): a return to Home shows the crates at once instead of name-only
+// cards that fill in after the arrival animation; one request pair per
+// session, and again after a failure. A count that grows while the app is
+// open shows on the next reload.
+const data = reactive<Record<CrateEntity, CrateData>>({
+  album: { total: null, images: [] },
+  artist: { total: null, images: [] },
+});
+
+/** Tests only: forget what was loaded. */
+export function __resetBrowseCrates() {
+  for (const crate of Object.values(data)) {
+    crate.total = null;
+    crate.images = [];
+  }
+}
+</script>
+
+<script setup lang="ts">
+import { computed, onMounted } from "vue";
+
+import { paths } from "@/config";
+import { getAllItems } from "@/requests/getall";
+import { Routes } from "@/router";
+
+// Home's way into the two library lists (Albums and Artists have no
+// navigation entry since 2026-11-14). A "crate" per list: its name, how many
+// there are, and a fan of three pictures from it — the user picked this over
+// four plain bars ("so irgendwie etwas lahm"). Playlists and Favorites are
+// not here: they keep their navigation entries.
+
+const crates = computed(() => [
   {
+    entity: "album" as const,
     title: "Albums",
-    entity: "album",
     route: Routes.AlbumList,
-    icon: AlbumIcon,
+    ...data.album,
+    countLabel: countLabel(data.album.total, "album"),
   },
   {
+    entity: "artist" as const,
     title: "Artists",
-    entity: "artist",
     route: Routes.ArtistList,
-    icon: ArtistIcon,
+    ...data.artist,
+    countLabel: countLabel(data.artist.total, "artist"),
   },
-  {
-    title: "Playlists",
-    entity: "playlist",
-    route: Routes.playlists,
-    icon: PlaylistIcon,
-  },
-  {
-    title: "Favorites",
-    entity: "favorite",
-    route: Routes.favorites,
-    icon: BookmarkIcon,
-  },
-];
+]);
+
+function countLabel(total: number | null, noun: string) {
+  if (total === null) return "";
+  return `${total.toLocaleString()} ${noun}${total === 1 ? "" : "s"}`;
+}
+
+type Item = { image?: string; help_text?: string };
+
+async function fetchThree(type: "albums" | "artists", sortby: string) {
+  const res = await getAllItems(type, { start: 0, limit: 3, sortby, reverse: "1" });
+  if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
+  return { total: res.data.total, items: res.data.items as Item[] };
+}
+
+// Three of each, through the list endpoint the pages themselves use: the
+// newest albums (what came in last is what one looks for), the most-played
+// artists — or, while nothing has been played yet (every count is 0 and the
+// order would be arbitrary), the newest artists too. A failed request leaves
+// the card as name only: still a working link, nothing half-drawn.
+async function load(entity: CrateEntity) {
+  try {
+    let page =
+      entity === "album" ? await fetchThree("albums", "created_date") : await fetchThree("artists", "playcount");
+    if (entity === "artist" && page && page.items.every((it) => /^0 play/.test(it.help_text || ""))) {
+      page = await fetchThree("artists", "created_date");
+    }
+    if (!page) return;
+
+    const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
+    data[entity].total = typeof page.total === "number" ? page.total : null;
+    data[entity].images = page.items.filter((it) => it.image).map((it) => base + it.image);
+  } catch {
+    // Decoration only: the card works without it.
+  }
+}
+
+onMounted(() => {
+  if (data.album.total === null) load("album");
+  if (data.artist.total === null) load("artist");
+});
 </script>
 
 <style lang="scss">
@@ -98,8 +148,8 @@ const browselist: BrowseItem[] = [
     margin-bottom: 1rem;
   }
 
-  // Two equal columns, so the four tiles form a 2x2 block of ONE size. A
-  // free-wrapping flex row sized each tile by itself.
+  // Two equal columns, so the two crates are ONE size. A free-wrapping flex
+  // row sized each tile by itself.
   .browselist {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -112,9 +162,9 @@ const browselist: BrowseItem[] = [
     min-width: 0;
     font-weight: 500;
     padding: 1.25rem 1rem;
-    // A pressable card carries the hatch (#378). Content sits on smooth cover
-    // patches that read the same `--row-fill` as the tile itself, so a fill
-    // swap can never split surface and cover — the mem-row-plate pattern.
+    // A pressable card carries the hatch (#378). The label sits on a smooth
+    // cover patch that reads the same `--row-fill` as the card itself, so a
+    // fill swap can never split surface and cover — the mem-row-plate pattern.
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
     @include mem-hatch(38px, $on: surface);
@@ -123,7 +173,7 @@ const browselist: BrowseItem[] = [
     color: $candy-text;
     transition: background-color $motion-move ease-out, color $motion-move ease-out, box-shadow $motion-shadow ease-out;
 
-    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): vier
+    // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): zwei
     // Platten nebeneinander, die vorher als einziger Block der Startseite
     // sofort dastanden, während die Reihen darunter eintrafen.
     //
@@ -133,51 +183,85 @@ const browselist: BrowseItem[] = [
     // sich der Überschwinger als Wackeln, gemessen an denselben Kacheln in #162.
     @include mem-arrival;
 
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    place-items: center;
-    gap: $small;
+    // The crate: name and count top left, the fan of pictures leaning out of
+    // the bottom right edge (the card clips it, like a crate's front board).
+    position: relative;
+    overflow: hidden;
+    height: 12rem;
+    display: block;
 
-    .icon,
     .label {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $smaller;
       @include mem-hatch-clear(4px);
     }
 
-    .label {
-      width: 100%;
+    .name {
+      font-family: inherit;
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.1;
     }
 
-    .icon {
-      height: calc(1.75rem + 4px); // glyph + the cover's 2px vertical buffer
+    // The count wears the bar's pill: ink frame on panel, so it reads on any
+    // entity tint and on the hover plate alike.
+    .count {
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.1rem 0.6rem;
+      border: $mem-ring-w solid $mem-ink;
+      border-radius: $candy-radius-pill;
+      background-color: $mem-panel-static;
+      color: $mem-ink;
     }
 
-    svg {
-      height: 1.75rem;
-      // No colour of its own: it inherits the tile's, so the hover flip below
-      // reaches the glyph too. A pinned `$candy-text` here sat ink-on-ink the
-      // moment the hover fill became the contrast surface (#422).
+    // Three pictures, fanned: each one is a little sticker of its own (ink
+    // frame, hard offset), the middle one lifted. Pinned to the bottom right
+    // and half out of the card, so the stack reads as standing IN the crate.
+    .fan {
+      position: absolute;
+      right: 1rem;
+      bottom: -0.6rem;
+      width: 15rem;
+      height: 9rem;
+      pointer-events: none;
+
+      img {
+        position: absolute;
+        bottom: 0;
+        width: 7rem;
+        height: 7rem;
+        object-fit: cover;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        box-shadow: mem-shadow(3px, 3px);
+        // No background of its own: a placeholder cover is a transparent tile
+        // that Global/cover-placeholders.scss tints by its route.
+
+        &:nth-child(1) { left: 0; transform: rotate(-12deg); }
+        &:nth-child(2) { left: 4rem; bottom: 0.9rem; transform: rotate(-3deg); }
+        &:nth-child(3) { left: 8rem; transform: rotate(8deg); }
+      }
+
+      &.round img {
+        border-radius: 50%;
+      }
     }
   }
 
-  .settings svg {
-    color: $candy-text;
-  }
-
-  .reload svg {
-    // INFO: The icons is a bit larger than the others
-    width: 1.25rem;
-  }
-
-  // Colour coding: the tile's FILL is its entity's pastel tint from the
-  // shared palette — the same lavender/coral/pink/yellow an album, artist,
-  // playlist or track wears in the sidebar and the card rows. The shadow stays
-  // ink like every other plate; colour lives on the surface, not the edge.
-  // Through `--row-fill`, so the hatch covers under icon and label take the
-  // same tint (one source, see mem-hatch-clear). The tint is static, so the
+  // Colour coding: the card's FILL is its entity's pastel tint from the
+  // shared palette — the same lavender/lime an album or artist wears in the
+  // card rows. The shadow stays ink like every other plate; colour lives on
+  // the surface, not the edge. Through `--row-fill`, so the cover under the
+  // label takes the same tint (one source, see mem-hatch-clear). The tint is static, so the
   // hatch switches to the accent sprite (ink strokes in both themes) and the
   // text to static ink. Placed BEFORE the hover rule: same specificity, so the
   // hover flip below still wins by order.
-  @each $name in album, artist, playlist, favorite {
+  @each $name in album, artist {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
       @include mem-hatch(38px, $on: accent);
@@ -196,9 +280,18 @@ const browselist: BrowseItem[] = [
     color: var(--mem-hover-text);
   }
 
-  // Phones: two tiles side by side instead of one fixed-width tile per row.
-  // The fixed width has no room at 390px (168px + 24px gap wraps to a single
-  // column), so the grid owns the width and the tiles give theirs up.
+  // A narrow desktop column (901–1200px, sidebar open: ~280px a card): the
+  // fixed 15rem fan would reach under the name and count, so it shrinks
+  // from its bottom-right anchor.
+  @media only screen and (min-width: 901px) and (max-width: 1200px) {
+    .browseitem .fan {
+      transform: scale(0.75);
+      transform-origin: bottom right;
+    }
+  }
+
+  // Phones: the two crates side by side, each smaller, the fan scaled down
+  // with it (its anchor is the card's bottom right, so it stays in place).
   @include mediumPhones {
     .browselist {
       gap: 0.75rem;
@@ -206,8 +299,18 @@ const browselist: BrowseItem[] = [
 
     .browseitem {
       width: auto;
+      height: 9rem;
       padding: 0.9rem 0.75rem;
-      font-size: 0.95rem;
+
+      .name {
+        font-size: 1.2rem;
+      }
+
+      .fan {
+        right: 0.25rem;
+        transform: scale(0.55);
+        transform-origin: bottom right;
+      }
     }
   }
 }
