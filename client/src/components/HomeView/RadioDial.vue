@@ -31,84 +31,51 @@
       </div>
 
       <div v-if="open" id="radio-body" class="radio-body">
-        <!-- The readout: the station under the needle, big. It follows a drag. -->
+        <!-- The readout: the station under the knob, big. It follows a drag. -->
         <div class="radio-display" aria-hidden="true">
-          <div class="radio-top">
-            <span
-              v-if="display.station"
-              class="radio-kind"
-              :class="'kind-' + display.station.kind"
-            >{{ KIND_LABEL[display.station.kind] }}</span>
-            <span class="radio-air" :class="'is-' + air">
-              <i class="radio-lamp"></i>
-              <span>{{ airText }}</span>
-              <span class="radio-signal">
-                <i v-for="n in 4" :key="n" :class="{ on: n <= bars }"></i>
+          <div class="radio-readout">
+            <div class="radio-top">
+              <span
+                v-if="display.station"
+                class="radio-kind"
+                :class="'kind-' + display.station.kind"
+              >{{ KIND_LABEL[display.station.kind] }}</span>
+              <span class="radio-air" :class="'is-' + air">
+                <i class="radio-lamp"></i>
+                <span>{{ airText }}</span>
+                <span class="radio-signal">
+                  <i v-for="n in 4" :key="n" :class="{ on: n <= bars }"></i>
+                </span>
               </span>
-            </span>
+            </div>
+            <div class="radio-freq">{{ display.frequency }}<small>MHz</small></div>
+            <div class="radio-name-row">
+              <span class="radio-display-name">{{ display.station?.name ?? '' }}</span>
+              <span class="radio-level" :class="{ 'is-on': air === 'on' }">
+                <i v-for="n in 7" :key="n"></i>
+              </span>
+            </div>
           </div>
-          <div class="radio-freq">{{ display.frequency }}<small>MHz</small></div>
-          <div class="radio-name-row">
-            <span class="radio-display-name">{{ display.station?.name ?? '' }}</span>
-            <span class="radio-level" :class="{ 'is-on': air === 'on' }">
-              <i v-for="n in 7" :key="n"></i>
-            </span>
-          </div>
-          <div class="radio-nbr">
-            <span>{{ neighbourPair.prev ? '◂ ' + neighbourPair.prev.name : '' }}</span>
-            <span>{{ neighbourPair.next ? neighbourPair.next.name + ' ▸' : '' }}</span>
-          </div>
-        </div>
-
-        <!-- The scale is THE slider: keyboard, wheel and screen readers use it. -->
-        <div
-          ref="scale"
-          class="radio-scale"
-          :class="{ 'is-still': still, 'is-dragging': drag?.mode === 'scale', 'is-tuning': drag !== null }"
-          role="slider"
-          tabindex="0"
-          aria-label="AivinNet FM"
-          :aria-valuemin="1"
-          :aria-valuemax="stations.length"
-          :aria-valuenow="index + 1"
-          :aria-valuetext="valueText"
-          @keydown="onKey"
-          @wheel="onWheel"
-          @pointerdown="onScaleDown"
-          @pointermove="onMove"
-          @pointerup="onUp"
-          @pointercancel="onUp"
-        >
-          <div ref="track" class="radio-track" aria-hidden="true">
-            <span class="radio-line"></span>
-            <span
-              v-for="(tick, i) in ticks"
-              :key="i"
-              class="radio-minor"
-              :class="{ 'is-major': tick.major }"
-              :style="{ left: pct(tick.fraction) }"
-            ></span>
-            <span
-              v-for="label in labels"
-              :key="label.label"
-              class="radio-label"
-              :style="{ left: pct(label.fraction) }"
-            >{{ label.label }}</span>
-            <span
-              v-for="(station, i) in stations"
-              :key="station.id"
-              class="radio-notch"
-              :class="['kind-' + station.kind, { 'is-tuned': i === tuned }]"
-              :style="{ left: pct(stationFraction(i, stations.length)) }"
-            ></span>
-            <span class="radio-needle" :style="{ left: pct(stationFraction(position, stations.length)) }"></span>
+          <!-- Wide screens only (the container query in the styles): what plays now. -->
+          <div class="radio-now">
+            <template v-if="air === 'on' && nowTrack">
+              <span class="radio-now-label">NOW PLAYING</span>
+              <div class="radio-now-body">
+                <img v-if="nowCover" class="radio-now-cover" :src="nowCover" alt="" loading="lazy" />
+                <div class="radio-now-text">
+                  <span class="radio-now-title">{{ nowTrack.title }}</span>
+                  <span class="radio-now-artist">{{ nowArtists }}</span>
+                </div>
+              </div>
+            </template>
+            <span v-else-if="air !== 'on'" class="radio-now-idle">Turn the knob</span>
           </div>
         </div>
 
-        <!-- Decoration for pointers only: the scale above does everything the knob does. -->
-        <div class="radio-knob" :class="{ 'is-still': still, 'is-tuning': drag !== null }" aria-hidden="true">
+        <!-- The knob is THE slider: keyboard, wheel, pointer and screen readers use it. -->
+        <div class="radio-knob" :class="{ 'is-still': still, 'is-tuning': drag !== null }">
           <div class="radio-knob-dial">
-            <svg class="radio-bezel" viewBox="0 0 120 120">
+            <svg class="radio-bezel" viewBox="0 0 120 120" aria-hidden="true">
               <line
                 v-for="tick in bezel"
                 :key="tick.index"
@@ -122,8 +89,18 @@
               <text x="60" y="116" text-anchor="middle">TUNING</text>
             </svg>
             <div
+              ref="grip"
               class="radio-grip"
-              :class="{ 'is-dragging': drag?.mode === 'knob' }"
+              :class="{ 'is-dragging': drag !== null }"
+              role="slider"
+              tabindex="0"
+              aria-label="AivinNet FM"
+              :aria-valuemin="1"
+              :aria-valuemax="stations.length"
+              :aria-valuenow="index + 1"
+              :aria-valuetext="valueText"
+              @keydown="onKey"
+              @wheel="onWheel"
               @pointerdown="onKnobDown"
               @pointermove="onMove"
               @pointerup="onUp"
@@ -157,6 +134,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import ExpandSvg from '@/assets/icons/expand.svg'
+import { paths } from '@/config'
 import { crackle, muteForTuning, resumeMusic, tuneStation } from '@/helpers/radio'
 import useHome from '@/stores/home'
 import useSettings from '@/stores/settings'
@@ -166,11 +144,8 @@ import {
   AIR_TEXT,
   airState,
   BEZEL_TICK_COUNT,
-  bandLabels,
-  bandTicks,
   bezelTick,
   dialIsWorthShowing,
-  dragPosition,
   KIND_LABEL,
   keyTarget,
   knobAngle,
@@ -178,11 +153,9 @@ import {
   KNOB_PX_PER_STATION,
   kindsOnDial,
   litBezelTick,
-  neighbours,
   playsStation,
   prefersReducedMotion,
   snapIndex,
-  stationFraction,
   stationFrequency,
   stationReadout,
   stationsFromList,
@@ -205,8 +178,8 @@ const settings = useSettings()
 const open = computed(() => settings.radio_open)
 /**
  * A click on the housing's bare surface (the head strip, the margins) toggles
- * it. Inside the body it does nothing: tuning on the scale or the knob, or a
- * tap on the display, must never fold the radio away.
+ * it. Inside the body it does nothing: tuning on the knob, or a tap on the
+ * display, must never fold the radio away.
  */
 function onCaseClick(event: MouseEvent) {
   const target = event.target as Element | null
@@ -217,8 +190,8 @@ function onCaseClick(event: MouseEvent) {
 }
 
 function toggleOpen() {
-  // Folding mid-drag removes the scale and the knob under the pointer, so
-  // their pointerup never comes: end the drag here, unmute, keep the station.
+  // Folding mid-drag removes the knob under the pointer, so its pointerup
+  // never comes: end the drag here, unmute, keep the station.
   if (drag.value !== null) {
     drag.value = null
     dragTarget = null
@@ -230,7 +203,7 @@ function toggleOpen() {
 const stations = ref<Station[]>(stationsFromList(home.stations))
 
 /**
- * Put a new list on the dial and keep the station the needle rests on and the
+ * Put a new list on the dial and keep the station the dial rests on and the
  * one playing by their ids: a season's station shifts every index after it.
  */
 function setStations(list: Station[]) {
@@ -244,21 +217,20 @@ function setStations(list: Station[]) {
   if (drag.value === null) position.value = index.value
 }
 
-// The scale is the slider; the track inside it is measured for drags.
-const scale = ref<HTMLElement>()
-const track = ref<HTMLElement>()
-// The station the needle rests on, and the station that is playing.
+// The knob is the slider: its grip takes the keys, the wheel and the pointer.
+const grip = ref<HTMLElement>()
+// The station the dial rests on, and the station that is playing.
 const index = ref(0)
 const tuned = ref(-1)
-// The needle while a drag is on; equals `index` otherwise.
+// The dial position while a drag is on; equals `index` otherwise.
 const position = ref(0)
 
 // The element that holds the pointer during a drag. Kept out of reactivity:
 // a Vue proxy of a DOM element cannot take its own method calls.
 let dragTarget: HTMLElement | null = null
-const drag = ref<{ id: number; mode: 'scale' | 'knob'; startX: number; startY: number; start: number; width: number; last: number } | null>(null)
+const drag = ref<{ id: number; startX: number; startY: number; start: number; last: number } | null>(null)
 let wheelRest = 0
-// Less motion: the needle jumps. Read once, on mount, like the other motion checks.
+// Less motion: the knob turns without its swing. Read once, on mount, like the other motion checks.
 const still = ref(false)
 
 onMounted(() => {
@@ -275,7 +247,7 @@ onMounted(() => {
 })
 
 // A new list from Home's answer (a refetch, a season change): keep the station
-// under the needle and the one playing by their ids (setStations).
+// under the knob and the one playing by their ids (setStations).
 watch(
   () => home.stations,
   list => setStations(stationsFromList(list))
@@ -304,7 +276,7 @@ const statusText = computed(() => {
     : 'Turn the dial to tune in'
 })
 
-// The display shows the station under the needle: the one tuned in, or the
+// The display shows the station under the knob: the one tuned in, or the
 // one a drag is passing over.
 const display = computed(() => {
   const at = snapIndex(position.value, count.value)
@@ -316,7 +288,14 @@ const display = computed(() => {
   }
 })
 
-const neighbourPair = computed(() => neighbours(stations.value, display.value.at))
+// What plays now: the queue's current track. Read from the list, not from
+// `queue.currenttrack`, whose getter fires a favourite request on every read.
+const nowTrack = computed(() => tracklist.tracklist[queue.currentindex] ?? null)
+const nowCover = computed(() => {
+  const image = nowTrack.value?.image
+  return image && image !== 'None' ? paths.images.thumb.small + image : ''
+})
+const nowArtists = computed(() => (nowTrack.value?.artists ?? []).map(artist => artist.name).join(', '))
 
 // ON AIR only while the queue still plays the tuned station: an album started
 // from its own page afterwards is not the radio, whatever `tuned` remembers.
@@ -334,20 +313,13 @@ const onAirStation = computed(() => (air.value === 'on' ? (stations.value[tuned.
 // contradicted each other.
 const bars = computed(() => (air.value === 'off' ? 0 : signalBars(position.value)))
 
-// Static scale furniture: the band's ticks and labels never change.
-const ticks = bandTicks()
-const labels = bandLabels()
 const legend = computed(() => kindsOnDial(stations.value))
 
 const bezel = Array.from({ length: BEZEL_TICK_COUNT }, (_, index) => ({ index, ...bezelTick(index) }))
 const litTick = computed(() => litBezelTick(position.value, count.value))
 const knobTurn = computed(() => `rotate(${knobAngle(position.value, count.value)}deg)`)
 
-function pct(fraction: number): string {
-  return `${fraction * 100}%`
-}
-
-/** Move the needle to station `to` and tune it in, unless it already plays. */
+/** Move the dial to station `to` and tune it in, unless it already plays. */
 function land(to: number) {
   index.value = to
   position.value = to
@@ -369,7 +341,7 @@ function onKey(event: KeyboardEvent) {
 function onWheel(event: WheelEvent) {
   // The dial sits in the middle of Home: a wheel passing over it must keep
   // scrolling the page. It tunes only once the dial is focused (a click or Tab).
-  if (document.activeElement !== scale.value) return
+  if (document.activeElement !== grip.value) return
   event.preventDefault()
   const { steps, rest } = wheelSteps(event.deltaY, wheelRest)
   wheelRest = rest
@@ -378,46 +350,32 @@ function onWheel(event: WheelEvent) {
   if (to !== index.value) land(to)
 }
 
-function beginDrag(event: PointerEvent, mode: 'scale' | 'knob') {
+function onKnobDown(event: PointerEvent) {
   if (stations.value.length === 0 || event.button > 0) return
-  const width = track.value?.clientWidth ?? 0
-  // A scale not laid out yet measures 0, and every move would land on the
-  // first station and retune it. The knob does not need the width.
-  if (mode === 'scale' && width <= 0) return
   // No text selection while the pointer sweeps across the housing.
   if (event.pointerType === 'mouse') event.preventDefault()
   const target = event.currentTarget as HTMLElement
+  // preventDefault above also cancels the focus a mousedown gives: focus by
+  // hand, so the wheel tunes after a click (onWheel asks for focus).
+  target.focus({ preventScroll: true })
   dragTarget = target
   target.setPointerCapture?.(event.pointerId)
   drag.value = {
     id: event.pointerId,
-    mode,
     startX: event.clientX,
     startY: event.clientY,
     start: index.value,
-    width,
     last: index.value,
   }
-  // The music goes quiet while the needle is between stations.
+  // The music goes quiet while the dial is between stations.
   muteForTuning()
-}
-
-function onScaleDown(event: PointerEvent) {
-  beginDrag(event, 'scale')
-}
-
-function onKnobDown(event: PointerEvent) {
-  beginDrag(event, 'knob')
 }
 
 function onMove(event: PointerEvent) {
   const current = drag.value
   if (!current || event.pointerId !== current.id) return
   const n = stations.value.length
-  const at =
-    current.mode === 'knob'
-      ? knobDragPosition(current.start, event.clientX - current.startX, event.clientY - current.startY, n, KNOB_PX_PER_STATION)
-      : dragPosition(current.start, event.clientX - current.startX, current.width, n)
+  const at = knobDragPosition(current.start, event.clientX - current.startX, event.clientY - current.startY, n, KNOB_PX_PER_STATION)
   position.value = at
   const snapped = snapIndex(at, n)
   if (snapped !== current.last) {
@@ -432,12 +390,23 @@ function onUp(event: PointerEvent) {
   drag.value = null
   dragTarget?.releasePointerCapture?.(event.pointerId)
   dragTarget = null
+  // A click without a turn only takes the focus (for the wheel and the keys):
+  // it must not tune in, nor restart the station that plays.
+  const moved = Math.abs(event.clientX - current.startX) + Math.abs(event.clientY - current.startY) > KNOB_CLICK_SLOP_PX
+  if (!moved) {
+    position.value = index.value
+    resumeMusic()
+    return
+  }
   land(snapIndex(position.value, stations.value.length))
 }
+
+/** Pointer travel below which a press on the knob is a click, not a turn. */
+const KNOB_CLICK_SLOP_PX = 4
 </script>
 
 <style lang="scss">
-// The glass: the display and the scale are dark in both themes. Ink is the
+// The glass: the display is dark in both themes. Ink is the
 // static one (`$mem-ink` does not change with the mode), and the glass colours
 // are palette roles mixed in the browser, never in Sass (paletteTokens.test.ts).
 $glass-text: color-mix(in srgb, #{$mem-lavender} 35%, #{$mem-paper});
@@ -446,11 +415,13 @@ $glass-glow: mem-alpha($mem-lavender, 0.55);
 $glass-edge: mem-alpha($mem-paper, 0.14);
 
 .radio-card {
-  // The page's own edge, like the Browse tiles above the rows.
+  // The page's own edge, like the Browse tiles above the rows. A size container:
+  // the now-playing column is a container query on it (wide screens only).
+  container-type: inline-size;
   padding: 0 0 1.5rem;
 
   // Station kinds: one colour each, read through `--kind` by every part that
-  // wears it (the legend dot, the chip, the band segment, the notch).
+  // wears it (the legend dot, the chip).
   .kind-mix {
     --kind: #{$mem-pink};
   }
@@ -594,24 +565,20 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     transform: rotate(-90deg);
   }
 
-  // Display, scale, knob: three columns on a desktop; on a phone the display on
-  // a row of its own, the scale and the knob under it. (A speaker grille stood
-  // left of the display until 2026-11-15 and was removed: decoration that read
-  // as a rendering fault in both themes.)
+  // Display and knob: two columns on a desktop and on a phone alike, the display
+  // taking the free width. (The frequency scale stood under the display until
+  // 2026-11-15 and was removed: the knob alone tunes. A speaker grille stood
+  // left of the display until the same day and was removed too.)
   .radio-body {
     // The housing around it clicks open and shut; the instrument inside does not.
     cursor: default;
     display: grid;
-    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr) 7rem;
+    grid-template-columns: minmax(0, 1fr) 7rem;
     gap: 0.75rem;
     align-items: stretch;
 
     @include allPhones {
       grid-template-columns: minmax(0, 1fr) 6.2rem;
-
-      .radio-display {
-        grid-column: 1 / -1;
-      }
 
       .radio-knob-dial {
         width: 6.2rem;
@@ -620,12 +587,11 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
-  // The display: dark glass, the readout of the station under the needle.
+  // The display: dark glass, the readout of the station under the knob.
   .radio-display {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
+    align-items: stretch;
+    gap: 0.9rem;
     min-width: 0;
     min-height: 7rem;
     padding: 0.55rem 1rem 0.6rem;
@@ -634,6 +600,89 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     border: $candy-border;
     border-radius: $candy-radius-sm;
     box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
+  }
+
+  .radio-readout {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  // The now-playing column: a dashed divider, then what plays, beside the readout.
+  // Wide screens only: below ~760 px the card is a phone's and the column is gone.
+  .radio-now {
+    display: none;
+  }
+
+  @container (min-width: 760px) {
+    .radio-now {
+      display: flex;
+      flex: 0 0 14.5rem;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+      padding-left: 0.9rem;
+      border-left: $mem-hairline-w dashed $glass-dim;
+    }
+  }
+
+  .radio-now-label {
+    color: $glass-dim;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+
+  .radio-now-body {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .radio-now-cover {
+    flex: none;
+    width: 4.6rem;
+    height: 4.6rem;
+    object-fit: cover;
+    border: $mem-ring-w solid $glass-dim;
+    border-radius: $candy-radius-sm;
+  }
+
+  .radio-now-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .radio-now-title {
+    overflow: hidden;
+    color: $glass-text;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .radio-now-artist {
+    overflow: hidden;
+    color: $glass-dim;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .radio-now-idle {
+    color: $glass-dim;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
 
   .radio-top {
@@ -703,7 +752,7 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
-  // Four signal bars, lit by the needle's distance to a station.
+  // Four signal bars, lit by the dial position's distance to a station.
   .radio-signal {
     display: inline-flex;
     align-items: flex-end;
@@ -846,151 +895,8 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
-  // The neighbours: what the next turn brings, either side.
-  .radio-nbr {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 6px;
-    padding-top: 5px;
-    border-top: $mem-hairline-w dashed $glass-dim;
-    color: $glass-dim;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-
-    span {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  // The scale: the same glass. Its track is inset so the needle's head stays inside.
-  .radio-scale {
-    @include focus-ring;
-    position: relative;
-    min-width: 0;
-    min-height: 7rem;
-    background: $mem-ink;
-    border: $candy-border;
-    border-radius: $candy-radius-sm;
-    box-shadow: mem-shadow(3px, 3px), inset 0 0 0 2px $glass-edge;
-    touch-action: none;
-    user-select: none;
-    cursor: grab;
-
-    &.is-dragging {
-      cursor: grabbing;
-    }
-  }
-
-  // Centred in the glass, as tall as the band needs: at the top the ticks
-  // left an empty half below them (seen on the demo instance).
-  .radio-track {
-    position: absolute;
-    top: 50%;
-    height: 3.6rem;
-    transform: translateY(-50%);
-    left: 1.25rem;
-    right: 1.25rem;
-    pointer-events: none;
-  }
-
-  // One line in one colour. Coloured segments per kind stood above it until
-  // 2026-11-15 and read as a line cut into pieces (user); the kinds are in the
-  // notches' colours and the legend.
-  .radio-line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 1.2rem;
-    height: $mem-ring-w;
-    background: $glass-dim;
-  }
-
-  .radio-minor {
-    position: absolute;
-    top: 1.2rem;
-    width: 1.5px;
-    height: 5px;
-    margin-left: -0.75px;
-    background: $glass-dim;
-    opacity: 0.7;
-
-    &.is-major {
-      height: 9px;
-      width: 2px;
-      margin-left: -1px;
-      background: $glass-text;
-      opacity: 1;
-    }
-  }
-
-  // Fixed band labels: 88, 92 … 108. Centred on their tick.
-  .radio-label {
-    position: absolute;
-    top: 2rem;
-    transform: translateX(-50%);
-    color: $glass-text;
-    font-size: 0.72rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  // The station notches ("Kerben"): a bar per station across the line in its kind's colour.
-  .radio-notch {
-    position: absolute;
-    top: calc(1.2rem - 11px);
-    width: 4px;
-    height: 22px;
-    margin-left: -2px;
-    border-radius: 2px;
-    background: var(--kind);
-    opacity: 0.6;
-
-    &.is-tuned {
-      opacity: 1;
-      box-shadow: 0 0 9px 1px var(--kind);
-    }
-  }
-
-  // The needle: coral, with a round head at the top and a glow. Its travel
-  // overshoots a little, like a dial turned by hand.
-  .radio-needle {
-    position: absolute;
-    top: 0.1rem;
-    height: 3rem;
-    width: 3px;
-    margin-left: -1.5px;
-    background: $mem-coral;
-    box-shadow: 0 0 10px mem-alpha($mem-coral, 0.85);
-    transition: left $motion-settle $motion-curve-overshoot;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: -0.2rem;
-      left: 50%;
-      width: 12px;
-      height: 12px;
-      transform: translateX(-50%);
-      border-radius: 50%;
-      background: $mem-coral;
-      border: $mem-ring-w solid $mem-ink;
-    }
-  }
-
-  // No travel while a drag (scale or knob) moves the needle by hand.
-  .radio-scale.is-still .radio-needle,
-  .radio-scale.is-tuning .radio-needle {
-    transition: none;
-  }
-
-  // The knob: decoration for pointers. It sits on the housing, not in the
-  // tab order, and the scale stays the one slider.
+  // The knob: the one slider. The grip takes the focus; its ring follows the
+  // round shape (outlines follow border-radius in every current browser).
   .radio-knob {
     display: grid;
     place-items: center;
@@ -1040,8 +946,10 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   // The shadow stays bottom right while the knob turns: the filter sits on this
   // wrapper, which does not rotate.
   .radio-grip {
+    @include focus-ring;
     position: absolute;
     inset: 13%;
+    border-radius: 50%;
     // The plates' offset, through the shape token, as a drop-shadow: a box
     // shadow would turn with the knob's square box.
     filter: drop-shadow(mem-shadow(3px, 3px));

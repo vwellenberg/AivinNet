@@ -79,13 +79,6 @@ export function snapIndex(position: number, count: number): number {
     return Math.min(Math.max(Math.round(position), 0), count - 1)
 }
 
-/** Where a drag that started on `start` and moved `dx` px lands (fractional). */
-export function dragPosition(start: number, dx: number, width: number, count: number): number {
-    if (count <= 1 || width <= 0) return 0
-    const position = start + (dx / width) * (count - 1)
-    return Math.min(Math.max(position, 0), count - 1)
-}
-
 /** Wheel pixels per station. A trackpad sends many small events; the rest carries over. */
 export const WHEEL_PX_PER_STATION = 50
 
@@ -119,7 +112,7 @@ export function keyTarget(key: string, index: number, count: number): number | n
     }
 }
 
-/** Where a station stands on the scale, 0 (first) to 1 (last). A lone station sits in the middle. */
+/** Where a station stands on the dial, 0 (first) to 1 (last). A lone station sits in the middle. */
 export function stationFraction(index: number, count: number): number {
     return count <= 1 ? 0.5 : index / (count - 1)
 }
@@ -129,7 +122,7 @@ export function prefersReducedMotion(win: Window | undefined = typeof window ===
     return !!win && typeof win.matchMedia === 'function' && win.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-// SECTION: THE FM DIAL (the frequencies, the labels, the readout)
+// SECTION: THE FM DIAL (the frequencies, the readout)
 
 /** The bottom and the top of the FM band, in MHz. */
 export const FM_LOW_MHZ = 87.5
@@ -138,7 +131,7 @@ export const FM_HIGH_MHZ = 108.0
 /**
  * The frequency of a station by its place on the dial, one decimal: the first
  * station sits at 87.5, the last at 108.0, the rest spread evenly between
- * (`stationFraction`, so the scale ticks and the frequencies agree). Strictly
+ * (`stationFraction`, the same spread the knob turns through). Strictly
  * increasing up to about 200 stations, which the dial never comes near.
  */
 export function stationFrequency(index: number, count: number): string {
@@ -166,39 +159,6 @@ export function stationReadout(station: Station, index: number, count: number): 
 /** The kinds in the order the dial shows them: the season's first, as the list does. */
 export const KIND_ORDER: StationKind[] = ['season', 'mix', 'genre', 'decade']
 
-/** The band's frequency labels, MHz. Fixed, not per station: they never collide. */
-export const BAND_LABELS_MHZ = [88, 92, 96, 100, 104, 108]
-
-/** Minor ticks every half MHz, majors on the whole ones. */
-export const BAND_TICK_STEP_MHZ = 0.5
-
-/** Where a frequency stands on the band, 0 (87.5) to 1 (108.0). */
-export function bandFraction(mhz: number): number {
-    return (mhz - FM_LOW_MHZ) / (FM_HIGH_MHZ - FM_LOW_MHZ)
-}
-
-/** One tick of the band: where it stands, and whether it is a whole MHz (a major). */
-export interface BandTick {
-    fraction: number
-    major: boolean
-}
-
-/** Every tick of the band, from 87.5 to 108.0 in half-MHz steps. */
-export function bandTicks(): BandTick[] {
-    const ticks: BandTick[] = []
-    const steps = Math.round((FM_HIGH_MHZ - FM_LOW_MHZ) / BAND_TICK_STEP_MHZ)
-    for (let s = 0; s <= steps; s++) {
-        const mhz = FM_LOW_MHZ + s * BAND_TICK_STEP_MHZ
-        ticks.push({ fraction: bandFraction(mhz), major: Number.isInteger(mhz) })
-    }
-    return ticks
-}
-
-/** The band's labels with where they stand, in MHz order. */
-export function bandLabels(): { fraction: number; label: string }[] {
-    return BAND_LABELS_MHZ.map(mhz => ({ fraction: bandFraction(mhz), label: String(mhz) }))
-}
-
 /** The kinds that have a station on the dial, in dial order: the legend lists these. */
 export function kindsOnDial(stations: Station[]): StationKind[] {
     return KIND_ORDER.filter(kind => stations.some(station => station.kind === kind))
@@ -206,7 +166,7 @@ export function kindsOnDial(stations: Station[]): StationKind[] {
 
 /**
  * The signal bars on the display, 0 to 4: all four on a station, none half way
- * between two. The needle's distance to the nearest station decides it.
+ * between two. The distance from the dial position to the nearest station decides it.
  */
 export function signalBars(position: number): number {
     const distance = Math.abs(position - Math.round(position))
@@ -237,7 +197,7 @@ export const AIR_TEXT: Record<AirState, string> = { on: 'ON AIR', tuning: 'TUNIN
 export const KNOB_SWEEP_START_DEG = -135
 export const KNOB_SWEEP_DEG = 270
 
-/** The knob's angle for a needle position: -135 at the first station, +135 at the last. */
+/** The knob's angle for a dial position: -135 at the first station, +135 at the last. */
 export function knobAngle(position: number, count: number): number {
     return KNOB_SWEEP_START_DEG + KNOB_SWEEP_DEG * stationFraction(position, count)
 }
@@ -247,7 +207,7 @@ export const KNOB_PX_PER_STATION = 26
 
 /**
  * Where a knob drag lands: the start position moved by the drag (right and up
- * turn it on), clamped to the dial, fractional like `dragPosition`.
+ * turn it on), clamped to the dial, fractional.
  */
 export function knobDragPosition(start: number, dx: number, dy: number, count: number, pxPerStation: number): number {
     if (count <= 1 || pxPerStation <= 0) return 0
@@ -274,13 +234,5 @@ export function bezelTick(index: number): { x1: number; y1: number; x2: number; 
         x2: 60 + outer * Math.sin(angle),
         y2: 60 - outer * Math.cos(angle),
         major,
-    }
-}
-
-/** The stations either side of the one at `index`: null at the ends of the dial. */
-export function neighbours(stations: Station[], index: number): { prev: Station | null; next: Station | null } {
-    return {
-        prev: index > 0 ? (stations[index - 1] ?? null) : null,
-        next: index < stations.length - 1 ? (stations[index + 1] ?? null) : null,
     }
 }

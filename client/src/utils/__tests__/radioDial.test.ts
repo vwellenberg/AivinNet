@@ -3,12 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
     airState,
     playsStation,
-    bandLabels,
-    bandTicks,
     bezelTick,
     buildStations,
     dialIsWorthShowing,
-    dragPosition,
     FM_HIGH_MHZ,
     FM_LOW_MHZ,
     kindsOnDial,
@@ -16,7 +13,6 @@ import {
     knobAngle,
     knobDragPosition,
     litBezelTick,
-    neighbours,
     prefersReducedMotion,
     snapIndex,
     stationFraction,
@@ -142,24 +138,6 @@ describe('snapIndex (the snap to a station)', () => {
     it('is station 0 on an empty dial and for a position that is not a number', () => {
         expect(snapIndex(2, 0)).toBe(0)
         expect(snapIndex(Number.NaN, 4)).toBe(0)
-    })
-})
-
-describe('dragPosition', () => {
-    it('moves across the whole dial from the first station to the last', () => {
-        // 300 px wide, 4 stations: 100 px per station.
-        expect(dragPosition(0, 100, 300, 4)).toBeCloseTo(1)
-        expect(dragPosition(0, 300, 300, 4)).toBeCloseTo(3)
-    })
-
-    it('stops at both ends of the dial', () => {
-        expect(dragPosition(1, -900, 300, 4)).toBe(0)
-        expect(dragPosition(2, 900, 300, 4)).toBe(3)
-    })
-
-    it('is station 0 for a lone station or a dial with no width', () => {
-        expect(dragPosition(0, 50, 300, 1)).toBe(0)
-        expect(dragPosition(2, 50, 0, 4)).toBe(0)
     })
 })
 
@@ -293,29 +271,6 @@ describe('stationReadout of a season station', () => {
     })
 })
 
-describe('bandTicks (the minor and major ticks of the band)', () => {
-    it('ticks every half MHz from 87.5 to 108.0: 42 ticks, the whole MHz are majors', () => {
-        const ticks = bandTicks()
-
-        expect(ticks).toHaveLength(42)
-        expect(ticks[0]).toEqual({ fraction: 0, major: false })
-        expect(ticks[1]).toEqual({ fraction: 0.5 / 20.5, major: true })
-        expect(ticks[ticks.length - 1]).toEqual({ fraction: 1, major: true })
-        // 88 to 108, every whole MHz: 21 majors.
-        expect(ticks.filter(tick => tick.major)).toHaveLength(21)
-    })
-})
-
-describe('bandLabels (fixed labels for the band)', () => {
-    it('labels 88, 92, 96, 100, 104 and 108 at their place on the band', () => {
-        const labels = bandLabels()
-
-        expect(labels.map(label => label.label)).toEqual(['88', '92', '96', '100', '104', '108'])
-        expect(labels[0].fraction).toBeCloseTo(0.5 / 20.5)
-        expect(labels[labels.length - 1].fraction).toBeCloseTo(1)
-    })
-})
-
 describe('kindsOnDial (the legend)', () => {
     it('lists only the kinds with a station, in the dial order', () => {
         expect(
@@ -387,16 +342,3 @@ describe('knobAngle and the knob drag', () => {
     })
 })
 
-describe('neighbours (the stations either side)', () => {
-    const stations = [
-        { id: 'a', kind: 'mix' as const, name: 'A' },
-        { id: 'b', kind: 'mix' as const, name: 'B' },
-        { id: 'c', kind: 'mix' as const, name: 'C' },
-    ]
-
-    it('names the station before and after, and nothing past the ends', () => {
-        expect(neighbours(stations, 1)).toEqual({ prev: stations[0], next: stations[2] })
-        expect(neighbours(stations, 0)).toEqual({ prev: null, next: stations[1] })
-        expect(neighbours(stations, 2)).toEqual({ prev: stations[1], next: null })
-    })
-})
