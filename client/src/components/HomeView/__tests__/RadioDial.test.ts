@@ -1,10 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { favType } from '@/enums'
 import { ref, type Ref } from 'vue'
 
 // The station list is Home's store (#776): it comes with the rows, and the dial
 // follows the store's list.
-const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTuning, crackle } = await vi.hoisted(async () => {
+const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMusic, muteForTuning, crackle, favoriteHandler, favoritesMock } = await vi.hoisted(async () => {
   const { reactive } = await import('vue')
   return {
     homeMock: reactive({ homepageItems: [] as any[], stations: [] as any[] }),
@@ -16,7 +17,17 @@ const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMus
       },
     }),
     // The queue's `playing` flag decides ON AIR (the player is playing).
-    queueMock: reactive({ playing: false, currentindex: 0 }),
+    // The queue's clock (seconds) is what the progress row reads; `playNext` is the
+    // queue's next action, which the ⏭ button calls.
+    queueMock: reactive({
+      playing: false,
+      currentindex: 0,
+      duration: { current: 0, full: 0 },
+      playNext: vi.fn(),
+    }),
+    // The favourite toggle the player bar uses, and the registry's answer for a hash.
+    favoriteHandler: vi.fn(async () => {}),
+    favoritesMock: { flag: vi.fn((): boolean | undefined => undefined) },
     // Where the queue came from: ON AIR also needs it to be the tuned station.
     // `tracklist` is the queue's list: the now-playing column reads its current track.
     tracklistMock: reactive({ from: {} as { type?: string; id?: unknown }, tracklist: [] as any[] }),
@@ -31,6 +42,8 @@ vi.mock('@/stores/home', () => ({ default: () => homeMock }))
 vi.mock('@/stores/settings', () => ({ default: () => settingsMock }))
 vi.mock('@/stores/queue', () => ({ default: () => queueMock }))
 vi.mock('@/stores/queue/tracklist', () => ({ default: () => tracklistMock }))
+vi.mock('@/stores/favorites', () => ({ default: () => favoritesMock }))
+vi.mock('@/helpers/favoriteHandler', () => ({ default: favoriteHandler }))
 vi.mock('@/helpers/radio', () => ({ tuneStation, resumeMusic, muteForTuning, crackle }))
 
 import RadioDial from '@/components/HomeView/RadioDial.vue'
@@ -594,6 +607,112 @@ describe('RadioDial', () => {
 
         expect(w.get('.radio-air').text()).toBe('ON AIR')
         expect(w.find('.radio-now-idle').exists()).toBe(false)
+    })
+})
+
+describe('RadioDial now-playing zone (wide display)', () => {
+    // A realistic Track: the image carries the `?pathhash=` suffix, artists come
+    // as objects, and there is no `date` (serialize_track drops it).
+    const track = {
+        title: 'Paradise Lost',
+        trackhash: 'th-paradise',
+        album: 'Icon',
+        image: 'icon-cover.webp?pathhash=cover123',
+        artists: [{ name: 'Sleeping Giant' }],
+        is_favorite: false,
+    }
+
+    beforeEach(() => {
+        homeMock.stations = []
+        settingsMock.radio_open = true
+        queueMock.playing = true
+        queueMock.currentindex = 0
+        queueMock.duration = { current: 131, full: 240 }
+        queueMock.playNext.mockClear()
+        favoriteHandler.mockClear()
+        favoritesMock.flag.mockReturnValue(undefined)
+        tracklistMock.from = { type: 'playlist', id: 'mix1' }
+        tracklistMock.tracklist = [track]
+    })
+
+    afterEach(() => {
+        for (const w of mounted.splice(0)) w.unmount()
+        queueMock.playing = false
+        queueMock.duration = { current: 0, full: 0 }
+        tracklistMock.tracklist = []
+    })
+
+    it('ON AIR shows the title, the artists, album and year, the progress and both buttons', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        expect(w.get('.radio-now-title').text()).toBe('Paradise Lost')
+        expect(w.get('.radio-now-artist').text()).toBe('Sleeping Giant')
+        expect(w.get('.radio-now-album').text()).toBe('Icon')
+        expect(w.get('.radio-now-cover').attributes('src')).toContain('icon-cover.webp?pathhash=cover123')
+        expect(w.get('.radio-now-prog').text()).toContain('02:11')
+        expect(w.get('.radio-now-prog').text()).toContain('-01:49')
+        // The ♥ says which song it is for: the track info beside it is aria-hidden.
+        expect(w.get('button[aria-label^="Favorite"]').attributes('aria-label')).toBe('Favorite: Paradise Lost')
+        expect(w.find('button[aria-label="Next song"]').exists()).toBe(true)
+    })
+
+    it("⏭ calls the queue's next action", async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        await w.get('button[aria-label="Next song"]').trigger('click')
+
+        expect(queueMock.playNext).toHaveBeenCalledTimes(1)
+    })
+
+    it('♥ calls the favourite toggle with the current track and the flag it shows', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
+
+        expect(favoriteHandler).toHaveBeenCalledWith(false, favType.track, 'th-paradise', expect.any(Function), expect.any(Function))
+    })
+
+    it('♥ reads the registry before the copy: a flip recorded elsewhere shows as favourite', async () => {
+        favoritesMock.flag.mockReturnValue(true)
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        expect(w.get('button[aria-label^="Favorite"]').attributes('aria-pressed')).toBe('true')
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
+        expect(favoriteHandler).toHaveBeenCalledWith(true, favType.track, 'th-paradise', expect.any(Function), expect.any(Function))
+    })
+
+    it('not on air: no buttons, no progress, only the dim "Turn the knob" line', async () => {
+        queueMock.playing = false
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        expect(w.get('.radio-now-idle').text()).toBe('Turn the knob')
+        expect(w.find('.radio-now-title').exists()).toBe(false)
+        expect(w.find('button[aria-label^="Favorite"]').exists()).toBe(false)
+        expect(w.find('button[aria-label="Next song"]').exists()).toBe(false)
+        expect(w.find('.radio-now-prog').exists()).toBe(false)
+    })
+
+    it('the spectrum is decoration: aria-hidden, 40 bars, running only ON AIR', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+        const spectrum = w.get('.radio-spectrum')
+        expect(spectrum.attributes('aria-hidden')).toBe('true')
+        expect(spectrum.findAll('i')).toHaveLength(40)
+        expect(spectrum.classes()).toContain('is-live')
+
+        // Off air the spectrum is not rendered at all (no 40 idle nodes).
+        queueMock.playing = false
+        await flushPromises()
+        expect(w.find('.radio-spectrum').exists()).toBe(false)
+    })
+
+    it('clicks on ♥ and ⏭ do not fold the radio', async () => {
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
+        await w.get('button[aria-label="Next song"]').trigger('click')
+        await flushPromises()
+
+        expect(settingsMock.radio_open).toBe(true)
     })
 })
 
