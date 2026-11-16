@@ -1,52 +1,56 @@
 <template>
-    <!-- The playlist's own find. It searches every track (the store loads the
-         rest on the first letter), where the browser's Cmd/Ctrl+F only sees
-         the rows the virtual scroller has rendered. Cmd/Ctrl+F lands here
-         (utils/pageFind.ts, registered by PlaylistView). -->
-    <label class="ah-find" :class="{ 'has-query': query }">
-        <SearchSvg class="ah-find-glyph" aria-hidden="true" />
+    <!-- A list's own find field. Long lists render through a virtual scroller
+         (only the rows in view exist) and often load page by page, so the
+         browser's Cmd/Ctrl+F cannot see a track further down; this field
+         searches the whole list, and Cmd/Ctrl+F lands here
+         (helpers/useListFind.ts). What it searches is the host's: it only
+         reports the query. -->
+    <label class="list-find" :class="{ 'has-query': modelValue }">
+        <SearchSvg class="list-find-glyph" aria-hidden="true" />
         <input
-            id="playlist-find"
-            v-model="query"
+            :id="fieldId"
+            :value="modelValue"
             type="search"
-            placeholder="Find in playlist"
-            aria-label="Find in playlist"
+            :placeholder="placeholder"
+            :aria-label="placeholder"
             autocomplete="off"
             spellcheck="false"
             enterkeyhint="search"
+            @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
             @keydown.esc="onEscape"
         />
     </label>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
-import usePlaylistStore from '@/stores/pages/playlist'
-
 import SearchSvg from '@/assets/icons/search.svg'
 
-const playlist = usePlaylistStore()
+const props = defineProps<{
+    modelValue: string
+    // The `id` useListFind() focuses on Cmd/Ctrl+F.
+    fieldId: string
+    placeholder: string
+}>()
 
-const query = computed({
-    get: () => playlist.query,
-    set: (value: string) => void playlist.setQuery(value),
-})
+const emit = defineEmits<{
+    (e: 'update:modelValue', value: string): void
+}>()
 
 // Escape clears first, the way the browser's find bar does; a second Escape
 // (or one on an empty field) leaves it — the global handler blurs inputs.
 function onEscape(e: KeyboardEvent) {
-    if (!playlist.query) return
+    if (!props.modelValue) return
     e.stopPropagation()
     e.preventDefault()
-    void playlist.setQuery('')
+    emit('update:modelValue', '')
 }
 </script>
 
 <style lang="scss">
-// A field, not a control: it is sunk into the bar, not raised off it — no
+// A field, not a control: it is sunk into its surface, not raised off it — no
 // offset shadow, no press, no hatch (styling.md: the hatch means "press me").
-.p-after-header .ah-find {
+// Where it sits (margins, grid cell) is the host's.
+.list-find {
     display: flex;
     align-items: center;
     gap: $small;
@@ -54,13 +58,13 @@ function onEscape(e: KeyboardEvent) {
     min-width: 0;
     height: $bar-control;
     padding: 0 0.75rem;
-    margin-left: auto;
     @include candy-box($mem-panel, $candy-radius-pill);
     border-style: var(--shape-well-style, solid);
     color: $candy-text;
     cursor: text;
 
-    // The bar's caption case and tracking are for its label, not for what is typed.
+    // A host's caption case and tracking (the playlist's ink bar) are for its
+    // label, not for what is typed.
     text-transform: none;
     letter-spacing: normal;
     font-size: 14px;
@@ -71,7 +75,7 @@ function onEscape(e: KeyboardEvent) {
         outline-offset: 2px;
     }
 
-    .ah-find-glyph {
+    .list-find-glyph {
         flex-shrink: 0;
         width: 1.125rem;
         height: 1.125rem;
@@ -95,11 +99,5 @@ function onEscape(e: KeyboardEvent) {
             opacity: 1;
         }
     }
-}
-
-// Next to the Edit button the field gives up its push to the right: the button
-// already takes it, and two `auto` margins would split the space between them.
-.p-after-header .ah-find + .ah-edit {
-    margin-left: $small;
 }
 </style>

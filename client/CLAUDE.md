@@ -433,12 +433,16 @@ GitHub nichts.)
   Tastatur.
 
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
-  durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und Playlists laden
-  seitenweise nach — gemeldet als „Cmd+F findet den Song weiter unten nicht“. Eine Seite mit
-  eigener Suche hängt sich deshalb an `utils/pageFind.ts` (`registerPageFind`): Der Shortcut
-  öffnet dann deren Feld, sonst bleibt er beim Browser. Vorbild: die Playlist-Suche
-  (`PlaylistView/PlaylistFind.vue`), die beim ersten Buchstaben den Rest der Playlist lädt.
-  Album-, Ordner- und Favoriten-Listen haben dasselbe Problem noch.
+  durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
+  nach — gemeldet als „Cmd+F findet den Song weiter unten nicht“. Playlist, Album, Ordner und
+  Favoriten haben deshalb ein eigenes Feld (`shared/ListFind.vue`), das beim ersten Buchstaben den
+  Rest lädt, und `helpers/useListFind.ts` leitet den Shortcut dorthin (sonst bleibt er beim
+  Browser). Eine neue lange Liste nimmt beides.
+  ⚠️ **Der Scroller hält die oberste Zeile fest, wenn sich seine Zeilen ändern**
+  (`useDynamicScroller`, Anker im Post-Flush-Watcher). Steht das Feld außerhalb der Liste (Ordner-
+  kopf, Favoriten-Header), folgte die Liste beim Nachladen dieser Zeile mitten in die Treffer
+  (gemessen: 1224 px, bester Treffer außer Sicht). `useListFind` hält die Liste deshalb oben, bis
+  der Leser selbst scrollt — einen Frame nach dem Watcher der Bibliothek.
 
 - **⚠️ Ein Modal schließen und dann `router.push` — die Navigation stirbt.** `modal.vue` legt beim
   Öffnen einen Verlaufseintrag an (Back schließt das Modal) und nimmt ihn beim Schließen per

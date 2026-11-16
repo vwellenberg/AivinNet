@@ -204,6 +204,12 @@ export default defineStore('album', {
                 return t
             })
 
+            // Disc bars carry no searchable fields, so Fuse does not return them
+            // under a query; this guard keeps a bar out of a find's results anyway.
+            // `master_index` survives the spread above, so a filtered row still
+            // plays its track.
+            if (this.query) return tracks.filter(t => !t.is_album_disc_number)
+
             return tracks
         },
     },

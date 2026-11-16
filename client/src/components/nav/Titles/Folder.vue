@@ -1,5 +1,5 @@
 <template>
-    <div id="folder-nav-title">
+    <div id="folder-nav-title" :class="{ 'has-find': hasContent }">
         <div class="fname">
             <!-- Navigates to the root folder: a control with a name, since a
                  folder glyph says nothing on its own (#137). -->
@@ -18,6 +18,17 @@
             </button>
             <BreadCrumbNav @navigate="navigate" />
         </div>
+        <!-- The folder's own find: it searches every track, where Cmd/Ctrl+F only
+             sees the rows rendered (helpers/useListFind.ts). Shown on the unfiltered
+             list, so a query with no hits does not hide the field it is typed in. -->
+        <ListFind
+            v-if="hasContent"
+            class="folder-find"
+            field-id="folder-find"
+            placeholder="Find in folder"
+            :model-value="folder.query"
+            @update:model-value="folder.setQuery"
+        />
         <!-- Two controls, not one grouped control: folders and tracks have
              INDEPENDENT sort keys, and a single dropdown can only display one
              current value. Folders first, because they render above the
@@ -47,11 +58,15 @@ import { Routes } from '@/router'
 import FolderSvg from '@/assets/icons/folder.svg'
 import BreadCrumbNav from '@/components/FolderView/BreadCrumbNav.vue'
 import DropDown from '@/components/shared/DropDown.vue'
+import ListFind from '@/components/shared/ListFind.vue'
 import useFolder from '@/stores/pages/folder'
 import { computed } from 'vue'
 
 const router = useRouter()
 const folder = useFolder()
+
+// The same test FolderView hands Cmd/Ctrl+F on: a field for it to land in.
+const hasContent = computed(() => folder.hasContent)
 
 function navigate(path: string) {
     router.push({ name: Routes.folder, params: { path } })
@@ -127,12 +142,23 @@ const currentFolderSort = computed(() => {
     gap: $small;
     padding: $medium 0;
 
+    // The find takes a column of its own between the path and the sort keys.
+    // Declared before the phone block, which takes it back to two columns.
+    &.has-find {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 16rem) 9rem 9rem;
+    }
+
     @include allPhones {
         // Two dropdowns of 9rem plus the path do not fit a 390px phone, so the
         // path takes the first row and the dropdowns share the second.
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 
-        .fname {
+        &.has-find {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .fname,
+        .folder-find {
             grid-column: 1 / -1;
         }
     }
