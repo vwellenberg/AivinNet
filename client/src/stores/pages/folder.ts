@@ -68,7 +68,10 @@ export default defineStore('FolderDirs&Tracks', {
 
             this.trackTotal = total
             ;[this.path, this.allDirs] = [fpath, folders]
-            this.allTracks = this.allTracks.concat(tracks)
+            // Dedupe by file: a search's loadRest() may have appended the rest of
+            // the folder while this page was in flight.
+            const have = new Set(this.allTracks.map(t => t.filepath))
+            this.allTracks = this.allTracks.concat(tracks.filter(t => !have.has(t.filepath)))
 
             // A search typed while this rebuilt the list found it gone: finish
             // it on the new list.
@@ -152,6 +155,11 @@ export default defineStore('FolderDirs&Tracks', {
         },
     },
     getters: {
+        // Something to search: the unfiltered lists, so a query with no hits
+        // does not hide the field it is typed in.
+        hasContent(): boolean {
+            return this.allTracks.length > 0 || this.allDirs.length > 0
+        },
         filteredTracks(): ComputedRef<FuseResult[]> {
             return useFuse(this.query, this.allTracks, FuseTrackOptions)
         },

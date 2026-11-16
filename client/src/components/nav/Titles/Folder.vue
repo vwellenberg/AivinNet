@@ -65,7 +65,8 @@ import { computed } from 'vue'
 const router = useRouter()
 const folder = useFolder()
 
-const hasContent = computed(() => folder.allTracks.length > 0 || folder.allDirs.length > 0)
+// The same test FolderView hands Cmd/Ctrl+F on: a field for it to land in.
+const hasContent = computed(() => folder.hasContent)
 
 function navigate(path: string) {
     router.push({ name: Routes.folder, params: { path } })

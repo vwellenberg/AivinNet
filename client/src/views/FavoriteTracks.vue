@@ -49,7 +49,11 @@ const { trackCount, query, visible, loadMore, loadAll, setQuery, tracks } = useF
     () => track_limit.value
 )
 
-useListFind('favorites-find', 'album-scroller', () => trackCount.value > 0, () => query.value)
+useListFind('favorites-find', 'album-scroller', () => trackCount.value > 0, {
+    query: () => query.value,
+    rows: () => visible.value,
+    at: 'field',
+})
 
 onMounted(async () => {
     updatePageTitle('Favorites')

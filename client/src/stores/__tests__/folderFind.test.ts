@@ -120,3 +120,32 @@ describe('folder find', () => {
         expect(folder.query).toBe('')
     })
 })
+
+describe('folder find, page and search racing', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        getFilesMock.mockReset()
+        getFilesMock.mockImplementation(serve)
+    })
+
+    it('a scroll page that lands after the search loaded the rest does not double its tracks', async () => {
+        const folder = await loadFirstPage()
+
+        // The sentinel asks for page 50..100 and that answer is held back…
+        let releasePage = () => {}
+        getFilesMock.mockImplementationOnce(
+            (path: string, start: number, limit: number) =>
+                new Promise(resolve => (releasePage = () => resolve(serve(path, start, limit))))
+        )
+        const page = folder.fetchAll(FOLDER)
+
+        // …while the search loads everything from 50 on, first.
+        await folder.setQuery('Track')
+        expect(folder.allTracks).toHaveLength(120)
+
+        releasePage()
+        await page
+        expect(folder.allTracks).toHaveLength(120)
+        expect(new Set(folder.allTracks.map(t => t.filepath)).size).toBe(120)
+    })
+})

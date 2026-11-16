@@ -77,8 +77,10 @@ const tracklist = useTracklist()
 useListFind(
     'folder-find',
     'contentscroller',
-    () => folder.allTracks.length > 0 || folder.allDirs.length > 0,
-    () => folder.query
+    () => folder.hasContent,
+    // The folder head is pinned, so the field never leaves the screen: the
+    // list itself goes back to the top.
+    { query: () => folder.query, rows: () => folder.tracks, at: 'top' }
 )
 
 // `settings.is_alt_layout` is not a setting, it is `content_width > 900`. The

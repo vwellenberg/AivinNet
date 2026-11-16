@@ -101,3 +101,26 @@ describe('useFavoriteTracks', () => {
         expect(getFavTracks.mock.calls.length).toBe(before)
     })
 })
+
+describe('useFavoriteTracks paging', () => {
+    beforeEach(() => {
+        getFavTracks.mockReset()
+        getFavTracks.mockImplementation(serve)
+    })
+
+    it('a sentinel firing again while a page is in flight asks for that page once', async () => {
+        const list = useFavoriteTracks(() => 50)
+        await Promise.all([list.loadMore(), list.loadMore(), list.loadMore()])
+        expect(getFavTracks).toHaveBeenCalledTimes(1)
+        expect(list.tracks.value).toHaveLength(50)
+    })
+
+    it('with no favorites at all, the list counts as loaded once the server has said so', async () => {
+        getFavTracks.mockImplementation(() => Promise.resolve({ tracks: [], total: 0 }))
+        const list = useFavoriteTracks(() => 50)
+        await list.loadMore()
+        await list.loadMore()
+        await list.loadMore()
+        expect(getFavTracks).toHaveBeenCalledTimes(1)
+    })
+})

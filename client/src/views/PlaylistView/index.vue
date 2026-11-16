@@ -325,7 +325,7 @@ useListFind(
     'playlist-find',
     'contentscroller',
     () => !playlist.editing && playlist.allTracks.length > 0,
-    () => playlist.query
+    { query: () => playlist.query, rows: () => playlist.tracks, at: 'field' }
 )
 
 onBeforeUnmount(() => stopAutoScroll())

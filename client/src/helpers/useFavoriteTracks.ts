@@ -26,7 +26,13 @@ export function useFavoriteTracks(pageSize: () => number = () => 50) {
     // The full load a search started; later letters join it instead of asking again.
     let searchLoad: Promise<void> | null = null
 
-    const allLoaded = () => trackCount.value > 0 && tracks.value.length >= trackCount.value
+    // The server has answered at least once: before that, a count of 0 means
+    // "unknown", after it "no favorites" — and an empty list is fully loaded.
+    let answered = false
+    const allLoaded = () => answered && tracks.value.length >= trackCount.value
+    // The page request in flight: the infinite-scroll sentinel can fire again
+    // before it lands, and each call must not queue one more page.
+    let pageLoad: Promise<void> | null = null
 
     /** Fetches the window after the loaded tracks and appends it. Silent on failure. */
     async function fetchNext(limit: number): Promise<void> {
@@ -42,6 +48,7 @@ export function useFavoriteTracks(pageSize: () => number = () => 50) {
         if (!data || !Array.isArray(data.tracks)) return
 
         if (data.total !== -1) trackCount.value = data.total
+        answered = true
 
         const startIndex = trackCount.value - start - 1
         tracks.value.push(
@@ -57,8 +64,14 @@ export function useFavoriteTracks(pageSize: () => number = () => 50) {
 
     /** Next page for the infinite scroll. Paused while a search is on: setQuery loads the rest. */
     function loadMore(): Promise<void> {
-        if (query.value) return Promise.resolve()
-        return enqueue(() => fetchNext(pageSize()))
+        if (query.value || allLoaded()) return Promise.resolve()
+        if (!pageLoad) {
+            const done = enqueue(() => fetchNext(pageSize())).finally(() => {
+                if (pageLoad === done) pageLoad = null
+            })
+            pageLoad = done
+        }
+        return pageLoad
     }
 
     /** Loads every remaining favorite, once, however often it is asked. */
