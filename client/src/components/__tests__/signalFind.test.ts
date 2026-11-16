@@ -15,8 +15,8 @@ vi.mock('@/helpers/usePlayFrom', () => ({ playFromAlbumCard, playFromPlaylist })
 // The real router module pulls in every view; the plate only needs the name.
 vi.mock('@/router', () => ({ Routes: { album: 'AlbumView' } }))
 
-import SignalFind, { AUTO_CLOSE_MS } from '@/components/SignalFind.vue'
-import { __resetSignalTestState, useLogoSignal, useSignalPlate } from '@/composables/useLogoSignal'
+import SignalFind from '@/components/SignalFind.vue'
+import { __resetSignalTestState, AUTO_CLOSE_MS, useLogoSignal, useSignalPlate } from '@/composables/useLogoSignal'
 
 const ALBUM = {
     type: 'album',

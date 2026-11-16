@@ -67,15 +67,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { paths } from '@/config'
 import { Routes } from '@/router'
 import { playFromAlbumCard, playFromPlaylist } from '@/helpers/usePlayFrom'
-import { anotherFind, closeSignalPlate, useSignalPlate } from '@/composables/useLogoSignal'
+import { AUTO_CLOSE_MS, anotherFind, closeSignalPlate, useSignalPlate } from '@/composables/useLogoSignal'
 import { findView } from '@/utils/signalFind'
 
 import CloseSvg from '@/assets/icons/close.svg'
 import PlaySvg from '@/assets/icons/play.svg'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
-
-/** How long the plate stays when nobody touches it. */
-export const AUTO_CLOSE_MS = 10_000
 
 const plate = useSignalPlate()
 const el = ref<HTMLElement | null>(null)

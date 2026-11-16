@@ -8,13 +8,15 @@
 // Before the find it was a show: radio waves, static and a tube flash across
 // the whole screen (#656). The user grew tired of it — a gimmick that answers
 // with something to listen to stays worth the clicks.
-import { readonly, ref } from 'vue'
+import { type Ref, ref } from 'vue'
 
 import { getSignalFind, type SignalFind } from '@/requests/home'
 
 export const CLICKS_NEEDED = 7
 /** Seven clicks inside this window. 2 s was too tight to hit on purpose. */
 export const CLICK_WINDOW_MS = 3000
+/** How long the plate stays when nobody touches it (SignalFind.vue). */
+export const AUTO_CLOSE_MS = 10_000
 
 /** Where the plate hangs: under the icon that was clicked, in viewport px. */
 export type PlateAnchor = { left: number; top: number; right: number }
@@ -39,9 +41,9 @@ let nextId = 1
 // must not let an older answer land on the plate.
 let latest = 0
 
-/** The plate in progress, or null. Read by SignalFind.vue. */
-export function useSignalPlate() {
-    return readonly(plate)
+/** The plate in progress, or null. Read by SignalFind.vue; changed only through the functions here. */
+export function useSignalPlate(): Readonly<Ref<SignalPlate | null>> {
+    return plate
 }
 
 /** Test hook (testing.md: no module-registry resets with Pinia). */
