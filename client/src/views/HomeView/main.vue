@@ -25,7 +25,8 @@
              Artists have no navigation entry, so the way to them must be quick
              to reach, ahead of the radio. -->
         <Browse />
-        <!-- Subspace radio (#542, #640): mixes, genre and decade stations. It
+        <!-- Subspace radio (#542, #640): mixes, genre and decade stations. Off
+             until switched on under Settings → Home (per device), and it
              stays away while there are only mixes, which the row below already
              shows (utils/radioDial.ts::dialIsWorthShowing). -->
         <RadioDial />
