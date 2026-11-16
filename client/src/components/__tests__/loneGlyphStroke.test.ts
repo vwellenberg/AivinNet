@@ -61,6 +61,15 @@ describe("the folder head's chevron", () => {
   });
 });
 
+describe("the folder head's count", () => {
+  // At 0.75rem (12px) it sat between a 15px name and the 20px chevron and pin,
+  // the one small thing in the row (user, 2026-11-16). It takes the row's size.
+  it("is set at the row's font size", () => {
+    const count = block(SIDEBAR, ".folder-count");
+    expect(count).toMatch(/font-size: \$sidebar-row-font;/);
+  });
+});
+
 describe("the sidebar thumbnails share one frame", () => {
   it("playlist cover and folder cover take the same ring and the same radius", () => {
     const uses = [...SIDEBAR.matchAll(/border: \$mem-ring-w solid \$mem-line;\s*(?:\/\/[^\n]*\s*)*border-radius: \$sidebar-thumb-radius;/g)];
