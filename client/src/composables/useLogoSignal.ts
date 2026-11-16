@@ -1,98 +1,115 @@
-// Easter egg (#544): seven fast clicks on the app icon send a signal. Radio
-// waves ring out of the planet, a trace runs across the top of the page, and
-// the screen loses its picture for a moment like an old TV. Shared by the
-// desktop logo (Logo.vue) and the phone's top-bar icon (NavBar.vue); the burst
-// itself is drawn once, by SignalBurst.vue in App.vue.
+// Easter egg (#544, #828): seven fast clicks on the app icon receive a signal —
+// a find from the user's own library. The planet hands over a plate with one
+// album of "Never played" or one track of "Forgotten favorites"
+// (`GET /nothome/signal`), to play or to swap for another. Shared by the
+// desktop logo (Logo.vue) and the phone's top-bar icon (NavBar.vue); the plate
+// itself is drawn once, by SignalFind.vue in App.vue.
 //
-// Two satellites came first: one on the logo's hover orbit, a dot next to the
-// orbit's own moon, and one flying across the page. The user wanted neither,
-// but the signal around them; so the signal is the whole effect now.
-import { readonly, ref } from 'vue'
+// Before the find it was a show: radio waves, static and a tube flash across
+// the whole screen (#656). The user grew tired of it — a gimmick that answers
+// with something to listen to stays worth the clicks.
+import { type Ref, ref } from 'vue'
 
-import { useToast } from '@/stores/notification'
+import { getSignalFind, type SignalFind } from '@/requests/home'
 
 export const CLICKS_NEEDED = 7
 /** Seven clicks inside this window. 2 s was too tight to hit on purpose. */
 export const CLICK_WINDOW_MS = 3000
-/** The whole burst, from the first wave to the last of the static. */
-export const BURST_MS = 2600
+/** How long the plate stays when nobody touches it (SignalFind.vue). */
+export const AUTO_CLOSE_MS = 10_000
 
-/** Where a burst starts (the centre of the icon that was clicked), in viewport px. */
-export type SignalBurst = { id: number; x: number; y: number }
+/** Where the plate hangs: under the icon that was clicked, in viewport px. */
+export type PlateAnchor = { left: number; top: number; right: number }
+
+/**
+ * The plate on screen. `find` is null while the server answers, when there is
+ * nothing to find (`empty`) and when the server could not be asked (`failed`).
+ */
+export type SignalPlate = {
+    id: number
+    anchor: PlateAnchor
+    find: SignalFind | null
+    loading: boolean
+    empty: boolean
+    failed: boolean
+}
 
 // Module state, not per component: the desktop logo and the phone icon both
-// launch the one burst the layer in App.vue draws.
-const burst = ref<SignalBurst | null>(null)
-let burstTimer: ReturnType<typeof setTimeout> | null = null
+// open the one plate App.vue draws.
+const plate = ref<SignalPlate | null>(null)
 let nextId = 1
+// Only the newest request writes: "Another" twice, or a close in between,
+// must not let an older answer land on the plate.
+let latest = 0
 
-/** The burst in progress, or null. Read by SignalBurst.vue. */
-export function useSignalBurst() {
-    return readonly(burst)
+/** The plate in progress, or null. Read by SignalFind.vue; changed only through the functions here. */
+export function useSignalPlate(): Readonly<Ref<SignalPlate | null>> {
+    return plate
 }
 
 /** Test hook (testing.md: no module-registry resets with Pinia). */
 export function __resetSignalTestState() {
-    if (burstTimer) clearTimeout(burstTimer)
-    burstTimer = null
-    burst.value = null
+    plate.value = null
+    latest++
 }
 
-function prefersLessMotion(): boolean {
-    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+/** The identity of a find: what "Another" asks the server to skip. */
+export function findHash(find: SignalFind | null): string | undefined {
+    if (!find) return undefined
+    return find.type === 'album' ? find.item.albumhash : find.item.trackhash
 }
 
-/**
- * A short, quiet burst of radio hiss, generated with Web Audio. Best effort:
- * without an AudioContext the burst is silent.
- */
-function playRadioHiss(seconds = 1.2, volume = 0.04) {
-    try {
-        const Ctx = window.AudioContext ?? (window as any).webkitAudioContext
-        if (!Ctx) return
-        const ctx: AudioContext = new Ctx()
-        const rate = ctx.sampleRate
-        const frames = Math.floor(rate * seconds)
-        const buffer = ctx.createBuffer(1, frames, rate)
-        const data = buffer.getChannelData(0)
-        const fadeIn = rate * 0.05
-        const fadeOut = rate * 0.3
-        for (let i = 0; i < frames; i++) {
-            const env = Math.min(1, i / fadeIn, (frames - i) / fadeOut)
-            data[i] = (Math.random() * 2 - 1) * env
-        }
-        const source = ctx.createBufferSource()
-        source.buffer = buffer
-        const band = ctx.createBiquadFilter()
-        band.type = 'bandpass'
-        band.frequency.value = 2200
-        band.Q.value = 0.8
-        const gain = ctx.createGain()
-        gain.gain.value = volume
-        source.connect(band).connect(gain).connect(ctx.destination)
-        source.onended = () => void ctx.close()
-        source.start()
-    } catch {
-        // No audio is not an error: the picture still answers.
-    }
-}
-
-function centreOf(origin: Element | null | undefined): { x: number; y: number } {
-    if (!origin) return { x: 40, y: 40 }
+function anchorOf(origin: Element | null | undefined): PlateAnchor {
+    if (!origin) return { left: 16, top: 72, right: 16 }
     const r = origin.getBoundingClientRect()
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    return { left: r.left, top: r.bottom, right: r.right }
+}
+
+async function receive(skip?: string) {
+    const mine = ++latest
+    const current = plate.value
+    if (!current) return
+    current.loading = true
+
+    let find: SignalFind | null
+    try {
+        find = await getSignalFind(skip)
+    } catch {
+        if (mine !== latest || plate.value?.id !== current.id) return
+        // Not "you have heard it all": that would be a claim about the library.
+        // A find already on the plate stays; without one, the plate says why.
+        plate.value = { ...current, loading: false, failed: current.find === null }
+        return
+    }
+
+    if (mine !== latest || plate.value?.id !== current.id) return
+    plate.value = { ...current, find, loading: false, empty: find === null, failed: false }
 }
 
 function launch(origin: Element | null | undefined) {
-    // The toast always comes; under reduced motion it is the whole answer.
-    useToast().showNotification('📡 Signal received')
-    if (prefersLessMotion() || burst.value) return
-    burst.value = { id: nextId++, ...centreOf(origin) }
-    playRadioHiss()
-    burstTimer = setTimeout(() => {
-        burst.value = null
-        burstTimer = null
-    }, BURST_MS)
+    // A plate still up (only from code: a press on the icon closes it first)
+    // gives way to the new one.
+    latest++
+    plate.value = {
+        id: nextId++,
+        anchor: anchorOf(origin),
+        find: null,
+        loading: true,
+        empty: false,
+        failed: false,
+    }
+    void receive()
+}
+
+/** "Another": a different find on the same plate. */
+export function anotherFind() {
+    if (plate.value) void receive(findHash(plate.value.find))
+}
+
+/** Close the plate; an answer still on its way is dropped. */
+export function closeSignalPlate() {
+    latest++
+    plate.value = null
 }
 
 export function useLogoSignal() {

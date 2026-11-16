@@ -393,3 +393,65 @@ def test_a_play_from_a_dated_playlist_makes_no_recently_played_card(home, playli
 
     items = HomepageStore.entries["recently_played"].items[1]
     assert [(i["type"], i["hash"]) for i in items] == [("album", ALBUM_B)]
+
+
+# The logo's find (#828): one card of "Never played" or "Forgotten favorites".
+
+
+def _fill_signal_rows(home, never: list[str], forgotten: list[str]):
+    from aivinnet.lib.home.discover import forgotten_favorite_item, never_played_item
+    from aivinnet.store.homepage import HomepageStore
+
+    HomepageStore.entries["never_played"].items[home.userid] = [never_played_item(h, None) for h in never]
+    HomepageStore.entries["forgotten_favorites"].items[home.userid] = [
+        forgotten_favorite_item(h, 12, 1_600_000_000) for h in forgotten
+    ]
+
+
+def test_signal_with_nothing_to_find(home):
+    res = home.get("/nothome/signal")
+
+    assert res.status_code == 200
+    assert res.get_json() == {"find": None}
+
+
+def test_signal_finds_an_album_or_a_track_with_its_reason(home):
+    favourite = _trackhash(ALBUM_A, 2)
+    _fill_signal_rows(home, never=[ALBUM_B], forgotten=[favourite])
+
+    finds = {}
+    for _ in range(40):
+        find = home.get("/nothome/signal").get_json()["find"]
+        finds[find["type"]] = find
+
+    assert set(finds) == {"album", "track"}  # 2**-39 chance of a false red
+    assert finds["album"]["reason"] == "Never played"
+    assert finds["album"]["item"]["albumhash"] == ALBUM_B
+    assert finds["album"]["item"]["title"] == "Now Playing"
+    assert finds["track"]["reason"] == "Forgotten favorite"
+    assert finds["track"]["item"]["trackhash"] == favourite
+    assert finds["track"]["item"]["title"] == "Song 2"
+
+
+def test_signal_skips_the_find_on_the_plate(home):
+    _fill_signal_rows(home, never=[ALBUM_A, ALBUM_B], forgotten=[])
+
+    picks = {home.get(f"/nothome/signal?skip={ALBUM_A}").get_json()["find"]["item"]["albumhash"] for _ in range(20)}
+    assert picks == {ALBUM_B}
+
+
+def test_signal_leaves_out_what_the_user_is_not_interested_in(home):
+    _fill_signal_rows(home, never=[ALBUM_A, ALBUM_B], forgotten=[])
+    assert home.post("/nothome/not-interested", json={"type": "album", "hash": ALBUM_A}).status_code == 200
+
+    picks = {home.get("/nothome/signal").get_json()["find"]["item"]["albumhash"] for _ in range(20)}
+    assert picks == {ALBUM_B}
+
+
+def test_signal_ignores_a_vanished_album(home, monkeypatch):
+    from aivinnet.store.albums import AlbumStore
+
+    _fill_signal_rows(home, never=[ALBUM_A], forgotten=[])
+    monkeypatch.setattr(AlbumStore, "albummap", {})
+
+    assert home.get("/nothome/signal").get_json() == {"find": None}

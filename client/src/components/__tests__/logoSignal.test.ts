@@ -4,11 +4,31 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Logo from '@/components/Logo.vue'
-import { useToast } from '@/stores/notification'
 
-// Easter egg (#544): seven clicks within ~3 s send the signal.
-// The logo is still a link, so every click has to navigate as before.
-import { __resetSignalTestState, BURST_MS, CLICK_WINDOW_MS, useSignalBurst } from '@/composables/useLogoSignal'
+// Easter egg (#544, #828): seven clicks within ~3 s receive a find from the
+// library. The logo is still a link, so every click has to navigate as before.
+const { getSignalFind } = vi.hoisted(() => ({ getSignalFind: vi.fn() }))
+vi.mock('@/requests/home', () => ({ getSignalFind }))
+
+import {
+    __resetSignalTestState,
+    anotherFind,
+    CLICK_WINDOW_MS,
+    closeSignalPlate,
+    useSignalPlate,
+} from '@/composables/useLogoSignal'
+
+// The server's answer, shaped like `GET /nothome/signal` (the card Home draws).
+const ALBUM = {
+    type: 'album',
+    reason: 'Never played',
+    item: { albumhash: 'a1b2c3d4e5f60718', title: 'Old Love', image: 'a1b2c3d4e5f60718.webp?pathhash=ph1', albumartists: [{ name: 'Some Band' }] },
+}
+const TRACK = {
+    type: 'track',
+    reason: 'Forgotten favorite',
+    item: { trackhash: '0f1e2d3c4b5a6978', title: 'Song 2', image: 'a1b2c3d4e5f60718.webp?pathhash=ph1', artists: [{ name: 'Some Band' }] },
+}
 
 function makeRouter() {
     const page = { render: () => null }
@@ -37,86 +57,72 @@ async function click(wrapper: ReturnType<typeof mount>, count: number, gapMs: nu
     }
 }
 
-/** Is a burst on? The app-wide layer (SignalBurst.vue) draws it. */
-function signalling() {
-    return useSignalBurst().value !== null
-}
+const plate = () => useSignalPlate().value
 
-describe('logo signal easter egg', () => {
+describe('logo easter egg: seven clicks, one find', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         __resetSignalTestState()
+        getSignalFind.mockReset()
+        getSignalFind.mockResolvedValue(ALBUM)
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     })
 
     afterEach(() => {
         vi.useRealTimers()
-        delete (window as any).matchMedia
-        delete (window as any).AudioContext
     })
 
-    it('seven fast clicks send the signal, and it is gone after the burst', async () => {
+    it('seven fast clicks open the plate, which fills with the find', async () => {
+        let answer!: (v: unknown) => void
+        getSignalFind.mockReturnValue(new Promise(r => (answer = r)))
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
-        expect(signalling()).toBe(true)
-        // The toast comes with the burst too: it names what just happened.
-        expect(useToast().notifs.map(n => n.text)).toEqual(['📡 Signal received'])
+        expect(plate()).toMatchObject({ loading: true, find: null })
 
-        vi.advanceTimersByTime(BURST_MS)
-        await wrapper.vm.$nextTick()
-        expect(signalling()).toBe(false)
+        answer(ALBUM)
+        await flushPromises()
+        expect(plate()).toMatchObject({ loading: false, empty: false, find: ALBUM })
+        expect(getSignalFind).toHaveBeenCalledWith(undefined)
     })
 
-    it('six fast clicks do not launch it', async () => {
+    it('six fast clicks do not', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 6, 200)
-        expect(signalling()).toBe(false)
+        expect(plate()).toBeNull()
+        expect(getSignalFind).not.toHaveBeenCalled()
     })
 
     it('the window is 3 s: 2 s was too tight to hit on purpose', () => {
         expect(CLICK_WINDOW_MS).toBe(3000)
     })
 
-    it('seven clicks spread over 2.4 s still launch it', async () => {
+    it('seven clicks spread over 2.4 s still count', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 400)
-        expect(signalling()).toBe(true)
+        expect(plate()).not.toBeNull()
     })
 
-    it('seven slow clicks do not launch it: these span 3.6 s', async () => {
+    it('seven slow clicks do not: these span 3.6 s', async () => {
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 600)
-        expect(signalling()).toBe(false)
+        expect(plate()).toBeNull()
     })
 
     it('needs seven clicks inside the window, not seven clicks in total', async () => {
         const { wrapper } = await mountLogo()
 
-        // Six fast, a pause, then one more: the old six have expired.
         await click(wrapper, 6, 200)
         vi.advanceTimersByTime(CLICK_WINDOW_MS)
         await click(wrapper, 1, 0)
-        expect(signalling()).toBe(false)
-    })
-
-    it('under reduced motion it shows a toast instead of the burst', async () => {
-        window.matchMedia = vi.fn(() => ({ matches: true })) as any
-        const { wrapper } = await mountLogo()
-        const toast = useToast()
-
-        await click(wrapper, 7, 200)
-
-        expect(signalling()).toBe(false)
-        expect(toast.notifs.map(n => n.text)).toEqual(['📡 Signal received'])
+        expect(plate()).toBeNull()
     })
 
     it('every click still navigates to Home, including the seventh', async () => {
         const { router, wrapper } = await mountLogo()
-        expect(router.currentRoute.value.name).toBe('Other')
 
         await click(wrapper, 1, 0)
         await flushPromises()
@@ -126,66 +132,100 @@ describe('logo signal easter egg', () => {
         await click(wrapper, 7, 200)
         await flushPromises()
         expect(router.currentRoute.value.name).toBe('Home')
-        expect(signalling()).toBe(true)
+        expect(plate()).not.toBeNull()
     })
 
-    it('plays a short generated hiss with the signal when Web Audio exists', async () => {
-        const contexts: Array<{ started: number }> = []
-        class FakeAudioContext {
-            sampleRate = 8000
-            destination = {}
-            started = 0
-            constructor() {
-                contexts.push(this)
-            }
-            createBuffer(_channels: number, length: number) {
-                return { getChannelData: () => new Float32Array(length) }
-            }
-            createBufferSource() {
-                const ctx = this
-                return {
-                    buffer: null as unknown,
-                    onended: null as unknown,
-                    connect(node: unknown) {
-                        return node
-                    },
-                    start() {
-                        ctx.started++
-                    },
-                }
-            }
-            createBiquadFilter() {
-                return { type: '', frequency: { value: 0 }, Q: { value: 0 }, connect: (n: unknown) => n }
-            }
-            createGain() {
-                return { gain: { value: 0 }, connect: (n: unknown) => n }
-            }
-            close() {
-                return Promise.resolve()
-            }
-        }
-        ;(window as any).AudioContext = FakeAudioContext
-
-        const { wrapper } = await mountLogo()
-        await click(wrapper, 7, 200)
-
-        expect(contexts).toHaveLength(1)
-        expect(contexts[0].started).toBe(1)
-    })
-
-    it('starts the burst at the centre of the planet', async () => {
+    it('hangs the plate from the lower edge of the planet', async () => {
         const { wrapper } = await mountLogo()
         const planet = wrapper.find('.logo-orbit-wrapper').element
-        planet.getBoundingClientRect = () => ({ left: 20, top: 12, width: 44, height: 44 }) as DOMRect
+        planet.getBoundingClientRect = () => ({ left: 20, top: 12, right: 64, bottom: 56, width: 44, height: 44 }) as DOMRect
 
         await click(wrapper, 7, 200)
-        expect(useSignalBurst().value).toMatchObject({ x: 42, y: 34 })
+        expect(plate()!.anchor).toEqual({ left: 20, top: 56, right: 64 })
     })
 
-    it('without Web Audio the signal still shows, silently', async () => {
+    it('nothing to find says so instead of staying silent', async () => {
+        getSignalFind.mockResolvedValue(null)
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
-        expect(signalling()).toBe(true)
+        await flushPromises()
+        expect(plate()).toMatchObject({ loading: false, empty: true, find: null })
+    })
+
+    it('a failed request says so, not "you have heard it all", and is no stuck "Tuning in"', async () => {
+        getSignalFind.mockRejectedValue(new Error('offline'))
+        const { wrapper } = await mountLogo()
+
+        await click(wrapper, 7, 200)
+        await flushPromises()
+        expect(plate()).toMatchObject({ loading: false, failed: true, empty: false })
+    })
+
+    it('a failed "Another" keeps the find on the plate', async () => {
+        const { wrapper } = await mountLogo()
+        await click(wrapper, 7, 200)
+        await flushPromises()
+
+        getSignalFind.mockRejectedValue(new Error('offline'))
+        anotherFind()
+        await flushPromises()
+
+        expect(plate()).toMatchObject({ loading: false, failed: false, find: ALBUM })
+    })
+
+    it('"Another" asks for a different find than the one on the plate', async () => {
+        const { wrapper } = await mountLogo()
+        await click(wrapper, 7, 200)
+        await flushPromises()
+
+        getSignalFind.mockResolvedValue(TRACK)
+        anotherFind()
+        expect(plate()).toMatchObject({ loading: true, find: ALBUM })
+        await flushPromises()
+
+        expect(getSignalFind).toHaveBeenLastCalledWith(ALBUM.item.albumhash)
+        expect(plate()).toMatchObject({ loading: false, find: TRACK })
+    })
+
+    it('seven more clicks put up a fresh plate with a fresh find', async () => {
+        const { wrapper } = await mountLogo()
+        await click(wrapper, 7, 200)
+        await flushPromises()
+        const id = plate()!.id
+
+        getSignalFind.mockResolvedValue(TRACK)
+        await click(wrapper, 7, 200)
+        await flushPromises()
+
+        expect(plate()!.id).not.toBe(id)
+        expect(plate()).toMatchObject({ find: TRACK })
+    })
+
+    it('an answer that arrives after the close does not reopen the plate', async () => {
+        let answer!: (v: unknown) => void
+        getSignalFind.mockReturnValue(new Promise(r => (answer = r)))
+        const { wrapper } = await mountLogo()
+
+        await click(wrapper, 7, 200)
+        closeSignalPlate()
+        answer(ALBUM)
+        await flushPromises()
+
+        expect(plate()).toBeNull()
+    })
+
+    it('an older answer cannot overwrite a newer one', async () => {
+        const answers: Array<(v: unknown) => void> = []
+        getSignalFind.mockImplementation(() => new Promise(r => answers.push(r)))
+        const { wrapper } = await mountLogo()
+
+        await click(wrapper, 7, 200)
+        anotherFind()
+        answers[1](TRACK)
+        answers[0](ALBUM)
+        await flushPromises()
+
+        expect(plate()!.find).toEqual(TRACK)
     })
 })

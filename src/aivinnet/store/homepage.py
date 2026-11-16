@@ -2,6 +2,7 @@ from aivinnet.db.userdata import CollectionTable, NotInterestedTable, UserTable
 from aivinnet.lib import first_play_cache
 from aivinnet.lib.home.discover import NEVER_CHIP_MIN
 from aivinnet.lib.home.layout import COLLECTIONS, Layout, make_layout
+from aivinnet.lib.home.signal import SIGNAL_POOL, SIGNAL_ROWS
 from aivinnet.lib.pagelib import recover_page_items
 from aivinnet.lib.recipes import records
 from aivinnet.models.user import HOME_LAYOUT_KEY
@@ -240,6 +241,25 @@ class HomepageStore:
             )
 
         return pagedata
+
+    @classmethod
+    def signal_pools(cls, userid: int) -> list[tuple[str, list[dict]]]:
+        """
+        `(reason, stored items)` of the rows the logo's find comes from (#828),
+        "Not interested" marks left out like Home leaves them out. Raw items
+        (`{type, hash}`), not cards: the caller recovers only the one it picks.
+        A row the user hid on Home still takes part — hiding a row is about
+        Home's layout, and the find is not on Home.
+        """
+        marked = NotInterestedTable.hashes(userid)
+        pools = []
+        for key, reason in SIGNAL_ROWS:
+            items = cls.entries[key].items.get(userid, [])[:SIGNAL_POOL]
+            kind = NOT_INTERESTED_ROWS.get(key)
+            skip = marked.get(kind, set()) if kind else set()
+            pools.append((reason, [item for item in items if item.get("hash") not in skip]))
+
+        return pools
 
     @classmethod
     def get_homepage_items(cls, limit: int):

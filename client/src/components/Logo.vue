@@ -10,8 +10,8 @@
 </template>
 
 <script setup lang="ts">
-// Easter egg (#544): seven fast clicks send a signal out of the planet
-// (composables/useLogoSignal.ts, drawn by SignalBurst.vue). The click itself
+// Easter egg (#544, #828): seven fast clicks hand over a find from the library
+// (composables/useLogoSignal.ts, drawn by SignalFind.vue). The click itself
 // is only observed here — RouterLink still navigates.
 import { ref } from 'vue'
 
