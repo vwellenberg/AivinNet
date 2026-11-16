@@ -20,7 +20,9 @@ ASSETS = Path(__file__).resolve().parents[1] / "src" / "aivinnet" / "assets"
 INK = (23, 23, 26)
 
 
-@pytest.mark.parametrize("name", ["default.webp", "track.webp", "artist.webp"])
+@pytest.mark.parametrize(
+    "name", ["default.webp", "track.webp", "artist.webp", "default.dense.webp", "track.dense.webp"]
+)
 def test_placeholder_is_an_ink_glyph_on_a_clear_tile(name):
     image = Image.open(ASSETS / name)
     assert image.mode == "RGBA", f"{name} has no alpha channel"
@@ -35,7 +37,11 @@ def test_placeholder_is_an_ink_glyph_on_a_clear_tile(name):
     # Mostly clear, and the glyph is there and opaque ink.
     values = list(alpha.getdata())
     clear_share = sum(1 for v in values if v == 0) / len(values)
-    assert clear_share > 0.9, f"{name}: only {clear_share:.0%} of the tile is clear"
+    # The dense cut fills ~3/4 of the tile with its glyph on purpose (the
+    # sidebar's 24px slot); its ring alone covers ~15%. Still far from the
+    # opaque tile this guards against.
+    min_clear = 0.75 if ".dense." in name else 0.9
+    assert clear_share > min_clear, f"{name}: only {clear_share:.0%} of the tile is clear"
     glyph = [
         rgba.getpixel((x, y))[:3]
         for x in range(0, width, 3)
@@ -44,3 +50,19 @@ def test_placeholder_is_an_ink_glyph_on_a_clear_tile(name):
     ]
     assert glyph, f"{name}: no opaque glyph left"
     assert all(px == INK for px in glyph), f"{name}: the glyph is not ink"
+
+
+@pytest.mark.parametrize("name", ["default", "track"])
+def test_the_dense_cut_draws_a_bigger_glyph(name):
+    """The dense cut exists for its proportions: the glyph has to fill more of
+    the tile than the regular one, or the sidebar's 24px placeholder keeps its
+    hairline strokes (user, 2026-11-16)."""
+
+    def glyph_width(filename):
+        box = Image.open(ASSETS / filename).getchannel("A").getbbox()
+        assert box, f"{filename}: empty"
+        return box[2] - box[0]
+
+    regular = glyph_width(f"{name}.webp")
+    dense = glyph_width(f"{name}.dense.webp")
+    assert dense >= 2 * regular, f"{name}.dense.webp ({dense}px) is not much bigger than {name}.webp ({regular}px)"

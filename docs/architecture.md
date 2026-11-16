@@ -247,7 +247,8 @@ Tag-Verarbeitungsoptionen.
 ```
 config folder
 └── aivinnet
-    ├── assets            Platzhalterbilder (default.webp, artist.webp, playlist.svg)
+    ├── assets            Platzhalterbilder (default.webp, track.webp, artist.webp, playlist.svg;
+    │                     *.dense.webp = großes Glyph für die 28-px-Sidebar, per ?ph=dense)
     ├── aivinnet/logs     log.jsonl (bis #191: swingmusic/logs, wandert beim Start)
     ├── client            der deployte Vue-Build  ← app.static_folder
     ├── client.version    welche Version den Client installiert hat (Stale-Erkennung)
