@@ -642,7 +642,7 @@ describe('RadioDial now-playing zone (wide display)', () => {
         tracklistMock.tracklist = []
     })
 
-    it('ON AIR shows the title, the artists, album and year, the progress and both buttons', async () => {
+    it('ON AIR shows the title, the artists, the album, the progress and both buttons', async () => {
         const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
 
         expect(w.get('.radio-now-title').text()).toBe('Paradise Lost')
@@ -654,6 +654,22 @@ describe('RadioDial now-playing zone (wide display)', () => {
         // The ♥ says which song it is for: the track info beside it is aria-hidden.
         expect(w.get('button[aria-label^="Favorite"]').attributes('aria-label')).toBe('Favorite: Paradise Lost')
         expect(w.find('button[aria-label="Next song"]').exists()).toBe(true)
+    })
+
+    it('the album line names the release year when the track has one', async () => {
+        tracklistMock.tracklist = [{ ...track, year: 1993 }]
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        // A no-break space before the dot: a flex item drops a leading plain one.
+        expect(w.get('.radio-now-album').text()).toBe('Icon\u00a0· 1993')
+        expect(w.find('.radio-now-year').exists()).toBe(true)
+    })
+
+    it('the album line is the album alone when the track has no year', async () => {
+        tracklistMock.tracklist = [{ ...track, year: null }]
+        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
+
+        expect(w.get('.radio-now-album').text()).toBe('Icon')
     })
 
     it("⏭ calls the queue's next action", async () => {

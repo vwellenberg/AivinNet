@@ -407,7 +407,9 @@ waren bei früheren Tag-Durchläufen nicht dabei und brauchen einen eigenen Nach
 `datetime.fromtimestamp(...)` (Server) oder `new Date(...).getFullYear()` (Client) liest, bekommt
 westlich von UTC **2019** — jedes Album mit reinem Jahres-Tag ein Jahr zu früh, der Dekaden-Chip
 eines Artists bei „2020“ ein Jahrzehnt zu früh. Leser für Tag-Daten: Server
-`utils/dates.tag_year()`, Client `utils/dates.ts::releaseYear()`. Echte Zeitpunkte (hinzugefügt,
+`utils/dates.tag_year()`, Client `utils/dates.ts::releaseYear()`. Für das Jahr **eines Tracks**
+`Track.release_year()`: Ohne Jahres-Tag steht in `date` die mtime (`date == last_mod`), und das
+ist kein Erscheinungsjahr; `serialize_track` schickt es als `year`. Echte Zeitpunkte (hinzugefügt,
 gespielt) bleiben lokal (`formatDate`).
 
 `parse_date` nimmt nur noch eine Jahreszahl vorn (mit Monat/Tag, wenn sie folgen) oder eine

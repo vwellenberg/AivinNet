@@ -2,6 +2,7 @@ from dataclasses import asdict, dataclass, field
 
 from aivinnet.config import UserConfig
 from aivinnet.utils.auth import get_current_userid
+from aivinnet.utils.dates import tag_year
 from aivinnet.utils.hashing import create_hash
 from aivinnet.utils.parsers import (
     clean_title,
@@ -86,6 +87,21 @@ class Track:
     @property
     def pathhash(self):
         return create_hash(self.folder)
+
+    def release_year(self) -> int | None:
+        """
+        The release year from the file's tag, or None when the file has none.
+
+        `date` is the mtime when the file has no year tag (`taglib.py`), so
+        `date == last_mod` means "no release date", not a release in that year.
+        `serialize_track` and the smart-playlist facts read the year through
+        here, so the exception lives in one place for them.
+        """
+        # Not a number (a stray TEXT value in an old row) is no year either:
+        # this runs for every serialized track, and must not fail a listing.
+        if not isinstance(self.date, int | float) or not self.date or self.date == self.last_mod:
+            return None
+        return tag_year(self.date)
 
     def rating_of(self, userid: int) -> int | None:
         return self.rated_by.get(userid)
