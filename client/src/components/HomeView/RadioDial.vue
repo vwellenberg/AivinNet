@@ -1,10 +1,16 @@
 <template>
-  <section v-if="dialIsWorthShowing(stations)" class="radio-card">
+  <!-- Off until switched on under Settings → Home (per device). -->
+  <section v-if="settings.show_radio && dialIsWorthShowing(stations)" class="radio-card">
     <!-- One housing, one plate: it arrives as a whole, its parts get no arrival
          of their own (styling.md, "Eine segmentierte Leiste kommt als EIN Objekt"). -->
     <!-- The housing's own surface opens and closes it too (a pointer
          convenience; the button is the control for keyboards and readers). -->
-    <div class="radio-case" :class="{ 'is-still': still, 'is-open': open }" @click="onCaseClick">
+    <div
+      class="radio-case"
+      :class="{ 'is-still': still, 'is-open': open }"
+      @pointerdown="onCasePointerDown"
+      @click="onCaseClick"
+    >
       <div class="radio-head">
         <div class="radio-title"><b>AivinNet FM</b></div>
         <!-- Folded: the strip says the radio plays, and nothing else. -->
@@ -214,13 +220,26 @@ const settings = useSettings()
 // Folded by default (Home declutter, 2026-11-15); the choice is per device.
 const open = computed(() => settings.radio_open)
 /**
+ * Whether the press that ends in the next click began inside the body. A
+ * click goes to the common ancestor of press and release: a turn of the knob
+ * let go over the housing clicked the housing and folded the radio (user,
+ * 2026-11-16). So the press decides, not where the pointer is let go.
+ */
+let pressInBody = false
+function onCasePointerDown(event: PointerEvent) {
+  pressInBody = !!(event.target as Element | null)?.closest('.radio-body')
+}
+
+/**
  * A click on the housing's bare surface (the head strip, the margins) toggles
  * it. Inside the body it does nothing: tuning on the knob, or a tap on the
  * display, must never fold the radio away.
  */
 function onCaseClick(event: MouseEvent) {
+  const fromBody = pressInBody
+  pressInBody = false
   const target = event.target as Element | null
-  if (target?.closest('.radio-body')) return
+  if (fromBody || target?.closest('.radio-body')) return
   // The end of a drag that selected the title or the legend is a click too.
   if (window.getSelection?.()?.isCollapsed === false) return
   toggleOpen()
@@ -475,6 +494,23 @@ $glass-dim: color-mix(in srgb, #{$mem-lavender} 55%, #{$mem-ink});
 $glass-glow: mem-alpha($mem-lavender, 0.55);
 $glass-edge: mem-alpha($mem-paper, 0.14);
 
+// The now-playing zone's type, with explicit line heights: its fullest state
+// (label, a two-line title, artist, album, then the progress row) is then a
+// sum, and the zone holds that height whatever plays (`.radio-now`).
+$radio-now-lh: 1.3;
+$radio-now-label: 0.62rem;
+$radio-now-title: 1.6rem;
+$radio-now-title-lh: 1.2;
+$radio-now-artist: 0.74rem;
+$radio-now-album: 0.7rem;
+$radio-now-prog: 0.7rem;
+$radio-now-meta-gap: 2px;
+$radio-now-row-gap: 0.35rem;
+$radio-now-full: calc(
+  #{($radio-now-label + $radio-now-artist + $radio-now-album + $radio-now-prog) * $radio-now-lh}
+    + #{2 * $radio-now-title * $radio-now-title-lh} + #{3 * $radio-now-meta-gap} + #{$radio-now-row-gap}
+);
+
 .radio-card {
   // The page's own edge, like the Browse tiles above the rows. A size container:
   // the now-playing column is a container query on it (wide screens only).
@@ -522,11 +558,19 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   }
 
   // Folded: the housing is the strip alone, a shorter plate, nothing below it.
+  // One line whatever plays: the ON AIR chip comes and goes with play and
+  // pause, and wrapped onto a second line it made the strip taller only while
+  // a station played (user, 2026-11-16). It shrinks to its ellipsis instead.
   .radio-case:not(.is-open) {
     padding: 0.5rem 0.9rem;
 
     > .radio-head {
+      flex-wrap: nowrap;
       margin-bottom: 0;
+    }
+
+    .radio-title {
+      flex-shrink: 0;
     }
   }
 
@@ -701,8 +745,15 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
       grid-template-columns: 6.4rem minmax(0, 1fr) auto;
       grid-template-rows: auto auto;
       align-items: center;
+      // The zone is the tallest thing on the glass, and it held a song only
+      // while one played: paused, it emptied and the radio shrank by a
+      // title's two lines (user, 2026-11-16). It keeps the height of its
+      // fullest state (two-line title, album, progress) in every state, the
+      // rows packed in the middle when they need less.
+      align-content: center;
+      min-height: $radio-now-full;
       column-gap: 0.8rem;
-      row-gap: 0.35rem;
+      row-gap: $radio-now-row-gap;
       min-width: 0;
       padding-left: 0.9rem;
       border-left: $mem-hairline-w dashed $glass-dim;
@@ -813,13 +864,14 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   .radio-now-meta {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: $radio-now-meta-gap;
     min-width: 0;
   }
 
   .radio-now-label {
     color: $glass-dim;
-    font-size: 0.62rem;
+    font-size: $radio-now-label;
+    line-height: $radio-now-lh;
     font-weight: 700;
     letter-spacing: 0.14em;
   }
@@ -832,9 +884,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     -webkit-line-clamp: 2;
     line-clamp: 2;
     color: $glass-text;
-    font-size: 1.6rem;
+    font-size: $radio-now-title;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: $radio-now-title-lh;
     text-shadow: 0 0 8px $glass-glow;
   }
 
@@ -843,17 +895,18 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     overflow: hidden;
     color: $glass-dim;
     font-weight: 600;
+    line-height: $radio-now-lh;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .radio-now-artist {
-    font-size: 0.74rem;
+    font-size: $radio-now-artist;
   }
 
   .radio-now-album {
     display: flex;
-    font-size: 0.7rem;
+    font-size: $radio-now-album;
   }
 
   .radio-now-album-name {
@@ -908,8 +961,9 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     align-items: center;
     gap: 8px;
     color: $glass-dim;
-    font-size: 0.7rem;
+    font-size: $radio-now-prog;
     font-weight: 600;
+    line-height: $radio-now-lh;
     font-variant-numeric: tabular-nums;
   }
 

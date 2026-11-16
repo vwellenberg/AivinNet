@@ -75,6 +75,10 @@ Silicon).
 
 Ratings, a calmer Home and a brighter Stats page, on top of 2026.11.7.
 
+- **AivinNet FM is off until you switch it on** under Settings → Home (per
+  device). Turning the knob and letting go over the radio's edge no longer
+  folds it, and the radio keeps its height when you pause.
+
 - **Rate your songs, 1 to 5 stars.** Each person rates for themselves: in Now
   Playing (five stars at the top), from a song's menu ("Bewerten"), or by
   tapping the star sticker in a song list. Ratings follow a song when its tags

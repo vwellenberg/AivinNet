@@ -9,8 +9,10 @@ const { homeMock, settingsMock, queueMock, tracklistMock, tuneStation, resumeMus
   const { reactive } = await import('vue')
   return {
     homeMock: reactive({ homepageItems: [] as any[], stations: [] as any[] }),
-    // The per-device flag: folded (false) by default. The setter writes it, as the store does.
+    // The per-device flags: shown (on in these tests; the store starts off) and
+    // folded (false) by default. The setter writes it, as the store does.
     settingsMock: reactive({
+      show_radio: true,
       radio_open: false,
       setRadioOpen(value: boolean) {
         this.radio_open = value
@@ -102,6 +104,7 @@ describe('RadioDial', () => {
         queueMock.currentindex = 0
         tracklistMock.from = {}
         tracklistMock.tracklist = []
+        settingsMock.show_radio = true
         settingsMock.radio_open = false
     })
 
@@ -115,6 +118,17 @@ describe('RadioDial', () => {
         const w = await mountWith([])
 
         expect(w.find('.radio-card').exists()).toBe(false)
+    })
+
+    it('shows nothing until it is switched on under Settings → Home', async () => {
+        settingsMock.show_radio = false
+        const w = await mountWith(dialOf(['mix1', 'mix2']))
+
+        expect(w.find('.radio-card').exists()).toBe(false)
+
+        settingsMock.show_radio = true
+        await flushPromises()
+        expect(w.find('.radio-card').exists()).toBe(true)
     })
 
     it('shows nothing with mixes alone: the "Your mixes" row below already has them', async () => {
@@ -574,6 +588,29 @@ describe('RadioDial', () => {
         expect(settingsMock.radio_open).toBe(true)
 
         await w.get('.radio-case').trigger('click')
+        await flushPromises()
+        expect(settingsMock.radio_open).toBe(false)
+    })
+
+    it('a turn of the knob let go over the housing does not fold it', async () => {
+        // A click goes to the common ancestor of press and release (Safari;
+        // Chromium sends it to the captured knob instead): a turn let go over
+        // the housing's margin clicked the housing (user, 2026-11-16).
+        const w = await mountWith(dialOf(['mix1', 'mix2', 'mix3']), { attachTo: document.body })
+
+        pointer(w, 'pointerdown', { pointerId: 4, clientX: 0, clientY: 0 })
+        pointer(w, 'pointermove', { pointerId: 4, clientX: 0, clientY: 60 })
+        pointer(w, 'pointerup', { pointerId: 4, clientX: -40, clientY: 90 })
+        await w.get('.radio-case').trigger('click')
+        await flushPromises()
+
+        expect(tuneStation).toHaveBeenCalled()
+        expect(settingsMock.radio_open).toBe(true)
+
+        // The next press on the bare housing is a click of its own again.
+        const head = w.get('.radio-head').element
+        pointer(w, 'pointerdown', { pointerId: 5, clientX: 0 }, head)
+        await w.get('.radio-head').trigger('click')
         await flushPromises()
         expect(settingsMock.radio_open).toBe(false)
     })
