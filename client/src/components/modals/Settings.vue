@@ -278,13 +278,6 @@ $settings-close-inset: 0.625rem;
                 width: $phone-list-glyph;
                 height: $phone-list-glyph;
             }
-
-            // The Profile row's avatar is the one leading element without a
-            // cover span, so it lacks the cover's 4px on both sides: it stood
-            // 12px from the row's edge and from its label instead of 16.
-            > :not(span) {
-                margin: 0 4px;
-            }
         }
     }
 }

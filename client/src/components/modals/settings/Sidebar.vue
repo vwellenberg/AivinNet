@@ -40,7 +40,17 @@
                         }"
                         @click="() => $emit('setTab', item.title || '')"
                     >
-                        <Avatar :size="24" :name="auth.user.username || ''" v-if="item.title === 'Profile'" />
+                        <!--
+                            Profile shows the user's own picture, in the same
+                            glyph box as every other row (it sat outside the
+                            box, 4px left of the column). Without a picture,
+                            or if it fails to load, the row's glyph stands in.
+                        -->
+                        <span class="icon avatar" v-if="item.title === 'Profile' && auth.user.image">
+                            <Avatar :size="24" :name="auth.user.username || ''" :image="auth.user.image">
+                                <template #fallback><span class="glyph" v-html="item.icon"></span></template>
+                            </Avatar>
+                        </span>
                         <span class="icon" v-html="item.icon" v-else></span>
                         <span class="label">
                             {{ item.title }}
@@ -155,10 +165,9 @@ defineEmits<{
         @include mem-row-plate($hatch: true);
 
         // Glyph and label ride on the smooth fill; the texture stays in the
-        // ring. Only the spans: the Profile row renders an <Avatar> whose root
-        // is the bare image/svg, and a cover with padding would shrink it
-        // inside its fixed 24px box — and only for users who uploaded a picture,
-        // because the two avatar variants render different elements.
+        // ring. The Profile picture sits in a `.icon` span like every glyph:
+        // the cover's padding goes around the box (`content-box` below), so
+        // the picture keeps its 24px and lines up with the column.
         > span {
             @include mem-hatch-clear(4px);
         }
@@ -181,6 +190,15 @@ defineEmits<{
             display: grid;
             place-items: center;
             flex: none;
+        }
+
+        .avatar img {
+            width: $bar-glyph;
+            height: $bar-glyph;
+        }
+
+        .glyph {
+            display: contents;
         }
 
         // Space Grotesk's cap band sits 0.5px above its line box's centre.

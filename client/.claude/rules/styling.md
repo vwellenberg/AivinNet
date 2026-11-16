@@ -81,7 +81,7 @@ optische Größe am Füllgrad der jeweiligen viewBox (daher kam „Lyrics-Icon z
 Seit #311 sind die Navigations- und Chrome-Glyphen (home, search, folder\*, bookmark\*, playlist\*,
 chart, settings, album, artist, delete, plus, queue, more, expand, arrow\*, volume-\*, pin\*,
 download, pencil, reload, devices, headphones, a, square, check.filled, check.circle.fill,
-heart\*, note, sowie seit der Settings-Runde paintbrush, phone, info, users, cover, backup)
+heart\*, note, sowie seit der Settings-Runde paintbrush, phone, info, users, profile, cover, backup)
 **ein** Satz:
 
 - **24×24-Box, ~18 px optisches Glyph** (Ink von 3 bis 21), **2,4 px** Strich, runde Kappen und
