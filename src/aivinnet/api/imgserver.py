@@ -53,7 +53,9 @@ def cache_thumbnails(filepath: Path, trackhash: str):
 PLACEHOLDER_HEADER = "X-Aivinnet-Placeholder"
 PLACEHOLDER_ENTITY = {
     "default.webp": "album",
+    "default.dense.webp": "album",
     "track.webp": "track",
+    "track.dense.webp": "track",
     "artist.webp": "artist",
     "playlist.svg": "playlist",
 }
@@ -114,6 +116,11 @@ class ImageQuery(BaseModel):
         "the note placeholder instead of the record (album) one",
         default="",
     )
+    ph: str = Field(
+        description="Placeholder cut: 'dense' serves the glyph drawn for a "
+        "~28px slot (the sidebar), whose strokes match the icons around it",
+        default="",
+    )
 
 
 def thumbnail_fallback(query: ImageQuery) -> str:
@@ -123,8 +130,15 @@ def thumbnail_fallback(query: ImageQuery) -> str:
     The thumbnail URL is the same file for a track and its album, so the
     entity has to travel with the URL: the track serializer appends
     `fb=track`, album images carry nothing and keep the record placeholder.
+
+    `ph=dense` picks the cut for a ~28px slot. The regular placeholder keeps
+    its glyph at a quarter of the tile, which suits a card and a song row; in
+    the sidebar's 24px of picture that left a 6px record drawn with 0.8px
+    lines next to icons at 1.8px (user, 2026-11-16). The dense cut is the
+    chrome glyph at the size of the sidebar's own icons (1.1rem of 24px).
     """
-    return "track.webp" if query.fb == "track" else "default.webp"
+    name = "track" if query.fb == "track" else "default"
+    return f"{name}.dense.webp" if query.ph == "dense" else f"{name}.webp"
 
 
 # @api.get("/t/o/<imgpath>")

@@ -1,14 +1,19 @@
 <template>
     <div v-if="collage" class="playlist-collage no-scroll">
-        <img v-for="(img, i) in collage" :key="`${i}-${img}`" :src="tileBase + img" />
+        <img
+            v-for="(img, i) in collage"
+            :key="`${i}-${img}`"
+            :src="dense ? densePlaceholder(tileBase + img) : tileBase + img"
+        />
     </div>
-    <img v-else-if="first" :src="base + first" />
+    <img v-else-if="first" :src="dense ? densePlaceholder(base + first) : base + first" />
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 
 import { paths } from '@/config'
+import { densePlaceholder } from '@/utils/densePlaceholder'
 import { getCollageImages, imageName, PlaylistImageEntry } from '@/utils/playlistImages'
 
 /**
@@ -23,6 +28,8 @@ import { getCollageImages, imageName, PlaylistImageEntry } from '@/utils/playlis
 const props = defineProps<{
     images: PlaylistImageEntry[]
     size: 'small' | 'medium' | 'large'
+    /** A ~28px slot (the sidebar): a missing cover gets the dense placeholder. */
+    dense?: boolean
 }>()
 
 const base = computed(() => paths.images.thumb[props.size])

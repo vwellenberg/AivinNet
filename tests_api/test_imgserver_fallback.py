@@ -11,6 +11,8 @@ import pytest
 
 DEFAULT_BYTES = b"record-placeholder"
 TRACK_BYTES = b"note-placeholder"
+DENSE_DEFAULT_BYTES = b"record-placeholder-dense"
+DENSE_TRACK_BYTES = b"note-placeholder-dense"
 COVER_BYTES = b"a-real-cover"
 
 
@@ -30,6 +32,8 @@ def img_client(monkeypatch, tmp_path):
     assets.mkdir()
     (assets / "default.webp").write_bytes(DEFAULT_BYTES)
     (assets / "track.webp").write_bytes(TRACK_BYTES)
+    (assets / "default.dense.webp").write_bytes(DENSE_DEFAULT_BYTES)
+    (assets / "track.dense.webp").write_bytes(DENSE_TRACK_BYTES)
 
     sizes = {}
     for name in ["lg", "md", "sm", "xsm"]:
@@ -94,6 +98,38 @@ def test_unknown_fb_value_falls_back_to_the_record(img_client):
     res = img_client.get("/img/thumbnail/missing.webp?fb=artist")
     assert res.status_code == 200
     assert res.data == DEFAULT_BYTES
+
+
+# --- the dense cut (ph=dense) --------------------------------------------------
+# The sidebar's thumbnails are 24px of picture. The regular placeholder draws
+# its glyph at a quarter of the tile, so there it came out as a 6px record with
+# 0.8px lines next to icons at 1.8px. The sidebar asks for the dense cut.
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("?ph=dense", DENSE_DEFAULT_BYTES),
+        ("?pathhash=someph&ph=dense", DENSE_DEFAULT_BYTES),
+        ("?pathhash=someph&fb=track&ph=dense", DENSE_TRACK_BYTES),
+        ("?ph=other", DEFAULT_BYTES),
+    ],
+)
+def test_ph_dense_serves_the_dense_cut(img_client, query, expected):
+    res = img_client.get(f"/img/thumbnail/xsmall/missing.webp{query}")
+    assert res.status_code == 200
+    assert res.data == expected
+
+
+def test_ph_dense_never_overrides_an_existing_cover(img_client):
+    res = img_client.get("/img/thumbnail/known.webp?ph=dense")
+    assert res.data == COVER_BYTES
+
+
+@pytest.mark.parametrize(("query", "entity"), [("?ph=dense", "album"), ("?fb=track&ph=dense", "track")])
+def test_the_dense_cut_is_marked_as_a_placeholder(img_client, query, entity):
+    res = img_client.head(f"/img/thumbnail/xsmall/missing.webp{query}")
+    assert res.headers.get("X-Aivinnet-Placeholder") == entity
 
 
 # --- the placeholder marker (#395) --------------------------------------------

@@ -231,7 +231,8 @@
     "query": {
       "allowed": [
         "fb",
-        "pathhash"
+        "pathhash",
+        "ph"
       ],
       "required": []
     }
@@ -240,7 +241,8 @@
     "query": {
       "allowed": [
         "fb",
-        "pathhash"
+        "pathhash",
+        "ph"
       ],
       "required": []
     }
@@ -249,7 +251,8 @@
     "query": {
       "allowed": [
         "fb",
-        "pathhash"
+        "pathhash",
+        "ph"
       ],
       "required": []
     }
@@ -258,7 +261,8 @@
     "query": {
       "allowed": [
         "fb",
-        "pathhash"
+        "pathhash",
+        "ph"
       ],
       "required": []
     }

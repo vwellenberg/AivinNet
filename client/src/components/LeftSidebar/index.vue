@@ -95,7 +95,7 @@
               @contextmenu.prevent="onAlbumContextMenu($event, entry.al)"
             >
               <div class="sidebar-pl-img rounded-sm">
-                <img :src="thumbBase + entry.al.image" />
+                <img :src="densePlaceholder(thumbBase + entry.al.image)" />
                 <button
                   class="pl-play-overlay mem-glyph-swap"
                   :class="{ playing: isCurrentAlbum(entry.al.albumhash) }"
@@ -207,6 +207,7 @@ import { getPlaylist } from "@/requests/playlists";
 import { useResizeObserver } from "@vueuse/core";
 import { sidebarScrollsWhole } from "@/utils/sidebarFit";
 import { scrollEdges } from "@/utils/scrollEdges";
+import { densePlaceholder } from "@/utils/densePlaceholder";
 import { NotifType, useToast } from "@/stores/notification";
 
 const ctxFlag = ref(false);

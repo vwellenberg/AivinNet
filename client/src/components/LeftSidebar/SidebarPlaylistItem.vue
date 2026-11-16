@@ -9,7 +9,7 @@
     >
         <div class="sidebar-pl-img rounded-sm">
             <img v-if="pl.has_image" :src="imgBase + pl.image" />
-            <PlaylistImages v-else-if="pl.images && pl.images.length" :images="pl.images" size="small" />
+            <PlaylistImages v-else-if="pl.images && pl.images.length" :images="pl.images" size="small" dense />
             <div v-else class="sidebar-pl-placeholder is-playlist">
                 <PlaylistSvg />
             </div>
