@@ -17,40 +17,41 @@ SIGNAL_ROWS: tuple[tuple[str, str], ...] = (
     ("forgotten_favorites", "Forgotten favorite"),
 )
 
+# The kinds of card a find can be.
+FIND_TYPES = ("album", "track")
+
 # How many cards of each row take part. The rows keep more than Home shows; a
 # find may come from further down than the cards on screen.
 SIGNAL_POOL = 50
-
-
-def card_hash(card: dict[str, Any]) -> str | None:
-    """The identity of a recovered album or track card; None for anything else."""
-    item = card.get("item") or {}
-    if card.get("type") == "album":
-        return item.get("albumhash")
-    if card.get("type") == "track":
-        return item.get("trackhash")
-    return None
 
 
 def pick_find(
     pools: Sequence[tuple[str, list[dict[str, Any]]]],
     skip: str | None = None,
     choice: Callable[[list[Any]], Any] = random.choice,
-) -> dict[str, Any] | None:
+) -> tuple[str, dict[str, Any]] | None:
     """
-    One card of all `(reason, cards)` pools together, as `{type, reason, item}`.
+    One stored item (`{type, hash, …}`) of all `(reason, items)` pools
+    together, with its reason. Only albums and tracks take part.
 
-    Every card weighs the same, so a long row is not drowned out by a short one
+    Every item weighs the same, so a long row is not drowned out by a short one
     and vice versa. `skip` is the find on the plate right now ("Another"): it is
     left out while there is anything else to pick, so the button never answers
     with the same find.
+
+    The raw items are picked, not the cards: only the one find is recovered
+    (serialized), not a hundred for one plate.
     """
-    candidates = [(reason, card) for reason, cards in pools for card in cards if card_hash(card)]
-    others = [c for c in candidates if card_hash(c[1]) != skip]
+    candidates = [
+        (reason, item)
+        for reason, items in pools
+        for item in items
+        if item.get("type") in FIND_TYPES and item.get("hash")
+    ]
+    others = [c for c in candidates if c[1]["hash"] != skip]
     if others:
         candidates = others
     if not candidates:
         return None
 
-    reason, card = choice(candidates)
-    return {"type": card["type"], "reason": reason, "item": card["item"]}
+    return choice(candidates)

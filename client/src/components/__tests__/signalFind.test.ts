@@ -47,7 +47,7 @@ const plate = () => useSignalPlate().value
 const mounted: Array<ReturnType<typeof mount>> = []
 
 async function openWith(find: unknown) {
-    getSignalFind.mockResolvedValue(find)
+    if (find !== undefined) getSignalFind.mockResolvedValue(find)
     const router = createRouter({
         history: createMemoryHistory(),
         routes: [
@@ -151,15 +151,39 @@ describe('SignalFind: the plate of the logo find', () => {
         expect(plate()).toBeNull()
     })
 
-    it('Esc and the ✕ close it', async () => {
+    it('Esc closes it from anywhere, the ✕ too', async () => {
+        // The plate does not take the focus: Esc arrives at the document.
         let wrapper = await openWith(ALBUM)
-        await wrapper.find('.signal-find').trigger('keydown', { key: 'Escape' })
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
         expect(plate()).toBeNull()
         mounted.splice(0).forEach(w => w.unmount())
 
         wrapper = await openWith(ALBUM)
         await wrapper.find('.sf-close').trigger('click')
         expect(plate()).toBeNull()
+    })
+
+    it('keyboard focus keeps it open after the pointer leaves', async () => {
+        const wrapper = await openWith(ALBUM)
+        const el = wrapper.find('.signal-find')
+
+        await el.trigger('mouseenter')
+        await wrapper.find('.sf-another').trigger('focusin')
+        await el.trigger('mouseleave')
+        vi.advanceTimersByTime(AUTO_CLOSE_MS * 2)
+        expect(plate()).not.toBeNull()
+
+        await wrapper.find('.sf-another').trigger('focusout', { relatedTarget: null })
+        vi.advanceTimersByTime(AUTO_CLOSE_MS)
+        expect(plate()).toBeNull()
+    })
+
+    it('a request that failed says so, without buttons', async () => {
+        getSignalFind.mockRejectedValue(new Error('offline'))
+        const wrapper = await openWith(undefined)
+
+        expect(wrapper.find('.sf-note').text()).toContain('Try again')
+        expect(wrapper.find('.sf-play').exists()).toBe(false)
     })
 
     it('a press outside closes it, a press inside does not', async () => {

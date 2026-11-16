@@ -22,8 +22,8 @@ export const AUTO_CLOSE_MS = 10_000
 export type PlateAnchor = { left: number; top: number; right: number }
 
 /**
- * The plate on screen. `find` is null while the server answers and when
- * there is nothing to find (`empty`).
+ * The plate on screen. `find` is null while the server answers, when there is
+ * nothing to find (`empty`) and when the server could not be asked (`failed`).
  */
 export type SignalPlate = {
     id: number
@@ -31,6 +31,7 @@ export type SignalPlate = {
     find: SignalFind | null
     loading: boolean
     empty: boolean
+    failed: boolean
 }
 
 // Module state, not per component: the desktop logo and the phone icon both
@@ -70,24 +71,33 @@ async function receive(skip?: string) {
     if (!current) return
     current.loading = true
 
-    let find: SignalFind | null = null
+    let find: SignalFind | null
     try {
         find = await getSignalFind(skip)
     } catch {
-        find = null
+        if (mine !== latest || plate.value?.id !== current.id) return
+        // Not "you have heard it all": that would be a claim about the library.
+        // A find already on the plate stays; without one, the plate says why.
+        plate.value = { ...current, loading: false, failed: current.find === null }
+        return
     }
 
     if (mine !== latest || plate.value?.id !== current.id) return
-    plate.value = { ...current, find, loading: false, empty: find === null }
+    plate.value = { ...current, find, loading: false, empty: find === null, failed: false }
 }
 
 function launch(origin: Element | null | undefined) {
-    // Seven clicks again while a plate is up: a fresh find, same plate.
-    if (plate.value) {
-        void receive(findHash(plate.value.find))
-        return
+    // A plate still up (only from code: a press on the icon closes it first)
+    // gives way to the new one.
+    latest++
+    plate.value = {
+        id: nextId++,
+        anchor: anchorOf(origin),
+        find: null,
+        loading: true,
+        empty: false,
+        failed: false,
     }
-    plate.value = { id: nextId++, anchor: anchorOf(origin), find: null, loading: true, empty: false }
     void receive()
 }
 

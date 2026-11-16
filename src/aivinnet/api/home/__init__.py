@@ -14,6 +14,7 @@ from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
 from aivinnet.lib.home.recap import RECAP_KEY_PATTERN, RecapPeriod, has_plays, is_news, recap_period
 from aivinnet.lib.home.recentlyadded import get_recently_added_items
+from aivinnet.lib.home.recover_items import recover_items
 from aivinnet.lib.home.signal import pick_find
 from aivinnet.lib.home.stations import station_listing
 from aivinnet.lib.placeholder_artists import is_placeholder_artist
@@ -290,7 +291,15 @@ def signal_find(query: SignalQuery):
     with `{"find": null}`, like `/surprise`.
     """
     pools = HomepageStore.signal_pools(get_current_userid())
-    return {"find": pick_find(pools, skip=query.skip)}
+    while picked := pick_find(pools, skip=query.skip):
+        reason, item = picked
+        cards = recover_items([item])
+        if cards:
+            return {"find": {"type": item["type"], "reason": reason, "item": cards[0]["item"]}}
+        # Left the library since the routine ran: pick again without it.
+        pools = [(r, [i for i in items if i is not item]) for r, items in pools]
+
+    return {"find": None}
 
 
 class StationsQuery(BaseModel):

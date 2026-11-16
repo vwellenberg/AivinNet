@@ -7,11 +7,10 @@
         role="dialog"
         aria-label="Signal received"
         :style="{ '--sf-left': `${plate.anchor.left}px`, '--sf-top': `${plate.anchor.top}px` }"
-        @mouseenter="hold"
-        @mouseleave="release"
-        @focusin="hold"
-        @focusout="release"
-        @keydown.esc="closeSignalPlate"
+        @mouseenter="onPointer(true)"
+        @mouseleave="onPointer(false)"
+        @focusin="onFocusIn"
+        @focusout="onFocusOut"
     >
         <div class="sf-head">
             <span class="sf-kicker">Signal received</span>
@@ -21,6 +20,7 @@
         </div>
 
         <p v-if="plate.loading && !plate.find" class="sf-note">Tuning in…</p>
+        <p v-else-if="plate.failed" class="sf-note">No signal right now. Try again in a moment.</p>
         <p v-else-if="plate.empty" class="sf-note">No signal: you have heard it all.</p>
         <template v-else-if="view">
             <div class="sf-body" :class="{ 'is-tuning': plate.loading }">
@@ -79,7 +79,10 @@ const el = ref<HTMLElement | null>(null)
 const view = computed(() => (plate.value?.find ? findView(plate.value.find) : null))
 
 let timer: ReturnType<typeof setTimeout> | null = null
-let held = false
+// The plate stays while the pointer OR the focus is on it; each is tracked on
+// its own, so leaving with one does not drop the hold of the other.
+let pointerIn = false
+let focusIn = false
 
 function stopTimer() {
     if (timer) clearTimeout(timer)
@@ -88,19 +91,24 @@ function stopTimer() {
 
 function startTimer() {
     stopTimer()
-    if (!held && plate.value) timer = setTimeout(closeSignalPlate, AUTO_CLOSE_MS)
+    if (!pointerIn && !focusIn && plate.value) timer = setTimeout(closeSignalPlate, AUTO_CLOSE_MS)
 }
 
-function hold() {
-    held = true
+function onPointer(inside: boolean) {
+    pointerIn = inside
+    startTimer()
+}
+
+function onFocusIn() {
+    focusIn = true
     stopTimer()
 }
 
-function release(e: Event) {
+function onFocusOut(e: FocusEvent) {
     // Focus moving between the plate's own buttons is not leaving it.
-    const next = (e as FocusEvent).relatedTarget as Node | null
-    if (e.type === 'focusout' && next && el.value?.contains(next)) return
-    held = false
+    const next = e.relatedTarget as Node | null
+    if (next && el.value?.contains(next)) return
+    focusIn = false
     startTimer()
 }
 
@@ -109,13 +117,25 @@ function onPointerDown(e: PointerEvent) {
     if (el.value && !el.value.contains(e.target as Node)) closeSignalPlate()
 }
 
+/** Esc closes it from anywhere: the plate does not take the focus when it opens. */
+function onKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Escape') closeSignalPlate()
+}
+
+function unlisten() {
+    document.removeEventListener('pointerdown', onPointerDown, true)
+    document.removeEventListener('keydown', onKeyDown)
+}
+
 watch(
     () => plate.value?.id,
     id => {
-        held = false
-        document.removeEventListener('pointerdown', onPointerDown, true)
+        pointerIn = false
+        focusIn = false
+        unlisten()
         if (id === undefined) return stopTimer()
         document.addEventListener('pointerdown', onPointerDown, true)
+        document.addEventListener('keydown', onKeyDown)
         startTimer()
     }
 )
@@ -125,7 +145,7 @@ watch(() => plate.value?.find, startTimer)
 
 onBeforeUnmount(() => {
     stopTimer()
-    document.removeEventListener('pointerdown', onPointerDown, true)
+    unlisten()
 })
 
 async function play() {

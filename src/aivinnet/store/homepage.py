@@ -245,16 +245,19 @@ class HomepageStore:
     @classmethod
     def signal_pools(cls, userid: int) -> list[tuple[str, list[dict]]]:
         """
-        `(reason, cards)` of the rows the logo's find comes from (#828), read
-        like Home reads them: "Not interested" marks left out. A row the user
-        hid on Home still takes part — hiding a row is about Home's layout,
-        and the find is not on Home.
+        `(reason, stored items)` of the rows the logo's find comes from (#828),
+        "Not interested" marks left out like Home leaves them out. Raw items
+        (`{type, hash}`), not cards: the caller recovers only the one it picks.
+        A row the user hid on Home still takes part — hiding a row is about
+        Home's layout, and the find is not on Home.
         """
         marked = NotInterestedTable.hashes(userid)
         pools = []
         for key, reason in SIGNAL_ROWS:
-            row = cls._row(key, userid, SIGNAL_POOL, marked)
-            pools.append((reason, row[0][key]["items"] if row else []))
+            items = cls.entries[key].items.get(userid, [])[:SIGNAL_POOL]
+            kind = NOT_INTERESTED_ROWS.get(key)
+            skip = marked.get(kind, set()) if kind else set()
+            pools.append((reason, [item for item in items if item.get("hash") not in skip]))
 
         return pools
 

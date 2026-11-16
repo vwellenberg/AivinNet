@@ -153,13 +153,25 @@ describe('logo easter egg: seven clicks, one find', () => {
         expect(plate()).toMatchObject({ loading: false, empty: true, find: null })
     })
 
-    it('a failed request is the same as nothing found, not a stuck "Tuning in"', async () => {
+    it('a failed request says so, not "you have heard it all", and is no stuck "Tuning in"', async () => {
         getSignalFind.mockRejectedValue(new Error('offline'))
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
         await flushPromises()
-        expect(plate()).toMatchObject({ loading: false, empty: true })
+        expect(plate()).toMatchObject({ loading: false, failed: true, empty: false })
+    })
+
+    it('a failed "Another" keeps the find on the plate', async () => {
+        const { wrapper } = await mountLogo()
+        await click(wrapper, 7, 200)
+        await flushPromises()
+
+        getSignalFind.mockRejectedValue(new Error('offline'))
+        anotherFind()
+        await flushPromises()
+
+        expect(plate()).toMatchObject({ loading: false, failed: false, find: ALBUM })
     })
 
     it('"Another" asks for a different find than the one on the plate', async () => {
@@ -176,7 +188,7 @@ describe('logo easter egg: seven clicks, one find', () => {
         expect(plate()).toMatchObject({ loading: false, find: TRACK })
     })
 
-    it('seven more clicks on an open plate bring another find to the same plate', async () => {
+    it('seven more clicks put up a fresh plate with a fresh find', async () => {
         const { wrapper } = await mountLogo()
         await click(wrapper, 7, 200)
         await flushPromises()
@@ -186,8 +198,8 @@ describe('logo easter egg: seven clicks, one find', () => {
         await click(wrapper, 7, 200)
         await flushPromises()
 
-        expect(plate()).toMatchObject({ id, find: TRACK })
-        expect(getSignalFind).toHaveBeenLastCalledWith(ALBUM.item.albumhash)
+        expect(plate()!.id).not.toBe(id)
+        expect(plate()).toMatchObject({ find: TRACK })
     })
 
     it('an answer that arrives after the close does not reopen the plate', async () => {
