@@ -61,8 +61,10 @@ describe("the settings pane list", () => {
   it("gives every entry its own glyph", () => {
     const byGlyph = new Map<string, string[]>();
     for (const { title, svg } of ENTRIES) {
-      // Profile is the one entry with no glyph: it renders the user's avatar.
-      if (svg === "") continue;
+      // Every entry has one, Profile included: it stands in until the user
+      // uploads a picture. Without it the row showed a generated gradient
+      // avatar — read as a placeholder nobody chose.
+      expect(svg, `${title} has no glyph`).not.toBe("");
       byGlyph.set(svg, [...(byGlyph.get(svg) ?? []), title]);
     }
     expect(byGlyph.size, "no glyphs read at all").toBeGreaterThan(5);
@@ -244,5 +246,30 @@ describe("the settings list on a phone takes the phone-list tier", () => {
     expect(close, "phone close rule not found").not.toBe("");
     expect(ownDeclarations(close)).toMatch(/width:\s*\$phone-list-row;/);
     expect(ownDeclarations(close)).toMatch(/height:\s*\$phone-list-row;/);
+  });
+});
+
+describe("the Profile row", () => {
+  // Reported from a screenshot: the avatar stood 4px left of the glyph column
+  // (it was the one leading element outside a `.icon` box, so it lacked the
+  // cover's padding), and without an uploaded picture it showed the generated
+  // gradient avatar instead of the user's picture or a pictogram.
+  const SOURCE = read("src/components/modals/settings/Sidebar.vue");
+  const template = SOURCE.slice(0, SOURCE.indexOf("<script"));
+
+  it("puts the picture in the same glyph box as every other row", () => {
+    expect(template).toMatch(/<span class="icon avatar"[^>]*>\s*<Avatar\b/);
+    // No bare Avatar as a direct child of the row any more.
+    expect(template).not.toMatch(/<\/span>\s*<Avatar\b|>\s*<Avatar[^>]*v-if="item\.title === 'Profile'"/);
+  });
+
+  it("shows the user's own picture, with the glyph as the stand-in", () => {
+    expect(template).toMatch(/v-if="item\.title === 'Profile' && auth\.user\.image"/);
+    expect(template).toMatch(/:image="auth\.user\.image"/);
+    expect(template).toMatch(/<template #fallback>[^]*v-html="item\.icon"/);
+  });
+
+  it("drops the phone's margin patch for the avatar outside a box", () => {
+    expect(read("src/components/modals/Settings.vue")).not.toMatch(/> :not\(span\)/);
   });
 });

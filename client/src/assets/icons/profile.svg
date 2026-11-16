@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set: a person in a ring — YOUR account. `artist.svg` (bare head
+         and shoulders) is a person in the library and `users.svg` (two) the
+         other accounts; the ring keeps this one apart from both in the same
+         list. Stands in for the profile picture until one is uploaded. -->
+    <path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M12 7.2a2.9 2.9 0 1 1 0 5.8 2.9 2.9 0 0 1 0-5.8Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M6.7 18.4c.9-2 3-3.1 5.3-3.1s4.4 1.1 5.3 3.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

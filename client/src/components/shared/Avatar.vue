@@ -8,6 +8,11 @@
         alt=""
         @error="failed = true"
     />
+    <!--
+        A host can bring its own stand-in (the settings list shows its profile
+        glyph); everyone else keeps the generated avatar.
+    -->
+    <slot v-else-if="$slots.fallback" name="fallback" />
     <Avatar
         v-else
         :size="size || 80"
