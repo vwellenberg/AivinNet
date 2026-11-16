@@ -86,13 +86,16 @@ export type SignalFind =
 
 /** One find at random; `skip` is the one on the plate now ("Another"). Null: nothing to find. */
 export async function getSignalFind(skip?: string): Promise<SignalFind | null> {
-    const { data } = await useAxios({
+    const { data, error } = await useAxios({
         url: paths.api.home.signal + (skip ? '?skip=' + encodeURIComponent(skip) : ''),
         method: 'GET',
         // Under the plate, not a page load: no busy cursor.
         silent: true,
     })
 
+    // useAxios answers a failure instead of throwing. Read as "nothing found",
+    // the plate would claim the whole library is heard when the server is down.
+    if (error) throw new Error(error)
     return data?.find ?? null
 }
 

@@ -215,8 +215,9 @@ async function play() {
     letter-spacing: 0.04em;
 }
 
+// A full chrome target: on a phone the ✕ is the one obvious way out.
 .sf-close {
-    @include btn-quiet($size: $control-compact, $glyph: 1.25rem);
+    @include btn-quiet($size: $bar-control, $glyph: 1.25rem);
     color: $mem-content-text;
 }
 
