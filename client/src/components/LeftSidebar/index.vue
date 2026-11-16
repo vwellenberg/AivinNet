@@ -1257,10 +1257,12 @@ $sidebar-label-opacity: 0.85;
         // same cover (#476). Full ink, no opacity: at 0.5 on the kraft tint it
         // all but vanished (reported 2026-10-04); a count is information, not
         // decoration. Same goes for the chevron and the folder glyph above.
+        // Row size, not 0.75rem: at 12px it read small between the 15px name
+        // and the 20px chevron and pin (user, 2026-11-16).
         @include mem-hatch-clear(4px);
         margin-left: auto;
         flex-shrink: 0;
-        font-size: 0.75rem;
+        font-size: $sidebar-row-font;
         font-weight: 700;
       }
 
