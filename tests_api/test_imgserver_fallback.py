@@ -24,6 +24,7 @@ def img_client(monkeypatch, tmp_path):
     from flask_openapi3 import OpenAPI
 
     from aivinnet.api import imgserver
+    from aivinnet.lib import artwork
 
     assets = tmp_path / "assets"
     assets.mkdir()
@@ -46,6 +47,8 @@ def img_client(monkeypatch, tmp_path):
         image_cache_path = tmp_path / "cache"
 
     monkeypatch.setattr(imgserver, "Paths", FakePaths)
+    # The decision which file answers (cache, other sizes) lives in lib/artwork.
+    monkeypatch.setattr(artwork, "Paths", FakePaths)
 
     app = OpenAPI(__name__)
     app.register_api(imgserver.api)

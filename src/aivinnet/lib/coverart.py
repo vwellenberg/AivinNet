@@ -463,7 +463,7 @@ def _album_cover_tombstone(albumhash: str, paths=None):
 
     Deleting the four thumbnails is not enough on its own, because two
     mechanisms rebuild a missing album thumbnail from scratch:
-    ``imgserver.find_thumbnail`` serves a cover image sitting next to the audio
+    ``artwork.find_thumbnail`` serves a cover image sitting next to the audio
     files, and ``taglib.extract_thumb`` re-extracts the embedded art on the next
     library scan. Both would quietly bring the rejected cover straight back, so
     the removal needs a record that outlives the files it deleted.

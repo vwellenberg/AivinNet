@@ -8,15 +8,20 @@ This library has that shape and the others a real collection brings: a double
 album in CD folders, a compilation, a "feat." credit, an artist shared between
 albums, non-Latin names, the same song twice, a soundtrack with numbered titles
 and a credited composer, a file without tags and a deep folder. The files are silent MP3s of about a second, made here, so nothing
-binary lives in git.
+binary lives in git. Two albums carry artwork, so Home's crates see real
+covers next to placeholders: one embedded in the tags, one only in its folder
+under names the scanner does not take ("Front Cover.PNG" beside "Back.png"),
+which only the image server's folder lookup finds.
 
 Usage: python3 e2e/make_library.py <target dir>      (needs mutagen)
 """
 
+import struct
 import sys
+import zlib
 from pathlib import Path
 
-from mutagen.id3 import ID3, TALB, TDRC, TIT2, TPE1, TPE2, TPOS, TRCK
+from mutagen.id3 import APIC, ID3, TALB, TDRC, TIT2, TPE1, TPE2, TPOS, TRCK
 
 # One MPEG-1 Layer III frame, 128 kbps, 44.1 kHz, mono, all zero: silence. A
 # real frame header, so every tag reader sees audio with a bitrate and a length.
@@ -25,6 +30,19 @@ FRAMES_PER_SECOND = 39
 
 # path -> tags (None: a file with no tags at all)
 LIBRARY: dict[str, dict | None] = {}
+# path -> image bytes, written next to the music
+IMAGES: dict[str, bytes] = {}
+
+
+def png(size: int, rgb: tuple[int, int, int]) -> bytes:
+    """A plain one-colour PNG, built here, so no image file lives in git."""
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+    rows = b"".join(b"\x00" + bytes(rgb) * size for _ in range(size))
+    header = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
 
 
 def album(folder: str, name: str, artist: str, titles: list[str], year: str = "2019", disc: str | None = None):
@@ -41,6 +59,10 @@ def album(folder: str, name: str, artist: str, titles: list[str], year: str = "2
 
 
 album("Albums/Northern Lights/Aurora (2019)", "Aurora", "Northern Lights", ["Dawn", "Noon", "Dusk"])
+# Embedded artwork: the scanner extracts the thumbnails.
+for rel, tags in LIBRARY.items():
+    if rel.startswith("Albums/Northern Lights/") and tags:
+        tags["cover"] = png(64, (40, 90, 160))
 album("Albums/The Twins/Two Sides/CD1", "Two Sides", "The Twins", ["Left", "Right"], disc="1/2")
 album("Albums/The Twins/Two Sides/CD2", "Two Sides", "The Twins", ["Up", "Down"], disc="2/2")
 
@@ -88,6 +110,12 @@ for n, title in ((49, "Saint Wenceslaus Theme"), (50, "Kuttenberg")):
         "date": "2025",
     }
 
+# Artwork only in the folder, under names the scanner's folder rule does not take
+# (two images, neither an exact cover name): only the image server finds it.
+IMAGES["Compilations/Summer Hits/Front Cover.PNG"] = png(64, (230, 140, 40))
+IMAGES["Compilations/Summer Hits/Back.png"] = png(64, (90, 90, 90))
+
+
 LIBRARY["Untagged/Just A File.mp3"] = None
 album("Deep/a/b/c/d", "Depth", "Diver", ["Bottom"])
 
@@ -109,6 +137,8 @@ def write(path: Path, tags: dict | None) -> None:
         id3.add(TPOS(encoding=3, text=tags["disc"]))
     if tags.get("date"):
         id3.add(TDRC(encoding=3, text=tags["date"]))
+    if tags.get("cover"):
+        id3.add(APIC(encoding=3, mime="image/png", type=3, desc="Cover", data=tags["cover"]))
     id3.save(path)
 
 
@@ -116,7 +146,9 @@ def main(target: str) -> None:
     root = Path(target)
     for rel, tags in LIBRARY.items():
         write(root / rel, tags)
-    print(f"{len(LIBRARY)} files in {root}")
+    for rel, data in IMAGES.items():
+        (root / rel).write_bytes(data)
+    print(f"{len(LIBRARY)} files and {len(IMAGES)} images in {root}")
 
 
 if __name__ == "__main__":

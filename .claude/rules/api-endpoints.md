@@ -126,6 +126,20 @@ Ein Body-Modell, dessen Felder alle Defaults haben, bekommt ohne Body `None` sta
 antwortete 422 (3.x: 200). `api/apischemas.py::JsonBodyModel` bildet das zurück; ein Modell mit
 Pflichtfeldern bleibt bei 422. Test: `tests_api/test_flask_openapi3_4_requests.py`.
 
+## Bilder: eine Entscheidung für Ausliefern und Melden
+
+Ob ein Album- oder Artist-Bild echt ist oder der Platzhalter, entscheidet **eine** Funktion:
+`lib/artwork.py::find_image` (Datei, Cache, Cover im Albumordner, andere Thumbnail-Größe).
+Die Bild-Endpoints (`api/imgserver.py::send_file_or_fallback`) liefern aus, was sie findet,
+und `GET /getall/<typ>?artwork=true` meldet daraus `has_artwork` (nur bis 50 Items: jedes Album
+ohne Bild listet seinen Ordner auf dem einen Request-Thread). Eine Nachbildung nur aus
+Dateiprüfungen fiel im Review durch, weil der Bildserver auch Cover im Albumordner findet, die
+der Scanner nicht nimmt („Front Cover.jpg“ neben „Back.jpg“). Wer eine neue Stelle braucht, die
+„hat das ein Bild?“ fragt, ruft `find_image`, statt die Regeln abzuschreiben. Ein Ordner, der
+sich nicht listen lässt (verschoben, NAS offline), heißt „kein Cover“; er antwortete vorher
+500. Wächter: `tests_api/test_getall_artwork.py` vergleicht das Flag mit den ausgelieferten
+Bildern.
+
 ## Auth
 
 `app_builder.check_auth_need()` ist die Allowlist — alles, was nicht dort steht, braucht ein

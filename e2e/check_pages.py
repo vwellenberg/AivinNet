@@ -93,6 +93,39 @@ artists = (call("GET", "/getall/artists?start=0&limit=100&sortby=name&reverse=")
 for key in ("created_date", "albumcount", "trackcount", "playcount"):
     call("GET", f"/getall/artists?start=0&limit=50&sortby={key}&reverse=1")
 
+
+def placeholder_served(path: str) -> bool | None:
+    """Whether the image server answered `path` with its placeholder; None (and a failure) on error."""
+    global checked
+    checked += 1
+    try:
+        with opener.open(urllib.request.Request(BASE + path), timeout=60) as resp:
+            resp.read()
+            return resp.headers.get("X-Aivinnet-Placeholder") is not None
+    except Exception as e:
+        failures.append(f"GET {path}: {e.__class__.__name__}: {e}")
+        return None
+
+
+# Home's record crates (Browse Library) ask the list which covers are real; on a
+# scanned library the image server must answer every one of them the same way.
+# make_library.py gives two albums artwork (embedded, and folder-only), so both
+# answers are exercised, not only "placeholder".
+with_artwork = 0
+for kind, prefix in (("albums", "/img/thumbnail/medium/"), ("artists", "/img/artist/medium/")):
+    query = f"/getall/{kind}?start=0&limit=16&sortby=created_date&reverse=1&artwork=true"
+    for item in (call("GET", query) or {}).get("items", []):
+        with_artwork += item.get("has_artwork") is True
+        flag = item.get("has_artwork")
+        if not isinstance(flag, bool):
+            failures.append(f"GET {query}: has_artwork is {flag!r} for {item.get('image')}")
+            continue
+        placeholder = placeholder_served(prefix + item["image"])
+        if placeholder is not None and flag == placeholder:
+            failures.append(f"{kind} {item['image']}: has_artwork={flag}, the image server disagrees")
+if with_artwork < 2:
+    failures.append(f"has_artwork: {with_artwork} items with artwork, make_library.py gives two albums one")
+
 # ---------------------------------------------------------------- album and artist pages
 tracks = []
 for a in albums:

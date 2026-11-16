@@ -214,6 +214,7 @@
   "GET /getall/{itemtype}": {
     "query": {
       "allowed": [
+        "artwork",
         "limit",
         "reverse",
         "sortby",

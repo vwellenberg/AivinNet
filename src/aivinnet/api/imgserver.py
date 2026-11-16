@@ -5,10 +5,8 @@ from flask_openapi3 import APIBlueprint, Tag
 from PIL import Image
 from pydantic import BaseModel, Field
 
-from aivinnet.lib.coverart import album_cover_removed
+from aivinnet.lib.artwork import find_image, warn_once
 from aivinnet.settings import Defaults, Paths
-from aivinnet.store.albums import AlbumStore
-from aivinnet.store.tracks import TrackStore
 from aivinnet.utils.threading import background
 from aivinnet.utils.thumbs import crop_box, thumb_size
 
@@ -47,49 +45,6 @@ def cache_thumbnails(filepath: Path, trackhash: str):
         image.close()
 
 
-def find_thumbnail(albumhash: str, pathhash: str):
-    # entry = TrackStore.trackhashmap.get(albumhash)
-    entry = AlbumStore.albummap.get(albumhash)
-
-    if entry is None:
-        return None, None, ""
-
-    track_file = None
-
-    tracks = TrackStore.get_tracks_by_trackhashes(entry.trackhashes)
-    for track in tracks:
-        if track.pathhash == pathhash:
-            track_file = track
-            break
-
-    if track_file is None:
-        return None, None, ""
-
-    folder = Path(track_file.folder)
-
-    # INFO: Check if the folder has image files
-    extensions = [".jpg", ".jpeg", ".png", ".webp"]
-    hierarchy = ["cover", "front", "back", "folder", "album", "artwork"]
-
-    images: list[Path] = []
-    for item in folder.iterdir():
-        if item.suffix in extensions:
-            images.append(item)
-
-    if len(images) == 0:
-        return None, None, ""
-
-    # INFO: Check if the folder has image files in the hierarchy
-    for item in hierarchy:
-        for image in images:
-            if image.name.lower().startswith(item.lower()):
-                return image.parent, image.name, track_file.albumhash
-
-    # INFO: If no image falls in the hierarchy, return the first image
-    first_image = images[0]
-    return first_image.parent, first_image.name, track_file.albumhash
-
-
 # Marks a response as a placeholder, naming the entity it stands for. The web
 # client asks for it (HEAD) before reading colours from a cover: since #395 the
 # placeholders are an ink glyph on a transparent tile, and read as artwork they
@@ -119,70 +74,27 @@ def send_fallback_img(filename: str = "default.webp"):
     return response
 
 
-def send_best_available_thumbnail(requested_folder: Path, filename: str):
-    """
-    Serves the same thumbnail from another size folder, largest first.
-
-    Albums whose cover art only exists embedded in the audio tags have no
-    image file in their folder, so find_thumbnail can't (re)build the
-    requested size. The scanner still extracted small/xsmall thumbnails from
-    the embedded art — serving one of those beats the placeholder image.
-    """
-    paths = Paths()
-    size_folders = [
-        paths.lg_thumb_path,
-        paths.md_thumb_path,
-        paths.sm_thumb_path,
-        paths.xsm_thumb_path,
-    ]
-
-    for folder in size_folders:
-        if folder == requested_folder:
-            continue
-
-        if (folder / filename).exists():
-            return send_from_directory(folder, filename)
-
-    return None
-
-
 def send_file_or_fallback(folder: str, filename: str, fallback: str = "default.webp", pathhash: str = ""):
     """
     Returns the file from the folder or the fallback image.
     """
-    fpath = Path(folder) / filename
+    found = find_image(folder, filename, pathhash)
+    if found is None:
+        return send_fallback_img(fallback)
 
-    if fpath.exists():
-        return send_from_directory(folder, filename)
+    try:
+        response = send_from_directory(found.directory, found.name)
+    except OSError as error:
+        # Found but not readable after all (permissions, a mount gone since
+        # the lookup): the placeholder, as for any image that cannot be read.
+        warn_once(str(found.directory), "Image not readable, serving the placeholder: %s (%s)", found.name, error)
+        return send_fallback_img(fallback)
 
-    if pathhash != "":
-        # INFO: `pathhash` is only ever set for ALBUM thumbnails, so everything
-        # below is the album recovery path. A cover the user removed on purpose
-        # must not sneak back in through it — the folder lookup further down
-        # would happily serve the very cover.jpg that was rejected.
-        if album_cover_removed(filename.replace(".webp", "")):
-            return send_fallback_img(fallback)
+    if found.cache_as is not None:
+        # INFO: Cache the album folder's cover as thumbnails
+        cache_thumbnails(Path(found.directory) / found.name, found.cache_as)
 
-        # INFO: Check if the image is in the cache
-        cache_path = Paths().image_cache_path / fpath.parent.name / filename
-        if cache_path.exists():
-            return send_from_directory(cache_path.parent, cache_path.name)
-
-        # INFO: Find the thumbnail
-        parent, file, albumhash = find_thumbnail(filename.replace(".webp", ""), pathhash)
-
-        # INFO: Cache  and send the thumbnail
-        if file is not None and parent is not None:
-            cache_thumbnails(parent / file, albumhash)
-            return send_from_directory(parent, file)
-
-        # INFO: No original cover file on disk (embedded-art-only album):
-        # degrade to the best available extracted thumbnail size.
-        response = send_best_available_thumbnail(Path(folder), filename)
-        if response is not None:
-            return response
-
-    return send_fallback_img(fallback)
+    return response
 
 
 class ImagePath(BaseModel):

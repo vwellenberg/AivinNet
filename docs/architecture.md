@@ -198,9 +198,14 @@ hielt damit bei jedem Trackwechsel die ganze App an.
 ## Bilder
 
 `/img/...` liefert aus dem **Config-Verzeichnis**, nicht aus dem Quellbaum. Die Größen entstehen
-beim Scan aus dem eingebetteten Cover. Fehlt eine, sucht `send_file_or_fallback` zuerst im Ordner
-des Tracks nach `cover|front|back|folder|album|artwork.{jpg,png,webp}`, cached das Ergebnis, und
-degradiert sonst auf die größte vorhandene andere Größe, bevor das Platzhalterbild kommt.
+beim Scan aus dem eingebetteten Cover (oder einem Ordner-Cover). Fehlt eine, entscheidet
+`lib/artwork.py::find_image` in dieser Reihenfolge: ein vom Nutzer entferntes Cover (Tombstone)
+heißt Platzhalter; dann der Cache (`images/cache/<größe>/`); dann ein Bild im Ordner des Tracks
+(`cover|front|back|folder|album|artwork` als Namensanfang, Endung `jpg|jpeg|png|webp` in jeder
+Schreibweise, sonst das erste Bild dort; der Bildserver cached es beim Ausliefern); dann die
+größte vorhandene andere Größe; sonst das Platzhalterbild. Ein Ordner oder Bildpfad, der sich
+nicht lesen lässt, heißt Platzhalter (mit Warnung im Log), nicht 500. Dieselbe Funktion beantwortet `has_artwork` in `GET /getall/<typ>?artwork=true`,
+damit Liste und Bild nie auseinanderlaufen.
 
 Der `?pathhash=`-Parameter macht diese Ordnersuche überhaupt erst möglich — deshalb trägt
 `Album.image` diesen Suffix, und deshalb muss man ihn vor jedem Datei-Lookup abschneiden
@@ -265,7 +270,7 @@ config folder
 | Wie kommt ein Endpoint zustande? | `app_builder.py` → `api/<domäne>.py` |
 | Woher kommen die Daten? | `store/*.py` (RAM), sonst `db/userdata.py` |
 | Warum sieht ein Album so aus? | `lib/tagger.py::create_albums` + `utils/parsers.py` |
-| Warum fehlt ein Cover? | `lib/taglib.py::extract_thumb` → `api/imgserver.py` |
+| Warum fehlt ein Cover? | `lib/taglib.py::extract_thumb` → `lib/artwork.py::find_image` → `api/imgserver.py` |
 | Wie wird abgespielt? | `api/stream.py::send_track_file_legacy` |
 | Wer schreibt Playlists? | `api/playlist.py` + `lib/playlist_maintenance.py` |
 | Multiroom? | `lib/groupsession.py` (pure Logik) + `api/devicesync.py` |

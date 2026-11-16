@@ -685,8 +685,21 @@ zwei Hälften, sobald die Navigation Platten bekam.
   Kartenbreite**, auch unter dem Namen: Größe `round(Höhe × 0.62)`, Anzahl, Abstand und Neigung
   rechnet `utils/crateFan.ts` aus der gemessenen Karte (`useElementSize` auf der Liste, Breite =
   (Listenbreite − Spalte) / 2). Die Reihe steht unten mit 40 % der Brettshöhe hinter dem Brett.
-  Geladen wird `GET /getall/<typ>?limit=16`; jedes Bild, zu dem der Server per HEAD
-  `X-Aivinnet-Placeholder` meldet, fällt weg (`coverIsPlaceholder`), der Rest ist auf 12 begrenzt.
+  Geladen wird `GET /getall/<typ>?limit=16&artwork=true`. Die Antwort trägt dann pro Item
+  `has_artwork`, entschieden von derselben Funktion, aus der der Bildserver ausliefert
+  (`lib/artwork.py::find_image`, mittlere Größe, inklusive Blick in den Albumordner; nur bis
+  50 Items, darüber 422); Items mit `has_artwork: false` fallen weg, der Rest ist auf 12
+  begrenzt. Fehlt das Feld (älterer Server), bleibt das Item. Ein Dateisystemfehler beim
+  Prüfen heißt „kein Cover“, bei Liste und Bild gleich (der Bildserver schickt dann den
+  Platzhalter, und es steht eine Warnung im Log). Die Artists-Kiste nimmt „MOST PLAYED“ nur, wenn ein gespielter Artist ein Bild
+  hat, sonst die neuesten („NEW IN“): Artist-Bilder kommen aus einer Online-Suche und fehlen
+  oft. Bis 2026-11-16
+  fragte der Client jedes Bild einzeln per HEAD nach `X-Aivinnet-Placeholder` (bis zu 32
+  Requests auf Home, bei einem Server, der einen Request zur Zeit bedient). ⚠️ Eine eigene
+  Nachbildung der Bildserver-Logik (nur Dateiprüfungen, ohne Ordner-Scan) fiel im Review
+  durch: „Front Cover.jpg“ neben „Back.jpg“ liefert der Bildserver aus, der Scanner nimmt es
+  nicht als Cover — das Album wäre aus der Kiste gefallen. Der Wächter
+  `tests_api/test_getall_artwork.py` vergleicht Flag und ausgelieferte Bilder.
   Bleibt nichts mit Bild übrig, gibt es weder Cover noch Brett. Unter „MOST PLAYED“ steht nie
   ein Artist ohne Plays: Die Sortierung nach Plays liefert die ungespielten in beliebiger
   Reihenfolge mit.
