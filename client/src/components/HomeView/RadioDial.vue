@@ -70,7 +70,11 @@
                 <span class="radio-now-label">NOW PLAYING</span>
                 <span class="radio-now-title">{{ nowTrack?.title }}</span>
                 <span class="radio-now-artist">{{ nowArtists }}</span>
-                <span v-if="nowTrack?.album" class="radio-now-album">{{ nowTrack.album }}</span>
+                <!-- A long album name is cut, never the year after it. -->
+                <span v-if="nowTrack?.album" class="radio-now-album">
+                  <span class="radio-now-album-name">{{ nowTrack.album }}</span>
+                  <span v-if="nowTrack.year" class="radio-now-year">&nbsp;· {{ nowTrack.year }}</span>
+                </span>
               </div>
               <div class="radio-now-acts">
                 <button
@@ -848,7 +852,18 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
   }
 
   .radio-now-album {
+    display: flex;
     font-size: 0.7rem;
+  }
+
+  .radio-now-album-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .radio-now-year {
+    flex-shrink: 0;
   }
 
   // ♥ and ⏭: round glass buttons, 44 px like the chrome, the ring in the glass dim.

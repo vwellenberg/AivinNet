@@ -73,11 +73,6 @@ def _facts_of(trackhash: str, track: Track, userid: int, plays: dict[str, tuple[
 
 
 def _year_of(track: Track) -> int | None:
-    # The same test as `recommendations`' release date: a file without a year
+    # One rule for "release year" (`Track.release_year`): a file without a year
     # tag gets its mtime as `date`, and that is no release year.
-    if not track.date or track.date == track.last_mod:
-        return None
-    try:
-        return time.gmtime(track.date).tm_year
-    except (OverflowError, OSError, ValueError):
-        return None
+    return track.release_year()

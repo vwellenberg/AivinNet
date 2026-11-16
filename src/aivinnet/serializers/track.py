@@ -65,6 +65,9 @@ def serialize_track(
     # The current user's personal rating, null when unrated (#777). Like the
     # favourite flag, so the client needs no request per row.
     album_dict["rating"] = track.rating_of(get_current_userid() if userid is None else userid)
+    # The release year, null when the file has no year tag. `date` itself stays
+    # out of the payload: without a tag it is the file's mtime, not a year.
+    album_dict["year"] = track.release_year()
 
     return album_dict
 

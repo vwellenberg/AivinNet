@@ -30,6 +30,8 @@ export interface Track extends AlbumDisc {
     is_favorite: boolean
     // This user's personal rating, 1-5, or null when unrated (#777).
     rating?: number | null
+    // Release year from the file's tag; null when the file has no year tag.
+    year?: number | null
     explicit: boolean
     type?: string
 
