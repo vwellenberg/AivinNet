@@ -74,7 +74,12 @@ const settings = useSettings()
 const tracklist = useTracklist()
 
 // Cmd/Ctrl+F opens the folder's own find (the field in the folder head).
-useListFind('folder-find', 'contentscroller', () => folder.allTracks.length > 0 || folder.allDirs.length > 0)
+useListFind(
+    'folder-find',
+    'contentscroller',
+    () => folder.allTracks.length > 0 || folder.allDirs.length > 0,
+    () => folder.query
+)
 
 // `settings.is_alt_layout` is not a setting, it is `content_width > 900`. The
 // `|| !xl` this used to carry could never contribute: `xl` is a ComputedRef, so

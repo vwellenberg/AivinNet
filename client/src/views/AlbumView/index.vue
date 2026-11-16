@@ -286,7 +286,7 @@ const scrollerItems = computed(() => {
 
 // Cmd/Ctrl+F opens the album's own find (helpers/useListFind.ts): the browser's
 // find only sees the rows the virtual scroller has rendered.
-useListFind('album-find', 'album-scroller', () => album.srcTracks.length > 0)
+useListFind('album-find', 'album-scroller', () => album.srcTracks.length > 0, () => album.query)
 
 function playFromAlbum(index: number, tracks = album.srcTracks) {
     const { title, albumhash } = album.info

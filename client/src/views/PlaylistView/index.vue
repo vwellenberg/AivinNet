@@ -321,7 +321,12 @@ watch(
 // Cmd/Ctrl+F opens the playlist's own find (helpers/useListFind.ts). The edit
 // list is a plain, fully rendered list, so the browser's find works there; an
 // empty playlist has nothing to search.
-useListFind('playlist-find', 'contentscroller', () => !playlist.editing && playlist.allTracks.length > 0)
+useListFind(
+    'playlist-find',
+    'contentscroller',
+    () => !playlist.editing && playlist.allTracks.length > 0,
+    () => playlist.query
+)
 
 onBeforeUnmount(() => stopAutoScroll())
 

@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 
 import useContextMenu from '@/stores/context'
 import useModal from '@/stores/modal'
@@ -20,8 +20,16 @@ import { registerPageFind } from '@/utils/pageFind'
  * @param scrollerId the `id` of the page's scroller: when the field has been
  *                   scrolled out of view (recycled), it scrolls back to the top
  * @param canFind   whether the page has something to search right now
+ * @param query     the page's query: each change scrolls the list back to the
+ *                  top, where the best match is. A field that stays in view
+ *                  (the folder head is pinned) would otherwise filter the list
+ *                  and leave the reader somewhere in the middle of the matches.
  */
-export function useListFind(fieldId: string, scrollerId: string, canFind: () => boolean) {
+export function useListFind(fieldId: string, scrollerId: string, canFind: () => boolean, query?: () => string) {
+    if (query) {
+        watch(query, () => document.getElementById(scrollerId)?.scrollTo({ top: 0 }))
+    }
+
     async function openFind(): Promise<void> {
         const scroller = document.getElementById(scrollerId)
         const visibleField = () => {
