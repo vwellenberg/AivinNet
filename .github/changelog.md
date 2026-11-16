@@ -73,6 +73,50 @@ Silicon).
 
 ## What's new in this release
 
+More from your ratings, a tidier Home and finding songs in long lists, on top
+of 2026.11.8.
+
+> **AivinNet FM is now off until you switch it on:** Settings → Home →
+> "AivinNet FM" (per device). If you used the radio, turn it on there once.
+
+**Ratings**
+
+- **"Your top rated" on Home:** your 4- and 5-star songs, the longest unheard
+  first, with a playlist of up to 100.
+- **Mixes and stations listen to your ratings.** Songs you rated 4 or 5 come up
+  more often; songs rated 1 are never picked.
+- **Rate from the song plate in Now Playing:** a star button next to the heart.
+- **Ratings in the music files (optional).** An admin can switch on writing
+  ratings into the files (MP3/WAV, FLAC/Ogg/Opus, M4A), and import ratings that
+  other players have already written there. Off by default; a backup copy is
+  kept as in the tag editor.
+
+**Finding and playing**
+
+- **Find in playlists, albums, folders and favourites.** A search field above
+  the songs looks through the whole list, also the part not loaded yet, and
+  Cmd/Ctrl+F opens it.
+- **Queue in three parts:** Played, Now playing and Up next; a song queued twice
+  no longer lights up twice.
+- **Lyrics word by word:** the playing line lights up word by word.
+- **The tag editor saves songs that never had an artist.**
+
+**Looks**
+
+- **Home is calmer:** Browse Library sits right under Continue listening as two
+  record crates, and AivinNet FM became one radio with a tuning knob that folds
+  to a slim strip.
+- **A denser sidebar:** more playlists fit, with soft edges and a new pin.
+- **Settings in a clearer order:** light or dark first, and a new Layout page.
+- **Light · Dark · Auto** from a long-press (or right-click) on the theme switch.
+- **The player bar fits narrow laptop screens** without controls running under
+  each other.
+- **The "Boring" look** keeps the Continue card and Stats calm too.
+- **Library check:** "Open album" works again, and findings explain themselves.
+
+<details>
+<summary>What v2026.11.8 brought</summary>
+
 Ratings, a calmer Home and a brighter Stats page, on top of 2026.11.7.
 
 - **AivinNet FM is off until you switch it on** under Settings → Home (per
@@ -96,6 +140,8 @@ Ratings, a calmer Home and a brighter Stats page, on top of 2026.11.7.
   link has a heading of its own.
 - **Under the hood:** newer libraries for the web player (the long-list
   scroller, TypeScript, axios, fuse.js) and the server.
+
+</details>
 
 <details>
 <summary>What v2026.11.7 brought</summary>
