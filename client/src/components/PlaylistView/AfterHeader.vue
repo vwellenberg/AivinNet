@@ -14,7 +14,14 @@
             </div>
             <div v-else class="ah-label ah-nowrap">All Tracks</div>
             <div v-if="showDateHeading" class="date-added-heading">Date added</div>
-            <PlaylistFind v-if="showFind" />
+            <ListFind
+                v-if="showFind"
+                class="ah-find"
+                field-id="playlist-find"
+                placeholder="Find in playlist"
+                :model-value="playlist.query"
+                @update:model-value="playlist.setQuery($event)"
+            />
             <!-- The way into the edit mode (grips to reorder, buttons to remove)
                  and back out of it. It lives on the caption because that is
                  what it acts on: the list right under it. -->
@@ -29,7 +36,9 @@ import { computed } from 'vue'
 
 import { isMedium, isSmall } from '@/stores/content-width'
 
-import PlaylistFind from './PlaylistFind.vue'
+import usePlaylistStore from '@/stores/pages/playlist'
+
+import ListFind from '@/components/shared/ListFind.vue'
 
 const props = defineProps<{
     // Whether the track list below shows the "Date added" column (regular
@@ -55,6 +64,8 @@ defineEmits<{
     (e: 'edit'): void
     (e: 'done'): void
 }>()
+
+const playlist = usePlaylistStore()
 
 const showFind = computed(() => Boolean(props.findable) && !props.editing)
 
@@ -255,6 +266,16 @@ const showDateHeading = computed(
 .p-after-header.with-date > .ah-bar > .ah-edit {
     grid-column: -2;
     justify-self: end;
+}
+
+.p-after-header .ah-find {
+    margin-left: auto;
+}
+
+// Next to the Edit button the field gives up its push to the right: the button
+// already takes it, and two `auto` margins would split the space between them.
+.p-after-header .ah-find + .ah-edit {
+    margin-left: $small;
 }
 
 .p-after-header .ah-nowrap {
