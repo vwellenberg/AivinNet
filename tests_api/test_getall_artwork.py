@@ -209,6 +209,16 @@ def images(api_client, library):
     return api_client("aivinnet.api.imgserver")
 
 
+def _image(images, url: str):
+    """GET an image and close the response at once: on Windows a file that a
+    response still holds open cannot be deleted, and the fixture's cleanup failed
+    with WinError 32."""
+    res = images.get(url)
+    res.get_data()  # buffered, so the body stays readable after closing
+    res.close()
+    return res
+
+
 def _items(getall, itemtype: str, query: str = "limit=50&artwork=true") -> dict:
     res = getall.get(f"/getall/{itemtype}?{query}")
     assert res.status_code == 200
@@ -257,7 +267,7 @@ def test_the_flag_agrees_with_what_the_image_server_serves(getall, images, itemt
     items = _items(getall, itemtype).values()
     assert any(item["has_artwork"] for item in items) and not all(item["has_artwork"] for item in items)
     for item in items:
-        res = images.get(url_for(item))
+        res = _image(images, url_for(item))
         assert res.status_code == 200, url_for(item)
         served_placeholder = PLACEHOLDER in res.headers
         assert item["has_artwork"] == (not served_placeholder), (item.get("image"), item["has_artwork"])
@@ -266,13 +276,13 @@ def test_the_flag_agrees_with_what_the_image_server_serves(getall, images, itemt
 def test_the_folder_cover_is_served_and_cached_like_before(getall, images, library):
     """The image server kept its own behaviour: it serves the folder file and caches it."""
     item = _items(getall, "albums")[ALBUM_FOLDER_COVER]
-    res = images.get(f"/img/thumbnail/medium/{item['image']}")
+    res = _image(images, f"/img/thumbnail/medium/{item['image']}")
     assert PLACEHOLDER not in res.headers
     assert res.data == b"jpeg-bytes"
     assert library == [("Front Cover.JPG", ALBUM_FOLDER_COVER)]
 
     # Another pathhash: no track of the album lives there, so no folder to look into.
-    res = images.get(f"/img/thumbnail/medium/{ALBUM_FOLDER_COVER}.webp?pathhash={PATHHASH}")
+    res = _image(images, f"/img/thumbnail/medium/{ALBUM_FOLDER_COVER}.webp?pathhash={PATHHASH}")
     assert PLACEHOLDER in res.headers
 
 
@@ -295,7 +305,7 @@ def test_a_file_system_error_is_no_artwork_for_the_list_and_the_image_alike(geta
     assert len(items) == 7
     assert items[ALBUM_MEDIUM]["has_artwork"] is True
     assert items[ALBUM_SMALL_ONLY]["has_artwork"] is False
-    res = images.get(f"/img/thumbnail/medium/{items[ALBUM_SMALL_ONLY]['image']}")
+    res = _image(images, f"/img/thumbnail/medium/{items[ALBUM_SMALL_ONLY]['image']}")
     assert res.status_code == 200
     assert PLACEHOLDER in res.headers
 
@@ -308,7 +318,7 @@ def test_an_unknown_item_type_is_404_not_500(getall):
 def test_an_album_whose_folder_is_gone_gets_the_placeholder_not_a_500(getall, images):
     """`find_thumbnail` raised on the missing folder; the image request answered 500."""
     item = _items(getall, "albums")[ALBUM_FOLDER_GONE]
-    res = images.get(f"/img/thumbnail/medium/{item['image']}")
+    res = _image(images, f"/img/thumbnail/medium/{item['image']}")
     assert res.status_code == 200
     assert PLACEHOLDER in res.headers
 
@@ -334,7 +344,7 @@ def test_a_cover_that_cannot_be_opened_gets_the_placeholder_not_a_500(getall, im
 
     monkeypatch.setattr(imgserver, "send_from_directory", send)
     item = _items(getall, "albums")[ALBUM_MEDIUM]
-    res = images.get(f"/img/thumbnail/medium/{item['image']}")
+    res = _image(images, f"/img/thumbnail/medium/{item['image']}")
     assert res.status_code == 200
     assert PLACEHOLDER in res.headers
 
@@ -346,7 +356,7 @@ def test_a_missing_folder_is_logged_once_not_per_request(getall, images, caplog)
     item = _items(getall, "albums")[ALBUM_FOLDER_GONE]
     with caplog.at_level("WARNING", logger="aivinnet.lib.artwork"):
         for _ in range(3):
-            images.get(f"/img/thumbnail/medium/{item['image']}")
+            _image(images, f"/img/thumbnail/medium/{item['image']}")
             _items(getall, "albums")
     warnings = [r for r in caplog.records if "not readable" in r.getMessage()]
     assert len(warnings) == 1
