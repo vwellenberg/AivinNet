@@ -59,25 +59,25 @@
           </div>
           <!-- Wide screens only (the container query in the styles): what plays now. -->
           <div class="radio-now">
-            <!-- A faint spectrum behind the song: decoration, hidden from readers. -->
-            <div v-show="nowOn" class="radio-spectrum" :class="{ 'is-live': nowOn }" aria-hidden="true">
-              <i v-for="n in SPECTRUM_BARS" :key="n"></i>
-            </div>
             <template v-if="nowOn">
+              <!-- A faint spectrum behind the song: decoration, hidden from readers. -->
+              <div class="radio-spectrum is-live" aria-hidden="true">
+                <i v-for="n in SPECTRUM_BARS" :key="n"></i>
+              </div>
               <img v-if="nowCover" class="radio-now-cover" :src="nowCover" alt="" loading="lazy" aria-hidden="true" />
               <div v-else class="radio-now-cover is-empty" aria-hidden="true"></div>
               <div class="radio-now-meta" aria-hidden="true">
                 <span class="radio-now-label">NOW PLAYING</span>
                 <span class="radio-now-title">{{ nowTrack?.title }}</span>
                 <span class="radio-now-artist">{{ nowArtists }}</span>
-                <span v-if="nowAlbum" class="radio-now-album">{{ nowAlbum }}</span>
+                <span v-if="nowTrack?.album" class="radio-now-album">{{ nowTrack.album }}</span>
               </div>
               <div class="radio-now-acts">
                 <button
                   type="button"
                   class="radio-gbtn"
                   :class="{ 'is-on': nowFav }"
-                  aria-label="Favorite"
+                  :aria-label="`Favorite: ${nowTrack?.title ?? ''}`"
                   :aria-pressed="nowFav ? 'true' : 'false'"
                   @click="toggleFav"
                 >
@@ -94,7 +94,7 @@
                 <span>{{ remainText }}</span>
               </div>
             </template>
-            <span v-else-if="air !== 'on'" class="radio-now-idle">Turn the knob</span>
+            <span v-else-if="air !== 'on'" class="radio-now-idle" aria-hidden="true">Turn the knob</span>
           </div>
         </div>
 
@@ -172,7 +172,6 @@ import useHome from '@/stores/home'
 import useSettings from '@/stores/settings'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
-import { releaseYear } from '@/utils/dates'
 import formatSeconds from '@/utils/useFormatSeconds'
 import {
   AIR_TEXT,
@@ -330,12 +329,6 @@ const nowCover = computed(() => {
   return image && image !== 'None' ? paths.images.thumb.small + image : ''
 })
 const nowArtists = computed(() => (nowTrack.value?.artists ?? []).map(artist => artist.name).join(', '))
-// "Album · 2019": the year leaves out when the track has no date (0 is unknown).
-const nowAlbum = computed(() => {
-  const track = nowTrack.value
-  if (!track) return ''
-  return [track.album, releaseYear(track.date ?? 0)].filter(Boolean).join(' · ')
-})
 
 // ON AIR only while the queue still plays the tuned station: an album started
 // from its own page afterwards is not the radio, whatever `tuned` remembers.
@@ -777,13 +770,18 @@ $glass-edge: mem-alpha($mem-paper, 0.14);
     }
   }
 
-  $spectrum-durations: 0.62s, 0.71s, 0.81s, 0.93s, 0.97s, 1.07s, 0.68s, 0.9s;
-  $spectrum-delays: -0.3s, -0.1s, -0.5s, -0.2s, -0.4s, -0.15s;
+  // Seven durations against five delays: coprime lengths, so the pattern
+  // repeats only after 35 bars (8 against 6 repeated every 24, and bars 1–16
+  // moved in lockstep with 25–40). The values are the level meter's (its
+  // motionScale.test.ts exceptions); the census reads only literal
+  // declarations, so these lists are its blind spot — keep them to those values.
+  $spectrum-durations: 0.62s, 0.71s, 0.81s, 0.93s, 0.97s, 1.07s, 0.68s;
+  $spectrum-delays: -0.3s, -0.1s, -0.5s, -0.2s, -0.4s;
 
   @for $n from 1 through 40 {
     .radio-spectrum.is-live i:nth-child(#{$n}) {
-      animation-duration: nth($spectrum-durations, ($n % 8) + 1);
-      animation-delay: nth($spectrum-delays, ($n % 6) + 1);
+      animation-duration: nth($spectrum-durations, ($n % 7) + 1);
+      animation-delay: nth($spectrum-delays, ($n % 5) + 1);
     }
   }
 

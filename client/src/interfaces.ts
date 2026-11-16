@@ -28,8 +28,6 @@ export interface Track extends AlbumDisc {
     trackhash: string
     filetype: string
     is_favorite: boolean
-    // Release date as a unix timestamp in seconds, 0 or absent when unknown.
-    date?: number
     // This user's personal rating, 1-5, or null when unrated (#777).
     rating?: number | null
     explicit: boolean

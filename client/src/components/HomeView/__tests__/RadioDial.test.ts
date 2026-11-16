@@ -611,13 +611,12 @@ describe('RadioDial', () => {
 })
 
 describe('RadioDial now-playing zone (wide display)', () => {
-    // A realistic Track: the image carries the `?pathhash=` suffix, `date` is the
-    // backend's unix timestamp (1990-01-01 UTC), artists come as objects.
+    // A realistic Track: the image carries the `?pathhash=` suffix, artists come
+    // as objects, and there is no `date` (serialize_track drops it).
     const track = {
         title: 'Paradise Lost',
         trackhash: 'th-paradise',
         album: 'Icon',
-        date: 631152000,
         image: 'icon-cover.webp?pathhash=cover123',
         artists: [{ name: 'Sleeping Giant' }],
         is_favorite: false,
@@ -648,19 +647,13 @@ describe('RadioDial now-playing zone (wide display)', () => {
 
         expect(w.get('.radio-now-title').text()).toBe('Paradise Lost')
         expect(w.get('.radio-now-artist').text()).toBe('Sleeping Giant')
-        expect(w.get('.radio-now-album').text()).toBe('Icon · 1990')
+        expect(w.get('.radio-now-album').text()).toBe('Icon')
         expect(w.get('.radio-now-cover').attributes('src')).toContain('icon-cover.webp?pathhash=cover123')
         expect(w.get('.radio-now-prog').text()).toContain('02:11')
         expect(w.get('.radio-now-prog').text()).toContain('-01:49')
-        expect(w.find('button[aria-label="Favorite"]').exists()).toBe(true)
+        // The ♥ says which song it is for: the track info beside it is aria-hidden.
+        expect(w.get('button[aria-label^="Favorite"]').attributes('aria-label')).toBe('Favorite: Paradise Lost')
         expect(w.find('button[aria-label="Next song"]').exists()).toBe(true)
-    })
-
-    it('leaves the year out of the album line when the track has no date', async () => {
-        tracklistMock.tracklist = [{ ...track, date: 0 }]
-        const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
-
-        expect(w.get('.radio-now-album').text()).toBe('Icon')
     })
 
     it("⏭ calls the queue's next action", async () => {
@@ -674,7 +667,7 @@ describe('RadioDial now-playing zone (wide display)', () => {
     it('♥ calls the favourite toggle with the current track and the flag it shows', async () => {
         const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
 
-        await w.get('button[aria-label="Favorite"]').trigger('click')
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
 
         expect(favoriteHandler).toHaveBeenCalledWith(false, favType.track, 'th-paradise', expect.any(Function), expect.any(Function))
     })
@@ -683,8 +676,8 @@ describe('RadioDial now-playing zone (wide display)', () => {
         favoritesMock.flag.mockReturnValue(true)
         const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
 
-        expect(w.get('button[aria-label="Favorite"]').attributes('aria-pressed')).toBe('true')
-        await w.get('button[aria-label="Favorite"]').trigger('click')
+        expect(w.get('button[aria-label^="Favorite"]').attributes('aria-pressed')).toBe('true')
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
         expect(favoriteHandler).toHaveBeenCalledWith(true, favType.track, 'th-paradise', expect.any(Function), expect.any(Function))
     })
 
@@ -694,7 +687,7 @@ describe('RadioDial now-playing zone (wide display)', () => {
 
         expect(w.get('.radio-now-idle').text()).toBe('Turn the knob')
         expect(w.find('.radio-now-title').exists()).toBe(false)
-        expect(w.find('button[aria-label="Favorite"]').exists()).toBe(false)
+        expect(w.find('button[aria-label^="Favorite"]').exists()).toBe(false)
         expect(w.find('button[aria-label="Next song"]').exists()).toBe(false)
         expect(w.find('.radio-now-prog').exists()).toBe(false)
     })
@@ -706,16 +699,16 @@ describe('RadioDial now-playing zone (wide display)', () => {
         expect(spectrum.findAll('i')).toHaveLength(40)
         expect(spectrum.classes()).toContain('is-live')
 
+        // Off air the spectrum is not rendered at all (no 40 idle nodes).
         queueMock.playing = false
         await flushPromises()
-        expect(w.get('.radio-spectrum').classes()).not.toContain('is-live')
-        expect(w.get('.radio-spectrum').attributes('aria-hidden')).toBe('true')
+        expect(w.find('.radio-spectrum').exists()).toBe(false)
     })
 
     it('clicks on ♥ and ⏭ do not fold the radio', async () => {
         const w = await mountWith(dialOf(['mix1', 'mix2']), {}, true)
 
-        await w.get('button[aria-label="Favorite"]').trigger('click')
+        await w.get('button[aria-label^="Favorite"]').trigger('click')
         await w.get('button[aria-label="Next song"]').trigger('click')
         await flushPromises()
 
