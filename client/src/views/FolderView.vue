@@ -64,6 +64,7 @@ import Folder from '@/components/nav/Titles/Folder.vue'
 import NoItems from '@/components/shared/NoItems.vue'
 import SongItem from '@/components/shared/SongItem.vue'
 import AlbumsFetcher from '@/components/ArtistView/AlbumsFetcher.vue'
+import { useListFind } from '@/helpers/useListFind'
 import { getFiles } from '@/requests/folders'
 import { trackBandFade } from '@/utils/songItemMethods'
 
@@ -71,6 +72,9 @@ const queue = useQueue()
 const folder = useFolder()
 const settings = useSettings()
 const tracklist = useTracklist()
+
+// Cmd/Ctrl+F opens the folder's own find (the field in the folder head).
+useListFind('folder-find', 'contentscroller', () => folder.allTracks.length > 0 || folder.allDirs.length > 0)
 
 // `settings.is_alt_layout` is not a setting, it is `content_width > 900`. The
 // `|| !xl` this used to carry could never contribute: `xl` is a ComputedRef, so
@@ -116,7 +120,10 @@ const scrollerItems = computed(() => {
         items.push(new songItem(track, i === 0, i === folder.tracks.length - 1, trackBandFade(i + 1, folder.trackTotal)))
     })
 
-    if (folder.tracks.length >= track_limit.value) {
+    // Not while a search is on: the filtered list is shorter than a page, and the
+    // search has loaded the rest of the folder already (store setQuery). Stops
+    // once every track is loaded, so the sentinel does not ask past the end.
+    if (!folder.query && folder.tracks.length >= track_limit.value && folder.allTracks.length < folder.trackTotal) {
         items.push({
             // Stable (#142) — see AlbumsFetcher: visibility triggers the next page.
             id: 'folder-tracks-fetcher',
