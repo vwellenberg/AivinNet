@@ -103,7 +103,7 @@ const route = useRoute()
 // (`.logo-spin-once`, Logo.vue) — a gimmick, nothing else. The class is dropped
 // when the animation ends, so every tap can play it again.
 const logoSpinning = ref(false)
-// The phone has no other logo, so the signal easter egg (#544) lives here too.
+// The phone has no other logo, so the logo's easter egg (#544, #828) lives here too.
 const { registerClick } = useLogoSignal()
 // The same seasonal dress as the desktop logo (utils/seasonLogo.ts).
 const logoSrc = useSeasonLogo()
