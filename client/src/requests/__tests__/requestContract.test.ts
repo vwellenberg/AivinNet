@@ -99,7 +99,7 @@ const CALLS: Record<string, unknown[]> = {
     'auth/sendPairRequest': [],
     'auth/pairWithCode': ['ABC123'],
     'colors/fetchAlbumColor': ['alb1'],
-    'getall/getAllItems': ['albums', { start: 0, limit: 30, sortby: 'created_date', reverse: '1' }],
+    'getall/getAllItems': ['albums', { start: 0, limit: 30, sortby: 'created_date', reverse: '1', artwork: true }],
     'plugins/index/pluginSetActive': ['lyrics_finder', true],
     'plugins/index/updatePluginSettings': ['lyrics_finder', { auto_download: false }],
     'plugins/index/createLastfmSession': ['token-123'],

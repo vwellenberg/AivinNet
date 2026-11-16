@@ -14,7 +14,7 @@ export type ItemType = 'albums' | 'artists'
  */
 export async function getAllItems(
     itemtype: ItemType,
-    options: { start: number; limit: number; sortby: string; reverse: string }
+    options: { start: number; limit: number; sortby: string; reverse: string; artwork?: boolean }
 ) {
     const query = new URLSearchParams({
         start: String(options.start),
@@ -22,6 +22,10 @@ export async function getAllItems(
         sortby: options.sortby,
         reverse: options.reverse,
     })
+    // `has_artwork` per item: whether the medium image is real artwork, not the
+    // placeholder. Only Home's record crates ask; it costs the server a look
+    // into the folder of every album without artwork.
+    if (options.artwork) query.set('artwork', 'true')
 
     return await useAxios({
         url: `${paths.api.getall.base}/${itemtype}?${query}`,

@@ -1,11 +1,15 @@
 from datetime import datetime
 
 from flask_openapi3 import APIBlueprint, Tag
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from aivinnet.api.apischemas import GenericLimitSchema
+from aivinnet.lib.artwork import find_image
+from aivinnet.models.album import Album
+from aivinnet.models.artist import Artist
 from aivinnet.serializers.album import serialize_for_card as serialize_album
 from aivinnet.serializers.artist import serialize_for_card as serialize_artist
+from aivinnet.settings import Paths
 from aivinnet.store.albums import AlbumStore
 from aivinnet.store.artists import ArtistStore
 from aivinnet.utils import format_number
@@ -33,6 +37,10 @@ _ARTIST_ONLY_SORT_KEYS = frozenset({"name", "albumcount"})
 def _valid_sort_keys(is_albums: bool) -> frozenset:
     extra = _ALBUM_ONLY_SORT_KEYS if is_albums else _ARTIST_ONLY_SORT_KEYS
     return _SHARED_SORT_KEYS | extra
+
+
+# The most items `artwork=true` is answered for. Home's record crates ask for 16.
+ARTWORK_LIMIT_MAX = 50
 
 
 class GetAllItemsQuery(GenericLimitSchema):
@@ -63,6 +71,21 @@ class GetAllItemsQuery(GenericLimitSchema):
         default="1",
     )
 
+    artwork: bool = Field(
+        description="Add `has_artwork` to every item: whether its medium image is real "
+        f"artwork rather than the placeholder. Off by default, and only up to {ARTWORK_LIMIT_MAX} "
+        "items, because an album without artwork costs a look into its folder",
+        default=False,
+    )
+
+    @model_validator(mode="after")
+    def _artwork_only_on_small_pages(self) -> "GetAllItemsQuery":
+        # Every album without artwork lists its folder, on the one request
+        # thread: 2000 of them on a NAS would stop the whole app.
+        if self.artwork and self.limit > ARTWORK_LIMIT_MAX:
+            raise ValueError(f"artwork is only answered for up to {ARTWORK_LIMIT_MAX} items")
+        return self
+
 
 class GetAllItemsPath(BaseModel):
     itemtype: str = Field(
@@ -70,6 +93,14 @@ class GetAllItemsPath(BaseModel):
         example="albums",
         default="albums",
     )
+
+
+def _has_artwork(item: Album | Artist) -> bool:
+    """Whether `/img/thumbnail/medium/<image>` (album) or `/img/artist/medium/<image>` is real artwork."""
+    paths = Paths()
+    if isinstance(item, Album):
+        return find_image(paths.md_thumb_path, f"{item.albumhash}.webp", item.pathhash) is not None
+    return find_image(paths.md_artist_img_path, f"{item.artisthash}.webp") is not None
 
 
 @api.get("/<itemtype>")
@@ -89,9 +120,13 @@ def get_all_items(path: GetAllItemsPath, query: GetAllItemsQuery):
     is_albums = path.itemtype == "albums"
     is_artists = path.itemtype == "artists"
 
+    # Anything else left `items` unbound and answered 500.
+    if not (is_albums or is_artists):
+        return {"error": f"Unknown item type: {path.itemtype}"}, 404
+
     if is_albums:
         items = AlbumStore.get_flat_list()
-    elif is_artists:
+    else:
         items = ArtistStore.get_flat_list()
 
     total = len(items)
@@ -146,6 +181,13 @@ def get_all_items(path: GetAllItemsPath, query: GetAllItemsQuery):
 
     for item in items:
         item_dict = serialize_album(item) if is_albums else serialize_artist(item)
+
+        if query.artwork:
+            # What the image server answers for the medium image the cards load
+            # (`lib/artwork.find_image`, the decision it serves from). Home's
+            # record crates ask for it instead of probing every cover with a
+            # request of its own.
+            item_dict["has_artwork"] = _has_artwork(item)
 
         if sort_is_date:
             # The release year in UTC, as stored; "" for none (#391).

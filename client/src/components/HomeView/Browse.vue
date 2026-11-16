@@ -54,7 +54,7 @@ import { reactive } from "vue";
 
 type CrateEntity = "album" | "artist";
 // How the shown pictures were chosen. Albums are always the newest; artists
-// are the most-played, or the newest while nothing has been played yet.
+// are the most-played, or the newest while no played artist has a picture yet.
 type Order = "newest" | "most-played";
 
 interface CrateData {
@@ -92,7 +92,6 @@ import { computed, onMounted, ref, watch } from "vue";
 import { paths } from "@/config";
 import { getAllItems } from "@/requests/getall";
 import { Routes } from "@/router";
-import { coverIsPlaceholder } from "@/utils/colortools/placeholderCover";
 import { crateFan } from "@/utils/crateFan";
 
 // Home's way into the two library lists (Albums and Artists have no
@@ -101,8 +100,8 @@ import { crateFan } from "@/utils/crateFan";
 // and a front board that says what the row is. Playlists and Favorites are
 // not here: they keep their navigation entries.
 
-// Asked for more than shown: a picture the server only has a placeholder for
-// is dropped (see the check in `load`), and the rest make up the row.
+// Asked for more than shown: an item the server flags without artwork is
+// dropped (see `load`), and the rest make up the row.
 const FETCH_LIMIT = 16;
 const SHOWN_MAX = 12;
 
@@ -155,10 +154,10 @@ function tagFor(order: Order) {
   return order === "newest" ? "NEW IN" : "MOST PLAYED";
 }
 
-type Item = { image?: string; help_text?: string };
+type Item = { image?: string; help_text?: string; has_artwork?: boolean };
 
 async function fetchShown(type: "albums" | "artists", sortby: string) {
-  const res = await getAllItems(type, { start: 0, limit: FETCH_LIMIT, sortby, reverse: "1" });
+  const res = await getAllItems(type, { start: 0, limit: FETCH_LIMIT, sortby, reverse: "1", artwork: true });
   if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
   // Capped here too: the endpoint may send more than was asked for.
   return { total: res.data.total, items: (res.data.items as Item[]).slice(0, FETCH_LIMIT) };
@@ -166,41 +165,30 @@ async function fetchShown(type: "albums" | "artists", sortby: string) {
 
 const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
 
-// Checked a few at a time, and only until the row is full: the server answers
-// one request at a time (bjoern), and 32 probes at once queued Home's own
-// requests behind them.
-const PROBE_BATCH = 4;
-
-/** The URLs whose answer is real artwork, not the placeholder, at most SHOWN_MAX. */
-async function withArtwork(urls: string[]): Promise<string[]> {
-  const kept: string[] = [];
-  for (let i = 0; i < urls.length && kept.length < SHOWN_MAX; i += PROBE_BATCH) {
-    const batch = urls.slice(i, i + PROBE_BATCH);
-    const placeholder = await Promise.all(batch.map((url) => coverIsPlaceholder(url)));
-    kept.push(...batch.filter((_, j) => !placeholder[j]));
-  }
-  return kept.slice(0, SHOWN_MAX);
-}
-
 // Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
 // the newest albums (what came in last is what one looks for), the most-played
 // artists. The board says "MOST PLAYED", so an artist with no plays never
 // stands in that row: a library with two played artists shows those two, not
-// five arbitrary ones beside them. While nothing has been played yet, the row
-// is the newest artists and says "NEW IN".
+// five arbitrary ones beside them. While no played artist has a picture of
+// its own yet (nothing played, or only artists without an image), the row is
+// the newest artists and says "NEW IN".
 //
-// A picture the server answers with its placeholder (X-Aivinnet-Placeholder)
-// is dropped: a sleeve with no artwork of its own is not shown. What is left
-// is capped at SHOWN_MAX. If nothing with artwork remains, the crate has no
-// covers and no board. A failed request leaves the card as name only: still a
-// working link, nothing half-drawn.
+// The list answer says per item whether its picture is real artwork
+// (`has_artwork`, asked for with `artwork`): the server decides it the way its
+// image endpoint does (`lib/artwork.find_image`), so the row needs no request per
+// picture. An item flagged `false` is dropped: a sleeve with no artwork of its
+// own is not shown. An item WITHOUT the field (an older server) is kept, as
+// before the flag existed.
+// What is left is capped at SHOWN_MAX. If nothing with artwork remains, the
+// crate has no covers and no board. A failed request leaves the card as name
+// only: still a working link, nothing half-drawn.
 async function load(entity: CrateEntity) {
   try {
     let order: Order = FIRST_ORDER[entity];
     let page =
       entity === "album" ? await fetchShown("albums", "created_date") : await fetchShown("artists", "playcount");
     if (entity === "artist" && page) {
-      const played = page.items.filter((it) => !unplayed(it));
+      const played = page.items.filter((it) => !unplayed(it) && it.has_artwork !== false);
       if (played.length) {
         page = { ...page, items: played };
       } else {
@@ -210,13 +198,15 @@ async function load(entity: CrateEntity) {
     }
     if (!page) return;
 
-    // The count does not wait for the pictures.
+    // The count and the pictures come from the same answer.
     data[entity].total = typeof page.total === "number" ? page.total : null;
     data[entity].order = order;
 
     const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
-    const urls = page.items.filter((it) => it.image).map((it) => base + it.image);
-    data[entity].images = await withArtwork(urls);
+    data[entity].images = page.items
+      .filter((it) => it.image && it.has_artwork !== false)
+      .map((it) => base + it.image)
+      .slice(0, SHOWN_MAX);
   } catch {
     // Decoration only: the card works without it.
   }
