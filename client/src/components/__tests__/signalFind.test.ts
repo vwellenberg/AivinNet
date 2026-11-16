@@ -42,6 +42,10 @@ const TRACK = {
 
 const plate = () => useSignalPlate().value
 
+// Every plate reads the one module state: a wrapper left mounted would keep
+// its own timer and outside-press listener and close the next test's plate.
+const mounted: Array<ReturnType<typeof mount>> = []
+
 async function openWith(find: unknown) {
     getSignalFind.mockResolvedValue(find)
     const router = createRouter({
@@ -52,6 +56,7 @@ async function openWith(find: unknown) {
         ],
     })
     const wrapper = mount(SignalFind, { global: { plugins: [router] }, attachTo: document.body })
+    mounted.push(wrapper)
 
     const origin = document.createElement('div')
     origin.getBoundingClientRect = () => ({ left: 20, top: 12, right: 64, bottom: 56 }) as DOMRect
@@ -70,6 +75,7 @@ describe('SignalFind: the plate of the logo find', () => {
     })
 
     afterEach(() => {
+        mounted.splice(0).forEach(w => w.unmount())
         vi.useRealTimers()
         document.body.innerHTML = ''
     })
@@ -149,7 +155,7 @@ describe('SignalFind: the plate of the logo find', () => {
         let wrapper = await openWith(ALBUM)
         await wrapper.find('.signal-find').trigger('keydown', { key: 'Escape' })
         expect(plate()).toBeNull()
-        wrapper.unmount()
+        mounted.splice(0).forEach(w => w.unmount())
 
         wrapper = await openWith(ALBUM)
         await wrapper.find('.sf-close').trigger('click')

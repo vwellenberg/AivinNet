@@ -73,11 +73,14 @@ describe('logo easter egg: seven clicks, one find', () => {
     })
 
     it('seven fast clicks open the plate, which fills with the find', async () => {
+        let answer!: (v: unknown) => void
+        getSignalFind.mockReturnValue(new Promise(r => (answer = r)))
         const { wrapper } = await mountLogo()
 
         await click(wrapper, 7, 200)
         expect(plate()).toMatchObject({ loading: true, find: null })
 
+        answer(ALBUM)
         await flushPromises()
         expect(plate()).toMatchObject({ loading: false, empty: false, find: ALBUM })
         expect(getSignalFind).toHaveBeenCalledWith(undefined)
