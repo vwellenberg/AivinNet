@@ -15,7 +15,7 @@ describe('Cmd/Ctrl+F in useKeyboard', () => {
     beforeAll(() => {
         const queue = () => ({}) as any
         const modal = () => ({ visible: false, hideModal: vi.fn() }) as any
-        useKeyboard(queue, modal)
+        useKeyboard(queue as any, modal as any)
     })
     afterEach(() => unregister())
 
