@@ -162,8 +162,10 @@ export async function playFromPlaylist(id: string, track?: Track) {
 
     tracklist.setFromPlaylist(info.name, info.id, tracks)
 
-    if (track) {
-        const index = tracks.findIndex(t => t.trackhash === track.trackhash)
+    // A track that has left the list since (the logo's find, #828, comes
+    // from a row the routine refills) plays the list from the top instead.
+    const index = track ? tracks.findIndex(t => t.trackhash === track.trackhash) : -1
+    if (index >= 0) {
         queue.play(index)
     } else {
         queue.playSource()

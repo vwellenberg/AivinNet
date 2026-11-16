@@ -156,6 +156,9 @@ export const paths = {
             get surprise() {
                 return this.base + '/surprise'
             },
+            get signal() {
+                return this.base + '/signal'
+            },
             get stations() {
                 return this.base + '/stations'
             },

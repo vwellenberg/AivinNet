@@ -14,6 +14,7 @@ from aivinnet.lib.home.get_recently_played import get_recently_played
 from aivinnet.lib.home.layout import PINNED, Layout
 from aivinnet.lib.home.recap import RECAP_KEY_PATTERN, RecapPeriod, has_plays, is_news, recap_period
 from aivinnet.lib.home.recentlyadded import get_recently_added_items
+from aivinnet.lib.home.signal import pick_find
 from aivinnet.lib.home.stations import station_listing
 from aivinnet.lib.placeholder_artists import is_placeholder_artist
 from aivinnet.models.user import RECAP_DISMISSED_KEY
@@ -271,6 +272,25 @@ def surprise_album():
     albumhashes = list(AlbumStore.albummap)
 
     return {"albumhash": random.choice(albumhashes) if albumhashes else None}
+
+
+class SignalQuery(BaseModel):
+    skip: str | None = Field(
+        default=None,
+        description="The album or track hash on the plate now; left out while anything else is left",
+    )
+
+
+@api.get("/signal")
+def signal_find(query: SignalQuery):
+    """
+    One find for the logo's easter egg (#828): an album from "Never played" or
+    a track from "Forgotten favorites", at random, as `{type, reason, item}`
+    (`item` is the card Home draws). RAM only. Nothing to find answers 200
+    with `{"find": null}`, like `/surprise`.
+    """
+    pools = HomepageStore.signal_pools(get_current_userid())
+    return {"find": pick_find(pools, skip=query.skip)}
 
 
 class StationsQuery(BaseModel):

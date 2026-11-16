@@ -398,6 +398,14 @@
       "required": []
     }
   },
+  "GET /nothome/signal": {
+    "query": {
+      "allowed": [
+        "skip"
+      ],
+      "required": []
+    }
+  },
   "GET /nothome/stations": {
     "query": {
       "allowed": [

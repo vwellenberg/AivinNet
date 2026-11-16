@@ -1,5 +1,5 @@
 import { paths } from '@/config'
-import type { Album, HomePageItem } from '@/interfaces'
+import type { Album, HomePageItem, Track } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
 import type { RewindYears } from './stats'
 import useAxios from './useAxios'
@@ -74,6 +74,26 @@ export async function getSurpriseAlbum(): Promise<string | null> {
     })
 
     return data?.albumhash ?? null
+}
+
+/**
+ * The logo's find (#828): an album from "Never played" or a track from
+ * "Forgotten favorites", with the reason the plate gives for it.
+ */
+export type SignalFind =
+    | { type: 'album'; reason: string; item: Album }
+    | { type: 'track'; reason: string; item: Track }
+
+/** One find at random; `skip` is the one on the plate now ("Another"). Null: nothing to find. */
+export async function getSignalFind(skip?: string): Promise<SignalFind | null> {
+    const { data } = await useAxios({
+        url: paths.api.home.signal + (skip ? '?skip=' + encodeURIComponent(skip) : ''),
+        method: 'GET',
+        // Under the plate, not a page load: no busy cursor.
+        silent: true,
+    })
+
+    return data?.find ?? null
 }
 
 /** One Home row as the settings list it (#532). */

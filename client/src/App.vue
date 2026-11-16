@@ -8,8 +8,8 @@
          (the vampire at Halloween, the snowman at Christmas, the party-goer on New Year's Eve). -->
     <SeasonTileEmojis v-if="season" :season="season" />
     <SeasonVampire v-if="season" :season="season" />
-    <!-- The logo's signal easter egg (components/SignalBurst.vue, #544). -->
-    <SignalBurst />
+    <!-- The logo's easter egg: seven clicks, one find (components/SignalFind.vue, #828). -->
+    <SignalFind />
     <div id="drag-img" class="ellip2" style=""></div>
     <section
         id="app-grid"
@@ -71,7 +71,7 @@ import Notification from "@/components/Notification.vue";
 import SeasonParticles from "@/components/SeasonParticles.vue";
 import SeasonTileEmojis from "@/components/SeasonTileEmojis.vue";
 import SeasonVampire from "@/components/SeasonVampire.vue";
-import SignalBurst from "@/components/SignalBurst.vue";
+import SignalFind from "@/components/SignalFind.vue";
 
 // @app-grid-components
 import BottomBar from "@/components/BottomBar/BottomBar.vue";
