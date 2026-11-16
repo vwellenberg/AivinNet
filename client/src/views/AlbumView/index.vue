@@ -43,15 +43,20 @@ import useQueueStore from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 
 import AlbumDiscBar from '@/components/AlbumView/AlbumDiscBar.vue'
+import AlbumFind from '@/components/AlbumView/AlbumFind.vue'
 import GenreBanner from '@/components/AlbumView/GenreBanner.vue'
 import Header from '@/components/AlbumView/main.vue'
 import AlbumsFetcher from '@/components/ArtistView/AlbumsFetcher.vue'
 import CardScroller from '@/components/shared/CardScroller.vue'
+import NoItems from '@/components/shared/NoItems.vue'
 import SongItem from '@/components/shared/SongItem.vue'
 import Stats from '@/components/Stats/Stats.vue'
 
 import { dropSources } from '@/enums'
+import { useListFind } from '@/helpers/useListFind'
 import { isSmall } from '@/stores/content-width'
+
+import albumSvg from '@/assets/icons/album.svg'
 
 const album = useAlbumStore()
 const queue = useQueueStore()
@@ -67,6 +72,8 @@ interface ScrollerItem {
         | typeof CardScroller
         | typeof AlbumsFetcher
         | typeof Stats
+        | typeof AlbumFind
+        | typeof NoItems
     props?: any
 }
 
@@ -202,6 +209,29 @@ const header: ScrollerItem = {
     component: Header,
 }
 
+// The album's own find, directly above the first track (see AlbumFind.vue).
+// Only with tracks: an album without any has nothing to find in.
+const findField: ScrollerItem = {
+    id: 'album-find',
+    component: AlbumFind,
+}
+
+function getNoItemsComponent(): ScrollerItem | null {
+    // A find that matches nothing: say so, where the tracks would be.
+    if (!album.query || album.tracks.length) return null
+
+    return {
+        id: 'album-no-items',
+        component: NoItems,
+        props: {
+            icon: albumSvg,
+            flag: true,
+            title: 'No matching tracks',
+            description: `Nothing in this album matches "${album.query}"`,
+        },
+    }
+}
+
 const genreBanner: ScrollerItem = {
     id: 'genre-banner',
     component: GenreBanner,
@@ -215,7 +245,11 @@ const scrollerItems = computed(() => {
     moreFrom = moreFrom.filter(item => item.id !== undefined)
     const otherVersionsComponent = getAlbumVersionsComponent()
 
-    let components = [header, ...getSongItems(), genreBanner]
+    let components: Array<ScrollerItem | songItem> = [header]
+    if (album.srcTracks.length) components.push(findField)
+    const noItems = getNoItemsComponent()
+    if (noItems) components.push(noItems)
+    components.push(...getSongItems(), genreBanner)
 
     // if (album.tracks.length) {
     //     components.push(AlbumVersionsFetcher)
@@ -250,6 +284,10 @@ const scrollerItems = computed(() => {
     return components
 })
 
+// Cmd/Ctrl+F opens the album's own find (helpers/useListFind.ts): the browser's
+// find only sees the rows the virtual scroller has rendered.
+useListFind('album-find', 'album-scroller', () => album.srcTracks.length > 0)
+
 function playFromAlbum(index: number, tracks = album.srcTracks) {
     const { title, albumhash } = album.info
     tracklist.setFromAlbum(title, albumhash, tracks)
@@ -272,9 +310,12 @@ onBeforeRouteUpdate(async to => {
             top: 0,
         })
     })
+    // A find belongs to the album it was typed in.
+    album.resetQuery()
 })
 
 onBeforeRouteLeave(() => {
+    album.resetQuery()
     album.resetAll()
 })
 </script>
