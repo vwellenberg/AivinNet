@@ -3,17 +3,9 @@ import useModal from "@/stores/modal";
 import useContextMenu from "@/stores/context";
 import useSettings from "@/stores/settings";
 import { controlOwnsKey, focusCameFromKeyboard, trackFocusOrigin } from "@/utils/keyOwnership";
+import { handleFindShortcut } from "@/utils/pageFind";
 
 let key_down_fired = "";
-
-function focusPageSearchBox() {
-  const elem = document.getElementById(
-    "page-search-trigger"
-  ) as HTMLButtonElement;
-  if (elem) {
-    elem.dispatchEvent(new MouseEvent("click", { bubbles: false }));
-  }
-}
 
 function resetKeyFired() {
   key_down_fired = "";
@@ -25,6 +17,10 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
 
   window.addEventListener("keydown", (e: KeyboardEvent) => {
     const target = e.target as HTMLElement;
+
+    // Before the input check: Cmd/Ctrl+F inside the page's own search field
+    // selects it again rather than opening the browser's find over it.
+    if (handleFindShortcut(e)) return;
 
     if (e.altKey) return;
     const ctrlKey = e.ctrlKey;
@@ -116,13 +112,6 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
         }
 
         break;
-
-      case "f": {
-        if (!ctrlKey) return;
-        e.preventDefault();
-        focusPageSearchBox();
-        break;
-      }
 
       case "b": {
         if (!ctrlKey) return;

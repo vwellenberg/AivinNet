@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, watch } from 'vue'
-import { onBeforeUnmount } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 
 import { isMedium, isSmall, isSmallPhone } from '@/stores/content-width'
 import { dropSources } from '@/enums'
@@ -77,6 +77,10 @@ import { pageTint } from '@/utils/colortools/pageGradient'
 import { createDragAutoScroller } from '@/utils/dragAutoScroll'
 import { trackBandFade } from '@/utils/songItemMethods'
 import { isStoredPlaylistId } from '@/utils/storedPlaylist'
+import { registerPageFind } from '@/utils/pageFind'
+import { focusWhenVisible } from '@/utils/focusWhenVisible'
+import useModal from '@/stores/modal'
+import useContextMenu from '@/stores/context'
 
 const queue = useQueue()
 const tracklist = useTracklist()
@@ -111,8 +115,16 @@ const getNoItemsComponent = () =>
         props: {
             icon: playlistSvg,
             flag: playlist.tracks.length === 0,
-            title: 'No tracks in this playlist',
-            description: 'Add tracks to this playlist by right clicking on a track and selecting "add to playlist"',
+            ...(playlist.query && playlist.allTracks.length
+                ? {
+                      title: 'No matching tracks',
+                      description: `Nothing in this playlist matches "${playlist.query}"`,
+                  }
+                : {
+                      title: 'No tracks in this playlist',
+                      description:
+                          'Add tracks to this playlist by right clicking on a track and selecting "add to playlist"',
+                  }),
         },
     }
 
@@ -148,6 +160,7 @@ const scrollerItems = computed(() => {
             show_date_added: isStoredPlaylist.value,
             caps_list: captionCapsList,
             editable: isStoredPlaylist.value && playlist.allTracks.length > 0,
+            findable: playlist.allTracks.length > 0,
         },
     }
 
@@ -308,7 +321,53 @@ watch(
     { immediate: true }
 )
 
-onBeforeUnmount(() => stopAutoScroll())
+// Cmd/Ctrl+F opens the playlist's own find (utils/pageFind.ts): the browser's
+// find only sees the rows the virtual scroller has rendered and the pages
+// loaded so far, so it reported no match for a track further down.
+async function openFind(): Promise<void> {
+    const scroller = document.getElementById('contentscroller')
+    const visibleField = () => {
+        const field = document.getElementById('playlist-find') as HTMLInputElement | null
+        if (!field || !scroller) return field
+        // A recycled view can keep the caption mounted while it sits outside the
+        // viewport, so being in the DOM is not the same as being on screen.
+        const box = field.getBoundingClientRect()
+        const view = scroller.getBoundingClientRect()
+        return box.bottom > view.top && box.top < view.bottom ? field : null
+    }
+
+    let field = visibleField()
+    if (!field) {
+        // Scrolled past the caption. Its matches show from the top anyway, so go
+        // there and wait for the scroller to render it.
+        scroller?.scrollTo({ top: 0 })
+        for (let frame = 0; frame < 30 && !field; frame += 1) {
+            await new Promise(resolve => requestAnimationFrame(resolve))
+            field = visibleField()
+        }
+    }
+    if (await focusWhenVisible(field)) field?.select()
+}
+
+let unregisterFind = () => {}
+
+onMounted(() => {
+    unregisterFind = registerPageFind(() => {
+        // The edit list is a plain, fully rendered list: the browser's find
+        // works there. And an empty playlist has nothing to search.
+        if (playlist.editing || !playlist.allTracks.length) return false
+        // An open modal or menu sits over the list: the field behind it is not
+        // what the user is looking at.
+        if (useModal().visible || useContextMenu().visible) return false
+        void openFind()
+        return true
+    })
+})
+
+onBeforeUnmount(() => {
+    stopAutoScroll()
+    unregisterFind()
+})
 
 onBeforeRouteLeave(() => {
     stopAutoScroll()

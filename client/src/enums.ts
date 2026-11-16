@@ -47,8 +47,11 @@ export const FuseTrackOptions = {
   keys: [
     { name: "title", weight: 1 },
     { name: "album", weight: 0.7 },
-    { name: "artist.name", weight: 0.5 },
-    { name: "albumartist", weight: 0.25 },
+    // The track's own fields are `artists` / `albumartists` (lists of
+    // { name, … }). The keys used to say `artist.name` / `albumartist`, which
+    // no track has — a search by artist matched nothing.
+    { name: "artists.name", weight: 0.5 },
+    { name: "albumartists.name", weight: 0.25 },
   ],
 };
 
