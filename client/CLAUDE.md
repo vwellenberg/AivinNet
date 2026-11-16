@@ -432,6 +432,14 @@ GitHub nichts.)
   (inklusive schon Getipptem). Headless lässt sich das nicht prüfen, dort gibt es keine
   Tastatur.
 
+- **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
+  durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und Playlists laden
+  seitenweise nach — gemeldet als „Cmd+F findet den Song weiter unten nicht“. Eine Seite mit
+  eigener Suche hängt sich deshalb an `utils/pageFind.ts` (`registerPageFind`): Der Shortcut
+  öffnet dann deren Feld, sonst bleibt er beim Browser. Vorbild: die Playlist-Suche
+  (`PlaylistView/PlaylistFind.vue`), die beim ersten Buchstaben den Rest der Playlist lädt.
+  Album-, Ordner- und Favoriten-Listen haben dasselbe Problem noch.
+
 - **⚠️ Ein Modal schließen und dann `router.push` — die Navigation stirbt.** `modal.vue` legt beim
   Öffnen einen Verlaufseintrag an (Back schließt das Modal) und nimmt ihn beim Schließen per
   `history.back()` wieder weg. Dessen `popstate` kommt, während die neue Seite noch lädt

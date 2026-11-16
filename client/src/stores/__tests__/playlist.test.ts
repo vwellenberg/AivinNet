@@ -191,3 +191,105 @@ describe('playlist store moveTrack', () => {
         expect(hashes()[4]).toBe('h1')
     })
 })
+
+// The browser's Cmd/Ctrl+F found nothing below the rendered rows of a long
+// playlist: the list is virtual and loads page by page. The in-playlist find
+// answers over the whole playlist instead.
+describe('playlist store in-playlist find', () => {
+    const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => mkTrack(from + i))
+
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        getPlaylist.mockReset()
+    })
+
+    async function loadFirstPage(count: number) {
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(count), tracks: range(1, 50) })
+        const store = usePlaylistStore()
+        await store.fetchAll(59)
+        expect(store.allLoaded).toBe(false)
+        return store
+    }
+
+    it('finds a track that is not on the loaded pages yet', async () => {
+        const store = await loadFirstPage(120)
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: range(1, 120) })
+
+        await store.setQuery('Track 117')
+
+        // The whole list was asked for (limit -1 = everything, from 0).
+        expect(getPlaylist).toHaveBeenLastCalledWith(59, false, 0, -1)
+        expect(store.allLoaded).toBe(true)
+        expect(store.tracks.map(t => t.trackhash)).toContain('h117')
+    })
+
+    it('loads the rest once, however many letters are typed while it runs', async () => {
+        const store = await loadFirstPage(120)
+        let finish = (_: unknown) => {}
+        getPlaylist.mockReturnValueOnce(new Promise(resolve => (finish = resolve)))
+
+        const typing = [store.setQuery('T'), store.setQuery('Tr'), store.setQuery('Tra')]
+        finish({ info: mkInfo(120), tracks: range(1, 120) })
+        await Promise.all(typing)
+
+        // One first page + one full load.
+        expect(getPlaylist).toHaveBeenCalledTimes(2)
+        expect(store.query).toBe('Tra')
+    })
+
+    it('ranks the best match first and keeps each match at its playlist position', () => {
+        const store = usePlaylistStore()
+        store.allTracks = [
+            { ...mkTrack(1), title: 'Song 1' },
+            { ...mkTrack(2), title: 'Something else' },
+            { ...mkTrack(3), title: 'Song 147' },
+        ] as any
+        store.allLoaded = true
+        store.query = 'Song 147'
+
+        // The search is fuzzy, so "Song 1" matches too — the exact title leads.
+        expect(store.tracks[0].trackhash).toBe('h3')
+        // `index` is the position in the whole playlist: play starts there.
+        expect(store.tracks[0].index).toBe(2)
+    })
+
+    it('matches on the artist, not only the title', () => {
+        const store = usePlaylistStore()
+        store.allTracks = [
+            { ...mkTrack(1), artists: [{ name: 'Louis Cole', artisthash: 'a1' }] },
+            { ...mkTrack(2), artists: [{ name: 'Genevieve Artadi', artisthash: 'a2' }] },
+        ] as any
+        store.allLoaded = true
+        store.query = 'Genevieve'
+
+        expect(store.tracks.map(t => t.trackhash)).toEqual(['h2'])
+    })
+
+    it('forgets the search when the playlist changes', async () => {
+        const store = await loadFirstPage(120)
+        store.query = 'Track 3'
+        store.resetTracks()
+        expect(store.query).toBe('')
+    })
+})
+
+describe('playlist store in-playlist find, failing load', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        getPlaylist.mockReset()
+    })
+
+    it('a failed full load neither rejects nor blocks the next try', async () => {
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: [mkTrack(1)] })
+        const store = usePlaylistStore()
+        await store.fetchAll(59)
+
+        getPlaylist.mockRejectedValueOnce(new Error('offline'))
+        await expect(store.setQuery('Track')).resolves.toBeUndefined()
+        expect(store.allLoaded).toBe(false)
+
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: [mkTrack(1), mkTrack(2)] })
+        await store.setQuery('Track 2')
+        expect(store.allLoaded).toBe(true)
+    })
+})

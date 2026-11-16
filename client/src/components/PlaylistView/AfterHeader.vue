@@ -8,12 +8,13 @@
         class="p-after-header"
         :class="{ 'with-date': showDateHeading, 'caps-list': caps_list, 'is-editing': editing }"
     >
-        <div class="ah-bar" :class="{ 'has-action': editing || editable }">
+        <div class="ah-bar" :class="{ 'has-action': editing || editable || showFind, 'has-find': showFind }">
             <div v-if="editing" class="ah-label">
                 Edit order <span class="ah-count">· {{ count }}</span>
             </div>
-            <div v-else class="ah-label">All Tracks</div>
+            <div v-else class="ah-label ah-nowrap">All Tracks</div>
             <div v-if="showDateHeading" class="date-added-heading">Date added</div>
+            <PlaylistFind v-if="showFind" />
             <!-- The way into the edit mode (grips to reorder, buttons to remove)
                  and back out of it. It lives on the caption because that is
                  what it acts on: the list right under it. -->
@@ -27,6 +28,8 @@
 import { computed } from 'vue'
 
 import { isMedium, isSmall } from '@/stores/content-width'
+
+import PlaylistFind from './PlaylistFind.vue'
 
 const props = defineProps<{
     // Whether the track list below shows the "Date added" column (regular
@@ -43,12 +46,17 @@ const props = defineProps<{
     editing?: boolean
     // How many tracks the edit mode is working on.
     count?: number
+    // Offer the in-playlist find (there are tracks to search). Never in the
+    // edit mode: that list shows every track in stored order.
+    findable?: boolean
 }>()
 
 defineEmits<{
     (e: 'edit'): void
     (e: 'done'): void
 }>()
+
+const showFind = computed(() => Boolean(props.findable) && !props.editing)
 
 const showDateHeading = computed(
     () => Boolean(props.show_date_added) && !props.editing && !isSmall.value && !isMedium.value
@@ -114,7 +122,27 @@ const showDateHeading = computed(
         grid-column: 1 / 4;
     }
 
+    // One row. Auto-placement only moves forward: the find (column 3) comes
+    // after "Date added" (column 4) in the markup and would start a second row.
+    > * {
+        grid-row: 1;
+    }
+
+    // The find takes the album column's cell, so "Date added" keeps its place
+    // above the date column.
+    &.has-find .ah-label {
+        grid-column: 1 / 3;
+    }
+
+    .ah-find {
+        grid-column: 3;
+        margin-left: 0;
+    }
+
+    // Placed, not auto-flowed: with the label spanning one cell less it would
+    // flow into the find's cell.
     .date-added-heading {
+        grid-column: 4;
         font-size: small;
         white-space: nowrap;
     }
@@ -227,6 +255,17 @@ const showDateHeading = computed(
 .p-after-header.with-date > .ah-bar > .ah-edit {
     grid-column: -2;
     justify-self: end;
+}
+
+.p-after-header .ah-nowrap {
+    // Beside the find on a phone the caption would break into two lines — and
+    // squeezed, it ran under the field. The field is the one that gives.
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.p-after-header:not(.with-date) > .ah-bar.has-find {
+    gap: $small;
 }
 
 .p-after-header .ah-count {

@@ -11,6 +11,12 @@ import setColorsToStore from '@/utils/colortools/setColorsToStore'
 import { Routes, router } from '@/router'
 import { track_limit } from '../content-width'
 
+// The full load a search started, so the next keystroke joins it instead of
+// asking the server for the whole playlist once per letter.
+// Keyed by playlist: a load still running for the previous one must not stand
+// in for this one's.
+let searchLoad: { id: number; done: Promise<void> } | null = null
+
 export default defineStore('playlist-tracks', {
     state: () => ({
         info: <Playlist>{},
@@ -193,6 +199,29 @@ export default defineStore('playlist-tracks', {
             this.editFocus = focusTrackhash
             this.editing = true
         },
+        /**
+         * The in-playlist search. It answers over the WHOLE playlist, not the
+         * pages scrolled so far: a long list loads page by page, and the browser's
+         * own find (Cmd/Ctrl+F) only sees the rows the virtual scroller has in
+         * the DOM — a track further down was simply not found. So the first
+         * search loads the rest, like the play path and the edit mode do.
+         */
+        async setQuery(query: string) {
+            this.query = query
+            if (!query || this.allLoaded) return
+            const id = this.info.id
+            if (searchLoad?.id !== id) {
+                // A failed load leaves the search on the pages it has; the next
+                // keystroke tries again. Never a rejection for the field to drop.
+                const done = this.fetchAll(id, false, true)
+                    .catch(() => {})
+                    .finally(() => {
+                        if (searchLoad?.done === done) searchLoad = null
+                    })
+                searchLoad = { id, done }
+            }
+            await searchLoad.done
+        },
         stopEditing() {
             this.editing = false
             this.editFocus = ''
@@ -210,6 +239,8 @@ export default defineStore('playlist-tracks', {
             this.allTracks = []
             this.allLoaded = false
             this.loadedHashCount = 0
+            // A search belongs to the playlist it was typed on.
+            this.query = ''
             this.stopEditing()
         },
         resetAll() {
