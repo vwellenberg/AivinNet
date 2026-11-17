@@ -85,6 +85,9 @@ Small finds and a steadier Home, on top of 2026.11.9.
 - **Continue listening no longer flickers in** on the first visit to Home.
 - **Every cover wears the same frame**, in the sidebar, in Stats and in lists;
   the folder arrow points down and sits a little smaller.
+- **The end of the queue reads cleanly.** "Last track — the queue starts over
+  after this one." sits on its own plate instead of straight on the
+  background, and the empty button above it is gone.
 
 <details>
 <summary>What v2026.11.9 brought</summary>
