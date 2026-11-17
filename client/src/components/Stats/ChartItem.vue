@@ -283,8 +283,10 @@ function getRouterParams() {
     }
 
     .chartimage {
-        // Glued-on cover: full ink frame, like the song list's inlay covers.
-        border: $mem-ring-w solid $mem-line;
+        // Glued-on cover: the plate-width ink frame the song list's inlay
+        // covers and the sidebar thumbnails wear. It was the 2px ring and read
+        // thinner than every other cover in the app (user, 2026-11-17).
+        border: $candy-border;
         border-radius: 0.25rem;
         height: 48px;
         // Square crop: playlist banner thumbs are 250px HIGH with free
