@@ -84,11 +84,17 @@ const emit = defineEmits<{ (e: 'toggle'): void }>()
         }
     }
 
+    // Text on the doodled ground needs a plate (styling.md, `--mem-veil`).
     .queue-note {
+        display: inline-block;
         margin: 0;
-        padding: 0.5rem 0.25rem;
-        color: $candy-text;
+        padding: $small $medium;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        background-color: var(--mem-veil);
+        color: $mem-content-faint;
         font-size: 0.9rem;
+        @include candy-shadow;
     }
 }
 </style>
