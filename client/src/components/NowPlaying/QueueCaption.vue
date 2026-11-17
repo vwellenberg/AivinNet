@@ -25,13 +25,19 @@
 // One caption line of the split queue (Played / Now playing / Up next), or the
 // note that stands in for an empty "Up next". Rendered as a scroller row, so it
 // sits outside `.now-playing-header` and carries its own sticker.
-defineProps<{
-    text?: string
-    count?: number
-    // Set = this caption folds a section; the value is whether it is open.
-    open?: boolean
-    note?: string
-}>()
+withDefaults(
+    defineProps<{
+        text?: string
+        count?: number
+        // Set = this caption folds a section; the value is whether it is open.
+        open?: boolean
+        note?: string
+    }>(),
+    // Vue casts an absent boolean prop to `false`, which reads as "a closed
+    // section" and drew an empty fold button above the end note. `undefined`
+    // keeps "not a fold" apart from "folded".
+    { text: undefined, count: undefined, open: undefined, note: undefined }
+)
 
 const emit = defineEmits<{ (e: 'toggle'): void }>()
 </script>
@@ -84,11 +90,17 @@ const emit = defineEmits<{ (e: 'toggle'): void }>()
         }
     }
 
+    // Text on the doodled ground needs a plate (styling.md, `--mem-veil`).
     .queue-note {
+        display: inline-block;
         margin: 0;
-        padding: 0.5rem 0.25rem;
-        color: $candy-text;
+        padding: $small $medium;
+        border: $candy-border;
+        border-radius: $candy-radius-sm;
+        background-color: var(--mem-veil);
+        color: $mem-content-faint;
         font-size: 0.9rem;
+        @include candy-shadow;
     }
 }
 </style>
