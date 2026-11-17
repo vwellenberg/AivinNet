@@ -20,7 +20,12 @@ Default, `--system` für systemweit). Flags: `--system`, `--no-autostart`, `--po
 
 **Release ziehen:** Workflow `Release` (`.github/workflows/build.yml`, `workflow_dispatch`) baut
 Client aus `client/`, Wheels, AppImages (x86_64 + aarch64), Einzeldatei-Binaries und
-`SHA256SUMS`. Vorher `.github/changelog.md` anpassen — das ist der Release-Body. Für Testläufe
+`SHA256SUMS`. Vorher `.github/changelog.md` anpassen — das ist der Release-Body. Außerdem die
+README-Beschreibung auf den Stand des Releases bringen („What it does“ und der Alt-Text des
+Hero-Bilds), `appimage/aivinnet.appdata.xml` nur, wenn seine Beschreibung betroffen ist.
+Screenshots (`client/docs/screenshots/`, Rezept in `scripts/demo/README.md`, Abschnitt „Screenshots
+and the demo clip“) werden nur bei größeren sichtbaren Änderungen neu gemacht; dann auch
+`home.png` für die AppStream-Metadaten. Für Testläufe
 `prerelease=true` + `is_latest=false` setzen und mit `install.sh --version <tag>` installieren
 (`/releases/latest` überspringt Prereleases; **Drafts** sind über die API gar nicht sichtbar).
 

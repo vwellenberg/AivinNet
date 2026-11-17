@@ -341,7 +341,8 @@ Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
 
 Freunde installieren per **AppImage** (`install.sh` im Repo-Root), gebaut vom Workflow `Release`
 (`.github/workflows/build.yml`, `workflow_dispatch`). Vorher `.github/changelog.md` anpassen —
-das ist der Release-Body.
+das ist der Release-Body; dazu die README-Beschreibung
+(„What it does“, Hero-Alt-Text) auf den Stand bringen, siehe `.claude/rules/packaging-release.md`.
 
 ⚠️ Dort lauern mehrere Fallen, die schon zugeschlagen haben — zuletzt der AppDir-Name, an dem
 beide AppImage-Jobs des ersten Release-Versuchs starben. Details:
