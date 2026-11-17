@@ -136,6 +136,13 @@ const noResults = computed(
   // the same line down the page.
   .search-idle {
     display: grid;
+    // `minmax(0, 1fr)`, not the implicit `auto` column: an auto track is at
+    // least as wide as its widest item's min-content, and the letter band is a
+    // `nowrap` row of 27 keys. Its own `overflow-x: auto` does not help — that
+    // only makes the BAND a scroller, while its intrinsic width still reaches
+    // the grid. Measured on a 412px phone: the column grew to 1442px, and the
+    // whole idle page scrolled sideways instead of just the band.
+    grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
 
     // The prompt used to sit inside a block that claimed the full height, so
