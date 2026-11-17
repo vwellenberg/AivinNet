@@ -1232,17 +1232,21 @@ $sidebar-label-opacity: 0.85;
       }
 
       .folder-chevron {
-        // Expand/collapse affordance on the right; points right when collapsed,
-        // rotates down when open. The chrome set's disclosure chevron at the
-        // pin's size: as a 0.7rem arrow its stroke rendered ~1px next to the
-        // pin's 2px (user, 2026-11-15).
+        // Expand/collapse affordance on the right. The folder opens downward,
+        // so it points DOWN while closed and UP while open (user, 2026-11-17);
+        // expand.svg is drawn pointing right, hence the rotations.
+        // Size: the chrome set's disclosure chevron at 1rem. As a 0.7rem arrow
+        // its stroke rendered ~1px next to the pin's 2px (2026-11-15); at the
+        // pin's own 1.25rem it read too big beside the count (2026-11-17).
+        // 1rem draws the stroke at 1.6px.
         flex-shrink: 0;
-        width: $glyph-lone;
-        height: $glyph-lone;
+        width: 1rem;
+        height: 1rem;
+        transform: rotate(90deg);
         transition: transform $motion-tint ease;
 
         &.open {
-          transform: rotate(90deg);
+          transform: rotate(-90deg);
         }
       }
 
