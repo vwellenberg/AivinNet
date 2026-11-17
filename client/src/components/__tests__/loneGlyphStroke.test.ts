@@ -86,8 +86,8 @@ describe("the folder head's count", () => {
 });
 
 describe("the sidebar thumbnails share one frame", () => {
-  it("playlist cover and folder cover take the same plate-width frame and the same radius", () => {
-    const uses = [...SIDEBAR.matchAll(/border: \$candy-border-w solid \$mem-line;\s*(?:\/\/[^\n]*\s*)*border-radius: \$sidebar-thumb-radius;/g)];
+  it("playlist cover and folder cover take the same picture frame and the same radius", () => {
+    const uses = [...SIDEBAR.matchAll(/border: \$mem-picture-frame;\s*(?:\/\/[^\n]*\s*)*border-radius: \$sidebar-thumb-radius;/g)];
     expect(uses).toHaveLength(2);
     // Concentric in the row: the row's radius minus its frame.
     expect(SIDEBAR).toMatch(/^\$sidebar-thumb-radius: calc\(#\{\$candy-radius-sm\} - #\{\$candy-border-w\}\);/m);

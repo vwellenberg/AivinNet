@@ -361,7 +361,7 @@ function handleFav() {
             max-width: 30rem;
             object-fit: cover;
             display: block;
-            border: $candy-border;
+            border: $mem-picture-frame;
         }
     }
 

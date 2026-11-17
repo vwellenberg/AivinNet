@@ -325,7 +325,7 @@ defineEmits<{
             // taller than the cover — that gap let the Lauflicht rim miss the
             // bottom edge instead of tracing all the way around.
             display: block;
-            border: $candy-border;
+            border: $mem-picture-frame;
             border-radius: $candy-radius-sm;
         }
 

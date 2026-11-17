@@ -219,10 +219,19 @@ $mem-hairline: $mem-hairline-w solid $mem-line;
 // THE RING — the middle weight, between the hairline and the plate border.
 // Strokes around things that sit ON a surface and are smaller than a plate:
 // the track-number disc and the duration pill in every song row, count chips,
-// the lyrics timestamp, the chart meter and cover, the switch knob, the logo
+// the lyrics timestamp, the chart meter, the switch knob, the logo
 // orbit, drop markers, the dashed upload box. It arrived with the cassette
 // inlay and ran as sixteen literal `2px`s until #233 named it.
 $mem-ring-w: 2px;
+// THE PICTURE FRAME — every cover, portrait, thumbnail and the tile that stands
+// in for one (a folder or playlist placeholder) wears the plate weight, at every
+// size. Pictures are not badges: a 2px ring around a 28px sidebar cover read
+// thinner than the 3px plate border right beside it, and the chart covers, the
+// folder list's icon tiles, the artist avatar on "all tracks" and the
+// "not interested" covers had drifted to that ring one by one (user,
+// 2026-11-17). One name, so the next picture cannot pick a weight on its own;
+// pictureFrame.test.ts holds every picture selector to it.
+$mem-picture-frame: $candy-border;
 // The keyboard focus outline. Its own name, not the ring's: widening every
 // badge ring must never thin or thicken what a keyboard user follows.
 $focus-ring-w: 2px;

@@ -78,7 +78,7 @@ onClickOutside(avatarRef, () => {
         svg {
             width: 100%;
             height: 100%;
-            border: $candy-border;
+            border: $mem-picture-frame;
             border-radius: 50%;
             // The "white circle" behind the avatar art — keep it static light so
             // the ring stays a light disc in dark (pairs with the paper border).

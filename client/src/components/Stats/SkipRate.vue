@@ -246,7 +246,7 @@ watch(
         width: 2.75rem;
         height: 2.75rem;
         object-fit: cover;
-        border: $candy-border;
+        border: $mem-picture-frame;
         border-radius: $candy-radius-sm;
         background-color: rgba(127, 127, 127, 0.25);
     }

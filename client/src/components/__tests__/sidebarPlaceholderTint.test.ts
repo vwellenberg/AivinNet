@@ -69,9 +69,9 @@ describe("sidebar placeholders wear their entity's pastel", () => {
   // thumbnail (cover, mosaic, placeholder) and the playlist folder's icon tile.
   // At the plate width, not the 2px ring: the ring read thinner than the row's
   // own 3px border right beside it (user, 2026-11-17).
-  it("frames the thumbnail box and the folder icon tile at the plate width", () => {
+  it("frames the thumbnail box and the folder icon tile in the picture frame", () => {
     const css = styleBlock(panelSource);
-    const ring = /border:\s*\$candy-border-w solid \$mem-line;/;
+    const ring = /border:\s*\$mem-picture-frame;/;
     const thumb = block(css, ".sidebar-pl-img").body;
     expect(thumb, ".sidebar-pl-img block not found").not.toBe("");
     expect(thumb).toMatch(ring);

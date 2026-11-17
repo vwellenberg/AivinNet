@@ -308,7 +308,7 @@ function resume() {
   .cover {
     width: 8.5rem;
     aspect-ratio: 1;
-    border: $candy-border;
+    border: $mem-picture-frame;
     border-radius: $candy-radius-sm;
     overflow: hidden;
     background-color: $mem-panel;

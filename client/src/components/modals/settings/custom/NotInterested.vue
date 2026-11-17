@@ -123,7 +123,7 @@ async function takeBack(item: NotInterestedItem) {
         width: $bar-control;
         height: $bar-control;
         object-fit: cover;
-        border: $mem-ring-w solid $mem-line;
+        border: $mem-picture-frame;
         border-radius: $candy-radius-xs;
 
         &.is-round {

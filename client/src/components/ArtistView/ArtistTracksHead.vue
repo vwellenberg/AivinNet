@@ -122,7 +122,7 @@ watch(
       height: 2rem;
       flex-shrink: 0;
       border-radius: 50%;
-      border: $mem-ring-w solid $mem-line;
+      border: $mem-picture-frame;
       object-fit: cover;
     }
 

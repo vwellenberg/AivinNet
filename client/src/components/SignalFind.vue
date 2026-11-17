@@ -243,7 +243,7 @@ async function play() {
     width: 4.5rem;
     height: 4.5rem;
     object-fit: cover;
-    border: $candy-border;
+    border: $mem-picture-frame;
     border-radius: $candy-radius-sm;
     background-color: $mem-soft;
 }
