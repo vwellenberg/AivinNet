@@ -38,6 +38,7 @@ vi.mock('@/stores/content-width', async () => {
         isPhoneBar: c(() => phoneFlag.value),
         isMobile: c(() => true),
         isLargerMobile: c(() => false),
+        isSmallPhone: c(() => true),
     }
 })
 vi.mock('@/router', () => ({ router: {}, Routes: { nowPlaying: 'NowPlaying', Lyrics: 'Lyrics' } }))

@@ -76,6 +76,12 @@ function showMenu(e: MouseEvent) {
 // Nr. 4 G-Dur"). One line with an ellipsis keeps the height constant — and
 // `min-width: 0` is what makes that possible here, because a flex item with
 // `nowrap` would otherwise push the actions out instead of shrinking.
+//
+// On a phone the plate takes TWO rows instead (user, 2026-11-17: the title was
+// barely visible behind three 44px buttons). Measured at 390px with a rated
+// track, the text column got ~120px beside rating, heart and ⋮, so titles read
+// "Echo Bet…". Title and artist now own the first row, the buttons drop to a
+// second one and sit on the right. Desktop and tablet keep the single row.
 .now-playing-info {
   // The containing block of the rating picker (below).
   position: relative;
@@ -186,6 +192,40 @@ function showMenu(e: MouseEvent) {
   .author {
     & > * {
       color: $candy-text-muted !important;
+    }
+  }
+
+  // Phone: two rows (see the comment above). Title and artist own the first,
+  // the rating, heart and ⋮ the second, right-aligned. The rating picker still
+  // hangs off the plate (`.rating-picker` above), so it opens over the cover
+  // whichever row the button sits on.
+  @include allPhones {
+    flex-wrap: wrap;
+    row-gap: 0.6rem;
+    padding: 0.7rem 0.7rem 0.7rem 0.9rem;
+
+    .text {
+      flex: 1 1 100%;
+    }
+
+    // Up to two lines, then an ellipsis. rem literals, not spacing tokens:
+    // `$small` is a gap, not a font size (styling.md).
+    .title {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      font-size: 1.2rem;
+      line-height: 1.25;
+    }
+
+    .artist {
+      font-size: 0.9rem;
+    }
+
+    .actions {
+      margin-left: auto;
     }
   }
 }
