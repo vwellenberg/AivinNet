@@ -216,8 +216,8 @@ function showMenu(e: MouseEvent) {
   // the buttons, so the title no longer has to wrap. When it does not fit, it
   // scrolls (MarqueeText) rather than ending in "…".
   //
-  // The buttons are centred on that row (user, 2026-11-17: the space to the
-  // left of star, heart and ⋮ was wasted while the right edge carried them).
+  // The buttons are spread evenly over that row (user, 2026-11-17: right-aligned
+  // they wasted the left, centred they clumped in the middle).
   @include allPhones {
     flex-wrap: wrap;
     row-gap: 0.6rem;
@@ -239,7 +239,10 @@ function showMenu(e: MouseEvent) {
 
     .actions {
       flex: 1 1 100%;
-      justify-content: center;
+      // Spread, not packed: centred with the 8px gap, the three buttons sat in
+      // a clump with ~90px of empty plate on either side (user, 2026-11-17).
+      // `space-evenly` gives the same air left, between and right.
+      justify-content: space-evenly;
     }
   }
 }

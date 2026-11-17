@@ -50,10 +50,10 @@ describe('the track plate takes two rows on a phone', () => {
         expect(SRC).toMatch(/<MarqueeText class="title" :text="title">/)
     })
 
-    it('centres the buttons on the second row', () => {
+    it('spreads the buttons evenly over the second row', () => {
         const actions = block(PHONE, /\.actions\s*\{/)
         expect(actions).toMatch(/flex:\s*1 1 100%/)
-        expect(actions).toMatch(/justify-content:\s*center/)
+        expect(actions).toMatch(/justify-content:\s*space-evenly/)
         expect(actions, 'the old right-hand push is back').not.toMatch(/margin-left:\s*auto/)
     })
 })
