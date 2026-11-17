@@ -73,6 +73,22 @@ Silicon).
 
 ## What's new in this release
 
+Small finds and a steadier Home, on top of 2026.11.9.
+
+- **Seven clicks on the logo hand you a find** from your own library: an album
+  you never played or a forgotten favourite, to play or swap for another. It
+  replaces the old radio signal effect.
+- **An artist's "all tracks" page has a real head:** picture and name (with the
+  way back to the artist), number of songs and total length, Play, a sort order
+  and a search over the whole list (Cmd/Ctrl+F).
+- **Home shows four mixes again** where it sometimes showed only two or three.
+- **Continue listening no longer flickers in** on the first visit to Home.
+- **Every cover wears the same frame**, in the sidebar, in Stats and in lists;
+  the folder arrow points down and sits a little smaller.
+
+<details>
+<summary>What v2026.11.9 brought</summary>
+
 More from your ratings, a tidier Home and finding songs in long lists, on top
 of 2026.11.8.
 
@@ -113,6 +129,8 @@ of 2026.11.8.
   each other.
 - **The "Boring" look** keeps the Continue card and Stats calm too.
 - **Library check:** "Open album" works again, and findings explain themselves.
+
+</details>
 
 <details>
 <summary>What v2026.11.8 brought</summary>
