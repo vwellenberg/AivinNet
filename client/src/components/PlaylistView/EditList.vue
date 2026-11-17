@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
     width: 3rem;
     height: 3rem;
     object-fit: contain;
-    border: $candy-border;
+    border: $mem-picture-frame;
     border-radius: $candy-radius-sm;
     @include candy-shadow(3px, 3px);
     transform: rotate(-2.5deg);

@@ -73,7 +73,7 @@ const lyrics = useLyrics();
     width: 3rem;
     height: 3rem;
     object-fit: cover; // fixed box: non-square artwork would be stretched
-    border: $candy-border;
+    border: $mem-picture-frame;
     border-radius: $candy-radius-sm;
     // Stuck on, like the artwork in a song row: offset shadow and a slight tilt.
     box-shadow: mem-shadow(3px, 3px);

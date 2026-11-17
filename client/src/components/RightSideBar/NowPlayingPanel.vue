@@ -227,7 +227,7 @@ function handleFav() {
         aspect-ratio: 1;
         object-fit: cover;
         display: block;
-        border: $candy-border;
+        border: $mem-picture-frame;
         border-radius: $candy-radius;
         @include candy-shadow(6px, 6px);
     }
@@ -336,7 +336,7 @@ function handleFav() {
             object-fit: cover;
             object-position: top;
             border-radius: 10rem;
-            border: $candy-border;
+            border: $mem-picture-frame;
             @include candy-shadow(3px, 3px);
         }
 

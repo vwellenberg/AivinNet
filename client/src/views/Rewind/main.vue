@@ -412,7 +412,7 @@ watch(
         height: 5rem;
         flex-shrink: 0;
         object-fit: cover;
-        border: $candy-border;
+        border: $mem-picture-frame;
         border-radius: $candy-radius-sm;
 
         &.is-round {

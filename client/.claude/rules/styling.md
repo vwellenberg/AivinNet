@@ -886,9 +886,10 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
 - **Rechnen nur mit den `-static`-Zwillingen oder in `calc()`**: `$candy-radius` ist ein
   `var()`, Sass kann davon nichts abziehen (`calc(#{$candy-radius} - #{$candy-border-w})`).
 - **Drei Strichstärken, alle mit Namen** (#141, #233): `$candy-border` (3 px) für Platten, Zeilen
-  und Karten; `$mem-ring-w` (2 px) für Ringe um Dinge, die **auf** einer Fläche sitzen und kleiner
+  und Karten, und unter eigenem Namen `$mem-picture-frame` für jedes Bild (siehe unten);
+  `$mem-ring-w` (2 px) für Ringe um Dinge, die **auf** einer Fläche sitzen und kleiner
   sind als eine Platte (Tracknummer-Scheibe, Dauer-Pille, Zähl-Chip, Chart-Balken, Schalter-Knopf,
-  Drop-Marker); `$mem-hairline` (1 px) für Chips in einer Textzeile, Tooltips, kleine Eingaben und
+  Drop-Marker) — **nie um ein Bild**; `$mem-hairline` (1 px) für Chips in einer Textzeile, Tooltips, kleine Eingaben und
   Trenner. Die Fokus-Umrandung hat mit `$focus-ring-w` einen eigenen Namen, obwohl sie heute gleich
   breit ist wie der Ring: Wer Badge-Ringe verbreitert, darf nicht nebenbei ändern, was ein
   Tastaturnutzer verfolgt. Die Hairline ist eine Rolle, keine Nachlässigkeit — ein 3-px-Rahmen um einen 6-px-Punkt
@@ -902,9 +903,17 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   `stroke-width` × gerenderte Breite / viewBox-Breite; ein gedrehtes Glyph nicht über
   `getBoundingClientRect()`). Die 16-px-Glyphen **in** kleinen Knöpfen (`$control-*-glyph`,
   1,6 px) sind davon bewusst nicht berührt. Zensus: `loneGlyphStroke.test.ts`.
-- **Die Vorschaubilder der Sidebar-Zeilen** (Playlist-Cover, Ordner-Cover) tragen denselben
-  2-px-Ring und denselben Radius, `$sidebar-thumb-radius` (Zeilenradius minus Rahmen, 7 px). Mit
-  dem Zeilenradius selbst (10 px auf 28 px) wirkte der Ring wie ein Klecks.
+- ⚠️ **Jedes Bild trägt `$mem-picture-frame`** (= `$candy-border`, 3 px): Cover, Porträts,
+  Vorschaubilder und die Kacheln, die für ein Bild einspringen (Ordner-/Playlist-Platzhalter),
+  in jeder Größe. Bis 2026-11-17 suchte sich jedes Bild seine Stärke selbst; die meisten nahmen
+  3 px, fünf waren einzeln zum 2-px-Ring gedriftet (Sidebar-Vorschaubilder, Chart-Cover, die
+  Ordner-Kacheln der Ordnerliste, der Avatar auf „All tracks", die „Not interested"-Cover) und
+  lasen sich als dünne Rahmen zwischen dicken (Nutzer: „Striche wirken zu dünn"). Keine Datei
+  sah für sich falsch aus. Der Zensus `pictureFrame.test.ts` sammelt jede Regel ein, deren
+  Selektor ein Bild nennt (`img`, `*cover`, `*-art`, `*thumb*`, `*avatar`, …), und verlangt das
+  Token; Ausnahme mit Grund ist das Glas-Display des Radios. Die Sidebar-Vorschaubilder nehmen
+  dazu `$sidebar-thumb-radius` (Zeilenradius minus Rahmen, 7 px) — mit dem Zeilenradius selbst
+  (10 px auf 28 px) wirkte der Rahmen wie ein Klecks.
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben
   bewusst höher. 2 px war Drift an drei Elementen gegen über tausend; `.shadow-sm` gibt es nicht
   mehr, die Nutzer tragen `.shadow-md`.

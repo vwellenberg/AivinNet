@@ -133,7 +133,9 @@ const maxCount = computed(() =>
       width: $control-compact;
       height: $control-compact;
       @include mem-entity-tint("folder");
-      border: $mem-ring-w solid $mem-line;
+      // The folder's stand-in picture, so it takes the picture frame like the
+      // sidebar's folder tile — it was the 2px ring (user, 2026-11-17).
+      border: $mem-picture-frame;
       border-radius: $candy-radius-sm;
 
       svg {

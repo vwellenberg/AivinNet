@@ -120,7 +120,7 @@ defineEmits<{
       height: 3rem;
       object-fit: contain;
       cursor: pointer;
-      border: $candy-border;
+      border: $mem-picture-frame;
       border-radius: $candy-radius-sm;
       @include candy-shadow(3px, 3px);
       // `box-shadow` has to be listed once the mixin's own transition is

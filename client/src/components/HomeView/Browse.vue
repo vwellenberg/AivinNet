@@ -340,7 +340,7 @@ onMounted(() => {
       img {
         position: absolute;
         object-fit: cover;
-        border: $candy-border;
+        border: $mem-picture-frame;
         border-radius: $candy-radius-sm;
         box-shadow: mem-shadow(3px, 3px);
         // No background of its own: a placeholder cover is a transparent tile

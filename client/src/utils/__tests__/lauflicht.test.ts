@@ -117,7 +117,8 @@ describe('Now Playing cover rim', () => {
     it('draws the ring outside the frame on a concentric radius', () => {
         expect(block, '.np-image block in Header.vue').not.toBeNull()
         const [, rim, img] = block!
-        expect(img).toMatch(/border: \$candy-border;/)
+        // The picture frame is the plate weight (`$mem-picture-frame` = `$candy-border`).
+        expect(img).toMatch(/border: \$mem-picture-frame;/)
         // The image takes its radius from `.rounded` ($candy-radius) in the template.
         expect(header).toMatch(/<img class="rounded"/)
         expect(rim).toMatch(/padding: \$rim-bleed;/)
