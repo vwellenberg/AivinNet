@@ -1568,6 +1568,12 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   (`#acontent.page-enter > *`, `utils/pageEnter.ts`); `pageEnter.test.ts` verbietet eine
   Animation auf `#acontent` selbst.
 
+- **Abgeschnittene Titel im Player scrollen, sonst nirgends.** Der Now-Playing-Kopf und die Player-Leiste
+  lassen Titel und Künstlerzeile über `shared/MarqueeText.vue` laufen, statt sie mit „…" zu enden. Die
+  Bewegung ist eine CSS-Animation (`marquee-sway`), JS misst nur Breite und setzt zwei Properties —
+  kein Frame wird von Script erzeugt. In Songlisten läuft nichts: eine Zeilenspalte voller Laufschriften
+  wäre zu viel Bewegung. Bei „weniger Bewegung" bleibt es beim „…" (MarqueeText prüft die Einstellung
+  live, `motion-policy.scss` setzt die Animation zusätzlich auf `none`).
 - **Ein `view-transition-name` gibt es nur, während der Übergang läuft.** `utils/coverMorph.ts`
   setzt ihn beim Klick auf die Albumkarte und am Kopf erst beim Ankommen, und beides wird danach
   wieder entfernt. Stünde er dauerhaft auf beiden Elementen, trüge das Raster denselben Namen

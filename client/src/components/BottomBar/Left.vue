@@ -58,17 +58,21 @@
         </div>
         <div class="track-info">
             <div v-tooltip class="title">
-                <span class="ellip">
-                    {{ queue.currenttrack?.title || 'Hello there' }}
-                </span>
+                <!-- Only the words scroll. The tooltip, the explicit mark and the
+                     bitrate flag stay put beside the title (MarqueeText). -->
+                <MarqueeText class="track-title" :text="titleText">
+                    {{ titleText }}
+                </MarqueeText>
                 <ExplicitIcon class="explicit-icon" v-if="queue.currenttrack?.explicit" />
                 <MasterFlag :bitrate="queue.currenttrack?.bitrate || 0" />
             </div>
-            <ArtistName
-                :artists="queue.currenttrack?.artists || []"
-                :albumartists="queue.currenttrack?.albumartists || 'Welcome to AivinNet'"
-                class="artist"
-            />
+            <MarqueeText class="artist-line" :text="artistKey">
+                <ArtistName
+                    :artists="queue.currenttrack?.artists || []"
+                    :albumartists="queue.currenttrack?.albumartists || 'Welcome to AivinNet'"
+                    class="artist"
+                />
+            </MarqueeText>
         </div>
         <HeartSvg
             v-if="!isMobile"
@@ -153,6 +157,7 @@ import RepeatOneSvg from '@/assets/icons/repeat-one.svg'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import VolumeMuteSvg from '@/assets/icons/volume-mute.svg'
 import ArtistName from '@/components/shared/ArtistName.vue'
+import MarqueeText from '@/components/shared/MarqueeText.vue'
 import DevicesButton from '../DeviceSync/DevicesButton.vue'
 import HotKeys from '../LeftSidebar/NP/HotKeys.vue'
 import HeartSvg from '../shared/HeartSvg.vue'
@@ -164,6 +169,13 @@ import ExplicitIcon from '@/assets/icons/explicit.svg'
 const queue = useQStore()
 const settings = useSettingsStore()
 const deviceSync = useDeviceSync()
+
+const titleText = computed(() => queue.currenttrack?.title || 'Hello there')
+// Re-measures the artist line when the names change; the slot itself is watched too.
+const artistKey = computed(() => {
+    const names = (queue.currenttrack?.artists ?? []).map(a => a.name).join(', ')
+    return `${names}|${String(queue.currenttrack?.albumartists ?? '')}`
+})
 
 // Keep this comet at the same angle as the other covers' (utils/lauflicht.ts).
 onMounted(() => syncLauflicht())
@@ -435,7 +447,8 @@ defineEmits<{
     // its role now, like everything else in the row.)
 
     .track-info {
-        // Flex child: allow the title to truncate (ellipsis) and keep the
+        // Flex child: allow the title to shrink (it scrolls, MarqueeText, rather
+        // than ending in "…") and keep the
         // favorite heart hugging the title instead of being pushed to the
         // right edge near the transport controls.
         min-width: 0;
@@ -463,8 +476,9 @@ defineEmits<{
             align-items: center;
             margin-bottom: 2px;
             // A flex container's items refuse to shrink past min-content by
-            // default, so the `.ellip` span inside never reached its own
-            // ellipsis and pushed this row wider than its parent instead.
+            // default, so the marquee inside would push this row wider than its
+            // parent instead of letting it scroll. The marquee root takes
+            // `min-width: 0` itself; this keeps the row honest too.
             min-width: 0;
             background-color: var(--mem-veil);
             border-radius: 6px;

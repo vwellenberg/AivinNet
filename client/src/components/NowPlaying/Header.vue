@@ -306,6 +306,10 @@ function handleFav() {
         margin: 0 auto;
         width: 26rem;
         max-width: 100%;
+        // A size container, so the track plate (NowPlayingInfo.vue) can space its
+        // buttons with the same `cqw` rule as the aux row below and the two rows
+        // read as one grid. Its width is set above, so containing it costs nothing.
+        container-type: inline-size;
 
         // One plate under the whole head, not one per part.
         //

@@ -49,6 +49,15 @@
         scroll-behavior: auto !important;
     }
 
+    // Der Laufschrift-Titel (shared/MarqueeText.vue) läuft nur ohne diese
+    // Einstellung, und die Komponente prüft das live. Kippt der Schalter, während
+    // er noch läuft, beendete die Regel oben die Animation an ihrem Endpunkt
+    // (alternate, eine Runde): ein halb über die Fläche gezogener Titel bliebe
+    // stehen. `none` setzt ihn stattdessen in die Ruhelage zurück.
+    .marquee-text {
+        animation: none !important;
+    }
+
     // ------------------------------------------------------------------
     // Begründete Ausnahmen. Jede braucht einen Grund, der über "sieht gut
     // aus" hinausgeht.

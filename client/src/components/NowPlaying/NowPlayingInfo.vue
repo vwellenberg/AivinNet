@@ -1,12 +1,16 @@
 <template>
   <div class="now-playing-info">
     <div class="text">
-      <div class="title">{{ queue.currenttrack?.title || "AivinNet" }}</div>
-      <ArtistName
-        v-if="queue.currenttrack"
-        :artists="queue.currenttrack?.artists || null"
-        :albumartists="queue.currenttrack?.albumartists || ''"
-      />
+      <!-- A cut-off title scrolls instead of ending in "…" (shared/MarqueeText.vue).
+           The artist line gets the same treatment: an artist list is the second
+           thing that overflows on a narrow plate. -->
+      <MarqueeText class="title" :text="title">{{ title }}</MarqueeText>
+      <MarqueeText v-if="queue.currenttrack" class="artist-line" :text="artistKey">
+        <ArtistName
+          :artists="queue.currenttrack?.artists || null"
+          :albumartists="queue.currenttrack?.albumartists || ''"
+        />
+      </MarqueeText>
       <span v-else class="artist author">
         <a href="https://github.com/mungai-njoroge" target="_blank">built by @mungai-njoroge ↗</a>
       </span>
@@ -40,9 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import ArtistName from "../shared/ArtistName.vue";
+import MarqueeText from "../shared/MarqueeText.vue";
 import HeartSvg from "../shared/HeartSvg.vue";
 import TrackRating from "../shared/SongItem/TrackRating.vue";
 
@@ -53,6 +58,13 @@ import useQueueStore from "@/stores/queue";
 const context_menu_showing = ref(false);
 
 const queue = useQueueStore();
+
+const title = computed(() => queue.currenttrack?.title || "AivinNet");
+// Only re-measures the artist line when the names change; the slot itself is watched too.
+const artistKey = computed(() => {
+  const names = (queue.currenttrack?.artists ?? []).map(a => a.name).join(", ");
+  return `${names}|${String(queue.currenttrack?.albumartists ?? "")}`;
+});
 
 defineEmits<{
   (e: "handleFav", trackhash: string): void;
@@ -196,9 +208,15 @@ function showMenu(e: MouseEvent) {
   }
 
   // Phone: two rows (see the comment above). Title and artist own the first,
-  // the rating, heart and ⋮ the second, right-aligned. The rating picker still
-  // hangs off the plate (`.rating-picker` above), so it opens over the cover
-  // whichever row the button sits on.
+  // the rating, heart and ⋮ the second. The rating picker still hangs off the
+  // plate (`.rating-picker` above), so it opens over the cover whichever row
+  // the button sits on.
+  //
+  // The title is back on ONE line (user, 2026-11-17): a second row now carries
+  // the buttons, so the title no longer has to wrap. When it does not fit, it
+  // scrolls (MarqueeText) rather than ending in "…".
+  //
+  // The buttons are centred with the aux row's own spacing (user, 2026-11-17).
   @include allPhones {
     flex-wrap: wrap;
     row-gap: 0.6rem;
@@ -208,14 +226,8 @@ function showMenu(e: MouseEvent) {
       flex: 1 1 100%;
     }
 
-    // Up to two lines, then an ellipsis. rem literals, not spacing tokens:
-    // `$small` is a gap, not a font size (styling.md).
+    // rem literals, not spacing tokens: `$small` is a gap, not a font size (styling.md).
     .title {
-      white-space: normal;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
       font-size: 1.2rem;
       line-height: 1.25;
     }
@@ -225,7 +237,15 @@ function showMenu(e: MouseEvent) {
     }
 
     .actions {
-      margin-left: auto;
+      flex: 1 1 100%;
+      // The same spacing as the aux row below (repeat · shuffle · lyrics · sleep ·
+      // devices, NowPlaying/Header.vue): $bar-gap, shrinking on a narrow line so
+      // five 44px controls fit. Both rows read `cqw` of `.centered`, so the gap
+      // here is the gap there at every width (user, 2026-11-17: "einheitlich").
+      // Centred, not spread: `space-evenly` put 28px between these and 16px
+      // between those (measured at 390px).
+      justify-content: center;
+      gap: min(#{$bar-gap}, calc((100cqw - 5 * #{$bar-control}) / 4));
     }
   }
 }
