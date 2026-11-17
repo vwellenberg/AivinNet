@@ -1216,7 +1216,7 @@ $sidebar-label-opacity: 0.85;
         // The pastel is static, so the glyph is static ink in both themes.
         @include mem-entity-tint("playlist");
         // Framed like the thumbnails below (`.sidebar-pl-img`).
-        border: $mem-ring-w solid $mem-line;
+        border: $candy-border-w solid $mem-line;
         border-radius: $sidebar-thumb-radius;
         flex-shrink: 0;
         width: $control-dense;
@@ -1425,10 +1425,13 @@ $sidebar-label-opacity: 0.85;
     // The ink frame every other picture in the app wears (song list, charts,
     // folder list) — the sidebar was the last place without one (user,
     // 2026-11-09). On the BOX, not the <img>, so a cover, a mosaic and a
-    // placeholder tile get the same edge. The ring width, not the 3px
-    // $candy-border: at 28px a 3px frame eats too much cover and runs into the
-    // row's own 3px plate border. Border-box (global), so the box stays 28px.
-    border: $mem-ring-w solid $mem-line;
+    // placeholder tile get the same edge. The plate width ($candy-border-w,
+    // 3px), not the 2px ring: at 2px the frame read thinner than the row's own
+    // 3px plate border right next to it and broke the punched-out look (user,
+    // 2026-11-17; the ring was the first choice, worried 3px would eat too
+    // much of a 28px cover — it leaves 22px, still readable). Border-box
+    // (global), so the box stays 28px and the row height does not move.
+    border: $candy-border-w solid $mem-line;
     // Not the row's own radius (`rounded-sm`, 10px): on a 28px box that rounds
     // away a third of each side, and the 2px ring read as a heavy blob next
     // to the folder cover above, which had 7px (user, 2026-11-13).

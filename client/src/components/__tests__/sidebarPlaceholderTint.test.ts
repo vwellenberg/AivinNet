@@ -67,9 +67,11 @@ describe("sidebar placeholders wear their entity's pastel", () => {
   // Every picture in the app wears an ink frame; the sidebar's 28px thumbnails
   // were the last without one (user, 2026-11-09). Both boxes carry it — the
   // thumbnail (cover, mosaic, placeholder) and the playlist folder's icon tile.
-  it("frames the thumbnail box and the folder icon tile in the ink ring", () => {
+  // At the plate width, not the 2px ring: the ring read thinner than the row's
+  // own 3px border right beside it (user, 2026-11-17).
+  it("frames the thumbnail box and the folder icon tile at the plate width", () => {
     const css = styleBlock(panelSource);
-    const ring = /border:\s*\$mem-ring-w solid \$mem-line;/;
+    const ring = /border:\s*\$candy-border-w solid \$mem-line;/;
     const thumb = block(css, ".sidebar-pl-img").body;
     expect(thumb, ".sidebar-pl-img block not found").not.toBe("");
     expect(thumb).toMatch(ring);
