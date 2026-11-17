@@ -48,16 +48,31 @@ describe("the folder head's chevron", () => {
   // It stood at 0.7rem next to the 1.25rem pin: an arrow with a ~1px stroke
   // beside a 2px one, reported as "too thin" (user, 2026-11-15). Scaling the
   // arrow up to reach 2px made it the loudest thing in the row; the chrome
-  // set's disclosure chevron (expand.svg) reaches it at the same size as the pin.
+  // set's disclosure chevron (expand.svg) carries a heavier stroke at a smaller
+  // size instead.
   it("is the disclosure chevron, not the arrow", () => {
     expect(SIDEBAR).toMatch(/import FolderChevronSvg from "@\/assets\/icons\/expand\.svg";/);
     expect(SIDEBAR).toMatch(/<FolderChevronSvg class="folder-chevron"/);
   });
 
-  it("takes the lone-glyph size", () => {
+  // At the pin's 1.25rem it read too big beside the count (user, 2026-11-17);
+  // 1rem still draws its stroke at 1.6px, against ~1px for the old arrow.
+  it("sits a step below the pin", () => {
     const chevron = block(SIDEBAR, ".folder-chevron");
-    expect(chevron).toMatch(/width: \$glyph-lone;/);
-    expect(chevron).toMatch(/height: \$glyph-lone;/);
+    expect(chevron).toMatch(/width: 1rem;/);
+    expect(chevron).toMatch(/height: 1rem;/);
+  });
+
+  // The folder opens DOWNWARD, so the closed chevron points down — it used to
+  // point right (user, 2026-11-17) — and the open one up. expand.svg is drawn
+  // pointing right, hence the rotations.
+  it("points down when closed and up when open", () => {
+    const chevron = block(SIDEBAR, ".folder-chevron");
+    const at = chevron.indexOf("&.open");
+    expect(at, "no &.open state").toBeGreaterThan(-1);
+    const open = chevron.slice(at);
+    expect(chevron.slice(0, at)).toMatch(/transform: rotate\(90deg\);/);
+    expect(open).toMatch(/transform: rotate\(-90deg\);/);
   });
 });
 
