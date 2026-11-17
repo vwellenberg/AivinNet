@@ -64,6 +64,18 @@ describe('MarqueeText', () => {
         expect(wrapper.attributes('style') ?? '').not.toContain('--marquee-shift')
     })
 
+    // A box sized by its own text reads 1px narrower than the text after rounding.
+    // Counting that as overflow started the loop, the edge padding widened the box,
+    // the next measure stopped it again: ~400 flips a second on a 360px phone.
+    it('does not count a 1px rounding difference as overflow', async () => {
+        boxWidth = 129
+        textWidth = 130
+        const wrapper = mount(MarqueeText, { props: { text: 'Neon Lagoon' }, slots: { default: 'Neon Lagoon' } })
+        await flushPromises()
+
+        expect(wrapper.classes()).not.toContain('is-running')
+    })
+
     it('runs when the text overflows, with the shift and duration as inline properties', async () => {
         textWidth = 300
         const wrapper = mount(MarqueeText, { props: { text: 'Long title' }, slots: { default: 'Long title' } })
@@ -144,5 +156,31 @@ describe('the marquee is used on the cut-off titles', () => {
     it('wraps the player bar title and artist line', () => {
         expect(LEFT).toMatch(/<MarqueeText class="track-title" :text="titleText">/)
         expect(LEFT).toMatch(/<MarqueeText class="artist-line"[^>]*>\s*<ArtistName/)
+    })
+})
+
+// The phone bar grew to 397px on 360/390px screens with the first version: a
+// one-line text made the box's min-content as wide as the text, so nothing around
+// it could shrink. The box must hug its text but be allowed to shrink to nothing,
+// like the `.ellip` it replaced. Layout is not computed in jsdom, so the rule is
+// held at the source.
+describe('MarqueeText: the box can shrink', () => {
+    const SOURCE = readFileSync('src/components/shared/MarqueeText.vue', 'utf8')
+    const rule = /\.marquee\s*\{([^}]*)/.exec(SOURCE.slice(SOURCE.indexOf('<style')))?.[1] ?? ''
+
+    it('reads its rule', () => {
+        expect(rule).not.toBe('')
+    })
+
+    it('is a grid whose only track is minmax(0, max-content)', () => {
+        expect(rule).toMatch(/display:\s*grid/)
+        expect(rule).toMatch(/grid-template-columns:\s*minmax\(0,\s*max-content\)/)
+    })
+
+    // The box is measured on two signals only; observers on the content answered
+    // to the component's own writes and looped (~600 measures a second, measured).
+    it('observes the box, not the content', () => {
+        expect(SOURCE).not.toMatch(/new MutationObserver/)
+        expect(SOURCE).not.toMatch(/resizeObserver\.observe\(content/)
     })
 })

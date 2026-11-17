@@ -74,7 +74,13 @@ function measure() {
   textEl.style.paddingInline = "";
 
   const available = boxEl.clientWidth;
-  const overflows = natural > available;
+  // One pixel of slack. `scrollWidth` and `clientWidth` round separately, and a
+  // box sized by its own text (a flex item, the artist line) read 1px "too
+  // narrow" for text that fits. Starting the loop then widened the box by the
+  // edge padding, the next measure found room and stopped it, the box shrank
+  // back: measured on a 360px phone, the artist line flipped ~400 times a
+  // second. With the slack, a box sized to its text never counts as overflowing.
+  const overflows = natural > available + 1;
 
   if (!overflows || reduced()) {
     running.value = false;
@@ -87,34 +93,35 @@ function measure() {
 }
 
 let resizeObserver: ResizeObserver | null = null;
-let mutationObserver: MutationObserver | null = null;
 
 function onMotionChange() {
   measure();
 }
 
+// Re-measured on exactly two signals: the BOX changing size (ResizeObserver on
+// the box only) and the TEXT changing (the `text` prop, below). Not on the
+// content: the first version also watched the span (ResizeObserver) and the
+// slot (MutationObserver), and both answer to this component's own writes.
+// Starting the loop resizes the span, and ArtistName inside sets and clears its
+// own `title` when it is clipped, so each measure triggered the next: measured
+// on a 360px phone, ~600 measures a second while the artist line flipped
+// between running and still. A slot whose text changes passes `text`.
 onMounted(() => {
   measure();
 
-  if (typeof ResizeObserver !== "undefined") {
+  if (typeof ResizeObserver !== "undefined" && box.value) {
     resizeObserver = new ResizeObserver(() => measure());
-    if (box.value) resizeObserver.observe(box.value);
-    if (content.value) resizeObserver.observe(content.value);
+    resizeObserver.observe(box.value);
   }
 
-  // The slot can change without the box or the span changing size (a new track
-  // with a same-length title), so the DOM itself is watched too.
-  if (typeof MutationObserver !== "undefined" && content.value) {
-    mutationObserver = new MutationObserver(() => measure());
-    mutationObserver.observe(content.value, { childList: true, characterData: true, subtree: true });
-  }
+  // The web fonts change every width; measure once more when they are in.
+  document.fonts?.ready?.then(() => measure());
 
   reducedQuery?.addEventListener?.("change", onMotionChange);
 });
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
-  mutationObserver?.disconnect();
   reducedQuery?.removeEventListener?.("change", onMotionChange);
 });
 
@@ -139,7 +146,14 @@ watch(
 // Overflows: the running state adds the keyframe loop and the soft edges. The
 // `--marquee-shift` and `--marquee-duration` values come from the script above.
 .marquee {
-  display: block;
+  // A grid with one `minmax(0, max-content)` track: the box hugs its text
+  // (max-content) but may shrink to nothing (min-content 0), like the `.ellip`
+  // it replaced. As a plain block, the one-line text made the box's min-content
+  // as wide as the text, and nothing around it could shrink: the phone bar grew
+  // to 397px on a 360px and a 390px screen (measured), pushing `next` off it.
+  display: grid;
+  grid-template-columns: minmax(0, max-content);
+  width: fit-content;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
