@@ -122,8 +122,14 @@
                  box. Silence means nothing is audible anywhere, so "get the
                  sound back" outranks "play this in sync with another device" —
                  and Devices stays reachable on the Now Playing page, which is
-                 where it lived before it was added here. -->
-            <DevicesButton v-if="phoneBar && !settings.is_silent" />
+                 where it lived before it was added here.
+
+                 Solo it steps aside too (user, 2026-11-17): cover + transport
+                 + devices left the title ~40px at 390px. Joined it comes back,
+                 green (`ds-joined`), because a running group must stay visible
+                 and one tap away — this bar is where you look while music plays
+                 on several devices. -->
+            <DevicesButton v-if="phoneBar && !settings.is_silent && deviceSync.joined" />
         </div>
     </div>
 </template>
@@ -136,6 +142,7 @@ import { Routes } from '@/router'
 import { isLargerMobile, isMobile, isPhoneBar } from '@/stores/content-width'
 import { syncLauflicht } from '@/utils/lauflicht'
 import useQStore from '@/stores/queue'
+import useDeviceSync from '@/stores/devicesync'
 import useSettingsStore from '@/stores/settings'
 
 import ExpandSvg from '@/assets/icons/expand.svg'
@@ -153,6 +160,7 @@ import ExplicitIcon from '@/assets/icons/explicit.svg'
 
 const queue = useQStore()
 const settings = useSettingsStore()
+const deviceSync = useDeviceSync()
 
 // Keep this comet at the same angle as the other covers' (utils/lauflicht.ts).
 onMounted(() => syncLauflicht())
