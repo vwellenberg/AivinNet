@@ -41,7 +41,7 @@ const REGIONS: Record<string, string> = {
   "components/DeviceSync/GestureOverlay.vue": "a full-surface gesture layer — the real button sits inside it",
   "components/modals/ChipInput.vue": "the field area focuses the input inside it",
   "components/SettingsView/Group.vue": "the settings row wraps the real control; clicking the label is a convenience",
-  "components/RightSideBar/SearchInput.vue": "the box around the search input routes to the search page",
+  "components/RightSideBar/SearchInput.vue": "the box around the search input routes to the search page, and a tap on the pill focuses the input inside it",
   "components/shared/AlbumCard.vue": "an event stopper inside the card, so the artist line does not open the album",
   "components/shared/ArtistName.vue": "an event stopper around router links",
   "components/shared/SongItem/TrackTitle.vue": "the track row itself is the control; these repeat its action",
