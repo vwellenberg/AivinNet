@@ -1729,6 +1729,17 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   **keine** eigene Ankunft; Zensus in `motionArrival.test.ts` („Home is laid down as cards").
   Die Continue-Karten sind ein `v-for` mit Key und werden beim Umsortieren umgehängt; die
   Einmal-Sperre der Kacheln (`mem-step-in` in `ARRIVAL_ANIMATIONS`) hält sie mit.
+- ⚠️ **Was auf Home UNTER einer Platte aus der Home-Antwort steht und selbst lädt, wartet auf
+  die Antwort** (`home.answered`). Browse Library holt seine Kisten per `/getall` und steht seit
+  #808 direkt unter „Continue listening“: Beim ersten Besuch antwortete `/getall` vor `/nothome`
+  (das alle Zeilen rechnet), die Kisten standen oben, dann wurden die Karten darüber eingefügt —
+  die Kisten sprangen weg und die Karten blendeten an ihrer Stelle ein. Gemeldet als „Kacheln
+  Continue listening flackern beim Aufbau“ (2026-11-17, breites Fenster), dieselbe Klasse wie das
+  Radio in #783. Bei der Rückkehr auf Home ist die Antwort schon im Store, deshalb sieht man es
+  nur beim **ersten** Aufbau. ⚠️ **Gemessen wird gegen den echten Server, nicht gegen eine
+  Mock-API:** Antworten alle Mocks gleich schnell, gibt es diese Reihenfolge nie. Der Film
+  (Playwright `recordVideo`, 25 fps, mittlere Helligkeit der Zone pro Frame) zeigt es als
+  Sprung zurück nach **heller**. Zensus: `views/HomeView/__tests__/homeBuildOrder.test.ts`.
 - **`mem-arrival($steps: 0)` ist die einzelne Platte.** Dieselbe Geste ohne `:nth-child`-Staffel,
   für eine Karte zwischen Geschwistern anderer Art: Gezählt hinge ihre Verzögerung davon ab, was
   gerade über ihr gerendert ist. ⚠️ Sass zählt `@for $i from 1 through 0` **rückwärts** (1, 0)

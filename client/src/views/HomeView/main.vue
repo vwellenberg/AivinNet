@@ -23,8 +23,11 @@
         </div>
         <!-- Right under "Continue listening" (user, 2026-11-15): Albums and
              Artists have no navigation entry, so the way to them must be quick
-             to reach, ahead of the radio. -->
-        <Browse />
+             to reach, ahead of the radio. It waits for Home's answer: it loads
+             its crates itself and was faster, so on a first visit it stood at
+             the top and jumped away when the cards came in above it (filmed,
+             2026-11-17; homeBuildOrder.test.ts). -->
+        <Browse v-if="home.answered" />
         <!-- Subspace radio (#542, #640): mixes, genre and decade stations. Off
              until switched on under Settings → Home (per device), and it
              stays away while there are only mixes, which the row below already
