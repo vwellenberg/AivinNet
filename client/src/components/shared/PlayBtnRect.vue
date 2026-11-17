@@ -3,7 +3,7 @@
          texture and ink label + glyph, one consistent look on every header. -->
     <button
         class="playbtnrect shadow-md circular btn-active"
-        @click="playFrom(source)"
+        @click="action ? action() : playFrom(source)"
     >
         <playBtnSvg />
         <div class="text">Play</div>
@@ -18,6 +18,9 @@ import { playFrom } from '@/helpers/usePlayFrom'
 
 defineProps<{
     source: playSources
+    // A page whose list is not the source's stored one (sorted or filtered
+    // in place, like the artist's all-tracks page) plays its own rows.
+    action?: () => void
 }>()
 </script>
 
