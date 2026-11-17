@@ -2,8 +2,10 @@ import { readFileSync } from 'fs'
 import { describe, expect, it } from 'vitest'
 
 // On a phone the track plate takes two rows (2026-11-17): title and artist own
-// the first, the three 44px buttons (rating, heart, more) the second. With all
-// three beside the text the title got ~120px at 390px and read "Echo Bet…".
+// the first, the three 44px buttons (rating, heart, more) the second, centred.
+// With all three beside the text the title got ~120px at 390px and read
+// "Echo Bet…". The title is one line again: when it does not fit it scrolls
+// (shared/MarqueeText.vue) instead of ending in an ellipsis.
 //
 // Stylesheets are read from disk: a `?raw` glob returns an empty string for
 // styles under test (testing.md). The census looks inside the component's own
@@ -41,11 +43,17 @@ describe('the track plate takes two rows on a phone', () => {
         expect(block(PHONE, /\.text\s*\{/)).toMatch(/flex:\s*1 1 100%/)
     })
 
-    it('lets the title wrap to at most two lines', () => {
-        expect(block(PHONE, /\.title\s*\{/)).toMatch(/-webkit-line-clamp:\s*2/)
+    it('keeps the title on one line and lets MarqueeText handle overflow', () => {
+        const title = block(PHONE, /\.title\s*\{/)
+        expect(title, 'the 2-line clamp is back').not.toMatch(/-webkit-line-clamp/)
+        expect(title).not.toMatch(/white-space:\s*normal/)
+        expect(SRC).toMatch(/<MarqueeText class="title" :text="title">/)
     })
 
-    it('right-aligns the buttons on the second row', () => {
-        expect(block(PHONE, /\.actions\s*\{/)).toMatch(/margin-left:\s*auto/)
+    it('centres the buttons on the second row', () => {
+        const actions = block(PHONE, /\.actions\s*\{/)
+        expect(actions).toMatch(/flex:\s*1 1 100%/)
+        expect(actions).toMatch(/justify-content:\s*center/)
+        expect(actions, 'the old right-hand push is back').not.toMatch(/margin-left:\s*auto/)
     })
 })
