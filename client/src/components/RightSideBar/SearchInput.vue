@@ -10,7 +10,14 @@
                 })
         "
     >
-        <div id="ginner" ref="inputRef" tabindex="0">
+        <!-- The whole pill is the field. Only the <input> inside it is one, and
+          on a 360px phone it covered 174x36 of a 225x62 pill: a tap beside the
+          text (where the hidden clear button sits) or just above or below it
+          landed on this box. With `tabindex="0"` the box took the focus itself,
+          so no keyboard opened. Now the box is no tab stop, and a tap on it
+          hands the focus to the input — synchronously, inside the tap, which is
+          what a phone needs to open its keyboard. -->
+        <div id="ginner" ref="inputRef" @click="focusField">
             <button
                 v-auto-animate
                 :title="tabs.current === tabs.tabs.search ? 'back to queue' : 'go to search'"
@@ -22,6 +29,7 @@
             </button>
             <input
                 id="globalsearch"
+                ref="fieldRef"
                 v-model.trim="search.query"
                 placeholder="Start typing to search"
                 type="search"
@@ -61,7 +69,10 @@ const search = useSearch()
 const settings = useSettings()
 
 // HANDLE FOCUS
-const inputRef = ref<HTMLInputElement | null>(null)
+// `inputRef` is the pill around the field (it carries the focused class);
+// `fieldRef` is the <input> itself — the only element that should get focus.
+const inputRef = ref<HTMLDivElement | null>(null)
+const fieldRef = ref<HTMLInputElement | null>(null)
 
 // NOTE: Functions are used because classes are added to the sorrounding element
 // and not the input itself.
@@ -77,11 +88,18 @@ function removeFocusedClass() {
     }
 }
 
+/** A tap anywhere on the pill types into the field — except on a button in it. */
+function focusField(e: MouseEvent) {
+    const target = e.target as Element | null
+    if (target === fieldRef.value || target?.closest('button')) return
+    fieldRef.value?.focus()
+}
+
+// The field, not the pill: focusing the pill (it was a tab stop) closed the
+// phone keyboard every time the query was cleared.
 function clearInput() {
     search.query = ''
-    if (inputRef.value) {
-        inputRef.value.focus()
-    }
+    fieldRef.value?.focus()
 }
 
 // @end

@@ -431,6 +431,13 @@ GitHub nichts.)
   unsichtbares Ersatzfeld nimmt den Fokus noch im Tap, danach übernimmt das echte Feld
   (inklusive schon Getipptem). Headless lässt sich das nicht prüfen, dort gibt es keine
   Tastatur.
+  ⚠️ **Zweite Form, auch auf Android: ein fokussierbarer Rahmen ums Feld.** Die Such-Pille
+  (`#ginner`) trug `tabindex="0"` und war größer als ihr `<input>` (am 360-px-Handy 225×62 gegen
+  174×36). Ein Tipp neben den Text fokussierte den **Rahmen**, ein `<div>`, und öffnete keine
+  Tastatur (gemeldet: Galaxy S22 + Vivaldi). Headless **messbar**, und zwar am Ziel des Fokus:
+  Touch-Profil, auf die toten Stellen tippen, `document.activeElement` lesen. Ein Rahmen um ein
+  Feld ist deshalb kein Tab-Stopp und reicht einen Tipp per `@click` ans Feld weiter (Vorbild
+  `modals/ChipInput.vue`), Test: `RightSideBar/__tests__/SearchInput.test.ts`.
 
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
   durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
