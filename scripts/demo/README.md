@@ -53,7 +53,7 @@ uv run --frozen python scripts/demo/seed.py \
 
 The script adds the music folder as a root dir and waits for the scan. It then creates
 5 playlists (two of them in the folder "Moods"), pins 2 playlists and 1 album, marks 10 tracks,
-3 albums and 2 artists as favourites, uploads the artist pictures, and records about 590 plays from the last 10 weeks, plus
+3 albums and 2 artists as favourites, rates 25 tracks, uploads the artist pictures, and records about 590 plays from the last 10 weeks, plus
 a few plays on this date one and two years back.
 
 `--today` anchors the history. Leave it out to anchor on the current date. A fixed date gives the

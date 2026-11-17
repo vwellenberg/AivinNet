@@ -43,6 +43,19 @@ async function open(browser, { phone = false, dark = false, date = PLAIN_DATE } 
     })
     const login = await context.request.post(`${BASE}/auth/login`, { data: { username: 'admin', password: PASSWORD } })
     if (!login.ok()) throw new Error(`login failed: ${login.status()}`)
+    // AivinNet FM is off until switched on (Settings → Home, per device); the shots show it,
+    // open on the desktop and folded to its strip on the phone. The settings store is
+    // persisted under "settings" and hydrated by $patch, so these two keys are enough.
+    await context.addInitScript((open) => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('settings') || '{}')
+            if (stored.show_radio === undefined) {
+                localStorage.setItem('settings', JSON.stringify({ ...stored, show_radio: true, radio_open: open }))
+            }
+        } catch {
+            // no storage: the shots go without the radio
+        }
+    }, !phone)
     const page = await context.newPage()
     await page.clock.setFixedTime(new Date(date))
     return { context, page }

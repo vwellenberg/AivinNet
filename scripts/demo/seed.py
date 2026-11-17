@@ -11,7 +11,8 @@ What it does, in order:
   2. adds the music folder as a root dir (the server scans it) and waits for the albums;
   3. creates playlists (one inside a folder), pins 2 playlists and 1 album, favourites
      10 tracks, 3 albums and 2 artists;
-  4. writes ~10 weeks of plays through the real `POST /logger/track/log` endpoint, plus
+  4. rates 25 tracks 1 to 5 stars through the real `POST /ratings/set` endpoint;
+  5. writes ~10 weeks of plays through the real `POST /logger/track/log` endpoint, plus
      a few plays on this calendar day one and two years back for "On this day".
 
 Home rows are computed at server start and by the hourly crons. After seeding, restart
@@ -41,6 +42,10 @@ WEEKS = 10
 ALBUM_COUNT = 15  # 14 albums plus the compilation, see make_library.py
 PLAY_PROBABILITY = 0.75
 PLAY_TRACKS = (3, 7)
+# Never played (see build_history): not rated either, so the demo keeps it unheard.
+UNPLAYED_ALBUMS = {"Small Hours Folk"}
+# (stars, tracks): the 5- and 4-star songs feed "Your top rated" (#777).
+RATING_PLAN = ((5, 12), (4, 8), (3, 3), (1, 2))
 
 
 class Api:
@@ -234,6 +239,25 @@ def seed_favorites(api: Api, albums: list[dict], songs: list[Song]) -> list[Song
     return picks
 
 
+def seed_ratings(api: Api, songs: list[Song], rng: random.Random) -> int:
+    """Rate 25 tracks, 12 of them 5 stars, 8 at 4, 3 at 3 and 2 at 1.
+
+    The pool leaves out the never-played album, and the rest are albums that the history
+    below plays, so the ratings sit on songs the user has heard. The tracks are drawn from
+    the seeded generator, so the same library gives the same ratings.
+    """
+    pool = [s for s in songs if s.album not in UNPLAYED_ALBUMS]
+    chosen = rng.sample(pool, sum(count for _, count in RATING_PLAN))
+    done = 0
+    start = 0
+    for stars, count in RATING_PLAN:
+        for s in chosen[start : start + count]:
+            api.must("POST", "/ratings/set", {"trackhash": s.trackhash, "rating": stars})
+            done += 1
+        start += count
+    return done
+
+
 def find_album_artists(albums: list[dict], name: str) -> list[dict]:
     return [a for album in albums for a in album.get("albumartists", []) if a["name"] == name][:1]
 
@@ -250,7 +274,7 @@ def build_history(
       - Some sessions mix albums of different artists: Because you listened, Your mixes.
       - The last 7 days repeat one album's tracks: On repeat.
     """
-    unplayed = {"Small Hours Folk"}
+    unplayed = UNPLAYED_ALBUMS
     quiet = {"Hollow Meridian", "Glasshouse Suite"}
     forgotten = {s.trackhash for s in favorites[:3]}
 
@@ -399,6 +423,7 @@ def main() -> int:
     print(f"playlists: {len(playlists)} (folder 'Moods' holds 2), pinned 2 playlists + 1 album")
     favorites = seed_favorites(api, albums, songs)
     print(f"favourites: {len(favorites)} tracks, 3 albums, 2 artists")
+    print(f"ratings: {seed_ratings(api, songs, rng)} set")
 
     pictures = Path(args.artist_images) if args.artist_images else Path(args.music.rstrip("/") + "-artists")
     print(f"artist pictures: {seed_artist_images(api, pictures)} uploaded")
