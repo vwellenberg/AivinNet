@@ -88,11 +88,16 @@ describe("Home", () => {
     expect(home).not.toMatch(/#name/);
   });
 
+  // The one condition Browse may carry: Home's answer is in, so it never stands
+  // above the Continue cards before they arrive (homeBuildOrder.test.ts).
+  // Anything else (a breakpoint, a setting) would hide it on some screen.
+  const BROWSE = /<Browse(\s+v-if="home\.answered")?\s*\/>/;
+
   it("shows Browse Library on every screen", () => {
     // Albums and Artists have no navigation entry (2026-11-14): Home's Browse
     // Library block is the way to them on the desktop too.
     const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
-    expect(home).toMatch(/<Browse\s*\/>/);
+    expect(home).toMatch(BROWSE);
     expect(home).not.toMatch(/browse-phones-only/);
   });
 
@@ -101,8 +106,8 @@ describe("Home", () => {
     const home = readFileSync("src/views/HomeView/main.vue", "utf-8");
     const at = (needle: RegExp) => home.search(needle);
     expect(at(/class="continue-row"/)).toBeGreaterThan(-1);
-    expect(at(/<Browse\s*\/>/)).toBeGreaterThan(at(/class="continue-row"/));
-    expect(at(/<RadioDial\s*\/>/)).toBeGreaterThan(at(/<Browse\s*\/>/));
+    expect(at(BROWSE)).toBeGreaterThan(at(/class="continue-row"/));
+    expect(at(/<RadioDial\s*\/>/)).toBeGreaterThan(at(BROWSE));
   });
 });
 

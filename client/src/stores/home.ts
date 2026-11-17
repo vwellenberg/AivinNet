@@ -73,6 +73,15 @@ export default defineStore('homepage', () => {
     // and dial came from two different answers.
     let latestFetch = 0
 
+    // Whether an answer has been written in this session (a failed one counts:
+    // it has no rows, and the page must not wait forever). What sits under
+    // "Continue listening" and fetches on its own (Browse Library) waits for
+    // it: answering first, the crates stood at the top of the page and jumped
+    // away when the cards were inserted above them (homeBuildOrder.test.ts).
+    // A return visit finds it set and shows everything at once. Not the same
+    // as `fetchedLimit`, which is set when a request is SENT (refetch logic).
+    const answered = ref(false)
+
     async function fetchAll(season: string | null = null) {
         fetches++
         const limit = fetchCardCount.value
@@ -84,6 +93,7 @@ export default defineStore('homepage', () => {
             season,
         )
         if (mine !== latestFetch) return
+        answered.value = true
         stations.value = list
         recap.value = card
         advent.value = calendar
@@ -208,6 +218,7 @@ export default defineStore('homepage', () => {
         homepageData,
         homepageItems,
         continueListening,
+        answered,
         stations,
         recap,
         advent,
