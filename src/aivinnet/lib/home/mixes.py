@@ -60,6 +60,22 @@ MIX_PLAYLIST_IDS = tuple(f"mix{n}" for n in range(1, MIX_COUNT + 1))
 
 
 @dataclass
+class MixReport:
+    """
+    Why a run made fewer than `MIX_COUNT` mixes, for the log: a mix that does
+    not appear says nothing on its own (#526 shipped with "two to four").
+    """
+
+    # Plays in the window, and the artists played often enough to take part.
+    window_plays: int = 0
+    candidates: int = 0
+    # Cores given up because too few artists were played with them: core -> group size.
+    too_small: dict[str, int] = field(default_factory=dict)
+    # Groups given up because they made too short a mix: core -> tracks.
+    too_few_tracks: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
 class Mix:
     # Core first, then the members by how close they are to it.
     artists: list[str]
@@ -117,9 +133,18 @@ def _groups(
     min_artists: int = MIX_MIN_ARTISTS,
     max_core_affinity: float = MIX_CORE_MAX_AFFINITY,
     min_member_affinity: float = MIX_MIN_MEMBER_AFFINITY,
+    accept: Callable[[list[str]], int | None] = lambda group: None,
+    report: MixReport | None = None,
 ) -> list[list[str]] | None:
+    """
+    `accept(group)` returns None for a group the caller can use, or the number
+    of tracks its too short mix had: that core then gives its place up, the
+    same as a core with too few artists (`build_mixes`).
+    """
     start = now - days * DAY
     window = [r for r in resolved if start <= r.play.timestamp <= now]
+    if report is not None:
+        report.window_plays = len(window)
     if len(window) < min_history:
         return None
 
@@ -138,6 +163,8 @@ def _groups(
 
     # Most played first; ties by hash, so a run does not depend on dict order.
     candidates = sorted((a for a, n in plays_of.items() if n >= min_artist_plays), key=lambda a: (-plays_of[a], a))
+    if report is not None:
+        report.candidates = len(candidates)
 
     # A core whose group comes out too small gives its place up and becomes an
     # ordinary candidate, and the cores are picked again: otherwise it held one
@@ -162,17 +189,25 @@ def _groups(
             if closeness >= min_member_affinity:
                 members[best].append((closeness, artist))
 
-        too_small = {core for core in cores if 1 + len(members[core]) < min_artists}
-        if not too_small:
-            break
-        not_a_core |= too_small
+        # In core order, i.e. most played first: the log cuts this list short.
+        too_small = [core for core in cores if 1 + len(members[core]) < min_artists]
+        if too_small:
+            if report is not None:
+                report.too_small.update((core, 1 + len(members[core])) for core in too_small)
+            not_a_core.update(too_small)
+            continue
 
-    groups = []
-    for core in cores:
-        ranked = sorted(members[core], key=lambda m: (-m[0], -plays_of[m[1]], m[1]))
-        groups.append([core, *(artist for _, artist in ranked)])
+        groups = []
+        for core in cores:
+            ranked = sorted(members[core], key=lambda m: (-m[0], -plays_of[m[1]], m[1]))
+            groups.append([core, *(artist for _, artist in ranked)])
 
-    return groups
+        too_short = {group[0]: n for group in groups if (n := accept(group)) is not None}
+        if not too_short:
+            return groups
+        if report is not None:
+            report.too_few_tracks.update(too_short)
+        not_a_core.update(too_short)
 
 
 def known_tracks(
@@ -291,26 +326,34 @@ def build_mixes(
     skip: Callable[[str], bool] = lambda artisthash: False,
     min_tracks: int = MIX_MIN_TRACKS,
     ratings: Mapping[str, int] | None = None,
+    report: MixReport | None = None,
 ) -> list[Mix] | None:
     """
     The user's mixes, or None below the history threshold (`group_artists`).
     `day` is any int that changes daily: it re-draws the never-played tracks.
-    A group too small to fill `min_tracks` makes no mix.
+    A group too small to fill `min_tracks` makes no mix, and its core gives its
+    place up like a core with too few artists does in `_groups`: otherwise the
+    next group was never looked at, and the row stayed at two or three.
+    `report` (if given) collects why there are fewer than `MIX_COUNT`.
     """
     # Resolved once: the routine reads the whole history for every user.
     resolved = _resolve(plays, facts_of)
-    groups = _groups(resolved, now, skip)
+    known, played = known_tracks(resolved, skip, since=now - MIX_DAYS * DAY)
+
+    def tracks(artists: Sequence[str], seed: int) -> list[str]:
+        return mix_tracks(artists, known, played, facts_of, tracks_of, seed=seed, ratings=ratings)
+
+    def too_short(artists: list[str]) -> int | None:
+        # How many tracks a mix gets does not depend on the draw: every track
+        # is taken unless its album is full, in any order.
+        n = len(tracks(artists, seed=0))
+        return n if n < min_tracks else None
+
+    groups = _groups(resolved, now, skip, accept=too_short, report=report)
     if groups is None:
         return None
 
-    known, played = known_tracks(resolved, skip, since=now - MIX_DAYS * DAY)
-    mixes = []
-    for index, artists in enumerate(groups):
-        tracks = mix_tracks(artists, known, played, facts_of, tracks_of, seed=day * 31 + index, ratings=ratings)
-        if len(tracks) >= min_tracks:
-            mixes.append(Mix(artists, tracks))
-
-    return mixes
+    return [Mix(artists, tracks(artists, seed=day * 31 + index)) for index, artists in enumerate(groups)]
 
 
 def place_mixes(mixes: Sequence[Mix], previous_cores: Sequence[str | None], slots: int = MIX_COUNT) -> list[Mix | None]:
