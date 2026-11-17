@@ -36,6 +36,14 @@ describe('phone bar shows the devices button only while joined', () => {
         expect(condition).toMatch(/\bdeviceSync\.joined\b/)
     })
 
+    // Now Playing's aux row (the other home of Devices) is `isSmallPhone`; a
+    // phone held sideways has this bar but not that row, so solo the button
+    // must stay here above 660px or it is reachable nowhere.
+    it('keeps the button where Now Playing has no aux row', () => {
+        expect(condition).toMatch(/deviceSync\.joined\s*\|\|\s*!isSmallPhone/)
+        expect(script).toMatch(/import \{[^}]*\bisSmallPhone\b[^}]*\} from '@\/stores\/content-width'/)
+    })
+
     it('binds deviceSync to the devicesync store the template reads', () => {
         expect(script).toMatch(/import useDeviceSync from '@\/stores\/devicesync'/)
         expect(script).toMatch(/const deviceSync = useDeviceSync\(\)/)

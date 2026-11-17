@@ -128,8 +128,11 @@
                  + devices left the title ~40px at 390px. Joined it comes back,
                  green (`ds-joined`), because a running group must stay visible
                  and one tap away — this bar is where you look while music plays
-                 on several devices. -->
-            <DevicesButton v-if="phoneBar && !settings.is_silent && deviceSync.joined" />
+                 on several devices. Only where Now Playing carries it, though:
+                 the aux row there (with Devices) is `isSmallPhone`, and a phone
+                 held sideways gets this bar without that row, so above 660px
+                 the button stays here. -->
+            <DevicesButton v-if="phoneBar && !settings.is_silent && (deviceSync.joined || !isSmallPhone)" />
         </div>
     </div>
 </template>
@@ -139,7 +142,7 @@ import { computed, onMounted } from 'vue'
 import { paths } from '@/config'
 import { Routes } from '@/router'
 
-import { isLargerMobile, isMobile, isPhoneBar } from '@/stores/content-width'
+import { isLargerMobile, isMobile, isPhoneBar, isSmallPhone } from '@/stores/content-width'
 import { syncLauflicht } from '@/utils/lauflicht'
 import useQStore from '@/stores/queue'
 import useDeviceSync from '@/stores/devicesync'
