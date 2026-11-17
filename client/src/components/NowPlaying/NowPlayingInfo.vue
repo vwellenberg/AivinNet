@@ -216,8 +216,7 @@ function showMenu(e: MouseEvent) {
   // the buttons, so the title no longer has to wrap. When it does not fit, it
   // scrolls (MarqueeText) rather than ending in "…".
   //
-  // The buttons are spread evenly over that row (user, 2026-11-17: right-aligned
-  // they wasted the left, centred they clumped in the middle).
+  // The buttons are centred with the aux row's own spacing (user, 2026-11-17).
   @include allPhones {
     flex-wrap: wrap;
     row-gap: 0.6rem;
@@ -239,10 +238,14 @@ function showMenu(e: MouseEvent) {
 
     .actions {
       flex: 1 1 100%;
-      // Spread, not packed: centred with the 8px gap, the three buttons sat in
-      // a clump with ~90px of empty plate on either side (user, 2026-11-17).
-      // `space-evenly` gives the same air left, between and right.
-      justify-content: space-evenly;
+      // The same spacing as the aux row below (repeat · shuffle · lyrics · sleep ·
+      // devices, NowPlaying/Header.vue): $bar-gap, shrinking on a narrow line so
+      // five 44px controls fit. Both rows read `cqw` of `.centered`, so the gap
+      // here is the gap there at every width (user, 2026-11-17: "einheitlich").
+      // Centred, not spread: `space-evenly` put 28px between these and 16px
+      // between those (measured at 390px).
+      justify-content: center;
+      gap: min(#{$bar-gap}, calc((100cqw - 5 * #{$bar-control}) / 4));
     }
   }
 }

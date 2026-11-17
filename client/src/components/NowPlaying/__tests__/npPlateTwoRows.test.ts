@@ -50,10 +50,13 @@ describe('the track plate takes two rows on a phone', () => {
         expect(SRC).toMatch(/<MarqueeText class="title" :text="title">/)
     })
 
-    it('spreads the buttons evenly over the second row', () => {
+    it('centres the buttons with the spacing of the row below', () => {
         const actions = block(PHONE, /\.actions\s*\{/)
         expect(actions).toMatch(/flex:\s*1 1 100%/)
-        expect(actions).toMatch(/justify-content:\s*space-evenly/)
+        expect(actions).toMatch(/justify-content:\s*center/)
+        // Same spacing as the aux row below: both read `cqw` of `.centered`.
+        expect(actions).toMatch(/gap:\s*min\(#\{\$bar-gap\},\s*calc\(\(100cqw - 5 \* #\{\$bar-control\}\) \/ 4\)\)/)
+        expect(readFileSync('src/components/NowPlaying/Header.vue', 'utf8')).toMatch(/container-type:\s*inline-size/)
         expect(actions, 'the old right-hand push is back').not.toMatch(/margin-left:\s*auto/)
     })
 })
