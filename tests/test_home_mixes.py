@@ -13,6 +13,7 @@ from aivinnet.lib.home.mixes import (
     MIX_LENGTH,
     MIX_PLAYLIST_IDS,
     Mix,
+    MixReport,
     build_mixes,
     group_artists,
     known_tracks,
@@ -232,6 +233,42 @@ class TestBuild:
 
         # Funk has only its five played tracks left: under MIX_MIN_TRACKS.
         assert [m.artists[0] for m in mixes] == ["miles"]
+
+    def test_a_group_without_enough_tracks_gives_its_place_up(self, monkeypatch):
+        # Five tastes for four places. The fourth most played (punk) has almost
+        # nothing in the library: its mix is too short. It used to keep its
+        # place all the same, and the fifth taste (pop) was never looked at —
+        # three mixes where four could be.
+        for artist in ("ramones", "clash", "pistols", "abba", "queen", "blondie"):
+            monkeypatch.setitem(ARTISTS, artist, (f"{artist}1",))
+        plays = two_tastes()
+        for week in range(12):
+            plays += session(NOW - week * 7 * DAY - 5 * DAY, "daft1/1", "justice1/1", "air1/1", "daft1/2")
+            plays += session(NOW - week * 7 * DAY - 6 * DAY, "ramones1/1", "clash1/1", "pistols1/1")
+        for week in range(9):
+            plays += session(NOW - week * 7 * DAY - 2 * DAY, "abba1/1", "queen1/1", "blondie1/1")
+
+        def no_punk(artist: str) -> list[str]:
+            return [] if artist in ("ramones", "clash", "pistols") else tracks_of(artist)
+
+        report = MixReport()
+        mixes = build_mixes(plays, facts, no_punk, NOW, day=1, report=report)
+
+        assert [m.artists[0] for m in mixes] == ["rhcp", "daft", "miles", "abba"]
+        # Each punk artist leads the group in turn, and each comes out too short.
+        assert report.too_few_tracks == {"ramones": 3, "clash": 3, "pistols": 3}
+
+    def test_the_report_names_cores_with_too_few_artists(self):
+        plays = two_tastes()
+        for week in range(15):
+            plays += session(NOW - week * 7 * DAY - 5 * DAY, "air1/1", "daft1/1", "air1/2", "air1/3")
+
+        report = MixReport()
+        build_mixes(plays, facts, tracks_of, NOW, day=1, report=report)
+
+        assert report.window_plays == len(plays)
+        # Air and Daft Punk are only ever played with each other: a group of two.
+        assert report.too_small == {"air": 2, "daft": 2}
 
     def test_there_are_as_many_playlist_ids_as_mixes_can_be(self):
         assert MIX_PLAYLIST_IDS == ("mix1", "mix2", "mix3", "mix4")

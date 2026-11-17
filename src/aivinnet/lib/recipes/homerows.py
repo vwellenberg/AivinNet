@@ -68,7 +68,7 @@ from aivinnet.lib.home.homerows import (
     rank_rediscover,
     rediscover_item,
 )
-from aivinnet.lib.home.mixes import MIX_NAMED_ARTISTS, MIX_PLAYLIST_IDS, build_mixes, place_mixes
+from aivinnet.lib.home.mixes import MIX_COUNT, MIX_NAMED_ARTISTS, MIX_PLAYLIST_IDS, MixReport, build_mixes, place_mixes
 from aivinnet.lib.home.toprated import (
     TOP_RATED_MIN,
     TOP_RATED_PLAYLIST_LIMIT,
@@ -720,6 +720,7 @@ class YourMixes(HomepageRoutine):
                 return
 
             scrobbles = list(ScrobbleTable.get_all(0, None, userid=userid))
+            report = MixReport()
             mixes = build_mixes(
                 scrobbles,
                 track_facts,
@@ -729,12 +730,25 @@ class YourMixes(HomepageRoutine):
                 skip=lambda a: a in PLACEHOLDER_ARTIST_HASHES or a not in ArtistStore.artistmap,
                 # Rated 1 is never mixed in, rated 4 and 5 come first (#788).
                 ratings=TrackStore.ratings_of(userid),
+                report=report,
             )
 
             if mixes is None:
                 log.info("your-mixes: user %s has too short a history for mixes", userid)
-            elif not mixes:
-                log.info("your-mixes: no group of artists played together for user %s", userid)
+            elif len(mixes) < MIX_COUNT:
+                # Without this, "only two mixes" can only be guessed at (#526).
+                log.info(
+                    "your-mixes: %d of %d for user %s — %d plays in the window, %d artists played often enough; "
+                    "too few artists played with: %s; too short a mix: %s",
+                    len(mixes),
+                    MIX_COUNT,
+                    userid,
+                    report.window_plays,
+                    report.candidates,
+                    # Most played first (`mixes._groups`); past a dozen they are only noise.
+                    ", ".join(f"{name_of(a) or a} ({n})" for a, n in list(report.too_small.items())[:12]) or "-",
+                    ", ".join(f"{name_of(a) or a} ({n} tracks)" for a, n in report.too_few_tracks.items()) or "-",
+                )
 
             # A mix keeps the slot its core had last run ("mix2" stays jazz).
             previous = [slot["core"] if slot else None for slot in entry.mixes.get(userid, [])]

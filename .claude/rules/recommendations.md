@@ -110,7 +110,12 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   sind (Nähe < 0,25); jeder andere Artist geht zum Kern, dem er am nächsten ist — erst ab Nähe
   0,1 (`MIX_MIN_MEMBER_AFFINITY`; ein einziger Tages-Shuffle liegt bei ~0,01). Ein Kern, dessen
   Gruppe unter 3 Artists bleibt, gibt seinen Platz ab und die Kerne werden neu gewählt —
-  sonst blockierte er einen der vier Plätze. Mixes unter 8 Tracks fallen weg. Ein Mix nimmt die
+  sonst blockierte er einen der vier Plätze. Ein Kern, dessen Mix unter 8 Tracks bleibt, gibt
+  seinen Platz **genauso** ab (`_groups(accept=…)`): Bis 2026-11 fiel so ein Mix einfach weg, die
+  nächste Gruppe rückte nie nach, und Home zeigte zwei oder drei Mixes, wo vier gingen. Sind es
+  weniger als vier, sagt die Routine im Log, warum (`MixReport`: Plays im Fenster, Kandidaten,
+  Kerne mit zu wenigen Artists, Kerne mit zu kurzem Mix) — „nur zwei Mixes“ ist ohne diese Zeile
+  nicht zu klären, weil es an den Hördaten hängt und synthetische Daten immer vier ergeben. Ein Mix nimmt die
   Artists reihum: ein bekannter Track (der meistgehörte **der 180 Tage** zuerst), dann ein nie
   gespielter (täglich neu gemischt; „nie“ heißt über die ganze Historie), höchstens 3 pro Album
   (Album immer aus `track_facts`), 30 Tracks. Die Karte nennt die drei stärksten Artists
