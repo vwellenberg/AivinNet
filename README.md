@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/vwellenberg/AivinNet/master/install
 
 One line on Linux; Docker and the other ways are under [Other install paths](#other-install-paths).
 
-![AivinNet Home: continue listening, AivinNet FM and your mixes](client/docs/screenshots/home.webp)
+![AivinNet Home: continue listening, your library in record crates, and AivinNet FM](client/docs/screenshots/home.webp)
 
 ## What it looks like
 
@@ -59,31 +59,47 @@ covers, synthetic audio. `scripts/demo/` rebuilds it and takes the pictures.</su
 
 **Home, from your own listening**
 - *Continue listening*, *Your mixes* (cut from your own listening sessions),
-  *Because you listened to …*, *On repeat*, *Never played*, *Deep cuts*,
-  *Forgotten favorites*, *Almost complete*, *On this day* and more. Each user
-  picks which rows appear and in what order.
-- **AivinNet FM**: a dial on Home that tunes between your mixes, genres and
-  decades, plus seasonal stations (Christmas, a New Year's Eve countdown).
+  *Because you listened to …*, *On repeat*, *Your top rated*, *Never played*,
+  *Deep cuts*, *Forgotten favorites*, *Almost complete*, *On this day* and more.
+  Each user picks which rows appear and in what order.
+- **Browse Library** sits under Continue listening as two record crates.
+- **AivinNet FM** is a radio you switch on under Settings → Home (per device): a
+  dial that tunes between your mixes, genres, decades and seasonal stations
+  (Christmas, a New Year's Eve countdown).
 - A recap card on Mondays and on the 1st, an Advent calendar in December, and
-  **Rewind**, your year in music, which you can save as a story image.
+  **Rewind**, your year in music, which you can save as a story image. Seven
+  clicks on the logo hand you a find from your own library.
+
+**Ratings**
+- Rate tracks from 1 to 5 stars: in Now Playing, from a song's menu, or by
+  tapping the star in a song list. Each person rates for themselves.
+- Your 4- and 5-star songs feed *Your top rated*. Mixes and stations play the
+  songs you rated high more often, and never pick the ones you rated 1.
+- A smart playlist rule, *My rating*, fills itself from your stars.
+- Optionally, an admin can write ratings into the music files and import the
+  ratings other players wrote there. Off by default.
 
 **Playlists and favourites**
 - Playlists with covers, pinned to the sidebar and filed into folders; music
   folders and albums can be pinned too.
 - **Smart playlists** that fill themselves from rules (genre, artist, year, plays,
-  date added, last played, favourite).
+  date added, last played, favourite, rating).
 - Favourites for tracks, albums and artists, each with a page of its own.
+- Find in long lists (playlists, albums, folders, favourites, an artist's
+  all-tracks page): a search over the whole list, opened with Cmd/Ctrl+F.
 
 **Playback**
 - Gapless, with optional silence skipping and a crossfade you set yourself.
 - **ReplayGain** to even out the volume, a **sleep timer** that fades out, and a
   queue you rearrange by dragging (and undo a removal from).
-- Synced lyrics from `.lrc` files or embedded tags; the optional lyrics finder
-  can fetch missing ones.
+- The queue shows Played, Now playing and Up next.
+- Synced lyrics from `.lrc` files or embedded tags. The playing line lights up
+  word by word, from enhanced LRC word timing where the file has it and spread
+  over the line otherwise. The optional lyrics finder can fetch missing ones.
 
 **Stats**
 - Top artists, albums and tracks per day, week, month, year or all time, with
-  trends against the period before.
+  trends against the period before, and a skip card for the songs you skip.
 - A listening calendar and clock, skip rate, records, devices, formats, and how
   much of your library you have explored.
 
@@ -97,7 +113,8 @@ covers, synthetic audio. `scripts/demo/` rebuilds it and takes the pictures.</su
 
 **Looks**
 - Memphis in light and dark, with four colour schemes (Memphis, Lagune,
-  Terrakotta, Eierschale), or a calm *Boring* look.
+  Terrakotta, Eierschale), or a calm *Boring* look. A long-press on the theme
+  switch gives Light · Dark · Auto.
 
 <details>
 <summary>For tinkerers</summary>
