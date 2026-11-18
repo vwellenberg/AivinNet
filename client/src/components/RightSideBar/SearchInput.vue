@@ -17,7 +17,7 @@
           so no keyboard opened. Now the box is no tab stop, and a tap on it
           hands the focus to the input — synchronously, inside the tap, which is
           what a phone needs to open its keyboard. -->
-        <div id="ginner" ref="inputRef" @click="focusField">
+        <div id="ginner" ref="inputRef" @pointerdown="notePress" @click="focusField">
             <button
                 v-auto-animate
                 :title="tabs.current === tabs.tabs.search ? 'back to queue' : 'go to search'"
@@ -88,11 +88,35 @@ function removeFocusedClass() {
     }
 }
 
+// ⚠️ Closing the phone keyboard (back gesture, back key) does NOT blur the
+// field: it stays focused with the keyboard gone. The next tap then lands on an
+// already focused field, `focus()` is a no-op, and Vivaldi on Android (Galaxy
+// S22, 2026-11-18) did not bring the keyboard back — "it only opens the first
+// time". So a TOUCH press on a field that is already focused re-focuses it:
+// blur and focus, synchronously inside the tap, which the browser treats as a
+// fresh focus from a user gesture and answers with the keyboard. Mouse and pen
+// keep plain clicks: a click there only places the caret.
+let pressOnFocusedField = false
+let pressByTouch = false
+
+function notePress(e: PointerEvent) {
+    pressOnFocusedField = !!fieldRef.value && document.activeElement === fieldRef.value
+    pressByTouch = e.pointerType === 'touch'
+}
+
 /** A tap anywhere on the pill types into the field — except on a button in it. */
 function focusField(e: MouseEvent) {
     const target = e.target as Element | null
-    if (target === fieldRef.value || target?.closest('button')) return
-    fieldRef.value?.focus()
+    const field = fieldRef.value
+    if (!field || target?.closest('button')) return
+
+    if (pressByTouch && pressOnFocusedField) {
+        field.blur()
+        field.focus()
+    } else if (target !== field) {
+        field.focus()
+    }
+    pressOnFocusedField = pressByTouch = false
 }
 
 // The field, not the pill: focusing the pill (it was a tab stop) closed the
