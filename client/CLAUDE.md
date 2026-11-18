@@ -438,15 +438,16 @@ GitHub nichts.)
   Touch-Profil, auf die toten Stellen tippen, `document.activeElement` lesen. Ein Rahmen um ein
   Feld ist deshalb kein Tab-Stopp und reicht einen Tipp per `@click` ans Feld weiter (Vorbild
   `modals/ChipInput.vue`), Test: `RightSideBar/__tests__/SearchInput.test.ts`.
-  ⚠️ **Dritte Form: Tastatur schließen heißt NICHT Feld verlassen.** Zurück-Geste oder -Taste
-  blenden die Tastatur aus, das Feld behält den Fokus — und Android fordert die Tastatur nur
-  bei einem echten **Fokuswechsel** an. Der nächste Tipp auf das noch fokussierte Feld brachte
-  sie nicht zurück („geht nur beim ersten Mal“, S22 + Vivaldi). ⚠️ `blur()` + `focus()` im
-  selben Tipp (#850) zählt **nicht** als Wechsel und half am Gerät nicht, obwohl headless
-  sauber `blur,focus` feuerte. Was wirkt: das Feld **verlassen, wenn die Tastatur zugeht**
-  (`utils/keyboardClose.ts`, erkannt am `visualViewport`, das beim Schließen ≥ 150 px an Höhe
-  zurückbekommt); dann ist der nächste Tipp ein gewöhnlicher erster Fokus. Headless prüfbar
-  über `setViewportSize` (schrumpfen = Tastatur auf, wachsen = zu) und `blur`/`focus`-Log.
+  ⚠️ **„Tastatur kommt nur beim ersten Mal“ auf Vivaldi/Android ist ein Browserfehler, kein
+  App-Fehler — erst am Gerät gegen ein nacktes Feld prüfen, dann am Code drehen.** Gemeldet am
+  S22; drei Fixes, die headless richtig aussahen, wirkten nicht (#850 `blur()`+`focus()` im
+  Tipp, #851 Feld verlassen beim Schließen; beide wieder ausgebaut). Eine Testseite mit einem
+  `<input>` **ohne Script** zeigte am Gerät dasselbe: Nach dem ersten Schließen öffnete Vivaldi
+  die Tastatur für **kein** Feld mehr, auch nicht bei einem echten Fokuswechsel von Feld zu
+  Feld. Und Vivaldi meldete dabei **keine** Höhenänderung (`visualViewport` nur 610 ↔ 636 px,
+  die Adressleiste): Die Tastatur liegt über der Seite, „Tastatur zu“ ist für eine Seite dort
+  nicht erkennbar. ⚠️ Eine Testseite als claude.ai-Artifact zuerst in der **Claude-App**
+  geöffnet heißt: in deren WebView, nicht im gemeldeten Browser — dort ging alles.
 
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
   durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
