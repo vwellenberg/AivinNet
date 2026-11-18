@@ -147,7 +147,9 @@ defineOptions({
 }
 
 // Arrows sit over the row's edges, so showing or hiding one never moves the
-// tiles. Touch has the swipe already; the arrows are for mouse and keyboard.
+// tiles. They show on touch too (user, 2026-11-18): a swipe works there, but
+// on a phone the cut-off tile at the edge read as a clipped layout rather
+// than as "more this way", and the fade alone is a faint hint for that.
 .statsnav {
     @include btn-action;
     position: absolute;
@@ -166,10 +168,6 @@ defineOptions({
 
     &.next {
         right: 0.25rem;
-    }
-
-    @media (pointer: coarse) {
-        display: none;
     }
 }
 
@@ -214,7 +212,7 @@ defineOptions({
     @include hideScrollbars;
 
     // Scroll sideways on a narrow window rather than squeeze the tiles below
-    // what their numbers need — same answer as `LibraryNumbers.vue`.
+    // what their numbers need (the search page shows this same row).
     .statitem {
         flex-shrink: 0;
         scroll-snap-align: start;
