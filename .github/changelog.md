@@ -73,6 +73,22 @@ Silicon).
 
 ## What's new in this release
 
+A better player on phones, on top of 2026.11.10.
+
+- **The song title is readable on phones.** The bar at the bottom gives title
+  and artist more room; the button for linking devices moves out of the way
+  on small screens and comes back while devices play together.
+- **Long titles scroll** in the player bar and in Now Playing instead of being
+  cut off.
+- **Now Playing buttons sit in the middle** on phones, with the same spacing
+  as the row below.
+- **Search on phones:** a tap anywhere on the search bar opens the keyboard,
+  the idle page no longer moves sideways, and the "in your library" tiles
+  fade at the edge and get arrows like the ones in Stats.
+
+<details>
+<summary>What v2026.11.10 brought</summary>
+
 Small finds and a steadier Home, on top of 2026.11.9.
 
 - **Seven clicks on the logo hand you a find** from your own library: an album
@@ -88,6 +104,8 @@ Small finds and a steadier Home, on top of 2026.11.9.
 - **The end of the queue reads cleanly.** "Last track — the queue starts over
   after this one." sits on its own plate instead of straight on the
   background, and the empty button above it is gone.
+
+</details>
 
 <details>
 <summary>What v2026.11.9 brought</summary>
