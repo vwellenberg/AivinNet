@@ -439,11 +439,14 @@ GitHub nichts.)
   Feld ist deshalb kein Tab-Stopp und reicht einen Tipp per `@click` ans Feld weiter (Vorbild
   `modals/ChipInput.vue`), Test: `RightSideBar/__tests__/SearchInput.test.ts`.
   ⚠️ **Dritte Form: Tastatur schließen heißt NICHT Feld verlassen.** Zurück-Geste oder -Taste
-  blenden die Tastatur aus, das Feld behält den Fokus. Der nächste Tipp ist dann ein `focus()`
-  auf ein fokussiertes Element, also nichts, und Vivaldi holte die Tastatur nicht zurück
-  („geht nur beim ersten Mal“). Ein **Touch**-Druck auf ein schon fokussiertes Feld macht
-  deshalb `blur()` + `focus()` im selben Tipp (`SearchInput.vue`, `notePress`); Maus bleibt
-  beim reinen Klick, sonst stört es das Setzen des Cursors.
+  blenden die Tastatur aus, das Feld behält den Fokus — und Android fordert die Tastatur nur
+  bei einem echten **Fokuswechsel** an. Der nächste Tipp auf das noch fokussierte Feld brachte
+  sie nicht zurück („geht nur beim ersten Mal“, S22 + Vivaldi). ⚠️ `blur()` + `focus()` im
+  selben Tipp (#850) zählt **nicht** als Wechsel und half am Gerät nicht, obwohl headless
+  sauber `blur,focus` feuerte. Was wirkt: das Feld **verlassen, wenn die Tastatur zugeht**
+  (`utils/keyboardClose.ts`, erkannt am `visualViewport`, das beim Schließen ≥ 150 px an Höhe
+  zurückbekommt); dann ist der nächste Tipp ein gewöhnlicher erster Fokus. Headless prüfbar
+  über `setViewportSize` (schrumpfen = Tastatur auf, wachsen = zu) und `blur`/`focus`-Log.
 
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
   durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
