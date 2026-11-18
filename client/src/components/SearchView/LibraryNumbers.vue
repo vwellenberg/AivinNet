@@ -1,16 +1,12 @@
 <template>
-  <!-- The tiles are the shared `StatItem` — same anatomy, same icon per kind
-    as the charts screen. `Stats.vue` around them is not reused: it fetches on
-    every mount and shows the date range and the top track, where this block
-    wants a cached answer and the numbers only (see WANTED below). -->
+  <!-- The row is the charts screen's own `Stats.vue`, handed the tiles through
+    `items` — with them it fetches nothing and shows no date range, so this
+    block keeps its cached answer and its four numbers (see WANTED below).
+    It used to lay the tiles out itself, and on a phone the row simply ended
+    in a cut-off tile: no fade at the edge, no arrow, unlike the same tiles on
+    the charts screen (user, 2026-11-18). One row, one anatomy. -->
   <div v-if="items.length" class="library-numbers">
-    <StatItem
-      v-for="item in items"
-      :key="item.cssclass"
-      :value="item.value"
-      :text="item.text"
-      :icon="item.cssclass"
-    />
+    <Stats :items="items" />
   </div>
 </template>
 
@@ -19,7 +15,7 @@ import { onMounted, ref } from "vue";
 
 import { getStats } from "@/requests/stats";
 
-import StatItem from "@/components/Stats/StatItem.vue";
+import Stats from "@/components/Stats/Stats.vue";
 
 interface StatItemData {
   cssclass: string;
@@ -101,22 +97,11 @@ onMounted(async () => {
 </script>
 
 <style lang="scss">
-.library-numbers {
-  display: flex;
-  gap: $medium;
-  // The tiles scroll sideways on a narrow window rather than shrinking below
-  // what their numbers need — the same answer the charts row gives, minus its
-  // scrollbar (it would sit on top of the tiles).
-  overflow-x: auto;
-  // The offset shadow falls to the BOTTOM AND THE RIGHT, and `overflow-x`
-  // clips both (it makes overflow-y compute to `auto` too) — scrolled to the
-  // end, the last tile lost its right edge. Same reservation `.tabheaders`
-  // makes for the search chips, same trap styling.md records for #399.
-  padding: 0 $small $small 0;
-  @include hideScrollbars;
-
-  .statitem {
-    flex-shrink: 0;
-  }
+// Scrolling, fade and arrows come with `Stats.vue`. Only the top inset goes:
+// the idle column already spaces its blocks (`.search-idle`, 2rem), and the
+// row's own 1rem above the tiles doubled it. The bottom inset stays — it holds
+// the tiles' offset shadow inside the scroller.
+.library-numbers .statshead {
+  padding-top: 0;
 }
 </style>
