@@ -23,6 +23,15 @@ vi.mock('@/stores/tabs', () => ({
     default: () => ({ current: 'queue', tabs: { search: 'search', queue: 'queue' }, switchToQueue: vi.fn(), switchToSearch: vi.fn() }),
 }))
 
+// The keyboard watcher is a seam: the test plays the browser saying "closed".
+const keyboard = vi.hoisted(() => ({ onClose: null as null | (() => void), stop: vi.fn() }))
+vi.mock('@/utils/keyboardClose', () => ({
+    watchKeyboardClose: (onClose: () => void) => {
+        keyboard.onClose = onClose
+        return keyboard.stop
+    },
+}))
+
 import SearchInput from '@/components/RightSideBar/SearchInput.vue'
 
 function mountInput() {
@@ -39,6 +48,8 @@ function mountInput() {
 let wrapper: ReturnType<typeof mountInput> | undefined
 
 afterEach(() => {
+    keyboard.onClose = null
+    keyboard.stop.mockClear()
     wrapper?.unmount()
     wrapper = undefined
     search.query = ''
@@ -72,66 +83,37 @@ describe('SearchInput: the pill focuses the field', () => {
     })
 
     // "The keyboard only opens the first time" (S22 + Vivaldi, 2026-11-18):
-    // closing the phone keyboard leaves the field focused, so the next tap is
-    // a focus() on a focused element — a no-op, and no keyboard. A touch press
-    // on the focused field re-focuses it inside the tap.
-    describe('a second tap after the keyboard was closed', () => {
-        async function tap(wrapper: ReturnType<typeof mountInput>, pointerType: string) {
-            const field = wrapper.find('input#globalsearch')
-            await field.trigger('pointerdown', { pointerType })
-            await field.trigger('click')
-        }
-
-        function watchFocus(field: HTMLInputElement) {
-            const log: string[] = []
-            field.addEventListener('blur', () => log.push('blur'))
-            field.addEventListener('focus', () => log.push('focus'))
-            return log
-        }
-
-        it('touch on the focused field focuses it afresh', async () => {
-            wrapper = mountInput()
-            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
-            field.focus() // first tap: the keyboard opened, then was closed — focus stays
-            const log = watchFocus(field)
-
-            await tap(wrapper, 'touch')
-            expect(log).toEqual(['blur', 'focus'])
-            expect(document.activeElement).toBe(field)
-        })
-
-        it('touch on the pill beside the text does the same', async () => {
+    // closing the phone keyboard leaves the field focused, and Android shows
+    // the keyboard only on a real focus change. Blur + focus inside the tap
+    // (#850) did not count as one. The field is LEFT when the keyboard closes,
+    // so the next tap is an ordinary first focus.
+    describe('when the phone keyboard closes', () => {
+        it('the focused field is left', () => {
             wrapper = mountInput()
             const field = wrapper.find('input#globalsearch').element as HTMLInputElement
             field.focus()
-            const log = watchFocus(field)
+            expect(keyboard.onClose).toBeTypeOf('function')
 
-            const pill = wrapper.find('#ginner')
-            await pill.trigger('pointerdown', { pointerType: 'touch' })
-            await pill.trigger('click')
-            expect(log).toEqual(['blur', 'focus'])
-            expect(document.activeElement).toBe(field)
+            keyboard.onClose!()
+            expect(document.activeElement).not.toBe(field)
         })
 
-        it('a mouse click on the focused field only places the caret', async () => {
+        it('focus elsewhere is left alone', () => {
             wrapper = mountInput()
-            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
-            field.focus()
-            const log = watchFocus(field)
+            const other = document.createElement('input')
+            document.body.appendChild(other)
+            other.focus()
 
-            await tap(wrapper, 'mouse')
-            expect(log).toEqual([])
-            expect(document.activeElement).toBe(field)
+            keyboard.onClose!()
+            expect(document.activeElement).toBe(other)
+            other.remove()
         })
 
-        it('the first touch on an unfocused field is a plain focus', async () => {
+        it('stops watching when the field goes away', () => {
             wrapper = mountInput()
-            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
-            const log = watchFocus(field)
-
-            await tap(wrapper, 'touch')
-            // The browser focuses the tapped field itself; the handler adds nothing.
-            expect(log).toEqual([])
+            wrapper.unmount()
+            wrapper = undefined
+            expect(keyboard.stop).toHaveBeenCalledTimes(1)
         })
     })
 
