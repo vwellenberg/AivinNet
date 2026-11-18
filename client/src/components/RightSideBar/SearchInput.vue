@@ -53,9 +53,7 @@
 import useSearch from '@/stores/search'
 import useSettings from '@/stores/settings'
 import useTabStore from '@/stores/tabs'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-
-import { watchKeyboardClose } from '@/utils/keyboardClose'
+import { ref } from 'vue'
 
 import CancelSvg from '@/assets/icons/a.svg'
 import BackSvg from '@/assets/icons/arrow.svg'
@@ -89,20 +87,6 @@ function removeFocusedClass() {
         inputRef.value.classList.remove('search-focused')
     }
 }
-
-// ⚠️ Closing the phone keyboard (back gesture, back key) does NOT blur the
-// field, and Android only asks for the keyboard on a real focus change: a tap
-// on the still-focused field brought nothing back — "it only opens the first
-// time" (Galaxy S22, Vivaldi, 2026-11-18). Blur + focus inside the same tap
-// (#850) did not count as a change. So the field is LEFT when the keyboard
-// closes, and the next tap is an ordinary first focus (utils/keyboardClose.ts).
-let stopWatching = () => {}
-onMounted(() => {
-    stopWatching = watchKeyboardClose(() => {
-        if (fieldRef.value && document.activeElement === fieldRef.value) fieldRef.value.blur()
-    })
-})
-onBeforeUnmount(() => stopWatching())
 
 /** A tap anywhere on the pill types into the field — except on a button in it. */
 function focusField(e: MouseEvent) {
