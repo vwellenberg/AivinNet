@@ -71,6 +71,70 @@ describe('SearchInput: the pill focuses the field', () => {
         expect(document.activeElement).toBe(wrapper.find('input#globalsearch').element)
     })
 
+    // "The keyboard only opens the first time" (S22 + Vivaldi, 2026-11-18):
+    // closing the phone keyboard leaves the field focused, so the next tap is
+    // a focus() on a focused element — a no-op, and no keyboard. A touch press
+    // on the focused field re-focuses it inside the tap.
+    describe('a second tap after the keyboard was closed', () => {
+        async function tap(wrapper: ReturnType<typeof mountInput>, pointerType: string) {
+            const field = wrapper.find('input#globalsearch')
+            await field.trigger('pointerdown', { pointerType })
+            await field.trigger('click')
+        }
+
+        function watchFocus(field: HTMLInputElement) {
+            const log: string[] = []
+            field.addEventListener('blur', () => log.push('blur'))
+            field.addEventListener('focus', () => log.push('focus'))
+            return log
+        }
+
+        it('touch on the focused field focuses it afresh', async () => {
+            wrapper = mountInput()
+            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
+            field.focus() // first tap: the keyboard opened, then was closed — focus stays
+            const log = watchFocus(field)
+
+            await tap(wrapper, 'touch')
+            expect(log).toEqual(['blur', 'focus'])
+            expect(document.activeElement).toBe(field)
+        })
+
+        it('touch on the pill beside the text does the same', async () => {
+            wrapper = mountInput()
+            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
+            field.focus()
+            const log = watchFocus(field)
+
+            const pill = wrapper.find('#ginner')
+            await pill.trigger('pointerdown', { pointerType: 'touch' })
+            await pill.trigger('click')
+            expect(log).toEqual(['blur', 'focus'])
+            expect(document.activeElement).toBe(field)
+        })
+
+        it('a mouse click on the focused field only places the caret', async () => {
+            wrapper = mountInput()
+            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
+            field.focus()
+            const log = watchFocus(field)
+
+            await tap(wrapper, 'mouse')
+            expect(log).toEqual([])
+            expect(document.activeElement).toBe(field)
+        })
+
+        it('the first touch on an unfocused field is a plain focus', async () => {
+            wrapper = mountInput()
+            const field = wrapper.find('input#globalsearch').element as HTMLInputElement
+            const log = watchFocus(field)
+
+            await tap(wrapper, 'touch')
+            // The browser focuses the tapped field itself; the handler adds nothing.
+            expect(log).toEqual([])
+        })
+    })
+
     it('a button in the pill keeps its own click (no focus grab)', async () => {
         wrapper = mountInput()
         await wrapper.find('#ginner button').trigger('click')

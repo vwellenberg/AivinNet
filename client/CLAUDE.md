@@ -438,6 +438,12 @@ GitHub nichts.)
   Touch-Profil, auf die toten Stellen tippen, `document.activeElement` lesen. Ein Rahmen um ein
   Feld ist deshalb kein Tab-Stopp und reicht einen Tipp per `@click` ans Feld weiter (Vorbild
   `modals/ChipInput.vue`), Test: `RightSideBar/__tests__/SearchInput.test.ts`.
+  ⚠️ **Dritte Form: Tastatur schließen heißt NICHT Feld verlassen.** Zurück-Geste oder -Taste
+  blenden die Tastatur aus, das Feld behält den Fokus. Der nächste Tipp ist dann ein `focus()`
+  auf ein fokussiertes Element, also nichts, und Vivaldi holte die Tastatur nicht zurück
+  („geht nur beim ersten Mal“). Ein **Touch**-Druck auf ein schon fokussiertes Feld macht
+  deshalb `blur()` + `focus()` im selben Tipp (`SearchInput.vue`, `notePress`); Maus bleibt
+  beim reinen Klick, sonst stört es das Setzen des Cursors.
 
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
   durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
