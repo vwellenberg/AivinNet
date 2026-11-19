@@ -61,10 +61,15 @@ class FakeApi:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict]] = []
         self.response = FakeResponse()
+        # (method, path) -> response, or a list of responses used one call at a time.
+        self.routes: dict[tuple[str, str], object] = {}
 
     def __call__(self, method, path, **kw):
         self.calls.append((method, path, kw))
-        return self.response
+        routed = self.routes.get((method, path))
+        if isinstance(routed, list):
+            return routed.pop(0)
+        return routed if routed is not None else self.response
 
 
 @pytest.fixture(scope="module")
@@ -276,19 +281,75 @@ def test_get_album_unknown_returns_404(srv, api):
 # ------------------------------------------------------ add_tracks_to_playlist
 
 
+COUNT_PATH = "/playlists/7?no_tracks=true"
+
+
+def _count(n: int) -> FakeResponse:
+    return FakeResponse(body={"info": {"id": 7, "count": n}, "tracks": []})
+
+
+def _resolves(*hashes: str) -> FakeResponse:
+    return FakeResponse(body={"tracks": [_track(f"T{i}", h, 60) for i, h in enumerate(hashes)]})
+
+
+def _route_add(api: FakeApi, before: int, after: int, known=(HASH_A, HASH_B, HASH_C), add=None) -> None:
+    api.routes[("GET", COUNT_PATH)] = [_count(before), _count(after)]
+    api.routes[("POST", "/devicesync/resolve")] = _resolves(*known)
+    api.routes[("POST", "/playlists/7/add")] = add or FakeResponse(body={"msg": "Done"})
+
+
 def test_add_tracks_posts_joined_hashes_in_order_and_strips_and_dedups(srv, api):
-    api.response = FakeResponse(body={"msg": "Done"}, status=200)
+    _route_add(api, before=2, after=5)
 
     out = srv.add_tracks_to_playlist(7, [f" {HASH_A} ", HASH_B, HASH_A, f"{HASH_C}\n"])
 
-    assert api.calls == [
+    adds = [c for c in api.calls if c[1] == "/playlists/7/add"]
+    assert adds == [
         (
             "POST",
             "/playlists/7/add",
             {"json": {"itemtype": "tracks", "itemhash": f"{HASH_A},{HASH_B},{HASH_C}"}},
         )
     ]
-    assert out == {"ok": True, "playlist_id": 7, "requested": 3}
+    assert out == {"ok": True, "playlist_id": 7, "requested": 3, "added": 3, "skipped": 0, "count": 5}
+
+
+def test_add_tracks_reports_hashes_the_playlist_already_had_as_skipped(srv, api):
+    _route_add(api, before=10, after=11)
+
+    out = srv.add_tracks_to_playlist(7, [HASH_A, HASH_B, HASH_C])
+
+    assert out["ok"] is True
+    assert (out["added"], out["skipped"], out["count"]) == (1, 2, 11)
+
+
+def test_add_tracks_unknown_hash_writes_nothing_and_names_it(srv, api):
+    # A hash no track carries would be stored as an orphan (blank row in the UI).
+    _route_add(api, before=2, after=2, known=(HASH_A,))
+
+    out = srv.add_tracks_to_playlist(7, [HASH_A, HASH_B])
+
+    assert out["ok"] is False
+    assert out["unknown"] == [HASH_B]
+    assert not any(c[1] == "/playlists/7/add" for c in api.calls)
+
+
+def test_add_tracks_checks_the_library_with_the_cleaned_hashes(srv, api):
+    _route_add(api, before=0, after=2)
+
+    srv.add_tracks_to_playlist(7, [f" {HASH_A}", HASH_B, HASH_A])
+
+    resolve = [c for c in api.calls if c[1] == "/devicesync/resolve"]
+    assert resolve == [("POST", "/devicesync/resolve", {"json": {"trackhashes": [HASH_A, HASH_B]}})]
+
+
+def test_add_tracks_unknown_playlist_reports_404_without_writing(srv, api):
+    api.routes[("GET", COUNT_PATH)] = FakeResponse(status=404, body={"msg": "Playlist not found"})
+
+    out = srv.add_tracks_to_playlist(7, [HASH_A])
+
+    assert out == {"ok": False, "status": 404, "error": {"msg": "Playlist not found"}}
+    assert [c[1] for c in api.calls] == [COUNT_PATH]
 
 
 def test_add_tracks_empty_list_returns_error_without_api_call(srv, api):
@@ -315,10 +376,35 @@ def test_add_tracks_comma_in_hash_names_it_and_makes_no_call(srv, api):
     assert api.calls == []
 
 
-def test_add_tracks_single_duplicate_409_is_reported(srv, api):
-    api.response = FakeResponse(status=409, body={"msg": "Track already in playlist"})
+def test_add_tracks_single_hash_already_there_is_a_skip_not_a_failure(srv, api):
+    # The server answers 409 for one hash it already has; several are skipped silently.
+    _route_add(api, before=4, after=4, add=FakeResponse(status=409, body={"msg": "Track already exists in playlist"}))
 
     out = srv.add_tracks_to_playlist(7, [HASH_A])
 
-    assert api.calls[0][1] == "/playlists/7/add"
-    assert out == {"ok": False, "status": 409, "error": {"msg": "Track already in playlist"}}
+    assert out == {"ok": True, "playlist_id": 7, "requested": 1, "added": 0, "skipped": 1, "count": 4}
+
+
+def test_add_tracks_other_failure_is_reported(srv, api):
+    _route_add(api, before=4, after=4, add=FakeResponse(status=500, text="boom"))
+
+    out = srv.add_tracks_to_playlist(7, [HASH_A, HASH_B])
+
+    assert out == {"ok": False, "status": 500, "error": "boom"}
+
+
+def test_search_limit_below_one_returns_error_without_api_call(srv, api):
+    out = srv.search("x", limit=0)
+
+    assert out["ok"] is False
+    assert api.calls == []
+
+
+def test_failure_tolerates_a_json_content_type_with_a_broken_body(srv):
+    class Broken(FakeResponse):
+        def json(self):
+            raise ValueError("not json")
+
+    r = Broken(status=502, body={}, text="<html>bad gateway</html>")
+
+    assert srv._failure(r) == {"ok": False, "status": 502, "error": "<html>bad gateway</html>"}

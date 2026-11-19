@@ -18,13 +18,18 @@ track tags.
 | --- | --- |
 | `list_playlists` | All playlists (id, name, count, pinned) |
 | `get_playlist(playlist_id)` | Playlist info + tracks (incl. trackhashes) |
-| `add_tracks_to_playlist(playlist_id, trackhashes)` | Append tracks in the given order; hashes already in the playlist are skipped |
+| `add_tracks_to_playlist(playlist_id, trackhashes)` | Append tracks in the given order; hashes already in the playlist are skipped (`added`/`skipped` say how many) |
 | `move_playlist_track(playlist_id, trackhash, before_trackhash)` | Move one track before another (`None` = to the end) — same operation as the UI's drag-and-drop |
 | `sort_playlist_tracks(playlist_id, by, reverse)` | Sort tracks by `title`/`artist`/`album`/`duration` and save the order |
 | `prune_orphan_tracks(playlist_id)` | Drop entries whose track no longer exists in the library |
 | `create_playlist(name)` | New empty playlist |
 | `rename_playlist(playlist_id, name)` | Rename (name only) |
 | `pin_playlist(playlist_id)` | Toggle pin |
+
+`add_tracks_to_playlist` checks every hash against the library first
+(`/devicesync/resolve`). If one is unknown, **nothing** is written and the answer
+lists it in `unknown`: `/playlists/<id>/add` stores any string, so a typo would
+otherwise become an orphan entry.
 
 `sort_playlist_tracks` **refuses** to run when a playlist stores more tracks
 than resolve. `/reorder` replaces the whole stored hash list, and the API only
