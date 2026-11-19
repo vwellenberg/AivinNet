@@ -289,7 +289,10 @@ onMounted(() => {
     // Hard offset shadow: the tile sits above the grid ground (memphis).
     @include candy-raised(3px, 3px, $press: false);
     color: $candy-text;
-    transition: background-color $motion-move ease-out, color $motion-move ease-out, box-shadow $motion-shadow ease-out;
+    // Paint is a cut (styling.md: no colour in a transition — fill and text
+    // flip in opposite directions and a fade grey-outs both mid-way). Only
+    // motion stays soft: the shadow, and the texture sliding on hover (below).
+    transition: background-position $motion-move $motion-curve, box-shadow $motion-shadow ease-out;
 
     // Die Kacheln kommen an wie die Kachelraster darunter (#143 / #162): zwei
     // Platten nebeneinander, die vorher als einziger Block der Startseite
@@ -433,6 +436,11 @@ onMounted(() => {
     // The text token travels with the fill (#422) — the fill is the contrast
     // surface now, so without this the tile is an unreadable solid plate.
     color: var(--mem-hover-text);
+    // The sprinkles wake up, exactly like the card plates (#143,
+    // Global/cards.scss): the sprite shifts by a few pixels as the surface
+    // flips, so the strokes shuffle instead of simply swapping. Movement in
+    // the TEXTURE, not on the crate.
+    background-position: 9px 6px;
   }
 
   // Phones: the two crates side by side, each smaller. The card stays 9rem

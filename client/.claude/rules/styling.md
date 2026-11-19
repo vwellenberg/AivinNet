@@ -423,7 +423,16 @@ CSS-Regel, und `background-color` darf nie über die `background`-Kurzform geset
 wischt die Bild-Ebene weg).
 
 **Die Kachelgröße folgt der Fläche:** 28 px auf einem 44-px-Button, 38 px auf einer Zeile, die
-sechsmal so breit ist. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+sechsmal so breit ist.
+
+⚠️ **Diese Größen meinen die alte ZELLE, nicht die Wiederholung** (Nutzer, 2026-11-19: „Streuselmuster
+noch zufälliger"). Das Sprite ist seit dem ein Feld aus 4 × 4 Zellen (96 Striche, Blue Noise mit
+Mindestabstand über die Naht, zufällige Winkel und Längen), erzeugt von `mem-hatch-sprite()` in
+`_candy.scss`. Vorher wiederholten sich dieselben sechs Striche alle 38 px, und auf einer breiten
+Platte (Browse-Kiste) las sich das als Tapetenraster. **Jedes `background-size` einer Schraffur
+geht deshalb durch `mem-hatch-tile($size)`** — ein nacktes `38px 38px` neben `--mem-hatch*`
+zeichnet das Feld auf ein Viertel verkleinert, mit vierfach dünnen Strichen. Nicht betroffen:
+`mem-sprinkle` (`--shape-sprinkle`), das die Jahreszeiten durch eigene 46er-Zellen ersetzen. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt
