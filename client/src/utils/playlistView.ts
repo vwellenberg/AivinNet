@@ -70,7 +70,7 @@ export function shapeTracks<T extends Track>(
                 return dir * compareText(a.album ?? '', b.album ?? '')
             case 'duration':
                 return dir * ((a.duration ?? 0) - (b.duration ?? 0))
-            default: // playcount
+            case 'playcount':
                 return dir * ((a.playcount ?? 0) - (b.playcount ?? 0))
             case 'added': {
                 const av = a.added_at ?? null
@@ -81,6 +81,8 @@ export function shapeTracks<T extends Track>(
                 }
                 return dir * (av - bv)
             }
+            default:
+                return 0
         }
     })
 }
