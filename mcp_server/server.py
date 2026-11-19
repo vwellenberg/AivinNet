@@ -1,8 +1,8 @@
 """
 AivinNet MCP server — manage a music library from an MCP client (e.g. Claude).
 
-Playlist tools (list/get/move/sort/prune/create/rename/pin) plus track tag
-editing (set_track_tags).
+Library tools (search, get_album), playlist tools (list/get/move/sort/prune/
+create/rename/pin/add_tracks) plus track tag editing (set_track_tags).
 
 Auth: the AivinNet API accepts a JWT in the Authorization header
 (JWT_TOKEN_LOCATION includes "headers"). Configure via env:
@@ -124,6 +124,81 @@ def get_playlist(playlist_id: int) -> dict:
     }
 
 
+_SEARCH_ITEMTYPES = ("tracks", "albums", "artists")
+
+
+@mcp.tool()
+def search(query: str, itemtype: str = "tracks", limit: int = 20) -> dict:
+    """
+    Search the library for tracks, albums or artists.
+
+    `itemtype` is one of: tracks, albums, artists. Tracks come back with
+    trackhash (use it for add_tracks_to_playlist); albums with albumhash;
+    artists with artisthash. To get an album's tracks with durations, pass its
+    albumhash to `get_album`.
+    """
+    if itemtype not in _SEARCH_ITEMTYPES:
+        return {"ok": False, "error": f"Unknown itemtype '{itemtype}'. Use one of: {', '.join(_SEARCH_ITEMTYPES)}."}
+    if not query or not query.strip():
+        return {"ok": False, "error": "Empty search query."}
+
+    r = _api(
+        "GET",
+        "/search/",
+        params={"q": query.strip(), "itemtype": itemtype, "start": 0, "limit": limit},
+    )
+    if not r.ok:
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return {"ok": False, "status": r.status_code, "error": body}
+
+    j = r.json()
+    items = j.get("results") or []
+    if itemtype == "tracks":
+        results = [_slim_track(t, i) for i, t in enumerate(items)]
+    elif itemtype == "albums":
+        results = [
+            {
+                "albumhash": a.get("albumhash"),
+                "title": a.get("title"),
+                "albumartists": [x.get("name") for x in (a.get("albumartists") or [])],
+                "date": a.get("date"),
+            }
+            for a in items
+        ]
+    else:
+        results = [{"artisthash": a.get("artisthash"), "name": a.get("name")} for a in items]
+    return {"ok": True, "itemtype": itemtype, "more": bool(j.get("more")), "results": results}
+
+
+@mcp.tool()
+def get_album(albumhash: str) -> dict:
+    """
+    Get an album's info and its tracks (title, artists, album, duration, trackhash).
+
+    `duration` is in seconds, so a caller can e.g. drop short jingles before
+    adding tracks to a playlist. One soundtrack can be split into several albums
+    with the same title (different album artists); `search` with itemtype
+    "albums" lists them all, each with its own albumhash.
+    """
+    r = _api("POST", "/album", json={"albumhash": albumhash})
+    if not r.ok:
+        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+        return {"ok": False, "status": r.status_code, "error": body}
+
+    j = r.json()
+    info = j.get("info") or {}
+    tracks = j.get("tracks") or []
+    return {
+        "ok": True,
+        "albumhash": info.get("albumhash", albumhash),
+        "title": info.get("title"),
+        "albumartists": [a.get("name") for a in (info.get("albumartists") or [])],
+        "trackcount": info.get("trackcount"),
+        "duration": info.get("duration"),
+        "tracks": [_slim_track(t, i) for i, t in enumerate(tracks)],
+    }
+
+
 # -------------------------------------------------------------- action tools
 
 
@@ -239,6 +314,38 @@ def pin_playlist(playlist_id: int) -> dict:
     """Toggle pin/unpin for a playlist (pinned playlists show at the top)."""
     r = _api("POST", f"/playlists/{playlist_id}/pin_unpin")
     return {"ok": r.ok}
+
+
+@mcp.tool()
+def add_tracks_to_playlist(playlist_id: int, trackhashes: list[str]) -> dict:
+    """
+    Add tracks to a playlist. They are appended at the end, in the given order.
+
+    Hashes already in the playlist are skipped. Get the hashes from `search`,
+    `get_album` or `get_playlist`. To reorder afterwards, use `move_playlist_track`.
+    """
+    cleaned: list[str] = []
+    for raw in trackhashes:
+        h = (raw or "").strip()
+        if not h:
+            return {"ok": False, "error": "Empty trackhash in the list."}
+        if "," in h:
+            return {"ok": False, "error": f"Trackhash '{h}' contains a comma; pass one hash per list item."}
+        if h not in cleaned:
+            cleaned.append(h)
+    if not cleaned:
+        return {"ok": False, "error": "No trackhashes given."}
+
+    r = _api(
+        "POST",
+        f"/playlists/{playlist_id}/add",
+        json={"itemtype": "tracks", "itemhash": ",".join(cleaned)},
+    )
+    if r.ok:
+        return {"ok": True, "playlist_id": playlist_id, "requested": len(cleaned)}
+
+    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+    return {"ok": False, "status": r.status_code, "error": body}
 
 
 # ----------------------------------------------------------- track tag tools
