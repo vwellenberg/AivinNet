@@ -174,7 +174,8 @@ describe('Browse Library', () => {
         )
         const [albums] = mountBrowse().findAll('a')
         await flushPromises()
-        expect(getAllItems.mock.calls.filter(c => c[0] === 'albums').map(c => c[1].start)).toEqual([0, 16, 32, 48])
+        const newest = (c: unknown[]) => c[0] === 'albums' && (c[1] as { sortby: string }).sortby === 'created_date'
+        expect(getAllItems.mock.calls.filter(newest).map(c => c[1].start)).toEqual([0, 16, 32, 48])
         expect(albums.findAll('.covers').length).toBe(0)
 
         // A short library: the first page is the whole list, so nothing more is asked.
@@ -185,7 +186,34 @@ describe('Browse Library', () => {
         )
         mountBrowse()
         await flushPromises()
-        expect(getAllItems.mock.calls.filter(c => c[0] === 'albums')).toHaveLength(1)
+        expect(getAllItems.mock.calls.filter(newest)).toHaveLength(1)
+    })
+
+    // Regression: 176 DS9 episodes, each its own coverless album, stood in front
+    // of every other album; four pages back still found no cover.
+    it('shows the most-played albums when none of the newest has a cover', async () => {
+        const coverless = many(64).map(it => ({ ...it, has_artwork: false }))
+        const top = [
+            { image: 'top0.webp?pathhash=1', help_text: '40 plays', has_artwork: true },
+            { image: 'top1.webp?pathhash=2', help_text: '9 plays', has_artwork: false },
+            { image: 'top2.webp?pathhash=3', help_text: '3 plays', has_artwork: true },
+            { image: 'top3.webp?pathhash=4', help_text: '0 plays', has_artwork: true },
+        ]
+        getAllItems.mockImplementation((type: string, o: { start: number; limit: number; sortby: string }) => {
+            if (type !== 'albums') return Promise.resolve(ARTISTS)
+            if (o.sortby === 'playcount') return Promise.resolve({ status: 200, data: { total: 898, items: top } })
+            return Promise.resolve({ status: 200, data: { total: 898, items: coverless.slice(o.start, o.start + o.limit) } })
+        })
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        // Played and with a cover: not the coverless one, not the unplayed one.
+        expect(srcsOf(albums, '.covers img')).toEqual([
+            '/img/thumbnail/medium/top0.webp?pathhash=1',
+            '/img/thumbnail/medium/top2.webp?pathhash=3',
+        ])
+        expect(albums.find('.tag').text()).toBe('MOST PLAYED')
+        expect(albums.find('.count').text()).toBe(`${(898).toLocaleString()} albums`)
     })
 
     it('with only has_artwork false, the crate has no covers and no board', async () => {
