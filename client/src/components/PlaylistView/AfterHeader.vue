@@ -8,6 +8,30 @@
         class="p-after-header"
         :class="{ 'with-date': showDateHeading, 'caps-list': caps_list, 'is-editing': editing }"
     >
+        <!-- The view's own controls: filter chips and the sort menu. They change
+             what is drawn and what plays from it, never the stored order, so
+             they sit on their own row above the caption that names the list. -->
+        <div v-if="showView" class="ah-view" role="group" aria-label="Filter and sort this playlist">
+            <button
+                v-for="chip in CHIPS"
+                :key="chip.name"
+                type="button"
+                class="ah-chip"
+                :aria-pressed="playlist.filters[chip.name]"
+                @click="playlist.toggleFilter(chip.name)"
+            >
+                {{ chip.label }}
+            </button>
+            <div class="ah-sort">
+                <DropDown
+                    component_key="playlist-sort"
+                    :items="sortItems"
+                    :current="currentSort"
+                    :reverse="playlist.sortBy ? playlist.sortReverse : 'hide'"
+                    @item-clicked="onSortPicked"
+                />
+            </div>
+        </div>
         <div class="ah-bar" :class="{ 'has-action': editing || editable || showFind, 'has-find': showFind }">
             <div v-if="editing" class="ah-label">
                 Edit order <span class="ah-count">· {{ count }}</span>
@@ -37,7 +61,9 @@ import { computed } from 'vue'
 import { isMedium, isSmall } from '@/stores/content-width'
 
 import usePlaylistStore from '@/stores/pages/playlist'
+import { PlaylistFilters, PlaylistSortKey } from '@/utils/playlistView'
 
+import DropDown from '@/components/shared/DropDown.vue'
 import ListFind from '@/components/shared/ListFind.vue'
 
 const props = defineProps<{
@@ -58,6 +84,12 @@ const props = defineProps<{
     // Offer the in-playlist find (there are tracks to search). Never in the
     // edit mode: that list shows every track in stored order.
     findable?: boolean
+    // Offer the sort and filter row (there are tracks to shape). Never in the
+    // edit mode, for the same reason.
+    shapeable?: boolean
+    // "Date added" only exists on stored playlists: the computed ones carry no
+    // added_at to sort by.
+    show_added_sort?: boolean
 }>()
 
 defineEmits<{
@@ -72,6 +104,32 @@ const showFind = computed(() => Boolean(props.findable) && !props.editing)
 const showDateHeading = computed(
     () => Boolean(props.show_date_added) && !props.editing && !isSmall.value && !isMedium.value
 )
+
+const showView = computed(() => Boolean(props.shapeable) && !props.editing)
+
+const CHIPS: { name: keyof PlaylistFilters; label: string }[] = [
+    { name: 'unplayed', label: 'Unplayed' },
+    { name: 'favorites', label: 'Favorites' },
+    { name: 'topRated', label: 'Rated 4+' },
+]
+
+const sortItems = computed(() => [
+    { key: '', title: 'Custom order' },
+    { key: 'title', title: 'Title' },
+    { key: 'artist', title: 'Artist' },
+    { key: 'album', title: 'Album' },
+    ...(props.show_added_sort ? [{ key: 'added', title: 'Date added' }] : []),
+    { key: 'duration', title: 'Duration' },
+    { key: 'playcount', title: 'Plays' },
+])
+
+const currentSort = computed(
+    () => sortItems.value.find(item => item.key === playlist.sortBy) ?? sortItems.value[0]
+)
+
+function onSortPicked(item: { key: string }) {
+    playlist.setSort(item.key as PlaylistSortKey)
+}
 </script>
 
 <style lang="scss">
@@ -297,5 +355,60 @@ const showDateHeading = computed(
 
 .isSmall .p-after-header.caps-list > .ah-bar {
     padding-left: $songlist-lead;
+}
+
+// ---------------------------------------------------------------------------
+// SORT AND FILTER ROW
+//
+// Its own row above the caption, so the caption keeps naming the list and the
+// controls keep their 44px targets. Its bottom padding is the gap the bar
+// carries on top, and it is padding for the same reason as the gap above the
+// bar: the scroller measures it (see the note at the top of this block).
+// ---------------------------------------------------------------------------
+.p-after-header > .ah-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $small;
+    padding: 0 1rem $small;
+
+    @media only screen and (max-width: 724px) {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+// The rows' lead, as the caption bar uses it, so the chips start where the
+// track rows' content starts.
+.p-after-header.caps-list > .ah-view {
+    padding-left: $songlist-lead;
+}
+
+// A pill, like the Home genre chips and the search tabs: the role carries the
+// 44px target, the offset shadow and the press. The panel fill is theme-aware,
+// so the label is too (the role's static ink is only legal on a static accent).
+.p-after-header .ah-chip {
+    @include btn-pill($radius: $candy-radius-pill, $fill: $mem-panel);
+    flex-shrink: 0;
+    color: $candy-text;
+    font-size: 0.85rem;
+
+    // Pressed = this filter is on. Yellow is a static accent, so it takes the
+    // static ink sprite in both themes. No `:hover` is restated here: the
+    // role's own hover is pointer-gated, and it sits earlier in this block, so
+    // the pressed fill wins under the pointer too.
+    &[aria-pressed='true'] {
+        background-color: var(--look-selected-fill, #{$mem-yellow});
+        color: var(--look-selected-text, #{$candy-black});
+        --label-hatch: var(--mem-hatch-accent);
+    }
+}
+
+// Wide enough for "Date added" and the arrow; pushed to the row's end so the
+// chips read as the filter and the menu as the sort.
+.p-after-header .ah-sort {
+    width: 9.5rem;
+    max-width: 100%;
+    margin-left: auto;
 }
 </style>

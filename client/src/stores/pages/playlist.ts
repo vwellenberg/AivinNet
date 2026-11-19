@@ -10,9 +10,10 @@ import { getPlaylist, removeBannerImage } from '@/requests/playlists'
 import setColorsToStore from '@/utils/colortools/setColorsToStore'
 import { Routes, router } from '@/router'
 import { track_limit } from '../content-width'
+import { PlaylistFilters, PlaylistSortKey, SORT_DEFAULT_REVERSE, isViewShaped, noFilters, shapeTracks } from '@/utils/playlistView'
 
-// The full load a search started, so the next keystroke joins it instead of
-// asking the server for the whole playlist once per letter.
+// The full load a search, sort or filter started, so the next keystroke or
+// click joins it instead of asking the server for the whole playlist again.
 // Keyed by playlist: a load still running for the previous one must not stand
 // in for this one's.
 let searchLoad: { id: number; done: Promise<void> } | null = null
@@ -42,6 +43,12 @@ export default defineStore('playlist-tracks', {
         // The track the edit mode opened on (from its context menu), by hash,
         // so the list can scroll it into view. Empty when opened from the page.
         editFocus: '',
+        // The view's sort and filter (components/PlaylistView/AfterHeader.vue).
+        // They shape what is DRAWN and what plays from it; the stored order is
+        // never touched by them.
+        sortBy: <PlaylistSortKey>'',
+        sortReverse: false,
+        filters: noFilters(),
     }),
     actions: {
         /**
@@ -185,8 +192,9 @@ export default defineStore('playlist-tracks', {
          * Enter the edit mode. It works on the WHOLE list, so the rest is
          * loaded first — a grip can only move a row between rows that exist,
          * and a playlist that stops at its first page would offer a
-         * reordering of page one. The in-playlist search is cleared: the edit
-         * list shows every track in stored order, never a filtered view.
+         * reordering of page one. The in-playlist search and the sort and
+         * filter are cleared: the edit list shows every track in stored order,
+         * never a filtered or re-sorted view.
          */
         async startEditing(focusTrackhash = '') {
             const id = this.info.id
@@ -196,8 +204,31 @@ export default defineStore('playlist-tracks', {
             // and "Remove" would post the old hashes to the new playlist's id.
             if (this.info.id !== id) return
             this.query = ''
+            this.clearView()
             this.editFocus = focusTrackhash
             this.editing = true
+        },
+        /**
+         * Loads the WHOLE playlist, once per playlist. The in-playlist search,
+         * the sort and the filters all answer over every track, not the pages
+         * scrolled so far, so the first of them loads the rest; the ones after
+         * it join the same load. Never rejects: a failed load leaves the view
+         * on the pages it has, and the next try starts it again.
+         */
+        async ensureAllLoaded(): Promise<void> {
+            if (this.allLoaded) return
+            const id = this.info.id
+            if (searchLoad?.id !== id) {
+                // A failed load leaves the view on the pages it has; the next
+                // try starts it again. Never a rejection for the caller to drop.
+                const done = this.fetchAll(id, false, true)
+                    .catch(() => {})
+                    .finally(() => {
+                        if (searchLoad?.done === done) searchLoad = null
+                    })
+                searchLoad = { id, done }
+            }
+            await searchLoad.done
         },
         /**
          * The in-playlist search. It answers over the WHOLE playlist, not the
@@ -208,19 +239,34 @@ export default defineStore('playlist-tracks', {
          */
         async setQuery(query: string) {
             this.query = query
-            if (!query || this.allLoaded) return
-            const id = this.info.id
-            if (searchLoad?.id !== id) {
-                // A failed load leaves the search on the pages it has; the next
-                // keystroke tries again. Never a rejection for the field to drop.
-                const done = this.fetchAll(id, false, true)
-                    .catch(() => {})
-                    .finally(() => {
-                        if (searchLoad?.done === done) searchLoad = null
-                    })
-                searchLoad = { id, done }
+            if (!query) return
+            await this.ensureAllLoaded()
+        },
+        /**
+         * Picks a sort key. Picking the key that is already active flips its
+         * direction; picking a new one starts it in its own default direction
+         * (newest first for "Date added", most played first for "Plays").
+         * Sorting needs the whole list, the same as a search does.
+         */
+        async setSort(key: PlaylistSortKey) {
+            if (key && key === this.sortBy) {
+                this.sortReverse = !this.sortReverse
+            } else {
+                this.sortBy = key
+                this.sortReverse = key ? SORT_DEFAULT_REVERSE[key] : false
             }
-            await searchLoad.done
+            if (this.viewShaped) await this.ensureAllLoaded()
+        },
+        async toggleFilter(name: keyof PlaylistFilters) {
+            this.filters[name] = !this.filters[name]
+            if (this.viewShaped) await this.ensureAllLoaded()
+        },
+        // Back to the playlist's own order and no filter. A view belongs to the
+        // playlist it was set on, so it is dropped with the playlist.
+        clearView() {
+            this.sortBy = ''
+            this.sortReverse = false
+            this.filters = noFilters()
         },
         stopEditing() {
             this.editing = false
@@ -241,6 +287,7 @@ export default defineStore('playlist-tracks', {
             this.loadedHashCount = 0
             // A search belongs to the playlist it was typed on.
             this.query = ''
+            this.clearView()
             this.stopEditing()
         },
         resetAll() {
@@ -255,8 +302,16 @@ export default defineStore('playlist-tracks', {
             return useFuse(this.query, this.allTracks, FuseTrackOptions)
         },
 
+        // Whether the view is sorted or filtered at all. The play path and the
+        // drag handle read it: what is on screen then is not the whole list.
+        viewShaped(): boolean {
+            return isViewShaped(this.sortBy, this.filters)
+        },
+
         tracks(): Track[] {
-            const tracks = this.filteredTracks.value.map((result: FuseResult) => {
+            // `index` stays the position in allTracks, whatever the sort: the
+            // play path and the drag reorder both address the stored list by it.
+            const list = this.filteredTracks.value.map((result: FuseResult) => {
                 const t = {
                     ...result.item,
                     index: result.refIndex,
@@ -265,7 +320,7 @@ export default defineStore('playlist-tracks', {
                 return t
             })
 
-            return tracks
+            return shapeTracks(list, this.sortBy, this.sortReverse, this.filters)
         },
     },
 })

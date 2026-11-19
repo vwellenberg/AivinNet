@@ -112,10 +112,12 @@ const getNoItemsComponent = () =>
         props: {
             icon: playlistSvg,
             flag: playlist.tracks.length === 0,
-            ...(playlist.query && playlist.allTracks.length
+            ...((playlist.query || playlist.viewShaped) && playlist.allTracks.length
                 ? {
                       title: 'No matching tracks',
-                      description: `Nothing in this playlist matches "${playlist.query}"`,
+                      description: playlist.query
+                          ? `Nothing in this playlist matches "${playlist.query}"`
+                          : 'Nothing in this playlist matches the active filters',
                   }
                 : {
                       title: 'No tracks in this playlist',
@@ -152,12 +154,17 @@ const scrollerItems = computed(() => {
         //
         //   cap   2.4rem bar + $medium (0.75rem) padding
         //   plain 4rem   bar + $small  (0.5rem)  padding
-        size: captionCapsList ? 3.15 * 16 : 4.5 * 16,
+        //   + the sort/filter row above the bar, when it renders (there are
+        //     tracks): a 44px control row + $small padding = 3.25rem. Only an
+        //     estimate like the rest: the scroller measures the real height.
+        size: (captionCapsList ? 3.15 * 16 : 4.5 * 16) + (playlist.allTracks.length > 0 ? 3.25 * 16 : 0),
         props: {
             show_date_added: isStoredPlaylist.value,
             caps_list: captionCapsList,
             editable: isStoredPlaylist.value && playlist.allTracks.length > 0,
             findable: playlist.allTracks.length > 0,
+            shapeable: playlist.allTracks.length > 0,
+            show_added_sort: isStoredPlaylist.value,
         },
     }
 
@@ -184,7 +191,9 @@ const scrollerItems = computed(() => {
                 // so the two halves cannot drift apart.
                 is_first: !captionCapsList && i === 0,
                 is_last: i === playlist.tracks.length - 1,
-                droppable: !playlist.query,
+                // A row dragged in a sorted or filtered view would reorder the
+                // stored playlist by DISPLAY positions, so the view is not a drag source.
+                droppable: !playlist.query && !playlist.viewShaped,
                 source: dropSources.playlist,
                 show_date_added: isStoredPlaylist.value,
                 // Fade follows the RENDERED position (i) for the same reason
@@ -222,7 +231,9 @@ const scrollerItems = computed(() => {
     // switch's fetchAll has actually requested page 1 (cursor advanced, info.id
     // now correct), which kills the race while still paginating an
     // orphan-shortened OR all-orphan first page. Don't auto-load during a search.
-    if (playlist.loadedHashCount > 0 && !playlist.allLoaded && !playlist.query) {
+    // A sorted or filtered view loads everything when it is set, so the
+    // sentinel has nothing to do there.
+    if (playlist.loadedHashCount > 0 && !playlist.allLoaded && !playlist.query && !playlist.viewShaped) {
         body.push({
             id: 'tracks-fetcher',
             size: 1,
@@ -284,6 +295,17 @@ async function playFromPlaylistPage(index: number) {
         // count > resolvable tracks forever, so the old gate re-fetched on
         // every play. Await so the queue is built from the complete list.
         await playlist.fetchAll(id, false, true)
+    }
+
+    // Once the view is sorted or filtered, what you see is what plays: the
+    // queue is the list on screen, in its order, and the row you clicked is
+    // found in that list. Without a view the whole playlist plays, even with
+    // a find query on — the find is a way to locate a track, not a new list.
+    if (playlist.viewShaped) {
+        const pos = playlist.tracks.findIndex(t => t.index === index)
+        tracklist.setFromPlaylist(name, id, playlist.tracks)
+        queue.play(Math.max(0, pos))
+        return
     }
 
     tracklist.setFromPlaylist(name, id, playlist.allTracks)

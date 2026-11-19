@@ -293,3 +293,132 @@ describe('playlist store in-playlist find, failing load', () => {
         expect(store.allLoaded).toBe(true)
     })
 })
+
+// The view's sort and filter shape what is drawn, never the stored list. Their
+// index must still point at the stored position, and they load the rest the
+// same way a search does.
+describe('playlist store sort and filter', () => {
+    const all120 = () => Array.from({ length: 120 }, (_, i) => mkTrack(i + 1))
+
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        getPlaylist.mockReset()
+    })
+
+    const loaded = (tracks: any[]) => {
+        const store = usePlaylistStore()
+        store.allTracks = tracks
+        store.allLoaded = true
+        store.info = mkInfo(tracks.length) as any
+        return store
+    }
+
+    async function firstPageOf120() {
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: all120().slice(0, 50) })
+        const store = usePlaylistStore()
+        await store.fetchAll(59)
+        expect(store.allLoaded).toBe(false)
+        return store
+    }
+
+    it('tracks keeps index = position in allTracks under sort and filter', async () => {
+        const store = loaded([
+            { ...mkTrack(1), title: 'Charlie' },
+            { ...mkTrack(2), title: 'Alpha', is_favorite: true },
+            { ...mkTrack(3), title: 'Bravo', is_favorite: true },
+        ])
+
+        await store.setSort('title')
+        expect(store.tracks.map(t => t.index)).toEqual([1, 2, 0])
+
+        await store.toggleFilter('favorites')
+        expect(store.tracks.map(t => t.trackhash)).toEqual(['h2', 'h3'])
+        expect(store.tracks.map(t => t.index)).toEqual([1, 2])
+    })
+
+    it('setSort flips the direction on the same key and starts a new key in its own default', async () => {
+        const store = loaded([mkTrack(1)])
+
+        await store.setSort('playcount')
+        expect(store.sortBy).toBe('playcount')
+        expect(store.sortReverse).toBe(true)
+
+        await store.setSort('playcount')
+        expect(store.sortReverse).toBe(false)
+
+        await store.setSort('title')
+        expect(store.sortBy).toBe('title')
+        expect(store.sortReverse).toBe(false)
+
+        await store.setSort('added')
+        expect(store.sortReverse).toBe(true)
+
+        await store.setSort('')
+        expect(store.sortBy).toBe('')
+        expect(store.sortReverse).toBe(false)
+        expect(store.viewShaped).toBe(false)
+        // Fully loaded: none of it needs the server.
+        expect(getPlaylist).not.toHaveBeenCalled()
+    })
+
+    it('a sort loads the whole playlist once, and a filter after it loads nothing more', async () => {
+        const store = await firstPageOf120()
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: all120() })
+
+        await store.setSort('title')
+        expect(getPlaylist).toHaveBeenCalledTimes(2)
+        expect(getPlaylist).toHaveBeenLastCalledWith(59, false, 0, -1)
+        expect(store.allLoaded).toBe(true)
+
+        await store.toggleFilter('favorites')
+        expect(getPlaylist).toHaveBeenCalledTimes(2)
+    })
+
+    it('a filter alone loads the whole playlist once', async () => {
+        const store = await firstPageOf120()
+        getPlaylist.mockResolvedValueOnce({ info: mkInfo(120), tracks: all120() })
+
+        await store.toggleFilter('unplayed')
+        expect(getPlaylist).toHaveBeenCalledTimes(2)
+        expect(store.allLoaded).toBe(true)
+    })
+
+    it('a sort and a filter clicked together share one full load', async () => {
+        const store = await firstPageOf120()
+        let finish: (value: unknown) => void = () => {}
+        getPlaylist.mockReturnValueOnce(new Promise(resolve => (finish = resolve)))
+
+        const sorting = store.setSort('artist')
+        const filtering = store.toggleFilter('topRated')
+        finish({ info: mkInfo(120), tracks: all120() })
+        await Promise.all([sorting, filtering])
+
+        expect(getPlaylist).toHaveBeenCalledTimes(2)
+        expect(store.allLoaded).toBe(true)
+    })
+
+    it('resetTracks drops the view together with the playlist it was set on', () => {
+        const store = loaded([mkTrack(1)])
+        store.sortBy = 'title'
+        store.sortReverse = true
+        store.filters.favorites = true
+
+        store.resetTracks()
+
+        expect(store.sortBy).toBe('')
+        expect(store.sortReverse).toBe(false)
+        expect(store.filters).toEqual({ unplayed: false, favorites: false, topRated: false })
+    })
+
+    it('startEditing shows the stored order: the view is cleared first', async () => {
+        const store = loaded([mkTrack(1), mkTrack(2)])
+        store.sortBy = 'duration'
+        store.filters.topRated = true
+
+        await store.startEditing()
+
+        expect(store.editing).toBe(true)
+        expect(store.sortBy).toBe('')
+        expect(store.viewShaped).toBe(false)
+    })
+})
