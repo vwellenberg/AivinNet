@@ -156,19 +156,40 @@ function tagFor(order: Order) {
 
 type Item = { image?: string; help_text?: string; has_artwork?: boolean };
 
-async function fetchShown(type: "albums" | "artists", sortby: string) {
-  const res = await getAllItems(type, { start: 0, limit: FETCH_LIMIT, sortby, reverse: "1", artwork: true });
+async function fetchShown(type: "albums" | "artists", sortby: string, start = 0) {
+  const res = await getAllItems(type, { start, limit: FETCH_LIMIT, sortby, reverse: "1", artwork: true });
   if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
   // Capped here too: the endpoint may send more than was asked for.
   return { total: res.data.total, items: (res.data.items as Item[]).slice(0, FETCH_LIMIT) };
 }
 
 const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
+const withArtwork = (it: Item) => !!it.image && it.has_artwork !== false;
+
+// The newest albums, page by page, until SHOWN_MAX of them have artwork, the
+// list runs out, or ALBUM_PAGES pages were read. One page was not enough: a
+// batch of newly added albums without covers filled all sixteen places, and
+// the crate stood empty beside its count of 898 albums.
+const ALBUM_PAGES = 4;
+
+async function fetchNewestAlbums() {
+  const first = await fetchShown("albums", "created_date");
+  if (!first) return null;
+  const items = [...first.items];
+  let page: typeof first | null = first;
+  for (let i = 1; i < ALBUM_PAGES; i++) {
+    if (items.filter(withArtwork).length >= SHOWN_MAX || page.items.length < FETCH_LIMIT) break;
+    page = await fetchShown("albums", "created_date", i * FETCH_LIMIT);
+    if (!page) break;
+    items.push(...page.items);
+  }
+  return { total: first.total, items };
+}
 
 // Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
-// the newest albums (what came in last is what one looks for), the most-played
-// artists. The board says "MOST PLAYED", so an artist with no plays never
-// stands in that row: a library with two played artists shows those two, not
+// the newest albums (further back while too few of them have artwork, see
+// fetchNewestAlbums), the most-played artists. The board says "MOST PLAYED",
+// so an artist with no plays never stands in that row: a library with two played artists shows those two, not
 // five arbitrary ones beside them. While no played artist has a picture of
 // its own yet (nothing played, or only artists without an image), the row is
 // the newest artists and says "NEW IN".
@@ -186,7 +207,7 @@ async function load(entity: CrateEntity) {
   try {
     let order: Order = FIRST_ORDER[entity];
     let page =
-      entity === "album" ? await fetchShown("albums", "created_date") : await fetchShown("artists", "playcount");
+      entity === "album" ? await fetchNewestAlbums() : await fetchShown("artists", "playcount");
     if (entity === "artist" && page) {
       const played = page.items.filter((it) => !unplayed(it) && it.has_artwork !== false);
       if (played.length) {
@@ -204,7 +225,7 @@ async function load(entity: CrateEntity) {
 
     const base = entity === "album" ? paths.images.thumb.medium : paths.images.artist.medium;
     data[entity].images = page.items
-      .filter((it) => it.image && it.has_artwork !== false)
+      .filter(withArtwork)
       .map((it) => base + it.image)
       .slice(0, SHOWN_MAX);
   } catch {
