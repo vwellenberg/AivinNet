@@ -74,7 +74,7 @@ import { Track } from '@/interfaces'
 import { isMedium, isSmall } from '@/stores/content-width'
 import useFavorites from '@/stores/favorites'
 import useQueueStore from '@/stores/queue'
-import { showDragStart, trackBandClass } from '@/utils/songItemMethods'
+import { isSameRecording, showDragStart, trackBandClass } from '@/utils/songItemMethods'
 
 import TrackAlbum from './SongItem/TrackAlbum.vue'
 import TrackDateAdded from './SongItem/TrackDateAdded.vue'
@@ -253,7 +253,8 @@ function isCurrent() {
         return queue.currentindex === props.queue_index
     }
 
-    return queue.currenttrackhash == props.track.trackhash
+    if (queue.currenttrackhash != props.track.trackhash) return false
+    return isSameRecording(queue.currenttrack, props.track)
 }
 
 function isCurrentPlaying() {
