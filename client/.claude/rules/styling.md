@@ -423,7 +423,25 @@ CSS-Regel, und `background-color` darf nie über die `background`-Kurzform geset
 wischt die Bild-Ebene weg).
 
 **Die Kachelgröße folgt der Fläche:** 28 px auf einem 44-px-Button, 38 px auf einer Zeile, die
-sechsmal so breit ist. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+sechsmal so breit ist.
+
+⚠️ **Drei Motive, jedes mit EINER Aufgabe** (Nutzer, 2026-11-19). Die alte 46er-Zelle mit sechs
+Strichen wiederholte sich alle 38 px und las sich auf breiten Platten (Browse-Kiste) als
+Tapetenraster. Ein Blue-Noise-Feld war der erste Wurf und las sich als Terrazzo-Stein — Memphis
+sind aber **gezeichnete Rapporte** (Sottsass' „Bacterio“, Du Pasquiers Stoffe). Jetzt, alle in
+`_candy.scss` (`$mem-hatch-motifs`, `mem-hatch-sprite()`):
+
+| Motiv | Aufgabe | Token / Mixin |
+|---|---|---|
+| **Konfetti** — Striche auf versetztem Dreiecksraster, 0/60/120° | die Schraffur („drückbar“) | `--mem-hatch*`, `mem-hatch(…)` |
+| **Bacterio** — S-Kringel, abwechselnd 90° gedreht | dieselbe Aussage auf **großen** Platten, wo Konfetti zur Tapete wird (heute: Browse-Kisten) | `--mem-hatch-big*`, `mem-hatch(…, $motif: bacterio)` |
+| **Strich & Punkt** — Reihen „/“, Punkte, „\“, Punkte | der Sprinkle (Haupt-CTA, „an“) | `mem-sprinkle` (quadratisch, weil die Jahreszeiten ihn durch eigene Quadrate ersetzen) |
+
+**`$size` meint weiter die alte 46er-Zelle**, und **jedes `background-size` einer Schraffur geht
+durch `mem-hatch-tile($size, $motif)`** — die Kacheln sind nicht quadratisch, ein nacktes
+`38px 38px` neben `--mem-hatch*` staucht sie. Ein Hover auf einer Bacterio-Platte tauscht auf
+`--mem-hatch-big-hover`, nie auf `--mem-hatch-hover` (anderes Motiv, andere Kachel). Boring setzt
+alle sechs Hatch-Tokens auf `none`. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt

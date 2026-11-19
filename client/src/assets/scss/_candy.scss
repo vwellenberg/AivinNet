@@ -1120,7 +1120,7 @@ $mem-seg-reserve: 4px !default;
     var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
-  background-size: 9px 14px, 38px 38px;
+  background-size: 9px 14px, mem-hatch-tile(38px);
 }
 
 // ---------------------------------------------------------------------------
@@ -1201,9 +1201,49 @@ $mem-seg-reserve: 4px !default;
 // that is six times as wide. The button tile on a row reads as a textile print
 // (measured against the 260x44 row in the mockup round for #378).
 // ---------------------------------------------------------------------------
-@mixin mem-hatch($size: 38px, $on: surface) {
-  background-image: if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
-  background-size: $size $size;
+// The hatch MOTIFS (user, 2026-11-19). The hatch used to be one 46-unit cell of
+// six strokes, tiled every 38px — on a plate as wide as a Browse crate that
+// reads as a wallpaper grid. A blue-noise field was tried first and read as
+// terrazzo stone, not as a Memphis print: Memphis patterns are DRAWN repeats
+// (Sottsass' "Bacterio", Du Pasquier's textiles), playful but composed. So the
+// textures are now three regular motifs, each with one job:
+//
+//   confetti  the hatch ("you can press this", #378): short strokes on a
+//             staggered triangular lattice, angles cycling 0/60/120°.
+//   bacterio  the same statement on LARGE plates, where confetti turns into
+//             wallpaper (#468's ceiling): little S-squiggles, alternately turned
+//             90°. Today only the Browse crates.
+//   dash-dot  the sprinkle (`mem-sprinkle`, primary CTA and "on" states), not a
+//             hatch — rows of "/" , dots, "\" , dots. Below, at mem-sprinkle.
+//
+// `$size` everywhere still means "the old 46-unit cell", so a 28px button and a
+// 38px row keep their stroke scale; `mem-hatch-tile()` turns it into the
+// motif's own (non-square) tile. Never write a bare `38px 38px` next to a
+// `--mem-hatch*` token — that squashes the tile.
+$mem-hatch-motifs: (
+  confetti: (w: 60, h: 52, d: "M6 8.7l8 0M28 5.2l4 6.9M52 5.2l-4 6.9M18 22.5l4 6.9M42 22.5l-4 6.9M-4 26l8 0M56 26l8 0M12 39.9l-4 6.9M26 43.3l8 0M48 39.9l4 6.9"),
+  bacterio: (w: 52, h: 44, d: "M7 12.5c2 -4 4 -4 6 0c2 4 4 4 6 0M37.5 5c4 2 4 4 0 6c-4 2 -4 4 0 6M24.5 27c4 2 4 4 0 6c-4 2 -4 4 0 6M-6 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0M46 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0"),
+);
+
+@function mem-hatch-tile($size, $motif: confetti) {
+  $m: map-get($mem-hatch-motifs, $motif);
+  // calc(), not Sass arithmetic: this file has no `sass:math`, and `/` is
+  // deprecated division in Dart Sass.
+  @return calc(#{$size} * #{map-get($m, w)} / 46) calc(#{$size} * #{map-get($m, h)} / 46);
+}
+
+@function mem-hatch-sprite($stroke, $opacity, $motif: confetti) {
+  $m: map-get($mem-hatch-motifs, $motif);
+  @return url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="#{map-get($m, w)}" height="#{map-get($m, h)}"><path fill="none" stroke="#{$stroke}" stroke-opacity="#{$opacity}" stroke-width="2.6" stroke-linecap="round" d="#{map-get($m, d)}"/></svg>');
+}
+
+// `$motif: bacterio` reads the `--mem-hatch-big*` tokens; a hover on such a
+// plate swaps to `--mem-hatch-big-hover`, never to `--mem-hatch-hover` (that
+// is the other motif, and its tile size would not match).
+@mixin mem-hatch($size: 38px, $on: surface, $motif: confetti) {
+  $prefix: if($motif == bacterio, "--mem-hatch-big", "--mem-hatch");
+  background-image: if($on == accent, var(#{$prefix}-accent), var(#{$prefix}));
+  background-size: mem-hatch-tile($size, $motif);
 }
 
 // ---------------------------------------------------------------------------
@@ -1234,7 +1274,7 @@ $mem-seg-reserve: 4px !default;
     if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
   background-clip: content-box, border-box;
   background-repeat: no-repeat, repeat;
-  background-size: auto, $size $size;
+  background-size: auto, mem-hatch-tile($size);
 }
 
 // How much of a texture the text takes away under itself (user, 2026-10-16,
@@ -1370,7 +1410,7 @@ $mem-label-clear: 20rem !default;
     inset: 0;
     border-radius: inherit;
     background-image: var(--label-hatch);
-    background-size: $size $size;
+    background-size: mem-hatch-tile($size);
     // SOFT since 2026-10-16 (concept "C"): full strength at the edge, fading
     // to what the veil leaves under the label — the same rest as under any
     // hatched text, nothing since 2026-11-04 — instead of a hard hole cut out
@@ -1501,7 +1541,10 @@ $mem-label-clear: 20rem !default;
 // combine with a background-color on the same element (use background-color,
 // not the background shorthand, or the image layer gets wiped).
 @mixin mem-sprinkle($size: 46px) {
-  background-image: var(--shape-sprinkle, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>'));
+  // The dash-dot motif (see the hatch motifs above): rows of "/", dots, "\\",
+  // dots on a square 48-unit tile — square because a season swaps in its own
+  // square sprite through `--shape-sprinkle` (Global/_seasons.scss).
+  background-image: var(--shape-sprinkle, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><g fill="none" stroke="%2317171A" stroke-linecap="round"><path stroke-width="2.6" d="M3.2 8.8l5.7 -5.7M3.2 56.8l5.7 -5.7M51.2 8.8l5.7 -5.7M51.2 56.8l5.7 -5.7M27.2 8.8l5.7 -5.7M27.2 56.8l5.7 -5.7M3.2 27.2l5.7 5.7M51.2 27.2l5.7 5.7M27.2 27.2l5.7 5.7"/><path stroke-width="4" d="M18 18h0M-6 18h0M42 18h0M18 -6h0M18 42h0M-6 -6h0M-6 42h0M42 -6h0M42 42h0"/></g></svg>'));
   background-size: $size $size;
 }
 
