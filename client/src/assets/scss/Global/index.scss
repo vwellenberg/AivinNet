@@ -62,6 +62,7 @@
     --mem-hover: #{$mem-ink};
     --mem-hover-text: #{$mem-panel-static};
     --mem-hatch-hover: #{mem-hatch-sprite("%23F4F2ED", 0.34)};
+    --mem-hatch-big-hover: #{mem-hatch-sprite("%23F4F2ED", 0.34, bacterio)};
     // Translucent ground plate behind track lists: text reads clearly while
     // the grid + doodles still shimmer through.
     --mem-veil: #{mem-alpha($mem-paper, 0.92)};
@@ -86,7 +87,9 @@
     // pseudo-elements on their drag/drop markers (styling.md), so the texture
     // has to be a background layer rather than a ::before.
     --mem-hatch: #{mem-hatch-sprite("%2317171A", 0.30)};
+    --mem-hatch-big: #{mem-hatch-sprite("%2317171A", 0.30, bacterio)};
     --mem-hatch-accent: #{mem-hatch-sprite("%2317171A", 0.42)};
+    --mem-hatch-big-accent: #{mem-hatch-sprite("%2317171A", 0.42, bacterio)};
     // The seek and volume bars' own ground, behind the played and buffered
     // spans (LeftSidebar/NP/Progress.vue, BottomBar/Volume.vue). The Memphis dark
     // block below takes both down; a look still overrides them with --look-track*.
@@ -123,6 +126,7 @@ body.theme-dark {
     --mem-hover: #{$mem-dark-line};
     --mem-hover-text: #{$mem-dark-ground};
     --mem-hatch-hover: #{mem-hatch-sprite("%2317171A", 0.34)};
+    --mem-hatch-big-hover: #{mem-hatch-sprite("%2317171A", 0.34, bacterio)};
     --mem-veil: #{rgba($mem-dark-ground, 0.92)};
     // Ink is invisible on the indigo ground — the offset becomes a soft paper
     // edge instead, matching the paper borders of this theme.
@@ -135,6 +139,7 @@ body.theme-dark {
     // overridden here on purpose: blush, teal and yellow are the same colour in
     // both themes, so their texture stays ink — exactly like the glyphs on them.
     --mem-hatch: #{mem-hatch-sprite("%23F4F2ED", 0.26)};
+    --mem-hatch-big: #{mem-hatch-sprite("%23F4F2ED", 0.26, bacterio)};
     // Paper dots on the dark ground and panels, quiet (22%). Ink ones vanished
     // there; paper ones went once and came back the same day, with the darker
     // dark theme (user, 2026-10-17). A dot on an accent keeps its static ink.

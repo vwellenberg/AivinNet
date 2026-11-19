@@ -285,7 +285,9 @@ onMounted(() => {
     // same `--row-fill` as the card itself, so a fill swap carries over.
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
-    @include mem-hatch(38px, $on: surface);
+    // A plate this wide carries the big motif (bacterio) — confetti at this
+    // size reads as wallpaper (_candy.scss, hatch motifs).
+    @include mem-hatch(38px, $on: surface, $motif: bacterio);
     // Hard offset shadow: the tile sits above the grid ground (memphis).
     @include candy-raised(3px, 3px, $press: false);
     color: $candy-text;
@@ -422,7 +424,7 @@ onMounted(() => {
   @each $name in album, artist {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
-      @include mem-hatch(38px, $on: accent);
+      @include mem-hatch(38px, $on: accent, $motif: bacterio);
       color: $mem-ink;
     }
   }
@@ -432,7 +434,7 @@ onMounted(() => {
     background-color: var(--mem-hover);
     // The hatch answers the fill (#422): paper strokes on the dark plate in
     // light mode, ink strokes on the paper plate in dark mode.
-    background-image: var(--mem-hatch-hover);
+    background-image: var(--mem-hatch-big-hover);
     // The text token travels with the fill (#422) — the fill is the contrast
     // surface now, so without this the tile is an unreadable solid plate.
     color: var(--mem-hover-text);
