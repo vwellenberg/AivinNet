@@ -188,9 +188,10 @@ async function fetchNewestAlbums() {
 
 // Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
 // the newest albums (further back while too few of them have artwork, see
-// fetchNewestAlbums), the most-played artists. The board says "MOST PLAYED",
-// so an artist with no plays never stands in that row: a library with two played artists shows those two, not
-// five arbitrary ones beside them. While no played artist has a picture of
+// fetchNewestAlbums; the most-played ones if none of those has a cover), the
+// most-played artists. The board says "MOST PLAYED", so an album or artist
+// with no plays never stands in that row: a library with two played artists
+// shows those two, not five arbitrary ones beside them. While no played artist has a picture of
 // its own yet (nothing played, or only artists without an image), the row is
 // the newest artists and says "NEW IN".
 //
@@ -208,6 +209,17 @@ async function load(entity: CrateEntity) {
     let order: Order = FIRST_ORDER[entity];
     let page =
       entity === "album" ? await fetchNewestAlbums() : await fetchShown("artists", "playcount");
+    if (entity === "album" && page && !page.items.some(withArtwork)) {
+      // Not one cover among the newest: a large import without artwork (176
+      // episodes of a show, each its own album) leaves nothing to show there.
+      // The most-played albums with a cover stand in, under MOST PLAYED.
+      const top = await fetchShown("albums", "playcount");
+      const played = top ? top.items.filter((it) => !unplayed(it) && withArtwork(it)) : [];
+      if (played.length) {
+        page = { ...page, items: played };
+        order = "most-played";
+      }
+    }
     if (entity === "artist" && page) {
       const played = page.items.filter((it) => !unplayed(it) && it.has_artwork !== false);
       if (played.length) {
