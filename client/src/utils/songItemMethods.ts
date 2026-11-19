@@ -126,36 +126,30 @@ export function handleDrop(e: DragEvent, index: number, top: boolean) {
 }
 
 /**
- * How far apart (s) two files' durations may be and still count as the same
- * recording — a FLAC and an MP3 of one song differ by encoder padding, not by
- * seconds of music.
- */
-export const SAME_RECORDING_TOLERANCE = 2;
-
-/**
- * Whether `row` is the recording that `playing` is — given both already share
- * a trackhash.
+ * Whether `row` is the file that `playing` is — given both already share a
+ * trackhash.
  *
  * ⚠️ A trackhash is `title + album + artists`, not the file. Files that agree
  * on all three share one hash even when they are different songs: a game
- * soundtrack whose region themes are all titled "2" lit up four rows of
- * different lengths as "now playing". The same hash also groups genuine
- * duplicates (FLAC + MP3 of one song), and a collapsed list (album view) shows
- * only one of them — which need not be the file that is playing. So:
+ * soundtrack whose region themes are all titled "2" or "3" lit up every row of
+ * that title as "now playing". So two known filepaths have to be equal.
  *
- * - same file → same recording;
- * - different file, durations within the tolerance → a duplicate, still marked;
- * - different file, durations apart → a different song behind the same hash.
+ * Not the duration: #858 let files within 2 s of each other count as the same
+ * recording (FLAC + MP3), and two of those "3" themes are 0:28 and 0:26 long —
+ * both stayed lit. Short tracks of one series are often that close.
  *
- * Missing data (no current track, no filepath, no duration) falls back to the
- * hash alone, which is what callers checked before.
+ * What this gives up: a collapsed list (album view, playlist) shows one file
+ * per hash, the best-bitrate one, and the queue is built from that same file
+ * when playback starts there. Only a lower-bitrate duplicate started from the
+ * folder view goes unmarked on the album page — no marker beats a wrong one.
+ *
+ * Without a filepath on either side (an old saved queue) the hash alone
+ * decides, which is what callers checked before.
  */
 export function isSameRecording(
-  playing: Pick<Track, "filepath" | "duration"> | undefined | null,
-  row: Pick<Track, "filepath" | "duration">
+  playing: Pick<Track, "filepath"> | undefined | null,
+  row: Pick<Track, "filepath">
 ): boolean {
   if (!playing?.filepath || !row.filepath) return true;
-  if (playing.filepath === row.filepath) return true;
-  if (!playing.duration || !row.duration) return true;
-  return Math.abs(playing.duration - row.duration) <= SAME_RECORDING_TOLERANCE;
+  return playing.filepath === row.filepath;
 }

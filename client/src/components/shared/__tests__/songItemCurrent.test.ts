@@ -66,7 +66,10 @@ describe('the now-playing marker', () => {
         }
     })
 
-    it('still marks a duplicate file of the playing song', () => {
-        expect(mountRow(row('/music/patrician/2a.flac', 159)).classes()).toContain('current')
+    it('does not mark a song of nearly the same length', () => {
+        // The two "3" themes, 0:28 and 0:26.
+        queue.currenttrack = row('/music/patrician/3a.ogg', 28)
+        expect(mountRow(row('/music/patrician/3a.ogg', 28)).classes()).toContain('current')
+        expect(mountRow(row('/music/patrician/3b.ogg', 26)).classes()).not.toContain('current')
     })
 })
