@@ -1,8 +1,8 @@
 """
 AivinNet MCP server — manage a music library from an MCP client (e.g. Claude).
 
-Playlist tools (list/get/move/sort/prune/create/rename/pin) plus track tag
-editing (set_track_tags).
+Library tools (search, get_album), playlist tools (list/get/move/sort/prune/
+create/rename/pin/add_tracks) plus track tag editing (set_track_tags).
 
 Auth: the AivinNet API accepts a JWT in the Authorization header
 (JWT_TOKEN_LOCATION includes "headers"). Configure via env:
@@ -92,6 +92,17 @@ def _slim_track(t: dict, index: int) -> dict:
     }
 
 
+def _failure(r: requests.Response) -> dict:
+    """The tools' common answer for a failed API call: status plus the body (JSON if it is JSON)."""
+    body: object = r.text
+    if r.headers.get("content-type", "").startswith("application/json"):
+        try:
+            body = r.json()
+        except ValueError:
+            pass
+    return {"ok": False, "status": r.status_code, "error": body}
+
+
 # ---------------------------------------------------------------- read tools
 
 
@@ -124,6 +135,81 @@ def get_playlist(playlist_id: int) -> dict:
     }
 
 
+_SEARCH_ITEMTYPES = ("tracks", "albums", "artists")
+
+
+@mcp.tool()
+def search(query: str, itemtype: str = "tracks", limit: int = 20) -> dict:
+    """
+    Search the library for tracks, albums or artists.
+
+    `itemtype` is one of: tracks, albums, artists. Tracks come back with
+    trackhash (use it for add_tracks_to_playlist); albums with albumhash;
+    artists with artisthash. To get an album's tracks with durations, pass its
+    albumhash to `get_album`.
+    """
+    if itemtype not in _SEARCH_ITEMTYPES:
+        return {"ok": False, "error": f"Unknown itemtype '{itemtype}'. Use one of: {', '.join(_SEARCH_ITEMTYPES)}."}
+    if not query or not query.strip():
+        return {"ok": False, "error": "Empty search query."}
+    if limit < 1:
+        return {"ok": False, "error": "limit must be at least 1."}
+
+    r = _api(
+        "GET",
+        "/search/",
+        params={"q": query.strip(), "itemtype": itemtype, "start": 0, "limit": limit},
+    )
+    if not r.ok:
+        return _failure(r)
+
+    j = r.json()
+    items = j.get("results") or []
+    if itemtype == "tracks":
+        results = [_slim_track(t, i) for i, t in enumerate(items)]
+    elif itemtype == "albums":
+        results = [
+            {
+                "albumhash": a.get("albumhash"),
+                "title": a.get("title"),
+                "albumartists": [x.get("name") for x in (a.get("albumartists") or [])],
+                "date": a.get("date"),
+            }
+            for a in items
+        ]
+    else:
+        results = [{"artisthash": a.get("artisthash"), "name": a.get("name")} for a in items]
+    return {"ok": True, "itemtype": itemtype, "more": bool(j.get("more")), "results": results}
+
+
+@mcp.tool()
+def get_album(albumhash: str) -> dict:
+    """
+    Get an album's info and its tracks (title, artists, album, duration, trackhash).
+
+    `duration` is in seconds, so a caller can e.g. drop short jingles before
+    adding tracks to a playlist. One soundtrack can be split into several albums
+    with the same title (different album artists); `search` with itemtype
+    "albums" lists them all, each with its own albumhash.
+    """
+    r = _api("POST", "/album", json={"albumhash": albumhash})
+    if not r.ok:
+        return _failure(r)
+
+    j = r.json()
+    info = j.get("info") or {}
+    tracks = j.get("tracks") or []
+    return {
+        "ok": True,
+        "albumhash": info.get("albumhash", albumhash),
+        "title": info.get("title"),
+        "albumartists": [a.get("name") for a in (info.get("albumartists") or [])],
+        "trackcount": info.get("trackcount"),
+        "duration": info.get("duration"),
+        "tracks": [_slim_track(t, i) for i, t in enumerate(tracks)],
+    }
+
+
 # -------------------------------------------------------------- action tools
 
 
@@ -150,8 +236,7 @@ def move_playlist_track(playlist_id: int, trackhash: str, before_trackhash: str 
     if r.ok:
         return {"ok": True, "moved": trackhash, "before": before_trackhash}
 
-    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-    return {"ok": False, "status": r.status_code, "error": body}
+    return _failure(r)
 
 
 @mcp.tool()
@@ -223,8 +308,7 @@ def create_playlist(name: str) -> dict:
     r = _api("POST", "/playlists/new", json={"name": name})
     if r.status_code == 201:
         return {"ok": True, "playlist": r.json().get("playlist")}
-    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-    return {"ok": False, "status": r.status_code, "error": body}
+    return _failure(r)
 
 
 @mcp.tool()
@@ -239,6 +323,89 @@ def pin_playlist(playlist_id: int) -> dict:
     """Toggle pin/unpin for a playlist (pinned playlists show at the top)."""
     r = _api("POST", f"/playlists/{playlist_id}/pin_unpin")
     return {"ok": r.ok}
+
+
+# The resolve endpoint caps one request; larger lists are checked in chunks.
+_RESOLVE_CHUNK = 1000
+
+
+def _unknown_trackhashes(trackhashes: list[str]) -> list[str] | dict:
+    """Hashes no track in the library carries, or a failure dict if the check itself failed."""
+    known: set[str] = set()
+    for i in range(0, len(trackhashes), _RESOLVE_CHUNK):
+        r = _api("POST", "/devicesync/resolve", json={"trackhashes": trackhashes[i : i + _RESOLVE_CHUNK]})
+        if not r.ok:
+            return _failure(r)
+        known.update(t.get("trackhash") for t in r.json().get("tracks") or [])
+    return [h for h in trackhashes if h not in known]
+
+
+def _stored_count(playlist_id: int) -> int | dict:
+    """How many hashes the playlist stores (orphans included), or a failure dict."""
+    r = _api("GET", f"/playlists/{playlist_id}?no_tracks=true")
+    if not r.ok:
+        return _failure(r)
+    return int((r.json().get("info") or {}).get("count") or 0)
+
+
+@mcp.tool()
+def add_tracks_to_playlist(playlist_id: int, trackhashes: list[str]) -> dict:
+    """
+    Add tracks to a playlist. They are appended at the end, in the given order.
+
+    Hashes already in the playlist are skipped (`added` and `skipped` in the
+    answer say how many). Every hash must belong to a track in the library:
+    if one does not, nothing is written and `unknown` lists the offenders, so a
+    typo never ends up as an orphan entry. Get the hashes from `search`,
+    `get_album` or `get_playlist`. To reorder afterwards, use `move_playlist_track`.
+    """
+    cleaned: list[str] = []
+    for raw in trackhashes:
+        h = (raw or "").strip()
+        if not h:
+            return {"ok": False, "error": "Empty trackhash in the list."}
+        if "," in h:
+            return {"ok": False, "error": f"Trackhash '{h}' contains a comma; pass one hash per list item."}
+        if h not in cleaned:
+            cleaned.append(h)
+    if not cleaned:
+        return {"ok": False, "error": "No trackhashes given."}
+
+    before = _stored_count(playlist_id)
+    if isinstance(before, dict):
+        return before
+
+    unknown = _unknown_trackhashes(cleaned)
+    if isinstance(unknown, dict):
+        return unknown
+    if unknown:
+        return {
+            "ok": False,
+            "error": "Some trackhashes are not in the library; nothing was added.",
+            "unknown": unknown,
+        }
+
+    r = _api(
+        "POST",
+        f"/playlists/{playlist_id}/add",
+        json={"itemtype": "tracks", "itemhash": ",".join(cleaned)},
+    )
+    # A single hash that is already there answers 409; that is a skip, not a failure.
+    if not r.ok and not (r.status_code == 409 and len(cleaned) == 1):
+        return _failure(r)
+
+    after = _stored_count(playlist_id)
+    if isinstance(after, dict):
+        return {"ok": True, "playlist_id": playlist_id, "requested": len(cleaned)}
+    added = after - before
+    return {
+        "ok": True,
+        "playlist_id": playlist_id,
+        "requested": len(cleaned),
+        "added": added,
+        "skipped": len(cleaned) - added,
+        "count": after,
+    }
 
 
 # ----------------------------------------------------------- track tag tools
@@ -294,8 +461,8 @@ def set_track_tags(
     r = _api("PUT", f"/track/{trackhash}/tags", json=payload)
 
     if not r.ok:
-        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-        result = {"ok": False, "status": r.status_code, "error": body}
+        result = _failure(r)
+        body = result["error"]
         if isinstance(body, dict) and "filepaths" in body:
             result["filepaths"] = body["filepaths"]
         return result
