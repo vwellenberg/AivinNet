@@ -139,6 +139,55 @@ describe('Browse Library', () => {
         expect(srcs[11]).toBe('/img/thumbnail/medium/album15.webp?pathhash=15')
     })
 
+    // Regression: 898 albums, the sixteen newest a batch without covers. The
+    // crate read only that first page and stood empty beside its count.
+    it('reads further back when none of the sixteen newest albums has artwork', async () => {
+        const all = many(64).map((it, i) => (i < 16 ? { ...it, has_artwork: false } : it))
+        getAllItems.mockImplementation((type: string, o: { start: number; limit: number }) =>
+            Promise.resolve(
+                type === 'albums'
+                    ? { status: 200, data: { total: 898, items: all.slice(o.start, o.start + o.limit) } }
+                    : ARTISTS
+            )
+        )
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        const srcs = srcsOf(albums, '.covers img')
+        expect(srcs).toHaveLength(12)
+        expect(srcs[0]).toBe('/img/thumbnail/medium/album16.webp?pathhash=16')
+        expect(albums.find('.count').text()).toBe(`${(898).toLocaleString()} albums`)
+        expect(albums.find('.tag').text()).toBe('NEW IN')
+        // Two pages were enough for twelve: no third request.
+        const starts = getAllItems.mock.calls.filter(c => c[0] === 'albums').map(c => c[1].start)
+        expect(starts).toEqual([0, 16])
+    })
+
+    it('stops after four album pages, and at the end of the list', async () => {
+        const none = many(100).map(it => ({ ...it, has_artwork: false }))
+        getAllItems.mockImplementation((type: string, o: { start: number; limit: number }) =>
+            Promise.resolve(
+                type === 'albums'
+                    ? { status: 200, data: { total: 100, items: none.slice(o.start, o.start + o.limit) } }
+                    : ARTISTS
+            )
+        )
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+        expect(getAllItems.mock.calls.filter(c => c[0] === 'albums').map(c => c[1].start)).toEqual([0, 16, 32, 48])
+        expect(albums.findAll('.covers').length).toBe(0)
+
+        // A short library: the first page is the whole list, so nothing more is asked.
+        __resetBrowseCrates()
+        getAllItems.mockClear()
+        getAllItems.mockImplementation((type: string) =>
+            Promise.resolve(type === 'albums' ? { status: 200, data: { total: 3, items: none.slice(0, 3) } } : ARTISTS)
+        )
+        mountBrowse()
+        await flushPromises()
+        expect(getAllItems.mock.calls.filter(c => c[0] === 'albums')).toHaveLength(1)
+    })
+
     it('with only has_artwork false, the crate has no covers and no board', async () => {
         const none = (items: { image: string }[]) => items.map(it => ({ ...it, has_artwork: false }))
         getAllItems.mockImplementation((type: string) =>
