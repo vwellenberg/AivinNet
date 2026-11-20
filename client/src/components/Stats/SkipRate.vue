@@ -52,7 +52,7 @@
 
             <p class="skip-note">
                 A skip is under {{ percent(rules.skip_below) }} of the track, finished {{ percent(rules.finished_from) }} or more.
-                Only tracks with at least {{ rules.min_plays }} plays are ranked. Plays under 5 s are never logged, so this
+                Only tracks with at least {{ rules.min_plays }} plays are ranked. Plays under 5 s (of a longer track) are never logged, so this
                 is a lower bound.
             </p>
         </div>

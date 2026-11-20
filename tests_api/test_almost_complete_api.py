@@ -57,6 +57,19 @@ def test_an_album_heard_to_sixty_percent_with_the_rest_to_play(almost):
     assert res.get_json()["info"]["name"] == "Almost complete"
 
 
+def test_a_track_too_short_to_ever_count_is_not_required(almost):
+    # #882: a 1 s stinger can never be logged (the client sends nothing under
+    # one second of play). Required, it held the album at "1 song to go" forever.
+    from test_home_discover_api import TRACKS
+
+    object.__setattr__(TRACKS[(PRIMUS, 5)], "duration", 1)
+    listened(PRIMUS, 1, 2, 3, 4)
+
+    run()
+
+    assert rows(almost)[0].get("almost_complete", {"items": []})["items"] == []
+
+
 def test_untagged_files_are_no_album_to_complete(almost):
     listened(UNTAGGED, 1, 2, 3, 4)
 

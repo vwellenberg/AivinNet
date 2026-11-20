@@ -33,6 +33,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from aivinnet.config import UserConfig
+from aivinnet.lib.play_floor import can_be_logged
 from aivinnet.models.track import Track
 from aivinnet.settings import Paths
 
@@ -93,7 +94,8 @@ def main() -> int:
 
         for albumhash, tracks in albums.items():
             tracks.sort(key=lambda t: (t.disc, t.track, t.title))
-            distinct = list(dict.fromkeys(t.trackhash for t in tracks))
+            # As the routine counts: a track too short to ever be logged is not required (#882).
+            distinct = list(dict.fromkeys(t.trackhash for t in tracks if can_be_logged(t.duration)))
             missing = [h for h in distinct if not by_hash[h]]
             print(f"\n=== {tracks[0].album}  (albumhash {albumhash})")
             print(
@@ -106,7 +108,7 @@ def main() -> int:
                 p = by_path[t.filepath]
                 n = by_title[(t.title.casefold(), albumhash)]
                 mark = "  " if h else ("!!" if o or p or n else "--")
-                short = "  (<5 s: can never be logged)" if t.duration < 5 else ""
+                short = "  (too short to ever be logged, not required)" if not can_be_logged(t.duration) else ""
                 print(
                     f"{mark} {t.disc:>2}-{t.track:<2}  {h:>4} {o:>3} {p:>4} {n:>5}  {t.duration:>4}s  {t.title}{short}"
                 )

@@ -76,6 +76,7 @@ from aivinnet.lib.home.toprated import (
     top_rated_item,
 )
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES, PLACEHOLDER_ARTIST_NAMES
+from aivinnet.lib.play_floor import can_be_logged
 from aivinnet.lib.recipes import HomepageRoutine
 from aivinnet.lib.recipes.continuelistening import all_userids
 from aivinnet.store.albums import AlbumStore
@@ -646,7 +647,9 @@ class AlmostComplete(HomepageRoutine):
             albums.append(
                 AlbumTracks(
                     albumhash,
-                    [t.trackhash for t in tracks],
+                    # Not a track too short to ever count as played (#882): the
+                    # album would stay "1 song to go" forever.
+                    [t.trackhash for t in tracks if can_be_logged(t.duration)],
                     tuple(a["artisthash"] for a in album.album.albumartists),
                 )
             )

@@ -47,18 +47,28 @@ function getSource(source: From) {
   }
 }
 
-// The server drops shorter plays as skips (`duration < 5` in
-// api/scrobble/__init__.py) and answers 400 — don't send them at all.
+// The server drops shorter plays as skips and answers 400 — don't send them
+// at all. The same rule as `lib/play_floor.py` (#882): 5 s, but a track that is
+// itself shorter counts once it ran to the end. Play time is added once a
+// second here, so a track that ran through reports up to 2 s less than its
+// length. Unknown length (0): the plain 5 s.
 export const MIN_LOGGED_SECONDS = 5;
+const TICK_TOLERANCE_SECONDS = 2;
+
+export function minLoggedSeconds(trackSeconds: number): number {
+  if (!trackSeconds) return MIN_LOGGED_SECONDS;
+  return Math.trunc(Math.min(MIN_LOGGED_SECONDS, Math.max(1, trackSeconds - TICK_TOLERANCE_SECONDS)));
+}
 
 export function sendLogData(
   trackhash: string,
   duration: number,
   from: From,
-  timestamp: number
+  timestamp: number,
+  trackSeconds = 0
 ) {
   const seconds = Math.round(duration / 1000);
-  if (seconds < MIN_LOGGED_SECONDS) return;
+  if (seconds < minLoggedSeconds(trackSeconds)) return;
 
   if (window.Worker) {
     const worker = new Worker("/workers/logtrack.js");
@@ -78,6 +88,8 @@ export default defineStore(
   () => {
     const duration = ref(0);
     const trackhash = ref("");
+    // The track's own length (s): a short one counts once it ran through (#882).
+    const trackSeconds = ref(0);
     const timestamp = ref(0);
 
     const key = ref(0);
@@ -103,6 +115,7 @@ export default defineStore(
       from.value = useTracklist().from;
       duration.value = 0;
       trackhash.value = queue.currenttrack.trackhash;
+      trackSeconds.value = queue.currenttrack.duration || 0;
       prev_date = Date.now();
       timestamp.value = 0;
     }
@@ -143,7 +156,7 @@ export default defineStore(
 
       if (!can_submit) return;
       lockSubmit();
-      sendLogData(trackhash.value, duration.value, from.value, timestamp.value);
+      sendLogData(trackhash.value, duration.value, from.value, timestamp.value, trackSeconds.value);
       resetData();
       prevKey.value = key.value;
     }
@@ -151,6 +164,7 @@ export default defineStore(
     function reassignEventListener() {
       if (trackhash.value == "") {
         trackhash.value = queue.currenttrackhash;
+        trackSeconds.value = queue.currenttrack?.duration || 0;
       }
 
       const element = audioSource.playingSource;
@@ -185,6 +199,7 @@ export default defineStore(
 
     return {
       trackhash,
+      trackSeconds,
       timestamp,
       duration,
       from,

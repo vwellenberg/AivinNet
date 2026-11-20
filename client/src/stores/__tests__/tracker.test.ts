@@ -27,7 +27,7 @@ vi.mock('@/stores/player', () => ({ audioSource: audioSourceMock }))
 const { celebrateMilestone } = vi.hoisted(() => ({ celebrateMilestone: vi.fn() }))
 vi.mock('@/utils/milestones', () => ({ celebrateMilestone }))
 
-import useTracker, { sendLogData } from '@/stores/tracker'
+import useTracker, { minLoggedSeconds, sendLogData } from '@/stores/tracker'
 
 /** Stands in for the Worker behind sendLogData; records what would be POSTed. */
 const posted: any[] = []
@@ -46,8 +46,8 @@ class FakeAudio extends EventTarget {
     paused = false
 }
 
-function setCurrentTrack(hash: string) {
-    queueMock.currenttrack = { trackhash: hash }
+function setCurrentTrack(hash: string, duration?: number) {
+    queueMock.currenttrack = { trackhash: hash, duration } as any
     queueMock.currenttrackhash = hash
 }
 
@@ -129,6 +129,29 @@ describe('sendLogData — the wire format the backend parses', () => {
         expect(posted).toHaveLength(1)
     })
 
+    // #882: a track shorter than 5 s could never count as played, so an album
+    // holding one stayed in "Almost complete" forever. The same table as
+    // tests/test_play_floor.py: client and server must agree, or the server 400s.
+    it.each([
+        [0, 5], // length unknown: the plain floor
+        [3, 1],
+        [4, 2],
+        [6, 4],
+        [7, 5],
+        [300, 5],
+    ])('a %i s track counts from %i s of play', (length, floor) => {
+        expect(minLoggedSeconds(length)).toBe(floor)
+    })
+
+    it('sends a short track that ran to the end (#882)', () => {
+        sendLogData('t1', 1400, ALBUM as any, 1, 3) // 3 s stinger, 1 s measured: played through
+        expect(posted).toHaveLength(1)
+        expect(posted[0].duration).toBe(1)
+
+        sendLogData('t1', 1400, ALBUM as any, 1, 200) // the same second of a long track: a skip
+        expect(posted).toHaveLength(1)
+    })
+
     it('celebrates a milestone play the worker passes back (#545)', () => {
         celebrateMilestone.mockClear()
         sendLogData('t1', 60_000, ALBUM as any, 1)
@@ -187,6 +210,25 @@ describe('play time accounting', () => {
         // ...and the tracker has moved on to the new track.
         expect(tracker.trackhash).toBe('b')
         expect(tracker.from).toEqual({ type: FromOptions.playlist, id: 7 })
+    })
+})
+
+describe('a short track (#882)', () => {
+    it('a 3 s stinger that played through is submitted on the next track', () => {
+        setCurrentTrack('stinger', 3)
+        const tracker = useTracker()
+        tracker.resetData()
+        tracker.reassignEventListener()
+        tick() // first tick of the stinger
+        tick() // a second later; it ends before the next one
+
+        setCurrentTrack('b', 200)
+        tracker.changeKey()
+        tick()
+
+        expect(posted).toHaveLength(1)
+        expect(posted[0]).toMatchObject({ trackhash: 'stinger', duration: 2 })
+        expect(tracker.trackSeconds).toBe(200)
     })
 })
 
