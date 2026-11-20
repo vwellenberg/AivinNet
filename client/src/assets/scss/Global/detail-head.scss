@@ -189,7 +189,10 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         font-size: 0.75rem;
         letter-spacing: 0.06em;
         font-weight: 700;
-        color: $candy-text-muted;
+        // On the pastel the grey fell to 3:1 (light) and ~2:1 (dark): the
+        // label and the meta line keep the head's ink, as on the Continue
+        // card. A look with a grey for them (Boring) sets the token.
+        color: var(--look-detail-muted, currentColor);
         line-height: 1.2;
     }
 
@@ -209,7 +212,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     .dh-meta {
         font-size: $detail-meta-size;
         font-weight: $detail-meta-weight;
-        color: $candy-text-muted;
+        color: var(--look-detail-muted, currentColor);
     }
 }
 

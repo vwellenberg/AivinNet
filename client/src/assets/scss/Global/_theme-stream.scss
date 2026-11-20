@@ -114,6 +114,9 @@ body.theme-dark.theme-stream {
     // already tinted from the artwork, so the plate steps aside, the tint runs
     // stronger and further, and the title grows into the band it now owns.
     --look-detail-head-fill: transparent;
+    // The type label and meta line step back to grey here; Memphis keeps them
+    // in the head's ink on its pastel (Global/detail-head.scss).
+    --look-detail-muted: #b3b3b3;
     --look-veil-top: 0.85;
     --look-veil-mid: 0.5;
     --look-veil-end: 0;
