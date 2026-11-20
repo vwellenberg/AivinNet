@@ -173,10 +173,18 @@ export interface Playlist {
     tracks: Track[]
     count: number
     _last_updated: string
+    /** "YYYY-MM-DD HH:MM:SS" or unix seconds; see utils/playlistSort.ts. */
+    last_updated?: string | number
     thumb: string
     duration: number
     settings: PlaylistSettings
     pinned: boolean
+    /** Play history (#872). Missing from older servers: read as 0. */
+    playcount?: number
+    /** Seconds played. */
+    playduration?: number
+    /** Unix seconds of the last play; 0 = never played. */
+    lastplayed?: number
     help_text?: string
     time?: string
     images:
