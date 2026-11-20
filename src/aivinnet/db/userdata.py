@@ -549,6 +549,25 @@ class ScrobbleTable(Base):
         return {trackhash: (int(plays), int(last)) for trackhash, plays, last in result.all()}
 
     @classmethod
+    def plays_by_playlist_of(cls, userid: int) -> dict[str, tuple[int, int, int]]:
+        """
+        playlist id (str) -> `(plays, total duration, last timestamp)` of ONE
+        user, for the plays logged as `pl:<id>`. One grouped query, so the
+        playlist list stays cheap to fetch. Generated playlists also log
+        `pl:<name>`; those keys never match a real id and are harmless.
+        """
+        result = cls.rows(
+            select(cls.source, func.count(cls.id), func.sum(cls.duration), func.max(cls.timestamp))
+            .where(cls.userid == userid)
+            .where(cls.source.like("pl:%"))
+            .group_by(cls.source)
+        )
+        return {
+            source.removeprefix("pl:"): (int(plays), int(duration or 0), int(last or 0))
+            for source, plays, duration, last in result.all()
+        }
+
+    @classmethod
     def first_play_by_trackhash(cls) -> dict[str, int]:
         """trackhash -> its earliest play, over ALL users (`lib/date_added.py`)."""
         result = cls.rows(select(cls.trackhash, func.min(cls.timestamp)).group_by(cls.trackhash))

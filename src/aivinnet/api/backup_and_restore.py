@@ -205,6 +205,9 @@ def backup():
             "count",
             "pinned",
             "thumb",
+            "playcount",
+            "playduration",
+            "lastplayed",
         ]:
             del playlist[key]
 

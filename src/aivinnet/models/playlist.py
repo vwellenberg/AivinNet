@@ -27,6 +27,11 @@ class Playlist:
     images: list[dict[str, str]] = dataclasses.field(default_factory=list)
     pinned: bool = False
     _score: float = 0
+    # Plays of THIS playlist by the requesting user, filled by the list endpoint
+    # only. Last on purpose: `Playlist(*tuple)` builds positionally.
+    playcount: int = 0
+    playduration: int = 0
+    lastplayed: int = 0
 
     def __post_init__(self):
         self.count = len(self.trackhashes)

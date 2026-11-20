@@ -14,7 +14,7 @@ from pydantic_core import core_schema
 from aivinnet import models
 from aivinnet.api.apischemas import GenericLimitSchema
 from aivinnet.api.formfields import FormModel
-from aivinnet.db.userdata import PlaylistTable
+from aivinnet.db.userdata import PlaylistTable, ScrobbleTable
 from aivinnet.lib import playlistlib
 from aivinnet.lib.albumslib import sort_by_track_no
 from aivinnet.lib.home.generated_playlists import GENERATED_PLAYLISTS
@@ -30,6 +30,7 @@ from aivinnet.serializers.playlist import serialize_for_card
 from aivinnet.serializers.track import serialize_tracks
 from aivinnet.settings import Paths
 from aivinnet.store.tracks import TrackStore
+from aivinnet.utils.auth import get_current_userid
 from aivinnet.utils.dates import create_new_date, date_string_to_time_passed
 
 tag = Tag(name="Playlists", description="Get and manage playlists")
@@ -119,7 +120,12 @@ def send_all_playlists(query: SendAllPlaylistsQuery):
         key=lambda p: p.name.casefold(),
     )
 
+    # One grouped query for every playlist's plays, not a scan per playlist.
+    plays = ScrobbleTable.plays_by_playlist_of(get_current_userid())
+
     for playlist in playlists:
+        playlist.playcount, playlist.playduration, playlist.lastplayed = plays.get(str(playlist.id), (0, 0, 0))
+
         # `no_images` was declared and never read — the add-to-playlist menu
         # asks for it and paid for every cover-less playlist's collage anyway.
         if not playlist.has_image and not query.no_images:
