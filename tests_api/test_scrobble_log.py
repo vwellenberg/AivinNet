@@ -159,6 +159,17 @@ def test_a_short_track_counts_once_it_ran_to_the_end(logger, length, played, sta
     assert len(scrobbles(logger.api)) == (status == 201)
 
 
+def test_a_hash_held_by_files_of_different_lengths_takes_the_shortest(logger):
+    # The client measured whichever file it played; a full play of the short
+    # one must not be held against the long twin's floor.
+    from types import SimpleNamespace
+
+    logger.track.duration = 300
+    logger.group.tracks.insert(0, SimpleNamespace(**{**vars(logger.track), "duration": 3}))
+
+    assert log(logger.api, duration=1).status_code == 201
+
+
 def test_an_unknown_track_is_not_recorded(logger):
     res = log(logger.api, trackhash="ffffffffffffffff")
 

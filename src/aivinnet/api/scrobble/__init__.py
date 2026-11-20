@@ -135,8 +135,9 @@ def log_track(body: LogTrackBody):
         return {"msg": "Track not found."}, 404
 
     # A skip is no play: 5 s, less for a track that is itself shorter (#882),
-    # or a stinger that ran to the end could never count as heard.
-    if duration < min_logged_seconds(trackentry.tracks[0].duration):
+    # or a stinger that ran to the end could never count as heard. The shortest
+    # file of the hash: the client measured the one it played, whichever.
+    if duration < min_logged_seconds(min(t.duration for t in trackentry.tracks)):
         return {"msg": "Invalid entry."}, 400
 
     scrobble_data = {**dict(body), "trackhash": trackhash}

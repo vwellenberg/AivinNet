@@ -94,7 +94,8 @@ def main() -> int:
 
         for albumhash, tracks in albums.items():
             tracks.sort(key=lambda t: (t.disc, t.track, t.title))
-            distinct = list(dict.fromkeys(t.trackhash for t in tracks))
+            # As the routine counts: a track too short to ever be logged is not required (#882).
+            distinct = list(dict.fromkeys(t.trackhash for t in tracks if can_be_logged(t.duration)))
             missing = [h for h in distinct if not by_hash[h]]
             print(f"\n=== {tracks[0].album}  (albumhash {albumhash})")
             print(

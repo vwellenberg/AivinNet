@@ -58,7 +58,7 @@ export interface ClockPayload {
 /**
  * The skip quote (#537). `share` is the part of a track's plays that were
  * skipped (under `rules.skip_below` of the track) or finished. The overall
- * `rate` is a lower bound: plays under 5 s are never logged.
+ * `rate` is a lower bound: plays under 5 s are never logged (a shorter track counts once it ran through, #882).
  */
 export interface SkipRow {
     trackhash: string
