@@ -132,7 +132,7 @@ def test_the_list_carries_each_playlists_duration(api_client, monkeypatch):
     from aivinnet.store.tracks import TrackGroup, TrackStore
 
     tracks = [_track(PRIMUS, n) for n in (1, 2, 3)]
-    for track, seconds in zip(tracks, (180, 240, 205)):
+    for track, seconds in zip(tracks, (180, 240, 205), strict=True):
         track.duration = seconds
     monkeypatch.setattr(TrackStore, "trackhashmap", {t.trackhash: TrackGroup([t]) for t in tracks})
 
@@ -150,3 +150,27 @@ def test_the_list_carries_each_playlists_duration(api_client, monkeypatch):
     assert by_name["long"]["duration"] == 180 + 240 + 205
     assert by_name["short"]["duration"] == 180
     assert by_name["short"]["count"] == 2  # the count stays the stored list's length
+
+
+def test_a_new_playlist_never_inherits_a_deleted_ones_plays(scene):
+    """
+    Plays find their playlist by the text `pl:<id>`, and SQLite hands the
+    highest id out again once its row is gone. A playlist created after the
+    newest one was deleted must start at zero, not at the deleted one's plays.
+    """
+    handle, _, scrobble = scene
+    from aivinnet.db.userdata import PlaylistTable
+
+    doomed = PlaylistTable.add_one(
+        {"name": "doomed", "userid": 1, "settings": {}, "last_updated": 0, "trackhashes": []}
+    )
+    for i in range(4):
+        scrobble(f"pl:{doomed}", OTHER_TRACK, 300, T0 + 50000 + i)
+    PlaylistTable.remove_one(doomed)
+
+    res = handle.post("/playlists/new", json={"name": "fresh"})
+    assert res.status_code == 201, res.text
+
+    assert res.get_json()["playlist"]["id"] != doomed
+    fresh = _by_name(handle)["fresh"]
+    assert (fresh["playcount"], fresh["playduration"], fresh["lastplayed"]) == (0, 0, 0)

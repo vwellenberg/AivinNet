@@ -125,8 +125,14 @@ def send_all_playlists(query: SendAllPlaylistsQuery):
 
     for playlist in playlists:
         playlist.playcount, playlist.playduration, playlist.lastplayed = plays.get(str(playlist.id), (0, 0, 0))
-        # The Playlists page sorts by it (#872); RAM lookups only, as on the detail page.
-        playlist.duration = sum(t.duration for t in TrackStore.get_tracks_by_trackhashes(playlist.trackhashes))
+        # The Playlists page sorts by it (#872). Per stored hash, like `count`,
+        # and straight from the RAM map: `get_tracks_by_trackhashes` would
+        # de-duplicate and sort, neither of which a sum needs.
+        playlist.duration = sum(
+            group.get_best().duration
+            for group in map(TrackStore.trackhashmap.get, playlist.trackhashes)
+            if group is not None
+        )
 
         # `no_images` was declared and never read — the add-to-playlist menu
         # asks for it and paid for every cover-less playlist's collage anyway.
