@@ -24,7 +24,7 @@
             </button>
         </div>
         <span class="ellip">{{ pl.name }}</span>
-        <PushPinSvg v-if="pl.pinned" class="pl-pin" title="Pinned" />
+        <PinnedSvg v-if="pl.pinned" class="pl-pin" title="Pinned" />
     </RouterLink>
 </template>
 
@@ -39,7 +39,8 @@ import { Playlist } from '@/interfaces'
 import PlaylistSvg from '@/assets/icons/playlist-1.svg'
 import PlaySvg from '@/assets/icons/play.svg'
 import PauseSvg from '@/assets/icons/pause.svg'
-import PushPinSvg from '@/assets/icons/push-pin.svg'
+// Only pinned rows carry a pin, so it is the filled-head "pinned" glyph.
+import PinnedSvg from '@/assets/icons/pin.fill.svg'
 
 import PlaylistImages from '@/components/shared/PlaylistImages.vue'
 

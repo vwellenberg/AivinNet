@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // ---------------------------------------------------------------------------
-// The pin glyph is a sewing pin DRAWN on the 45-degree diagonal (push-pin.svg,
+// The pin glyph is a sewing pin DRAWN on the 45-degree diagonal (pin.svg, pin.fill.svg, push-pin.svg;
 // #809). The sidebar used to tilt the old upright thumbtack by 35deg in CSS;
 // left in place, that tilt stacked on the drawn one and laid the new pin almost
 // flat in the sidebar while every other place showed it upright on the
@@ -11,7 +11,10 @@ import { describe, expect, it } from "vitest";
 // ---------------------------------------------------------------------------
 
 const SIDEBAR = readFileSync("src/components/LeftSidebar/index.vue", "utf-8");
-const PIN = readFileSync("src/assets/icons/push-pin.svg", "utf-8");
+// The sidebar draws its pin only on a PINNED row, so it is the filled-head
+// state (pin.fill.svg), the same glyph PinButton shows for "pinned".
+const PIN = readFileSync("src/assets/icons/pin.fill.svg", "utf-8");
+const ITEM = readFileSync("src/components/LeftSidebar/SidebarPlaylistItem.vue", "utf-8");
 
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
@@ -23,6 +26,19 @@ function block(css: string, selector: string): string {
   }
   return css.slice(start);
 }
+
+describe("the sidebar marks a pinned row with the filled pin", () => {
+  // The hollow head is the "not pinned" state, yet the sidebar wore it on every
+  // pinned row (user, 2026-11-20).
+  it.each([
+    ["LeftSidebar/index.vue", SIDEBAR],
+    ["SidebarPlaylistItem.vue", ITEM],
+  ])("%s imports pin.fill.svg, not the hollow push-pin.svg", (_name, src) => {
+    expect(src).toMatch(/import PinnedSvg from ["']@\/assets\/icons\/pin\.fill\.svg["']/);
+    expect(src).not.toMatch(/push-pin\.svg["']/);
+    expect(src).toMatch(/<PinnedSvg /);
+  });
+});
 
 describe("the sidebar pin keeps the angle it is drawn with", () => {
   it("the glyph itself runs from head top-right to point lower-left", () => {
