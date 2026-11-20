@@ -432,7 +432,12 @@ unruhig; am Ende hieß es „zurück zu den Streuseln, die wir so lange hatten (
 Wer das Muster ändern will, zeigt **vorher** eine Vorschau an der echten Anatomie (Sidebar-Zeile,
 Karten-Platte, Browse-Kiste, Button, hell und dunkel), nicht an einer freien Fläche: Auf der
 leeren Testfläche sah jeder Entwurf besser aus als nachher neben Text. Geparkt bleibt
-`mem-dashdot` in `_candy.scss` (#866), bis es einen eigenen Platz hat. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+`mem-dashdot` in `_candy.scss` (#866), bis es einen eigenen Platz hat. **Eine Ausnahme mit eigenem Mixin:** Die
+Browse-Kisten auf Home tragen **Bacterio** (`mem-bacterio`, Tokens `--mem-bacterio*`, Nutzer
+2026-11-20) — dort füllen Cover die Fläche, nicht Text, und die Streusel lasen sich auf der
+breiten Kiste als Tapetenraster. Ein eigenes Mixin statt eines Parameters an `mem-hatch`, damit
+die Schraffur der übrigen App davon nichts weiß. Eine Kiste hovert auf `--mem-bacterio-hover`;
+die Kachel ist nicht quadratisch (`$mem-bacterio-size`), also nie `38px 38px` daneben schreiben. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt
