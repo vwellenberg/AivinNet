@@ -119,7 +119,7 @@ $card-cover-pad: 6px;
         // on the flipped fill. The type label stays smooth in both states.
         .card-plate {
             background-image: var(--mem-hatch-hover);
-            background-size: mem-hatch-tile(38px);
+            background-size: 38px 38px;
             // The sprinkles wake up (#143): the sprite shifts by a few pixels
             // as the surface flips, so the strokes appear to shuffle rather
             // than simply swap. Movement in the TEXTURE, not on the card — a

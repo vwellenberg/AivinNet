@@ -436,7 +436,7 @@ $glyph-lone: 1.25rem;
 
       &::before {
         background-image: var(--mem-hatch-hover);
-        background-size: mem-hatch-tile(28px);
+        background-size: 28px 28px;
         opacity: 1;
       }
     }
@@ -560,7 +560,7 @@ $glyph-lone: 1.25rem;
       // A label variant keeps its ring and only swaps the sprite with the fill.
       @if $hatch == true {
         background-image: var(--mem-hatch-hover);
-        background-size: mem-hatch-tile(28px);
+        background-size: 28px 28px;
       }
       @if $hatch == label {
         --label-hatch: var(--mem-hatch-hover);
@@ -632,7 +632,7 @@ $glyph-lone: 1.25rem;
       background-color: $mem-hover;
       color: var(--mem-hover-text);
       background-image: var(--mem-hatch-hover);
-      background-size: mem-hatch-tile(28px);
+      background-size: 28px 28px;
       transform: scale(1.06);
     }
   }
@@ -789,7 +789,7 @@ $glyph-lone: 1.25rem;
       // a toggle carries a glyph, no text; `btn-primary` moves its hover hatch
       // onto its masked layer because of its label.
       background-image: var(--mem-hatch-hover);
-      background-size: mem-hatch-tile(28px);
+      background-size: 28px 28px;
       transform: scale(1.06);
 
       &::before {
