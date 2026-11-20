@@ -19,6 +19,11 @@ another file still holds stays; one spread over two files follows neither; a
 file that is gone moves nothing). Playlists, favourites and ratings that hold
 the same old hash move with the plays.
 
+Limit, the same as the rescan's: the path is the only witness. A file that was
+deleted and whose path a different song took later hands that song its plays.
+A title check cannot tell the two apart, because a retag is exactly a new title
+on the same path ("Track 19" -> "Say It Ain't So").
+
 Reads first and writes only what is orphaned: once moved, the next start
 finds nothing. Never raises, a start must not fail over it.
 """
