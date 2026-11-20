@@ -453,7 +453,7 @@ onMounted(() => {
     // Global/cards.scss): the sprite shifts by a few pixels as the surface
     // flips, so the strokes shuffle instead of simply swapping. Movement in
     // the TEXTURE, not on the crate.
-    background-position: 9px 6px;
+    background-position: $mem-hatch-stir;
   }
 
   // Phones: the two crates side by side, each smaller. The card stays 9rem

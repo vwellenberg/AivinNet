@@ -1181,7 +1181,8 @@ $sidebar-label-opacity: 0.85;
       font-size: $sidebar-row-font;
       // Same weight as every other row in this sidebar.
       font-weight: 700;
-      // NO transition: the paint is a cut (styling.md).
+      // The paint is a cut (styling.md); only the texture slides on hover.
+      transition: background-position $motion-move $motion-curve;
 
       // Hover tints the head's section of the box rather than drawing a second
       // frame inside the first one. The ring follows via --row-fill.
@@ -1196,6 +1197,8 @@ $sidebar-label-opacity: 0.85;
         --row-fill: var(--mem-hover);
         color: var(--mem-hover-text);
         background-image: var(--mem-hatch-hover);
+        // The sprinkles wake up, like on every other hatched row.
+        background-position: $mem-hatch-stir;
       }
 
       .folder-icon-slot {

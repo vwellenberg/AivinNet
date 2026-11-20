@@ -125,7 +125,7 @@ $card-cover-pad: 6px;
             // than simply swap. Movement in the TEXTURE, not on the card — a
             // card that moves under the pointer is noticed every single time,
             // a texture that stirs behind the text is not.
-            background-position: 9px 6px;
+            background-position: $mem-hatch-stir;
         }
 
         // The card components pin their own text colours ($candy-text on the
