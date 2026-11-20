@@ -725,7 +725,17 @@ zwei Hälften, sobald die Navigation Platten bekam.
   Kartenbreite**, auch unter dem Namen: Größe `round(Höhe × 0.62)`, Anzahl, Abstand und Neigung
   rechnet `utils/crateFan.ts` aus der gemessenen Karte (`useElementSize` auf der Liste, Breite =
   (Listenbreite − Spalte) / 2). Die Reihe steht unten mit 40 % der Brettshöhe hinter dem Brett.
-  Geladen wird `GET /getall/<typ>?limit=16&artwork=true`. Die Antwort trägt dann pro Item
+  Geladen wird `GET /getall/<typ>?artwork=true`: für Artists die 16 meistgespielten, für Alben
+  die 50 neuesten **und gleichzeitig** die 16 meistgespielten (die springen ein, wenn keins der
+  neuesten ein Cover hat, unter „MOST PLAYED“). ⚠️ **Ein Ersatzweg wird mit dem Hauptweg
+  angefragt, nicht danach.** Bis 2026-11-20 blätterte die Kiste vier 16er-Seiten der neuesten
+  Alben nacheinander durch und fragte erst danach die meistgespielten: fünf Runden, und jede
+  stand auf diesem Server (ein Request zur Zeit) hinter den Bildern der Home-Zeilen an. Mit 90
+  coverlosen Alben vorne kamen die Cover bei 150 ms Latenz nach 2,2 s, jetzt nach 1,5 s, also
+  vor denen der Artists-Kiste (gemessen, je 2 × 5 Läufe, Server pro Build neu gestartet; der
+  Server löst `--client` beim Start auf, ein umgebogener Symlink misst den alten Build).
+  Lokal ist der Unterschied kaum messbar, eine Runde kostet dort fast nichts. Die 50 sind
+  `ARTWORK_LIMIT_MAX`, `Browse.test.ts` liest die Grenze aus `api/getall`. Die Antwort trägt dann pro Item
   `has_artwork`, entschieden von derselben Funktion, aus der der Bildserver ausliefert
   (`lib/artwork.py::find_image`, mittlere Größe, inklusive Blick in den Albumordner; nur bis
   50 Items, darüber 422); Items mit `has_artwork: false` fallen weg, der Rest ist auf 12

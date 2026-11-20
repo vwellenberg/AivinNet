@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
@@ -17,7 +18,7 @@ vi.mock('@/config', () => ({
     paths: { images: { thumb: { medium: '/img/thumbnail/medium/' }, artist: { medium: '/img/artist/medium/' } } },
 }))
 
-import Browse, { __resetBrowseCrates } from '@/components/HomeView/Browse.vue'
+import Browse, { __resetBrowseCrates, NEWEST_ALBUMS } from '@/components/HomeView/Browse.vue'
 
 const RouterLink = { props: ['to'], template: '<a :data-to="to.name"><slot /></a>' }
 
@@ -61,11 +62,37 @@ describe('Browse Library', () => {
         expect(links).toEqual(['AlbumList', 'ArtistList'])
     })
 
-    it('asks for sixteen of each: the newest albums, the most-played artists', async () => {
+    it('asks for the fifty newest albums, the most-played albums and the most-played artists', async () => {
         mountBrowse()
         await flushPromises()
-        expect(getAllItems).toHaveBeenCalledWith('albums', { start: 0, limit: 16, sortby: 'created_date', reverse: '1', artwork: true })
+        expect(getAllItems).toHaveBeenCalledWith('albums', { start: 0, limit: 50, sortby: 'created_date', reverse: '1', artwork: true })
+        expect(getAllItems).toHaveBeenCalledWith('albums', { start: 0, limit: 16, sortby: 'playcount', reverse: '1', artwork: true })
         expect(getAllItems).toHaveBeenCalledWith('artists', { start: 0, limit: 16, sortby: 'playcount', reverse: '1', artwork: true })
+    })
+
+    // The server answers `artwork` for up to ARTWORK_LIMIT_MAX items and 422s
+    // above: a client asking for more would lose the whole crate.
+    it('asks for no more newest albums than the server answers artwork for', () => {
+        const py = readFileSync('../src/aivinnet/api/getall/__init__.py', 'utf8')
+        const max = Number(/^ARTWORK_LIMIT_MAX = (\d+)$/m.exec(py)?.[1])
+        expect(max).toBeGreaterThan(0)
+        expect(NEWEST_ALBUMS).toBeLessThanOrEqual(max)
+    })
+
+    // Regression (2026-11-20, "loads quite late"): with only coverless albums in
+    // front, the crate read four pages of the newest one after the other and
+    // only then asked for the most-played: five round trips, each queued behind
+    // Home's pictures. Both lists are asked for before either has answered.
+    it('asks for the newest and the most-played albums at once, not one after the other', async () => {
+        const pending: string[] = []
+        getAllItems.mockImplementation((type: string, o: { sortby: string }) => {
+            if (type === 'albums') pending.push(o.sortby)
+            return new Promise(() => {}) // nothing answers
+        })
+        mountBrowse()
+        await flushPromises()
+
+        expect(pending.sort()).toEqual(['created_date', 'playcount'])
     })
 
     it('shows the count and renders every fetched cover in the row', async () => {
@@ -105,9 +132,10 @@ describe('Browse Library', () => {
         await flushPromises()
 
         expect(albums.findAll('.covers img')).toHaveLength(12)
-        // The count and the pictures come from the two list requests, nothing else:
-        // no HEAD (or any other request) per picture.
-        expect(getAllItems).toHaveBeenCalledTimes(2)
+        // The count and the pictures come from the list requests (newest and
+        // most-played albums, most-played artists), nothing else: no HEAD (or
+        // any other request) per picture.
+        expect(getAllItems).toHaveBeenCalledTimes(3)
         expect(fetchSpy).not.toHaveBeenCalled()
     })
 
@@ -141,7 +169,7 @@ describe('Browse Library', () => {
 
     // Regression: 898 albums, the sixteen newest a batch without covers. The
     // crate read only that first page and stood empty beside its count.
-    it('reads further back when none of the sixteen newest albums has artwork', async () => {
+    it('reads fifty newest albums back in one request', async () => {
         const all = many(64).map((it, i) => (i < 16 ? { ...it, has_artwork: false } : it))
         getAllItems.mockImplementation((type: string, o: { start: number; limit: number }) =>
             Promise.resolve(
@@ -158,35 +186,23 @@ describe('Browse Library', () => {
         expect(srcs[0]).toBe('/img/thumbnail/medium/album16.webp?pathhash=16')
         expect(albums.find('.count').text()).toBe(`${(898).toLocaleString()} albums`)
         expect(albums.find('.tag').text()).toBe('NEW IN')
-        // Two pages were enough for twelve: no third request.
-        const starts = getAllItems.mock.calls.filter(c => c[0] === 'albums').map(c => c[1].start)
-        expect(starts).toEqual([0, 16])
+        // One request for the newest, from the top: no paging.
+        const newest = getAllItems.mock.calls.filter(c => c[0] === 'albums' && c[1].sortby === 'created_date')
+        expect(newest.map(c => [c[1].start, c[1].limit])).toEqual([[0, 50]])
     })
 
-    it('stops after four album pages, and at the end of the list', async () => {
-        const none = many(100).map(it => ({ ...it, has_artwork: false }))
-        getAllItems.mockImplementation((type: string, o: { start: number; limit: number }) =>
-            Promise.resolve(
-                type === 'albums'
-                    ? { status: 200, data: { total: 100, items: none.slice(o.start, o.start + o.limit) } }
-                    : ARTISTS
-            )
-        )
+    it('keeps the fifty newest it asked for, even if the endpoint sends more', async () => {
+        // The first fifty have no cover; the fifty-first has one, but was not asked for.
+        const items = many(60).map((it, i) => (i < 50 ? { ...it, has_artwork: false } : it))
+        getAllItems.mockImplementation((type: string, o: { sortby: string }) => {
+            if (type !== 'albums') return Promise.resolve(ARTISTS)
+            if (o.sortby === 'playcount') return Promise.resolve({ status: 200, data: { total: 60, items: [] } })
+            return Promise.resolve({ status: 200, data: { total: 60, items } })
+        })
         const [albums] = mountBrowse().findAll('a')
         await flushPromises()
-        const newest = (c: unknown[]) => c[0] === 'albums' && (c[1] as { sortby: string }).sortby === 'created_date'
-        expect(getAllItems.mock.calls.filter(newest).map(c => c[1].start)).toEqual([0, 16, 32, 48])
-        expect(albums.findAll('.covers').length).toBe(0)
 
-        // A short library: the first page is the whole list, so nothing more is asked.
-        __resetBrowseCrates()
-        getAllItems.mockClear()
-        getAllItems.mockImplementation((type: string) =>
-            Promise.resolve(type === 'albums' ? { status: 200, data: { total: 3, items: none.slice(0, 3) } } : ARTISTS)
-        )
-        mountBrowse()
-        await flushPromises()
-        expect(getAllItems.mock.calls.filter(newest)).toHaveLength(1)
+        expect(albums.findAll('.covers').length).toBe(0)
     })
 
     // Regression: 176 DS9 episodes, each its own coverless album, stood in front
@@ -214,6 +230,24 @@ describe('Browse Library', () => {
         ])
         expect(albums.find('.tag').text()).toBe('MOST PLAYED')
         expect(albums.find('.count').text()).toBe(`${(898).toLocaleString()} albums`)
+        // One request each: the newest from the top, the most-played beside it.
+        expect(getAllItems.mock.calls.filter(c => c[0] === 'albums')).toHaveLength(2)
+    })
+
+    it('keeps NEW IN without covers when the most-played albums have none either', async () => {
+        const coverless = many(50).map(it => ({ ...it, has_artwork: false }))
+        getAllItems.mockImplementation((type: string, o: { sortby: string }) => {
+            if (type !== 'albums') return Promise.resolve(ARTISTS)
+            if (o.sortby === 'playcount') return Promise.resolve({ status: 500, data: null, error: 'boom' })
+            return Promise.resolve({ status: 200, data: { total: 50, items: coverless } })
+        })
+        const [albums] = mountBrowse().findAll('a')
+        await flushPromises()
+
+        // The count still stands; there is just nothing to show in the crate.
+        expect(albums.find('.count').text()).toBe('50 albums')
+        expect(albums.findAll('.covers').length).toBe(0)
+        expect(albums.findAll('.board').length).toBe(0)
     })
 
     it('with only has_artwork false, the crate has no covers and no board', async () => {
