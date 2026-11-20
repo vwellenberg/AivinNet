@@ -172,7 +172,7 @@ rendert auf weißem Grund und lässt jede Farbe gut aussehen. Gemessen wird der 
 ## ⚠️ Die Songliste ist ein Kassetten-Inlay — und ihr Rahmen hat drei Besitzer
 
 Die Track-Zeile trägt seit dem Inlay-Redesign vier Merkmale: **Farbleitband** auf der
-Vorderkante (fünf Akzente im Wechsel), **Track-Nummer im Ink-Kreis**, **Perforation** zwischen den
+Vorderkante (nur Teal, in vier Stufen kräftiger, siehe unten), **Track-Nummer im Ink-Kreis**, **Perforation** zwischen den
 Zeilen und ein **aufgeklebtes Cover** (voller Ink-Rahmen, Offset-Schatten, leichte Neigung, die
 sich unter dem Zeiger geradezieht). Die Dauer sitzt in einer umrandeten Pille.
 
@@ -181,10 +181,20 @@ durch `vue-virtual-scroller`, und der **recycelt** seine Zeilen-Elemente: DOM-Po
 dem Scroll-Offset, nicht der Liste. Eine `nth-child`-Regel gäbe demselben Track bei jedem Scrollen
 eine andere Farbe — im Standbild unauffällig, in Bewegung ein Flackern. Zuständig ist
 `trackBandClass()` in `utils/songItemMethods.ts`, die Farben stehen als `$mem-band-colours` in
-`_candy.scss` und werden von `mem-band-cycle` zu `band-0`…`band-4` ausgerollt. Beide Hälften sind
+`_candy.scss` und werden von `mem-band-cycle` zu `band-0`…`band-N` ausgerollt. Beide Hälften sind
 aneinander getestet (`utils/__tests__/trackBand.test.ts`): Die Zahl der Klassen, die JS erzeugen
 kann, muss der Länge der SCSS-Liste entsprechen — sonst steht eine Zeile still ohne Band da, weil
 `--band` einfach auf den Fallback fällt.
+
+**Seit 2026-11-20 ist es EIN Farbton, und die Aussage steckt in der Stärke** (Nutzer, nach einer
+Vorschau-Runde mit sechs Fassungen). Fünf Akzente sagten nur „dritte Zeile im Zyklus", zwei
+(Coral/Teal) trugen zwei Aussagen auf einmal; die Nachbarn trennt ohnehin die Perforation. Jetzt
+Teal, und `trackBandFade` rastet auf **vier harte Stufen** ein (0,25 · 0,5 · 0,75 · 1, je ein
+Viertel der Liste, wie die LED-Segmente einer Pegelanzeige). Die Zeilentönung (`mem-band-tint`)
+folgt derselben Stufe. Verworfen: ein weicher Verlauf über die Zeilengrenzen (Memphis hat harte
+Kanten, ein Verlauf liest sich als anderes Designsystem) und Streifen statt Deckkraft (zu unruhig
+neben dem übrigen Design). Der Zyklus bleibt als Mechanik stehen — ein zweiter Akzent ist wieder
+eine Zeile in `$mem-band-colours` plus `TRACK_BAND_COUNT`.
 
 ⚠️ **Der `index`-Prop ist nicht überall die Listenposition.** Die Album-Ansicht reicht die
 Track-Nummer aus den Tags durch, `ArtistView/TopTracks.vue` zählt bei gesetztem `total`

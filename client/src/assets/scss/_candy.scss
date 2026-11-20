@@ -294,7 +294,7 @@ $candy-radius-pill: var(--shape-radius-pill, 999px);
 // LOOK TOKENS (#199) — the same mechanism for the static ACCENTS.
 //
 // Memphis paints its states with fixed palette colours: pastel navigation
-// fills, yellow for "on" and "playing", blush labels, a coral/teal band down the
+// fills, yellow for "on" and "playing", blush labels, a teal band down the
 // track list, the pink seek track. Those are right for Memphis and wrong for
 // any other look, so each reads `var(--look-<name>, <memphis colour>)`.
 // `--shape-*` is the FORM, `--look-*` the accent/state COLOUR — two families so
@@ -1677,15 +1677,15 @@ $mem-bacterio-size: calc(38px * 52 / 46) calc(38px * 44 / 46);
 // ---------------------------------------------------------------------------
 // THE COLOUR GUIDE BAND — the leading edge of a track row.
 //
-// A cassette inlay's spine. TWO accents in alternation (was five): warm coral
-// against cool teal, the widest pair the palette has, so two neighbouring rows
-// tell apart even when both are pale. Five full-strength accents said nothing —
-// colour 3 only ever meant "third row in the cycle". Now the hue separates
-// neighbours and the STRENGTH carries the meaning: `--band-fade` (set inline
-// from trackBandFade) runs 0.25 → 1 over the list, so the band reads as a
-// how-far-am-I gauge mid-scroll. It replaces the LEFT half of the row's ink
-// side-stripes; the right one stays, and the frame is still closed top/bottom
-// by the .is-first/.is-last caps.
+// A cassette inlay's spine, in ONE accent (teal). It used to alternate five,
+// then two (coral/teal); the perforation already separates neighbours, so the
+// hue no longer has to. What the band says is the STRENGTH: `--band-fade` (set
+// inline from trackBandFade) steps 0.25 → 0.5 → 0.75 → 1 over the list — four
+// hard steps like a level meter's LED segments, not a smooth ramp (Memphis has
+// hard edges; a ramp of near-identical tints read as a gradient) — so the band
+// reads as a how-far-am-I gauge mid-scroll. It replaces the LEFT half of the
+// row's ink side-stripes; the right one stays, and the frame is still closed
+// top/bottom by the .is-first/.is-last caps.
 //
 // ⚠️ The cycle is driven by a CLASS the component computes from the row index,
 // never by `:nth-child`. Track lists render through `vue-virtual-scroller`,
@@ -1697,12 +1697,14 @@ $mem-bacterio-size: calc(38px * 52 / 46) calc(38px * 44 / 46);
 // `::after` both belong to the now-playing state (texture + zigzag marker), and
 // a row that is playing still needs its band.
 // ---------------------------------------------------------------------------
-$mem-band-colours: $mem-coral, $mem-teal;
+$mem-band-colours: $mem-teal;
 
-/// How much of the row's band hue tints its background — the "zebra" that
-/// separates rows in the flat, retelling the band's two-colour story instead
-/// of introducing a third, grey layer. Faint on purpose: text sits on it.
-$mem-band-tint: 6%;
+/// How much of the row's band hue tints its background, at the floor and at
+/// full strength. The tint follows the band's step (`--band-fade`), so the
+/// plate deepens in the same four steps as the spine instead of adding a
+/// second, flat layer. Faint on purpose: text sits on it.
+$mem-band-tint-floor: 3%;
+$mem-band-tint: 10%;
 
 /// Declares `--band-hue` for each `band-N` class and derives `--band` from it
 /// at the row's fade strength. Applied to the row selector.
@@ -1728,7 +1730,12 @@ $mem-band-tint: 6%;
 /// to prevent. Rows without a band class fold the veil into itself: a no-op,
 /// not a wrong colour.
 @mixin mem-band-tint {
-  background-color: color-mix(in srgb, var(--band-hue, var(--mem-veil)) $mem-band-tint, var(--mem-veil));
+  background-color: color-mix(
+    in srgb,
+    var(--band-hue, var(--mem-veil))
+      calc(#{$mem-band-tint-floor} + #{$mem-band-tint - $mem-band-tint-floor} * var(--band-fade, 1)),
+    var(--mem-veil)
+  );
 }
 
 // DEPRECATED (candy design): diagonal candy stripes. Superseded by

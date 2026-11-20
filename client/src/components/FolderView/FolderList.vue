@@ -72,7 +72,7 @@ const maxCount = computed(() =>
   // ---------------------------------------------------------------------------
   // THE FOLDER ROW IS AN INLAY LINE — the song list's anatomy, one level up.
   //
-  // Guide band on the leading edge (same two accents and the same position
+  // Guide band on the leading edge (same accent and the same stepped position
   // fade as the track rows: mem-band-cycle + trackBandClass/trackBandFade),
   // perforation between rows, the count in the duration pill's ring. The glyph
   // sits on a tile in the FOLDER entity colour, so a folder looks like a folder
