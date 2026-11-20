@@ -84,13 +84,14 @@ describe("desktop page start", () => {
     // heading under the charts.
     expect(blocks[0]).toMatch(/&:first-child \{\s*padding-top: 0;/);
     expect(blocks[0]).toMatch(/&\.is-empty \{\s*padding-bottom: 0;/);
-    // "Empty" is what the head PAINTS: the description slot never is.
+    // "Empty" is what the head PAINTS: the description slot never is; the
+    // lead (the Playlists search field) is.
     expect(head).toContain(":class=\"{ 'is-empty': !painted }\"");
-    expect(head).toMatch(/painted = computed\(\(\) => Boolean\(slots\.name \|\| slots\.right \|\| slots\.after\)\)/);
+    expect(head).toMatch(/painted = computed\(\(\) => Boolean\(slots\.name \|\| slots\.lead \|\| slots\.right \|\| slots\.after\)\)/);
   });
 
   it.each([
-    ["components/CardListView/SortBanner.vue", ".itemsortby", "padding-top"],
+    ["components/CardListView/sortbanner-styles.scss", ".itemsortby", "padding-top"],
     ["views/Favorites.vue", ".recent-favs", "padding-top"],
     ["components/Stats/Charts.vue", ".chartitemgroupsgrid", "margin-top"],
   ])("is not topped up by the first element of %s", (file, selector, property) => {

@@ -183,7 +183,6 @@ describe("label call sites", () => {
   });
 
   it.each([
-    "/src/components/CardListView/SortBanner.vue",
     "/src/components/Stats/ChartItemGroup.vue",
     "/src/components/PlaylistView/AfterHeader.vue",
     "/src/components/shared/DropDown.vue",
@@ -222,7 +221,8 @@ describe("label call sites", () => {
   it("keeps the non-pressable sort labels smooth", () => {
     // "Sort By" and the chart glyph share the chips' anatomy but cannot be
     // pressed; a texture there would promise a press.
-    const banner = styleBlock(SOURCES["/src/components/CardListView/SortBanner.vue"] ?? "");
+    const banner = readFileSync("src/components/CardListView/sortbanner-styles.scss", "utf8");
+    expect(banner).toMatch(/@include btn-action\([^)]*\$hatch:\s*label/);
     expect(block(block(banner, ".select.circular").body, "&::before").body).toMatch(/content:\s*none/);
   });
 });

@@ -66,7 +66,7 @@ describe("phone page start", () => {
   });
 
   it("is not topped up by the album list's sort chips", () => {
-    const style = read("components/CardListView/SortBanner.vue");
+    const style = read("components/CardListView/sortbanner-styles.scss");
     // The override has to come AFTER the padding shorthand, or the shorthand wins.
     const afterShorthand = style.slice(style.indexOf("padding: 1rem $medium 2rem 0;"));
     expect(includeBlock(afterShorthand, "allPhones")).toMatch(/padding-top:\s*0;/);

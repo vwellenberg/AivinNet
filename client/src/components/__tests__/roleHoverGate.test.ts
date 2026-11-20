@@ -351,7 +351,7 @@ describe("role wearers gate their own hovers too", () => {
     // …one on a state class that only the template ties to the wearer…
     expect(has("src/components/LeftSidebar/NP/HotKeys.vue", /\.aux-off:hover$/)?.gated).toBe(true);
     // …and an exempt pair.
-    expect(has("src/components/CardListView/SortBanner.vue", /\.select\.active:hover$/)?.pair).toBe(true);
+    expect(has("src/components/CardListView/sortbanner-styles.scss", /\.select\.active:hover$/)?.pair).toBe(true);
   });
 
   it("states no hover on a role wearer outside the pointer gate", () => {

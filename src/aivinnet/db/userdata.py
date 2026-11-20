@@ -549,6 +549,36 @@ class ScrobbleTable(Base):
         return {trackhash: (int(plays), int(last)) for trackhash, plays, last in result.all()}
 
     @classmethod
+    def plays_by_playlist_of(cls, userid: int) -> dict[str, tuple[int, int, int]]:
+        """
+        playlist id (str) -> `(plays, total duration, last timestamp)` of ONE
+        user, for the plays logged as `pl:<id>`. One grouped query, so the
+        playlist list stays cheap to fetch. Generated playlists also log
+        `pl:<name>`; those keys never match a real id and are harmless.
+        """
+        result = cls.rows(
+            select(cls.source, func.count(cls.id), func.sum(cls.duration), func.max(cls.timestamp))
+            .where(cls.userid == userid)
+            .where(cls.source.like("pl:%"))
+            .group_by(cls.source)
+        )
+        return {
+            source.removeprefix("pl:"): (int(plays), int(duration or 0), int(last or 0))
+            for source, plays, duration, last in result.all()
+        }
+
+    @classmethod
+    def highest_playlist_id(cls) -> int:
+        """
+        The highest numeric `<id>` any user's plays name as `pl:<id>`, 0 when
+        none. Generated playlists (`pl:onrepeat` …) are not numbers and do not
+        count. Read when a playlist is created, never per request.
+        """
+        result = cls.rows(select(cls.source).where(cls.source.like("pl:%")).group_by(cls.source))
+        ids = [int(source[3:]) for (source,) in result.all() if source[3:].isdigit()]
+        return max(ids, default=0)
+
+    @classmethod
     def first_play_by_trackhash(cls) -> dict[str, int]:
         """trackhash -> its earliest play, over ALL users (`lib/date_added.py`)."""
         result = cls.rows(select(cls.trackhash, func.min(cls.timestamp)).group_by(cls.trackhash))
@@ -831,6 +861,15 @@ class PlaylistTable(Base):
         # `FavoritesTable.insert_item`; no other caller passes a userid.
         if playlist.get("userid") is None:
             playlist["userid"] = get_current_userid()
+
+        # Plays find their playlist by the text `pl:<id>` (#872), and SQLite
+        # hands the highest id out again once its row is deleted (no
+        # AUTOINCREMENT on this table). A new playlist therefore starts above
+        # every id the history still names, or it would inherit the plays of
+        # the playlist deleted before it.
+        if playlist.get("id") is None:
+            highest = cls.rows(select(func.max(cls.id))).scalar() or 0
+            playlist["id"] = max(highest, ScrobbleTable.highest_playlist_id()) + 1
 
         result = cls.insert_one(playlist)
 

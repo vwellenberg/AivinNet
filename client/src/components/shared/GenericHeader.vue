@@ -4,7 +4,12 @@
          the head carries only what else it was given (#right, #after). -->
     <div class="generichead" :class="{ 'is-empty': !painted }">
         <div class="before">
-            <div class="left">
+            <div class="left" :class="{ 'has-lead': $slots.lead }">
+                <!-- A control at the head's leading edge, on the line of the
+                     #right actions (the Playlists search field, #872). Not
+                     #description: that one is never painted (see the style
+                     note at the end). -->
+                <div v-if="$slots.lead" class="lead"><slot name="lead"></slot></div>
                 <h1 v-if="$slots.name" class="title" :class="entity && `ent-${entity}`"><slot name="name"></slot></h1>
                 <div class="desc">
                     <slot name="description"></slot>
@@ -35,7 +40,7 @@ defineProps<{
 // shown (see the note at the end of the style block). An empty head on the
 // desktop takes no room at all — Home and the charts have one.
 const slots = useSlots()
-const painted = computed(() => Boolean(slots.name || slots.right || slots.after))
+const painted = computed(() => Boolean(slots.name || slots.lead || slots.right || slots.after))
 </script>
 
 <style lang="scss">
@@ -105,6 +110,21 @@ const painted = computed(() => Boolean(slots.name || slots.right || slots.after)
     .left {
         max-width: 100%;
         overflow: hidden;
+    }
+
+    // The clip is for a long title; a control here would lose its focus ring
+    // and offset shadow to it. `min-width: 0` keeps the 1fr column from
+    // growing past the actions instead.
+    .left.has-lead {
+        overflow: visible;
+        min-width: 0;
+    }
+
+    .lead {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        gap: 1rem;
     }
 
     h1 {

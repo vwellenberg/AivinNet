@@ -37,8 +37,12 @@ def test_the_playlist_list_honours_no_images(monkeypatch):
     import aivinnet.api.playlist as api
 
     calls = []
-    playlist = SimpleNamespace(name="Big", has_image=False, trackhashes=["a"], images=[], clear_lists=lambda: None)
+    playlist = SimpleNamespace(
+        id=1, name="Big", has_image=False, trackhashes=["a"], images=[], clear_lists=lambda: None
+    )
     monkeypatch.setattr(api.PlaylistTable, "get_all", classmethod(lambda cls: [playlist]))
+    monkeypatch.setattr(api.ScrobbleTable, "plays_by_playlist_of", classmethod(lambda cls, userid: {}))
+    monkeypatch.setattr(api, "get_current_userid", lambda: 1)
     monkeypatch.setattr(api.playlistlib, "get_first_4_images", lambda **kw: calls.append(kw) or [])
 
     api.send_all_playlists(api.SendAllPlaylistsQuery(no_images=True))

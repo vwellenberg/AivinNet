@@ -138,6 +138,21 @@ ein `DELETE … WHERE hash` ohne User (löschte fremde Zeilen) und Lookups/Zähl
 aller User zusammenwarfen. Wer eine Methode dort anfasst, prüft alle Geschwister-Methoden mit:
 `unique=True` gehört bei diesen Tabellen in ein `UniqueConstraint(<spalte>, "userid")`.
 
+## ⚠️ SQLite vergibt die höchste ID neu — ein Verweis per Text erbt dann fremde Daten
+
+Die Tabellen haben `INTEGER PRIMARY KEY` **ohne** `AUTOINCREMENT`: Wird die Zeile mit der
+höchsten ID gelöscht, bekommt die nächste neue Zeile genau diese ID. Harmlos, solange nur
+Fremdschlüssel mit `ondelete="cascade"` auf sie zeigen. Gefährlich wird es bei Verweisen, die als
+**Text** gespeichert sind und beim Löschen stehen bleiben: Ein Scrobble merkt sich seine Playlist
+als `source = "pl:<id>"`. Bevor #872 das abfing, übernahm eine neue Playlist alle Plays der
+Playlist, die vor ihr gelöscht worden war. Mit „Sort by Plays“ wurde das sichtbar, vorher stand
+es nur unbemerkt in der Statistik „Top playlists“. Deshalb vergibt `PlaylistTable.add_one` die ID
+selbst, oberhalb von jeder ID, die die Historie noch nennt (`ScrobbleTable.highest_playlist_id`).
+Dasselbe Muster gibt es bei Usern: Die `forget(userid)`-Hooks der Caches existieren aus genau
+diesem Grund. Wer einen neuen Text-Verweis auf eine ID einführt, prüft, was nach Löschen und
+Neuanlegen auf ihn zeigt. Zum Test gehört dabei „höchste ID löschen, dann neu anlegen“, nicht
+irgendeine ID.
+
 ## `FavoritesTable` hält auch die Sidebar-Pins
 
 Neben `track`/`album`/`artist` stehen dort `pinned_album` (Album-Hash) und `pinned_folder`

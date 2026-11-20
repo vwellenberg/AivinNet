@@ -3,10 +3,10 @@
         v-for="i in items"
         :key="i.key"
         :to="{
-        name: $route.name as string,
+        name: route.name as string,
         query: {
           sortby: i.key,
-          reverse: i.key == sortby ? ($route.query.reverse == '0' ? '1' : '0') : '1',
+          reverse: i.key == sortby ? flipped() : '1',
         },
         replace: true,
       }"
@@ -32,14 +32,32 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-    sortby: string
-    items: {
-        key: string
-        displayName: string
-    }[]
-    reverse: boolean
-}>()
+import { useRoute } from 'vue-router'
+
+const props = withDefaults(
+    defineProps<{
+        sortby: string
+        items: readonly {
+            key: string
+            displayName: string
+        }[]
+        reverse: boolean
+        // What the active chip flips. `query` (the album and artist lists):
+        // the URL's `reverse`, as it always did. `shown`: the direction on
+        // screen. The Playlists page needs that one: with no `reverse` in
+        // the URL it shows name ascending, and flipping the URL's missing
+        // value would keep it ascending (#872).
+        flipFrom?: 'query' | 'shown'
+    }>(),
+    { flipFrom: 'query' }
+)
+
+const route = useRoute()
+
+function flipped() {
+    if (props.flipFrom === 'shown') return props.reverse ? '0' : '1'
+    return route.query.reverse == '0' ? '1' : '0'
+}
 </script>
 
 <style scoped></style>
