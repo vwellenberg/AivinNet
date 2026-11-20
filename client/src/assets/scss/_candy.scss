@@ -1103,7 +1103,9 @@ $mem-seg-reserve: 4px !default;
 // Drawn with `border-left` + a background layer rather than a pseudo-element:
 // both of those are spoken for by the drag/drop markers on these rows.
 // ---------------------------------------------------------------------------
-@mixin mem-row-marker($w: 9px) {
+// `$motif` is the texture under the marker: a row is a plate (bacterio), but
+// the phone's bottom bar turns the same rows into buttons (dashdot).
+@mixin mem-row-marker($w: 9px, $motif: bacterio) {
   padding-left: $w;
   // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
   // kept the resting tint while the row turned the look's active colour —
@@ -1117,10 +1119,10 @@ $mem-seg-reserve: 4px !default;
   background-color: var(--look-active-fill, var(--row-fill));
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
   background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>')),
-    var(--mem-hatch-big-accent);
+    if($motif == bacterio, var(--mem-hatch-big-accent), var(--mem-hatch-accent));
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
-  background-size: 9px 14px, mem-hatch-tile(38px, bacterio);
+  background-size: 9px 14px, if($motif == bacterio, mem-hatch-tile(38px, bacterio), mem-hatch-tile(28px));
 }
 
 // ---------------------------------------------------------------------------
