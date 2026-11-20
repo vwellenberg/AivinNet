@@ -1,11 +1,17 @@
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
-import { TRACK_BAND_COUNT, TRACK_BAND_MIN_FADE, trackBandClass, trackBandFade } from "../songItemMethods";
+import {
+  TRACK_BAND_COUNT,
+  TRACK_BAND_LEVELS,
+  TRACK_BAND_MIN_FADE,
+  trackBandClass,
+  trackBandFade,
+} from "../songItemMethods";
 
 // ---------------------------------------------------------------------------
-// The colour guide band on the leading edge of a track row alternates two
-// accents, and the cycle is computed in JS rather than written as `:nth-child`.
+// The colour guide band on the leading edge of a track row takes its accent
+// from a cycle (one entry today, teal), and the cycle is computed in JS rather than written as `:nth-child`.
 //
 // That is not a style preference. Track lists render through
 // vue-virtual-scroller, which RECYCLES its row elements: DOM position inside
@@ -27,20 +33,17 @@ import { TRACK_BAND_COUNT, TRACK_BAND_MIN_FADE, trackBandClass, trackBandFade } 
 const CANDY = readFileSync("src/assets/scss/_candy.scss", "utf-8");
 
 describe("trackBandClass", () => {
-  it("alternates the two accents", () => {
-    expect([0, 1, 2, 3, 4].map(trackBandClass)).toEqual([
-      "band-0",
-      "band-1",
-      "band-0",
-      "band-1",
-      "band-0",
-    ]);
+  it("gives every row the one accent", () => {
+    // One hue since the band went teal-only: the perforation separates
+    // neighbours, the band's STRENGTH says how far down a row sits.
+    expect(TRACK_BAND_COUNT).toBe(1);
+    expect([0, 1, 2, 3, 4].map(trackBandClass)).toEqual(Array(5).fill("band-0"));
   });
 
   it("accepts the string ordinals the prop's type allows", () => {
     // `index` is typed `number | string`; ArtistTracks and the search view pass
     // it straight through from their own counters.
-    expect(trackBandClass("7")).toBe("band-1");
+    expect(trackBandClass("7")).toBe("band-0");
     expect(trackBandClass("12")).toBe("band-0");
   });
 
@@ -52,7 +55,8 @@ describe("trackBandClass", () => {
     // matches no rule, which would drop the band on exactly those rows.
     for (const n of [-1, -4, -5, -6, -13]) {
       const cls = trackBandClass(n);
-      expect(cls).toMatch(/^band-[01]$/);
+      expect(cls).toMatch(/^band-\d+$/);
+      expect(Number(cls.slice(5))).toBeLessThan(TRACK_BAND_COUNT);
     }
   });
 
@@ -93,6 +97,21 @@ describe("trackBandFade", () => {
     // Monotonic in between — the whole point is a readable gauge.
     const fades = [1, 2, 3, 4, 5].map((p) => trackBandFade(p, 5));
     expect([...fades].sort((a, b) => a - b)).toEqual(fades);
+  });
+
+  it("snaps to four hard steps, like a level meter", () => {
+    // Hard steps, not a ramp: a dozen near-identical tints read as a gradient,
+    // and Memphis draws with hard edges. 12 rows -> three rows per step.
+    const fades = Array.from({ length: 12 }, (_, i) => trackBandFade(i + 1, 12));
+    expect(fades).toEqual([0.25, 0.25, 0.25, 0.5, 0.5, 0.5, 0.75, 0.75, 0.75, 1, 1, 1]);
+
+    // Never more distinct strengths than levels, on any list length.
+    for (const total of [2, 3, 5, 7, 50, 993]) {
+      const seen = new Set(Array.from({ length: total }, (_, i) => trackBandFade(i + 1, total)));
+      expect(seen.size).toBeLessThanOrEqual(TRACK_BAND_LEVELS);
+      expect(seen.has(TRACK_BAND_MIN_FADE)).toBe(true);
+      expect(seen.has(1)).toBe(true);
+    }
   });
 
   it("is 1 without a usable total", () => {

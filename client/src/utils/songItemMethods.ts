@@ -28,11 +28,21 @@ export const SONG_ROW_HEIGHT = 72;
  * `$mem-band-colours` in _candy.scss, which emits one `band-N` class per entry;
  * a class this returns without a matching rule leaves that row with no band.
  */
-// TWO, not five. Five rotating full-strength accents made the list loud and
-// said nothing — colour 3 only ever meant "third row in the cycle". Two cool
-// tones do the one job a band has to do (tell two neighbouring rows apart), and
-// a SECOND dimension carries the meaning instead: see `trackBandFade`.
-export const TRACK_BAND_COUNT = 2;
+// ONE. It was five, then two (coral/teal), and each time the hue said less than
+// it cost: five accents only ever meant "third row in the cycle", and two made
+// the band carry two messages at once (which neighbour, how far down). The
+// perforation already separates neighbours, so the band now says one thing in
+// one colour — how far into the list a row sits: see `trackBandFade`. The
+// class machinery stays so a second accent is a one-line change again.
+export const TRACK_BAND_COUNT = 1;
+
+/**
+ * How many strengths the band snaps to. Hard steps, not a smooth ramp: Memphis
+ * draws with flat fills and hard edges (no blur, cuts instead of fades), and a
+ * ramp of a dozen near-identical tints read as a gradient. Four steps read like
+ * the LED segments of a tape-deck level meter — several rows share a segment.
+ */
+export const TRACK_BAND_LEVELS = 4;
 
 /** Weakest the band ever gets, so row 1 still has a visible spine. */
 export const TRACK_BAND_MIN_FADE = 0.25;
@@ -63,11 +73,13 @@ export function trackBandClass(index: number | string): string {
 }
 
 /**
- * How strong a row's band is: 0.25 at the top of the list, 1 at the bottom.
+ * How strong a row's band is: 0.25 at the top of the list, 1 at the bottom, in
+ * `TRACK_BAND_LEVELS` hard steps (0.25 · 0.5 · 0.75 · 1).
  *
- * This is the part that carries information. The two alternating colours only
- * separate neighbours; the STRENGTH says how far into the list a row sits —
- * readable mid-scroll, when the scrollbar is the only other clue.
+ * This is the part that carries information: the STRENGTH says how far into
+ * the list a row sits — readable mid-scroll, when the scrollbar is the only
+ * other clue. Each step covers an equal share of the list; the last row is
+ * always full strength, the first always the floor.
  *
  * Normalised against the list LENGTH, not an absolute step count. An absolute
  * scale keeps one step meaning the same everywhere, but on a 993-track playlist
@@ -85,7 +97,8 @@ export function trackBandClass(index: number | string): string {
 export function trackBandFade(position: number, total?: number): number {
   if (!Number.isFinite(position) || !total || total < 2) return 1;
   const pos = Math.min(Math.max(position - 1, 0), total - 1);
-  return TRACK_BAND_MIN_FADE + (1 - TRACK_BAND_MIN_FADE) * (pos / (total - 1));
+  const level = Math.min(TRACK_BAND_LEVELS - 1, Math.floor((pos / (total - 1)) * TRACK_BAND_LEVELS));
+  return TRACK_BAND_MIN_FADE + ((1 - TRACK_BAND_MIN_FADE) * level) / (TRACK_BAND_LEVELS - 1);
 }
 
 export function showDragStart(
