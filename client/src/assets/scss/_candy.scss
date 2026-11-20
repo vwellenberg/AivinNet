@@ -1505,6 +1505,30 @@ $mem-label-clear: 20rem !default;
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
 // combine with a background-color on the same element (use background-color,
 // not the background shorthand, or the image layer gets wiped).
+// BACTERIO — the Browse crates' texture, and only theirs (user, 2026-11-20:
+// "hier die Kacheln aber bitte noch mit Bacterio"). Little S-squiggles,
+// alternately turned 90°, after Sottsass' "Bacterio" (1978). The plain
+// sprinkle hatch read as a wallpaper grid on a plate as wide as a crate; the
+// squiggles carry it, and covers rather than text fill the crate, so they do
+// not crowd a label. Everywhere else stays the sprinkle: the squiggles on
+// every plate were too busy next to text (#863–#865, reverted in #867).
+//
+// Same three tokens as the hatch (`--mem-bacterio`, `-accent`, `-hover` in
+// Global/index.scss, `none` under Boring), same stroke colours and opacities,
+// so it answers the fill under it exactly like `mem-hatch`. The tile is not
+// square (52x44 units); at the hatch's 38px-per-46-units scale that is
+// ~43x36px, so the strokes match the sprinkle's weight.
+@function mem-bacterio-sprite($stroke, $opacity) {
+  @return url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="52" height="44"><path fill="none" stroke="#{$stroke}" stroke-opacity="#{$opacity}" stroke-width="2.6" stroke-linecap="round" d="M7 12.5c2 -4 4 -4 6 0c2 4 4 4 6 0M37.5 5c4 2 4 4 0 6c-4 2 -4 4 0 6M24.5 27c4 2 4 4 0 6c-4 2 -4 4 0 6M-6 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0M46 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0"/></svg>');
+}
+
+$mem-bacterio-size: calc(38px * 52 / 46) calc(38px * 44 / 46);
+
+@mixin mem-bacterio($on: surface) {
+  background-image: if($on == accent, var(--mem-bacterio-accent), var(--mem-bacterio));
+  background-size: $mem-bacterio-size;
+}
+
 // PARKED — "Strich & Punkt" (user, 2026-11-20: "das Muster mit Punkt-Strich
 // aber mal merken, das wollen wir irgendwo noch verwenden"). Rows of "/",
 // dots, "\\", dots on a square 48-unit tile, full ink like the sprinkle. It
