@@ -72,7 +72,7 @@ def test_the_card_and_the_rest():
         "type": "album",
         "hash": "a",
         "help_text": "2 songs to go",
-        "home": {"missing": 2},
+        "home": {"missing": 2, "rest": ["a/7", "a/9"]},
     }
     assert almost_complete_item(second)["help_text"] == "1 song to go"
     # "Play the rest": album after album, each in album order.
@@ -94,6 +94,8 @@ def test_after_a_play_of_a_missing_song():
 
     cards, left = after_play(items, rest, "a/3", "a")
     assert [c["help_text"] for c in cards] == ["1 song to go", "1 song to go"] and left == ["a/5", "b/4"]
+    # The card's play button plays what is left of its own album, nothing else.
+    assert [c["home"]["rest"] for c in cards] == [["a/5"], ["b/4"]]
 
     # The last missing song takes the card along.
     cards, left = after_play(cards, left, "b/4", "b")

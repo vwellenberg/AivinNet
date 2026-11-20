@@ -1,5 +1,10 @@
 <template>
-    <div class="homepageview content-page" :style="{ background: brandGradient() }">
+    <div
+        ref="page"
+        class="homepageview content-page"
+        :style="{ background: brandGradient() }"
+        @scroll.passive="keepPlace"
+    >
         <GenericHeader />
         <!-- January's news first (#572): the year that ended has a Rewind. -->
         <RewindCard />
@@ -92,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onMounted, reactive, ref, watch } from 'vue'
+import { inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 
 import { playSources } from '@/enums'
@@ -120,6 +125,7 @@ import PlaySvg from '@/assets/icons/play.svg'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
 import PageItem from '@/components/shared/CardScroller.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
+import { homeScroll, scrollWhenReady } from '@/utils/scrollMemory'
 
 const home = useHome()
 
@@ -161,10 +167,22 @@ function playOne(items: Parameters<typeof pickRowAlbum>[0]) {
 // season station comes back in the same answer as the rows (#776).
 const season = inject(SEASON_KEY, ref(null))
 
+// Back from an album lands where Home was left, not at its top
+// (utils/scrollMemory.ts). The entry is read once: when Back leaves Home,
+// `history.state` is already the next page's by the time anything here runs.
+const page = ref<HTMLElement | null>(null)
+const historyEntry = history.state
+let stopRestore = () => {}
+function keepPlace() {
+    if (page.value) homeScroll.keep(historyEntry, page.value.scrollTop)
+}
+
 onMounted(async () => {
     updatePageTitle('Home')
+    if (page.value) stopRestore = scrollWhenReady(page.value, homeScroll.enter(historyEntry))
     await home.fetchAll(season.value)
 })
+onBeforeUnmount(() => stopRestore())
 
 // A season starts or ends: the server answers again, rows and dial together.
 watch(season, () => void home.refreshIfLoaded(season.value))

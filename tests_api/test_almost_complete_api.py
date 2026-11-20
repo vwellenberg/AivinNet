@@ -46,7 +46,8 @@ def test_an_album_heard_to_sixty_percent_with_the_rest_to_play(almost):
     (card,) = row["items"]
     assert card["item"]["albumhash"] == PRIMUS
     assert card["item"]["help_text"] == "2 songs to go"
-    assert card["item"]["home"] == {"missing": 2}
+    # The card's play button plays these, not the album from the top.
+    assert card["item"]["home"] == {"missing": 2, "rest": [th(PRIMUS, 3), th(PRIMUS, 5)]}
     assert card["item"]["image"] == f"{PRIMUS}.webp?pathhash=ph-Frizzle Fry"
 
     # "Play the rest": exactly the songs never played, in album order.
@@ -116,6 +117,8 @@ def test_playing_a_missing_song_shows_at_once(almost, api_client, monkeypatch):
 
     log(3)
     assert card() == "1 song to go" and rest() == [th(PRIMUS, 5)]
+    # The card's own play button follows along.
+    assert rows(almost)[0]["almost_complete"]["items"][0]["item"]["home"]["rest"] == [th(PRIMUS, 5)]
 
     # Heard through: the card goes, and so does the rest.
     log(5)

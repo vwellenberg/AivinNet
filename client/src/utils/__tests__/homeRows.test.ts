@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chipItems, playButtonLabel, withCardAt, withoutCard } from '../homeRows'
+import { chipItems, playButtonLabel, restOfAlbum, withCardAt, withoutCard } from '../homeRows'
 
 const album = (albumhash: string) => ({ type: 'album', item: { albumhash } })
 
@@ -90,5 +90,19 @@ describe('withCardAt', () => {
     it('does not add it twice', () => {
         const row = [album('a'), album('b')]
         expect(withCardAt(row, album('b'), 0)).toBe(row)
+    })
+})
+
+describe('restOfAlbum', () => {
+    const tracks = [{ trackhash: 'a/1' }, { trackhash: 'a/2' }, { trackhash: 'a/3' }]
+
+    it('keeps the songs to go, in album order', () => {
+        expect(restOfAlbum(tracks, ['a/3', 'a/1'])).toEqual([{ trackhash: 'a/1' }, { trackhash: 'a/3' }])
+    })
+
+    it('is the whole album without a rest, or with none of it left', () => {
+        expect(restOfAlbum(tracks, undefined)).toBe(tracks)
+        expect(restOfAlbum(tracks, [])).toBe(tracks)
+        expect(restOfAlbum(tracks, ['b/9'])).toBe(tracks)
     })
 })
