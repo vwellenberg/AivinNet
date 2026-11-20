@@ -1,3 +1,5 @@
+// Several throwaway stub components in one test file, props untyped on purpose.
+/* eslint-disable vue/one-component-per-file, vue/require-prop-types */
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -68,7 +70,9 @@ function mountList() {
   return mount(PlaylistList, {
     global: {
       stubs: {
-        Header: true,
+        // The head is not under test, but the search field stands in its
+        // #lead slot on the desktop, so the stub renders that slot.
+        Header: { render() { return h('div', this.$slots.lead?.()) } },
         NoItems: {
           props: ['flag', 'title'],
           render() {

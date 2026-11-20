@@ -1,6 +1,12 @@
 <template>
     <div id="p-view" class="content-page" :style="{ background: brandGradient() }">
         <Header>
+            <!-- The search field leads the head on the line of the actions;
+                 on a phone the head is empty (actions in the top bar) and the
+                 field stands above the chips instead. -->
+            <template v-if="totalCount && !isMobile" #lead>
+                <ListFind v-model="search" field-id="playlists-search" placeholder="Search playlists" />
+            </template>
             <template #description>
                 You have {{ pStore.playlists.length }} playlists in your library
             </template>
@@ -18,7 +24,10 @@
             </template>
         </Header>
 
-        <PlaylistSortBar v-if="totalCount" v-model="search" />
+        <div v-if="totalCount && isMobile" class="playlist-search">
+            <ListFind v-model="search" field-id="playlists-search" placeholder="Search playlists" />
+        </div>
+        <PlaylistSortBar v-if="totalCount" />
 
         <PlaylistCardGroup v-if="shownSmart.length" :title="'Smart playlists'">
             <SmartPlaylistCard v-for="p in shownSmart" :key="p.id" :playlist="p" />
@@ -58,6 +67,7 @@ import PlusSvg from '@/assets/icons/plus.svg'
 import SparklesSvg from '@/assets/icons/sparkles.svg'
 import PlaylistCardGroup from '@/components/PlaylistsList/PlaylistCardGroup.vue'
 import PlaylistSortBar from '@/components/PlaylistsList/PlaylistSortBar.vue'
+import ListFind from '@/components/shared/ListFind.vue'
 import SmartPlaylistCard from '@/components/PlaylistsList/SmartPlaylistCard.vue'
 import Header from '@/components/shared/GenericHeader.vue'
 import { brandGradient } from '@/utils/colortools/pageGradient'
@@ -155,6 +165,17 @@ onMounted(() => {
 
     .playlist-button {
         padding-right: $medium;
+    }
+
+    // Phone only: the field stands above the chips, full width, with the same
+    // gap below it as between the chip rows.
+    .playlist-search {
+        display: flex;
+        margin-bottom: 1rem;
+
+        .list-find {
+            flex: 1 1 auto;
+        }
     }
 
     .nothing {
