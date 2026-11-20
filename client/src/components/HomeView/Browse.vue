@@ -53,8 +53,9 @@
 import { reactive } from "vue";
 
 type CrateEntity = "album" | "artist";
-// How the shown pictures were chosen. Albums are always the newest; artists
-// are the most-played, or the newest while no played artist has a picture yet.
+// How the shown pictures were chosen. Albums are the newest, or the
+// most-played while none of the newest has a cover; artists are the
+// most-played, or the newest while no played artist has a picture yet.
 type Order = "newest" | "most-played";
 
 interface CrateData {
@@ -65,9 +66,14 @@ interface CrateData {
 
 const FIRST_ORDER: Record<CrateEntity, Order> = { album: "newest", artist: "most-played" };
 
+// How far back the newest albums are read for covers, in ONE request: the most
+// the list endpoint answers `artwork` for (`ARTWORK_LIMIT_MAX` in
+// api/getall/__init__.py; a test holds the two together).
+export const NEWEST_ALBUMS = 50;
+
 // Module scope (a plain <script>, not <script setup>, which runs per
 // instance): a return to Home shows the crates at once instead of name-only
-// cards that fill in after the arrival animation; one request pair per
+// cards that fill in after the arrival animation; one set of list requests per
 // session, and again after a failure. A count that grows while the app is
 // open shows on the next reload.
 const data = reactive<Record<CrateEntity, CrateData>>({
@@ -156,79 +162,68 @@ function tagFor(order: Order) {
 
 type Item = { image?: string; help_text?: string; has_artwork?: boolean };
 
-async function fetchShown(type: "albums" | "artists", sortby: string, start = 0) {
-  const res = await getAllItems(type, { start, limit: FETCH_LIMIT, sortby, reverse: "1", artwork: true });
+async function fetchShown(type: "albums" | "artists", sortby: string, limit = FETCH_LIMIT) {
+  const res = await getAllItems(type, { start: 0, limit, sortby, reverse: "1", artwork: true });
   if (res.status !== 200 || !res.data || !Array.isArray(res.data.items)) return null;
   // Capped here too: the endpoint may send more than was asked for.
-  return { total: res.data.total, items: (res.data.items as Item[]).slice(0, FETCH_LIMIT) };
+  return { total: res.data.total, items: (res.data.items as Item[]).slice(0, limit) };
 }
 
 const unplayed = (it: Item) => /^0 play/.test(it.help_text || "");
 const withArtwork = (it: Item) => !!it.image && it.has_artwork !== false;
 
-// The newest albums, page by page, until SHOWN_MAX of them have artwork, the
-// list runs out, or ALBUM_PAGES pages were read. One page was not enough: a
-// batch of newly added albums without covers filled all sixteen places, and
-// the crate stood empty beside its count of 898 albums.
-const ALBUM_PAGES = 4;
+type Page = NonNullable<Awaited<ReturnType<typeof fetchShown>>>;
+type Shown = { page: Page | null; order: Order };
 
-async function fetchNewestAlbums() {
-  const first = await fetchShown("albums", "created_date");
-  if (!first) return null;
-  const items = [...first.items];
-  let page: typeof first | null = first;
-  for (let i = 1; i < ALBUM_PAGES; i++) {
-    if (items.filter(withArtwork).length >= SHOWN_MAX || page.items.length < FETCH_LIMIT) break;
-    page = await fetchShown("albums", "created_date", i * FETCH_LIMIT);
-    if (!page) break;
-    items.push(...page.items);
-  }
-  return { total: first.total, items };
+// The albums crate reads two lists, and asks for both AT ONCE: the newest
+// NEWEST_ALBUMS albums, and the most-played ones, which stand in when none of
+// the newest has a cover. Sixteen newest were not enough: a batch of newly
+// added albums without covers filled all sixteen places, and the crate stood
+// empty beside its count of 898 albums. Paging further back and only then
+// asking for the most-played took five requests one after the other, each
+// queued behind Home's pictures on a server that answers one request at a
+// time: with 90 coverless albums in front, the covers came 2.2 s after the
+// page was opened, 1.3 s after the rows' first cover (measured at 150 ms
+// latency, 2026-11-20). One round now, whichever list is used.
+async function fetchAlbums(): Promise<Shown> {
+  const [newest, top] = await Promise.all([
+    fetchShown("albums", "created_date", NEWEST_ALBUMS),
+    fetchShown("albums", "playcount"),
+  ]);
+  if (!newest || newest.items.some(withArtwork)) return { page: newest, order: "newest" };
+  // Not one cover among the newest: a large import without artwork (176
+  // episodes of a show, each its own album) leaves nothing to show there.
+  // The most-played albums with a cover stand in, under MOST PLAYED.
+  const played = top ? top.items.filter((it) => !unplayed(it) && withArtwork(it)) : [];
+  if (!played.length) return { page: newest, order: "newest" };
+  return { page: { ...newest, items: played }, order: "most-played" };
 }
 
-// Up to FETCH_LIMIT of each, through the list endpoint the pages themselves use:
-// the newest albums (further back while too few of them have artwork, see
-// fetchNewestAlbums; the most-played ones if none of those has a cover), the
-// most-played artists. The board says "MOST PLAYED", so an album or artist
-// with no plays never stands in that row: a library with two played artists
-// shows those two, not five arbitrary ones beside them. While no played artist has a picture of
-// its own yet (nothing played, or only artists without an image), the row is
-// the newest artists and says "NEW IN".
-//
-// The list answer says per item whether its picture is real artwork
-// (`has_artwork`, asked for with `artwork`): the server decides it the way its
-// image endpoint does (`lib/artwork.find_image`), so the row needs no request per
-// picture. An item flagged `false` is dropped: a sleeve with no artwork of its
-// own is not shown. An item WITHOUT the field (an older server) is kept, as
-// before the flag existed.
-// What is left is capped at SHOWN_MAX. If nothing with artwork remains, the
-// crate has no covers and no board. A failed request leaves the card as name
-// only: still a working link, nothing half-drawn.
+// The most-played artists. The board says "MOST PLAYED", so an artist with no
+// plays never stands in that row: a library with two played artists shows
+// those two, not five arbitrary ones beside them. While no played artist has a
+// picture of its own yet (nothing played, or only artists without an image),
+// the row is the newest artists and says "NEW IN".
+async function fetchArtists(): Promise<Shown> {
+  const top = await fetchShown("artists", "playcount");
+  if (!top) return { page: null, order: "most-played" };
+  const played = top.items.filter((it) => !unplayed(it) && it.has_artwork !== false);
+  if (played.length) return { page: { ...top, items: played }, order: "most-played" };
+  return { page: await fetchShown("artists", "created_date"), order: "newest" };
+}
+
+// Both crates read the list endpoint the pages themselves use. The list answer
+// says per item whether its picture is real artwork (`has_artwork`, asked for
+// with `artwork`): the server decides it the way its image endpoint does
+// (`lib/artwork.find_image`), so the row needs no request per picture. An item
+// flagged `false` is dropped: a sleeve with no artwork of its own is not shown.
+// An item WITHOUT the field (an older server) is kept, as before the flag
+// existed. What is left is capped at SHOWN_MAX. If nothing with artwork
+// remains, the crate has no covers and no board. A failed request leaves the
+// card as name only: still a working link, nothing half-drawn.
 async function load(entity: CrateEntity) {
   try {
-    let order: Order = FIRST_ORDER[entity];
-    let page =
-      entity === "album" ? await fetchNewestAlbums() : await fetchShown("artists", "playcount");
-    if (entity === "album" && page && !page.items.some(withArtwork)) {
-      // Not one cover among the newest: a large import without artwork (176
-      // episodes of a show, each its own album) leaves nothing to show there.
-      // The most-played albums with a cover stand in, under MOST PLAYED.
-      const top = await fetchShown("albums", "playcount");
-      const played = top ? top.items.filter((it) => !unplayed(it) && withArtwork(it)) : [];
-      if (played.length) {
-        page = { ...page, items: played };
-        order = "most-played";
-      }
-    }
-    if (entity === "artist" && page) {
-      const played = page.items.filter((it) => !unplayed(it) && it.has_artwork !== false);
-      if (played.length) {
-        page = { ...page, items: played };
-      } else {
-        page = await fetchShown("artists", "created_date");
-        order = "newest";
-      }
-    }
+    const { page, order } = await (entity === "album" ? fetchAlbums() : fetchArtists());
     if (!page) return;
 
     // The count and the pictures come from the same answer.
