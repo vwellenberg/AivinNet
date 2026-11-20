@@ -69,15 +69,19 @@ def rank_almost_complete(
 
 
 def almost_complete_item(album: AlmostComplete) -> dict[str, Any]:
-    return _card(album.albumhash, len(album.missing))
+    return _card(album.albumhash, album.missing)
 
 
-def _card(albumhash: str, left: int) -> dict[str, Any]:
+def _card(albumhash: str, rest: Sequence[str]) -> dict[str, Any]:
+    left = len(rest)
     return {
         "type": "album",
         "hash": albumhash,
         "help_text": f"{left} {'song' if left == 1 else 'songs'} to go",
-        "home": {"missing": left},
+        # `rest`: the songs still missing, in album order — the card's play
+        # button plays these, not the album from the top (the album is the
+        # card's link; "Play the rest" of the row plays every card's).
+        "home": {"missing": left, "rest": list(rest)},
     }
 
 
@@ -97,10 +101,10 @@ def after_play(
     cards: list[dict[str, Any]] = []
     for item in items:
         if item["hash"] == albumhash:
-            left = int(item["home"]["missing"]) - 1
-            if left <= 0:
+            album_rest = [t for t in item["home"].get("rest", []) if t != trackhash]
+            if not album_rest:
                 continue
-            item = _card(albumhash, left)
+            item = _card(albumhash, album_rest)
         cards.append(item)
     return cards, [t for t in rest if t != trackhash]
 

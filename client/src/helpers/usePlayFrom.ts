@@ -17,6 +17,7 @@ import { getFiles } from '@/requests/folders'
 import { getPlaylist } from '@/requests/playlists'
 import { getSmartPlaylist } from '@/requests/smartPlaylists'
 import { shuffledCopy } from '@/utils/shuffleCopy'
+import { restOfAlbum } from '@/utils/homeRows'
 
 export async function utilPlayFromArtist(index: number = 0) {
     const queue = useQueue()
@@ -41,11 +42,15 @@ export async function utilPlayFromArtist(index: number = 0) {
     index ? queue.play(index) : queue.playSource()
 }
 
-export async function playFromAlbumCard(albumhash: string, albumname: string) {
+/**
+ * `rest`: only these tracks of the album ("Almost complete": the songs still
+ * missing, #529). Without it, the album from the top.
+ */
+export async function playFromAlbumCard(albumhash: string, albumname: string, rest?: string[]) {
     const queue = useQueue()
     const tracklist = useTracklist()
 
-    const tracks = await getAlbumTracks(albumhash)
+    const tracks = restOfAlbum(await getAlbumTracks(albumhash), rest)
 
     if (tracks.length === 0) {
         useToast().showNotification('Album tracks not found', NotifType.Error)

@@ -77,3 +77,16 @@ export function withCardAt(items: RowItem[], card: RowItem, index: number): RowI
     const at = Math.min(index, items.length)
     return [...items.slice(0, at), card, ...items.slice(at)]
 }
+
+/**
+ * The tracks an "Almost complete" card plays (#529): the album's songs still
+ * missing (`album.home.rest`, from the server), in album order. A song the
+ * album no longer holds is left out; with none of them left, the whole album
+ * — a stale card should still play something, not nothing.
+ */
+export function restOfAlbum<T extends { trackhash: string }>(tracks: T[], rest: string[] | undefined): T[] {
+    if (!rest?.length) return tracks
+    const wanted = new Set(rest)
+    const found = tracks.filter(t => wanted.has(t.trackhash))
+    return found.length ? found : tracks
+}

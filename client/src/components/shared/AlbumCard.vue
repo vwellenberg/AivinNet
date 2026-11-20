@@ -16,13 +16,15 @@
                  stamps one not played yet (#533; "to you", because the line
                  under the cover says whether it is new to the library), "On this
                  day" the day it was first heard (#534), "Almost complete" the songs
-                 left (#529). -->
+                 left (#529) — and its play button plays those, not the album from the
+                 top. -->
             <CardStamp v-if="stamp" :value="stamp.value" :caption="stamp.caption" :tone="stamp.tone" />
             <PlayBtn
                 :store="useAlbumStore"
                 :source="playSources.album"
                 :album-hash="album.albumhash"
                 :album-name="album.title"
+                :album-rest="album.home?.rest"
             />
         </div>
         <div class="card-plate">

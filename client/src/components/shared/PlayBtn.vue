@@ -25,6 +25,8 @@ const props = defineProps<{
   source: playSources | null;
   albumHash?: string;
   albumName?: string;
+  // Only these tracks of the album ("Almost complete": the songs to go).
+  albumRest?: string[];
   artisthash?: string;
   artistname?: string;
   folderpath?: string;
@@ -35,7 +37,7 @@ const props = defineProps<{
 function handlePlay() {
   switch (props.source) {
     case playSources.album:
-      playFromAlbumCard(props.albumHash || "", props.albumName || "");
+      playFromAlbumCard(props.albumHash || "", props.albumName || "", props.albumRest);
       break;
 
     case playSources.artist:

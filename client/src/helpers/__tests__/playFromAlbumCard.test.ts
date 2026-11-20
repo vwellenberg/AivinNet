@@ -6,7 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // pre-filled an empty name.
 
 vi.mock('@/requests/album', () => ({
-    getAlbumTracks: vi.fn(async () => [{ trackhash: 't1', album: 'Kind of Blue', albumhash: 'al1' }]),
+    getAlbumTracks: vi.fn(async () => [
+        { trackhash: 't1', album: 'Kind of Blue', albumhash: 'al1' },
+        { trackhash: 't2', album: 'Kind of Blue', albumhash: 'al1' },
+        { trackhash: 't3', album: 'Kind of Blue', albumhash: 'al1' },
+    ]),
 }))
 
 const setFromAlbum = vi.fn()
@@ -31,5 +35,21 @@ describe('playFromAlbumCard', () => {
         await playFromAlbumCard('al1', 'Given')
 
         expect(setFromAlbum.mock.calls[0][0]).toBe('Given')
+    })
+
+    // "Almost complete" (#529): the card's play button started the album
+    // from the top instead of the songs still to go.
+    it('plays only the songs to go when the card names them', async () => {
+        await playFromAlbumCard('al1', 'Kind of Blue', ['t3', 't1'])
+
+        // In album order, not in the order given.
+        expect(setFromAlbum.mock.calls[0][2].map((t: { trackhash: string }) => t.trackhash)).toEqual(['t1', 't3'])
+    })
+
+    it('plays the whole album without a rest, or when none of it is left', async () => {
+        await playFromAlbumCard('al1', 'Kind of Blue')
+        await playFromAlbumCard('al1', 'Kind of Blue', ['gone'])
+
+        for (const call of setFromAlbum.mock.calls) expect(call[2]).toHaveLength(3)
     })
 })

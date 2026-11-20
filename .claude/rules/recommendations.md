@@ -224,6 +224,10 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   demselben Grund zieht **jeder Scrobble** die Zeile im RAM nach (`almost_complete_played` →
   `after_play`): sonst stünde nach „Play the rest“ bis zum nächsten Lauf „2 songs to go“ auf einem
   durchgehörten Album, und der Knopf spielte dieselben Songs noch einmal.
+  **Der Play-Knopf der einzelnen Karte** spielt ebenfalls nur deren fehlende Songs: Die Karte
+  trägt sie als `home.rest` (Trackhashes in Album-Reihenfolge, `after_play` zieht sie mit), der
+  Client filtert die Albumtracks damit (`utils/homeRows.ts::restOfAlbum`). Vorher startete er das
+  Album von vorn — gemeldet als „Klick startet das Album neu, nicht den fehlenden Song“.
 
 **Der Grund steht schon auf der Karte** — die Hilfezeile über dem Titel ist `help_text` plus
 `secondary_text` (beim Client `time`, `recover_items`): „2 sessions together · last March 2025“,
