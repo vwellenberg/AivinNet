@@ -655,7 +655,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   --row-fill: #{$mem-panel};
   background-color: var(--row-fill);
   @if $hatch {
-    @include mem-hatch(38px, $on: surface, $motif: bacterio);
+    @include mem-hatch(38px, $on: surface);
   }
   border: $candy-border;
   border-radius: $radius;
@@ -694,7 +694,12 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   --row-fill: var(--mem-hover);
   color: var(--mem-hover-text);
   @if $hatch {
-    background-image: var(--mem-hatch-big-hover);
+    background-image: var(--mem-hatch-hover);
+    // The size travels with the sprite: on an ACTIVE row the marker left a
+    // two-layer size list (`9px 14px, …`), and the single hover sprite took
+    // its first slot — a 9x14 tile, a dense scribble under the pointer
+    // (measured on the active nav row, 2026-11-20).
+    background-size: mem-hatch-tile(38px);
   }
   border-color: $mem-frame;
   box-shadow: mem-shadow(4px, 4px, hover);
@@ -726,7 +731,7 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   --row-fill-rest: var(--look-tint, #{$fill});
   --row-fill: var(--row-fill-rest);
   background-color: var(--row-fill);
-  @include mem-hatch(38px, $on: accent, $motif: bacterio);
+  @include mem-hatch(38px, $on: accent);
   color: var(--look-tint-text, #{$mem-ink});
 }
 
@@ -1103,9 +1108,9 @@ $mem-seg-reserve: 4px !default;
 // Drawn with `border-left` + a background layer rather than a pseudo-element:
 // both of those are spoken for by the drag/drop markers on these rows.
 // ---------------------------------------------------------------------------
-// `$motif` is the texture under the marker: a row is a plate (bacterio), but
-// the phone's bottom bar turns the same rows into buttons (dashdot).
-@mixin mem-row-marker($w: 9px, $motif: bacterio) {
+// `$size` is the hatch tile under the marker: 38px on a row, the button tile
+// (28px) where the phone's bottom bar turns the same rows into buttons.
+@mixin mem-row-marker($w: 9px, $size: 38px) {
   padding-left: $w;
   // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
   // kept the resting tint while the row turned the look's active colour —
@@ -1119,10 +1124,10 @@ $mem-seg-reserve: 4px !default;
   background-color: var(--look-active-fill, var(--row-fill));
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
   background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>')),
-    if($motif == bacterio, var(--mem-hatch-big-accent), var(--mem-hatch-accent));
+    var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
-  background-size: 9px 14px, if($motif == bacterio, mem-hatch-tile(38px, bacterio), mem-hatch-tile(28px));
+  background-size: 9px 14px, mem-hatch-tile($size);
 }
 
 // ---------------------------------------------------------------------------
@@ -1207,14 +1212,17 @@ $mem-seg-reserve: 4px !default;
 // six strokes, tiled every 38px — on a plate as wide as a Browse crate that
 // reads as a wallpaper grid. Blue noise was tried and read as terrazzo stone;
 // a confetti lattice was tried and dropped ("mag ich nicht so"). Memphis
-// patterns are DRAWN repeats (Sottsass' "Bacterio", Du Pasquier's textiles), so
-// the hatch now has two regular motifs, split by WHAT carries it:
+// patterns are DRAWN repeats (Sottsass' "Bacterio", Du Pasquier's textiles).
 //
-//   dashdot   BUTTONS (`--mem-hatch*`, the default): rows of "/", dots, "\",
-//             dots. The sprinkle (`mem-sprinkle`) is the same motif in full ink.
-//   bacterio  PLATES — sidebar and nav rows, card plates, Browse crates
-//             (`--mem-hatch-big*`, `$motif: bacterio`): little S-squiggles,
-//             alternately turned 90°.
+//   dashdot   THE hatch, everywhere (`--mem-hatch*`, the default): rows of
+//             "/", dots, "\\", dots. The sprinkle (`mem-sprinkle`) is the same
+//             motif in full ink.
+//   bacterio  ONLY the Browse crates (Albums/Artists on Home;
+//             `--mem-hatch-big*`, `$motif: bacterio`): little S-squiggles,
+//             alternately turned 90°. It was on every plate for a day and read
+//             as too busy next to the text of sidebar rows and card plates
+//             (user, 2026-11-20); on the crates, where covers and not text
+//             fill the plate, it stays.
 //
 // `$size` everywhere still means "the old 46-unit cell", so a 28px button and a
 // 38px row keep their stroke scale; `mem-hatch-tile()` turns it into the

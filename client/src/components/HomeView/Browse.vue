@@ -297,8 +297,8 @@ onMounted(() => {
     // same `--row-fill` as the card itself, so a fill swap carries over.
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
-    // A plate this wide carries the big motif (bacterio) — confetti at this
-    // size reads as wallpaper (_candy.scss, hatch motifs).
+    // The crates are the one place that wears bacterio (_candy.scss, hatch
+    // motifs): covers, not text, fill the plate, so the squiggles have room.
     @include mem-hatch(38px, $on: surface, $motif: bacterio);
     // Hard offset shadow: the tile sits above the grid ground (memphis).
     @include candy-raised(3px, 3px, $press: false);
