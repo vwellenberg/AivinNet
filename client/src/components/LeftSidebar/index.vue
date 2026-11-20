@@ -1174,7 +1174,7 @@ $sidebar-label-opacity: 0.85;
       // stays white; colour belongs to the navigation and the tiles).
       --row-fill: #{$mem-panel};
       background-color: var(--row-fill);
-      @include mem-hatch(38px, $on: surface, $motif: bacterio);
+      @include mem-hatch(38px, $on: surface);
       cursor: pointer;
       font-size: $sidebar-row-font;
       // Same weight as every other row in this sidebar.
@@ -1193,7 +1193,7 @@ $sidebar-label-opacity: 0.85;
       &:hover {
         --row-fill: var(--mem-hover);
         color: var(--mem-hover-text);
-        background-image: var(--mem-hatch-big-hover);
+        background-image: var(--mem-hatch-hover);
       }
 
       .folder-icon-slot {
@@ -1303,7 +1303,7 @@ $sidebar-label-opacity: 0.85;
       // before: the folder box's hatch had shown through them as stray strokes
       // out of step with the rows' own.
       background-color: $mem-panel;
-      @include mem-hatch(38px, $on: surface, $motif: bacterio);
+      @include mem-hatch(38px, $on: surface);
       padding: $smaller;
       display: flex;
       flex-direction: column;

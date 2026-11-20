@@ -425,28 +425,32 @@ wischt die Bild-Ebene weg).
 **Die Kachelgröße folgt der Fläche:** 28 px auf einem 44-px-Button, 38 px auf einer Zeile, die
 sechsmal so breit ist.
 
-⚠️ **Zwei Motive, getrennt nach dem, was sie trägt** (Nutzer, 2026-11-19). Die alte 46er-Zelle mit
-sechs Strichen wiederholte sich alle 38 px und las sich auf breiten Platten (Browse-Kiste) als
-Tapetenraster. Ein Blue-Noise-Feld las sich als Terrazzo-Stein, ein Konfetti-Gitter (Striche auf
-Dreiecksraster) gefiel nicht („mag ich nicht so“) — Memphis sind **gezeichnete Rapporte**
+⚠️ **Strich & Punkt überall, Bacterio nur auf den Browse-Kisten** (Nutzer, 2026-11-19/20). Die
+alte 46er-Zelle mit sechs Strichen wiederholte sich alle 38 px und las sich auf breiten Platten
+(Browse-Kiste) als Tapetenraster. Ein Blue-Noise-Feld las sich als Terrazzo-Stein, ein
+Konfetti-Gitter gefiel nicht („mag ich nicht so“) — Memphis sind **gezeichnete Rapporte**
 (Sottsass' „Bacterio“, Du Pasquiers Stoffe). Jetzt, alle in `_candy.scss` (`$mem-hatch-motifs`,
 `mem-hatch-sprite()`):
 
 | Motiv | trägt | Token / Mixin |
 |---|---|---|
-| **Strich & Punkt** — Reihen „/“, Punkte, „\“, Punkte | **Buttons**: Rollen, Label-Ringe, Tabs, Chips, Nav-/Toggle-Knöpfe — und in voller Tinte der Sprinkle (Haupt-CTA, „an“) | `--mem-hatch*`, `mem-hatch(…)` (Standard), `mem-sprinkle` |
-| **Bacterio** — S-Kringel, abwechselnd 90° gedreht | **Platten**: Sidebar- und Nav-Zeilen (`mem-row-plate*`, `mem-row-marker`), Karten-Platten, Browse-Kisten | `--mem-hatch-big*`, `mem-hatch(…, $motif: bacterio)` |
+| **Strich & Punkt** — Reihen „/“, Punkte, „\“, Punkte | **alles**: Rollen, Label-Ringe, Tabs, Chips, Sidebar- und Nav-Zeilen, Karten-Platten — und in voller Tinte der Sprinkle (Haupt-CTA, „an“) | `--mem-hatch*`, `mem-hatch(…)` (Standard), `mem-sprinkle` |
+| **Bacterio** — S-Kringel, abwechselnd 90° gedreht | **nur die Browse-Kisten** (Albums/Artists auf Home) | `--mem-hatch-big*`, `mem-hatch(…, $motif: bacterio)` |
 
-**`$size` meint weiter die alte 46er-Zelle**, und **jedes `background-size` einer Schraffur geht
-durch `mem-hatch-tile($size, $motif)`** — Bacterio ist nicht quadratisch, ein nacktes `38px 38px`
-neben `--mem-hatch*` staucht es. Eine Platte hovert auf `--mem-hatch-big-hover`, nie auf
-`--mem-hatch-hover` (anderes Motiv, andere Kachel).
-⚠️ **Dieselbe Komponente kann beides sein.** Die Nav-Zeilen (`NavButtons.vue`) sind am Desktop
-Platten, am Handy die quadratischen **Buttons** der unteren Leiste — dort tragen sie Strich & Punkt
-(Handy-Block am Ende der Datei, `mem-row-marker($motif: dashdot)` für den aktiven Eintrag; Nutzer,
-2026-11-20). Jeder Zustand setzt dort Bild **und** Größe: Die Tönung setzt ihre Größe eine Klasse
-spezifischer als `.nav-item`, und der getönte Knopf behielt sonst die Bacterio-Kachel unter dem
-Strich-&-Punkt-Sprite (gemessen am gebauten CSS). Boring setzt alle sechs Hatch-Tokens auf `none`. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+Bacterio lag einen Tag lang auf **jeder** Platte und war neben dem Text der Sidebar-Zeilen und
+Karten-Platten zu unruhig („Knöpfe sind noch zu unruhig hier“); auf den Kisten füllen Cover die
+Fläche, nicht Text, dort trägt es. **`$size` meint weiter die alte 46er-Zelle**, und **jedes
+`background-size` einer Schraffur geht durch `mem-hatch-tile($size, $motif)`** — Bacterio ist nicht
+quadratisch, ein nacktes `38px 38px` neben `--mem-hatch*` staucht es. Eine Kiste hovert auf
+`--mem-hatch-big-hover`, nie auf `--mem-hatch-hover` (anderes Motiv, andere Kachel).
+
+⚠️ **Der Hover einer Zeile setzt die Kachelgröße mit** (`mem-row-plate-hover`). Auf der aktiven
+Zeile hinterlässt `mem-row-marker` eine zweiteilige Größe (`9px 14px, …`), und das eine
+Hover-Sprite nahm deren ersten Platz: eine 9×14-Kachel, ein dichtes Gekritzel unter dem Zeiger
+(gemessen an der aktiven Nav-Zeile, 2026-11-20 — bestand schon vorher). Am Handy sind die
+Nav-Zeilen die Buttons der unteren Leiste und nehmen die Button-Kachel (28 statt 38 px;
+Handy-Block am Ende von `NavButtons.vue`, `mem-row-marker($size: 28px)`). Jeder Zustand setzt dort
+seine Größe selbst, denn Tönung und Marke setzen ihre eine Klasse spezifischer als `.nav-item`. Boring setzt alle sechs Hatch-Tokens auf `none`. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt

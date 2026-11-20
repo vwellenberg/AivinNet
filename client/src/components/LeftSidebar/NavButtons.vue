@@ -347,32 +347,30 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     transform: scale(0.7);
   }
 
-  // On phones the rows are the square BUTTONS of the bottom bar, so they wear
-  // the button motif (dash-dot, `--mem-hatch*`) instead of the plates'
-  // bacterio that `mem-row-plate*` / `mem-row-marker` paint (user,
-  // 2026-11-20: "Smartphone-Buttons unten haben Bacterio, nicht Strich &
-  // Punkt"). Only the texture swaps, per state — fill, frame, marker and hover
-  // flip stay with the mixins. Last in the block, so each rule beats its
-  // desktop twin of equal specificity by order.
+  // On phones the rows are the square BUTTONS of the bottom bar, so their
+  // hatch takes the button tile (28px) instead of the row's 38px — the motif is
+  // the same dash-dot everywhere (only the Browse crates wear bacterio). Each
+  // state sets its own size: the tint and the marker set theirs one class
+  // more specific than the plain `.nav-item` rule (measured: a tinted phone
+  // button kept the row tile). Last in the block, so each rule beats its desktop twin of
+  // equal specificity by order.
   @include allPhones {
     .nav-item {
-      background-image: var(--mem-hatch);
       background-size: mem-hatch-tile(28px);
 
       @each $name, $colour in $mem-nav-tints {
-        // Size too: the tint's own `mem-hatch` call sets it one class more
-        // specific than the plain `.nav-item` rule above (measured: the tinted
-        // phone button kept bacterio's 43x36 tile under the dash-dot sprite).
         &.tint-#{$name} {
-          background-image: var(--mem-hatch-accent);
           background-size: mem-hatch-tile(28px);
         }
       }
 
       &.active {
-        @include mem-row-marker($motif: dashdot);
+        @include mem-row-marker($size: 28px);
       }
 
+      // The image too: the `.active` rule above comes later than the desktop
+      // hover and would keep the marker and the accent hatch (ink strokes on
+      // the dark hover fill) under the pointer.
       &:hover {
         background-image: var(--mem-hatch-hover);
         background-size: mem-hatch-tile(28px);
