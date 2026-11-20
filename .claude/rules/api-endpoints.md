@@ -353,7 +353,15 @@ der Bibliothek fielen, verschwinden aus den Listen (`_with_tracks`), zählen abe
 weiter, bis der nächste Play neu rechnet.
 
 ⚠️ Die Quote ist eine **Untergrenze**: `log_track` verwirft Plays unter 5 s, die schnellsten
-Skips stehen gar nicht in der Datenbank. Der Client schreibt das in die Kachel; wer die Zahl
+Skips stehen gar nicht in der Datenbank.
+
+**Die Schwelle folgt der Songlänge** (#882, `lib/play_floor.py`, im Client `tracker.ts::minLoggedSeconds`,
+beide mit derselben Tabelle getestet): `min(5, max(1, Länge − 2))`. Ein Stinger von 3 s zählte unter
+festen 5 s nie, und sein Album blieb für immer in „Almost complete“. Die 2 s Toleranz sind der
+Messtakt des Clients (Spielzeit wird einmal pro Sekunde addiert, am Anfang und am Ende geht je bis zu
+eine verloren). Unter 3 s Länge ist ein Song nicht verlässlich zählbar (der Client schickt unter 1 s
+nichts), „Almost complete“ verlangt ihn deshalb nicht (`can_be_logged`). Wer die Regel ändert,
+ändert beide Seiten. Der Client schreibt das in die Kachel; wer die Zahl
 anders darstellt, behält den Hinweis.
 
 ## Bibliotheks-Kacheln: Cache am Store-Generation-Zähler (#536)

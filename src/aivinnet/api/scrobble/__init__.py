@@ -24,6 +24,7 @@ from aivinnet.lib.listening_devices import build_devices
 from aivinnet.lib.listening_sources import count_kinds, shares_text, source_shares
 from aivinnet.lib.name_cleanup import current_trackhash
 from aivinnet.lib.placeholder_artists import PLACEHOLDER_ARTIST_HASHES
+from aivinnet.lib.play_floor import min_logged_seconds
 from aivinnet.lib.recipes.continuelistening import ContinueListening
 from aivinnet.lib.recipes.homerows import almost_complete_played, track_facts
 from aivinnet.lib.recipes.recents import RecentlyPlayed
@@ -123,7 +124,7 @@ def log_track(body: LogTrackBody):
     # milliseconds sorted first forever and `/nothome/` 500ed on it (#391).
     # A fixed ceiling, not "now": a server whose clock lags (a Raspberry Pi
     # without RTC before NTP) would otherwise refuse real plays.
-    if not timestamp or timestamp < 0 or timestamp >= MAX_SCROBBLE_TIMESTAMP or duration < 5:
+    if not timestamp or timestamp < 0 or timestamp >= MAX_SCROBBLE_TIMESTAMP or duration < 1:
         return {"msg": "Invalid entry."}, 400
 
     # A play from a queue saved before the name cleanup carries the old hash
@@ -132,6 +133,11 @@ def log_track(body: LogTrackBody):
     trackentry = TrackStore.trackhashmap.get(trackhash)
     if trackentry is None:
         return {"msg": "Track not found."}, 404
+
+    # A skip is no play: 5 s, less for a track that is itself shorter (#882),
+    # or a stinger that ran to the end could never count as heard.
+    if duration < min_logged_seconds(trackentry.tracks[0].duration):
+        return {"msg": "Invalid entry."}, 400
 
     scrobble_data = {**dict(body), "trackhash": trackhash}
     device_id = scrobble_data.pop("device_id", None) or None
