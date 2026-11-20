@@ -2,7 +2,7 @@
   <button
     class="pin-button"
     :class="{ pinned }"
-    :title="pinned ? 'Unpin from library' : 'Pin to library'"
+    :title="pinLabel(!!pinned)"
     @click.prevent="$emit('toggle')"
   >
     <PinFillSvg v-if="pinned" />
@@ -13,6 +13,7 @@
 <script setup lang="ts">
 import PinSvg from '@/assets/icons/pin.svg'
 import PinFillSvg from '@/assets/icons/pin.fill.svg'
+import { pinLabel } from '@/utils/pinLabel'
 
 defineProps<{
   pinned: boolean | undefined

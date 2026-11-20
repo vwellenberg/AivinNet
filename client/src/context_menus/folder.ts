@@ -9,6 +9,7 @@ import useTracklist from "@/stores/queue/tracklist";
 import { addFolderToPlaylist } from "@/requests/playlists";
 import { toggleFolderPin } from "@/helpers/pinFolder";
 import usePinnedFolders from "@/stores/pages/pinnedFolders";
+import { pinLabel } from "@/utils/pinLabel";
 import { getAddToPlaylistOptions } from "./utils";
 
 export default async (path: string) => {
@@ -66,7 +67,7 @@ export default async (path: string) => {
   if (!pinned.loaded) await pinned.fetchAll();
   const is_pinned = pinned.isPinned(path);
   const pin = <Option>{
-    label: is_pinned ? "Unpin from library" : "Pin to library",
+    label: pinLabel(is_pinned),
     action: () => toggleFolderPin(path),
     icon: icons.PushPinIcon,
   };

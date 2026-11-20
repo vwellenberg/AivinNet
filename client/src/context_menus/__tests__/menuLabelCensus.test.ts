@@ -152,10 +152,11 @@ const SINGLE_ENTRIES = ENTRIES.filter(entry => SINGLE.test(entry.body))
 /**
  * Labels this census cannot read: computed at runtime, so there is no string to
  * judge. Pinned rather than ignored — the exemption stays a decision. None of
- * them queues anything: two are pin/unpin toggles, the rest are names of
- * playlists, folders and artists filled in from data.
+ * them queues anything: the pin/unpin toggles (worded by `utils/pinLabel.ts`,
+ * which has its own census), the rest are names of playlists, folders and
+ * artists filled in from data.
  */
-const DYNAMIC = ['is_pinned ?', 'playlist.pinned ?', 'playlist.name', 'artist.name', 'f.name']
+const DYNAMIC = ['pinLabel(', 'playlist.name', 'artist.name', 'f.name']
 
 /**
  * `label:` sites that are NOT a quoted string, in the files this census reads.
