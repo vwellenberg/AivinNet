@@ -1,6 +1,6 @@
 <template>
   <div class="album-info dh-body">
-    <div class="top">
+    <div class="top dh-text">
       <!-- <AlbumType :album="album" /> -->
       <div class="albumtype dh-type">{{ album.type }}</div>
       <!-- One line, ellipsed. Balancing the title over two lines made sense
@@ -11,7 +11,9 @@
     </div>
     <div class="bottom">
       <Versions :versions="album.versions" />
-      <Stats :album="album" />
+      <div class="dh-text">
+        <Stats :album="album" />
+      </div>
       <Buttons />
     </div>
   </div>

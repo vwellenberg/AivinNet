@@ -51,7 +51,8 @@ const statsText = computed(() => {
   // Full-strength text. The ground halo that stood here came from before the
   // head was a plate (detail-head.scss): on the panel it only blurred the line
   // — in the ground's colour, which under Desktop 98 is a sky blue glow.
-  color: $candy-text;
+  // The head's text colour (Global/detail-head.scss): ink on its pastel.
+  color: inherit;
 
   .artistname {
     display: -webkit-box;

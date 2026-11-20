@@ -497,6 +497,11 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   Konzept auch für die **Schraffur** (Regel 3 im Schraffur-Abschnitt), mit derselben Stärke.
   Erste Anwenderin: die Continue-Karte (Textblock und „Up next"-Überschrift), am Desktop **und**
   am Handy — eine Punktebene für jede Breite, keine eigene Maske mehr.
+  Zweite: die Textseite der Detail-Köpfe (Album, Artist, Playlist, Smart-Playlist, 2026-11-20) —
+  Entitäts-Pastell wie die Continue-Karte, Punkte, Schleier auf `.dh-text` (so breit wie die
+  längste Zeile, nicht wie die Spalte). Text dort ist **statische Tinte, auch im Dunkelmodus**:
+  Papier auf dem Dämmerungs-Pastell maß 2,4–2,8:1, Tinte ~5,7:1; das Grau von Typ und Meta 3:1.
+  Boring setzt die Fläche durchsichtig und gibt Text und Grau per `--look-detail-text`/`-muted` zurück.
 - ⚠️ **Der Schleier reicht über seinen Block hinaus — und legt sich über ein Bild daneben.**
   `mem-dots-veil` zieht seine Ebene 14 px über den Block hinaus (`$x`) und zeichnet sie 8 px weich;
   weil der Textblock im DOM nach dem Cover kommt, malt er **über** dem Cover. Bei 20 px Abstand

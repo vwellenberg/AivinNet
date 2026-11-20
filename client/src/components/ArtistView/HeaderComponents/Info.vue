@@ -1,6 +1,6 @@
 <template>
     <div class="artist-info dh-body">
-        <section class="text">
+        <section class="text dh-text">
             <div class="card-title dh-type">Artist</div>
             <div class="artist-name dh-title" :class="`${useCircularImage ? 'ellip' : 'ellip2'}`" :title="artist.name">
                 {{ artist.name }}

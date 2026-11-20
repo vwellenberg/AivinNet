@@ -11,10 +11,12 @@
       </div>
     </div>
     <div class="smart-info dh-body">
-      <div class="type dh-type">Smart playlist</div>
-      <div class="title dh-title ellip" :title="info.name">{{ info.name }}</div>
-      <div class="dh-meta">{{ countText }}</div>
-      <p class="smart-rules">{{ rulesText }}</p>
+      <div class="dh-text dh-stack">
+        <div class="type dh-type">Smart playlist</div>
+        <div class="title dh-title ellip" :title="info.name">{{ info.name }}</div>
+        <div class="dh-meta">{{ countText }}</div>
+        <p class="smart-rules">{{ rulesText }}</p>
+      </div>
 
       <div class="btns header-actions">
         <PlayBtnRect :source="playSources.smartPlaylist" />

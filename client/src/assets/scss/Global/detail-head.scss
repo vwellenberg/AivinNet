@@ -3,6 +3,7 @@
 //
 // The head is ONE object: a panel with an ink frame and a hard offset shadow,
 // split into a square media cell and a text side by a single dividing rule.
+// The text side wears the entity's pastel and halftone dots (see .dh-body).
 // It is the Now-Playing source plate (`NowPlaying/PlayingFrom.vue`) at page
 // scale, and the same anatomy the cover tiles wear (Global/cards.scss).
 //
@@ -133,6 +134,24 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     border-left: $candy-border;
 }
 
+// The text side wears its entity's pastel and the printed dots, like the
+// Continue card on Home (user, 2026-11-20: "das Playlist-Blau füllend für die
+// Weißfläche + Punkte, vgl. Continue listening"): the same object — an album or
+// a playlist — reads in the same colour on Home and on its own page. The media
+// cell keeps the panel. Dots, not hatch: the head is read, only its buttons are
+// pressed, and they carry their own plates.
+.a-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "album"))};
+}
+
+.artist-page-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "artist"))};
+}
+
+.p-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "playlist"))};
+}
+
 .dh-body {
     flex: 1;
     min-width: 0;
@@ -148,12 +167,38 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     gap: 1rem;
     min-height: 11rem;
 
+    // One source for the fill: the veil under the text reads it too. A look
+    // that lets the page tint stand as the head (Boring) keeps it transparent.
+    --row-fill: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
+    position: relative;
+    background-color: var(--row-fill);
+    // Static ink, in dark mode too: the pastel turns dusk there but stays a
+    // mid tone, and paper on it measured 2.4–2.8:1 against ink's ~5.7:1 —
+    // the rule for every static accent fill (styling.md). A look that drops
+    // the pastel (Boring) gives its own text colour back.
+    color: var(--look-detail-text, #{$mem-ink});
+
+    // The pastel is light in light mode and a dusk tone in dark mode, exactly
+    // as on the Continue card, so the dots are the card's: static ink
+    // (`$on: accent`). A look drops them (`--shape-halftone`).
+    &::before {
+        @include mem-halftone($reach: null, $on: accent);
+    }
+
+    > * {
+        position: relative;
+        z-index: 1;
+    }
+
     .dh-type {
         text-transform: uppercase;
         font-size: 0.75rem;
         letter-spacing: 0.06em;
         font-weight: 700;
-        color: $candy-text-muted;
+        // On the pastel the grey fell to 3:1 (light) and ~2:1 (dark): the
+        // label and the meta line keep the head's ink, as on the Continue
+        // card. A look with a grey for them (Boring) sets the token.
+        color: var(--look-detail-muted, currentColor);
         line-height: 1.2;
     }
 
@@ -164,7 +209,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         font-size: var(--shape-detail-title, #{$detail-title-size});
         font-weight: $detail-title-weight;
         line-height: 1.08;
-        color: $candy-text;
+        color: inherit;
         // And may make it glow — Virtual Grid's neon title (#259).
         text-shadow: var(--look-display-glow, none);
         margin: 0.25rem 0;
@@ -173,8 +218,27 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     .dh-meta {
         font-size: $detail-meta-size;
         font-weight: $detail-meta-weight;
-        color: $candy-text-muted;
+        color: var(--look-detail-muted, currentColor);
     }
+}
+
+// The text on the dots: one block per run of text, as wide as its longest
+// line (not the column), so the dots fade toward the words wherever they end
+// and stay full beside a short title — the Continue card's veil.
+.dh-text {
+    @include mem-dots-veil;
+    // Flex child (most heads) or block (the album's meta line) alike.
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 0;
+}
+
+// A wrapper that only exists for the veil keeps the column's rhythm.
+.dh-stack {
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
 }
 
 // ---------------------------------------------------------------------------

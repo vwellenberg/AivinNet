@@ -5,22 +5,25 @@
        the bottom of the header. `justify-content: flex-end` does that without
        making the markup lie about what comes first. -->
   <div class="playlist-info dh-body">
-    <div class="type dh-type">Playlist</div>
-    <!-- One line, ellipsed — no `balanceText` any more. Balancing a title over
-         two lines made sense while the head was 18rem of free space; inside the
-         plate every extra line pushes the whole head taller (measured: 289px
-         against 221px for a one-line title) and stretches the media cell into a
-         portrait crop with it. Same decision the Now-Playing source plate made
-         for the same reason. -->
-    <div class="title dh-title ellip" :title="playlist.info.name">{{ playlist.info.name }}</div>
-    <!-- One meta line. "Last updated" used to be an absolutely positioned box
-         in the header's bottom-right corner, which is why it kept colliding
-         with the action row on small screens; it is part of the meta now. -->
-    <div class="duration dh-meta">
-      {{ playlist.info.count.toLocaleString() + ` ${playlist.info.count == 1 ? "Track" : "Tracks"}` }}
-      •
-      {{ formatSeconds(playlist.info.duration, true) }}
-      <LastUpdated />
+    <!-- One block for the veil over the dots (Global/detail-head.scss). -->
+    <div class="dh-text dh-stack">
+      <div class="type dh-type">Playlist</div>
+      <!-- One line, ellipsed — no `balanceText` any more. Balancing a title over
+           two lines made sense while the head was 18rem of free space; inside the
+           plate every extra line pushes the whole head taller (measured: 289px
+           against 221px for a one-line title) and stretches the media cell into a
+           portrait crop with it. Same decision the Now-Playing source plate made
+           for the same reason. -->
+      <div class="title dh-title ellip" :title="playlist.info.name">{{ playlist.info.name }}</div>
+      <!-- One meta line. "Last updated" used to be an absolutely positioned box
+           in the header's bottom-right corner, which is why it kept colliding
+           with the action row on small screens; it is part of the meta now. -->
+      <div class="duration dh-meta">
+        {{ playlist.info.count.toLocaleString() + ` ${playlist.info.count == 1 ? "Track" : "Tracks"}` }}
+        •
+        {{ formatSeconds(playlist.info.duration, true) }}
+        <LastUpdated />
+      </div>
     </div>
     <!-- Canonical order: Play · Favourite · Pin · Secondary action · Overflow.
          A playlist has no favourite, so that slot is absent and the rest keep
