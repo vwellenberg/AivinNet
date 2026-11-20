@@ -127,6 +127,7 @@ describe('halftone at the ends', () => {
             'src/components/HomeView/ContinueCard.vue': 'accent', // a pastel, light in both themes
             'src/components/HomeView/WeeklyRecap.vue': 'surface', // the recap plate, a panel
             'src/components/HomeView/RadioDial.vue': 'accent', // the radio housing, a lavender pastel that stays light in both themes
+            'src/assets/scss/Global/detail-head.scss': 'accent', // the text side of a detail head, the entity pastel like the Continue card
         }
         const walk = (dir: string): string[] =>
             readdirSync(dir).flatMap((e) => {
