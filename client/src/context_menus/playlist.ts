@@ -1,6 +1,7 @@
 import { Option, Playlist } from "../interfaces";
 import { playFromPlaylist } from "@/helpers/usePlayFrom";
 import { togglePlaylistPin } from "@/helpers/pinPlaylist";
+import { pinLabel } from "@/utils/pinLabel";
 import { AddToQueueIcon, DeleteIcon, DownloadIcon, PencilIcon, PlayIcon, PlaylistIcon, PlayNextIcon, PushPinIcon } from "@/icons";
 import { getPlaylist } from "@/requests/playlists";
 import { getBaseUrl, paths } from "@/config";
@@ -49,7 +50,7 @@ export default async (playlist: Playlist, on_page = false) => {
   };
 
   const pin: Option = {
-    label: playlist.pinned ? "Unpin" : "Pin",
+    label: pinLabel(!!playlist.pinned),
     icon: PushPinIcon,
     action: () => togglePlaylistPin(playlist.id),
   };

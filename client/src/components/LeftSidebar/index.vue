@@ -204,6 +204,7 @@ import { FromOptions, ContextSrc } from "@/enums";
 import { playFromAlbumCard, playFromFolderCard } from "@/helpers/usePlayFrom";
 import { showAlbumContextMenu, showFolderContextMenu } from "@/helpers/contextMenuHandler";
 import { AddToQueueIcon, DeleteIcon, PlayIcon, PlayNextIcon, PushPinIcon } from "@/icons";
+import { pinLabel } from "@/utils/pinLabel";
 import { getPlaylist } from "@/requests/playlists";
 import { useResizeObserver } from "@vueuse/core";
 import { sidebarScrollsWhole } from "@/utils/sidebarFit";
@@ -658,7 +659,7 @@ function onFolderContextMenu(e: MouseEvent, folder: PlaylistFolder) {
       },
     },
     {
-      label: is_pinned ? "Unpin from library" : "Pin to library",
+      label: pinLabel(is_pinned),
       icon: PushPinIcon,
       action: () => folderStore.togglePin(folder.id),
     },

@@ -9,6 +9,7 @@ import { NotifType, Notification } from '@/stores/notification'
 import { toggleAlbumPin } from '@/helpers/pinAlbum'
 import { downloadTracksIndividually } from '@/helpers/downloadTracks'
 import usePinnedAlbums from '@/stores/pages/pinnedAlbums'
+import { pinLabel } from '@/utils/pinLabel'
 
 import { AddToQueueIcon, DeleteIcon, DownloadIcon, ImageIcon, PencilIcon, PlayNextIcon, PlusIcon, PushPinIcon, SearchIcon } from '@/icons'
 import { getBaseUrl, paths } from '@/config'
@@ -237,7 +238,7 @@ export default async (album?: Album) => {
 
     const is_pinned = usePinnedAlbums().isPinned(album.albumhash) || !!album.is_pinned
     const pin: Option = {
-        label: is_pinned ? 'Unpin from library' : 'Pin to library',
+        label: pinLabel(is_pinned),
         icon: PushPinIcon,
         action: () => toggleAlbumPin(album as Album),
     }
