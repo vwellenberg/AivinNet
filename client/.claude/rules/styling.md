@@ -451,7 +451,11 @@ die Kachel ist nicht quadratisch (`$mem-bacterio-size`), also nie `38px 38px` da
 
 **Beim Hover rutscht die Textur, sie tauscht sich nicht nur** („die Streusel wachen auf“, #143):
 `$mem-hatch-stir` (9 × 6 px) in `_candy.scss`, eine Quelle für Karten-Platten, Browse-Kisten, alle
-Zeilen-Platten (`mem-row-plate-hover`) und den Sidebar-Ordner-Kopf. Die Transition dazu ist
+Zeilen-Platten (`mem-row-plate-hover`), den Sidebar-Ordner-Kopf **und alle fünf Button-Rollen**:
+`btn-action`, `btn-quiet`, `btn-toggle-on` verschieben ihre eigene Fläche, `btn-primary` seine
+maskierte Ebene, und jeder **Label-Ring** (`btn-pill`, `btn-action($hatch: label)`, Tabs,
+Segmente, „See all“ …) bekommt die Regel zentral aus `mem-label-hatch` (`&:hover::before`,
+gegatet auf Zeigergeräte) — die Wirte tauschen nur `--label-hatch` und müssen nichts tun. Die Transition dazu ist
 `background-position` — Bewegung, keine Farbe, also mit der Schnitt-Regel verträglich. Wer einer
 neuen schraffierten Platte einen Hover gibt, nimmt das Token und die Transition mit; die Sidebar
 hatte beides bis 2026-11-20 nicht und war damit die eine Stelle, an der die Streusel nur

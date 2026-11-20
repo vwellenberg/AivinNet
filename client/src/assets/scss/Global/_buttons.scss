@@ -374,7 +374,8 @@ $glyph-lone: 1.25rem;
   // mid-frame where both are grey and the flip looks asynchronous.
   // Shadow trails the surface by $motion-lag — see candy-raised for why.
   transition: transform $motion-press $motion-curve,
-    box-shadow $motion-shadow $motion-curve $motion-lag;
+    box-shadow $motion-shadow $motion-curve $motion-lag,
+    background-position $motion-move $motion-curve;
 
   &::before {
     content: "";
@@ -383,6 +384,8 @@ $glyph-lone: 1.25rem;
     @include mem-sprinkle(28px);
     opacity: 0.45;
     pointer-events: none;
+    // Motion only: the hover slides this layer's texture (`$mem-hatch-stir`).
+    transition: background-position $motion-move $motion-curve;
     // The texture thins toward the middle, where glyph and label sit (user,
     // 2026-10-16, concept "C"): full at the ends, nothing under the content
     // since 2026-11-04 (`$mem-hatch-veil-rest`, like every hatched label). It replaced a cover behind the label and the glyph
@@ -438,6 +441,8 @@ $glyph-lone: 1.25rem;
         background-image: var(--mem-hatch-hover);
         background-size: 28px 28px;
         opacity: 1;
+        // The sprinkles wake up (#143): the texture slides as it flips.
+        background-position: $mem-hatch-stir;
       }
     }
   }
@@ -519,7 +524,8 @@ $glyph-lone: 1.25rem;
   // fading the rest just left it visibly out of step (styling.md).
   // Shadow trails the surface by $motion-lag — see candy-raised for why.
   transition: transform $motion-press $motion-curve,
-    box-shadow $motion-shadow $motion-curve $motion-lag;
+    box-shadow $motion-shadow $motion-curve $motion-lag,
+    background-position $motion-move $motion-curve;
 
   svg {
     width: $glyph;
@@ -561,6 +567,8 @@ $glyph-lone: 1.25rem;
       @if $hatch == true {
         background-image: var(--mem-hatch-hover);
         background-size: 28px 28px;
+        // The sprinkles wake up (#143): the texture slides as it flips.
+        background-position: $mem-hatch-stir;
       }
       @if $hatch == label {
         --label-hatch: var(--mem-hatch-hover);
@@ -615,7 +623,7 @@ $glyph-lone: 1.25rem;
   box-shadow: none;
   cursor: pointer;
   // Motion only — the paint is a cut, like every role (styling.md).
-  transition: transform $motion-press ease;
+  transition: transform $motion-press ease, background-position $motion-move $motion-curve;
 
   svg {
     width: $glyph;
@@ -633,6 +641,8 @@ $glyph-lone: 1.25rem;
       color: var(--mem-hover-text);
       background-image: var(--mem-hatch-hover);
       background-size: 28px 28px;
+      // The sprinkles wake up (#143): the texture slides as it flips.
+      background-position: $mem-hatch-stir;
       transform: scale(1.06);
     }
   }
@@ -696,7 +706,8 @@ $glyph-lone: 1.25rem;
   // report this rule ends.
   // Shadow trails the surface by $motion-lag — see candy-raised for why.
   transition: transform $motion-press $motion-curve,
-    box-shadow $motion-shadow $motion-curve $motion-lag;
+    box-shadow $motion-shadow $motion-curve $motion-lag,
+    background-position $motion-move $motion-curve;
 
   // Pointer devices only (HOVER IS POINTER-ONLY, top of this file).
   @media (hover: hover) {
@@ -768,7 +779,8 @@ $glyph-lone: 1.25rem;
   // paint is a cut, like every role (styling.md).
   // Shadow trails the surface by $motion-lag — see candy-raised for why.
   transition: transform $motion-press $motion-curve,
-    box-shadow $motion-shadow $motion-curve $motion-lag;
+    box-shadow $motion-shadow $motion-curve $motion-lag,
+    background-position $motion-move $motion-curve;
 
   // The pointer signal, stated IN the role (#422). It used to live at the two
   // call sites (desktop and mobile transport), both still hovering the old
@@ -790,6 +802,8 @@ $glyph-lone: 1.25rem;
       // onto its masked layer because of its label.
       background-image: var(--mem-hatch-hover);
       background-size: 28px 28px;
+      // The sprinkles wake up (#143): the texture slides as it flips.
+      background-position: $mem-hatch-stir;
       transform: scale(1.06);
 
       &::before {
