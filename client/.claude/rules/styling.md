@@ -440,7 +440,13 @@ Dreiecksraster) gefiel nicht („mag ich nicht so“) — Memphis sind **gezeich
 **`$size` meint weiter die alte 46er-Zelle**, und **jedes `background-size` einer Schraffur geht
 durch `mem-hatch-tile($size, $motif)`** — Bacterio ist nicht quadratisch, ein nacktes `38px 38px`
 neben `--mem-hatch*` staucht es. Eine Platte hovert auf `--mem-hatch-big-hover`, nie auf
-`--mem-hatch-hover` (anderes Motiv, andere Kachel). Boring setzt alle sechs Hatch-Tokens auf `none`. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+`--mem-hatch-hover` (anderes Motiv, andere Kachel).
+⚠️ **Dieselbe Komponente kann beides sein.** Die Nav-Zeilen (`NavButtons.vue`) sind am Desktop
+Platten, am Handy die quadratischen **Buttons** der unteren Leiste — dort tragen sie Strich & Punkt
+(Handy-Block am Ende der Datei, `mem-row-marker($motif: dashdot)` für den aktiven Eintrag; Nutzer,
+2026-11-20). Jeder Zustand setzt dort Bild **und** Größe: Die Tönung setzt ihre Größe eine Klasse
+spezifischer als `.nav-item`, und der getönte Knopf behielt sonst die Bacterio-Kachel unter dem
+Strich-&-Punkt-Sprite (gemessen am gebauten CSS). Boring setzt alle sechs Hatch-Tokens auf `none`. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt
