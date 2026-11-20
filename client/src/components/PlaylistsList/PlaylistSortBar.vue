@@ -103,19 +103,21 @@ function chipTo(key: string) {
 
 .playlist-sort-bar {
 
+  // A flex row, so the field keeps the width it has on every other page
+  // (ListFind's own `flex: 0 1 18rem`); as a block child it stretched across
+  // the whole page (measured ~1035px at 1400px). Full width on a phone.
   .playlist-search {
-    padding: 1rem $medium 0 0;
+    display: flex;
+    // The chip row below drops its top padding (`.itemsortby`), so the gap
+    // between field and chips lives here; without it the focus ring touched
+    // the chips on a phone.
+    padding: 1rem $medium $medium 0;
 
     @include allPhones {
       padding-top: 0;
-    }
 
-    .list-find {
-      flex: 0 1 24rem;
-
-      @include allPhones {
+      .list-find {
         flex: 1 1 auto;
-        width: 100%;
       }
     }
   }

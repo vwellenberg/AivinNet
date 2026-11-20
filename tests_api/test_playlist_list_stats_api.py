@@ -117,3 +117,36 @@ def test_stats_survive_no_images(scene):
     assert played["playcount"] == 3
     assert played["playduration"] == 620
     assert played["lastplayed"] == T0 + 7200
+
+
+def test_the_list_carries_each_playlists_duration(api_client, monkeypatch):
+    """
+    The Playlists page sorts by "Duration", and the list used to send 0 for
+    every playlist (only the detail page summed its tracks). The sum covers
+    the tracks still in the library; an orphan hash adds nothing.
+    """
+    from test_home_discover_api import PRIMUS, _track
+
+    import aivinnet.api.playlist as playlist_api
+    from aivinnet.db.userdata import PlaylistTable
+    from aivinnet.store.tracks import TrackGroup, TrackStore
+
+    tracks = [_track(PRIMUS, n) for n in (1, 2, 3)]
+    for track, seconds in zip(tracks, (180, 240, 205)):
+        track.duration = seconds
+    monkeypatch.setattr(TrackStore, "trackhashmap", {t.trackhash: TrackGroup([t]) for t in tracks})
+
+    handle = api_client("aivinnet.api.playlist")
+    monkeypatch.setattr(playlist_api, "get_current_userid", lambda: handle.userid)
+    handle.userid = 1
+    hashes = [t.trackhash for t in tracks]
+    PlaylistTable.add_one({"name": "long", "userid": 1, "settings": {}, "last_updated": 0, "trackhashes": hashes})
+    PlaylistTable.add_one(
+        {"name": "short", "userid": 1, "settings": {}, "last_updated": 0, "trackhashes": [hashes[0], "f" * 16]}
+    )
+
+    by_name = _by_name(handle, "?no_images=true")
+
+    assert by_name["long"]["duration"] == 180 + 240 + 205
+    assert by_name["short"]["duration"] == 180
+    assert by_name["short"]["count"] == 2  # the count stays the stored list's length
