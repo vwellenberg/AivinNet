@@ -64,7 +64,7 @@
                 <span class="folder-count">{{ entry.folder.playlists.length }}</span>
                 <FolderChevronSvg class="folder-chevron" :class="{ open: !folderStore.isCollapsed(entry.id) }" />
                 <!-- Last, so it lines up with the pin of every other row. -->
-                <PushPinSvg v-if="zone.top" class="folder-pin" title="Pinned" />
+                <PinnedSvg v-if="zone.top" class="folder-pin" title="Pinned" />
               </div>
               <div v-if="!folderStore.isCollapsed(entry.id)" class="sidebar-folder-items">
                 <SidebarPlaylistItem
@@ -107,7 +107,7 @@
                 </button>
               </div>
               <span class="ellip">{{ entry.al.title }}</span>
-              <PushPinSvg class="pl-pin" title="Pinned" />
+              <PinnedSvg class="pl-pin" title="Pinned" />
             </RouterLink>
 
             <!-- Pinned music folder -->
@@ -139,7 +139,7 @@
                 </button>
               </div>
               <span class="ellip">{{ entry.dir.name }}</span>
-              <PushPinSvg class="pl-pin" title="Pinned" />
+              <PinnedSvg class="pl-pin" title="Pinned" />
             </RouterLink>
 
             <!-- Playlist: pinned ones interleave up top; the rest only take a
@@ -182,7 +182,8 @@ import Navigation from "@/components/LeftSidebar/NavButtons.vue";
 import SidebarPlaylistItem from "./SidebarPlaylistItem.vue";
 import PlaySvg from "@/assets/icons/play.svg";
 import PauseSvg from "@/assets/icons/pause.svg";
-import PushPinSvg from "@/assets/icons/push-pin.svg";
+// Only pinned rows carry a pin, so it is the filled-head "pinned" glyph.
+import PinnedSvg from "@/assets/icons/pin.fill.svg";
 // One folder glyph for both kinds of folder in this list — the outline of the
 // navigation's "Folders" entry, like every other icon here. A playlist folder
 // used a FILLED variant to tell it apart from a pinned music folder; on its
@@ -1280,7 +1281,7 @@ $sidebar-label-opacity: 0.85;
         width: $glyph-lone;
         height: $glyph-lone;
         color: $candy-text;
-        // No tilt here: the glyph is drawn on the diagonal (push-pin.svg).
+        // No tilt here: the glyph is drawn on the diagonal (pin.fill.svg).
       }
     }
 
@@ -1409,7 +1410,7 @@ $sidebar-label-opacity: 0.85;
       height: $glyph-lone;
       color: $candy-text;
       // No CSS tilt: the sewing pin is DRAWN on the diagonal, head top-right,
-      // point lower-left (push-pin.svg). The 35deg tilt belonged to the upright
+      // point lower-left (pin.fill.svg). The 35deg tilt belonged to the upright
       // thumbtack before it; on top of the new glyph it laid the pin almost flat.
       // Pinned in sidebarPinTilt.test.ts.
     }

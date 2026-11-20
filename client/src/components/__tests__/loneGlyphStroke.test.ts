@@ -13,7 +13,8 @@ import { describe, expect, it } from "vitest";
 
 const BUTTONS = readFileSync("src/assets/scss/Global/_buttons.scss", "utf-8");
 const SIDEBAR = readFileSync("src/components/LeftSidebar/index.vue", "utf-8");
-const PIN = readFileSync("src/assets/icons/push-pin.svg", "utf-8");
+// The sidebar's pin (pinned rows only, hence the filled head).
+const PIN = readFileSync("src/assets/icons/pin.fill.svg", "utf-8");
 
 function block(css: string, selector: string): string {
   const start = css.indexOf(`${selector} {`);
