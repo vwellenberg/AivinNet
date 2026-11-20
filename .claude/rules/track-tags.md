@@ -40,6 +40,8 @@ sich vor dem Scan Pfad → Hash und zieht nach dem Laden die Referenzen um, wo d
 wechselte und kein anderes Stück ihn noch hält (`lib/rescan_remap.py`). Das deckt Tag-Änderungen
 von außen ab. Die Regel darunter beschreibt, was dieser Pfad im Kern tut:
 
+**Was davor verwaiste, holt der Start zurück** (`lib/orphaned_plays.py`, nach `carry_cleaned_names`): Jeder Play speichert seinen Dateipfad (`extra.filepath`). Ein Play auf einem Hash, den keine Datei mehr trägt, zieht samt Playlists, Favoriten und Bewertungen auf den heutigen Hash der Datei an diesem Pfad um, nach denselben Regeln (`rescan_remap.remap_pairs`). Live lagen am 2026-11-20 **1199 Plays von 269 Tracks** so, alle aus der Reparaturrunde Ende Juli 2026 (Platzhalter-Tags, Album-Umbenennung vor #442). „Almost complete“ zeigte deshalb gehörte Songs als offen. Prüfen: `scripts/diag_almost_complete.py` (`!!` = gehört, aber unter anderem Hash). Ein Fallback auf den Pfad in `heard_trackhashes_of` wäre das Pflaster: Playlists und Favoriten hängen am selben Hash.
+
 **Vor jeder Tag-Änderung** also die Hashes je Dateipfad festhalten, nach dem Rescan erneut
 holen und die Referenzen umziehen. Die Zuordnung läuft über den Dateipfad, der sich ja nicht
 ändert:

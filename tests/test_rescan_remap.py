@@ -8,7 +8,7 @@ nothing moved them. `remap_by_path` is the part that decides what moves.
 
 from types import SimpleNamespace
 
-from aivinnet.lib.rescan_remap import hashes_by_path, remap_by_path
+from aivinnet.lib.rescan_remap import hashes_by_path, remap_by_path, remap_pairs
 
 
 class TestRemapByPath:
@@ -67,3 +67,31 @@ class TestHashesByPath:
 
     def test_an_empty_library_maps_nothing(self):
         assert hashes_by_path({}) == {}
+
+
+class TestRemapPairs:
+    """Plays log (path, hash) pairs; one path may come with several hashes."""
+
+    def test_a_play_on_a_hash_no_file_holds_follows_its_file(self):
+        # "Monkey Island 2" was logged while its album was its own title; the
+        # album rename after the folder gave it a new hash (#442 came later).
+        logged = [("/m/Monkey_Island_2.mp3", "old"), ("/m/Monkey_Island_2.mp3", "new")]
+
+        assert remap_pairs(logged, {"/m/Monkey_Island_2.mp3": "new"}) == {"old": "new"}
+
+    def test_it_follows_the_same_rules_as_a_rescan(self):
+        after = {"/m/a.mp3": "new_a", "/m/b.mp3": "shared", "/m/c.mp3": "c1", "/m/d.mp3": "d1"}
+        logged = [
+            ("/m/a.mp3", "shared"),  # another file still holds it
+            ("/m/gone.mp3", "g0"),  # the file is gone
+            ("/m/c.mp3", "split"),  # one hash, two files now: ambiguous
+            ("/m/d.mp3", "split"),
+        ]
+
+        assert remap_pairs(logged, after) == {}
+
+    def test_remap_by_path_is_the_same_on_a_mapping(self):
+        before = {"/m/a.mp3": "a0", "/m/b.mp3": "b0"}
+        after = {"/m/a.mp3": "a1", "/m/b.mp3": "b0"}
+
+        assert remap_pairs(before.items(), after) == remap_by_path(before, after) == {"a0": "a1"}

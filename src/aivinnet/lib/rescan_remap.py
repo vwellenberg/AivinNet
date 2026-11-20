@@ -44,10 +44,20 @@ def remap_by_path(before: Mapping[str, str], after: Mapping[str, str]) -> dict[s
 
     A file that disappeared from the library is not remapped either.
     """
+    return remap_pairs(before.items(), after)
+
+
+def remap_pairs(logged: Iterable[tuple[str, str]], after: Mapping[str, str]) -> dict[str, str]:
+    """
+    `remap_by_path` for (filepath, hash) pairs, where one path may come with
+    several hashes: what the plays logged, each under the hash its file had at
+    the time (`extra.filepath`, `lib/extras.py`). The same rules, the same
+    result for a `before` mapping.
+    """
     present = set(after.values())
     targets: dict[str, set[str]] = {}
 
-    for path, old in before.items():
+    for path, old in logged:
         new = after.get(path)
 
         if new is None or new == old or old in present:

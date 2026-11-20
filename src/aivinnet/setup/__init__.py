@@ -19,6 +19,7 @@ from aivinnet.lib.mapstuff import (
     map_scrobble_data,
 )
 from aivinnet.lib.name_cleanup import carry_cleaned_names
+from aivinnet.lib.orphaned_plays import carry_orphaned_plays
 from aivinnet.lib.placeholder_artists import purge_placeholder_artist_images
 from aivinnet.settings import Paths
 from aivinnet.setup.sqlite import run_migrations, setup_sqlite
@@ -64,6 +65,8 @@ def load_into_mem():
     TrackStore.load_all_tracks(get_random_str())
     # Before the favourites and plays are mapped below, which read the references.
     carry_cleaned_names()
+    # Plays left on hashes no file holds any more, by their file's path.
+    carry_orphaned_plays()
     # On the hashes carried just above, and before the albums take their
     # `created_date` from it (lib/date_added.py).
     backfill_added()

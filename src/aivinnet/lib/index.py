@@ -12,6 +12,7 @@ from aivinnet.lib.mapstuff import (
     map_scrobble_data,
 )
 from aivinnet.lib.name_cleanup import carry_cleaned_names
+from aivinnet.lib.orphaned_plays import carry_orphaned_plays
 from aivinnet.lib.populate import CordinateMedia
 from aivinnet.lib.recipes.recents import RecentlyAdded
 from aivinnet.lib.reference_migration import migrate_track_references_many
@@ -49,6 +50,8 @@ def _index_everything():
     # a scrobble from a queue saved before the upgrade. Reads only, unless one
     # of them is there (lib/name_cleanup.py).
     carry_cleaned_names()
+    # And plays a restored backup holds on hashes no file carries (lib/orphaned_plays.py).
+    carry_orphaned_plays()
     # Right behind the track store it points into, not after the albums and
     # artists: the folder view looked up the new hashes through the old map
     # for the whole rebuild (#391).
