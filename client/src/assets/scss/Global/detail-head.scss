@@ -171,6 +171,11 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     --row-fill: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
     position: relative;
     background-color: var(--row-fill);
+    // Static ink, in dark mode too: the pastel turns dusk there but stays a
+    // mid tone, and paper on it measured 2.4–2.8:1 against ink's ~5.7:1 —
+    // the rule for every static accent fill (styling.md). A look that drops
+    // the pastel (Boring) gives its own text colour back.
+    color: var(--look-detail-text, #{$mem-ink});
 
     // The pastel stays light in both themes' Memphis light mode and turns dusk
     // in dark mode, exactly as on the Continue card, so the dots are the
@@ -203,7 +208,7 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         font-size: var(--shape-detail-title, #{$detail-title-size});
         font-weight: $detail-title-weight;
         line-height: 1.08;
-        color: $candy-text;
+        color: inherit;
         // And may make it glow — Virtual Grid's neon title (#259).
         text-shadow: var(--look-display-glow, none);
         margin: 0.25rem 0;
