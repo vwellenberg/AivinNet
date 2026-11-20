@@ -346,37 +346,6 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   svg.radiosvg {
     transform: scale(0.7);
   }
-
-  // On phones the rows are the square BUTTONS of the bottom bar, so their
-  // hatch takes the button tile (28px) instead of the row's 38px — the motif is
-  // the same dash-dot everywhere (only the Browse crates wear bacterio). Each
-  // state sets its own size: the tint and the marker set theirs one class
-  // more specific than the plain `.nav-item` rule (measured: a tinted phone
-  // button kept the row tile). Last in the block, so each rule beats its desktop twin of
-  // equal specificity by order.
-  @include allPhones {
-    .nav-item {
-      background-size: mem-hatch-tile(28px);
-
-      @each $name, $colour in $mem-nav-tints {
-        &.tint-#{$name} {
-          background-size: mem-hatch-tile(28px);
-        }
-      }
-
-      &.active {
-        @include mem-row-marker($size: 28px);
-      }
-
-      // The image too: the `.active` rule above comes later than the desktop
-      // hover and would keep the marker and the accent hatch (ink strokes on
-      // the dark hover fill) under the pointer.
-      &:hover {
-        background-image: var(--mem-hatch-hover);
-        background-size: mem-hatch-tile(28px);
-      }
-    }
-  }
 }
 
 @keyframes nav-reach {

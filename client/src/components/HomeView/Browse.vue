@@ -297,14 +297,12 @@ onMounted(() => {
     // same `--row-fill` as the card itself, so a fill swap carries over.
     --row-fill: #{$mem-panel};
     @include candy-box(var(--row-fill), $candy-radius-sm);
-    // The crates are the one place that wears bacterio (_candy.scss, hatch
-    // motifs): covers, not text, fill the plate, so the squiggles have room.
-    @include mem-hatch(38px, $on: surface, $motif: bacterio);
+    @include mem-hatch(38px, $on: surface);
     // Hard offset shadow: the tile sits above the grid ground (memphis).
     @include candy-raised(3px, 3px, $press: false);
     color: $candy-text;
     // Paint is a cut (styling.md: no colour in a transition — fill and text
-    // flip in opposite directions and a fade grey-outs both mid-way). Only
+    // flip in opposite directions and a fade greys both out mid-way). Only
     // motion stays soft: the shadow, and the texture sliding on hover (below).
     transition: background-position $motion-move $motion-curve, box-shadow $motion-shadow ease-out;
 
@@ -436,7 +434,7 @@ onMounted(() => {
   @each $name in album, artist {
     .browseitem.ent-#{$name} {
       --row-fill: #{mem-pastel(map-get($mem-entities, $name))};
-      @include mem-hatch(38px, $on: accent, $motif: bacterio);
+      @include mem-hatch(38px, $on: accent);
       color: $mem-ink;
     }
   }
@@ -446,7 +444,7 @@ onMounted(() => {
     background-color: var(--mem-hover);
     // The hatch answers the fill (#422): paper strokes on the dark plate in
     // light mode, ink strokes on the paper plate in dark mode.
-    background-image: var(--mem-hatch-big-hover);
+    background-image: var(--mem-hatch-hover);
     // The text token travels with the fill (#422) — the fill is the contrast
     // surface now, so without this the tile is an unreadable solid plate.
     color: var(--mem-hover-text);

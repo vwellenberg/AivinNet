@@ -695,11 +695,11 @@ $range-track-default: calc(#{$range-h-default} - #{$candy-border-w * 2});
   color: var(--mem-hover-text);
   @if $hatch {
     background-image: var(--mem-hatch-hover);
-    // The size travels with the sprite: on an ACTIVE row the marker left a
-    // two-layer size list (`9px 14px, …`), and the single hover sprite took
-    // its first slot — a 9x14 tile, a dense scribble under the pointer
-    // (measured on the active nav row, 2026-11-20).
-    background-size: mem-hatch-tile(38px);
+    // The size travels with the sprite: on an ACTIVE row `mem-row-marker`
+    // leaves a two-layer size list (`9px 14px, 38px 38px`), and the single
+    // hover sprite took its first slot — a 9x14 tile, a dense scribble under
+    // the pointer (measured on the active nav row, 2026-11-20).
+    background-size: 38px 38px;
   }
   border-color: $mem-frame;
   box-shadow: mem-shadow(4px, 4px, hover);
@@ -1108,9 +1108,7 @@ $mem-seg-reserve: 4px !default;
 // Drawn with `border-left` + a background layer rather than a pseudo-element:
 // both of those are spoken for by the drag/drop markers on these rows.
 // ---------------------------------------------------------------------------
-// `$size` is the hatch tile under the marker: 38px on a row, the button tile
-// (28px) where the phone's bottom bar turns the same rows into buttons.
-@mixin mem-row-marker($w: 9px, $size: 38px) {
+@mixin mem-row-marker($w: 9px) {
   padding-left: $w;
   // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
   // kept the resting tint while the row turned the look's active colour —
@@ -1127,7 +1125,7 @@ $mem-seg-reserve: 4px !default;
     var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
-  background-size: 9px 14px, mem-hatch-tile($size);
+  background-size: 9px 14px, 38px 38px;
 }
 
 // ---------------------------------------------------------------------------
@@ -1208,54 +1206,9 @@ $mem-seg-reserve: 4px !default;
 // that is six times as wide. The button tile on a row reads as a textile print
 // (measured against the 260x44 row in the mockup round for #378).
 // ---------------------------------------------------------------------------
-// The hatch MOTIFS (user, 2026-11-19). The hatch used to be one 46-unit cell of
-// six strokes, tiled every 38px — on a plate as wide as a Browse crate that
-// reads as a wallpaper grid. Blue noise was tried and read as terrazzo stone;
-// a confetti lattice was tried and dropped ("mag ich nicht so"). Memphis
-// patterns are DRAWN repeats (Sottsass' "Bacterio", Du Pasquier's textiles).
-//
-//   dashdot   THE hatch, everywhere (`--mem-hatch*`, the default): rows of
-//             "/", dots, "\\", dots. The sprinkle (`mem-sprinkle`) is the same
-//             motif in full ink.
-//   bacterio  ONLY the Browse crates (Albums/Artists on Home;
-//             `--mem-hatch-big*`, `$motif: bacterio`): little S-squiggles,
-//             alternately turned 90°. It was on every plate for a day and read
-//             as too busy next to the text of sidebar rows and card plates
-//             (user, 2026-11-20); on the crates, where covers and not text
-//             fill the plate, it stays.
-//
-// `$size` everywhere still means "the old 46-unit cell", so a 28px button and a
-// 38px row keep their stroke scale; `mem-hatch-tile()` turns it into the
-// motif's own tile. Never write a bare `38px 38px` next to a `--mem-hatch*`
-// token — the tiles are not all square. A hover on a bacterio plate swaps to
-// `--mem-hatch-big-hover`, never `--mem-hatch-hover` (other motif, other tile).
-$mem-hatch-motifs: (
-  dashdot: (w: 48, h: 48, d: "M3.2 8.8l5.7 -5.7M3.2 56.8l5.7 -5.7M51.2 8.8l5.7 -5.7M51.2 56.8l5.7 -5.7M27.2 8.8l5.7 -5.7M27.2 56.8l5.7 -5.7M3.2 27.2l5.7 5.7M51.2 27.2l5.7 5.7M27.2 27.2l5.7 5.7", dots: "M18 18h0M-6 18h0M42 18h0M18 -6h0M18 42h0M-6 -6h0M-6 42h0M42 -6h0M42 42h0"),
-  bacterio: (w: 52, h: 44, d: "M7 12.5c2 -4 4 -4 6 0c2 4 4 4 6 0M37.5 5c4 2 4 4 0 6c-4 2 -4 4 0 6M24.5 27c4 2 4 4 0 6c-4 2 -4 4 0 6M-6 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0M46 34.5c2 -4 4 -4 6 0c2 4 4 4 6 0"),
-);
-
-@function mem-hatch-tile($size, $motif: dashdot) {
-  $m: map-get($mem-hatch-motifs, $motif);
-  // calc(), not Sass arithmetic: this file has no `sass:math`, and `/` is
-  // deprecated division in Dart Sass.
-  @return calc(#{$size} * #{map-get($m, w)} / 46) calc(#{$size} * #{map-get($m, h)} / 46);
-}
-
-@function mem-hatch-sprite($stroke, $opacity, $motif: dashdot) {
-  $m: map-get($mem-hatch-motifs, $motif);
-  // The dots are a second path: at the strokes' 2.6 width a round-capped dot
-  // is a speck, so they draw at 4 (as in the sprinkle).
-  $dots: if(map-has-key($m, dots), '<path stroke-width="4" d="#{map-get($m, dots)}"/>', '');
-  @return url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="#{map-get($m, w)}" height="#{map-get($m, h)}"><g fill="none" stroke="#{$stroke}" stroke-opacity="#{$opacity}" stroke-linecap="round"><path stroke-width="2.6" d="#{map-get($m, d)}"/>#{$dots}</g></svg>');
-}
-
-// `$motif: bacterio` reads the `--mem-hatch-big*` tokens; a hover on such a
-// plate swaps to `--mem-hatch-big-hover`, never to `--mem-hatch-hover` (that
-// is the other motif, and its tile size would not match).
-@mixin mem-hatch($size: 38px, $on: surface, $motif: dashdot) {
-  $prefix: if($motif == bacterio, "--mem-hatch-big", "--mem-hatch");
-  background-image: if($on == accent, var(#{$prefix}-accent), var(#{$prefix}));
-  background-size: mem-hatch-tile($size, $motif);
+@mixin mem-hatch($size: 38px, $on: surface) {
+  background-image: if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
+  background-size: $size $size;
 }
 
 // ---------------------------------------------------------------------------
@@ -1286,7 +1239,7 @@ $mem-hatch-motifs: (
     if($on == accent, var(--mem-hatch-accent), var(--mem-hatch));
   background-clip: content-box, border-box;
   background-repeat: no-repeat, repeat;
-  background-size: auto, mem-hatch-tile($size);
+  background-size: auto, $size $size;
 }
 
 // How much of a texture the text takes away under itself (user, 2026-10-16,
@@ -1422,7 +1375,7 @@ $mem-label-clear: 20rem !default;
     inset: 0;
     border-radius: inherit;
     background-image: var(--label-hatch);
-    background-size: mem-hatch-tile($size);
+    background-size: $size $size;
     // SOFT since 2026-10-16 (concept "C"): full strength at the edge, fading
     // to what the veil leaves under the label — the same rest as under any
     // hatched text, nothing since 2026-11-04 — instead of a hard hole cut out
@@ -1552,11 +1505,20 @@ $mem-label-clear: 20rem !default;
 // Sprinkle / terrazzo dash texture. Sets ONLY the pattern image + tile size —
 // combine with a background-color on the same element (use background-color,
 // not the background shorthand, or the image layer gets wiped).
+// PARKED — "Strich & Punkt" (user, 2026-11-20: "das Muster mit Punkt-Strich
+// aber mal merken, das wollen wir irgendwo noch verwenden"). Rows of "/",
+// dots, "\\", dots on a square 48-unit tile, full ink like the sprinkle. It
+// was the app-wide hatch for a day (#863–#865) and went back for the sprinkles
+// above; nothing includes it yet, so it emits no CSS. Where it could go:
+// issue #866 (vwellenberg/AivinNet).
+// Size it like the sprinkle (the tile is square, a season can swap it).
+@mixin mem-dashdot($size: 42px) {
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><g fill="none" stroke="%2317171A" stroke-linecap="round"><path stroke-width="2.6" d="M3.2 8.8l5.7 -5.7M3.2 56.8l5.7 -5.7M51.2 8.8l5.7 -5.7M51.2 56.8l5.7 -5.7M27.2 8.8l5.7 -5.7M27.2 56.8l5.7 -5.7M3.2 27.2l5.7 5.7M51.2 27.2l5.7 5.7M27.2 27.2l5.7 5.7"/><path stroke-width="4" d="M18 18h0M-6 18h0M42 18h0M18 -6h0M18 42h0M-6 -6h0M-6 42h0M42 -6h0M42 42h0"/></g></svg>');
+  background-size: $size $size;
+}
+
 @mixin mem-sprinkle($size: 46px) {
-  // The dash-dot motif (see the hatch motifs above): rows of "/", dots, "\\",
-  // dots on a square 48-unit tile — square because a season swaps in its own
-  // square sprite through `--shape-sprinkle` (Global/_seasons.scss).
-  background-image: var(--shape-sprinkle, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><g fill="none" stroke="%2317171A" stroke-linecap="round"><path stroke-width="2.6" d="M3.2 8.8l5.7 -5.7M3.2 56.8l5.7 -5.7M51.2 8.8l5.7 -5.7M51.2 56.8l5.7 -5.7M27.2 8.8l5.7 -5.7M27.2 56.8l5.7 -5.7M3.2 27.2l5.7 5.7M51.2 27.2l5.7 5.7M27.2 27.2l5.7 5.7"/><path stroke-width="4" d="M18 18h0M-6 18h0M42 18h0M18 -6h0M18 42h0M-6 -6h0M-6 42h0M42 -6h0M42 42h0"/></g></svg>'));
+  background-image: var(--shape-sprinkle, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46"><g stroke="%2317171A" stroke-width="2.6" stroke-linecap="round"><line x1="7" y1="9" x2="14" y2="13"/><line x1="30" y1="6" x2="36" y2="2"/><line x1="38" y1="26" x2="43" y2="31"/><line x1="14" y1="34" x2="20" y2="31"/><line x1="26" y1="42" x2="33" y2="40"/><line x1="3" y1="24" x2="8" y2="21"/></g></svg>'));
   background-size: $size $size;
 }
 
