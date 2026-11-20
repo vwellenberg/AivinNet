@@ -120,3 +120,35 @@ describe('ContinueCard: three short lines (2026-11-20)', () => {
         expect(resume.attributes('aria-label')).toBe('Continue album Album')
     })
 })
+
+describe('ContinueCard: a line under the title (2026-11-20)', () => {
+    const mountWith = (over: Record<string, unknown>, type = 'album') => {
+        getAlbumTracks.mockReturnValue(new Promise(() => {}))
+        const e = { ...entry, type, item: { ...entry.item, ...over } }
+        return mount(ContinueCard, { props: { entry: e }, global: { stubs } })
+    }
+
+    it('names an album by its artists, year and the time left', () => {
+        const w = mountWith({
+            albumartists: [{ name: 'Velvet Orchard', artisthash: 'a1' }, { name: 'Ondine Sky', artisthash: 'a2' }],
+            year: 2019,
+            remaining: 38 * 60,
+        })
+        expect(w.find('.sub').text()).toBe('Velvet Orchard, Ondine Sky · 2019 · 38 min left')
+    })
+
+    it('says playlist, its songs and the time left', () => {
+        const w = mountWith({ id: '7', name: 'Road trip', track_total: 24, remaining: 72 * 60 }, 'playlist')
+        expect(w.find('.sub').text()).toBe('Playlist · 24 songs · 1 h 12 min left')
+    })
+
+    it('leaves out what the server does not send (an untagged album, an older server)', () => {
+        const w = mountWith({ albumartists: [{ name: 'Velvet Orchard', artisthash: 'a1' }], year: null })
+        expect(w.find('.sub').text()).toBe('Velvet Orchard')
+    })
+
+    it('draws no empty line when there is nothing to say', () => {
+        const w = mountWith({})
+        expect(w.find('.sub').exists()).toBe(false)
+    })
+})

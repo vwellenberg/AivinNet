@@ -103,6 +103,7 @@ def find_continue_listening(
     scrobbles: Iterable[ScrobbleLike],
     resolve_tracklist: Callable[[str, str], list[str] | None],
     limit: int = CONTINUE_MAX_ITEMS,
+    duration_of: Callable[[str], float] | None = None,
 ) -> list[dict[str, Any]]:
     """
     The albums and playlists the user was in the middle of, newest first, at
@@ -117,6 +118,10 @@ def find_continue_listening(
 
     `resolve_tracklist(type, src)` returns the ordered trackhashes of the
     album/playlist, or None when it no longer exists.
+
+    With `duration_of(trackhash)` (seconds), each item also says how long is
+    left: `remaining`, from the track the user was on to the end, that track
+    whole. The card shows it under the title ("38 min left", 2026-11-20).
     """
     decided: set[tuple[str, str]] = set()
     found: list[dict[str, Any]] = []
@@ -146,20 +151,21 @@ def find_continue_listening(
         if index >= len(tracklist) - 1:
             continue  # finished
 
-        found.append(
-            {
-                "type": scrobble.type,
-                "hash": scrobble.type_src,
-                # The track itself, not only its position: the client resumes
-                # by this hash and falls back to the index. (The routine drops a
-                # playlist's orphans before this, so the index counts what the
-                # client receives.)
-                "trackhash": scrobble.trackhash,
-                "track_index": index,
-                "track_total": len(tracklist),
-                "timestamp": scrobble.timestamp,
-            }
-        )
+        item: dict[str, Any] = {
+            "type": scrobble.type,
+            "hash": scrobble.type_src,
+            # The track itself, not only its position: the client resumes
+            # by this hash and falls back to the index. (The routine drops a
+            # playlist's orphans before this, so the index counts what the
+            # client receives.)
+            "trackhash": scrobble.trackhash,
+            "track_index": index,
+            "track_total": len(tracklist),
+            "timestamp": scrobble.timestamp,
+        }
+        if duration_of is not None:
+            item["remaining"] = round(sum(duration_of(h) for h in tracklist[index:]))
+        found.append(item)
 
         if len(found) >= limit:
             break

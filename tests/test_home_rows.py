@@ -130,6 +130,33 @@ class TestContinueListening:
         assert find_continue_listening(scrobbles, self.resolve) == []
         assert find_continue_listening([], self.resolve) == []
 
+    def test_remaining_runs_from_the_current_track_to_the_end(self):
+        # The card's subtitle says how long is left (2026-11-20): from the track
+        # the user was on, that track whole, to the last one.
+        album = self.lists[("album", ALBUM)]
+        lengths = {h: 100 + i for i, h in enumerate(album)}  # 100 … 109 s
+        scrobbles = [Scrobble(album[7], NOW, f"al:{ALBUM}")]
+
+        (item,) = find_continue_listening(scrobbles, self.resolve, duration_of=lengths.__getitem__)
+
+        assert item["remaining"] == 107 + 108 + 109
+
+    def test_remaining_counts_an_unknown_track_as_nothing(self):
+        scrobbles = [Scrobble("0853280a12c4f9e1", NOW, "pl:7")]
+
+        (item,) = find_continue_listening(
+            scrobbles, self.resolve, duration_of=lambda h: 200.6 if h == "0853280a12c4f9e1" else 0
+        )
+
+        assert item["remaining"] == 201  # rounded to whole seconds
+
+    def test_no_remaining_without_durations(self):
+        album = self.lists[("album", ALBUM)]
+
+        (item,) = find_continue_listening([Scrobble(album[2], NOW, f"al:{ALBUM}")], self.resolve)
+
+        assert "remaining" not in item
+
     def test_single_track_album_counts_as_finished(self):
         self.lists[("album", ALBUM)] = ["0853280a12c4f9e1"]
 

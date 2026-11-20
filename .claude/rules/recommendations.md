@@ -45,7 +45,11 @@ solange sein letzter Play nicht neuer ist als die Entfernung; der erste Play dan
 Undo nimmt die Entfernung zurück (`DELETE /nothome/continue/dismiss`). Im Backup als Abschnitt
 `continue_dismissed`. Die Routine hält `CONTINUE_SPARE_ITEMS` (5) Einträge mehr, als die Zeile zeigt,
 damit nach einem ✕ der nächste nachrückt, statt dass die Zeile bis zum nächsten Lauf schrumpft (dieselbe
-Idee wie bei „Not interested“). Die Dismissals ziehen bei einem Retag **nicht** mit, bewusst: Die
+Idee wie bei „Not interested“). Jeder Eintrag trägt `remaining` (Sekunden vom aktuellen Track bis
+zum Ende, der aktuelle ganz) und Alben dazu `year` (das Jahr der meisten Tracks über
+`Track.release_year()`, sonst `null`; `Album.date` wäre bei ungetaggten Dateien die mtime). Beides
+nur diese Zeile, für den Untertitel der Karte am Desktop („Velvet Orchard · 2019 · 38 min left“,
+2026-11-20). Die Dismissals ziehen bei einem Retag **nicht** mit, bewusst: Die
 Continue-Einträge hängen an der `al:`-Quelle der Scrobbles, und die zieht ebenso nicht mit
 (`track-tags.md`). Nach einem Retag steht die Karte also unter dem neuen Hash, und nur ein neuer Play
 legt sie dort an — der ist dann ohnehin neuer als die Entfernung.

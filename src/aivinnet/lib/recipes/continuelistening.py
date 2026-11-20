@@ -4,6 +4,7 @@ The rule lives in `lib/home/homerows.py::find_continue_listening`.
 """
 
 import logging
+from collections import Counter
 
 from aivinnet.db.userdata import PlaylistTable, ScrobbleTable, UserTable
 from aivinnet.lib.albumslib import sort_by_track_no
@@ -47,6 +48,22 @@ def _resolve_tracklist(userid: int):
     return resolve
 
 
+def _duration_of(trackhash: str) -> float:
+    group = TrackStore.trackhashmap.get(trackhash)
+    return group.get_best().duration if group else 0
+
+
+def album_year(albumhash: str) -> int | None:
+    """
+    The album's release year for its card: the year most of its tracks are
+    tagged with, or None when none carries one. Read per track through
+    `Track.release_year()`, which knows that an untagged file's `date` is its
+    mtime — `Album.date` would show the year a folder was copied.
+    """
+    years = [y for t in AlbumStore.get_album_tracks(albumhash) if (y := t.release_year())]
+    return Counter(years).most_common(1)[0][0] if years else None
+
+
 class ContinueListening(HomepageRoutine):
     """
     "Continue listening": the newest unfinished album or playlist.
@@ -74,8 +91,17 @@ class ContinueListening(HomepageRoutine):
             try:
                 scrobbles = ScrobbleTable.get_all(0, CONTINUE_SEARCH_LIMIT, userid=userid)
                 items = find_continue_listening(
-                    scrobbles, _resolve_tracklist(userid), limit=CONTINUE_MAX_ITEMS + CONTINUE_SPARE_ITEMS
+                    scrobbles,
+                    _resolve_tracklist(userid),
+                    limit=CONTINUE_MAX_ITEMS + CONTINUE_SPARE_ITEMS,
+                    duration_of=_duration_of,
                 )
+                # The year for the card's subtitle ("Artist · 2019 · 38 min
+                # left"): only this row asks for it, so it is added here and
+                # not to every Home album card.
+                for item in items:
+                    if item["type"] == "album":
+                        item["year"] = album_year(item["hash"])
             except Exception:
                 log.error("continue-listening refresh failed for user %s", userid, exc_info=True)
                 continue
