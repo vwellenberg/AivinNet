@@ -133,6 +133,24 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     border-left: $candy-border;
 }
 
+// The text side wears its entity's pastel and the printed dots, like the
+// Continue card on Home (user, 2026-11-20: "das Playlist-Blau füllend für die
+// Weißfläche + Punkte, vgl. Continue listening"): the same object — an album or
+// a playlist — reads in the same colour on Home and on its own page. The media
+// cell keeps the panel. Dots, not hatch: the head is read, only its buttons are
+// pressed, and they carry their own plates.
+.a-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "album"))};
+}
+
+.artist-page-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "artist"))};
+}
+
+.p-header {
+    --dh-fill: #{mem-pastel(map-get($mem-entities, "playlist"))};
+}
+
 .dh-body {
     flex: 1;
     min-width: 0;
@@ -147,6 +165,24 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     justify-content: space-between;
     gap: 1rem;
     min-height: 11rem;
+
+    // One source for the fill: the veil under the text reads it too. A look
+    // that lets the page tint stand as the head (Boring) keeps it transparent.
+    --row-fill: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
+    position: relative;
+    background-color: var(--row-fill);
+
+    // The pastel stays light in both themes' Memphis light mode and turns dusk
+    // in dark mode, exactly as on the Continue card, so the dots are the
+    // card's: static ink (`$on: accent`). A look drops them (`--shape-halftone`).
+    &::before {
+        @include mem-halftone($reach: null, $on: accent);
+    }
+
+    > * {
+        position: relative;
+        z-index: 1;
+    }
 
     .dh-type {
         text-transform: uppercase;
@@ -175,6 +211,25 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         font-weight: $detail-meta-weight;
         color: $candy-text-muted;
     }
+}
+
+// The text on the dots: one block per run of text, as wide as its longest
+// line (not the column), so the dots fade toward the words wherever they end
+// and stay full beside a short title — the Continue card's veil.
+.dh-text {
+    @include mem-dots-veil;
+    // Flex child (most heads) or block (the album's meta line) alike.
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 0;
+}
+
+// A wrapper that only exists for the veil keeps the column's rhythm.
+.dh-stack {
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
 }
 
 // ---------------------------------------------------------------------------
