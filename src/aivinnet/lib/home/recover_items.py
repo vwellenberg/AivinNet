@@ -127,8 +127,9 @@ def recover_items(items: list[dict]):
             if secondary_text:
                 recovered_item["item"]["time"] = secondary_text
 
-            # "Continue listening": where in the album/playlist the user is.
-            for key in ("track_index", "track_total"):
+            # "Continue listening": where in the album/playlist the user is,
+            # how long is left from there, and an album's release year.
+            for key in ("track_index", "track_total", "remaining", "year"):
                 if key in item:
                     recovered_item["item"][key] = item[key]
             # What a row draws on its cards beyond the shared fields ("On

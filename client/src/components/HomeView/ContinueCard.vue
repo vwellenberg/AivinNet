@@ -30,7 +30,14 @@
          like a player's (on a phone it sits on the cover's corner). -->
     <div class="info">
       <span class="kicker">Continue<template v-if="entry.item?.time"> · {{ entry.item.time }}</template></span>
-      <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
+      <!-- The title and, on the desktop, a line under it (user, 2026-11-20:
+           "a bit more info, there is room"): who, which year, how long is
+           left. Both together are one control row tall, level with the first
+           Up next track. -->
+      <div class="title-block">
+        <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
+        <span v-if="subtitle" class="sub ellip">{{ subtitle }}</span>
+      </div>
       <button
         class="btn-primary resume"
         type="button"
@@ -93,6 +100,7 @@ import PlaylistImages from "@/components/shared/PlaylistImages.vue";
 import NoteIcon from "@/assets/icons/note.svg?raw";
 import { Routes } from "@/router";
 import formatSeconds from "@/utils/useFormatSeconds";
+import formatTimeLeft from "@/utils/formatTimeLeft";
 
 import PlaySvg from "@/assets/icons/play.svg";
 
@@ -122,6 +130,20 @@ const progress = computed(() => Math.round((position.value / total.value) * 100)
 
 const name = computed(() => props.entry.item?.title ?? props.entry.item?.name ?? "");
 const typeLabel = computed(() => (props.entry.type === "album" ? "Album" : "Playlist"));
+
+// "Velvet Orchard · 2019 · 38 min left" / "Playlist · 24 songs · 1 h 12 min left".
+// The server sends `remaining` (seconds from the current track to the end) and
+// an album's `year` with this row only; a part it does not send is left out.
+const subtitle = computed(() => {
+  const item = props.entry.item ?? {};
+  const left = formatTimeLeft(item.remaining);
+  const parts =
+    props.entry.type === "album"
+      ? [(item.albumartists ?? []).map((a: { name: string }) => a.name).join(", "), item.year]
+      : ["Playlist", `${total.value} song${total.value === 1 ? "" : "s"}`];
+  if (left) parts.push(`${left} left`);
+  return parts.filter(Boolean).join(" · ");
+});
 
 const collage = computed(() => {
   const item = props.entry.item;
@@ -314,8 +336,13 @@ $continue-pad: 0.75rem;
     }
   }
 
-  .name {
+  .title-block > .name {
     font-size: 1rem;
+  }
+
+  // The strip keeps its three short lines: the subtitle is the desktop's.
+  .sub {
+    display: none;
   }
 
   .progress {
@@ -453,9 +480,37 @@ $continue-pad: 0.75rem;
     min-width: 0;
 
     > .kicker,
-    > .name {
+    > .title-block {
       grid-column: 1 / -1;
     }
+  }
+
+  // Title and subtitle stacked in the title row (one control tall): 1.2rem
+  // and 0.78rem without the labels' 2px top and bottom inset come to 39px of
+  // the row's 44, so the card keeps its height with the line under the title.
+  .title-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: stretch;
+    min-width: 0;
+
+    > .name {
+      padding-top: 0;
+      padding-bottom: 0;
+      font-size: 1.2rem;
+      line-height: 1.2;
+    }
+  }
+
+  // "Velvet Orchard · 2019 · 38 min left". It steps back like the caption.
+  .sub {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 6px 0 4px;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    color: var(--look-continue-muted, currentColor);
   }
 
   // The labels keep the inset the covers gave them, so nothing moves.

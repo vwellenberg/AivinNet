@@ -316,9 +316,39 @@ def test_playlist_is_continued_only_for_its_owner(home):
             "track_index": 1,
             "track_total": 3,
             "timestamp": now - 60,
+            # The current track and the one after it, 180 s each.
+            "remaining": 360,
         }
     ]
     assert items[2] == []
+
+
+def test_continue_card_says_how_long_is_left_and_the_year(home):
+    # The subtitle under the card's title (2026-11-20): "Some Band · 2019 ·
+    # 21 min left". The year is the one most of the album's tracks are tagged
+    # with; an untagged album has none (its `date` would be the file's mtime).
+    from aivinnet.store.tracks import TrackStore
+
+    june_2019 = int(pendulum.datetime(2019, 6, 1).timestamp())
+    for n in range(1, 11):
+        track = TrackStore.trackhashmap[_trackhash(ALBUM_B, n)].get_best()
+        track.date = june_2019 if n != 10 else int(pendulum.datetime(2021, 1, 1).timestamp())
+        track.last_mod = 1
+
+    now = int(pendulum.now().timestamp())
+    scrobble(_trackhash(ALBUM_B, 4), now - 60, f"al:{ALBUM_B}")
+    scrobble(_trackhash(ALBUM_A, 2), now - 3600, f"al:{ALBUM_A}")
+
+    run_routines()
+    data, _ = rows(home)
+    now_playing, old_love = (i["item"] for i in data["continue_listening"]["items"])
+
+    assert now_playing["albumhash"] == ALBUM_B
+    assert now_playing["remaining"] == 7 * 180  # tracks 4 … 10
+    assert now_playing["year"] == 2019
+    assert old_love["albumhash"] == ALBUM_A
+    assert old_love["remaining"] == 4 * 180  # tracks 2 … 5
+    assert old_love["year"] is None
 
 
 def test_a_scrobble_moves_continue_listening(home, monkeypatch):
