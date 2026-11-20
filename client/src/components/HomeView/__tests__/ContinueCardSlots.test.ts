@@ -1,8 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
-// The "Up next" column is there from the first frame (#776): its three slots
-// exist before any track has arrived, so the card does not grow when they do.
+// The "Up next" column is there from the first frame (#776): its slots exist
+// before any track has arrived, so the card does not grow when they do. Two of
+// them since 2026-11-20: two rows stand level with the title and the ▶ row.
 const { getAlbumTracks } = vi.hoisted(() => ({ getAlbumTracks: vi.fn() }))
 
 vi.mock('@/requests/album', () => ({ getAlbumTracks }))
@@ -37,26 +38,26 @@ const entry = {
 const stubs = { RouterLink: { props: ['to'], template: '<a><slot /></a>' } }
 
 describe('ContinueCard: up next holds its space from the first frame (#776)', () => {
-    it('renders the column with three slots before its tracks have arrived', () => {
+    it('renders the column with two slots before its tracks have arrived', () => {
         getAlbumTracks.mockReturnValue(new Promise(() => {}))
 
         const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
 
         expect(w.find('.up-next').exists()).toBe(true)
-        expect(w.findAll('.up-next > li').length - 1, 'three slots after the caption').toBe(3)
-        expect(w.findAll('.next-slot-empty')).toHaveLength(3)
+        expect(w.findAll('.up-next > li').length - 1, 'two slots after the caption').toBe(2)
+        expect(w.findAll('.next-slot-empty')).toHaveLength(2)
         expect(w.findAll('.next-row')).toHaveLength(0)
     })
 
-    it('fills the same three slots when the tracks arrive, without adding any', async () => {
+    it('fills the same two slots when the tracks arrive, without adding any', async () => {
         const track = (n: number) => ({ trackhash: `t${n}`, title: `Track ${n}`, artists: [], duration: 200 })
         getAlbumTracks.mockResolvedValue([track(1), track(2), track(3), track(4), track(5)])
 
         const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
         await flushPromises()
 
-        expect(w.findAll('.up-next > li').length - 1).toBe(3)
-        expect(w.findAll('.next-row')).toHaveLength(3)
+        expect(w.findAll('.up-next > li').length - 1).toBe(2)
+        expect(w.findAll('.next-row')).toHaveLength(2)
         expect(w.findAll('.next-slot-empty')).toHaveLength(0)
     })
 
@@ -89,5 +90,33 @@ describe('ContinueCard: up next holds its space from the first frame (#776)', ()
         expect(setColorsToStore.mock.calls[0][1]).toContain('a0000000000000pr.webp?pathhash=1f3c9d')
         expect(w.find('.continue-card').attributes('style')).toContain('--card-tint: #3a2f1c')
         settings.look = 'memphis'
+    })
+})
+
+describe('ContinueCard: three short lines (2026-11-20)', () => {
+    it('puts the time in the caption and the position at the end of the bar', () => {
+        getAlbumTracks.mockReturnValue(new Promise(() => {}))
+        const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
+
+        expect(w.find('.info .kicker').text()).toBe('Continue · 20 min')
+        expect(w.find('.meta').text()).toBe('2/5')
+        expect(w.find('.progress').attributes('aria-label')).toBe('Track 2 of 5')
+    })
+
+    it('leaves the time out of the caption when the server sends none', () => {
+        getAlbumTracks.mockReturnValue(new Promise(() => {}))
+        const bare = { ...entry, item: { ...entry.item, time: undefined } }
+        const w = mount(ContinueCard, { props: { entry: bare }, global: { stubs } })
+
+        expect(w.find('.info .kicker').text()).toBe('Continue')
+    })
+
+    it('names the ▶ for screen readers, now that it carries no label', () => {
+        getAlbumTracks.mockReturnValue(new Promise(() => {}))
+        const w = mount(ContinueCard, { props: { entry }, global: { stubs } })
+
+        const resume = w.find('button.resume')
+        expect(resume.text()).toBe('')
+        expect(resume.attributes('aria-label')).toBe('Continue album Album')
     })
 })
