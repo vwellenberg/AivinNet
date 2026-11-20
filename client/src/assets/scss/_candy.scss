@@ -1388,6 +1388,8 @@ $mem-label-clear: 20rem !default;
     border-radius: inherit;
     background-image: var(--label-hatch);
     background-size: $size $size;
+    // Motion only: the ring's texture slides on hover (below).
+    transition: background-position $motion-move $motion-curve;
     // SOFT since 2026-10-16 (concept "C"): full strength at the edge, fading
     // to what the veil leaves under the label — the same rest as under any
     // hatched text, nothing since 2026-11-04 — instead of a hard hole cut out
@@ -1426,6 +1428,17 @@ $mem-label-clear: 20rem !default;
     -webkit-mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
     mask-image: $sides, $ends, linear-gradient($mem-hatch-veil-rest, $mem-hatch-veil-rest);
     pointer-events: none;
+  }
+
+  // The sprinkles wake up (#143, `$mem-hatch-stir`): every label-ring host
+  // (pills, tabs, segmented selects, "See all", label buttons) slides its ring
+  // texture under the pointer, whatever its hover does with the sprite. Here
+  // once, not at the hosts. Pointer devices only, like every role hover (a
+  // tap would latch it).
+  @media (hover: hover) {
+    &:hover::before {
+      background-position: $mem-hatch-stir;
+    }
   }
 }
 
