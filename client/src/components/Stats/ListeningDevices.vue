@@ -146,9 +146,12 @@ watch(
         font-weight: 600;
     }
 
+    // Framed like every other meter on Stats (the chart meters, the skip
+    // meter): the ink ring carries the contrast, the fill the identity.
     .devices-bar {
-        height: 0.5rem;
-        border-radius: 999px;
+        height: 0.65rem;
+        border: $mem-ring-w solid $mem-line;
+        border-radius: $candy-radius-pill;
         background-color: rgba(127, 127, 127, 0.25);
         overflow: hidden;
 

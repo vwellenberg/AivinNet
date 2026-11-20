@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -105,5 +107,14 @@ describe('ListeningDevices (#541)', () => {
         ] })))
         await flushPromises()
         expect(w.find('.devices-share').text()).toBe('100 %')
+    })
+
+    // Reported 2026-11-20: the device bar stood without the ink frame the skip
+    // meter right above it wears, so it read as a loose stripe on the panel.
+    it('frames the device bar like the other meters on Stats', () => {
+        const style = readFileSync('src/components/Stats/ListeningDevices.vue', 'utf8').split('<style')[1]
+        const bar = style.match(/\.devices-bar\s*\{([^{}]*)/)
+        expect(bar, 'parser lost the .devices-bar block').not.toBeNull()
+        expect(bar![1]).toMatch(/border:\s*\$mem-ring-w solid \$mem-line/)
     })
 })
