@@ -475,6 +475,14 @@ Handy. Damit entfallen Deckfläche, `margin-left`-Ausgleich und `--row-fill`.
   Konzept auch für die **Schraffur** (Regel 3 im Schraffur-Abschnitt), mit derselben Stärke.
   Erste Anwenderin: die Continue-Karte (Textblock und „Up next"-Überschrift), am Desktop **und**
   am Handy — eine Punktebene für jede Breite, keine eigene Maske mehr.
+- ⚠️ **Der Schleier reicht über seinen Block hinaus — und legt sich über ein Bild daneben.**
+  `mem-dots-veil` zieht seine Ebene 14 px über den Block hinaus (`$x`) und zeichnet sie 8 px weich;
+  weil der Textblock im DOM nach dem Cover kommt, malt er **über** dem Cover. Bei 20 px Abstand
+  (Continue-Karte am Desktop) reicht das nicht hinüber, bei den 12 px der Handy-Leiste (2026-11-20)
+  lag ein milchiger Streifen über der rechten Cover-Kante. Erkennbar daran, dass ein Bild neben
+  Text verwaschen wirkt; belegt, indem man den Schleier abschaltet (`.info::before { display:
+  none }`) und das Bild wieder scharf ist. Abhilfe: die Schleierebene auf der Bildseite einkürzen
+  (`&::before { left: -0.25rem }`), nicht den Abstand vergrößern und nicht den Schleier streichen.
 - ⚠️ **Zwei Zeilen sind die Obergrenze für den WERT — was nicht passt, gehört in den Untertitel
   oder in `detail` (Tooltip), nicht in den Wert.** Bei 154 px und 1,55 rem fasst eine Zeile
   rund zehn Zeichen: „56% playlists · 30% albums“ und „12 hrs, 49 mins listened“ brauchten

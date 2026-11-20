@@ -24,23 +24,34 @@
       <img v-else-if="image" :src="image" alt="" />
       <div v-else class="glyph" v-html="entry.type === 'album' ? AlbumIcon : PlaylistIcon"></div>
     </RouterLink>
+    <!-- Three short lines (user, 2026-11-20): the card took a third of a phone's
+         Home. The time moved up into the caption, "Track 4 of 7" became "4/7"
+         at the end of the bar, and Continue is the ▶ alone, in front of the bar
+         like a player's (on a phone it sits on the cover's corner). -->
     <div class="info">
-      <span class="kicker">Continue listening</span>
+      <span class="kicker">Continue<template v-if="entry.item?.time"> · {{ entry.item.time }}</template></span>
       <RouterLink class="name ellip" :to="link">{{ name }}</RouterLink>
-      <div class="meta">
-        {{ entry.type === 'album' ? 'Album' : 'Playlist' }} · Track {{ position }} of {{ total }}
-        <template v-if="entry.item?.time"> · {{ entry.item.time }}</template>
-      </div>
-      <div class="progress" role="progressbar" :aria-valuenow="position" :aria-valuemax="total">
+      <button
+        class="btn-primary resume"
+        type="button"
+        :aria-label="`Continue ${typeLabel.toLowerCase()} ${name}`"
+        :title="`Continue ${typeLabel.toLowerCase()}`"
+        @click="resume"
+      >
+        <PlaySvg />
+      </button>
+      <div
+        class="progress"
+        role="progressbar"
+        :aria-valuenow="position"
+        :aria-valuemax="total"
+        :aria-label="`Track ${position} of ${total}`"
+      >
         <span :style="{ width: progress + '%' }"></span>
       </div>
-      <button class="btn-primary resume" @click="resume">
-        <PlaySvg />
-        <!-- `.text` lifts the label above the button's sprinkle (btn-primary). -->
-        <span class="text">Continue</span>
-      </button>
+      <span class="meta" :title="`${typeLabel} · track ${position} of ${total}`">{{ position }}/{{ total }}</span>
     </div>
-    <!-- Always there, with its three slots (#776): the column takes its space
+    <!-- Always there, with its two slots (#776): the column takes its space
          from the first frame, and the tracks fill the slots when they arrive,
          so the card does not grow. A card with no tracks after the load hides it. -->
     <ol class="up-next" :class="{ 'up-next-none': upNextLoaded && !upNext.length }">
@@ -110,6 +121,7 @@ const hash = computed(() =>
 const progress = computed(() => Math.round((position.value / total.value) * 100));
 
 const name = computed(() => props.entry.item?.title ?? props.entry.item?.name ?? "");
+const typeLabel = computed(() => (props.entry.type === "album" ? "Album" : "Playlist"));
 
 const collage = computed(() => {
   const item = props.entry.item;
@@ -146,13 +158,16 @@ const link = computed(() =>
     : { name: Routes.playlist, params: { pid: hash.value } }
 );
 
-// "Up next": the track they were on and the two after it. Loaded once per
-// card: an album is small and comes whole; a playlist can be huge, so only a
-// window around the position is asked for, and the track is found by its hash
-// inside it (the server's index can be off by orphans, see resumeIndex).
-const UP_NEXT = 3;
+// "Up next": the track they were on and the one after it. Two, not three
+// (user, 2026-11-20): two rows are exactly as tall as the title and the play
+// row beside them, so the card shares one grid instead of growing for a list.
+// Loaded once per card: an album is small and comes whole; a playlist can be
+// huge, so only a window around the position is asked for, and the track is
+// found by its hash inside it (the server's index can be off by orphans, see
+// resumeIndex).
+const UP_NEXT = 2;
 const upNext = ref<{ track: Track; current: boolean }[]>([]);
-// The three slots exist from the first frame (#776): the column is as tall as its
+// The slots exist from the first frame (#776): the column is as tall as its
 // tracks will be, so the rows arriving fill it instead of growing the card.
 const upNextSlots = computed(() => Array.from({ length: UP_NEXT }, (_, i) => upNext.value[i] ?? null));
 // Set once the tracks are in, empty or not: an empty answer hides the column.
@@ -237,14 +252,103 @@ function resume() {
   @include mem-arrival;
 }
 
+// ONE grid for the whole card (user, 2026-11-20: "too wild, nothing lines up").
+// The text block and "Up next" were two columns of their own, one centred and
+// one hung from the top, and the ▶ (44px) stood next to rows of 50px: no edge
+// met another. Both now lay out on the same three rows — the caption line, then
+// two rows the height of a control — so both captions share a line, the title
+// sits level with the first track, the ▶ with the second, and the cover runs
+// from the caption's top to the last row's bottom. Measured at 1940px: captions
+// both at y=130, title and row one centred at 176.5/177, ▶ and row two both at
+// 205–249, cover 130–249. 149px instead of 229.
+$continue-caption: 1.15rem;
+$continue-row: $bar-control;
+$continue-row-gap: 0.4rem;
+$continue-cover: $continue-caption + 2 * $continue-row + 2 * $continue-row-gap;
+$continue-pad: 0.75rem;
+
+@mixin continue-strip {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0.6rem;
+
+  &:has(.continue-dismiss) {
+    padding-right: $bar-control + 0.25rem;
+  }
+
+  .continue-dismiss {
+    top: 0.25rem;
+    right: 0.25rem;
+  }
+
+  // 72px, not the mockup's 64: the ▶ on its corner keeps its 44px, and on
+  // 64px it hid most of the picture.
+  .cover {
+    width: 4.5rem;
+  }
+
+  // As tall as the cover, the lines centred in it: the ▶ below hangs from
+  // this box's bottom edge, which is the cover's.
+  .info {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: none;
+    column-gap: 0.5rem;
+    row-gap: 0.05rem;
+    align-self: stretch;
+    align-content: center;
+
+    // The veil reaches 14px past the block (mem-dots-veil) and blurs from
+    // there: with the 12px gap of the strip it lay over the cover's right
+    // edge and washed the picture out (measured against the veil switched
+    // off). Here it stops short of the cover.
+    &::before {
+      left: -0.25rem;
+    }
+
+    > .kicker {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+    }
+  }
+
+  .name {
+    font-size: 1rem;
+  }
+
+  .progress {
+    height: 0.5rem;
+    margin: 0.15rem 0 0.1rem;
+  }
+
+  .meta {
+    font-size: 0.78rem;
+  }
+
+  // The ▶ moves onto the cover's corner, round like the play disc on every
+  // cover card (`card-play-btn`), and keeps its 44px. The cover itself still
+  // opens the album.
+  .resume {
+    position: absolute;
+    right: calc(100% + 0.4rem);
+    bottom: -0.4rem;
+    border-radius: $candy-radius-pill;
+  }
+
+  .up-next {
+    display: none;
+  }
+}
+
 .continue-card {
   position: relative;
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: center;
-  padding: 1rem;
-  position: relative;
+  grid-template-columns: $continue-cover minmax(0, 1fr);
+  column-gap: 1.25rem;
+  align-items: start;
+  padding: $continue-pad;
   --row-fill: var(--look-continue-fill, #{$mem-panel});
   @include candy-box(var(--row-fill), $candy-radius);
   // A look that drops the pastel (Boring) paints the card here instead: its
@@ -306,7 +410,7 @@ function resume() {
   }
 
   .cover {
-    width: 8.5rem;
+    width: $continue-cover;
     aspect-ratio: 1;
     border: $mem-picture-frame;
     border-radius: $candy-radius-sm;
@@ -334,16 +438,24 @@ function resume() {
   }
 
   .info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.35rem;
-    min-width: 0;
     // The whole text block dims the dots, softly (user, 2026-10-16). It
     // replaces a cover per label, which cut a box around every line; the
     // dots under the thick title stay faint (2026-10-11: at full strength
     // they read as noise there).
     @include mem-dots-veil;
+    // The card's three rows: caption · title · ▶ ━━━ 4/7.
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: $continue-caption $continue-row $continue-row;
+    column-gap: 0.75rem;
+    row-gap: $continue-row-gap;
+    align-items: center;
+    min-width: 0;
+
+    > .kicker,
+    > .name {
+      grid-column: 1 / -1;
+    }
   }
 
   // The labels keep the inset the covers gave them, so nothing moves.
@@ -377,12 +489,15 @@ function resume() {
     color: inherit;
   }
 
+  // "4/7" at the end of the bar.
   .meta {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .progress {
-    width: min(100%, 22rem);
+    width: 100%;
     height: 0.6rem;
     // A look with a slider palette (Boring) draws it like the seek bar: its
     // track and played colours, no ring.
@@ -390,7 +505,6 @@ function resume() {
     border-radius: $candy-radius-pill;
     background-color: var(--look-track, var(--card-inlay-fill, #{$mem-panel-static}));
     overflow: hidden;
-    margin: 0.25rem 0 0.4rem;
 
     span {
       display: block;
@@ -399,11 +513,13 @@ function resume() {
     }
   }
 
+  // The ▶ alone, square, at the head of the bar: the player bar's play button
+  // in front of its seek bar. The label went (user, 2026-11-20); the caption
+  // already says "Continue", and the button names itself for screen readers.
   .resume {
     // No pop of its own: the button is printed on the card and arrives with it.
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
+    width: $continue-row;
+    padding: 0;
     // No svg size here: the glyph is the role's (`$glyph`, 1.75rem), the same
     // ▶ as the player bar's play button and the header "Play". It was shrunk
     // to 1.1rem at this call site, and the Continue button read as the small
@@ -418,17 +534,18 @@ function resume() {
   }
 
   @container (min-width: 760px) {
-    grid-template-columns: 8.5rem minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-columns: $continue-cover minmax(0, 1fr) minmax(0, 1.15fr);
 
     .up-next {
-      display: flex;
+      display: grid;
     }
   }
 
   .up-next {
-    flex-direction: column;
-    // Room for each row's 3px offset shadow.
-    gap: 0.5rem;
+    // The card's rows (see the top of this block): the caption beside the
+    // text block's caption, each track beside the title and the ▶ row.
+    grid-template-rows: $continue-caption $continue-row $continue-row;
+    row-gap: $continue-row-gap;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -444,7 +561,8 @@ function resume() {
     }
 
     .kicker {
-      align-self: flex-start;
+      align-self: center;
+      justify-self: start;
       // The caption of the list stands on the dots too.
       @include mem-dots-veil;
     }
@@ -466,7 +584,7 @@ function resume() {
     // takes exactly the place its blank slot held.
     .next-slot-empty {
       display: block;
-      height: 3.1rem;
+      height: $continue-row;
     }
 
     .next-row {
@@ -474,7 +592,7 @@ function resume() {
       --row-fill: var(--card-inlay-fill, #{$mem-panel-static});
       color: var(--card-inlay-text, #{$mem-ink});
       width: 100%;
-      height: 3.1rem;
+      height: $continue-row;
       box-sizing: border-box;
       display: flex;
       align-items: center;
@@ -565,8 +683,9 @@ function resume() {
   // of it, so a long name never runs under the button.
   .continue-dismiss {
     position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
+    // Centred on the caption line, in a column of its own at the right edge.
+    top: $continue-pad + $continue-caption * 0.5 - $bar-control * 0.5;
+    right: 0.5rem;
     width: $bar-control;
     height: $bar-control;
     display: inline-flex;
@@ -583,21 +702,23 @@ function resume() {
     }
   }
 
-  &:has(.continue-dismiss) .info {
-    padding-right: $bar-control;
+  // The ✕'s column: nothing on the card runs under it, a long title no more
+  // than the Up next rows.
+  &:has(.continue-dismiss) {
+    padding-right: $bar-control + 0.5rem;
   }
 
+  // On a phone the card is a strip, like the mini player (user, 2026-11-20:
+  // it took a third of Home): a small cover, three short lines, 96px instead
+  // of 206. There is no room for Up next beside it, so it is not there.
+  // Also on a phone held sideways that is wider than 900px (large phones,
+  // 932×430): short is the phone case there too (`shortViewport`).
   @include allPhones {
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-    gap: 0.85rem;
+    @include continue-strip;
+  }
 
-    .cover {
-      width: 5.5rem;
-    }
-
-    .name {
-      font-size: 1.05rem;
-    }
+  @include shortViewport {
+    @include continue-strip;
   }
 }
 </style>
