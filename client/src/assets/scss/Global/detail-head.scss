@@ -3,6 +3,7 @@
 //
 // The head is ONE object: a panel with an ink frame and a hard offset shadow,
 // split into a square media cell and a text side by a single dividing rule.
+// The text side wears the entity's pastel and halftone dots (see .dh-body).
 // It is the Now-Playing source plate (`NowPlaying/PlayingFrom.vue`) at page
 // scale, and the same anatomy the cover tiles wear (Global/cards.scss).
 //
@@ -177,9 +178,9 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
     // the pastel (Boring) gives its own text colour back.
     color: var(--look-detail-text, #{$mem-ink});
 
-    // The pastel stays light in both themes' Memphis light mode and turns dusk
-    // in dark mode, exactly as on the Continue card, so the dots are the
-    // card's: static ink (`$on: accent`). A look drops them (`--shape-halftone`).
+    // The pastel is light in light mode and a dusk tone in dark mode, exactly
+    // as on the Continue card, so the dots are the card's: static ink
+    // (`$on: accent`). A look drops them (`--shape-halftone`).
     &::before {
         @include mem-halftone($reach: null, $on: accent);
     }
