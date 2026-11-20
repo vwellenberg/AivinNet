@@ -115,6 +115,18 @@ describe('halftone at the ends', () => {
         expect(mixin).toMatch(/@if \$on != accent \{ \$dot-color: var\(--mem-halftone-dot, #\{\$dot-color\}\); \}/)
     })
 
+    // The detail heads wear the entity pastel: their text is static ink in both
+    // themes (paper on the dark-mode dusk pastel measured 2.4–2.8:1), and only
+    // a look that drops the pastel gives its own colours back.
+    it('detail-head text on the pastel is static ink, Boring restores its own', () => {
+        const head = read('src/assets/scss/Global/detail-head.scss')
+        expect(head).toMatch(/color: var\(--look-detail-text, #\{\$mem-ink\}\);/)
+        expect(head).not.toMatch(/\.dh-(type|title|meta) \{[^}]*color: \$candy-text/)
+        const boring = read('src/assets/scss/Global/_theme-stream.scss')
+        expect(boring).toMatch(/--look-detail-text:/)
+        expect(boring).toMatch(/--look-detail-muted:/)
+    })
+
     // Collected, not listed: a new host has to say what it sits on. On a
     // pastel that stays light in the dark theme, the default (paper dots) would
     // all but vanish; on the ground or a panel, `accent` would bring back the
