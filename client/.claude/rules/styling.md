@@ -447,7 +447,15 @@ Browse-Kisten auf Home tragen **Bacterio** (`mem-bacterio`, Tokens `--mem-bacter
 2026-11-20) — dort füllen Cover die Fläche, nicht Text, und die Streusel lasen sich auf der
 breiten Kiste als Tapetenraster. Ein eigenes Mixin statt eines Parameters an `mem-hatch`, damit
 die Schraffur der übrigen App davon nichts weiß. Eine Kiste hovert auf `--mem-bacterio-hover`;
-die Kachel ist nicht quadratisch (`$mem-bacterio-size`), also nie `38px 38px` daneben schreiben. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+die Kachel ist nicht quadratisch (`$mem-bacterio-size`), also nie `38px 38px` daneben schreiben.
+
+**Beim Hover rutscht die Textur, sie tauscht sich nicht nur** („die Streusel wachen auf“, #143):
+`$mem-hatch-stir` (9 × 6 px) in `_candy.scss`, eine Quelle für Karten-Platten, Browse-Kisten, alle
+Zeilen-Platten (`mem-row-plate-hover`) und den Sidebar-Ordner-Kopf. Die Transition dazu ist
+`background-position` — Bewegung, keine Farbe, also mit der Schnitt-Regel verträglich. Wer einer
+neuen schraffierten Platte einen Hover gibt, nimmt das Token und die Transition mit; die Sidebar
+hatte beides bis 2026-11-20 nicht und war damit die eine Stelle, an der die Streusel nur
+umsprangen. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt
