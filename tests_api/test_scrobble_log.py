@@ -29,9 +29,11 @@ class Counter:
 
     def __init__(self):
         self.calls: list[tuple[int, int]] = []
+        self.plays = 0
 
-    def increment_playcount(self, duration: int, timestamp: int):
+    def increment_playcount(self, duration: int, timestamp: int, playcount: int = 1):
         self.calls.append((duration, timestamp))
+        self.plays += playcount
 
 
 def make_track(duration: int = 300):
@@ -108,9 +110,9 @@ def test_a_played_track_is_recorded_and_counted(logger):
 
     assert res.status_code == 201
     # The play count is answered on every play; a milestone only on a round one (test_records_api).
-    assert res.json == {"msg": "recorded", "plays": 1, "milestone": None}
-
     (entry,) = scrobbles(logger.api)
+    assert res.json == {"msg": "recorded", "plays": 1, "milestone": None, "id": entry.id}
+
     assert (entry.trackhash, entry.duration, entry.timestamp) == (HASH, 200, TIMESTAMP)
     assert entry.source == f"al:{ALBUM}"
     assert entry.userid == logger.api.userid
@@ -318,3 +320,84 @@ def test_an_overlong_device_id_is_refused_and_writes_nothing(logger):
     assert res.status_code == 422
     assert scrobbles(logger.api) == []
     assert logger.track.playcount == 0
+
+
+# ---------------------------------------------------------------------------
+# Logged at 5 s, extended later (`/track/log/extend`). The client logs a play as
+# soon as it counts, so one the page never finishes (paused and closed, skipped
+# on after 6 s) is in the history all the same — "Almost complete" counted only
+# plays sent at the END of a song, and a started song kept coming back. The
+# rest of the play's length follows here, or the skip rate, the listening time
+# and Last.fm would see every play as 5 s.
+# ---------------------------------------------------------------------------
+
+
+def extend(api, play_id: int, duration: int):
+    return api.post("/logger/track/log/extend", json={"id": play_id, "duration": duration})
+
+
+def test_a_play_logged_at_five_seconds_grows_to_what_was_heard(logger):
+    play_id = log(logger.api, duration=5).json["id"]
+
+    res = extend(logger.api, play_id, 180)
+
+    assert res.status_code == 200, res.text
+    assert res.json == {"msg": "extended", "duration": 180}
+    (entry,) = scrobbles(logger.api)
+    assert entry.duration == 180
+    # One play, its seconds in full: counted once at the log, the rest added.
+    assert (logger.track.playcount, logger.track.playduration) == (1, 180)
+    assert logger.album.plays == 1 and sum(d for d, _ in logger.album.calls) == 180
+    assert logger.artist.plays == 1 and sum(d for d, _ in logger.artist.calls) == 180
+
+
+def test_an_extension_only_ever_grows_a_play(logger):
+    play_id = log(logger.api, duration=5).json["id"]
+    extend(logger.api, play_id, 120)
+
+    # A late or repeated request (the page closing after the track changed).
+    res = extend(logger.api, play_id, 60)
+
+    assert res.json == {"msg": "unchanged", "duration": 120}
+    assert scrobbles(logger.api)[0].duration == 120
+    assert logger.track.playduration == 120
+
+
+def test_a_play_is_never_extended_past_its_track(logger):
+    logger.track.duration = 200
+    play_id = log(logger.api, duration=5).json["id"]
+
+    res = extend(logger.api, play_id, 3600)
+
+    assert res.json["duration"] == 205
+    assert logger.track.playduration == 205
+
+
+def test_only_the_users_own_play_can_be_extended(logger):
+    from aivinnet.db.userdata import ScrobbleTable, UserTable
+
+    name = "extend-someone-else"
+    if UserTable.get_by_username(name) is None:
+        UserTable.insert_one({"username": name, "password": "x", "roles": []})
+    someone = UserTable.get_by_username(name).id
+    other = ScrobbleTable.add(
+        {"trackhash": HASH, "timestamp": TIMESTAMP, "duration": 5, "source": "", "userid": someone}
+    )
+
+    assert extend(logger.api, other, 100).status_code == 404
+    assert extend(logger.api, 123456, 100).status_code == 404
+    assert logger.track.playduration == 0
+
+
+def test_last_fm_gets_the_play_when_its_extension_crosses_the_rule(logger):
+    play_id = log(logger.api, duration=5).json["id"]
+    assert logger.scrobbled == []  # 5 s of a 300 s track: not a Last.fm scrobble
+
+    extend(logger.api, play_id, 100)
+    assert logger.scrobbled == []  # under half of 300 s
+
+    extend(logger.api, play_id, 160)
+    assert logger.scrobbled == [(HASH, TIMESTAMP)]
+
+    extend(logger.api, play_id, 290)
+    assert logger.scrobbled == [(HASH, TIMESTAMP)]  # once, not again

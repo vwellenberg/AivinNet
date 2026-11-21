@@ -512,11 +512,22 @@ class ScrobbleTable(Base):
     extra: Mapped[dict[str, Any]] = mapped_column(JSON(), nullable=True, default_factory=dict)
 
     @classmethod
-    def add(cls, item: dict[str, Any]):
+    def add(cls, item: dict[str, Any]) -> int:
+        """Store one play; its id, so the client can extend the play's length later."""
         if item.get("userid") is None:
             item["userid"] = get_current_userid()
 
-        return cls.insert_one(item)
+        result = next(cls.execute(insert(cls).values(item).returning(cls.id), commit=True))
+        return int(result.scalar_one())
+
+    @classmethod
+    def own_play(cls, play_id: int, userid: int) -> "ScrobbleTable | None":
+        """One play of ONE user: another user's id answers None, like a missing one."""
+        return cls.rows(select(cls).where(cls.id == play_id, cls.userid == userid)).scalars().first()
+
+    @classmethod
+    def set_duration(cls, play_id: int, duration: int) -> None:
+        next(cls.execute(update(cls).where(cls.id == play_id).values(duration=duration), commit=True))
 
     @classmethod
     def plays_by_trackhash(cls) -> list[tuple[str, int, int, int]]:

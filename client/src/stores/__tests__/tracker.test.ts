@@ -34,14 +34,29 @@ import useHome from '@/stores/home'
 const posted: any[] = []
 class FakeWorker {
     static last: FakeWorker | undefined
+    static all: FakeWorker[] = []
     onmessage: ((e: { data: any }) => void) | null = null
+    answered = false
     constructor(public url: string) {
         FakeWorker.last = this
+        FakeWorker.all.push(this)
     }
     postMessage(data: any) {
         posted.push({ url: this.url, ...data })
     }
 }
+
+/** The server took every play sent so far: each worker answers with an id (1, 2, ...). */
+function serverAnswers() {
+    FakeWorker.all.forEach((w, i) => {
+        if (w.answered) return
+        w.answered = true
+        w.onmessage?.({ data: { logged: true, milestone: null, id: i + 1 } })
+    })
+}
+
+/** What went to POST /logger/track/log/extend (a plain keepalive fetch, not the worker). */
+const extended: { id: number; duration: number }[] = []
 
 class FakeAudio extends EventTarget {
     paused = false
@@ -68,6 +83,17 @@ beforeEach(() => {
     vi.setSystemTime(new Date('2026-09-21T12:00:00Z'))
     vi.stubGlobal('Worker', FakeWorker)
     posted.length = 0
+    FakeWorker.all = []
+    extended.length = 0
+    vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init: { body: string; keepalive?: boolean }) => {
+            expect(url).toMatch(/\/logger\/track\/log\/extend$/)
+            expect(init.keepalive).toBe(true)
+            extended.push(JSON.parse(init.body))
+            return { ok: true }
+        })
+    )
     dsMock.joined = false
     dsMock.isScrobbleLeader = true
     setCurrentTrack('a')
@@ -200,14 +226,17 @@ describe('play time accounting', () => {
         tracker.resetData() // track "a", started from ALBUM
         tracker.reassignEventListener()
         for (let i = 0; i < 30; i++) tick()
+        serverAnswers()
 
         setCurrentTrack('b')
         tracklistMock.from = { type: FromOptions.playlist, id: 7 }
         tracker.changeKey()
         tick()
 
+        // Logged once it counted (5 s), its full length sent on the change.
         expect(posted).toHaveLength(1)
-        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 30, source: 'al:alb1' })
+        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 5, source: 'al:alb1' })
+        expect(extended).toEqual([{ id: 1, duration: 30 }])
         // ...and the tracker has moved on to the new track.
         expect(tracker.trackhash).toBe('b')
         expect(tracker.from).toEqual({ type: FromOptions.playlist, id: 7 })
@@ -244,7 +273,11 @@ describe('the first play of a fresh session', () => {
         tracker.submitData() // ended
 
         expect(posted).toHaveLength(1)
-        expect(posted[0]).toMatchObject({ trackhash: 'a', source: 'al:alb1', duration: 30 })
+        expect(posted[0]).toMatchObject({ trackhash: 'a', source: 'al:alb1', duration: 5 })
+        // The server answers only now: the length asked for meanwhile follows.
+        expect(extended).toEqual([])
+        serverAnswers()
+        expect(extended).toEqual([{ id: 1, duration: 30 }])
     })
 
     it('a short track (low floor, #882) is not counted twice', () => {
@@ -281,12 +314,19 @@ describe('after the ended submit', () => {
         tracker.changeKey()
         for (let i = 0; i < 10; i++) tick()
 
-        expect(posted).toHaveLength(1)
-        // ...and the 10 s of "b" are counted for "b", with its own source.
+        // "a" once; "b" logged once it counted, with its own source.
+        expect(posted.filter((p) => p.trackhash === 'a')).toHaveLength(1)
+        expect(posted[1]).toMatchObject({ trackhash: 'b', duration: 5, source: 'pl:7' })
+        // ...and the 10 s of "b" are counted for "b".
         expect(tracker.trackhash).toBe('b')
         expect(tracker.duration).toBe(10_000)
+        serverAnswers()
         tracker.submitData()
-        expect(posted[1]).toMatchObject({ trackhash: 'b', duration: 10, source: 'pl:7' })
+        // "a" was ended before the server answered: its length follows the answer.
+        expect(extended).toEqual([
+            { id: 1, duration: 3 },
+            { id: 2, duration: 10 },
+        ])
     })
 })
 
@@ -303,8 +343,11 @@ describe('a short track (#882)', () => {
         tracker.changeKey()
         tick()
 
+        // Its floor is 1 s: logged at the first tick, its 2 s sent on the change.
         expect(posted).toHaveLength(1)
-        expect(posted[0]).toMatchObject({ trackhash: 'stinger', duration: 2 })
+        expect(posted[0]).toMatchObject({ trackhash: 'stinger', duration: 1 })
+        serverAnswers()
+        expect(extended).toEqual([{ id: 1, duration: 2 }])
         expect(tracker.trackSeconds).toBe(200)
     })
 })
@@ -315,12 +358,14 @@ describe('submitData', () => {
         tracker.resetData()
         tracker.reassignEventListener()
         for (let i = 0; i < 10; i++) tick()
+        serverAnswers()
 
         tracker.submitData()
         tracker.submitData()
 
         expect(posted).toHaveLength(1)
-        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 10 })
+        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 5 })
+        expect(extended).toEqual([{ id: 1, duration: 10 }])
     })
 
     it('group session, not the scrobble leader: submits nothing and discards the accumulated time', () => {
@@ -348,11 +393,13 @@ describe('submitData', () => {
         tracker.resetData()
         tracker.reassignEventListener()
         for (let i = 0; i < 10; i++) tick()
+        serverAnswers()
 
         tracker.submitData()
 
         expect(posted).toHaveLength(1)
-        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 10 })
+        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 5 })
+        expect(extended).toEqual([{ id: 1, duration: 10 }])
     })
 })
 
@@ -418,5 +465,88 @@ describe('sendLogData and Home (#529)', () => {
 
         expect(posted).toEqual([])
         expect(spy).not.toHaveBeenCalled()
+    })
+})
+
+
+// "Almost complete" offered songs again that had been started (reported): a play
+// was logged only when the track changed or ended, so one paused and closed, or
+// skipped on after a few seconds, never reached the history. Now it is logged
+// as soon as it counts, and its length follows.
+describe('logged as soon as it counts', () => {
+    function playing(seconds = 200) {
+        setCurrentTrack('a', seconds)
+        const tracker = useTracker()
+        tracker.resetData()
+        tracker.reassignEventListener()
+        return tracker
+    }
+
+    it('logs the play at 5 s, while it still plays, and once', () => {
+        playing()
+        for (let i = 0; i < 4; i++) tick()
+        expect(posted).toEqual([])
+
+        tick()
+        expect(posted).toHaveLength(1)
+        expect(posted[0]).toMatchObject({ trackhash: 'a', duration: 5, source: 'al:alb1' })
+
+        for (let i = 0; i < 20; i++) tick()
+        expect(posted).toHaveLength(1)
+    })
+
+    it('does not log a play skipped before it counts', () => {
+        const tracker = playing()
+        for (let i = 0; i < 3; i++) tick()
+
+        setCurrentTrack('b', 200)
+        tracker.changeKey()
+        tick()
+
+        expect(posted).toEqual([])
+        expect(extended).toEqual([])
+    })
+
+    it('sends what was heard when the page goes away, and keeps tracking (a tab switch)', () => {
+        const tracker = playing()
+        for (let i = 0; i < 8; i++) tick()
+        serverAnswers()
+
+        document.dispatchEvent(new Event('visibilitychange')) // jsdom: still "visible"
+        expect(extended).toEqual([])
+        window.dispatchEvent(new Event('pagehide'))
+        expect(extended).toEqual([{ id: 1, duration: 8 }])
+
+        // Back on the tab, the song plays on: the same play grows.
+        for (let i = 0; i < 4; i++) tick()
+        tracker.submitData()
+        expect(extended).toEqual([
+            { id: 1, duration: 8 },
+            { id: 1, duration: 12 },
+        ])
+        expect(posted).toHaveLength(1)
+    })
+
+    it('after a reload, extends the play it had logged instead of logging it again', () => {
+        const tracker = playing()
+        // What the persisted store brings back.
+        tracker.loggedEarly = true
+        tracker.logId = 42
+        tracker.duration = 30_000
+
+        tracker.submitData()
+
+        expect(posted).toEqual([])
+        expect(extended).toEqual([{ id: 42, duration: 30 }])
+    })
+
+    it('remembers the id for a reload once the server answers', () => {
+        const tracker = playing()
+        for (let i = 0; i < 5; i++) tick()
+        expect(tracker.loggedEarly).toBe(true)
+        expect(tracker.logId).toBeNull()
+
+        serverAnswers()
+        expect(tracker.logId).toBe(1)
     })
 })

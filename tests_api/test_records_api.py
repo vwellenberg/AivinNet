@@ -61,7 +61,8 @@ def play(api):
 def test_every_play_answers_with_the_play_count(records):
     body = play(records.api)
 
-    assert body == {"msg": "recorded", "plays": 1, "milestone": None}
+    assert body == {"msg": "recorded", "plays": 1, "milestone": None, "id": body["id"]}
+    assert isinstance(body["id"], int)
 
 
 def test_the_thousandth_play_names_its_number_and_track(records):
