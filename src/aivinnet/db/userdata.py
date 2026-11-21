@@ -512,11 +512,22 @@ class ScrobbleTable(Base):
     extra: Mapped[dict[str, Any]] = mapped_column(JSON(), nullable=True, default_factory=dict)
 
     @classmethod
-    def add(cls, item: dict[str, Any]):
+    def add(cls, item: dict[str, Any]) -> int:
+        """Store one play; its id, so the client can extend the play's length later."""
         if item.get("userid") is None:
             item["userid"] = get_current_userid()
 
-        return cls.insert_one(item)
+        result = next(cls.execute(insert(cls).values(item).returning(cls.id), commit=True))
+        return int(result.scalar_one())
+
+    @classmethod
+    def own_play(cls, play_id: int, userid: int) -> "ScrobbleTable | None":
+        """One play of ONE user: another user's id answers None, like a missing one."""
+        return cls.rows(select(cls).where(cls.id == play_id, cls.userid == userid)).scalars().first()
+
+    @classmethod
+    def set_duration(cls, play_id: int, duration: int) -> None:
+        next(cls.execute(update(cls).where(cls.id == play_id).values(duration=duration), commit=True))
 
     @classmethod
     def plays_by_trackhash(cls) -> list[tuple[str, int, int, int]]:
@@ -696,6 +707,20 @@ class ScrobbleTable(Base):
         result = cls.rows(select(func.count(cls.id), func.max(cls.id)).where(cls.userid == userid))
         count, highest = result.one()
         return int(count or 0), int(highest or 0)
+
+    @classmethod
+    def listening_marker(cls, userid: int) -> tuple[int, int, int]:
+        """
+        `change_marker` plus the user's listened seconds: also moves when a play
+        grows (`/track/log/extend`) without a play being added. For the caches
+        of figures made of listened time (clock, calendar, skip rate, devices):
+        with the plain marker they kept a play at the 5 s it was logged with.
+        """
+        result = cls.rows(
+            select(func.count(cls.id), func.max(cls.id), func.sum(cls.duration)).where(cls.userid == userid)
+        )
+        count, highest, seconds = result.one()
+        return int(count or 0), int(highest or 0), int(seconds or 0)
 
     @classmethod
     def totals(cls) -> tuple[int, int | None]:

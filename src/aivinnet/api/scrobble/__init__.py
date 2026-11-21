@@ -149,7 +149,7 @@ def log_track(body: LogTrackBody):
         **get_extra_info(trackhash, "track"),
         **({"device_id": device_id} if device_id else {}),
     }
-    ScrobbleTable.add(scrobble_data)
+    play_id = ScrobbleTable.add(scrobble_data)
     # The server card's totals, in RAM (lib/server_card.py): no read on this path.
     SERVER_TOTALS.note_play(timestamp)
 
@@ -174,19 +174,82 @@ def log_track(body: LogTrackBody):
     trackentry.increment_playcount(duration, timestamp)
     track = trackentry.tracks[0]
 
-    lastfm = LastFmPlugin(current_userid=get_current_userid())
-
-    if (
-        lastfm.enabled and track.duration > 30 and body.duration >= min(track.duration / 2, 240)
-        # SEE: https://www.last.fm/api/scrobbling#when-is-a-scrobble-a-scrobble
-    ):
-        lastfm.scrobble(trackentry.tracks[0], timestamp)
+    if counts_for_lastfm(track.duration, body.duration):
+        lastfm = LastFmPlugin(current_userid=get_current_userid())
+        if lastfm.enabled:
+            lastfm.scrobble(trackentry.tracks[0], timestamp)
 
     # #545: the play's number in the user's own history, counted on every play.
     # A milestone names its track, so the page can say which play it was.
     plays = ScrobbleTable.plays_of(scrobble_data["userid"])
     milestone = {"number": plays, "track": track.title} if celebrated(plays) else None
-    return {"msg": "recorded", "plays": plays, "milestone": milestone}, 201
+    # `id`: the client logs a play as soon as it counts (5 s) and extends its
+    # length later (`/track/log/extend`), so a play the page never finishes —
+    # paused and closed, skipped on — is in the history all the same.
+    return {"msg": "recorded", "plays": plays, "milestone": milestone, "id": play_id}, 201
+
+
+def counts_for_lastfm(track_seconds: float, played_seconds: int) -> bool:
+    """Last.fm's rule: a track over 30 s, played half of it or 4 minutes.
+
+    SEE: https://www.last.fm/api/scrobbling#when-is-a-scrobble-a-scrobble
+    """
+    return track_seconds > 30 and played_seconds >= min(track_seconds / 2, 240)
+
+
+# A play is no longer than its track; a little more for the client's tick
+# rounding. Against a client that would add an hour to one play.
+EXTEND_TOLERANCE_SECONDS = 5
+
+
+class ExtendPlayBody(BaseModel):
+    id: int = Field(ge=1, description="The play's id, as POST /logger/track/log answered it")
+    duration: int = Field(ge=1, le=86_400, description="The seconds listened in all, so far")
+
+
+@api.post("/track/log/extend")
+def extend_play(body: ExtendPlayBody):
+    """
+    Extend a logged play to the seconds listened so far.
+
+    The client logs a play once it counts (5 s, `lib/play_floor.py`) and sends
+    the rest of its length here when the track changes or the page goes away.
+    Only ever grows a play (a repeated or late request changes nothing), never
+    past its track's length, and only the user's own. The RAM stores take the
+    added seconds; Last.fm gets the play once it crosses its rule here.
+    """
+    userid = get_current_userid()
+    play = ScrobbleTable.own_play(body.id, userid)
+    if play is None:
+        return {"msg": "Play not found."}, 404
+
+    trackentry = TrackStore.trackhashmap.get(play.trackhash)
+    longest = max((t.duration for t in trackentry.tracks), default=0) if trackentry else 0
+    duration = min(body.duration, longest + EXTEND_TOLERANCE_SECONDS) if longest else body.duration
+    if duration <= play.duration:
+        return {"msg": "unchanged", "duration": play.duration}, 200
+
+    added = duration - play.duration
+    ScrobbleTable.set_duration(play.id, duration)
+
+    if trackentry is not None and trackentry.tracks:
+        # Seconds only: the play itself was counted when it was logged.
+        trackentry.increment_playcount(added, play.timestamp, playcount=0)
+        track = trackentry.tracks[0]
+        album = AlbumStore.albummap.get(track.albumhash)
+        if album:
+            album.increment_playcount(added, play.timestamp, playcount=0)
+        for artisthash in track.artisthashes:
+            artist = ArtistStore.artistmap.get(artisthash)
+            if artist:
+                artist.increment_playcount(added, play.timestamp, playcount=0)
+
+        if counts_for_lastfm(track.duration, duration) and not counts_for_lastfm(track.duration, play.duration):
+            lastfm = LastFmPlugin(current_userid=userid)
+            if lastfm.enabled:
+                lastfm.scrobble(track, play.timestamp)
+
+    return {"msg": "extended", "duration": duration}, 200
 
 
 class ChartItemsQuery(BaseModel):
@@ -482,7 +545,7 @@ def get_listening_calendar():
     """
     userid = get_current_userid()
     today = ScrobbleTable.local_today()
-    key = (today, *ScrobbleTable.change_marker(userid))
+    key = (today, *ScrobbleTable.listening_marker(userid))
 
     cached = _calendars.get(userid)
     if cached is None or cached[0] != key:
@@ -511,7 +574,7 @@ def get_listening_clock(query: ClockQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _clocks.get(userid)
     if cached is None or cached[0] != key:
@@ -549,7 +612,7 @@ def get_skip_rate(query: SkipsQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _skips.get(userid)
     if cached is None or cached[0] != key:
@@ -600,7 +663,7 @@ def get_library_stats():
     if _library_totals is None or _library_totals[0] != generation:
         _library_totals = (generation, library_totals(_library_files()))
 
-    key = (generation, *ScrobbleTable.change_marker(userid))
+    key = (generation, *ScrobbleTable.listening_marker(userid))
     cached = _explored.get(userid)
     if cached is None or cached[0] != key:
         heard = ScrobbleTable.heard_trackhashes_of(userid)
@@ -629,7 +692,7 @@ def get_listening_devices(query: DevicesQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _devices.get(userid)
     if cached is None or cached[0] != key:

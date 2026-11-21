@@ -364,6 +364,23 @@ eine verloren). Unter 3 s Länge ist ein Song nicht verlässlich zählbar (der C
 nichts), „Almost complete“ verlangt ihn deshalb nicht (`can_be_logged`). Wer die Regel ändert,
 ändert beide Seiten.
 
+**Ein Play wird geloggt, sobald er zählt, und wächst danach** (`tracker.ts::logEarly`,
+`POST /logger/track/log/extend`). Bis 2026-11-21 schickte der Client einen Play erst beim
+Trackwechsel bzw. Songende. Pausiert und Tab zu, oder nach ein paar Sekunden weitergeklickt: der
+Play kam nie an, und „Almost complete“ bot denselben Song immer wieder an (gemeldet). Jetzt geht der
+Log mit Erreichen der Schwelle (5 s) raus, `log_track` antwortet mit der `id`, und der Client trägt
+die gehörte Länge beim Wechsel, am Ende und bei `pagehide`/verborgener Seite nach (`fetch` mit
+`keepalive`, nicht über den Worker). `extend` **wächst nur** (späte oder doppelte Aufrufe sind
+No-ops), höchstens bis Tracklänge + 5 s, nur für eigene Plays (fremde ID = 404), und legt die
+Sekunden ohne zweiten Play-Zähler auf die RAM-Stores. Last.fm scrobbelt dort, wo die Länge die
+Regel überschreitet (`counts_for_lastfm`): beim Log nur, wenn er schon lang genug ist.
+⚠️ Ohne das Nachtragen stünde jeder Play mit 5 s in der Datenbank: Skip-Quote (jeder Play ein
+Skip), Hörzeit und Last.fm wären falsch. Wer den Tracker anfasst, hält beide Schritte zusammen; die
+ID wird persistiert (`loggedEarly`, `logId`), damit ein Reload denselben Play verlängert, statt ihn
+ein zweites Mal zu loggen. ⚠️ Caches von Zahlen aus **Hördauer** (Kalender, Uhr, Skip-Quote,
+Geräte, Bibliothek) keyen deshalb auf `ScrobbleTable.listening_marker` (mit Sekundensumme), nicht auf
+`change_marker`: Ein `extend` fügt keinen Play hinzu, der alte Schlüssel ließ den Play bei 5 s stehen.
+
 ## Bibliotheks-Kacheln: Cache am Store-Generation-Zähler (#536)
 
 `GET /logger/library` (Anteil gehört, Länge am Stück, Formate, Bitrate, Hi-Res) rechnet aus dem

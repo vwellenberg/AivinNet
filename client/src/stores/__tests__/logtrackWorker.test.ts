@@ -64,14 +64,28 @@ describe('logtrack worker: the body it posts', () => {
         worker.onmessage({ data: { trackhash: 't1', duration: 200, source: 'al:alb1', timestamp: 1, deviceId: 'd' } })
         await settle()
 
-        expect(worker.postMessage).toHaveBeenCalledWith({ logged: true, milestone: { number: 1000, track: 'Blue' } })
+        expect(worker.postMessage).toHaveBeenCalledWith({
+            logged: true,
+            milestone: { number: 1000, track: 'Blue' },
+            id: null,
+        })
+    })
+
+    // The play's id: the page extends the play's length later (/track/log/extend).
+    it('passes the id of the play the server stored', async () => {
+        const worker = loadWorker({ msg: 'recorded', plays: 3, milestone: null, id: 812 })
+
+        worker.onmessage({ data: { trackhash: 't1', duration: 5, source: 'al:alb1', timestamp: 1, deviceId: 'd' } })
+        await settle()
+
+        expect(worker.postMessage).toHaveBeenCalledWith({ logged: true, milestone: null, id: 812 })
     })
 
     it('says the play was taken, and nothing when the server refused it', async () => {
         const worker = loadWorker()
         worker.onmessage({ data: { trackhash: 't1', duration: 200, source: 'al:alb1', timestamp: 1, deviceId: 'd' } })
         await settle()
-        expect(worker.postMessage).toHaveBeenCalledWith({ logged: true, milestone: null })
+        expect(worker.postMessage).toHaveBeenCalledWith({ logged: true, milestone: null, id: null })
 
         const refused = loadWorker()
         refused.fetch.mockResolvedValueOnce({ ok: false, json: async () => ({ msg: 'Invalid entry.' }) } as any)

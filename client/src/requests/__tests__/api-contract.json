@@ -900,6 +900,19 @@
       "type": "json"
     }
   },
+  "POST /logger/track/log/extend": {
+    "body": {
+      "allowed": [
+        "duration",
+        "id"
+      ],
+      "required": [
+        "duration",
+        "id"
+      ],
+      "type": "json"
+    }
+  },
   "POST /lyrics": {
     "body": {
       "allowed": [

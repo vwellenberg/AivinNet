@@ -17,9 +17,10 @@ onmessage = (e) => {
   })
     .then((res) => (res.ok ? res.json() : null))
     // Only a play the server took is passed on (the page updates Home's
-    // "Almost complete" card), with its milestone (#545) if it was one.
+    // "Almost complete" card), with its milestone (#545) if it was one, and its
+    // id: the page extends the play's length later (/track/log/extend).
     .then((body) => {
-      if (body) postMessage({ logged: true, milestone: body.milestone || null });
+      if (body) postMessage({ logged: true, milestone: body.milestone || null, id: body.id ?? null });
     })
     .catch(() => {})
     // A dedicated worker lives until it closes itself or the page goes away.

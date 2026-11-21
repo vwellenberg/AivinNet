@@ -109,5 +109,20 @@ def test_a_new_play_shows_at_once(skips_api):
     assert skips(skips_api)["plays"] == 6
 
 
+def test_a_play_extended_after_it_was_logged_shows_at_once(skips_api):
+    # The client logs a play at 5 s and extends it later (/track/log/extend):
+    # keyed on plays and ids alone, the cache kept the play a 5 s skip.
+    from aivinnet.db.userdata import ScrobbleTable
+
+    plays(FINISHED, 5, 1)
+    assert skips(skips_api)["skipped"] == 1
+
+    (play,) = ScrobbleTable.get_all(start=0, userid=skips_api.userid)
+    ScrobbleTable.set_duration(play.id, 195)
+
+    body = skips(skips_api)
+    assert (body["plays"], body["skipped"]) == (1, 0)
+
+
 def test_an_unknown_period_is_refused(skips_api):
     assert skips_api.get("/logger/skips?period=decade").status_code == 422
