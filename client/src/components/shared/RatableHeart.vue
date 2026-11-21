@@ -18,11 +18,9 @@
         aria-haspopup="dialog"
         :aria-expanded="open"
         @handle-fav="emit('handleFav')"
-    >
-        <span v-if="shown !== null" class="heart-rating-tag" aria-hidden="true">
-            <StarFillSvg class="heart-rating-star" />{{ shown }}
-        </span>
-    </HeartSvg>
+    />
+    <!-- No rating mark on the heart (user, 2026-11-21: "ohne badge"): the bar
+         stays as it was; the rating shows in the tooltip and in the stars. -->
     <!-- On <body>: the bar is a stacking context of its own, and the picker
          has to float above the page it sits under. -->
     <Teleport to="body">
@@ -37,7 +35,6 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import useContextStore from '@/stores/context'
 import useRatings from '@/stores/ratings'
 
-import StarFillSvg from '@/assets/icons/star.fill.svg'
 import HeartSvg from './HeartSvg.vue'
 import RatingPicker from './RatingPicker.vue'
 
@@ -191,40 +188,5 @@ onBeforeUnmount(close)
 // the two never show together (openPicker closes the menu).
 .heart-rating-picker {
     z-index: 1000;
-}
-
-// The hint that a rating exists: a small yellow tag in the heart's corner, the
-// same anatomy as the theme toggle's "A" (nav/ThemeToggle.vue). Only for a rated
-// track, so the bar gains nothing permanent. Yellow is the rating's colour (the
-// stars it opens); static, so the ink text holds in both themes.
-.heart-button > .heart-rating-tag {
-    position: absolute;
-    right: -6px;
-    bottom: -6px;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    height: 16px;
-    padding: 0 3px 0 2px;
-    border: $mem-ring-w solid $mem-ink;
-    border-radius: 4px;
-    background-color: $mem-yellow;
-    color: $mem-ink;
-    font-size: 0.65rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-    pointer-events: none;
-
-    // The role sizes every svg in the button to its glyph (0,2,1), and the
-    // compact role drop-shadows a favourited one; the tag's star is its own,
-    // smaller and flat. Ink body and edge, like the number beside it.
-    > .heart-rating-star {
-        width: 9px;
-        height: 9px;
-        filter: none;
-        --star-edge: #{$mem-ink};
-    }
 }
 </style>

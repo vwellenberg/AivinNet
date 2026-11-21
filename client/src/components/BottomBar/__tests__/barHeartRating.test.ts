@@ -110,7 +110,7 @@ describe('player bar heart: rating', () => {
         expect(rate).toHaveBeenCalledWith('9f86d081884c7d65', 5, 3)
         expect(setTrackRating).toHaveBeenCalledWith('9f86d081884c7d65', 5)
         expect(bar.emitted('handleFav')).toBeUndefined()
-        expect(bar.find('.heart-rating-tag').text()).toBe('5')
+        expect(bar.find('button.np-fav').attributes('title')).toContain('Rated 5 of 5')
     })
 
     it('still sends a click to the favourite handler', async () => {
