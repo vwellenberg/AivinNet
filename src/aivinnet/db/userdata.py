@@ -709,6 +709,20 @@ class ScrobbleTable(Base):
         return int(count or 0), int(highest or 0)
 
     @classmethod
+    def listening_marker(cls, userid: int) -> tuple[int, int, int]:
+        """
+        `change_marker` plus the user's listened seconds: also moves when a play
+        grows (`/track/log/extend`) without a play being added. For the caches
+        of figures made of listened time (clock, calendar, skip rate, devices):
+        with the plain marker they kept a play at the 5 s it was logged with.
+        """
+        result = cls.rows(
+            select(func.count(cls.id), func.max(cls.id), func.sum(cls.duration)).where(cls.userid == userid)
+        )
+        count, highest, seconds = result.one()
+        return int(count or 0), int(highest or 0), int(seconds or 0)
+
+    @classmethod
     def totals(cls) -> tuple[int, int | None]:
         """`(plays, oldest play)` over ALL users — the server card (`lib/server_card.py`), not a user's figure."""
         count, oldest = cls.rows(select(func.count(cls.id), func.min(cls.timestamp))).one()

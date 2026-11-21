@@ -377,7 +377,9 @@ Regel überschreitet (`counts_for_lastfm`): beim Log nur, wenn er schon lang gen
 ⚠️ Ohne das Nachtragen stünde jeder Play mit 5 s in der Datenbank: Skip-Quote (jeder Play ein
 Skip), Hörzeit und Last.fm wären falsch. Wer den Tracker anfasst, hält beide Schritte zusammen; die
 ID wird persistiert (`loggedEarly`, `logId`), damit ein Reload denselben Play verlängert, statt ihn
-ein zweites Mal zu loggen.
+ein zweites Mal zu loggen. ⚠️ Caches von Zahlen aus **Hördauer** (Kalender, Uhr, Skip-Quote,
+Geräte, Bibliothek) keyen deshalb auf `ScrobbleTable.listening_marker` (mit Sekundensumme), nicht auf
+`change_marker`: Ein `extend` fügt keinen Play hinzu, der alte Schlüssel ließ den Play bei 5 s stehen.
 
 ## Bibliotheks-Kacheln: Cache am Store-Generation-Zähler (#536)
 

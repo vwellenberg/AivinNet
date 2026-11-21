@@ -545,7 +545,7 @@ def get_listening_calendar():
     """
     userid = get_current_userid()
     today = ScrobbleTable.local_today()
-    key = (today, *ScrobbleTable.change_marker(userid))
+    key = (today, *ScrobbleTable.listening_marker(userid))
 
     cached = _calendars.get(userid)
     if cached is None or cached[0] != key:
@@ -574,7 +574,7 @@ def get_listening_clock(query: ClockQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _clocks.get(userid)
     if cached is None or cached[0] != key:
@@ -612,7 +612,7 @@ def get_skip_rate(query: SkipsQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _skips.get(userid)
     if cached is None or cached[0] != key:
@@ -663,7 +663,7 @@ def get_library_stats():
     if _library_totals is None or _library_totals[0] != generation:
         _library_totals = (generation, library_totals(_library_files()))
 
-    key = (generation, *ScrobbleTable.change_marker(userid))
+    key = (generation, *ScrobbleTable.listening_marker(userid))
     cached = _explored.get(userid)
     if cached is None or cached[0] != key:
         heard = ScrobbleTable.heard_trackhashes_of(userid)
@@ -692,7 +692,7 @@ def get_listening_devices(query: DevicesQuery):
     """
     userid = get_current_userid()
     start_time, end_time = get_date_range(query.period)
-    key = (query.period, start_time, *ScrobbleTable.change_marker(userid))
+    key = (query.period, start_time, *ScrobbleTable.listening_marker(userid))
 
     cached = _devices.get(userid)
     if cached is None or cached[0] != key:
