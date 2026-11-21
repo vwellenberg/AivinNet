@@ -21,10 +21,12 @@
             >
                 <ShuffleSvg />
             </button>
-            <HeartSvg
+            <!-- Rates on right-click / long-press, like the desktop heart. -->
+            <RatableHeart
                 v-if="!hideHeart"
                 btn_role="bar"
-                title="Favorite"
+                :trackhash="queue.currenttrackhash"
+                :rating="queue.currenttrack?.rating ?? null"
                 :state="queue.currenttrackIsFav"
                 @handleFav="() => $emit('handleFav')"
             />
@@ -45,7 +47,7 @@ import RepeatOneSvg from '@/assets/icons/repeat-one.svg'
 import RepeatAllSvg from '@/assets/icons/repeat.svg'
 import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import DevicesButton from '../DeviceSync/DevicesButton.vue'
-import HeartSvg from '../shared/HeartSvg.vue'
+import RatableHeart from '../shared/RatableHeart.vue'
 import LyricsButton from '../shared/LyricsButton.vue'
 import SleepTimerButton from '../shared/SleepTimerButton.vue'
 import Volume from './Volume.vue'

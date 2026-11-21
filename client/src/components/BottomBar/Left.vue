@@ -74,11 +74,14 @@
                 />
             </MarqueeText>
         </div>
-        <HeartSvg
+        <!-- Right-click or long-press on the heart rates the track; the bar
+             gets no rating control of its own (shared/RatableHeart.vue). -->
+        <RatableHeart
             v-if="!isMobile"
             class="np-fav"
             btn_role="bar"
-            title="Favorite"
+            :trackhash="queue.currenttrackhash"
+            :rating="queue.currenttrack?.rating ?? null"
             :state="queue.currenttrackIsFav"
             @handleFav="$emit('handleFav')"
         />
@@ -160,8 +163,8 @@ import ArtistName from '@/components/shared/ArtistName.vue'
 import MarqueeText from '@/components/shared/MarqueeText.vue'
 import DevicesButton from '../DeviceSync/DevicesButton.vue'
 import HotKeys from '../LeftSidebar/NP/HotKeys.vue'
-import HeartSvg from '../shared/HeartSvg.vue'
 import MasterFlag from '../shared/MasterFlag.vue'
+import RatableHeart from '../shared/RatableHeart.vue'
 import PlayingMeter from '../shared/PlayingMeter.vue'
 import Actions from './Right.vue'
 import ExplicitIcon from '@/assets/icons/explicit.svg'
