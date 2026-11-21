@@ -80,6 +80,15 @@ describe('playFromAlbumCard', () => {
         expect(dropCard).not.toHaveBeenCalled()
     })
 
+    // A song of the rest the album no longer holds never plays: dropping the
+    // card would hide it on every press and bring it back on every visit.
+    it('keeps the card when part of its rest is not on the album', async () => {
+        await playFromAlbumCard('al1', 'Kind of Blue', ['t3', 'gone'])
+
+        expect(setFromAlbum.mock.calls[0][2].map((t: { trackhash: string }) => t.trackhash)).toEqual(['t3'])
+        expect(dropCard).not.toHaveBeenCalled()
+    })
+
     it('keeps the card when the album tracks are not found', async () => {
         vi.mocked(getAlbumTracks).mockResolvedValueOnce([])
 
