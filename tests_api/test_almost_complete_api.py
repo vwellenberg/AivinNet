@@ -136,3 +136,18 @@ def test_playing_a_missing_song_shows_at_once(almost, api_client, monkeypatch):
     # Heard through: the card goes, and so does the rest.
     log(5)
     assert card() is None and rest() == []
+
+
+def test_the_row_comes_whole_so_the_next_card_can_move_up(almost):
+    # The client takes a card out while its last missing song plays
+    # (`noteStarted`); cut to the cards the window fits, the row then shrank
+    # with nothing behind it (reported: two gone, none came up).
+    listened(PRIMUS, 1, 2, 3, 4)
+    listened(MILES, 1, 2, 3, 4)
+    listened(FNM, 1, 2, 3)
+    run()
+
+    res = almost.get("/nothome/?limit=1")
+    assert res.status_code == 200, res.text
+    body = {k: v for row in res.get_json()["rows"] for k, v in row.items()}
+    assert len(body["almost_complete"]["items"]) == 3

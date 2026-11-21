@@ -25,6 +25,12 @@ from aivinnet.utils.auth import get_current_userid
 # also filters at serve time, so a mark (and its undo) shows at once.
 NOT_INTERESTED_ROWS = {"never_played": "album", "artists_you_might_like": "artist"}
 
+# Rows sent whole, not cut to the cards the window fits: their cards leave the
+# row while the page is open ("Almost complete" counts down as a missing song
+# starts, client `noteStarted`), and the next ones must be there to move up.
+# The routine already caps the row (`ALMOST_ROW_LIMIT`).
+WHOLE_ROWS = {"almost_complete"}
+
 
 def _card_hash(card: dict) -> str | None:
     item = card.get("item") or {}
@@ -204,7 +210,7 @@ class HomepageStore:
         skip = marked.get(kind, set()) & _stored_hashes(entry, userid) if kind else set()
         # Asked for as many more as are marked, so the row stays full until
         # its routine runs again and leaves them out itself.
-        row = entry.get_items(userid, limit + len(skip))
+        row = entry.get_items(userid, None if key in WHOLE_ROWS else limit + len(skip))
 
         if kind:
             # The client offers "Not interested" on the rows that say so.

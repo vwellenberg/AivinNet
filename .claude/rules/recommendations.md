@@ -228,13 +228,17 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   trägt sie als `home.rest` (Trackhashes in Album-Reihenfolge, `after_play` zieht sie mit), der
   Client filtert die Albumtracks damit (`utils/homeRows.ts::restOfAlbum`). Vorher startete er das
   Album von vorn — gemeldet als „Klick startet das Album neu, nicht den fehlenden Song“.
-  Der Knopf nimmt die Karte **sofort** aus der Zeile (`playFromAlbumCard` → `home.dropCard`),
-  aber nur, wenn jeder Song aus `rest` auf dem Album liegt. Vorher verschwand sie erst, wenn der
-  Play geloggt war, also am Songende oder beim Klick auf die nächste Karte, und blieb stehen,
-  während ihr letzter Song lief (gemeldet). Der Server zählt weiter nur echtes Hören: Ein vorher
-  übersprungener Song bringt die Karte beim nächsten Home-Besuch zurück. Ohne Klick auf die
-  Karte (Wiedergabe von anderswo, „Play the rest“) nimmt `stores/home.ts::notePlayed` den Song
-  heraus, sobald der Server den Play angenommen hat (#887).
+  **Die Karte zählt herunter, sobald ein fehlender Song STARTET**, egal woher (Karte, „Play the
+  rest“, Albumseite): „2 to go“ wird „1 to go“, und die Karte geht, wenn ihr letzter fehlender
+  Song startet (`helpers/almostCompleteCountdown.ts` in `App.vue` → `home.noteStarted`). Gezählt
+  wird beim Server aber erst der geloggte Play (Songende oder Weiterschalten): Bis dahin enthält
+  seine Antwort den laufenden Song noch, deshalb nimmt `fetchAll` ihn nach jedem Abruf wieder
+  heraus. Ein übersprungener Song kommt zurück, sobald ein anderer startet. Gemeldet wurde
+  zweimal das Falsche: erst „Karte bleibt, bis man die NÄCHSTE spielt“ (sie ging erst mit dem
+  Log, #887), dann „‚2 to go‘ verschwindet beim Klick ganz“ (#889 nahm die Karte beim Klick weg).
+  ⚠️ **Die Zeile kommt vom Server ganz** (`store/homepage.py::WHOLE_ROWS`, bis
+  `ALMOST_ROW_LIMIT`), nicht auf die Fensterbreite gekürzt: Verschwindet eine Karte, rückt die
+  nächste nach. Gekürzt blieben nach zwei Abschlüssen Lücken (gemeldet).
 
 **Der Grund steht schon auf der Karte** — die Hilfezeile über dem Titel ist `help_text` plus
 `secondary_text` (beim Client `time`, `recover_items`): „2 sessions together · last March 2025“,
