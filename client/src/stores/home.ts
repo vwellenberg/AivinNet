@@ -131,6 +131,10 @@ export default defineStore('homepage', () => {
                 delete homepageData[key]
             }
         }
+
+        // The server learns of a song only once its play is logged, at the
+        // song's end: until then its answer still counts the song playing now.
+        if (started) notePlayed(started)
     }
 
     /** Refill the rows after the window grew past what was fetched. Never shrinks. */
@@ -214,6 +218,21 @@ export default defineStore('homepage', () => {
         }
     }
 
+    // The song that started last (`noteStarted`), still missing on the server
+    // until its play is logged: every fetch takes it out again.
+    let started = ''
+
+    /**
+     * A song started playing: its "Almost complete" card counts down at once
+     * ("2 to go" → "1 to go"), and the card goes when its last missing song
+     * starts. The server counts the song only once its play is logged, so a
+     * song skipped before that is missing again on the next visit.
+     */
+    function noteStarted(trackhash: string) {
+        started = trackhash
+        notePlayed(trackhash)
+    }
+
     /**
      * A song was just heard (a play was logged): the server already dropped it
      * from its "Almost complete" card in RAM (`almost_complete_played`), and
@@ -247,5 +266,6 @@ export default defineStore('homepage', () => {
         dropCard,
         dropContinue,
         notePlayed,
+        noteStarted,
     }
 })

@@ -149,3 +149,71 @@ describe('notePlayed (#529)', () => {
         expect(home.homepageItems.map(i => i.key)).toEqual(['recently_played', 'rediscover', 'recently_added'])
     })
 })
+
+// A missing song counts down when it STARTS (reported: "2 to go" vanished on
+// the card's button, or only when the next card was played).
+describe('noteStarted (#529)', () => {
+    const pending = (albumhash: string, rest: string[]) => ({
+        type: 'album',
+        item: {
+            albumhash,
+            title: albumhash,
+            image: `${albumhash}.webp?pathhash=p-${albumhash}`,
+            help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
+            home: { missing: rest.length, rest },
+        },
+    })
+    const answer = () => [
+        {
+            almost_complete: {
+                title: 'Almost complete',
+                description: '',
+                items: [pending('a', ['t1', 't2']), pending('b', ['t3']), pending('c', ['t4'])],
+            },
+        },
+    ]
+    const rowOf = (home: ReturnType<typeof useHome>) => (home.homepageData as Record<string, any>).almost_complete
+
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        fetchHome.mockReset()
+        fetchHome.mockImplementation(async () => answer())
+    })
+
+    it('counts "2 to go" down to "1 to go", and the card goes when its last song starts', async () => {
+        const home = useHome()
+        await home.fetchAll()
+
+        home.noteStarted('t1')
+        expect(rowOf(home).items.map((i: any) => [i.item.albumhash, i.item.help_text])).toEqual([
+            ['a', '1 song to go'],
+            ['b', '1 song to go'],
+            ['c', '1 song to go'],
+        ])
+
+        home.noteStarted('t2')
+        expect(rowOf(home).items.map((i: any) => i.item.albumhash)).toEqual(['b', 'c'])
+    })
+
+    it('keeps the song playing now out of a fresh answer, which still counts it', async () => {
+        const home = useHome()
+        await home.fetchAll()
+        home.noteStarted('t3')
+
+        // The server learns of the song only when its play is logged.
+        await home.fetchAll()
+
+        expect(rowOf(home).items.map((i: any) => i.item.albumhash)).toEqual(['a', 'c'])
+    })
+
+    it('gives an earlier song back once another one starts (skipped, never logged)', async () => {
+        const home = useHome()
+        await home.fetchAll()
+        home.noteStarted('t3')
+        home.noteStarted('t4')
+
+        await home.fetchAll()
+
+        expect(rowOf(home).items.map((i: any) => i.item.albumhash)).toEqual(['a', 'b'])
+    })
+})

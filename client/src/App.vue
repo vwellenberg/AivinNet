@@ -47,6 +47,7 @@ import { useRouter } from "vue-router";
 // @stores
 import useAuth from "@/stores/auth";
 import useDeviceSync from "@/stores/devicesync";
+import useHome from "@/stores/home";
 import { content_height, content_width, isMobile, resizer_width } from "@/stores/content-width";
 import useLyrics from "@/stores/lyrics";
 import useModal from "@/stores/modal";
@@ -57,6 +58,7 @@ import useTracker from "@/stores/tracker";
 
 // @utils
 import handleShortcuts from "@/helpers/useKeyboard";
+import { countDownOnStart } from "@/helpers/almostCompleteCountdown";
 import { lauflichtClasses, syncLauflicht } from "@/utils/lauflicht";
 import { paletteHtmlClasses, themeBodyClasses } from "@/utils/theme";
 import { activeSeason, paintedPalette } from "@/utils/seasons";
@@ -99,6 +101,10 @@ const playlistPage = usePlaylistPage();
 useTracker();
 
 handleShortcuts(useQueue, useModal);
+
+// "Almost complete" on Home counts down as a missing song starts, from any page.
+const home = useHome();
+countDownOnStart(queue, (trackhash) => home.noteStarted(trackhash));
 
 // Toggle the optional Figtree UI font based on the "Font" setting.
 watch(

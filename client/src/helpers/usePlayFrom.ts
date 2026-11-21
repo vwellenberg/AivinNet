@@ -4,7 +4,6 @@ import { useToast } from '@/stores/notification'
 import useAlbum from '@/stores/pages/album'
 import useArtist from '@/stores/pages/artist'
 import usePlaylist from '@/stores/pages/playlist'
-import useHome from '@/stores/home'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 import useSettingsStore from '@/stores/settings'
@@ -63,16 +62,6 @@ export async function playFromAlbumCard(albumhash: string, albumname: string, re
     // an empty playlist name in "Add queue to playlist".
     tracklist.setFromAlbum(albumname || tracks[0].album || '', albumhash, tracks)
     queue.playSource()
-
-    // The card's play button plays exactly the songs still missing, so the card
-    // leaves the row at once. The server still counts only a real play
-    // (`almost_complete_played`): a song skipped before it counts brings the card
-    // back on the next Home visit. Only when every song of `rest` is on the album:
-    // one that is not never plays, so the card would vanish on every press and
-    // come back on every visit (and with none found the whole album plays).
-    if (rest?.length && rest.every(hash => tracks.some(t => t.trackhash === hash))) {
-        useHome().dropCard('almost_complete', albumhash)
-    }
 }
 
 /**
