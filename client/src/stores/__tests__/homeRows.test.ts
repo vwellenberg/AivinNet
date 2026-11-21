@@ -102,3 +102,50 @@ describe('home rows', () => {
         expect(home.continueListening).toEqual([])
     })
 })
+
+describe('notePlayed (#529)', () => {
+    const pending = (albumhash: string, rest: string[]) => ({
+        type: 'album',
+        item: {
+            albumhash,
+            title: albumhash,
+            image: `${albumhash}.webp?pathhash=p-${albumhash}`,
+            help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
+            home: { missing: rest.length, rest },
+        },
+    })
+
+    // The row by its key: homepageData is keyed by the server's row names.
+    const rowOf = (home: ReturnType<typeof useHome>) => (home.homepageData as Record<string, any>).almost_complete
+
+    beforeEach(() => {
+        setActivePinia(createPinia())
+        fetchHome.mockReset()
+    })
+
+    it('takes a heard song out of its card, and the card goes with its last one', async () => {
+        fetchHome.mockResolvedValue([
+            { almost_complete: { title: 'Almost complete', description: '', items: [pending('a', ['t1']), pending('b', ['t2', 't3'])] } },
+        ])
+        const home = useHome()
+        await home.fetchAll()
+
+        home.notePlayed('t1')
+
+        expect(rowOf(home).items.map((i: any) => i.item.albumhash)).toEqual(['b'])
+        home.notePlayed('t2')
+        expect(rowOf(home).items[0].item).toMatchObject({
+            help_text: '1 song to go',
+            home: { missing: 1, rest: ['t3'] },
+        })
+    })
+
+    it('is a no-op when there is no Almost complete row', async () => {
+        fetchHome.mockResolvedValue(response)
+        const home = useHome()
+        await home.fetchAll()
+
+        expect(() => home.notePlayed('t1')).not.toThrow()
+        expect(home.homepageItems.map(i => i.key)).toEqual(['recently_played', 'rediscover', 'recently_added'])
+    })
+})

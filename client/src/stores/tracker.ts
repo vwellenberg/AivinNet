@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 
 import useQueue from "./queue";
 import useDeviceSync from "./devicesync";
+import useHome from "./home";
 import { audioSource } from "./player";
 import { FromOptions } from "@/enums";
 import useTracklist, { From } from "@/stores/queue/tracklist";
@@ -60,6 +61,9 @@ export function minLoggedSeconds(trackSeconds: number): number {
   return Math.trunc(Math.min(MIN_LOGGED_SECONDS, Math.max(1, trackSeconds - TICK_TOLERANCE_SECONDS)));
 }
 
+/** What the log worker passes back (public/workers/logtrack.js). */
+type LogAnswer = { logged?: boolean; milestone?: Milestone | null };
+
 export function sendLogData(
   trackhash: string,
   duration: number,
@@ -72,8 +76,17 @@ export function sendLogData(
 
   if (window.Worker) {
     const worker = new Worker("/workers/logtrack.js");
-    // Only a milestone play (#545) comes back from the worker.
-    worker.onmessage = (e: MessageEvent<Milestone>) => celebrateMilestone(e.data);
+    // The worker answers once the server has taken the play: `logged`, and a
+    // milestone (#545) when this play was one.
+    worker.onmessage = (e: MessageEvent<LogAnswer>) => {
+      const { logged, milestone } = e.data;
+      // The server has already dropped the song from its "Almost complete" card
+      // (almost_complete_played), but Home fetches only when it opens: mirror it
+      // here so the card goes at once. Only after the server took the play: one
+      // it refused stays missing there, and the card would come back.
+      if (logged) useHome().notePlayed(trackhash);
+      if (milestone) celebrateMilestone(milestone);
+    };
 
     const source = getSource(from);
     // #541: the same id the device-sync registry knows this browser by. In a group only

@@ -16,10 +16,10 @@ onmessage = (e) => {
     credentials: "include"
   })
     .then((res) => (res.ok ? res.json() : null))
-    // Only a milestone play (#545) is passed on: the page celebrates it. The
-    // rest of the answer is not used.
+    // Only a play the server took is passed on (the page updates Home's
+    // "Almost complete" card), with its milestone (#545) if it was one.
     .then((body) => {
-      if (body && body.milestone) postMessage(body.milestone);
+      if (body) postMessage({ logged: true, milestone: body.milestone || null });
     })
     .catch(() => {})
     // A dedicated worker lives until it closes itself or the page goes away.
