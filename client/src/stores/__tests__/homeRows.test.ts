@@ -103,20 +103,23 @@ describe('home rows', () => {
     })
 })
 
-describe('notePlayed (#529)', () => {
-    const pending = (albumhash: string, rest: string[]) => ({
-        type: 'album',
-        item: {
-            albumhash,
-            title: albumhash,
-            image: `${albumhash}.webp?pathhash=p-${albumhash}`,
-            help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
-            home: { missing: rest.length, rest },
-        },
-    })
+// An "Almost complete" card as the server sends it (#529).
+const pending = (albumhash: string, rest: string[]) => ({
+    type: 'album',
+    item: {
+        albumhash,
+        title: albumhash,
+        image: `${albumhash}.webp?pathhash=p-${albumhash}`,
+        help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
+        home: { missing: rest.length, rest },
+    },
+})
 
-    // The row by its key: homepageData is keyed by the server's row names.
-    const rowOf = (home: ReturnType<typeof useHome>) => (home.homepageData as Record<string, any>).almost_complete
+// The row by its key: homepageData is keyed by the server's row names.
+const rowOf = (home: ReturnType<typeof useHome>) => (home.homepageData as Record<string, any>).almost_complete
+
+describe('notePlayed (#529)', () => {
+
 
     beforeEach(() => {
         setActivePinia(createPinia())
@@ -153,16 +156,6 @@ describe('notePlayed (#529)', () => {
 // A missing song counts down when it STARTS (reported: "2 to go" vanished on
 // the card's button, or only when the next card was played).
 describe('noteStarted (#529)', () => {
-    const pending = (albumhash: string, rest: string[]) => ({
-        type: 'album',
-        item: {
-            albumhash,
-            title: albumhash,
-            image: `${albumhash}.webp?pathhash=p-${albumhash}`,
-            help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
-            home: { missing: rest.length, rest },
-        },
-    })
     const answer = () => [
         {
             almost_complete: {
@@ -172,7 +165,6 @@ describe('noteStarted (#529)', () => {
             },
         },
     ]
-    const rowOf = (home: ReturnType<typeof useHome>) => (home.homepageData as Record<string, any>).almost_complete
 
     beforeEach(() => {
         setActivePinia(createPinia())
