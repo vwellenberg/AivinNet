@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chipItems, playButtonLabel, restOfAlbum, withCardAt, withoutCard } from '../homeRows'
+import { afterAlmostCompletePlay, chipItems, playButtonLabel, restOfAlbum, withCardAt, withoutCard } from '../homeRows'
 
 const album = (albumhash: string) => ({ type: 'album', item: { albumhash } })
 
@@ -104,5 +104,81 @@ describe('restOfAlbum', () => {
         expect(restOfAlbum(tracks, undefined)).toBe(tracks)
         expect(restOfAlbum(tracks, [])).toBe(tracks)
         expect(restOfAlbum(tracks, ['b/9'])).toBe(tracks)
+    })
+})
+
+// An "Almost complete" card (#529): the album, its songs still missing, and the caption.
+describe('afterAlmostCompletePlay', () => {
+    const pending = (albumhash: string, rest: string[]) => ({
+        type: 'album',
+        item: {
+            albumhash,
+            title: albumhash,
+            image: `${albumhash}.webp?pathhash=p-${albumhash}`,
+            help_text: `${rest.length} ${rest.length === 1 ? 'song' : 'songs'} to go`,
+            home: { unheard: true, first_heard: 1790000000, missing: rest.length, rest },
+        },
+    })
+
+    it('takes the last missing song out and the card goes', () => {
+        const items = [pending('a', ['t1']), pending('b', ['t2', 't3'])]
+
+        const after = afterAlmostCompletePlay(items, undefined, 't1')
+
+        expect(after?.items).toEqual([pending('b', ['t2', 't3'])])
+    })
+
+    it('keeps a card with one of two missing songs left, counting down', () => {
+        const items = [pending('a', ['t1', 't2'])]
+
+        const after = afterAlmostCompletePlay(items, undefined, 't1')
+
+        expect(after?.items).toHaveLength(1)
+        const card = after!.items[0]
+        expect(card.item.home).toEqual({ unheard: true, first_heard: 1790000000, missing: 1, rest: ['t2'] })
+        expect(card.item.help_text).toBe('1 song to go')
+    })
+
+    it('says "songs" while more than one is left', () => {
+        const items = [pending('a', ['t1', 't2', 't3'])]
+
+        const after = afterAlmostCompletePlay(items, undefined, 't3')
+
+        expect(after!.items[0].item.help_text).toBe('2 songs to go')
+        expect(after!.items[0].item.home.rest).toEqual(['t1', 't2'])
+    })
+
+    it('returns null for a song no card waits for', () => {
+        const items = [pending('a', ['t1'])]
+
+        expect(afterAlmostCompletePlay(items, undefined, 'unrelated')).toBeNull()
+        expect(afterAlmostCompletePlay([], undefined, 't1')).toBeNull()
+    })
+
+    it('applies to the chips too, and drops a chip left with fewer than two cards', () => {
+        const items = [pending('a', ['t1', 't9'])]
+        const chips = [
+            { key: 'funk', label: 'funk rock', items: [pending('a', ['t1', 't9']), pending('f', ['t1']), pending('g', ['t5'])] },
+            { key: 'solo', label: 'solo', items: [pending('a', ['t1', 't9'])] },
+        ]
+
+        const after = afterAlmostCompletePlay(items, chips, 't1')
+
+        expect(after?.items[0].item.help_text).toBe('1 song to go')
+        expect(after?.chips).toHaveLength(1)
+        expect(after?.chips?.[0].key).toBe('funk')
+        // 'f' had only t1 to go, so it is gone; 'a' and 'g' stay, so the chip has two.
+        expect(after?.chips?.[0].items.map(c => c.item.albumhash)).toEqual(['a', 'g'])
+    })
+
+    it('does not change the lists it was given', () => {
+        const items = [pending('a', ['t1', 't2']), pending('b', ['t1'])]
+        const chips = [{ key: 'funk', label: 'funk rock', items: [pending('a', ['t1', 't2']), pending('b', ['t1'])] }]
+        const snapshot = structuredClone({ items, chips })
+
+        afterAlmostCompletePlay(items, chips, 't1')
+
+        expect({ items, chips }).toEqual(snapshot)
+        expect(items).toHaveLength(2)
     })
 })

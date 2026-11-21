@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 
 import useQueue from "./queue";
 import useDeviceSync from "./devicesync";
+import useHome from "./home";
 import { audioSource } from "./player";
 import { FromOptions } from "@/enums";
 import useTracklist, { From } from "@/stores/queue/tracklist";
@@ -80,6 +81,10 @@ export function sendLogData(
     // the scrobble leader gets here, so the play is attributed to the leader's device.
     const deviceId = getOrCreateDeviceId();
     worker.postMessage({ trackhash, duration: seconds, source, timestamp, deviceId });
+    // Home fetches only when it opens, and the server has already dropped this song
+    // from its "Almost complete" card (almost_complete_played). Mirror that here so
+    // the card goes at once instead of on the next visit.
+    useHome().notePlayed(trackhash);
   }
 }
 

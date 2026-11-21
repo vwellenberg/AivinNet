@@ -28,6 +28,7 @@ const { celebrateMilestone } = vi.hoisted(() => ({ celebrateMilestone: vi.fn() }
 vi.mock('@/utils/milestones', () => ({ celebrateMilestone }))
 
 import useTracker, { minLoggedSeconds, sendLogData } from '@/stores/tracker'
+import useHome from '@/stores/home'
 
 /** Stands in for the Worker behind sendLogData; records what would be POSTed. */
 const posted: any[] = []
@@ -307,5 +308,27 @@ describe('timeupdate listener', () => {
         for (let i = 0; i < 5; i++) tick(1000, second, first)
 
         expect(tracker.duration).toBe(5000)
+    })
+})
+
+// #529: a play that is logged takes its song out of the Home card at once.
+describe('sendLogData and Home (#529)', () => {
+    it('tells the Home store the song was heard, once the play is sent', () => {
+        const home = useHome()
+        const spy = vi.spyOn(home, 'notePlayed')
+
+        sendLogData('t1', 60_000, ALBUM as any, 1)
+
+        expect(posted).toHaveLength(1)
+        expect(spy).toHaveBeenCalledWith('t1')
+    })
+
+    it('does not tell Home about a play below the floor', () => {
+        const spy = vi.spyOn(useHome(), 'notePlayed')
+
+        sendLogData('t1', 1500, ALBUM as any, 1)
+
+        expect(posted).toEqual([])
+        expect(spy).not.toHaveBeenCalled()
     })
 })

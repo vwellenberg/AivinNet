@@ -5,7 +5,7 @@ import { type AdventCalendar, getHomePageData, type WeeklyRecap } from '@/reques
 import type { RewindYears } from '@/requests/stats'
 import { HomePageItem } from '@/interfaces'
 import type { StationEntry } from '@/utils/radioDial'
-import { cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
+import { afterAlmostCompletePlay, cardHash, withCardAt, withoutCard } from '@/utils/homeRows'
 import { fetchCardCount, maxAbumCards } from './content-width'
 
 /** A "Continue listening" card's key for the ✕ (#776), as the server sent it. */
@@ -214,6 +214,23 @@ export default defineStore('homepage', () => {
         }
     }
 
+    /**
+     * A song was just heard (a play was logged): the server already dropped it
+     * from its "Almost complete" card in RAM (`almost_complete_played`), and
+     * this does the same here, so the card goes or counts down at once rather
+     * than on the next visit.
+     */
+    function notePlayed(trackhash: string) {
+        // @ts-ignore
+        const row: HomePageItem | undefined = homepageData.almost_complete
+        if (!row) return
+
+        const after = afterAlmostCompletePlay(toRaw(row.items), toRaw(row.chips), trackhash)
+        if (!after) return
+        row.items = after.items
+        row.chips = after.chips
+    }
+
     return {
         homepageData,
         homepageItems,
@@ -229,5 +246,6 @@ export default defineStore('homepage', () => {
         refreshIfLoaded,
         dropCard,
         dropContinue,
+        notePlayed,
     }
 })

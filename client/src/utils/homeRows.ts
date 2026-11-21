@@ -90,3 +90,54 @@ export function restOfAlbum<T extends { trackhash: string }>(tracks: T[], rest: 
     const found = tracks.filter(t => wanted.has(t.trackhash))
     return found.length ? found : tracks
 }
+
+/**
+ * The "N songs to go" caption of an "Almost complete" card, as the server
+ * writes it (`help_text`).
+ */
+function songsToGo(n: number): string {
+    return `${n} ${n === 1 ? 'song' : 'songs'} to go`
+}
+
+/**
+ * The row after a play of `trackhash` (#529), the way the server's
+ * `almost_complete_played` leaves it in RAM: the song leaves its album's
+ * `home.rest`, an album with nothing left goes, and the caption follows the
+ * count. Home fetches only when it opens, so without this a card kept saying
+ * "1 song to go" until the next visit. Null when no card still waits for the
+ * song, so there is nothing to change. The lists given are not changed.
+ */
+export function afterAlmostCompletePlay(
+    items: RowItem[],
+    chips: RowChip[] | undefined,
+    trackhash: string
+): { items: RowItem[]; chips: RowChip[] | undefined } | null {
+    const waits = (card: RowItem) => !!card.item?.home?.rest?.includes(trackhash)
+    const anyWaits = items.some(waits) || !!chips?.some(chip => chip.items.some(waits))
+    if (!anyWaits) return null
+
+    const heard = (list: RowItem[]): RowItem[] =>
+        list.flatMap(card => {
+            if (!waits(card)) return [card]
+            const rest = card.item.home.rest.filter((hash: string) => hash !== trackhash)
+            if (!rest.length) return []
+            return [
+                {
+                    ...card,
+                    item: {
+                        ...card.item,
+                        // Other fields the server sent on `home` (unheard, first_heard) stay.
+                        home: { ...card.item.home, missing: rest.length, rest },
+                        help_text: songsToGo(rest.length),
+                    },
+                },
+            ]
+        })
+
+    return {
+        items: heard(items),
+        chips: chips
+            ?.map(chip => ({ ...chip, items: heard(chip.items) }))
+            .filter(chip => chip.items.length >= CHIP_MIN),
+    }
+}
