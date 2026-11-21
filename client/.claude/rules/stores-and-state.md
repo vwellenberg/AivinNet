@@ -280,3 +280,16 @@ axios 0.x sendet per XHR, und den bricht der Browser mit dem Dokument ab. Dafür
 den axios-Weg, `removeTracksKeepalive.test.ts` hält die beiden aneinander. Wer einen weiteren
 „beim Verlassen senden"-Request baut, folgt diesem Muster statt `sendBeacon` (kein Status, also
 kein Rollback).
+
+## ⚠️ Der Play-Tracker sendet beim Trackwechsel, was VORHER lief (`stores/tracker.ts`)
+
+`changeKey()` markiert nur „neuer Track“, gesendet wird beim nächsten `timeupdate` mit mehr als
+1 s angesammelter Zeit — und zwar `trackhash`/`from`, wie sie im Tracker stehen. Steht dort
+nichts Offenes (frisches Profil: `trackhash` leer, `from` `{type: null}`; oder `ended` hat
+gerade gesendet und auf den alten Track zurückgesetzt), schickte dieser Flush den **neuen** Track
+nach ~2 s mit `source: ""` bzw. den **fertigen** ein zweites Mal. Unter der 5-s-Schwelle fällt
+das weg, bei kurzen Tracks (#882, Schwelle bis 1 s) nahm der Server beide: Track 1 zählte doppelt
+(gemessen 2026-11-21 mit Playwright, frisches Profil, 3-s-Track). Deshalb übernimmt
+`changeKey()` bei `duration === 0` den neuen Track sofort (`adoptCurrentTrack`: Hash, Länge
+**und** Quelle, nichts offen). Wer den Tracker anfasst: **nie nur den Hash setzen** — ein
+halb übernommener Track sendet mit falscher Quelle.

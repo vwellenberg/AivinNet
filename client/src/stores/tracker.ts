@@ -174,11 +174,18 @@ export default defineStore(
       prevKey.value = key.value;
     }
 
+    // Track the queue's current track from here on — hash, length AND source —
+    // with nothing pending: no earlier play left for the key-change flush to send.
+    function adoptCurrentTrack() {
+      resetData();
+      prevKey.value = key.value;
+    }
+
     function reassignEventListener() {
-      if (trackhash.value == "") {
-        trackhash.value = queue.currenttrackhash;
-        trackSeconds.value = queue.currenttrack?.duration || 0;
-      }
+      // A fresh session (nothing persisted) with a queue already there. Taking
+      // only the hash left `from` at {type: null}, and that play went out with
+      // source "".
+      if (trackhash.value == "" && queue.currenttrackhash) adoptCurrentTrack();
 
       const element = audioSource.playingSource;
       if (wiredElements.has(element)) return;
@@ -208,6 +215,14 @@ export default defineStore(
     function changeKey() {
       prevKey.value = key.value;
       key.value = Math.random();
+
+      // A new track starts. The timeupdate flush sends what was played before
+      // it — but when nothing was (a fresh tracker, or `ended` just submitted
+      // and reset), there is no previous play: it would send the NEW track ~2 s
+      // in (fresh: with source ""), or the finished one a second time, timed
+      // with the new track's first seconds. Above a short track's floor (#882)
+      // the server took both. So start tracking the new track right here.
+      if (duration.value === 0) adoptCurrentTrack();
     }
 
     return {

@@ -214,6 +214,82 @@ describe('play time accounting', () => {
     })
 })
 
+// A fresh browser profile has no persisted tracker: no trackhash, no source,
+// and `key`/`prevKey` that the first play's changeKey() pulls apart. The
+// key-change flush then fired ~2 s into track 1 and sent track 1 itself with
+// source "" — and the real play at its end went out too (measured 2026-11-21:
+// two 201s for one play). The player's own order of calls, as player.ts makes them.
+describe('the first play of a fresh session', () => {
+    function playFromAlbum(hash: string, seconds: number) {
+        setCurrentTrack(hash, seconds)
+        tracklistMock.from = ALBUM
+        const tracker = useTracker()
+        tracker.changeKey() // playCurrentTrack()
+        tracker.reassignEventListener() // assignEventHandlers()
+        return tracker
+    }
+
+    beforeEach(() => {
+        // player.ts wires the tracker at setup, before anything is queued.
+        queueMock.currenttrack = {} as any
+        queueMock.currenttrackhash = ''
+        tracklistMock.from = {}
+        useTracker().reassignEventListener()
+    })
+
+    it('logs track 1 once, from the album it was started from, with all its play time', () => {
+        const tracker = playFromAlbum('a', 200)
+        for (let i = 0; i < 30; i++) tick()
+
+        tracker.submitData() // ended
+
+        expect(posted).toHaveLength(1)
+        expect(posted[0]).toMatchObject({ trackhash: 'a', source: 'al:alb1', duration: 30 })
+    })
+
+    it('a short track (low floor, #882) is not counted twice', () => {
+        // 3 s: its floor is 1 s, so the bogus early send passed it and the server took it.
+        const tracker = playFromAlbum('a', 3)
+        for (let i = 0; i < 6; i++) tick()
+
+        setCurrentTrack('b', 200) // the next track starts
+        tracker.changeKey()
+        tick()
+
+        expect(posted.filter((p) => p.trackhash === 'a')).toHaveLength(1)
+        expect(posted).toEqual([expect.objectContaining({ trackhash: 'a', source: 'al:alb1' })])
+    })
+})
+
+// The same flush, one track later: `ended` submits the finished track and the
+// reset re-arms the tracker on it (the queue has not moved yet). The next track's
+// changeKey() then made the flush send the finished track a second time, timed
+// with the new track's first seconds.
+describe('after the ended submit', () => {
+    it('the next track start does not send the finished track again', () => {
+        setCurrentTrack('a', 3)
+        const tracker = useTracker()
+        tracker.resetData()
+        tracker.reassignEventListener()
+        for (let i = 0; i < 3; i++) tick()
+        tracker.submitData() // ended: "a" is sent
+        expect(posted).toHaveLength(1)
+
+        vi.advanceTimersByTime(300)
+        setCurrentTrack('b', 200) // queue.playNext() → playCurrentTrack()
+        tracklistMock.from = { type: FromOptions.playlist, id: 7 }
+        tracker.changeKey()
+        for (let i = 0; i < 10; i++) tick()
+
+        expect(posted).toHaveLength(1)
+        // ...and the 10 s of "b" are counted for "b", with its own source.
+        expect(tracker.trackhash).toBe('b')
+        expect(tracker.duration).toBe(10_000)
+        tracker.submitData()
+        expect(posted[1]).toMatchObject({ trackhash: 'b', duration: 10, source: 'pl:7' })
+    })
+})
+
 describe('a short track (#882)', () => {
     it('a 3 s stinger that played through is submitted on the next track', () => {
         setCurrentTrack('stinger', 3)
