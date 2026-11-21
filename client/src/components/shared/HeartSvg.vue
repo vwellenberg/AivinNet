@@ -31,10 +31,6 @@
         <span v-if="burst" class="fav-burst" aria-hidden="true">
             <i v-for="index in 7" :key="index" :style="shardStyle(index - 1)"></i>
         </span>
-        <!-- A host's corner mark, positioned against this button (it is
-             `position: relative` for the burst anyway). RatableHeart puts the
-             rating tag here; decorative, so it must not take the pointer. -->
-        <slot />
     </button>
 </template>
 

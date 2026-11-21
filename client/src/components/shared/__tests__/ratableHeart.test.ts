@@ -213,15 +213,21 @@ describe('RatableHeart: rating', () => {
         expect(useRatings().rating(HASH, 2)).toBe(2)
     })
 
-    it('shows a rating made elsewhere (same hash) in its corner tag', async () => {
+    // No mark on the heart (user: "ohne badge"); the rating shows in the
+    // tooltip and in the stars it opens.
+    it('names a rating made elsewhere (same hash) in its tooltip, with no mark on the heart', async () => {
         const w = mountHeart()
-        expect(w.find('.heart-rating-tag').exists()).toBe(false)
 
         useRatings().record(HASH, 5)
         await flushPromises()
 
-        expect(w.find('.heart-rating-tag').text()).toBe('5')
         expect(heart(w).getAttribute('title')).toContain('Rated 5 of 5')
+        // Nothing written on the heart itself: no number, no tag.
+        expect(heart(w).textContent?.trim()).toBe('')
+
+        rightClick(heart(w))
+        await flushPromises()
+        expect(stars()[4].getAttribute('aria-pressed')).toBe('true')
     })
 })
 
