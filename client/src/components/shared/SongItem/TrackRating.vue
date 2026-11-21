@@ -17,25 +17,7 @@
             <StarSvg v-else class="track-rating-glyph" aria-hidden="true" />
         </button>
 
-        <!-- The panel is a child of the row: a click or double-click in it must not
-             reach the row (which plays on double-click). -->
-        <div
-            v-if="showPicker"
-            class="rating-picker rounded shadow-lg"
-            role="dialog"
-            aria-label="Rate track"
-            @dblclick.stop
-        >
-            <RatingStars :value="shown" @pick="onPick" />
-            <button
-                v-if="shown !== null"
-                type="button"
-                class="btn-pill rating-clear"
-                @click.stop="onPick(null)"
-            >
-                Remove rating
-            </button>
-        </div>
+        <RatingPicker v-if="showPicker" :value="shown" @pick="onPick" />
     </div>
 </template>
 
@@ -45,7 +27,7 @@ import { onClickOutside } from '@vueuse/core'
 
 import StarSvg from '@/assets/icons/star.svg'
 import StarFillSvg from '@/assets/icons/star.fill.svg'
-import RatingStars from '../RatingStars.vue'
+import RatingPicker from '../RatingPicker.vue'
 import useRatings from '@/stores/ratings'
 
 /**
@@ -143,17 +125,12 @@ onClickOutside(anchorRef, () => {
     z-index: 40;
 }
 
-.rating-picker {
+// Where the row's picker opens: under its button, right-aligned. The panel's
+// look is RatingPicker.vue's.
+.track-rating-anchor > .rating-picker {
     position: absolute;
     top: calc(100% + 0.4rem);
     right: 0;
     z-index: 30;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background-color: $mem-panel;
-    border: $candy-border solid $mem-line;
-    border-radius: $candy-radius-sm;
 }
 </style>
