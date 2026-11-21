@@ -80,7 +80,8 @@ let anchor: HTMLElement | null = null
 let popper: Instance | null = null
 
 async function openPicker(e: MouseEvent) {
-    if (!props.trackhash) return
+    // Open already (a held or repeated menu key): one panel, one popper.
+    if (!props.trackhash || open.value) return
 
     // One floating menu at a time: a track menu left open would sit beside it.
     const context = useContextStore()
@@ -90,6 +91,7 @@ async function openPicker(e: MouseEvent) {
     open.value = true
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('focusin', onFocusIn)
 
     await nextTick()
     const panel = pickerRef.value?.$el
@@ -107,7 +109,15 @@ async function openPicker(e: MouseEvent) {
         placement: 'top',
         strategy: 'fixed',
         modifiers: [
-            { name: 'offset', options: { offset: [0, Math.max(gap, 10)] } },
+            // The bar clearance only upward: flipped below the heart (no room
+            // above), the same gap would push the panel out of the window.
+            {
+                name: 'offset',
+                options: {
+                    offset: ({ placement }: { placement: string }) =>
+                        placement.startsWith('top') ? [0, Math.max(gap, 10)] : [0, 10],
+                },
+            },
             { name: 'preventOverflow', options: { padding: 8 } },
             { name: 'flip', options: { fallbackPlacements: ['bottom'] } },
             // top/left rather than a transform, as in stores/context.ts.
@@ -126,6 +136,7 @@ function close() {
     open.value = false
     document.removeEventListener('pointerdown', onPointerDown, true)
     document.removeEventListener('keydown', onKeyDown)
+    document.removeEventListener('focusin', onFocusIn)
     popper?.destroy()
     popper = null
 }
@@ -139,6 +150,13 @@ function onPointerDown(e: PointerEvent) {
     close()
 }
 
+// Focus moving out of the panel (Tab past "Remove rating") closes it: teleported
+// to the end of <body>, it would otherwise stay open apart from where focus is.
+function onFocusIn(e: FocusEvent) {
+    const panel = pickerRef.value?.$el
+    if (panel && e.target instanceof Node && !panel.contains(e.target)) close()
+}
+
 function onKeyDown(e: KeyboardEvent) {
     if (e.key !== 'Escape') return
     const panel = pickerRef.value?.$el
@@ -150,7 +168,11 @@ function onKeyDown(e: KeyboardEvent) {
 
 function onPick(value: number | null) {
     const trackhash = props.trackhash
+    // Picked from the keyboard: focus goes back to the heart, not to <body>.
+    const panel = pickerRef.value?.$el
+    const focusInside = !!panel && panel.contains(document.activeElement)
     close()
+    if (focusInside) anchor?.focus({ preventScroll: true })
     if (trackhash) ratings.rate(trackhash, value, props.rating ?? null)
 }
 

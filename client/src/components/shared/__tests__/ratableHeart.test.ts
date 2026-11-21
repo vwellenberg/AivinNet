@@ -271,3 +271,79 @@ describe('RatableHeart: closing', () => {
         expect(picker()).toBeNull()
     })
 })
+
+// The keys the panel owns must not reach the player's shortcuts on `window`
+// (helpers/useKeyboard.ts): an arrow skipped to the next song, Space paused.
+describe('RatableHeart: the keyboard in the stars', () => {
+    function shortcutSpy() {
+        const seen: string[] = []
+        const listener = (e: KeyboardEvent) => seen.push(e.key)
+        window.addEventListener('keydown', listener)
+        return { seen, stop: () => window.removeEventListener('keydown', listener) }
+    }
+    const key = (el: Element, k: string) =>
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
+
+    it('moves between the stars with the arrows, Home and End, and the player never sees them', async () => {
+        const w = mountHeart()
+        const spy = shortcutSpy()
+        rightClick(heart(w))
+        await flushPromises()
+        expect(document.activeElement).toBe(stars()[0])
+
+        key(stars()[0], 'ArrowRight')
+        expect(document.activeElement).toBe(stars()[1])
+        key(stars()[1], 'ArrowLeft')
+        expect(document.activeElement).toBe(stars()[0])
+        key(stars()[0], 'End')
+        expect(document.activeElement).toBe(stars()[4])
+        key(stars()[4], 'Home')
+        expect(document.activeElement).toBe(stars()[0])
+
+        expect(spy.seen).toEqual([])
+        expect(picker()).not.toBeNull()
+        spy.stop()
+    })
+
+    it('keeps Space and Enter from the player, but lets Escape through to close', async () => {
+        const w = mountHeart()
+        const spy = shortcutSpy()
+        rightClick(heart(w))
+        await flushPromises()
+
+        key(stars()[2], ' ')
+        key(stars()[2], 'Enter')
+        expect(spy.seen).toEqual([])
+
+        key(stars()[2], 'Escape')
+        await flushPromises()
+        expect(picker()).toBeNull()
+        spy.stop()
+    })
+
+    it('hands focus back to the heart after a pick from the keyboard', async () => {
+        const w = mountHeart()
+        rightClick(heart(w))
+        await flushPromises()
+
+        stars()[3].focus()
+        stars()[3].click()
+        await flushPromises()
+
+        expect(setTrackRating).toHaveBeenCalledWith(HASH, 4)
+        expect(document.activeElement).toBe(heart(w))
+    })
+
+    it('closes when focus leaves the panel', async () => {
+        const w = mountHeart()
+        const outside = document.createElement('button')
+        document.body.appendChild(outside)
+        rightClick(heart(w))
+        await flushPromises()
+
+        outside.focus()
+        await flushPromises()
+
+        expect(picker()).toBeNull()
+    })
+})
