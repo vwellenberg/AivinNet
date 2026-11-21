@@ -158,7 +158,7 @@ describe('sendLogData — the wire format the backend parses', () => {
         sendLogData('t1', 60_000, ALBUM as any, 1)
 
         const milestone = { number: 1000, track: 'Blue' }
-        FakeWorker.last?.onmessage?.({ data: milestone })
+        FakeWorker.last?.onmessage?.({ data: { logged: true, milestone } })
 
         expect(celebrateMilestone).toHaveBeenCalledWith(milestone)
     })
@@ -313,14 +313,26 @@ describe('timeupdate listener', () => {
 
 // #529: a play that is logged takes its song out of the Home card at once.
 describe('sendLogData and Home (#529)', () => {
-    it('tells the Home store the song was heard, once the play is sent', () => {
+    it('tells the Home store the song was heard, once the server took the play', () => {
         const home = useHome()
         const spy = vi.spyOn(home, 'notePlayed')
 
         sendLogData('t1', 60_000, ALBUM as any, 1)
+        expect(posted).toHaveLength(1)
+        // Sent, not yet taken: the card stays until the server answers.
+        expect(spy).not.toHaveBeenCalled()
+
+        FakeWorker.last?.onmessage?.({ data: { logged: true, milestone: null } })
+        expect(spy).toHaveBeenCalledWith('t1')
+    })
+
+    it('leaves the card when the worker never reports the play as taken', () => {
+        const spy = vi.spyOn(useHome(), 'notePlayed')
+
+        sendLogData('t1', 60_000, ALBUM as any, 1)
 
         expect(posted).toHaveLength(1)
-        expect(spy).toHaveBeenCalledWith('t1')
+        expect(spy).not.toHaveBeenCalled()
     })
 
     it('does not tell Home about a play below the floor', () => {
