@@ -25,13 +25,34 @@ android {
         applicationId = "net.aivinnet.auto"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // Android refuses an update with a lower versionCode, so every CI build counts up
+        // (the workflow's run number). Local builds stay at 1. Run numbers count per workflow:
+        // only android.yml may build the APK people install, or a new workflow starting at 1
+        // would be refused as a downgrade.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "0.1.0"
+    }
+
+    // The fixed key (#747). Every debug build signs with a fresh key on the runner, so a new APK
+    // would not install over the old one: uninstalling first lost the login and every offline
+    // download. The release key comes from the environment (in CI from repository secrets, see
+    // android.yml), never from a file in the repo. Without it, assembleRelease stays unsigned.
+    val releaseKeystore = System.getenv("AIVINNET_KEYSTORE_FILE")?.let(::file)?.takeIf { it.isFile }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("AIVINNET_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("AIVINNET_KEY_ALIAS")
+                keyPassword = System.getenv("AIVINNET_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 

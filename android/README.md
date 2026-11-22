@@ -33,8 +33,8 @@ Das APK liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`.
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Oder das APK aus dem CI-Lauf (Artefakt `aivinnet-auto-debug-apk`) auf das Telefon kopieren und
-öffnen. Dafür muss die Installation aus unbekannten Quellen erlaubt sein.
+Oder das APK aus dem CI-Lauf (Artefakt `aivinnet-auto-apk`, siehe unten) auf das Telefon kopieren
+und öffnen. Dafür muss die Installation aus unbekannten Quellen erlaubt sein.
 
 Dann die App öffnen, Server-URL, Benutzername und Passwort eingeben und **Anmelden** drücken.
 Die Anmeldung gilt für das Auto, bis man auf dem Telefon **Abmelden** drückt; ein Funkloch beim
@@ -45,9 +45,65 @@ nicht im Heim-WLAN — eine LAN-Adresse (`http://192.168.…:1970`) funktioniert
 Adresse eintragen, unter der der Server von außen erreichbar ist (Domain, VPN o. ä.). Für einen
 ersten Test zu Hause im WLAN geht die LAN-Adresse.
 
-⚠️ **Debug-APKs aus dem CI sind bei jedem Lauf anders signiert.** Ein neueres APK lässt sich dann
-nicht über das alte installieren („App nicht installiert“): alte Version deinstallieren und neu
-anmelden. Ein fester Signierschlüssel kommt mit dem Release-Build.
+### Welches APK? Das signierte (`aivinnet-auto-apk`)
+
+Jeder Lauf auf `master` legt zwei APKs ab:
+
+- **`aivinnet-auto-apk`**: mit dem festen Schlüssel signiert. **Das gehört aufs Telefon.** Es
+  lässt sich über die vorige Version installieren, Anmeldung und Offline-Downloads bleiben.
+- `aivinnet-auto-debug-apk`: bei jedem Lauf mit einem neuen Schlüssel signiert. Ein neueres lässt
+  sich nicht über das alte installieren („App nicht installiert“), nur nach Deinstallieren, und
+  dabei gehen Anmeldung und alle Downloads verloren. Nur zum Ausprobieren eines PRs.
+
+⚠️ **Einmal beim Umstieg:** Ein bisher installiertes Debug-APK muss einmal deinstalliert werden,
+bevor das signierte draufgeht (anderer Schlüssel). Danach nie wieder.
+
+### Den festen Schlüssel anlegen (einmal)
+
+**Am einfachsten (Linux, WSL, macOS):** ein Befehl im Repo-Checkout, der alles erledigt —
+`keytool` bei Bedarf nachinstallieren, Schlüssel mit Zufallspasswort anlegen, die vier Secrets
+setzen und das signierte APK bauen lassen (Letzteres nur mit angemeldeter GitHub-CLI `gh`; ohne
+sie zeigt es an, was in die Secrets gehört, und legt unter WSL den Schlüsseltext in die
+Windows-Zwischenablage):
+
+```bash
+bash scripts/android-signing-key.sh
+```
+
+Schlüssel (`~/aivinnet-release.jks`) und Passwort (`~/aivinnet-release.password`) danach in den
+Passwort-Manager. Einen vorhandenen Schlüssel überschreibt das Skript nie.
+
+**Von Hand** (z. B. unter Windows):
+
+1. `keytool` kommt mit jedem JDK (z. B. `winget install EclipseAdoptium.Temurin.21.JDK`, oder das
+   aus Android Studio unter `jbr\bin`). Schlüssel erzeugen, Passwort ausdenken und zweimal eingeben:
+
+   ```powershell
+   keytool -genkeypair -v -keystore aivinnet-release.jks -alias aivinnet -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=AivinNet"
+   ```
+
+2. Als Base64 in die Zwischenablage (PowerShell):
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\aivinnet-release.jks")) | Set-Clipboard
+   ```
+
+3. Im Repo unter **Settings → Secrets and variables → Actions → New repository secret** vier
+   Secrets anlegen:
+
+   | Name | Wert |
+   |---|---|
+   | `ANDROID_KEYSTORE_BASE64` | die Zwischenablage aus Schritt 2 |
+   | `ANDROID_KEYSTORE_PASSWORD` | das Passwort aus Schritt 1 |
+   | `ANDROID_KEY_ALIAS` | `aivinnet` |
+   | `ANDROID_KEY_PASSWORD` | dasselbe Passwort (keytool nimmt es für beides) |
+
+4. Actions → **Android** → **Run workflow** (Branch `master`) baut das signierte APK sofort;
+   danach macht es jeder Merge mit Änderungen unter `android/` von selbst. Ohne Secrets meldet
+   der Lauf das als Hinweis und legt nur das Debug-APK ab.
+
+Die Versionsnummer (`versionCode`) ist die Laufnummer des Workflows: Android nimmt kein Update mit
+kleinerer Nummer an, also zählt jeder Build hoch.
 
 ## In Android Auto anzeigen (Sideload)
 
