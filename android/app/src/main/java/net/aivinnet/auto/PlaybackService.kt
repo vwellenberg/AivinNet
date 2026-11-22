@@ -377,6 +377,10 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
+    /**
+     * The items of a browse folder. The offline state (snapshots and downloaded tracks) is read once per
+     * folder answer, never per item, so the badges cost one read.
+     */
     private suspend fun children(parentId: String): List<MediaItem> = when (val ref = MediaIds.parse(parentId)) {
         MediaRef.Root -> listOf(
             browse.tab(MediaIds.HOME, getString(R.string.browse_home), "ic_tab_home"),
@@ -384,59 +388,94 @@ class PlaybackService : MediaLibraryService() {
             browse.tab(MediaIds.PLAYLISTS, getString(R.string.browse_playlists), "ic_tab_playlists"),
             browse.tab(MediaIds.OFFLINE, getString(R.string.browse_offline), "ic_tab_offline"),
         )
-        // No network: the offline copies are listed instead. If there are none, the error stands.
-        MediaRef.Home -> try {
-            fetchGenerated(MediaIds.HOME_IDS).map { browse.generated(it, BrowseGroups.Heading.FOR_YOU) }
-                .also { answered(parentId, offline = false) }
-        } catch (e: IOException) {
-            answeredWithout(parentId, e)
-            offlineListing { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
-        }
-        MediaRef.Mixes -> try {
-            mixesAndStations().also { answered(parentId, offline = false) }
-        } catch (e: IOException) {
-            answeredWithout(parentId, e)
-            offlineListing { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }.ifEmpty { throw e }
-        }
-        MediaRef.Playlists -> try {
-            // Pinned first, under their own heading (see BrowseGroups).
-            val groups = BrowseGroups.playlists(api.playlists()) { it.pinned }
-            groups
-                .flatMap { group ->
-                    group.items.map { browse.playlist(it.id, it.name, it.count, ItemStyle(heading = group.heading)) }
-                }
-                .also { answered(parentId, offline = false) }
-        } catch (e: IOException) {
-            answeredWithout(parentId, e)
-            offlineListing { !MediaIds.isGenerated(it) }.ifEmpty { throw e }
-        }
-        is MediaRef.Playlist -> {
-            // Opening a playlist always shows its current state; the tap then reuses this fetch.
-            val answer = try {
-                playlistOrOffline(ref.id, fresh = true)
-            } catch (e: IOException) {
-                answeredWithout(parentId, e)
-                throw e
-            }
-            if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
-            val detail = answer.detail
-            detail?.tracks?.map { browse.track(detail.id, it) } ?: emptyList()
-        }
+        MediaRef.Home -> homeFolder(parentId)
+        MediaRef.Mixes -> mixesFolder(parentId)
+        MediaRef.Playlists -> playlistsFolder(parentId)
+        is MediaRef.Playlist -> playlistTracks(parentId, ref.id)
         // The offline folder reads only the snapshots and the download index: it works without any network.
-        MediaRef.Offline -> offlineListing { true }
-        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks?.map { browse.track(ref.id, it) } ?: emptyList()
+        MediaRef.Offline -> offlineListing(offlineBadges()) { true }
+        // Every track of an offline copy is on disk, so each one is badged.
+        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks
+            ?.map { browse.track(ref.id, it, ItemStyle(downloaded = true)) }
+            ?: emptyList()
         else -> emptyList()
     }
 
     /**
-     * The mixes and the stations the user actually has, in one parallel batch. Mixes come first, then
-     * the stations; each group has its heading. A 404 or an empty playlist is skipped.
+     * Home: the generated rows the user has. No network: the offline copies of them. If there are none,
+     * the error stands.
      */
-    private suspend fun mixesAndStations(): List<MediaItem> =
-        fetchGenerated(MediaIds.MIX_IDS + MediaIds.STATION_IDS).map { detail ->
-            val heading = if (detail.id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
-            browse.generated(detail, heading)
+    private suspend fun homeFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            fetchGenerated(MediaIds.HOME_IDS)
+                .map { detail ->
+                    browse.generated(detail, ItemStyle(BrowseGroups.Heading.FOR_YOU, downloaded = badges.playlistComplete(detail.id)))
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges) { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
         }
+    }
+
+    /**
+     * Mixes, then the stations, in one parallel batch. Each group has its heading; a 404 or an empty
+     * playlist is skipped. No network: the offline copies of both.
+     */
+    private suspend fun mixesFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            fetchGenerated(MediaIds.MIX_IDS + MediaIds.STATION_IDS)
+                .map { detail ->
+                    val heading = if (detail.id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
+                    browse.generated(detail, ItemStyle(heading, downloaded = badges.playlistComplete(detail.id)))
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges) { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }.ifEmpty { throw e }
+        }
+    }
+
+    /**
+     * The playlists of the server, pinned first under their heading (see [BrowseGroups]). No network: the
+     * offline copies of the user's own playlists.
+     */
+    private suspend fun playlistsFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            BrowseGroups.playlists(api.playlists()) { it.pinned }
+                .flatMap { group ->
+                    group.items.map {
+                        browse.playlist(it.id, it.name, it.count, ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)))
+                    }
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges) { !MediaIds.isGenerated(it) }.ifEmpty { throw e }
+        }
+    }
+
+    /** The tracks of one playlist, from the server or, without network, its offline copy. */
+    private suspend fun playlistTracks(parentId: String, id: String): List<MediaItem> {
+        // Opening a playlist always shows its current state; the tap then reuses this fetch.
+        val answer = try {
+            playlistOrOffline(id, fresh = true)
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            throw e
+        }
+        if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
+        val detail = answer.detail ?: return emptyList()
+        val completed = offline.completedTrackhashes()
+        return detail.tracks.map { browse.track(detail.id, it, ItemStyle(downloaded = it.trackhash in completed)) }
+    }
+
+    /** The snapshots and the downloaded tracks, read once for one folder answer. */
+    private fun offlineBadges(): OfflineBrowse.Badges =
+        OfflineBrowse.Badges(offlineSnapshots(), offline.completedTrackhashes())
 
     /**
      * The generated playlists [ids] the user has, fetched in parallel and kept in the order of [ids].
@@ -503,10 +542,21 @@ class PlaybackService : MediaLibraryService() {
         return offline.store.load().snapshots(account)
     }
 
-    /** The offline playlists that [include] selects and that have something to play, as `off:` items. */
-    private fun offlineListing(include: (String) -> Boolean): List<MediaItem> =
-        OfflineBrowse.listed(offlineSnapshots(), offline.completedTrackhashes(), include)
-            .map { browse.playlist(it.id, it.name, it.tracks.size, offline = true) }
+    /**
+     * The offline playlists that [include] selects and that have something to play, as `off:` items.
+     * Badged when the whole copy is on disk, which the listing alone does not show: it keeps only the
+     * downloaded tracks.
+     */
+    private fun offlineListing(badges: OfflineBrowse.Badges, include: (String) -> Boolean): List<MediaItem> =
+        OfflineBrowse.listed(badges.snapshots, badges.completed, include).map {
+            browse.playlist(
+                it.id,
+                it.name,
+                it.tracks.size,
+                ItemStyle(downloaded = badges.playlistComplete(it.id)),
+                offline = true,
+            )
+        }
 
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {

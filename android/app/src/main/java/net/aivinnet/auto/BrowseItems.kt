@@ -69,8 +69,8 @@ class BrowseItems(private val context: Context) {
     )
 
     /** A generated playlist (mix, home row or station) as the server returned it. */
-    fun generated(detail: PlaylistDetail, heading: BrowseGroups.Heading?): MediaItem =
-        playlist(detail.id, detail.name, detail.tracks.size, ItemStyle(heading = heading))
+    fun generated(detail: PlaylistDetail, style: ItemStyle): MediaItem =
+        playlist(detail.id, detail.name, detail.tracks.size, style)
 
     /** A playlist (`pl:`) or, with [offline], an offline playlist (`off:`) of the browse tree. */
     fun playlist(

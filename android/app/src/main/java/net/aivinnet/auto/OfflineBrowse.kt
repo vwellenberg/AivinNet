@@ -8,6 +8,21 @@ package net.aivinnet.auto
  */
 object OfflineBrowse {
 
+    /**
+     * Whether the offline copy [snapshot] is complete: it has tracks and every one of them is on disk.
+     * An empty snapshot (a playlist that was gone at the last sync) is not complete.
+     */
+    fun isComplete(snapshot: PlaylistDetail?, completed: Set<String>): Boolean =
+        snapshot != null && snapshot.tracks.isNotEmpty() && snapshot.tracks.all { it.trackhash in completed }
+
+    /**
+     * What a browse answer needs for its download badges: the offline snapshots of the account and the
+     * trackhashes on disk. Read once per answer by the caller.
+     */
+    class Badges(val snapshots: Map<String, PlaylistDetail?>, val completed: Set<String>) {
+        fun playlistComplete(id: String): Boolean = isComplete(snapshots[id], completed)
+    }
+
     /** [snapshot] reduced to the tracks whose download is complete, in the playlist's order. */
     fun playable(snapshot: PlaylistDetail, completed: Set<String>): PlaylistDetail =
         snapshot.copy(tracks = snapshot.tracks.filter { it.trackhash in completed })
