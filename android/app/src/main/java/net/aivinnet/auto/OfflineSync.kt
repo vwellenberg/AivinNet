@@ -68,10 +68,12 @@ class OfflineSync(
             byHash[hash]?.let { OfflineEngine.request(hash, StreamUrls.build(base, hash, it.filepath)) }
         }
         val direct = submit(adds, diff.toRemove)
-        fetchCovers(currentTracks)
 
         engine.flushScrobbles(api)
         engine.flushRatings(api)
+
+        // Last: hundreds of covers on a slow server must not hold up the plays and ratings above.
+        fetchCovers(currentTracks)
 
         Report(
             signedIn = true,
@@ -91,9 +93,17 @@ class OfflineSync(
      * and it stops at the next cover once the sync is cancelled.
      */
     private suspend fun fetchCovers(tracks: List<TrackInfo>) {
+        var failedInARow = 0
         for (cover in tracks.mapNotNull { CoverSpec.ofTrack(it.image) }.distinct()) {
             currentCoroutineContext().ensureActive()
-            CoverCache.ensure(context, api, cover, PREFETCH_DEADLINE_MS)
+            if (CoverCache.ensure(context, api, cover, PREFETCH_DEADLINE_MS) != null) {
+                failedInARow = 0
+            } else if (++failedInARow >= PREFETCH_GIVE_UP_AFTER) {
+                // The server is gone or failing: up to 15 s per cover would stretch the run for
+                // minutes. The next run picks up where this one stopped (cached covers are skipped).
+                offlineLog("Cover prefetch stopped after $failedInARow failures in a row", null)
+                return
+            }
         }
     }
 
@@ -132,3 +142,6 @@ class OfflineSync(
 
 /** A cover of the offline sync may take longer than a car's wait; the sync is a background job. */
 private const val PREFETCH_DEADLINE_MS = 15_000L
+
+/** Consecutive failed covers after which a sync run stops fetching covers. */
+private const val PREFETCH_GIVE_UP_AFTER = 3
