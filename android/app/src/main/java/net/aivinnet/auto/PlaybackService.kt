@@ -452,12 +452,12 @@ class PlaybackService : MediaLibraryService() {
                 .flatMap { group ->
                     group.items.map {
                         browse.playlist(
-                    it.id,
-                    it.name,
-                    it.count,
-                    ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)),
-                    coverImage = it.coverImage,
-                )
+                            it.id,
+                            it.name,
+                            it.count,
+                            ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)),
+                            coverImage = it.coverImage,
+                        )
                     }
                 }
                 .also { answered(parentId, offline = false) }

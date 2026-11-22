@@ -28,6 +28,9 @@ class AuthExpiredException :
 
 class ServerException(val code: Int, message: String) : AivinException(message)
 
+/** The server has no picture for this (its placeholder, or 404): not a failure to reach it. */
+class NoImageException(message: String) : AivinException(message)
+
 /**
  * Refreshes the access token with the refresh token. Only one refresh runs at a time, and a
  * caller whose token was already replaced by another thread just retries with the new one.
@@ -203,11 +206,16 @@ class AivinApi private constructor(
                     runCatching {
                         response.use { r ->
                             when {
+                                r.code == 404 -> throw NoImageException("Kein Bild auf dem Server (HTTP 404)")
                                 r.code !in 200..299 -> throw ServerException(r.code, "Bild nicht abrufbar (HTTP ${r.code})")
-                                r.header(PLACEHOLDER_HEADER) != null -> throw AivinException("Kein eigenes Bild auf dem Server")
-                                r.body.contentLength() > MAX_IMAGE_BYTES -> throw AivinException("Bild zu groß")
+                                r.header(PLACEHOLDER_HEADER) != null -> throw NoImageException("Kein eigenes Bild auf dem Server")
+                                r.body.contentLength() > CoverSpec.MAX_IMAGE_BYTES -> throw AivinException("Bild zu groß")
                             }
-                            r.body.bytes()
+                            // Bounded even without a Content-Length (chunked): ask for one byte more than
+                            // allowed, and refuse when it arrives, before the rest is read into memory.
+                            val source = r.body.source()
+                            if (source.request(CoverSpec.MAX_IMAGE_BYTES + 1)) throw AivinException("Bild zu groß")
+                            source.buffer.readByteArray()
                         }
                     },
                 )
@@ -291,9 +299,6 @@ class AivinApi private constructor(
 
         /** The header the image endpoints set on their placeholder (api/imgserver.py, PLACEHOLDER_HEADER). */
         private const val PLACEHOLDER_HEADER = "X-Aivinnet-Placeholder"
-
-        /** Largest cover the app reads; a picture above it is not a cover of the car's size. */
-        private const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
 
         /** Each caller (the service, the activity) builds its own instance; they share the prefs. */
         fun create(context: Context): AivinApi {

@@ -32,6 +32,9 @@ object CoverSpec {
     /** The longest side of a cover in the car. A bigger picture is scaled down before it is cached. */
     const val MAX_SIDE = 512
 
+    /** The largest picture the app reads at all; anything bigger is not a cover of the car's size. */
+    const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
+
     /**
      * Part of every cache name. Cached covers stay on the phone across updates, so a change to what is
      * stored (size, format) must bump this, or the old files keep being served.

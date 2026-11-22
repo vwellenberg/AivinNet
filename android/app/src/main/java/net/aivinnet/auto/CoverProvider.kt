@@ -9,6 +9,7 @@ import android.os.ParcelFileDescriptor
 import java.io.FileNotFoundException
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
 
 /**
  * Serves the covers of tracks and of playlists with their own image as JPEG files for Android Auto's
@@ -28,9 +29,7 @@ class CoverProvider : ContentProvider() {
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         if (mode != "r") throw FileNotFoundException("Covers are read only")
         val cover = coverOf(uri) ?: throw FileNotFoundException("No cover at $uri")
-        val file = runBlocking {
-            CoverCache.ensure(requireNotNull(context), api, cover, DEADLINE_MS)
-        } ?: throw FileNotFoundException("No cover for $uri")
+        val file = runBlocking { cachedOrFetched(cover) } ?: throw FileNotFoundException("No cover for $uri")
         return try {
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         } catch (e: IOException) {
@@ -49,6 +48,28 @@ class CoverProvider : ContentProvider() {
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int = 0
 
+    /**
+     * The car calls [openFile] on the app's binder threads, the same few that carry its browse and
+     * transport calls. A cached cover is served at once. A fetch holds a thread for up to
+     * [DEADLINE_MS], so at most [PARALLEL_FETCHES] run; any further request gets the placeholder now
+     * and the cover on a later browse, instead of queueing behind the others. After a failure to reach
+     * the server the cache answers alone for a minute (see [CoverCache]).
+     */
+    private suspend fun cachedOrFetched(cover: CoverSpec.Cover): java.io.File? {
+        val context = requireNotNull(context)
+        if (!fetches.tryAcquire()) {
+            // No permit: only what is already on disk.
+            return CoverCache.cached(context, cover)
+        }
+        return try {
+            CoverCache.ensure(context, api, cover, DEADLINE_MS, fetchWhenUnreachable = false).file
+        } finally {
+            fetches.release()
+        }
+    }
+
+    private val fetches = Semaphore(PARALLEL_FETCHES)
+
     private fun coverOf(uri: Uri): CoverSpec.Cover? =
         CoverSpec.parse(uri.pathSegments, uri.getQueryParameter(CoverSpec.PARAM_PATHHASH))
 
@@ -59,6 +80,9 @@ class CoverProvider : ContentProvider() {
          * browse or by the offline sync.
          */
         private const val DEADLINE_MS = 4_000L
+
+        /** Cover fetches at once; the rest are answered from the cache (see [cachedOrFetched]). */
+        private const val PARALLEL_FETCHES = 4
 
         /** The authority, derived from the package like the manifest's `${applicationId}.covers`. */
         fun authority(packageName: String): String = "$packageName.covers"

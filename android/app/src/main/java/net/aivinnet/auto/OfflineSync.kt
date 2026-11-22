@@ -38,9 +38,18 @@ class OfflineSync(
         val needsKeepAlive: Boolean = false,
     )
 
-    suspend fun run(): Report = engine.syncLock.withLock {
-        val account = api.store.accountKey ?: return@withLock Report(signedIn = false)
-        val base = api.store.baseUrl ?: return@withLock Report(signedIn = false)
+    suspend fun run(): Report {
+        var coverTracks: List<TrackInfo> = emptyList()
+        val report = engine.syncLock.withLock { syncLocked { coverTracks = it } }
+        // Outside the lock: hundreds of covers can take minutes, and "delete offline" waits on the
+        // lock. The covers are only a cache; a list deleted meanwhile leaves a few unused files.
+        fetchCovers(coverTracks)
+        return report
+    }
+
+    private suspend fun syncLocked(coversOf: (List<TrackInfo>) -> Unit): Report = run {
+        val account = api.store.accountKey ?: return@run Report(signedIn = false)
+        val base = api.store.baseUrl ?: return@run Report(signedIn = false)
 
         var refreshed = 0
         var failed = 0
@@ -72,8 +81,8 @@ class OfflineSync(
         engine.flushScrobbles(api)
         engine.flushRatings(api)
 
-        // Last: hundreds of covers on a slow server must not hold up the plays and ratings above.
-        fetchCovers(currentTracks)
+        // Fetched after the lock is released (see run).
+        coversOf(currentTracks)
 
         Report(
             signedIn = true,
@@ -96,7 +105,10 @@ class OfflineSync(
         var failedInARow = 0
         for (cover in tracks.mapNotNull { CoverSpec.ofTrack(it.image) }.distinct()) {
             currentCoroutineContext().ensureActive()
-            if (CoverCache.ensure(context, api, cover, PREFETCH_DEADLINE_MS) != null) {
+            val outcome = CoverCache.ensure(context, api, cover, PREFETCH_DEADLINE_MS, fetchWhenUnreachable = true).outcome
+            // Only failures to get a cover count: an album without art is an answer, not a failure,
+            // and three of them in a row would otherwise stop every run at the same place.
+            if (outcome != CoverCache.Outcome.FAILED) {
                 failedInARow = 0
             } else if (++failedInARow >= PREFETCH_GIVE_UP_AFTER) {
                 // The server is gone or failing: up to 15 s per cover would stretch the run for
