@@ -60,9 +60,20 @@ bevor das signierte draufgeht (anderer Schlüssel). Danach nie wieder.
 
 ### Den festen Schlüssel anlegen (einmal)
 
-Der Schlüssel liegt nur bei dir und als Secret im Repo, nie im Code. **Sicher aufbewahren:** Ist
-er weg, lässt sich kein Update mehr über die installierte App spielen, und es heißt wieder
-deinstallieren.
+**Am einfachsten (Linux, WSL, macOS):** ein Befehl im Repo-Checkout, der alles erledigt —
+`keytool` bei Bedarf nachinstallieren, Schlüssel mit Zufallspasswort anlegen, die vier Secrets
+setzen und das signierte APK bauen lassen (Letzteres nur mit angemeldeter GitHub-CLI `gh`; ohne
+sie zeigt es an, was in die Secrets gehört, und legt unter WSL den Schlüsseltext in die
+Windows-Zwischenablage):
+
+```bash
+bash scripts/android-signing-key.sh
+```
+
+Schlüssel (`~/aivinnet-release.jks`) und Passwort (`~/aivinnet-release.password`) danach in den
+Passwort-Manager. Einen vorhandenen Schlüssel überschreibt das Skript nie.
+
+**Von Hand** (z. B. unter Windows):
 
 1. `keytool` kommt mit jedem JDK (z. B. `winget install EclipseAdoptium.Temurin.21.JDK`, oder das
    aus Android Studio unter `jbr\bin`). Schlüssel erzeugen, Passwort ausdenken und zweimal eingeben:
