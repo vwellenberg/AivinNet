@@ -5,6 +5,7 @@ sealed interface MediaRef {
     data object Root : MediaRef
     data object Mixes : MediaRef
     data object Playlists : MediaRef
+    data object Home : MediaRef
     data class Playlist(val id: String) : MediaRef
     data class Track(val playlistId: String, val trackhash: String) : MediaRef
 
@@ -16,7 +17,7 @@ sealed interface MediaRef {
 
 /**
  * Media ids of the browse tree:
- *  - `root`, `mixes`, `playlists`, `offline` (folders)
+ *  - `root`, `home`, `mixes`, `playlists`, `offline` (folders; the root's children are the tabs)
  *  - `pl:<playlistid>` (a playlist; numeric, or `mix1`..`mix4` for generated mixes)
  *  - `off:<playlistid>` (an offline playlist, from its snapshot: only downloaded tracks)
  *  - `tr:<playlistid>:<trackhash>` (a track inside a playlist)
@@ -29,12 +30,43 @@ object MediaIds {
     const val PLAYLISTS = "playlists"
     const val OFFLINE = "offline"
 
+    const val HOME = "home"
+
     /** Generated mixes; each answers 404 or no tracks when the user has none. */
     val MIX_IDS: List<String> = listOf("mix1", "mix2", "mix3", "mix4")
+
+    /**
+     * The Home rows that are playlists on the server, in the order Home shows them. Mirrors the row
+     * names in `src/aivinnet/lib/home/homerows.py` and the handlers in `lib/home/generated_playlists.py`.
+     */
+    val HOME_IDS: List<String> = listOf(
+        "becauseyoulistened",
+        "onrepeat",
+        "toprated",
+        "recentlyplayed",
+        "forgottenfavorites",
+        "deepcuts",
+        "onthisday",
+        "almostcomplete",
+        "recentlyadded",
+    )
+
+    /**
+     * The stations of the radio: genres, decades and the seasonal ones. Mirrors `STATION_PLAYLIST_IDS`
+     * in `src/aivinnet/lib/home/stations.py`. A station the user has no tracks for answers 404 or empty.
+     */
+    val STATION_IDS: List<String> = listOf(
+        "genre1", "genre2", "genre3", "genre4",
+        "decade1", "decade2", "decade3", "decade4",
+        "christmas", "countdown",
+    )
 
     private const val PLAYLIST_PREFIX = "pl:"
     private const val OFFLINE_PREFIX = "off:"
     private const val TRACK_PREFIX = "tr:"
+
+    /** Whether [id] is a playlist the server generates (a mix, a home row or a station), not one the user made. */
+    fun isGenerated(id: String): Boolean = id in MIX_IDS || id in STATION_IDS || id in HOME_IDS
 
     fun playlist(id: String): String = PLAYLIST_PREFIX + id
 
@@ -47,6 +79,7 @@ object MediaIds {
         mediaId == ROOT -> MediaRef.Root
         mediaId == MIXES -> MediaRef.Mixes
         mediaId == PLAYLISTS -> MediaRef.Playlists
+        mediaId == HOME -> MediaRef.Home
         mediaId == OFFLINE -> MediaRef.Offline
         mediaId.startsWith(OFFLINE_PREFIX) -> {
             val id = mediaId.removePrefix(OFFLINE_PREFIX)

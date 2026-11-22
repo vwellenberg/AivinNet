@@ -12,7 +12,6 @@ import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.CacheDataSource
@@ -51,8 +50,9 @@ import kotlinx.coroutines.withContext
 /**
  * The media service Android Auto browses and plays from. The phone UI is only the login screen.
  *
- * Browse tree: root → "mixes" / "playlists" → playlist (`pl:<id>`) → track (`tr:<id>:<hash>`).
- * root → "offline" → offline playlist (`off:<id>`) → track: from the snapshots, no network needed.
+ * Browse tree: root (the tabs) → "home" / "mixes" (with stations) / "playlists" → playlist (`pl:<id>`)
+ * → track (`tr:<id>:<hash>`). root → "offline" → offline playlist (`off:<id>`) → track: from the
+ * snapshots, no network needed. Items are built in [BrowseItems]; this class answers the calls.
  * A chosen track sets the whole playlist as the queue, so next and previous work. Without network,
  * a playlist resolves to its offline copy, which keeps only the downloaded tracks.
  *
@@ -66,6 +66,7 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var offline: OfflineEngine
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaLibrarySession
+    private lateinit var browse: BrowseItems
 
     /** Browse and resolve calls. Cancelled in onDestroy. */
     private lateinit var browseScope: CoroutineScope
@@ -125,7 +126,7 @@ class PlaybackService : MediaLibraryService() {
         /** Network gone: the car asks for the two lists again and gets their offline copies. */
         override fun onLost(network: Network) {
             if (validatedNetwork == network) validatedNetwork = null
-            notifyBrowseChanged(listOf(MediaIds.MIXES, MediaIds.PLAYLISTS))
+            notifyBrowseChanged(listOf(MediaIds.HOME, MediaIds.MIXES, MediaIds.PLAYLISTS))
         }
     }
 
@@ -148,6 +149,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         api = AivinApi.create(this)
+        browse = BrowseItems(this)
         offline = OfflineEngine.get(this)
         browseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -303,7 +305,8 @@ class PlaybackService : MediaLibraryService() {
             } else {
                 // TODO(#747): artwork. The image endpoint needs the bearer header and Android Auto
                 // cannot send one, so covers need a signed or public URL first.
-                LibraryResult.ofItem(folder(MediaIds.ROOT, getString(R.string.app_name)), params)
+                // The root's params carry the default content styles (grid tabs, list items).
+                LibraryResult.ofItem(browse.root(), browse.rootParams())
             }
         }
 
@@ -364,7 +367,7 @@ class PlaybackService : MediaLibraryService() {
                 detail ?: throw AivinException("Playlist nicht gefunden")
                 val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
                 if (start < 0) throw AivinException("Titel nicht in der Playlist")
-                val queue = detail.tracks.map { playable(detail.id, it, base) }
+                val queue = detail.tracks.map { browse.playable(detail.id, it, base) }
                 MediaSession.MediaItemsWithStartPosition(queue, start, C.TIME_UNSET)
             } else {
                 val resolved = resolve(mediaItems)
@@ -376,22 +379,36 @@ class PlaybackService : MediaLibraryService() {
 
     private suspend fun children(parentId: String): List<MediaItem> = when (val ref = MediaIds.parse(parentId)) {
         MediaRef.Root -> listOf(
-            folder(MediaIds.MIXES, getString(R.string.browse_mixes)),
-            folder(MediaIds.PLAYLISTS, getString(R.string.browse_playlists)),
-            folder(MediaIds.OFFLINE, getString(R.string.browse_offline)),
+            browse.tab(MediaIds.HOME, getString(R.string.browse_home), "ic_tab_home"),
+            browse.tab(MediaIds.MIXES, getString(R.string.browse_mixes), "ic_tab_mixes"),
+            browse.tab(MediaIds.PLAYLISTS, getString(R.string.browse_playlists), "ic_tab_playlists"),
+            browse.tab(MediaIds.OFFLINE, getString(R.string.browse_offline), "ic_tab_offline"),
         )
         // No network: the offline copies are listed instead. If there are none, the error stands.
-        MediaRef.Mixes -> try {
-            mixes().also { answered(parentId, offline = false) }
+        MediaRef.Home -> try {
+            fetchGenerated(MediaIds.HOME_IDS).map { browse.generated(it, BrowseGroups.Heading.FOR_YOU) }
+                .also { answered(parentId, offline = false) }
         } catch (e: IOException) {
             answeredWithout(parentId, e)
-            offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }
+            offlineListing { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
+        }
+        MediaRef.Mixes -> try {
+            mixesAndStations().also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }.ifEmpty { throw e }
         }
         MediaRef.Playlists -> try {
-            api.playlists().map { playlistItem(it.id, it.name, it.count) }.also { answered(parentId, offline = false) }
+            // Pinned first, under their own heading (see BrowseGroups).
+            val groups = BrowseGroups.playlists(api.playlists()) { it.pinned }
+            groups
+                .flatMap { group ->
+                    group.items.map { browse.playlist(it.id, it.name, it.count, ItemStyle(heading = group.heading)) }
+                }
+                .also { answered(parentId, offline = false) }
         } catch (e: IOException) {
             answeredWithout(parentId, e)
-            offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }
+            offlineListing { !MediaIds.isGenerated(it) }.ifEmpty { throw e }
         }
         is MediaRef.Playlist -> {
             // Opening a playlist always shows its current state; the tap then reuses this fetch.
@@ -403,22 +420,34 @@ class PlaybackService : MediaLibraryService() {
             }
             if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
             val detail = answer.detail
-            detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
+            detail?.tracks?.map { browse.track(detail.id, it) } ?: emptyList()
         }
         // The offline folder reads only the snapshots and the download index: it works without any network.
         MediaRef.Offline -> offlineListing { true }
-        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks?.map { trackItem(ref.id, it) } ?: emptyList()
+        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks?.map { browse.track(ref.id, it) } ?: emptyList()
         else -> emptyList()
     }
 
-    /** Only the mixes the user actually has. A mix answers 404 or no tracks when it is missing. */
-    private suspend fun mixes(): List<MediaItem> = coroutineScope {
-        MediaIds.MIX_IDS
-            .map { id -> async { playlist(id, fresh = true) } }
+    /**
+     * The mixes and the stations the user actually has, in one parallel batch. Mixes come first, then
+     * the stations; each group has its heading. A 404 or an empty playlist is skipped.
+     */
+    private suspend fun mixesAndStations(): List<MediaItem> =
+        fetchGenerated(MediaIds.MIX_IDS + MediaIds.STATION_IDS).map { detail ->
+            val heading = if (detail.id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
+            browse.generated(detail, heading)
+        }
+
+    /**
+     * The generated playlists [ids] the user has, fetched in parallel and kept in the order of [ids].
+     * A 404 or an empty playlist is skipped. A network failure fails the whole list, so the caller
+     * falls back to the offline copies.
+     */
+    private suspend fun fetchGenerated(ids: List<String>): List<PlaylistDetail> = coroutineScope {
+        ids.map { id -> async { playlist(id, fresh = true) } }
             .awaitAll()
             .filterNotNull()
             .filter { it.tracks.isNotEmpty() }
-            .map { playlistItem(it.id, it.name, it.tracks.size) }
     }
 
     /** A playlist from the cache, or fetched (and cached) when [fresh] or not cached. */
@@ -477,7 +506,7 @@ class PlaybackService : MediaLibraryService() {
     /** The offline playlists that [include] selects and that have something to play, as `off:` items. */
     private fun offlineListing(include: (String) -> Boolean): List<MediaItem> =
         OfflineBrowse.listed(offlineSnapshots(), offline.completedTrackhashes(), include)
-            .map { playlistItem(it.id, it.name, it.tracks.size, offline = true) }
+            .map { browse.playlist(it.id, it.name, it.tracks.size, offline = true) }
 
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {
@@ -492,7 +521,7 @@ class PlaybackService : MediaLibraryService() {
                 playlistOrOffline(ref.playlistId, fresh = false).detail.also { details[ref.playlistId] = it }
             }
             val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
-            out += playable(ref.playlistId, track, base)
+            out += browse.playable(ref.playlistId, track, base)
         }
         return out
     }
@@ -506,55 +535,6 @@ class PlaybackService : MediaLibraryService() {
         }
         return LibraryResult.ofError(code, params)
     }
-
-    private fun folder(id: String, title: String): MediaItem = MediaItem.Builder()
-        .setMediaId(id)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                .build(),
-        )
-        .build()
-
-    private fun playlistItem(id: String, name: String, count: Int, offline: Boolean = false): MediaItem = MediaItem.Builder()
-        .setMediaId(if (offline) MediaIds.offlinePlaylist(id) else MediaIds.playlist(id))
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(name)
-                .setSubtitle(resources.getQuantityString(R.plurals.track_count, count, count))
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
-                .build(),
-        )
-        .build()
-
-    /** Browse entry: no URI yet. The URI is added when the track is chosen. */
-    private fun trackItem(playlistId: String, track: TrackInfo): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.track(playlistId, track.trackhash))
-        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
-        .build()
-
-    /**
-     * The cache key is the trackhash, so a download made under another filepath (or another server
-     * address) is still found. Downloads use the same key, see [OfflineEngine.request].
-     */
-    private fun playable(playlistId: String, track: TrackInfo, base: String): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.track(playlistId, track.trackhash))
-        .setUri(StreamUrls.build(base, track.trackhash, track.filepath))
-        .setCustomCacheKey(track.trackhash)
-        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
-        .build()
-
-    private fun metadataOf(track: TrackInfo): MediaMetadata.Builder = MediaMetadata.Builder()
-        .setTitle(track.title)
-        .setArtist(track.artists.joinToString(", "))
-        .setAlbumTitle(track.album)
-        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-    // TODO(#747): setArtworkUri once covers can be fetched without the bearer header.
 
     // endregion
 
