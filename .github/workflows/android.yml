@@ -61,7 +61,8 @@ jobs:
       # only once the secrets exist; until then this says so and the debug APK stays the only one.
       # The keystore is written to the runner's temp dir and never uploaded.
       - name: Build signed APK
-        if: github.event_name != 'pull_request'
+        # master only, also for the manual trigger: a branch's code must not get the release key.
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           AIVINNET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -73,13 +74,13 @@ jobs:
             exit 0
           fi
           export AIVINNET_KEYSTORE_FILE="$RUNNER_TEMP/aivinnet-release.jks"
+          trap 'rm -f "$AIVINNET_KEYSTORE_FILE"' EXIT
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$AIVINNET_KEYSTORE_FILE"
           ./gradlew assembleRelease --no-daemon --console=plain
-          rm -f "$AIVINNET_KEYSTORE_FILE"
           test -f app/build/outputs/apk/release/app-release.apk
 
       - name: Upload signed APK
-        if: github.event_name != 'pull_request' && hashFiles('android/app/build/outputs/apk/release/app-release.apk') != ''
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && hashFiles('android/app/build/outputs/apk/release/app-release.apk') != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: aivinnet-auto-apk

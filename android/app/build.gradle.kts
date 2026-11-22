@@ -26,7 +26,9 @@ android {
         minSdk = 26
         targetSdk = 36
         // Android refuses an update with a lower versionCode, so every CI build counts up
-        // (the workflow's run number). Local builds stay at 1.
+        // (the workflow's run number). Local builds stay at 1. Run numbers count per workflow:
+        // only android.yml may build the APK people install, or a new workflow starting at 1
+        // would be refused as a downgrade.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "0.1.0"
     }
