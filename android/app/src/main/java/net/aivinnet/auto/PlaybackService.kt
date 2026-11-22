@@ -84,6 +84,12 @@ class PlaybackService : MediaLibraryService() {
     /** Playlists as last shown in the car, so a tap plays exactly that list. */
     private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
 
+    /**
+     * The last searches (see [SearchRules.CACHED_QUERIES]). The car pages through them, and a tapped result plays
+     * the track list it was shown with, so the answer must not change between the list and the tap.
+     */
+    private val searches = SearchCache()
+
     /** Bounds the generated playlists fetched at once, see [fetchGenerated]. */
     private val generatedFetches = Semaphore(GENERATED_PARALLEL)
 
@@ -338,18 +344,62 @@ class PlaybackService : MediaLibraryService() {
                 LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED),
             )
 
-        /** Android Auto sends bare ids. Tracks get their stream URI here. */
+        /**
+         * The magnifier in the car. The search runs now, its result count goes to the car, and the car pages
+         * through the list with [onGetSearchResult]. The notification is posted: the session is used on the main
+         * thread only, like the browse notifications.
+         */
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<Void>> = browseScope.future<LibraryResult<Void>> {
+            try {
+                val count = searchItems(search(query, fresh = true)).size
+                mainHandler.post {
+                    if (!destroyed) session.notifySearchResultChanged(browser, query, count, params)
+                }
+                LibraryResult.ofVoid(params)
+            } catch (e: Exception) {
+                errorResult(e, params)
+            }
+        }
+
+        /** A page of the search [query]; the kept result answers, a search that was dropped runs again. */
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+            browseScope.future<LibraryResult<ImmutableList<MediaItem>>> {
+                try {
+                    LibraryResult.ofItemList(Paging.slice(searchItems(search(query, fresh = false)), page, pageSize), params)
+                } catch (e: Exception) {
+                    errorResult(e, params)
+                }
+            }
+
+        /**
+         * Android Auto sends bare ids. Tracks get their stream URI here. A voice request (no id, the words in its
+         * request metadata) expands to its queue, the same as a voice request set as the playlist.
+         */
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: MutableList<MediaItem>,
         ): ListenableFuture<MutableList<MediaItem>> = browseScope.future {
-            resolve(mediaItems).toMutableList()
+            val (requests, ids) = mediaItems.partition { isSearchRequest(it) }
+            (resolve(ids) + requests.flatMap { playFromSearch(it).mediaItems }).toMutableList()
         }
 
         /**
          * A single track sets its whole playlist as the queue, starting at that track, so next
-         * and previous work. Several items are resolved one by one.
+         * and previous work. Several items are resolved one by one. A search or album track takes the
+         * queue of the list it was shown with; an album plays from its first track.
          */
         override fun onSetMediaItems(
             mediaSession: MediaSession,
@@ -358,27 +408,154 @@ class PlaybackService : MediaLibraryService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = browseScope.future {
-            val single = mediaItems.singleOrNull()?.let { MediaIds.parse(it.mediaId) } as? MediaRef.Track
-            if (single != null) {
-                val base = api.requireBaseUrl()
-                // The list the car showed first; if the track is not in it (cache expired and the
-                // mix was refilled meanwhile), one fresh fetch.
-                var detail = playlistOrOffline(single.playlistId, fresh = false).detail
-                if (detail?.tracks?.none { it.trackhash == single.trackhash } != false) {
-                    detail = playlistOrOffline(single.playlistId, fresh = true).detail
+            val first = mediaItems.singleOrNull()
+            if (first != null && isSearchRequest(first)) return@future playFromSearch(first)
+            when (val ref = first?.let { MediaIds.parse(it.mediaId) }) {
+                is MediaRef.Track -> playlistStart(ref)
+                is MediaRef.SearchTrack -> searchStart(ref.trackhash)
+                is MediaRef.AlbumTrack -> albumStart(ref.albumhash, ref.trackhash)
+                is MediaRef.Album -> albumStart(ref.albumhash, trackhash = null)
+                else -> {
+                    val resolved = resolve(mediaItems)
+                    val index = if (resolved.isEmpty()) 0 else startIndex.coerceIn(0, resolved.lastIndex)
+                    MediaSession.MediaItemsWithStartPosition(resolved, index, startPositionMs)
                 }
-                detail ?: throw AivinException("Playlist nicht gefunden")
-                val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
-                if (start < 0) throw AivinException("Titel nicht in der Playlist")
-                val queue = detail.tracks.map { browse.playable(detail.id, it, base) }
-                MediaSession.MediaItemsWithStartPosition(queue, start, C.TIME_UNSET)
-            } else {
-                val resolved = resolve(mediaItems)
-                val index = if (resolved.isEmpty()) 0 else startIndex.coerceIn(0, resolved.lastIndex)
-                MediaSession.MediaItemsWithStartPosition(resolved, index, startPositionMs)
             }
         }
     }
+
+    // region Search and albums
+
+    /**
+     * A search for [query]. Without [fresh] a kept answer is reused. Otherwise the server answers with its tracks
+     * and albums, two requests at most, one after the other. A network failure falls back to the offline copies,
+     * so the search still works in a dead spot; a refused login does not, it is passed on.
+     */
+    private suspend fun search(query: String, fresh: Boolean): SearchResults {
+        val q = SearchRules.normalize(query)
+        if (q.isEmpty()) return SearchResults(q, emptyList(), emptyList())
+        if (!fresh) searches.get(q)?.let { return it }
+        val results = try {
+            val tracks = api.searchTracks(q, SearchRules.TRACK_LIMIT)
+            SearchResults(q, tracks, api.searchAlbums(q, SearchRules.ALBUM_LIMIT))
+        } catch (e: AuthExpiredException) {
+            throw e
+        } catch (e: IOException) {
+            Log.i(TAG, "Search answered from the offline copies", e)
+            offlineSearch(q)
+        }
+        searches.put(results)
+        return results
+    }
+
+    /** The downloaded tracks of the offline copies that match [q]. There are no albums without network. */
+    private fun offlineSearch(q: String): SearchResults {
+        val completed = offline.completedTrackhashes()
+        val candidates = offlineSnapshots().values.filterNotNull().flatMap { OfflineBrowse.playable(it, completed).tracks }
+        return SearchResults(q, SearchRules.offlineMatches(q, candidates), albums = emptyList())
+    }
+
+    /** The car's items of a search: the tracks under "Titel", then the albums under "Alben". */
+    private fun searchItems(results: SearchResults): List<MediaItem> {
+        val completed = offline.completedTrackhashes()
+        val tracks = results.tracks.map {
+            browse.searchTrack(it, ItemStyle(BrowseGroups.Heading.TRACKS, downloaded = it.trackhash in completed))
+        }
+        val albums = results.albums.map { browse.album(it, ItemStyle(BrowseGroups.Heading.ALBUMS)) }
+        return tracks + albums
+    }
+
+    /** The tracks of an album, from the list kept for a tap (see [playlists]) or fetched. */
+    private suspend fun albumTracks(albumhash: String, fresh: Boolean): List<TrackInfo> {
+        val key = "al:$albumhash"
+        if (!fresh) playlists.get(key)?.let { return it.detail?.tracks.orEmpty() }
+        val tracks = api.albumTracks(albumhash) ?: throw AivinException(getString(R.string.search_album_missing))
+        playlists.put(key, PlaylistDetail(id = albumhash, name = "", tracks = tracks))
+        return tracks
+    }
+
+    /** An album's tracks in the car, opened from the search. */
+    private suspend fun albumListing(albumhash: String): List<MediaItem> {
+        val completed = offline.completedTrackhashes()
+        return albumTracks(albumhash, fresh = true).map {
+            browse.albumTrack(albumhash, it, ItemStyle(downloaded = it.trackhash in completed))
+        }
+    }
+
+    /** A tapped track of a search: the search's track list from that track on. */
+    private fun searchStart(trackhash: String): MediaSession.MediaItemsWithStartPosition {
+        val base = api.requireBaseUrl()
+        val queue = searches.queueOf(trackhash) ?: throw AivinException(getString(R.string.search_track_gone))
+        return MediaSession.MediaItemsWithStartPosition(
+            queue.tracks.map { browse.searchPlayable(it, base) },
+            queue.index,
+            C.TIME_UNSET,
+        )
+    }
+
+    /** A track of an album, or the whole album ([trackhash] null) from its first track. */
+    private suspend fun albumStart(albumhash: String, trackhash: String?): MediaSession.MediaItemsWithStartPosition {
+        val base = api.requireBaseUrl()
+        var tracks = albumTracks(albumhash, fresh = false)
+        // The tapped track is not in the kept list (the album changed since): one fresh fetch, as for playlists.
+        if (trackhash != null && tracks.none { it.trackhash == trackhash }) tracks = albumTracks(albumhash, fresh = true)
+        if (tracks.isEmpty()) throw AivinException(getString(R.string.search_album_empty))
+        val start = if (trackhash == null) 0 else tracks.indexOfFirst { it.trackhash == trackhash }
+        if (start < 0) throw AivinException(getString(R.string.search_track_not_in_album))
+        return MediaSession.MediaItemsWithStartPosition(
+            tracks.map { browse.albumPlayable(albumhash, it, base) },
+            start,
+            C.TIME_UNSET,
+        )
+    }
+
+    /**
+     * A voice request: "spiel Nightcall auf AivinNet". The best track match starts, the other matches follow as the
+     * queue. With no track but a matching album, the album plays. Nothing matched is an error the car shows.
+     * Without words the request plays the first mix, or without network the first offline list.
+     */
+    private suspend fun playFromSearch(request: MediaItem): MediaSession.MediaItemsWithStartPosition {
+        val base = api.requireBaseUrl()
+        val query = SearchRules.normalize(request.requestMetadata.searchQuery)
+        if (query.isEmpty()) return playWithoutWords(base)
+        val results = search(query, fresh = true)
+        return when (val pick = VoiceRules.pickForQuery(results.tracks, results.albums)) {
+            is VoicePick.Tracks -> MediaSession.MediaItemsWithStartPosition(
+                pick.tracks.map { browse.searchPlayable(it, base) },
+                0,
+                C.TIME_UNSET,
+            )
+            is VoicePick.Album -> albumStart(pick.albumhash, trackhash = null)
+            VoicePick.None -> throw AivinException(getString(R.string.search_no_results, query))
+        }
+    }
+
+    /** The empty voice request: the first mix that has tracks, else the first offline list. */
+    private suspend fun playWithoutWords(base: String): MediaSession.MediaItemsWithStartPosition {
+        val mix = try {
+            playlist(MediaIds.MIX_IDS.first(), fresh = true)?.tracks.orEmpty()
+        } catch (e: AuthExpiredException) {
+            throw e
+        } catch (e: IOException) {
+            emptyList()
+        }
+        val completed = offline.completedTrackhashes()
+        val offlineLists = OfflineBrowse.listed(offlineSnapshots(), completed) { true }.map { it.tracks }
+        return when (val pick = VoiceRules.pickForEmptyQuery(mix, offlineLists)) {
+            is VoicePick.Tracks -> MediaSession.MediaItemsWithStartPosition(
+                pick.tracks.map { browse.searchPlayable(it, base) },
+                0,
+                C.TIME_UNSET,
+            )
+            else -> throw AivinException(getString(R.string.search_nothing_to_play))
+        }
+    }
+
+    /** Whether [item] is a voice request: no media id, or the words of one in its request metadata. */
+    private fun isSearchRequest(item: MediaItem): Boolean =
+        item.requestMetadata.searchQuery != null || item.mediaId.isBlank()
+
+    // endregion
 
     /**
      * The items of a browse folder. The offline state (snapshots and downloaded tracks) is read once per
@@ -395,6 +572,7 @@ class PlaybackService : MediaLibraryService() {
         MediaRef.Mixes -> mixesFolder(parentId)
         MediaRef.Playlists -> playlistsFolder(parentId)
         is MediaRef.Playlist -> playlistTracks(parentId, ref.id)
+        is MediaRef.Album -> albumListing(ref.albumhash)
         // The offline folder reads only the snapshots and the download index: it works without any network.
         MediaRef.Offline -> offlineListing(offlineBadges()) { true }
         // Every track of an offline copy is on disk, so each one is badged.
@@ -584,32 +762,67 @@ class PlaybackService : MediaLibraryService() {
     private fun mixOrStationHeading(id: String): BrowseGroups.Heading =
         if (id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
 
+    /**
+     * A tapped track of a playlist: the playlist from that track on. The list the car showed first is used; if the
+     * track is not in it (cache expired and the mix was refilled meanwhile), one fresh fetch.
+     */
+    private suspend fun playlistStart(single: MediaRef.Track): MediaSession.MediaItemsWithStartPosition {
+        val base = api.requireBaseUrl()
+        var detail = playlistOrOffline(single.playlistId, fresh = false).detail
+        if (detail?.tracks?.none { it.trackhash == single.trackhash } != false) {
+            detail = playlistOrOffline(single.playlistId, fresh = true).detail
+        }
+        detail ?: throw AivinException("Playlist nicht gefunden")
+        val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
+        if (start < 0) throw AivinException("Titel nicht in der Playlist")
+        val queue = detail.tracks.map { browse.playable(detail.id, it, base) }
+        return MediaSession.MediaItemsWithStartPosition(queue, start, C.TIME_UNSET)
+    }
+
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {
         val base = api.requireBaseUrl()
         val details = HashMap<String, PlaylistDetail?>()
         val out = ArrayList<MediaItem>(items.size)
         for (item in items) {
-            val ref = MediaIds.parse(item.mediaId) as? MediaRef.Track ?: continue
-            val detail = if (details.containsKey(ref.playlistId)) {
-                details[ref.playlistId]
-            } else {
-                playlistOrOffline(ref.playlistId, fresh = false).detail.also { details[ref.playlistId] = it }
+            when (val ref = MediaIds.parse(item.mediaId)) {
+                is MediaRef.Track -> {
+                    val detail = if (details.containsKey(ref.playlistId)) {
+                        details[ref.playlistId]
+                    } else {
+                        playlistOrOffline(ref.playlistId, fresh = false).detail.also { details[ref.playlistId] = it }
+                    }
+                    val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
+                    out += browse.playable(ref.playlistId, track, base)
+                }
+                is MediaRef.SearchTrack -> {
+                    val track = searches.queueOf(ref.trackhash)?.tracks?.firstOrNull { it.trackhash == ref.trackhash }
+                        ?: continue
+                    out += browse.searchPlayable(track, base)
+                }
+                is MediaRef.AlbumTrack -> {
+                    val track = albumTracks(ref.albumhash, fresh = false).firstOrNull { it.trackhash == ref.trackhash }
+                        ?: continue
+                    out += browse.albumPlayable(ref.albumhash, track, base)
+                }
+                else -> continue
             }
-            val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
-            out += browse.playable(ref.playlistId, track, base)
         }
         return out
     }
 
-    private fun errorResult(e: Exception, params: LibraryParams?): LibraryResult<ImmutableList<MediaItem>> {
+    /**
+     * The error the car gets for a failed call. Generic, so browse answers and search answers share it. A
+     * refused login is reported as such, and a network failure as an I/O error (the car may ask again).
+     */
+    private fun <V : Any> errorResult(e: Exception, params: LibraryParams?): LibraryResult<V> {
         Log.w(TAG, "Browse failed", e)
         val code = when (e) {
             is AuthExpiredException -> SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED
             is IOException -> SessionError.ERROR_IO
             else -> SessionError.ERROR_NOT_SUPPORTED
         }
-        return LibraryResult.ofError(code, params)
+        return LibraryResult.ofError<V>(code, params)
     }
 
     // endregion
@@ -715,7 +928,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private inner class RatingTracker : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val trackhash = (MediaIds.parse(mediaItem?.mediaId) as? MediaRef.Track)?.trackhash
+            val trackhash = MediaIds.trackhashOf(MediaIds.parse(mediaItem?.mediaId))
             ratedTrack = trackhash
             shownRating = null
             ratingKnown = false
@@ -789,8 +1002,8 @@ class PlaybackService : MediaLibraryService() {
 
         private val timer = ListeningTimer()
 
-        /** The track being timed, identified from its media id. */
-        private var current: MediaRef.Track? = null
+        /** The track being timed, identified from its media id (a playlist, a search or an album track). */
+        private var current: MediaRef? = null
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             val now = SystemClock.elapsedRealtime()
@@ -799,7 +1012,7 @@ class PlaybackService : MediaLibraryService() {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             flush()
-            current = MediaIds.parse(mediaItem?.mediaId) as? MediaRef.Track
+            current = MediaIds.parse(mediaItem?.mediaId)
             if (player.isPlaying) timer.onPlaying(SystemClock.elapsedRealtime())
         }
 
@@ -814,16 +1027,18 @@ class PlaybackService : MediaLibraryService() {
             val listened = timer.listenedMs(SystemClock.elapsedRealtime())
             timer.reset()
             if (player.isPlaying) timer.onPlaying(SystemClock.elapsedRealtime())
-            val track = current ?: return
+            val ref = current ?: return
+            val trackhash = MediaIds.trackhashOf(ref) ?: return
+            val source = MediaIds.scrobbleSource(ref) ?: return
 
             val seconds = ScrobbleRules.seconds(listened)
             if (!ScrobbleRules.shouldSend(seconds)) return
 
             val play = ScrobblePlay(
-                trackhash = track.trackhash,
+                trackhash = trackhash,
                 timestamp = System.currentTimeMillis() / 1000L,
                 duration = seconds,
-                source = "pl:${track.playlistId}",
+                source = source,
             )
             // A play the server cannot take now waits in the outbox (dead spots), and any error is
             // contained there: an uncaught one in this scope would kill the service mid-drive.

@@ -14,7 +14,7 @@ Browse-Baum auf.
   zweiter Druck auf einen Titel mit 5 entfernt die Bewertung. Der Knopf zeigt den Stand als gefüllten
   Stern („Mit 5 Sternen bewertet“) oder leeren Stern („5 Sterne geben“). Unten: Offline-Verhalten
 - **Noch nicht:** Cover (der Bild-Endpoint braucht den Authorization-Header, den das Auto nicht
-  senden kann), Suche, Sprachbefehle
+  senden kann)
 
 ## Bauen
 
@@ -208,6 +208,29 @@ gibt und welche Abzeichen.
   liegt, trägt das Download-Abzeichen, ebenso jeder Titel, der dort liegt. Home-Zeilen und Sender
   lassen sich (noch) nicht offline markieren, die Offline-Liste auf dem Telefon bietet nur Mixes
   und Playlists an.
+
+## Suchen
+
+Die Lupe im Auto und die Sprachsuche finden Titel und Alben. Die Sprachsuche läuft über Googles
+Assistenten (Assistant oder Gemini).
+
+- **Lupe:** Android Auto zeigt das Suchfeld. Die Treffer stehen in zwei Gruppen: **Titel** (bis 15, die
+  besten zuerst) und **Alben** (bis 8). Ein Tipp auf einen Titel spielt die Trefferliste ab diesem Titel,
+  so dass Weiter und Zurück die übrigen Treffer nehmen. Ein Tipp auf ein Album öffnet dessen Titel.
+- **Sprache:** „Hey Google, spiel Nightcall auf AivinNet“ spielt den besten Titel-Treffer, danach die übrigen
+  als Warteschlange. Gibt es keinen Titel, aber ein Album, spielt das Album. Ohne Treffer meldet das Auto
+  „Keine Treffer für …“. „Hey Google, spiel AivinNet“ ohne Suchbegriff spielt Mix 1, ohne Netz die erste
+  markierte Offline-Liste.
+- **Ohne Netz:** Die Suche durchsucht die heruntergeladenen Titel der markierten Listen. Ein Titel trifft,
+  wenn Titel, Interpret oder Album den Suchbegriff enthalten (Groß- und Kleinschreibung und Akzente egal).
+  Die Reihenfolge: Titel gleich dem Suchbegriff, dann Titel beginnt damit, dann Titel enthält ihn, zuletzt
+  Interpret oder Album. Alben gibt es ohne Netz nicht.
+- **Zählung:** Ein Play aus der Suche wird als Suche gemeldet, ein Play aus einem Album als Album.
+- **Aufwand:** Eine Suche macht höchstens zwei Anfragen an den Server (Titel und Alben), nacheinander.
+- **Die letzten drei Suchen** bleiben im Speicher. Tippt man einen Titel aus einer älteren Suche an, sagt
+  das Auto „Die Suche ist nicht mehr da. Bitte neu suchen.“
+- **Grenze:** Wie Google einen Sprachbefehl erkennt und an die App weiterreicht, hängt an der Version des
+  Assistenten. Das ist auf dem Gerät zu prüfen, nicht in der App.
 
 ## Aussehen
 

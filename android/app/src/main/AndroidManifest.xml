@@ -11,13 +11,8 @@
     <!-- Offline downloads run as a dataSync foreground service (OfflineDownloadService). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <!--
-        MEDIA_PLAY_FROM_SEARCH (voice "play X") is out of scope for this prototype: the
-        service does not answer it, so the lint error is accepted on purpose.
-    -->
     <application
         android:allowBackup="false"
-        tools:ignore="MissingIntentFilterForMediaSearch"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -32,6 +27,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+                The Assistant's "play X" (voice search) asks for this on the activity, as Android's media docs
+                describe. The playback itself goes through the media session (PlaybackService); the activity
+                only shows the normal screen, and it reads no extras from the request.
+            -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
