@@ -7,7 +7,11 @@ coroutines = "1.11.0"
 lifecycle = "2.9.4"
 appcompat = "1.8.0"
 work = "2.12.0"
+# PathParser for the tile glyphs. The version Gradle already resolves (appcompat's graph), pinned here.
+core = "1.13.1"
 junit = "4.13.2"
+# Renders the tiles in a JVM test with the real Android graphics (native mode), see TileRendererTest.
+robolectric = "4.18.1"
 orgJson = "20260814"
 
 [libraries]
@@ -22,7 +26,9 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "coroutines" }
 lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-core = { group = "androidx.core", name = "core", version.ref = "core" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]

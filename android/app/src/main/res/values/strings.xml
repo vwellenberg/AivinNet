@@ -11,7 +11,13 @@
     <string name="status_fields_missing">Bitte Server-URL, Benutzername und Passwort eingeben.</string>
     <string name="status_login_failed">Anmeldung fehlgeschlagen: %1$s</string>
     <string name="status_logging_in">Anmelden …</string>
+    <string name="browse_home">Home</string>
     <string name="browse_mixes">Mixes</string>
+    <string name="group_for_you">Für dich</string>
+    <string name="group_mixes">Deine Mixes</string>
+    <string name="group_stations">Sender</string>
+    <string name="group_pinned">Angepinnt</string>
+    <string name="group_all_playlists">Alle Playlists</string>
     <string name="browse_playlists">Playlists</string>
     <string name="browse_offline">Offline</string>
     <string name="rating_rate">5 Sterne geben</string>

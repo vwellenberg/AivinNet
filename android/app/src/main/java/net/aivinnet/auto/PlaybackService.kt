@@ -12,7 +12,6 @@ import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.CacheDataSource
@@ -46,13 +45,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 /**
  * The media service Android Auto browses and plays from. The phone UI is only the login screen.
  *
- * Browse tree: root → "mixes" / "playlists" → playlist (`pl:<id>`) → track (`tr:<id>:<hash>`).
- * root → "offline" → offline playlist (`off:<id>`) → track: from the snapshots, no network needed.
+ * Browse tree: root (the tabs) → "home" / "mixes" (with stations) / "playlists" → playlist (`pl:<id>`)
+ * → track (`tr:<id>:<hash>`). root → "offline" → offline playlist (`off:<id>`) → track: from the
+ * snapshots, no network needed. Items are built in [BrowseItems]; this class answers the calls.
  * A chosen track sets the whole playlist as the queue, so next and previous work. Without network,
  * a playlist resolves to its offline copy, which keeps only the downloaded tracks.
  *
@@ -66,6 +68,7 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var offline: OfflineEngine
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaLibrarySession
+    private lateinit var browse: BrowseItems
 
     /** Browse and resolve calls. Cancelled in onDestroy. */
     private lateinit var browseScope: CoroutineScope
@@ -80,6 +83,9 @@ class PlaybackService : MediaLibraryService() {
 
     /** Playlists as last shown in the car, so a tap plays exactly that list. */
     private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
+
+    /** Bounds the generated playlists fetched at once, see [fetchGenerated]. */
+    private val generatedFetches = Semaphore(GENERATED_PARALLEL)
 
     /** Browse folders answered from the offline copies; they are asked again once the server answers. */
     private val freshness = BrowseFreshness()
@@ -125,7 +131,7 @@ class PlaybackService : MediaLibraryService() {
         /** Network gone: the car asks for the two lists again and gets their offline copies. */
         override fun onLost(network: Network) {
             if (validatedNetwork == network) validatedNetwork = null
-            notifyBrowseChanged(listOf(MediaIds.MIXES, MediaIds.PLAYLISTS))
+            notifyBrowseChanged(listOf(MediaIds.HOME, MediaIds.MIXES, MediaIds.PLAYLISTS))
         }
     }
 
@@ -148,6 +154,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         api = AivinApi.create(this)
+        browse = BrowseItems(this)
         offline = OfflineEngine.get(this)
         browseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -303,7 +310,8 @@ class PlaybackService : MediaLibraryService() {
             } else {
                 // TODO(#747): artwork. The image endpoint needs the bearer header and Android Auto
                 // cannot send one, so covers need a signed or public URL first.
-                LibraryResult.ofItem(folder(MediaIds.ROOT, getString(R.string.app_name)), params)
+                // The root's params carry the default content styles (grid tabs, list items).
+                LibraryResult.ofItem(browse.root(), browse.rootParams())
             }
         }
 
@@ -364,7 +372,7 @@ class PlaybackService : MediaLibraryService() {
                 detail ?: throw AivinException("Playlist nicht gefunden")
                 val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
                 if (start < 0) throw AivinException("Titel nicht in der Playlist")
-                val queue = detail.tracks.map { playable(detail.id, it, base) }
+                val queue = detail.tracks.map { browse.playable(detail.id, it, base) }
                 MediaSession.MediaItemsWithStartPosition(queue, start, C.TIME_UNSET)
             } else {
                 val resolved = resolve(mediaItems)
@@ -374,51 +382,125 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
+    /**
+     * The items of a browse folder. The offline state (snapshots and downloaded tracks) is read once per
+     * folder answer, never per item, so the badges cost one read.
+     */
     private suspend fun children(parentId: String): List<MediaItem> = when (val ref = MediaIds.parse(parentId)) {
         MediaRef.Root -> listOf(
-            folder(MediaIds.MIXES, getString(R.string.browse_mixes)),
-            folder(MediaIds.PLAYLISTS, getString(R.string.browse_playlists)),
-            folder(MediaIds.OFFLINE, getString(R.string.browse_offline)),
+            browse.tab(MediaIds.HOME, getString(R.string.browse_home), R.drawable.ic_tab_home),
+            browse.tab(MediaIds.MIXES, getString(R.string.browse_mixes), R.drawable.ic_tab_mixes),
+            browse.tab(MediaIds.PLAYLISTS, getString(R.string.browse_playlists), R.drawable.ic_tab_playlists),
+            browse.tab(MediaIds.OFFLINE, getString(R.string.browse_offline), R.drawable.ic_tab_offline),
         )
-        // No network: the offline copies are listed instead. If there are none, the error stands.
-        MediaRef.Mixes -> try {
-            mixes().also { answered(parentId, offline = false) }
-        } catch (e: IOException) {
-            answeredWithout(parentId, e)
-            offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }
-        }
-        MediaRef.Playlists -> try {
-            api.playlists().map { playlistItem(it.id, it.name, it.count) }.also { answered(parentId, offline = false) }
-        } catch (e: IOException) {
-            answeredWithout(parentId, e)
-            offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }
-        }
-        is MediaRef.Playlist -> {
-            // Opening a playlist always shows its current state; the tap then reuses this fetch.
-            val answer = try {
-                playlistOrOffline(ref.id, fresh = true)
-            } catch (e: IOException) {
-                answeredWithout(parentId, e)
-                throw e
-            }
-            if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
-            val detail = answer.detail
-            detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
-        }
+        MediaRef.Home -> homeFolder(parentId)
+        MediaRef.Mixes -> mixesFolder(parentId)
+        MediaRef.Playlists -> playlistsFolder(parentId)
+        is MediaRef.Playlist -> playlistTracks(parentId, ref.id)
         // The offline folder reads only the snapshots and the download index: it works without any network.
-        MediaRef.Offline -> offlineListing { true }
-        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks?.map { trackItem(ref.id, it) } ?: emptyList()
+        MediaRef.Offline -> offlineListing(offlineBadges()) { true }
+        // Every track of an offline copy is on disk, so each one is badged.
+        is MediaRef.OfflinePlaylist -> offlineCopy(ref.id)?.tracks
+            ?.map { browse.track(ref.id, it, ItemStyle(downloaded = true)) }
+            ?: emptyList()
         else -> emptyList()
     }
 
-    /** Only the mixes the user actually has. A mix answers 404 or no tracks when it is missing. */
-    private suspend fun mixes(): List<MediaItem> = coroutineScope {
-        MediaIds.MIX_IDS
-            .map { id -> async { playlist(id, fresh = true) } }
+    /**
+     * Home: the generated rows the user has. No network: the offline copies of them. If there are none,
+     * the error stands.
+     */
+    private suspend fun homeFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            fetchGenerated(MediaIds.HOME_IDS)
+                .map { detail ->
+                    browse.generated(detail, ItemStyle(BrowseGroups.Heading.FOR_YOU, downloaded = badges.playlistComplete(detail.id)))
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges, headingOf = { BrowseGroups.Heading.FOR_YOU }) { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
+        }
+    }
+
+    /**
+     * Mixes, then the stations, in one parallel batch. Each group has its heading; a 404 or an empty
+     * playlist is skipped. No network: the offline copies of both.
+     */
+    private suspend fun mixesFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            fetchGenerated(MediaIds.MIX_IDS + MediaIds.STATION_IDS)
+                .map { detail ->
+                    browse.generated(detail, ItemStyle(mixOrStationHeading(detail.id), downloaded = badges.playlistComplete(detail.id)))
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges, headingOf = ::mixOrStationHeading) { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }
+                .ifEmpty { throw e }
+        }
+    }
+
+    /**
+     * The playlists of the server, pinned first under their heading (see [BrowseGroups]). No network: the
+     * offline copies of the user's own playlists.
+     */
+    private suspend fun playlistsFolder(parentId: String): List<MediaItem> {
+        val badges = offlineBadges()
+        return try {
+            BrowseGroups.playlists(api.playlists()) { it.pinned }
+                .flatMap { group ->
+                    group.items.map {
+                        browse.playlist(it.id, it.name, it.count, ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)))
+                    }
+                }
+                .also { answered(parentId, offline = false) }
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            offlineListing(badges) { !MediaIds.isGenerated(it) }.ifEmpty { throw e }
+        }
+    }
+
+    /** The tracks of one playlist, from the server or, without network, its offline copy. */
+    private suspend fun playlistTracks(parentId: String, id: String): List<MediaItem> {
+        // Opening a playlist always shows its current state; the tap then reuses this fetch.
+        val answer = try {
+            playlistOrOffline(id, fresh = true)
+        } catch (e: IOException) {
+            answeredWithout(parentId, e)
+            throw e
+        }
+        if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
+        val detail = answer.detail ?: return emptyList()
+        val completed = offline.completedTrackhashes()
+        return detail.tracks.map { browse.track(detail.id, it, ItemStyle(downloaded = it.trackhash in completed)) }
+    }
+
+    /** The snapshots and the downloaded tracks, read once for one folder answer. */
+    private fun offlineBadges(): OfflineBrowse.Badges =
+        OfflineBrowse.Badges(offlineSnapshots(), offline.completedTrackhashes())
+
+    /**
+     * The generated playlists [ids] the user has, kept in the order of [ids]. A 404 or an empty
+     * playlist is skipped. A network failure fails the whole list, so the caller falls back to the
+     * offline copies.
+     *
+     * Android Auto loads every tab at once when it connects: Home, Mixes and Stations are 23
+     * playlists, each with all its tracks. The server answers one request at a time, so at most
+     * [GENERATED_PARALLEL] run together, and while the network is up a list fetched in the last
+     * minutes is taken from [playlists] (opening a playlist still fetches it fresh, see
+     * [playlistTracks]).
+     */
+    private suspend fun fetchGenerated(ids: List<String>): List<PlaylistDetail> = coroutineScope {
+        // The cache only while a validated network is up: without one a cached list would hide the
+        // offline copies (no IOException, no fallback), and tapping it would stream into a dead spot.
+        val useCache = validatedNetwork != null
+        ids.map { id -> async { generatedFetches.withPermit { playlist(id, fresh = !useCache) } } }
             .awaitAll()
             .filterNotNull()
             .filter { it.tracks.isNotEmpty() }
-            .map { playlistItem(it.id, it.name, it.tracks.size) }
     }
 
     /** A playlist from the cache, or fetched (and cached) when [fresh] or not cached. */
@@ -474,10 +556,29 @@ class PlaybackService : MediaLibraryService() {
         return offline.store.load().snapshots(account)
     }
 
-    /** The offline playlists that [include] selects and that have something to play, as `off:` items. */
-    private fun offlineListing(include: (String) -> Boolean): List<MediaItem> =
-        OfflineBrowse.listed(offlineSnapshots(), offline.completedTrackhashes(), include)
-            .map { playlistItem(it.id, it.name, it.tracks.size, offline = true) }
+    /**
+     * The offline playlists that [include] selects and that have something to play, as `off:` items.
+     * Badged when the whole copy is on disk, which the listing alone does not show: it keeps only the
+     * downloaded tracks.
+     */
+    private fun offlineListing(
+        badges: OfflineBrowse.Badges,
+        headingOf: (String) -> BrowseGroups.Heading? = { null },
+        include: (String) -> Boolean,
+    ): List<MediaItem> =
+        OfflineBrowse.listed(badges.snapshots, badges.completed, include).map {
+            browse.playlist(
+                it.id,
+                it.name,
+                it.tracks.size,
+                // The same headings as online, so the layout does not change with the network.
+                ItemStyle(headingOf(it.id), downloaded = badges.playlistComplete(it.id)),
+                offline = true,
+            )
+        }
+
+    private fun mixOrStationHeading(id: String): BrowseGroups.Heading =
+        if (id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
 
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {
@@ -492,7 +593,7 @@ class PlaybackService : MediaLibraryService() {
                 playlistOrOffline(ref.playlistId, fresh = false).detail.also { details[ref.playlistId] = it }
             }
             val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
-            out += playable(ref.playlistId, track, base)
+            out += browse.playable(ref.playlistId, track, base)
         }
         return out
     }
@@ -506,55 +607,6 @@ class PlaybackService : MediaLibraryService() {
         }
         return LibraryResult.ofError(code, params)
     }
-
-    private fun folder(id: String, title: String): MediaItem = MediaItem.Builder()
-        .setMediaId(id)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                .build(),
-        )
-        .build()
-
-    private fun playlistItem(id: String, name: String, count: Int, offline: Boolean = false): MediaItem = MediaItem.Builder()
-        .setMediaId(if (offline) MediaIds.offlinePlaylist(id) else MediaIds.playlist(id))
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(name)
-                .setSubtitle(resources.getQuantityString(R.plurals.track_count, count, count))
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
-                .build(),
-        )
-        .build()
-
-    /** Browse entry: no URI yet. The URI is added when the track is chosen. */
-    private fun trackItem(playlistId: String, track: TrackInfo): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.track(playlistId, track.trackhash))
-        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
-        .build()
-
-    /**
-     * The cache key is the trackhash, so a download made under another filepath (or another server
-     * address) is still found. Downloads use the same key, see [OfflineEngine.request].
-     */
-    private fun playable(playlistId: String, track: TrackInfo, base: String): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.track(playlistId, track.trackhash))
-        .setUri(StreamUrls.build(base, track.trackhash, track.filepath))
-        .setCustomCacheKey(track.trackhash)
-        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
-        .build()
-
-    private fun metadataOf(track: TrackInfo): MediaMetadata.Builder = MediaMetadata.Builder()
-        .setTitle(track.title)
-        .setArtist(track.artists.joinToString(", "))
-        .setAlbumTitle(track.album)
-        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-    // TODO(#747): setArtworkUri once covers can be fetched without the bearer header.
 
     // endregion
 
@@ -779,6 +831,9 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         private const val TAG = "PlaybackService"
+
+        /** Generated playlists fetched at once when a tab loads; the server serves one request at a time. */
+        private const val GENERATED_PARALLEL = 4
 
         /** How often a stale folder is probed while the server is unreachable. */
         private const val RETRY_INTERVAL_MS = 30_000L

@@ -48,6 +48,21 @@ class AivinJsonTest {
     }
 
     @Test
+    fun `reads the pinned flag and treats a missing one as not pinned`() {
+        val body = """
+            {"data":[
+              {"id":7,"name":"Roadtrip","count":3,"pinned":true},
+              {"id":12,"name":"Ruhig","count":0,"pinned":false},
+              {"id":13,"name":"Alt","count":1}
+            ]}
+        """.trimIndent()
+
+        val playlists = AivinJson.parsePlaylists(body)
+
+        assertEquals(listOf(true, false, false), playlists.map { it.pinned })
+    }
+
+    @Test
     fun `parses the playlist detail with tracks and artists`() {
         val body = """
             {"info":{"id":7,"name":"Roadtrip","count":2,"trackhashes":null},

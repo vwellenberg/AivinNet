@@ -64,6 +64,11 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    // Robolectric (TileRendererTest) reads the merged resources and the manifest.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -80,9 +85,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.appcompat)
+    // PathParser turns the tile glyphs' path data into a Path (TileRenderer).
+    implementation(libs.androidx.core)
 
     // android.jar ships org.json as stubs that throw in JVM unit tests; the real
     // implementation has to come from the test classpath.
     testImplementation(libs.org.json)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }

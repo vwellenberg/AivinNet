@@ -5,7 +5,7 @@ spielbar machen. Auf dem Telefon gibt es einen Anmeldebildschirm, mehr nicht. Di
 Arbeit macht ein Media3-`MediaLibraryService`; Android Auto baut seine Oberfläche selbst aus dem
 Browse-Baum auf.
 
-- **Baum:** Mixes · Playlists → Playlist → Titel (Auswahl setzt die ganze Playlist als Warteschlange)
+- **Baum:** Home · Mixes · Playlists · Offline → Playlist → Titel (Auswahl setzt die ganze Playlist als Warteschlange; was das Auto genau zeigt, steht unten)
 - **Streaming:** `GET /file/<trackhash>/legacy` mit Bearer-Token, Token-Refresh bei 401
 - **Offline:** markierte Mixes und Playlists werden aufs Telefon geladen und spielen auch ohne Netz (unten)
 - **Scrobbles:** `POST /logger/track/log` für jeden Titel, der mindestens 5 s lief; was ohne Netz
@@ -172,6 +172,31 @@ Sync). Antwortet der Server mit einem 4xx außer 401, 408 und 429 (z. B. 404, Ti
 nicht geladenen Titel. Fährt man danach in ein Funkloch, bricht die Wiedergabe beim ersten nicht
 geladenen Titel mit einem Fehler ab; Media3 überspringt ihn nicht von selbst. Wer offline startet,
 bekommt dagegen nur die geladenen Titel in die Warteschlange.
+
+## Was das Auto zeigt
+
+Android Auto zeichnet die Oberfläche selbst. Die App bestimmt nur, welche Reiter es gibt, ob Einträge
+als Raster oder als Liste erscheinen, welche Überschriften über den Gruppen stehen, welche Bilder es
+gibt und welche Abzeichen.
+
+- **Reiter:** Home · Mixes · Playlists · Offline. Die Symbole sind einfarbige Vektoren
+  (`res/drawable/ic_tab_*.xml`); das Auto tönt sie.
+- **Home:** die Home-Zeilen, die der Server als Playlist ausliefert (Überschrift „Für dich“), in
+  der Reihenfolge von `MediaIds.HOME_IDS`.
+- **Mixes:** „Deine Mixes“ (mix1 bis mix4) und „Sender“ (Genre-, Jahrzehnt- und Saisonsender aus
+  `MediaIds.STATION_IDS`).
+- **Playlists:** angepinnte zuerst unter „Angepinnt“, dann alle übrigen unter „Alle Playlists“, je in
+  der Reihenfolge des Servers. Ist nichts angepinnt, gibt es keine Überschriften.
+- **Offline:** die markierten Listen, nur mit den heruntergeladenen Titeln.
+- **Kacheln:** Mixes zeigen ihre Nummer, Home-Zeilen und Sender ein Symbol, Playlists ihren
+  Anfangsbuchstaben (zwei, wenn der zweite klein ist: „Ch“), Offline-Listen das Download-Symbol.
+  Die Kacheln werden lokal gezeichnet, ohne Netz, und im Cache abgelegt (`TileProvider`, die Regeln
+  in `TileSpec`, das Zeichnen in `TileRenderer`). Eine Kachel-URI nennt nur Art und Schlüssel; der
+  Provider liest nie einen Dateipfad aus ihr. Titel haben noch keine Bilder.
+- **Abzeichen:** Eine Playlist oder ein Mix, dessen Offline-Kopie vollständig auf dem Telefon
+  liegt, trägt das Download-Abzeichen, ebenso jeder Titel, der dort liegt. Home-Zeilen und Sender
+  lassen sich (noch) nicht offline markieren, die Offline-Liste auf dem Telefon bietet nur Mixes
+  und Playlists an.
 
 ## Aussehen
 

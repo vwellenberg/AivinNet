@@ -56,6 +56,21 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!--
+            The Memphis tiles, served as PNG artwork for Android Auto (TileProvider). Read-only and
+            without data of the user: each URI names one generated picture, nothing else.
+        -->
+        <!--
+            Exported on purpose: Android Auto reads the artwork from its own process, and it can only do so
+            through the open provider (no per-URI grant is handed out with a media item).
+        -->
+        <provider
+            android:name=".TileProvider"
+            android:authorities="${applicationId}.tiles"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            tools:ignore="ExportedContentProvider" />
+
         <!-- Android Auto recognises the app as a media app through this descriptor. -->
         <meta-data
             android:name="com.google.android.gms.car.application"

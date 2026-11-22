@@ -17,6 +17,23 @@ class MediaIdsTest {
         assertEquals(MediaRef.Root, MediaIds.parse("root"))
         assertEquals(MediaRef.Mixes, MediaIds.parse("mixes"))
         assertEquals(MediaRef.Playlists, MediaIds.parse("playlists"))
+        assertEquals(MediaRef.Home, MediaIds.parse("home"))
+    }
+
+    @Test
+    fun `generated playlists are listed as such and the user's own are not`() {
+        assertEquals(true, MediaIds.isGenerated("mix2"))
+        assertEquals(true, MediaIds.isGenerated("genre1"))
+        assertEquals(true, MediaIds.isGenerated("onrepeat"))
+        assertEquals(false, MediaIds.isGenerated("7"))
+    }
+
+    @Test
+    fun `mixes, stations and home rows do not overlap`() {
+        // The offline folders split on these lists: an id in two of them would show up twice.
+        assertEquals(emptySet<String>(), MediaIds.MIX_IDS.toSet() intersect MediaIds.STATION_IDS.toSet())
+        assertEquals(emptySet<String>(), MediaIds.STATION_IDS.toSet() intersect MediaIds.HOME_IDS.toSet())
+        assertEquals(emptySet<String>(), MediaIds.MIX_IDS.toSet() intersect MediaIds.HOME_IDS.toSet())
     }
 
     @Test

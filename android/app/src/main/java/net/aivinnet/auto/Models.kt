@@ -16,6 +16,8 @@ data class PlaylistSummary(
     val id: String,
     val name: String,
     val count: Int,
+    /** The user pinned it on the server; the car lists pinned playlists first. Missing in old answers: false. */
+    val pinned: Boolean = false,
 )
 
 /** One track of `GET /playlists/<id>?limit=-1`, as serialised by serializers/track.py. */
@@ -81,6 +83,7 @@ object AivinJson {
                 id = playlist.get("id").toString(),
                 name = playlist.optString("name", ""),
                 count = playlist.optInt("count", 0),
+                pinned = playlist.optBoolean("pinned", false),
             )
         }
     }
