@@ -87,6 +87,11 @@ legt sie dort an — der ist dann ohnehin neuer als die Entfernung.
   gefüllt. ⚠️ Recently added liest **nicht** die mtime (`last_mod`): Mit ihr stand nach einer
   Tag-Reparatur der ganze `100-Musicians`-Ordner als „NEW MUSIC“ oben. Warum, und was jeder
   Schreibpfad mittragen muss: `track-tags.md`, „Hinzugefügt ist nicht geändert“.
+  ⚠️ **Eine Ordnergruppe hält jede Datei, die je darin lag** — ihr neuester Track macht sie nicht
+  ganz neu. Ein neuer Song lose im Stammordner zeigte den Stammordner als „NEW MUSIC · 12837
+  Tracks“. Ist ein Ordner weder Album noch Artist, zählt nur der Schub um den neuesten Track
+  (`recent_folders.fresh_batch`, ein Tag Spielraum); unter 3 davon und **immer** in einem
+  Bibliotheks-Root werden es Track-Karten, nie eine Ordnerkarte.
   Die Zeile ist **für alle gleich** (gespeichert unter User 0), nur der Stempel „NEW · to you“
   ist pro User (#533): `RecentlyAddedHomepageEntry.get_items` setzt `home: {unheard: true}` auf
   jedes Album, von dem der User noch keinen Track gehört hat. Die Quelle ist derselbe

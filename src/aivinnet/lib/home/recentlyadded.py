@@ -1,7 +1,15 @@
 import pathlib
+from collections.abc import Collection
 from datetime import datetime
 from itertools import groupby
 
+from aivinnet.config import UserConfig
+from aivinnet.lib.home.recent_folders import (
+    NEW_TOLERANCE_SECONDS,
+    fresh_batch,
+    root_prefixes,
+    show_as_folder,
+)
 from aivinnet.lib.playlistlib import get_first_4_images
 from aivinnet.models.playlist import Playlist
 from aivinnet.models.track import Track
@@ -13,8 +21,6 @@ from aivinnet.utils.dates import (
     create_new_date,
     date_string_to_time_passed,
 )
-
-NEW_TOLERANCE_SECONDS = 86_400
 
 older_albums = set()
 older_artists = set()
@@ -45,14 +51,6 @@ def check_is_artist_folder(tracks: list[Track]):
     return calc_based_on_percent(artisthashes, len(tracks))
 
 
-def check_is_track_folder(tracks: list[Track]):
-    # INFO: is more of a playlist
-    if len(tracks) >= 3:
-        return False
-
-    return [create_track(t) for t in tracks]
-
-
 def create_track(t: Track):
     """
     Creates a recently added track entry.
@@ -69,7 +67,7 @@ def create_track(t: Track):
 # group_type = dict[str, str | list[Track] | float]
 
 
-def check_folder_type(group_: dict):
+def check_folder_type(group_: dict, roots: Collection[str] = ()):
     # check if all tracks in group have the same albumhash
     # if so, return "album"
     key: str = group_["folder"]
@@ -117,18 +115,19 @@ def check_folder_type(group_: dict):
             "help_text": ("NEW ARTIST" if entry.artist.created_date >= new_since else "NEW MUSIC"),
         }
 
-    is_track_folder = check_is_track_folder(tracks)
+    # Neither album nor artist: only what came in with the newest file is new.
+    # The group holds every file that ever landed here, so one new song in the
+    # library root showed the whole library as "NEW MUSIC" (12837 Tracks).
+    fresh = fresh_batch(tracks)
+    if not show_as_folder(key, fresh, roots):
+        return [create_track(t) for t in fresh]
 
-    return (
-        is_track_folder
-        if is_track_folder
-        else {
-            "type": "folder",
-            "hash": key,
-            "timestamp": time,
-            "help_text": "NEW MUSIC",
-        }
-    )
+    return {
+        "type": "folder",
+        "hash": key,
+        "timestamp": time,
+        "help_text": "NEW MUSIC",
+    }
 
 
 def group_track_by_folders(tracks: list[Track], groups: dict[str, list[Track]]):
@@ -173,9 +172,10 @@ def get_recently_added_items(limit: int = 7):
     grouplist = sorted(grouplist, key=lambda group: group["time"], reverse=True)
 
     recent_items = []
+    roots = root_prefixes(UserConfig().rootDirs, pathlib.Path.home())
 
     for group in grouplist:
-        item = check_folder_type(group)
+        item = check_folder_type(group, roots)
 
         if item not in recent_items:
             if not item:
@@ -186,7 +186,8 @@ def get_recently_added_items(limit: int = 7):
         if len(recent_items) >= limit:
             break
 
-    return recent_items
+    # A batch of loose files in a library root comes as tracks, not as one card.
+    return recent_items[:limit]
 
 
 def get_recently_added_playlist(limit: int = 100):

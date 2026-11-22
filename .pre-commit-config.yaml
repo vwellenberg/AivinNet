@@ -40,6 +40,7 @@ repos:
           src/aivinnet/lib/orphaned_plays.py,
           src/aivinnet/lib/rescan_remap.py,
           src/aivinnet/lib/play_floor.py,
+          src/aivinnet/lib/home/recent_folders.py,
           src/aivinnet/lib/skip_rate.py,
           src/aivinnet/lib/date_added.py,
           src/aivinnet/lib/rewind.py,
