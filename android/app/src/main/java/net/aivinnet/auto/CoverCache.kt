@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
+import androidx.core.graphics.createBitmap
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -79,7 +80,7 @@ object CoverCache {
             inSampleSize = CoverSpec.sampleSize(bounds.outWidth, bounds.outHeight)
         }
         val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeAt) ?: return null
-        val target = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+        val target = createBitmap(width, height, Bitmap.Config.RGB_565)
         try {
             Canvas(target).apply {
                 drawColor(Color.WHITE)
