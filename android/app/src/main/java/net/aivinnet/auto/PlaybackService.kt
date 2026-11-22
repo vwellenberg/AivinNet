@@ -88,7 +88,7 @@ class PlaybackService : MediaLibraryService() {
     /** One probe at a time: the network callbacks and the retry loop can both ask for one. */
     private val refreshMutex = Mutex()
 
-    /** The loop that probes every [RETRY_INTERVAL_MS] while a folder is stale. Guarded by [retryLock]. */
+    /** The loop that probes every [RETRY_INTERVAL_MS] while a folder is stale; null when none runs. Guarded by [retryLock]. */
     private val retryLock = Any()
     private var retryJob: Job? = null
 
@@ -102,14 +102,33 @@ class PlaybackService : MediaLibraryService() {
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) = probeIfStale()
 
-        /** The network can be "available" before the server is reachable (VPN, DS-Lite), so only a validated one counts. */
+        /**
+         * The network can be "available" before the server is reachable (VPN, DS-Lite), so only a
+         * validated one counts. This also fires on every signal change, so the queues are sent once
+         * per network that becomes validated, not on each call.
+         */
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-            if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) probeIfStale()
+            if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+            if (validatedNetwork != network) {
+                validatedNetwork = network
+                // Plays and ratings from the dead spot go out now, whether or not a list was shown offline.
+                scrobbleScope.launch {
+                    offline.flushScrobbles(api)
+                    offline.flushRatings(api)
+                }
+            }
+            probeIfStale()
         }
 
         /** Network gone: the car asks for the two lists again and gets their offline copies. */
-        override fun onLost(network: Network) = notifyBrowseChanged(listOf(MediaIds.MIXES, MediaIds.PLAYLISTS))
+        override fun onLost(network: Network) {
+            if (validatedNetwork == network) validatedNetwork = null
+            notifyBrowseChanged(listOf(MediaIds.MIXES, MediaIds.PLAYLISTS))
+        }
     }
+
+    /** The network the queues were last sent on; only the network callback thread touches it. */
+    private var validatedNetwork: Network? = null
 
     /**
      * The rating button acts on the playing track. [ratedTrack] is its trackhash, [shownRating] the
@@ -524,11 +543,19 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun startRetryLoop() {
         synchronized(retryLock) {
-            if (retryJob?.isActive == true) return
+            if (retryJob != null) return
             retryJob = browseScope.launch {
-                while (freshness.hasStale()) {
+                while (true) {
                     delay(RETRY_INTERVAL_MS)
                     refreshBrowse()
+                    // The end is decided under the lock: a folder marked stale right now either sees
+                    // this loop still running, or finds retryJob cleared and starts a new one.
+                    synchronized(retryLock) {
+                        if (!freshness.hasStale()) {
+                            retryJob = null
+                            return@launch
+                        }
+                    }
                 }
             }
         }
@@ -558,7 +585,8 @@ class PlaybackService : MediaLibraryService() {
                 return
             }
             notifyBrowseChanged(freshness.takeStale())
-            // Plays and ratings queued in the dead spot wait for this, not for the next service start.
+            // The server answers again: what was queued in the dead spot goes now (a VPN can come
+            // back without a new validated network, so the network callback alone would miss it).
             scrobbleScope.launch {
                 offline.flushScrobbles(api)
                 offline.flushRatings(api)
