@@ -114,4 +114,28 @@ class AivinJsonTest {
 
         assertEquals(listOf("Echt"), AivinJson.parsePlaylistDetail("1", body).tracks.single().artists)
     }
+
+    @Test
+    fun `a playlist with its own image keeps the image name`() {
+        val body = """
+            {"data":[
+              {"id":7,"name":"Chill","count":3,"pinned":false,"image":"7.webp","has_image":true,"thumb":"thumb_7.webp"},
+              {"id":8,"name":"Plain","count":0,"image":"None","has_image":false,"thumb":"None"},
+              {"id":9,"name":"Images","count":1,"image":null,"has_image":false,"images":[]}
+            ]}
+        """.trimIndent()
+
+        val (own, none, collage) = AivinJson.parsePlaylists(body)
+
+        assertEquals("7.webp", own.coverImage)
+        assertEquals(null, none.coverImage)
+        assertEquals(null, collage.coverImage)
+    }
+
+    @Test
+    fun `has_image without a name is no cover`() {
+        val body = """{"data":[{"id":1,"name":"X","count":0,"image":"","has_image":true}]}"""
+
+        assertEquals(null, AivinJson.parsePlaylists(body).single().coverImage)
+    }
 }

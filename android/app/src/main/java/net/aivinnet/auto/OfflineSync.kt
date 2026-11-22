@@ -6,6 +6,8 @@ import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
@@ -66,6 +68,7 @@ class OfflineSync(
             byHash[hash]?.let { OfflineEngine.request(hash, StreamUrls.build(base, hash, it.filepath)) }
         }
         val direct = submit(adds, diff.toRemove)
+        fetchCovers(currentTracks)
 
         engine.flushScrobbles(api)
         engine.flushRatings(api)
@@ -78,6 +81,20 @@ class OfflineSync(
             removed = diff.toRemove.size,
             needsKeepAlive = direct && adds.isNotEmpty(),
         )
+    }
+
+    /**
+     * Fetches the covers of [tracks] into the cover cache, so the car shows them with no network. One
+     * fetch per cover: the cache name is the album's image and folder, so an album's tracks share a file.
+     * A cover already cached is touched, which keeps the prune from taking the offline ones first. A
+     * cover that fails is skipped; the car then shows its placeholder, as it does online. Sequential,
+     * and it stops at the next cover once the sync is cancelled.
+     */
+    private suspend fun fetchCovers(tracks: List<TrackInfo>) {
+        for (cover in tracks.mapNotNull { CoverSpec.ofTrack(it.image) }.distinct()) {
+            currentCoroutineContext().ensureActive()
+            CoverCache.ensure(context, api, cover, PREFETCH_DEADLINE_MS)
+        }
     }
 
     /**
@@ -112,3 +129,6 @@ class OfflineSync(
         return true
     }
 }
+
+/** A cover of the offline sync may take longer than a car's wait; the sync is a background job. */
+private const val PREFETCH_DEADLINE_MS = 15_000L

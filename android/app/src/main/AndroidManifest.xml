@@ -71,6 +71,18 @@
             android:grantUriPermissions="false"
             tools:ignore="ExportedContentProvider" />
 
+        <!--
+            The album and playlist covers, served as JPEG artwork for Android Auto (CoverProvider). Read-only;
+            each URI names one cover the app has fetched with the login, and the token is never in a URI.
+            Exported for the same reason as the tiles: the car reads the artwork from its own process.
+        -->
+        <provider
+            android:name=".CoverProvider"
+            android:authorities="${applicationId}.covers"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            tools:ignore="ExportedContentProvider" />
+
         <!-- Android Auto recognises the app as a media app through this descriptor. -->
         <meta-data
             android:name="com.google.android.gms.car.application"

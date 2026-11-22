@@ -308,8 +308,6 @@ class PlaybackService : MediaLibraryService() {
             if (!api.isLoggedIn) {
                 LibraryResult.ofError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, params)
             } else {
-                // TODO(#747): artwork. The image endpoint needs the bearer header and Android Auto
-                // cannot send one, so covers need a signed or public URL first.
                 // The root's params carry the default content styles (grid tabs, list items).
                 LibraryResult.ofItem(browse.root(), browse.rootParams())
             }
@@ -453,7 +451,13 @@ class PlaybackService : MediaLibraryService() {
             BrowseGroups.playlists(api.playlists()) { it.pinned }
                 .flatMap { group ->
                     group.items.map {
-                        browse.playlist(it.id, it.name, it.count, ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)))
+                        browse.playlist(
+                    it.id,
+                    it.name,
+                    it.count,
+                    ItemStyle(group.heading, downloaded = badges.playlistComplete(it.id)),
+                    coverImage = it.coverImage,
+                )
                     }
                 }
                 .also { answered(parentId, offline = false) }

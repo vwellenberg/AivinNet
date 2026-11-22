@@ -2,17 +2,21 @@ package net.aivinnet.auto
 
 import android.content.Context
 import android.content.SharedPreferences
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /** Any failed call to the AivinNet server. It is an IOException, so OkHttp and Media3 pass it on. */
@@ -170,6 +174,47 @@ class AivinApi private constructor(
         AivinJson.parsePlaylists(text)
     }
 
+    /**
+     * The bytes of one image under `/img/…` (a track's or a playlist's cover), fetched with the bearer
+     * token. The image endpoints require the login, and Android Auto cannot send it, so the app fetches
+     * the picture itself and hands it on (see [CoverProvider]).
+     *
+     * The call runs on OkHttp's dispatcher and is cancelled with the coroutine, so a caller's deadline
+     * really ends the request instead of leaving it to run on. A 200 that carries the server's placeholder
+     * marker is refused: the placeholder is a picture for a missing cover, and caching it would show it
+     * for good. Throws [AivinException] for every failure.
+     */
+    suspend fun imageBytes(segments: List<String>, pathhash: String?): ByteArray = suspendCancellableCoroutine { cont ->
+        val url = requireBaseUrl().toHttpUrl().newBuilder().apply {
+            segments.forEach(::addPathSegment)
+            if (pathhash != null) addQueryParameter(CoverSpec.PARAM_PATHHASH, pathhash)
+        }.build()
+        val call = authedClient.newCall(Request.Builder().url(url).get().build())
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                cont.resumeWith(Result.failure(e))
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                // Every failure must reach the continuation: one that escaped here would leave the caller
+                // suspended until its deadline, or for good without one.
+                cont.resumeWith(
+                    runCatching {
+                        response.use { r ->
+                            when {
+                                r.code !in 200..299 -> throw ServerException(r.code, "Bild nicht abrufbar (HTTP ${r.code})")
+                                r.header(PLACEHOLDER_HEADER) != null -> throw AivinException("Kein eigenes Bild auf dem Server")
+                                r.body.contentLength() > MAX_IMAGE_BYTES -> throw AivinException("Bild zu groß")
+                            }
+                            r.body.bytes()
+                        }
+                    },
+                )
+            }
+        })
+    }
+
     /** Null when the server does not know the id (404), e.g. a mix the user does not have. */
     suspend fun playlist(id: String): PlaylistDetail? = withContext(Dispatchers.IO) {
         val (code, text) = authedGet("/playlists/$id?limit=-1")
@@ -243,6 +288,12 @@ class AivinApi private constructor(
 
     companion object {
         private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
+
+        /** The header the image endpoints set on their placeholder (api/imgserver.py, PLACEHOLDER_HEADER). */
+        private const val PLACEHOLDER_HEADER = "X-Aivinnet-Placeholder"
+
+        /** Largest cover the app reads; a picture above it is not a cover of the car's size. */
+        private const val MAX_IMAGE_BYTES = 8L * 1024 * 1024
 
         /** Each caller (the service, the activity) builds its own instance; they share the prefs. */
         fun create(context: Context): AivinApi {

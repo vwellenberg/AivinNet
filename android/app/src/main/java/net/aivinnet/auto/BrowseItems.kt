@@ -75,20 +75,24 @@ class BrowseItems(private val context: Context) {
     fun generated(detail: PlaylistDetail, style: ItemStyle): MediaItem =
         playlist(detail.id, detail.name, detail.tracks.size, style)
 
-    /** A playlist (`pl:`) or, with [offline], an offline playlist (`off:`) of the browse tree. */
+    /**
+     * A playlist (`pl:`) or, with [offline], an offline playlist (`off:`) of the browse tree. [coverImage]
+     * is the playlist's own cover from the server; without one, or offline, its tile is shown.
+     */
     fun playlist(
         id: String,
         name: String,
         count: Int,
         style: ItemStyle = ItemStyle.NONE,
         offline: Boolean = false,
+        coverImage: String? = null,
     ): MediaItem = MediaItem.Builder()
         .setMediaId(if (offline) MediaIds.offlinePlaylist(id) else MediaIds.playlist(id))
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(name)
                 .setSubtitle(context.resources.getQuantityString(R.plurals.track_count, count, count))
-                .setArtworkUri(artworkFor(id, name, offline))
+                .setArtworkUri(artworkFor(id, name, offline, coverImage))
                 .setIsBrowsable(true)
                 .setIsPlayable(false)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
@@ -98,10 +102,17 @@ class BrowseItems(private val context: Context) {
         .build()
 
     /**
-     * The tile of a playlist: a mix, a home row or a station has its own, an offline copy the download
-     * glyph, and any other playlist its letter. The name is cut to the longest one a tile URI takes.
+     * The picture of a playlist: its own cover when the server has one, otherwise a tile. A mix, a home
+     * row or a station has its own tile, an offline copy the download glyph, and any other playlist its
+     * letter. The name is cut to the longest one a tile URI takes.
      */
-    private fun artworkFor(id: String, name: String, offline: Boolean): Uri = when {
+    private fun artworkFor(id: String, name: String, offline: Boolean, coverImage: String?): Uri {
+        // Offline copies carry no image in their snapshot, so they keep the download tile.
+        val own = if (offline) null else coverImage?.let { CoverSpec.ofPlaylist(it) }
+        return own?.let { CoverProvider.uri(context.packageName, it) } ?: tileFor(id, name, offline)
+    }
+
+    private fun tileFor(id: String, name: String, offline: Boolean): Uri = when {
         offline -> TileProvider.uri(context.packageName, TileSpec.Kind.OFFLINE, id)
         id in MediaIds.MIX_IDS -> TileProvider.uri(context.packageName, TileSpec.Kind.MIX, id)
         id in MediaIds.HOME_IDS -> TileProvider.uri(context.packageName, TileSpec.Kind.ROW, id)
@@ -149,7 +160,11 @@ class BrowseItems(private val context: Context) {
         .setArtist(track.artists.joinToString(", "))
         .setAlbumTitle(track.album)
         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-    // TODO(#747): setArtworkUri for tracks once covers can be fetched without the bearer header.
+        .setArtworkUri(coverOf(track))
+
+    /** The album cover of a track, served by [CoverProvider]; null when the track has no image. */
+    private fun coverOf(track: TrackInfo): Uri? =
+        CoverSpec.ofTrack(track.image)?.let { CoverProvider.uri(context.packageName, it) }
 
     /** Applies the group heading and the download badge; each is set only when present. */
     private fun MediaMetadata.Builder.styled(style: ItemStyle): MediaMetadata.Builder = apply {
