@@ -9,6 +9,15 @@ sealed interface MediaRef {
     data class Playlist(val id: String) : MediaRef
     data class Track(val playlistId: String, val trackhash: String) : MediaRef
 
+    /** A track from a search result (`st:<trackhash>`). Its queue is the search's track list, from this track on. */
+    data class SearchTrack(val trackhash: String) : MediaRef
+
+    /** An album from a search result (`al:<albumhash>`), browsable: it lists the album's tracks. */
+    data class Album(val albumhash: String) : MediaRef
+
+    /** A track inside an album (`at:<albumhash>:<trackhash>`). Its queue is the album's tracks, from this one on. */
+    data class AlbumTrack(val albumhash: String, val trackhash: String) : MediaRef
+
     /** An offline playlist, listed from its snapshot with only the downloaded tracks (no network). */
     data class OfflinePlaylist(val id: String) : MediaRef
     data object Offline : MediaRef
@@ -21,6 +30,9 @@ sealed interface MediaRef {
  *  - `pl:<playlistid>` (a playlist; numeric, or `mix1`..`mix4` for generated mixes)
  *  - `off:<playlistid>` (an offline playlist, from its snapshot: only downloaded tracks)
  *  - `tr:<playlistid>:<trackhash>` (a track inside a playlist)
+ *  - `st:<trackhash>` (a track of the last search results; the queue is that search's track list)
+ *  - `al:<albumhash>` (an album of the search results; browsable, lists its tracks)
+ *  - `at:<albumhash>:<trackhash>` (a track inside such an album)
  *
  * Playlist ids never contain a colon and trackhashes are hex, so the split is unambiguous.
  */
@@ -66,6 +78,12 @@ object MediaIds {
     private const val PLAYLIST_PREFIX = "pl:"
     private const val OFFLINE_PREFIX = "off:"
     private const val TRACK_PREFIX = "tr:"
+    private const val SEARCH_TRACK_PREFIX = "st:"
+    private const val ALBUM_PREFIX = "al:"
+    private const val ALBUM_TRACK_PREFIX = "at:"
+
+    /** The scrobble source of a search: the server's `q:` kind, without the query text. */
+    private const val SEARCH_SOURCE = "q:"
 
     /** Whether [id] is a playlist the server generates (a mix, a home row or a station), not one the user made. */
     fun isGenerated(id: String): Boolean = id in MIX_IDS || id in STATION_IDS || id in HOME_IDS
@@ -75,6 +93,35 @@ object MediaIds {
     fun offlinePlaylist(id: String): String = OFFLINE_PREFIX + id
 
     fun track(playlistId: String, trackhash: String): String = "$TRACK_PREFIX$playlistId:$trackhash"
+
+    fun searchTrack(trackhash: String): String = SEARCH_TRACK_PREFIX + trackhash
+
+    /**
+     * The trackhash of a track ref, whichever list it came from; null for everything that is not a track.
+     * The scrobbler and the rating button use this, so a track from a search or an album counts like any other.
+     */
+    fun trackhashOf(ref: MediaRef): String? = when (ref) {
+        is MediaRef.Track -> ref.trackhash
+        is MediaRef.SearchTrack -> ref.trackhash
+        is MediaRef.AlbumTrack -> ref.trackhash
+        else -> null
+    }
+
+    /**
+     * The play source a scrobble of [ref] is sent with, in the server's form (`listening_sources.py`): `pl:<id>`
+     * for a playlist, `al:<albumhash>` for an album, `q:` for a search. Null for anything that is not a track.
+     * A search's query is not sent: the source only says that the play came from a search.
+     */
+    fun scrobbleSource(ref: MediaRef): String? = when (ref) {
+        is MediaRef.Track -> PLAYLIST_PREFIX + ref.playlistId
+        is MediaRef.AlbumTrack -> "al:${ref.albumhash}"
+        is MediaRef.SearchTrack -> SEARCH_SOURCE
+        else -> null
+    }
+
+    fun album(albumhash: String): String = ALBUM_PREFIX + albumhash
+
+    fun albumTrack(albumhash: String, trackhash: String): String = "$ALBUM_TRACK_PREFIX$albumhash:$trackhash"
 
     fun parse(mediaId: String?): MediaRef = when {
         mediaId == null -> MediaRef.Unknown
@@ -100,6 +147,24 @@ object MediaIds {
             } else {
                 MediaRef.Unknown
             }
+        }
+        mediaId.startsWith(SEARCH_TRACK_PREFIX) -> {
+            val trackhash = mediaId.removePrefix(SEARCH_TRACK_PREFIX)
+            if (trackhash.isNotEmpty() && ':' !in trackhash) MediaRef.SearchTrack(trackhash) else MediaRef.Unknown
+        }
+        mediaId.startsWith(ALBUM_TRACK_PREFIX) -> {
+            val rest = mediaId.removePrefix(ALBUM_TRACK_PREFIX)
+            val albumhash = rest.substringBefore(':', "")
+            val trackhash = rest.substringAfter(':', "")
+            if (albumhash.isNotEmpty() && trackhash.isNotEmpty() && ':' !in trackhash) {
+                MediaRef.AlbumTrack(albumhash, trackhash)
+            } else {
+                MediaRef.Unknown
+            }
+        }
+        mediaId.startsWith(ALBUM_PREFIX) -> {
+            val albumhash = mediaId.removePrefix(ALBUM_PREFIX)
+            if (albumhash.isNotEmpty() && ':' !in albumhash) MediaRef.Album(albumhash) else MediaRef.Unknown
         }
         else -> MediaRef.Unknown
     }

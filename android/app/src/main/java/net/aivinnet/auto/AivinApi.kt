@@ -233,6 +233,46 @@ class AivinApi private constructor(
         }
     }
 
+    /**
+     * `GET /search/?itemtype=tracks`: the best matches first, at most [limit]. One request; the server's
+     * `/search/top` would answer with only four tracks, so the car's list of up to 15 uses this one.
+     */
+    suspend fun searchTracks(query: String, limit: Int): List<TrackInfo> = withContext(Dispatchers.IO) {
+        AivinJson.parseSearchTracks(searchGet(query, "tracks", limit))
+    }
+
+    /** `GET /search/?itemtype=albums`: the best matching albums first, at most [limit]. */
+    suspend fun searchAlbums(query: String, limit: Int): List<AlbumSummary> = withContext(Dispatchers.IO) {
+        AivinJson.parseSearchAlbums(searchGet(query, "albums", limit))
+    }
+
+    /**
+     * `GET /album/<albumhash>/tracks`, the album's tracks in disc and track order. Null when the server does
+     * not know the album (404), e.g. one that was removed since the search.
+     */
+    suspend fun albumTracks(albumhash: String): List<TrackInfo>? = withContext(Dispatchers.IO) {
+        val (code, text) = authedGet("/album/$albumhash/tracks")
+        when {
+            code == 404 -> null
+            code !in 200..299 -> throw ServerException(code, "Album nicht abrufbar (HTTP $code)")
+            // The server answers an unknown album with 200 and [] (AlbumStore.get_album_tracks), not 404.
+            else -> AivinJson.parseTrackList(text).ifEmpty { null }
+        }
+    }
+
+    /** The search endpoint with the query encoded by [HttpUrl], never spliced into the path. */
+    private fun searchGet(query: String, itemtype: String, limit: Int): String {
+        val url = requireBaseUrl().toHttpUrl().newBuilder()
+            .addPathSegments("search/")
+            .addQueryParameter("q", query)
+            .addQueryParameter("itemtype", itemtype)
+            .addQueryParameter("limit", limit.toString())
+            .build()
+        val (code, text) = execute(authedClient, Request.Builder().url(url).get().build())
+        if (code !in 200..299) throw ServerException(code, "Suche nicht abrufbar (HTTP $code)")
+        return text
+    }
+
     suspend fun logPlay(play: ScrobblePlay) = withContext(Dispatchers.IO) {
         val base = requireBaseUrl()
         val body = JSONObject()

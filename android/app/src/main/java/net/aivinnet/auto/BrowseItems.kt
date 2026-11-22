@@ -68,6 +68,8 @@ class BrowseItems(private val context: Context) {
             BrowseGroups.Heading.FOR_YOU -> R.string.group_for_you
             BrowseGroups.Heading.MIXES -> R.string.group_mixes
             BrowseGroups.Heading.STATIONS -> R.string.group_stations
+            BrowseGroups.Heading.TRACKS -> R.string.group_search_tracks
+            BrowseGroups.Heading.ALBUMS -> R.string.group_search_albums
         },
     )
 
@@ -135,8 +137,50 @@ class BrowseItems(private val context: Context) {
      * The cache key is the trackhash, so a download made under another filepath (or another server
      * address) is still found. Downloads use the same key, see [OfflineEngine.request].
      */
-    fun playable(playlistId: String, track: TrackInfo, base: String): MediaItem = MediaItem.Builder()
-        .setMediaId(MediaIds.track(playlistId, track.trackhash))
+    fun playable(playlistId: String, track: TrackInfo, base: String): MediaItem =
+        playableAs(MediaIds.track(playlistId, track.trackhash), track, base)
+
+    /** A search result's track in the car: its group heading and badge, no URI until it is chosen. */
+    fun searchTrack(track: TrackInfo, style: ItemStyle = ItemStyle.NONE): MediaItem = MediaItem.Builder()
+        .setMediaId(MediaIds.searchTrack(track.trackhash))
+        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).styled(style).build())
+        .build()
+
+    /** The playable form of a search track (`st:`), with its stream URI. */
+    fun searchPlayable(track: TrackInfo, base: String): MediaItem =
+        playableAs(MediaIds.searchTrack(track.trackhash), track, base)
+
+    /** A track of an album in the car (`at:`): browsable from the album, no URI until it is chosen. */
+    fun albumTrack(albumhash: String, track: TrackInfo, style: ItemStyle = ItemStyle.NONE): MediaItem = MediaItem.Builder()
+        .setMediaId(MediaIds.albumTrack(albumhash, track.trackhash))
+        .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).styled(style).build())
+        .build()
+
+    /** The playable form of an album track (`at:`), with its stream URI. */
+    fun albumPlayable(albumhash: String, track: TrackInfo, base: String): MediaItem =
+        playableAs(MediaIds.albumTrack(albumhash, track.trackhash), track, base)
+
+    /**
+     * An album of a search result (`al:`): browsable, its cover is the album's image. The subtitle is the
+     * artists, like the car shows it for an album.
+     */
+    fun album(album: AlbumSummary, style: ItemStyle = ItemStyle.NONE): MediaItem = MediaItem.Builder()
+        .setMediaId(MediaIds.album(album.albumhash))
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(album.title)
+                .setArtist(album.artists.joinToString(", "))
+                .setArtworkUri(coverOfImage(album.image))
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+                .styled(style)
+                .build(),
+        )
+        .build()
+
+    private fun playableAs(mediaId: String, track: TrackInfo, base: String): MediaItem = MediaItem.Builder()
+        .setMediaId(mediaId)
         .setUri(StreamUrls.build(base, track.trackhash, track.filepath))
         .setCustomCacheKey(track.trackhash)
         .setMediaMetadata(metadataOf(track).setIsBrowsable(false).setIsPlayable(true).build())
@@ -160,11 +204,14 @@ class BrowseItems(private val context: Context) {
         .setArtist(track.artists.joinToString(", "))
         .setAlbumTitle(track.album)
         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-        .setArtworkUri(coverOf(track))
+        .setArtworkUri(coverOfImage(track.image))
 
-    /** The album cover of a track, served by [CoverProvider]; null when the track has no image. */
-    private fun coverOf(track: TrackInfo): Uri? =
-        CoverSpec.ofTrack(track.image)?.let { CoverProvider.uri(context.packageName, it) }
+    /**
+     * The cover behind an `image` field of the server, served by [CoverProvider]; null when there is none. A
+     * track's and an album's image have the same form, so both go through [CoverSpec.ofTrack].
+     */
+    private fun coverOfImage(image: String): Uri? =
+        CoverSpec.ofTrack(image)?.let { CoverProvider.uri(context.packageName, it) }
 
     /** Applies the group heading and the download badge; each is set only when present. */
     private fun MediaMetadata.Builder.styled(style: ItemStyle): MediaMetadata.Builder = apply {

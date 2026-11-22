@@ -37,6 +37,17 @@ data class TrackInfo(
     val image: String,
 )
 
+/**
+ * One album of `GET /search/?itemtype=albums`, as serialized by serializers/album.py. [image] has the
+ * same `<albumhash>.webp?pathhash=<hash>` form as a track's, so the track cover rules read it.
+ */
+data class AlbumSummary(
+    val albumhash: String,
+    val title: String,
+    val artists: List<String>,
+    val image: String,
+)
+
 /** `GET /playlists/<id>?limit=-1`: `info.name` plus the resolvable tracks. */
 data class PlaylistDetail(
     val id: String,
@@ -106,6 +117,36 @@ object AivinJson {
             tracks = (0 until tracks.length()).map { parseTrack(tracks.getJSONObject(it)) },
         )
     }
+
+    /** `GET /search/?itemtype=tracks&q=…`: `{"results": [track, …], "more": bool}`. */
+    fun parseSearchTracks(body: String): List<TrackInfo> = parsing {
+        trackArray(JSONObject(body).optJSONArray("results") ?: JSONArray())
+    }
+
+    /** `GET /search/?itemtype=albums&q=…`: `{"results": [album, …], "more": bool}`. */
+    fun parseSearchAlbums(body: String): List<AlbumSummary> = parsing {
+        val results = JSONObject(body).optJSONArray("results") ?: JSONArray()
+        (0 until results.length()).map { index ->
+            val album = results.getJSONObject(index)
+            val artists = album.optJSONArray("albumartists") ?: JSONArray()
+            AlbumSummary(
+                albumhash = album.getString("albumhash"),
+                title = album.optString("title", ""),
+                artists = (0 until artists.length())
+                    .mapNotNull { artists.optJSONObject(it)?.optString("name", "") }
+                    .filter { it.isNotBlank() },
+                image = album.optString("image", ""),
+            )
+        }
+    }
+
+    /** `GET /album/<albumhash>/tracks`: a bare JSON array of tracks. */
+    fun parseTrackList(body: String): List<TrackInfo> = parsing {
+        trackArray(JSONArray(body))
+    }
+
+    private fun trackArray(tracks: JSONArray): List<TrackInfo> =
+        (0 until tracks.length()).map { parseTrack(tracks.getJSONObject(it)) }
 
     private fun parseTrack(track: JSONObject): TrackInfo {
         val artists = track.optJSONArray("artists") ?: JSONArray()

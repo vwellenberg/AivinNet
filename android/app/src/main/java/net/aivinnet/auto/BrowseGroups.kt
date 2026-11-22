@@ -6,7 +6,8 @@ package net.aivinnet.auto
  */
 object BrowseGroups {
 
-    enum class Heading { PINNED, ALL_PLAYLISTS, FOR_YOU, MIXES, STATIONS }
+    /** [TRACKS] and [ALBUMS] are the two groups of a search result. */
+    enum class Heading { PINNED, ALL_PLAYLISTS, FOR_YOU, MIXES, STATIONS, TRACKS, ALBUMS }
 
     /** Items that sit under one heading. [heading] is null when the list has no headings at all. */
     data class Group<T>(val heading: Heading?, val items: List<T>)

@@ -16,6 +16,14 @@
     <string name="group_for_you">Für dich</string>
     <string name="group_mixes">Deine Mixes</string>
     <string name="group_stations">Sender</string>
+    <string name="group_search_tracks">Titel</string>
+    <string name="group_search_albums">Alben</string>
+    <string name="search_no_results">Keine Treffer für „%1$s“</string>
+    <string name="search_nothing_to_play">Nichts zum Abspielen gefunden</string>
+    <string name="search_album_empty">Das Album hat keine Titel</string>
+    <string name="search_album_missing">Album nicht gefunden</string>
+    <string name="search_track_gone">Die Suche ist nicht mehr da. Bitte neu suchen.</string>
+    <string name="search_track_not_in_album">Titel nicht im Album gefunden</string>
     <string name="group_pinned">Angepinnt</string>
     <string name="group_all_playlists">Alle Playlists</string>
     <string name="browse_playlists">Playlists</string>
