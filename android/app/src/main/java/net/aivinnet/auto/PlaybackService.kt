@@ -1,7 +1,12 @@
 package net.aivinnet.auto
 
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -37,8 +42,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
 /**
@@ -73,6 +80,57 @@ class PlaybackService : MediaLibraryService() {
 
     /** Playlists as last shown in the car, so a tap plays exactly that list. */
     private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
+
+    /** Browse folders answered from the offline copies; they are asked again once the server answers. */
+    private val freshness = BrowseFreshness()
+
+    /** One probe at a time: the network callbacks and the retry loop can both ask for one. */
+    private val refreshMutex = Mutex()
+
+    /** The loop that probes every [RETRY_INTERVAL_MS] while a folder is stale; null when none runs. Guarded by [retryLock]. */
+    private val retryLock = Any()
+    private var retryJob: Job? = null
+
+    private lateinit var connectivity: ConnectivityManager
+
+    /** Set first in onDestroy; posted notifications check it, since the session is released then. */
+    @Volatile private var destroyed = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Listens for the network coming back. The system calls these on its own thread, so they only
+     * schedule work. They also fire once at registration, for the network that is up then.
+     */
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = probeIfStale()
+
+        /**
+         * The network can be "available" before the server is reachable (VPN, DS-Lite), so only a
+         * validated one counts. This also fires on every signal change, so the queues are sent once
+         * per network that becomes validated, not on each call.
+         */
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+            if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+            if (validatedNetwork != network) {
+                validatedNetwork = network
+                // Plays and ratings from the dead spot go out now, whether or not a list was shown offline.
+                scrobbleScope.launch {
+                    offline.flushScrobbles(api)
+                    offline.flushRatings(api)
+                }
+            }
+            probeIfStale()
+        }
+
+        /** Network gone: the car asks for the two lists again and gets their offline copies. */
+        override fun onLost(network: Network) {
+            if (validatedNetwork == network) validatedNetwork = null
+            notifyBrowseChanged(listOf(MediaIds.MIXES, MediaIds.PLAYLISTS))
+        }
+    }
+
+    /** The network the queues were last sent on. Set in onCreate, then only by the network callback. */
+    @Volatile private var validatedNetwork: Network? = null
 
     /**
      * The rating button acts on the playing track. [ratedTrack] is its trackhash, [shownRating] the
@@ -122,6 +180,12 @@ class PlaybackService : MediaLibraryService() {
         player.addListener(RatingTracker())
 
         session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
+
+        // Last: the callback can fire at once, and it uses the session.
+        connectivity = getSystemService(ConnectivityManager::class.java)
+        // The network that is up now already got its flush above; registering reports it at once.
+        validatedNetwork = connectivity.activeNetwork
+        connectivity.registerDefaultNetworkCallback(networkCallback)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession = session
@@ -134,7 +198,11 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        destroyed = true
         scrobbler.flush()
+        // Before the session goes: a callback after release would notify a dead session.
+        connectivity.unregisterNetworkCallback(networkCallback)
+        mainHandler.removeCallbacksAndMessages(null)
         session.release()
         player.release()
         browseScope.cancel()
@@ -289,9 +357,9 @@ class PlaybackService : MediaLibraryService() {
                 val base = api.requireBaseUrl()
                 // The list the car showed first; if the track is not in it (cache expired and the
                 // mix was refilled meanwhile), one fresh fetch.
-                var detail = playlistOrOffline(single.playlistId, fresh = false)
+                var detail = playlistOrOffline(single.playlistId, fresh = false).detail
                 if (detail?.tracks?.none { it.trackhash == single.trackhash } != false) {
-                    detail = playlistOrOffline(single.playlistId, fresh = true)
+                    detail = playlistOrOffline(single.playlistId, fresh = true).detail
                 }
                 detail ?: throw AivinException("Playlist nicht gefunden")
                 val start = detail.tracks.indexOfFirst { it.trackhash == single.trackhash }
@@ -314,18 +382,27 @@ class PlaybackService : MediaLibraryService() {
         )
         // No network: the offline copies are listed instead. If there are none, the error stands.
         MediaRef.Mixes -> try {
-            mixes()
+            mixes().also { answered(parentId, offline = false) }
         } catch (e: IOException) {
+            answeredWithout(parentId, e)
             offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }
         }
         MediaRef.Playlists -> try {
-            api.playlists().map { playlistItem(it.id, it.name, it.count) }
+            api.playlists().map { playlistItem(it.id, it.name, it.count) }.also { answered(parentId, offline = false) }
         } catch (e: IOException) {
+            answeredWithout(parentId, e)
             offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }
         }
         is MediaRef.Playlist -> {
             // Opening a playlist always shows its current state; the tap then reuses this fetch.
-            val detail = playlistOrOffline(ref.id, fresh = true)
+            val answer = try {
+                playlistOrOffline(ref.id, fresh = true)
+            } catch (e: IOException) {
+                answeredWithout(parentId, e)
+                throw e
+            }
+            if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
+            val detail = answer.detail
             detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
         }
         // The offline folder reads only the snapshots and the download index: it works without any network.
@@ -350,15 +427,39 @@ class PlaybackService : MediaLibraryService() {
         return api.playlist(id).also { playlists.put(id, it) }
     }
 
+    /** A playlist answer, and whether it came from the offline copy instead of the server. */
+    private class PlaylistAnswer(val detail: PlaylistDetail?, val fromOffline: Boolean)
+
     /**
      * The playlist from the server, or with no network its offline copy. The copy keeps only the
      * downloaded tracks, the only ones that can play in a dead spot. Without a copy the network
      * error is rethrown.
      */
-    private suspend fun playlistOrOffline(id: String, fresh: Boolean): PlaylistDetail? = try {
-        playlist(id, fresh)
+    private suspend fun playlistOrOffline(id: String, fresh: Boolean): PlaylistAnswer = try {
+        PlaylistAnswer(playlist(id, fresh), fromOffline = false)
     } catch (e: IOException) {
-        offlineCopy(id) ?: throw e
+        PlaylistAnswer(offlineCopy(id) ?: throw e, fromOffline = true)
+    }
+
+    /**
+     * The server could not answer [parentId]: the car got the offline copy or, without one, the error.
+     * Either way it must ask again once the server is back, or the error stays for the whole drive.
+     * A refusal (a 4xx such as a deleted playlist, or an expired login) does not count: the server
+     * would answer the same again, and while it answers the probe, the car would be told to reload
+     * every 30 s. A 5xx counts, since that clears up on the server's side.
+     */
+    private fun answeredWithout(parentId: String, failure: IOException?) {
+        if (BrowseFreshness.retries(failure)) answered(parentId, offline = true)
+    }
+
+    /** Records how a browse folder was answered, so the car is told to ask again once the server is back. */
+    private fun answered(parentId: String, offline: Boolean) {
+        if (offline) {
+            freshness.markOffline(parentId)
+            startRetryLoop()
+        } else {
+            freshness.markOnline(parentId)
+        }
     }
 
     /** The snapshot of an offline playlist reduced to its downloaded tracks; null when it is not offline. */
@@ -388,7 +489,7 @@ class PlaybackService : MediaLibraryService() {
             val detail = if (details.containsKey(ref.playlistId)) {
                 details[ref.playlistId]
             } else {
-                playlistOrOffline(ref.playlistId, fresh = false).also { details[ref.playlistId] = it }
+                playlistOrOffline(ref.playlistId, fresh = false).detail.also { details[ref.playlistId] = it }
             }
             val track = detail?.tracks?.firstOrNull { it.trackhash == ref.trackhash } ?: continue
             out += playable(ref.playlistId, track, base)
@@ -454,6 +555,90 @@ class PlaybackService : MediaLibraryService() {
         .setAlbumTitle(track.album)
         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
     // TODO(#747): setArtworkUri once covers can be fetched without the bearer header.
+
+    // endregion
+
+    // region Browse freshness
+
+    /**
+     * Keeps probing the server while a folder is stale, so the car gets the live lists even when the
+     * network is "up" but the server is not reachable yet. One loop at a time; it ends when nothing is stale.
+     */
+    private fun startRetryLoop() {
+        synchronized(retryLock) {
+            if (retryJob != null) return
+            retryJob = browseScope.launch {
+                while (true) {
+                    delay(RETRY_INTERVAL_MS)
+                    refreshBrowse()
+                    // The end is decided under the lock: a folder marked stale right now either sees
+                    // this loop still running, or finds retryJob cleared and starts a new one.
+                    synchronized(retryLock) {
+                        if (!freshness.hasStale()) {
+                            retryJob = null
+                            return@launch
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** A network event: probe at once, if anything is stale. */
+    private fun probeIfStale() {
+        if (!freshness.hasStale()) return
+        browseScope.launch { refreshBrowse() }
+    }
+
+    /**
+     * Probes the server and, when it answers, tells the car to ask again for the stale folders and sends
+     * what was queued offline. A failed probe leaves the folders stale for the retry loop.
+     */
+    private suspend fun refreshBrowse() {
+        // A probe already running answers for this one too. Capability changes arrive every few
+        // seconds on mobile data, and queued probes would otherwise run back to back.
+        if (!refreshMutex.tryLock()) return
+        try {
+            if (!freshness.hasStale()) return
+            // Sockets opened on the previous network would hang the probe until its timeout.
+            api.resetConnections()
+            try {
+                api.playlists()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: AuthExpiredException) {
+                // Signed out or the login was refused: no list comes back by retrying. The car
+                // already shows "sign in on the phone" on its next browse.
+                freshness.takeStale()
+                return
+            } catch (e: Exception) {
+                Log.i(TAG, "Server still unreachable", e)
+                return
+            }
+            notifyBrowseChanged(freshness.takeStale())
+            // The server answers again: what was queued in the dead spot goes now (a VPN can come
+            // back without a new validated network, so the network callback alone would miss it).
+            scrobbleScope.launch {
+                offline.flushScrobbles(api)
+                offline.flushRatings(api)
+            }
+        } finally {
+            refreshMutex.unlock()
+        }
+    }
+
+    /**
+     * Tells the car that these folders changed, so it browses them again. Posted to the main thread,
+     * where the session is used.
+     */
+    private fun notifyBrowseChanged(parentIds: List<String>) {
+        if (parentIds.isEmpty()) return
+        mainHandler.post {
+            // A probe still in its HTTP call when the service stops posts after onDestroy.
+            if (destroyed) return@post
+            for (id in parentIds) session.notifyChildrenChanged(id, Int.MAX_VALUE, null)
+        }
+    }
 
     // endregion
 
@@ -594,6 +779,9 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         private const val TAG = "PlaybackService"
+
+        /** How often a stale folder is probed while the server is unreachable. */
+        private const val RETRY_INTERVAL_MS = 30_000L
 
         /** The custom command of the rating button. The action is what the car sends back on a press. */
         const val ACTION_TOGGLE_RATING = "net.aivinnet.auto.TOGGLE_RATING"

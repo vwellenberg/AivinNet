@@ -154,6 +154,16 @@ class AivinApi private constructor(
 
     fun logout() = store.clear()
 
+    /**
+     * Drops the idle pooled connections. Sockets opened on the previous network point at a route that
+     * is gone, and a call that picks one up hangs until its timeout. Calls already running are not
+     * touched. Both clients share one pool (the authed one is built from the plain one), so one
+     * eviction covers them.
+     */
+    fun resetConnections() {
+        plainClient.connectionPool.evictAll()
+    }
+
     suspend fun playlists(): List<PlaylistSummary> = withContext(Dispatchers.IO) {
         val (code, text) = authedGet("/playlists?no_images=true")
         if (code !in 200..299) throw ServerException(code, "Playlists nicht abrufbar (HTTP $code)")
