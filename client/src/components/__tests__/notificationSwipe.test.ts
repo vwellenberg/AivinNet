@@ -88,8 +88,8 @@ describe('swiping a toast', () => {
         pointer('pointermove', 110)
         pointer('pointermove', 120)
         pointer('pointerup', 120)
-        // The browser fires the click after pointerup.
-        await wrapper.get('.new-notif').trigger('click')
+        // The browser fires the click after pointerup (a pointer click: detail 1).
+        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
 
         expect(onClick).not.toHaveBeenCalled()
         expect(store.notifs).toHaveLength(1)
@@ -97,8 +97,51 @@ describe('swiping a toast', () => {
         // A real tap afterwards still works.
         pointer('pointerdown', 100, el)
         pointer('pointerup', 100)
-        await wrapper.get('.new-notif').trigger('click')
+        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
         expect(onClick).toHaveBeenCalledOnce()
+    })
+
+    it('a toast that timed out under the finger does not hand the release click to the next one', async () => {
+        const onClick = vi.fn()
+        const store = useToast()
+        const wrapper = mount(Notification, { attachTo: document.body })
+        store.showNotification('Playlist created', NotifType.Success, undefined, onClick)
+        const goneId = store.showNotification('Song removed', NotifType.Success)
+        await wrapper.vm.$nextTick()
+        const dragged = wrapper.findAll('.new-notif')[1].element as HTMLElement
+
+        pointer('pointerdown', 100, dragged)
+        pointer('pointermove', 115)
+        pointer('pointermove', 125)
+        store.dismiss(goneId) // its timeout fires mid-drag
+        await wrapper.vm.$nextTick()
+        pointer('pointerup', 125)
+        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+
+        expect(onClick).not.toHaveBeenCalled()
+        expect(store.notifs).toHaveLength(1)
+    })
+
+    it('a keyboard click is never swallowed by a leftover gesture', async () => {
+        const onClick = vi.fn()
+        const { el, wrapper } = await showToast('Playlist created', onClick)
+
+        // A short swipe whose release click never arrives.
+        pointer('pointerdown', 100, el)
+        pointer('pointermove', 115)
+        pointer('pointerup', 115)
+        await wrapper.get('.new-notif').trigger('click', { detail: 0 })
+        expect(onClick).toHaveBeenCalledOnce()
+    })
+
+    it('the click after a rejected vertical drag does not dismiss', async () => {
+        const { store, wrapper, el } = await showToast('Song removed')
+
+        pointer('pointerdown', 100, el, 500)
+        pointer('pointermove', 101, window, 470)
+        pointer('pointerup', 101, window, 470)
+        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+        expect(store.notifs).toHaveLength(1)
     })
 
     it('a vertical move is not a swipe', async () => {

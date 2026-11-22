@@ -16,7 +16,7 @@
                 { 'has-action': notif.action, 'is-link': isLink(notif), 'is-swiping': swipingId === notif.id },
             ]"
             :style="swipeStyle(notif.id)"
-            @click="onToastClick(notif)"
+            @click="onToastClick(notif, $event)"
             @pointerdown="startSwipe($event, notif)"
         >
             <component :is="getSvg(notif.type)" class="notif-icon" />
@@ -52,12 +52,15 @@ function isLink(notif: Notif) {
     return !!notif.onClick && !notif.action
 }
 
-function onToastClick(notif: Notif) {
+function onToastClick(notif: Notif, e: MouseEvent) {
     // The click that ends a swipe is part of the gesture, not a tap: without
     // this a swiped "Playlist created" would open the playlist on release.
-    if (suppressClickFor === notif.id) {
-        suppressClickFor = null
-        return
+    // Not tied to a toast id — if the swiped toast timed out under the finger,
+    // the click lands on the one that slid into its place. A keyboard click
+    // (detail 0) is never part of a gesture, so it always counts.
+    if (suppressNextClick) {
+        suppressNextClick = false
+        if (e.detail !== 0) return
     }
     if (leaving.has(notif.id)) return
     notifStore.dismiss(notif.id)
@@ -86,7 +89,7 @@ interface Swipe {
 }
 
 let swipe: Swipe | null = null
-let suppressClickFor: number | null = null
+let suppressNextClick = false
 const swipingId = ref<number | null>(null)
 const offsets = reactive(new Map<number, number>())
 const leaving = reactive(new Set<number>())
@@ -103,8 +106,8 @@ function swipeStyle(id: number) {
 }
 
 function startSwipe(e: PointerEvent, notif: Notif) {
-    // A new press clears a suppression a cancelled gesture may have left.
-    suppressClickFor = null
+    // A new press clears a suppression a gesture without a click left behind.
+    suppressNextClick = false
     if (swipe || e.button !== 0 || leaving.has(notif.id)) return
     // The action button is its own target; a swipe starting on it would turn
     // every slightly moving tap on "Undo" into a lost undo.
@@ -134,9 +137,11 @@ function onPointerMove(e: PointerEvent) {
 
     if (!s.active) {
         if (Math.abs(dx) < SWIPE_SLOP_PX && Math.abs(dy) < SWIPE_SLOP_PX) return
-        // Mostly vertical: not a swipe. Let the press end as whatever it is.
+        // Mostly vertical: not a swipe — and not a tap either, so the click
+        // a mouse fires on release must not dismiss the toast.
         if (Math.abs(dy) > Math.abs(dx)) {
             endSwipe(false)
+            suppressNextClick = true
             return
         }
         s.active = true
@@ -179,7 +184,7 @@ function endSwipe(release: boolean) {
 
     const dx = offsets.get(s.id) ?? 0
     const width = s.el.offsetWidth
-    if (release) suppressClickFor = s.id
+    if (release) suppressNextClick = true
 
     if (release && swipeDismisses(dx, width, s.speed)) {
         // Carry on in the direction of the throw, then drop it from the store.
@@ -190,7 +195,6 @@ function endSwipe(release: boolean) {
             notifStore.dismiss(id)
             leaving.delete(id)
             offsets.delete(id)
-            if (suppressClickFor === id) suppressClickFor = null
         }, LEAVE_MS)
     } else {
         // Not far enough: it springs back (the transition in the styles).
