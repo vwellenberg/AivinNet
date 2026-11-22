@@ -42,6 +42,10 @@ const PLATES = [
   { file: "/src/components/LeftSidebar/index.vue", selector: ".sidebar-playlist-item", hatch: true },
   { file: "/src/components/LeftSidebar/index.vue", selector: ".sidebar-folder", hatch: true },
   { file: "/src/components/LeftSidebar/NavButtons.vue", selector: ".nav-item", hatch: true },
+  // Quick play (Ctrl/Cmd+P): the result rows are plates in a box of their own, on
+  // a panel that is not the page. No texture: the list is a full-width run of rows
+  // that are all controls, so the hatch would mark nothing (the chart rule above).
+  { file: "/src/components/QuickPlay.vue", selector: ".qp-row", hatch: false },
   // Charts rows are navigating plates too — they keep the veil fill through
   // the plate's own `--row-fill` indirection instead of the panel fill.
   //
@@ -339,6 +343,20 @@ describe("sidebar plate anatomy", () => {
 
     const optedOut = /mem-row-plate-hover\([^)]*\$hatch:\s*false/.test(body);
     expect(optedOut, `${selector} hover disagrees with its plate (hatch=${hatch})`).toBe(!hatch);
+  });
+
+  // The third half. `mem-row-plate-active` paints the blush fill AND its hatch,
+  // so a plate that opted out still got the texture back on its selected row:
+  // Quick play's selected result ran the hatch straight through title and
+  // artist (user, 2026-11-22) while both checks above were green.
+  it.each(PLATES)("$selector is selected with the same hatch answer", ({ file, selector, hatch }) => {
+    const body = rulesFor(SOURCES[file], selector)
+      .map(rule => rule.body)
+      .join("\n");
+    if (!/@include\s+mem-row-plate-active\b/.test(body)) return; // no selected state of its own
+
+    const optedOut = /mem-row-plate-active\([^)]*\$hatch:\s*false/.test(body);
+    expect(optedOut, `${selector} selected state disagrees with its plate (hatch=${hatch})`).toBe(!hatch);
   });
 
   // The pairing that cannot be seen in the light theme: a hatch whose stroke

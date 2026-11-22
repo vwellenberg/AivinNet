@@ -749,9 +749,16 @@ $mem-hatch-stir: 9px 6px;
   color: var(--look-tint-text, #{$mem-ink});
 }
 
-@mixin mem-row-plate-active {
+// `$hatch` answers like the plate and its hover (styling.md, #468): a plate
+// built with `$hatch: false` passes it here too, or selecting a row brings the
+// texture back through title and meta (Quick play, 2026-11-22). The census in
+// rowHover.test.ts holds the three halves together.
+@mixin mem-row-plate-active($hatch: true) {
   // Static blush -> pin static ink, exactly as the flat active row did.
   @include mem-row-plate-tint($candy-pink);
+  @if not $hatch {
+    background-image: none;
+  }
   --row-fill: var(--look-active-fill, var(--look-tint, #{$candy-pink}));
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
   border-color: $mem-frame;

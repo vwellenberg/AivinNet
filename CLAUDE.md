@@ -2,6 +2,13 @@
 
 Fork von [swingmx/swingmusic](https://github.com/swingmx/swingmusic) — ein selbst-gehosteter Musikplayer/Streaming-Server (Flask + SQLAlchemy Backend, separater Vue.js Webclient).
 
+**Index aller Regeln und Doku, mit den Kernregeln pro Bereich:** immer geladen über
+
+@.claude/INDEX.md
+
+Bereichsregeln laden **nicht** von selbst, wenn Dateien per Bash (`cat`, `sed`) gelesen werden.
+Vor der Arbeit in einem Bereich: die Index-Zeile lesen, die Regel-Datei gezielt öffnen.
+
 ## Projekt-Setup
 
 ⚠️ **Der lokale Ordner heißt noch `SubspaceRadio`, alles andere heißt `AivinNet`.** Repo, Server-Checkout
@@ -215,9 +222,10 @@ Wohin — nach Umfang und Lesehäufigkeit:
 | Präferenz des Users, repo-übergreifende Policy | Memory (`~/.claude/projects/…/memory/`) | gehört nicht ins geteilte Repo |
 | Offene Arbeit, Bug, Idee | GitHub-Issue im **Client**-Repo | einzige Backlog-Quelle, siehe unten |
 
-Bestehende Bereichsregeln: `api-endpoints` · `database` · `device-sync` · `packaging-release` ·
-`playlist-writes` · `recommendations` · `tests` · `track-tags`. Neue Regel = neue Datei in `.claude/rules/` mit
-`paths:`-Glob im Frontmatter; ohne `paths` lädt sie unbedingt und ist damit nur CLAUDE.md unter
+Bestehende Bereichsregeln (Backend und Client) stehen mit Kurzbeschreibung im
+[Index](.claude/INDEX.md). Neue Regel = neue Datei in `.claude/rules/` mit
+`paths:`-Glob im Frontmatter **und eine Zeile im Index** (sonst rot:
+`tests/test_context_index.py`); ohne `paths` lädt sie unbedingt und ist damit nur CLAUDE.md unter
 anderem Namen.
 
 **Aktiver Hook** (`.claude/settings.json`, mit `/hooks` einsehbar): Nach jedem Write/Edit an einer
@@ -240,6 +248,8 @@ Regeln dazu:
 - **Verweisen, nicht importieren.** Zusatzdokumente als normalen Markdown-Link einbinden. Ein
   `@pfad`-Import würde die Datei bei **jedem** Sessionstart vollständig in den Kontext laden und
   damit den Zweck der Auslagerung aufheben. Nur `paths`-gescopte Rules laden wirklich bedarfsweise.
+  **Einzige Ausnahme: `.claude/INDEX.md`** — kurz gehalten (eine Zeile Kernregeln pro Datei),
+  damit ein Bereich auch dann bekannt ist, wenn seine Regel nicht nachgeladen wurde.
 - **Diese Datei soll kurz bleiben** (Richtwert ~200 Zeilen). Wächst ein Abschnitt zur Abhandlung:
   betrifft er einen abgrenzbaren Pfad → Rule; ist er reine Beschreibung → `docs/`. Hier bleibt ein
   Zweizeiler mit Zeiger. Was bleibt: Fallen, Begründungen, Konventionen. Was geht:
@@ -333,9 +343,8 @@ nicht gespeichert; der WSGI-Server bjoern ist evented und single-threaded.
   der Rest wird als „nicht bearbeitet“ gemeldet (#296).
 - `src/aivinnet/lib/pydub/` — vendored pydub, nicht anfassen.
 
-Bereichsregeln laden sich selbst, sobald eine passende Datei gelesen wird:
-`.claude/rules/api-endpoints.md` · `database.md` · `playlist-writes.md` · `track-tags.md` ·
-`tests.md`.
+Bereichsregeln laden sich, sobald eine passende Datei mit dem Read-Werkzeug gelesen wird —
+welche es gibt und was drinsteht: [Index](.claude/INDEX.md).
 
 ## Auslieferung an Dritte (Release + Installer)
 

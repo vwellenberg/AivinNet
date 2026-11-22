@@ -315,6 +315,12 @@ Zeile, die die Schraffur abgibt, aber mit ihr hovert, ließe unter dem Zeiger ei
 `rowHover.test.ts` hält die Antwort pro Platte fest und prüft **beide Richtungen**: Die Sidebar
 darf sie nicht still verlieren, die Chart-Zeile nicht still zurückbekommen.
 
+⚠️ **Dritte Hälfte: `mem-row-plate-active` nimmt das Flag ebenfalls** (seit 2026-11-22). Das
+Aktiv-Mixin malt Blush-Füllung **und** Schraffur in einem — eine Platte mit `$hatch: false` bekam
+die Textur also beim Markieren zurück, quer durch Titel und Untertitel (Quick play, vom Nutzer
+gesehen, beide Zensus-Hälften grün). Wer eine Zeile ohne Schraffur baut, übergibt
+`$hatch: false` an **alle drei**: Platte, Hover, Aktiv. Derselbe Zensus prüft alle drei.
+
 Die frühere Lesart („primär/aktiv" — Play-CTA und eingeschaltete Toggles) ist damit abgelöst. Sie
 war vom Bildschirm aus nicht lernbar: Die Hierarchie steckt ohnehin in der **Füllung** (teal =
 Wiedergabe, gelb = an, blush = ausgewählt), die Textur konnte sie nur wiederholen.
