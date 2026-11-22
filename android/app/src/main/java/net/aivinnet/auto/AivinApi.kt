@@ -155,12 +155,13 @@ class AivinApi private constructor(
     fun logout() = store.clear()
 
     /**
-     * Drops the pooled connections. Sockets opened on the old network point at a route that is gone,
-     * and a request on one hangs until its timeout, so the first call after a network change clears them.
+     * Drops the idle pooled connections. Sockets opened on the previous network point at a route that
+     * is gone, and a call that picks one up hangs until its timeout. Calls already running are not
+     * touched. Both clients share one pool (the authed one is built from the plain one), so one
+     * eviction covers them.
      */
     fun resetConnections() {
         plainClient.connectionPool.evictAll()
-        authedClient.connectionPool.evictAll()
     }
 
     suspend fun playlists(): List<PlaylistSummary> = withContext(Dispatchers.IO) {

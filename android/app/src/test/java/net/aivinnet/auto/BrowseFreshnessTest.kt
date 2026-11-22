@@ -62,4 +62,18 @@ class BrowseFreshnessTest {
         assertTrue(freshness.hasStale())
         assertEquals(listOf("mixes"), freshness.takeStale())
     }
+
+    @Test
+    fun `a network failure and an offline answer are asked again`() {
+        assertTrue(BrowseFreshness.retries(java.net.SocketTimeoutException("timeout")))
+        assertTrue(BrowseFreshness.retries(java.net.UnknownHostException("aivin.example")))
+        assertTrue(BrowseFreshness.retries(null))
+        assertTrue(BrowseFreshness.retries(ServerException(502, "Bad Gateway")))
+    }
+
+    @Test
+    fun `a refusal is not asked again, or the car would reload every 30 s`() {
+        assertFalse(BrowseFreshness.retries(ServerException(404, "Playlist nicht gefunden")))
+        assertFalse(BrowseFreshness.retries(AuthExpiredException()))
+    }
 }

@@ -46,7 +46,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -93,11 +92,14 @@ class PlaybackService : MediaLibraryService() {
     private var retryJob: Job? = null
 
     private lateinit var connectivity: ConnectivityManager
+
+    /** Set first in onDestroy; posted notifications check it, since the session is released then. */
+    @Volatile private var destroyed = false
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
      * Listens for the network coming back. The system calls these on its own thread, so they only
-     * schedule work. Also fires once at registration, which is harmless: nothing is stale then.
+     * schedule work. They also fire once at registration, for the network that is up then.
      */
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) = probeIfStale()
@@ -127,8 +129,8 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    /** The network the queues were last sent on; only the network callback thread touches it. */
-    private var validatedNetwork: Network? = null
+    /** The network the queues were last sent on. Set in onCreate, then only by the network callback. */
+    @Volatile private var validatedNetwork: Network? = null
 
     /**
      * The rating button acts on the playing track. [ratedTrack] is its trackhash, [shownRating] the
@@ -181,6 +183,8 @@ class PlaybackService : MediaLibraryService() {
 
         // Last: the callback can fire at once, and it uses the session.
         connectivity = getSystemService(ConnectivityManager::class.java)
+        // The network that is up now already got its flush above; registering reports it at once.
+        validatedNetwork = connectivity.activeNetwork
         connectivity.registerDefaultNetworkCallback(networkCallback)
     }
 
@@ -194,6 +198,7 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        destroyed = true
         scrobbler.flush()
         // Before the session goes: a callback after release would notify a dead session.
         connectivity.unregisterNetworkCallback(networkCallback)
@@ -379,17 +384,24 @@ class PlaybackService : MediaLibraryService() {
         MediaRef.Mixes -> try {
             mixes().also { answered(parentId, offline = false) }
         } catch (e: IOException) {
-            offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }.also { answered(parentId, offline = true) }
+            answeredWithout(parentId, e)
+            offlineListing { it in MediaIds.MIX_IDS }.ifEmpty { throw e }
         }
         MediaRef.Playlists -> try {
             api.playlists().map { playlistItem(it.id, it.name, it.count) }.also { answered(parentId, offline = false) }
         } catch (e: IOException) {
-            offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }.also { answered(parentId, offline = true) }
+            answeredWithout(parentId, e)
+            offlineListing { it !in MediaIds.MIX_IDS }.ifEmpty { throw e }
         }
         is MediaRef.Playlist -> {
             // Opening a playlist always shows its current state; the tap then reuses this fetch.
-            val answer = playlistOrOffline(ref.id, fresh = true)
-            answered(parentId, offline = answer.fromOffline)
+            val answer = try {
+                playlistOrOffline(ref.id, fresh = true)
+            } catch (e: IOException) {
+                answeredWithout(parentId, e)
+                throw e
+            }
+            if (answer.fromOffline) answeredWithout(parentId, null) else answered(parentId, offline = false)
             val detail = answer.detail
             detail?.tracks?.map { trackItem(detail.id, it) } ?: emptyList()
         }
@@ -427,6 +439,17 @@ class PlaybackService : MediaLibraryService() {
         PlaylistAnswer(playlist(id, fresh), fromOffline = false)
     } catch (e: IOException) {
         PlaylistAnswer(offlineCopy(id) ?: throw e, fromOffline = true)
+    }
+
+    /**
+     * The server could not answer [parentId]: the car got the offline copy or, without one, the error.
+     * Either way it must ask again once the server is back, or the error stays for the whole drive.
+     * A refusal (a 4xx such as a deleted playlist, or an expired login) does not count: the server
+     * would answer the same again, and while it answers the probe, the car would be told to reload
+     * every 30 s. A 5xx counts, since that clears up on the server's side.
+     */
+    private fun answeredWithout(parentId: String, failure: IOException?) {
+        if (BrowseFreshness.retries(failure)) answered(parentId, offline = true)
     }
 
     /** Records how a browse folder was answered, so the car is told to ask again once the server is back. */
@@ -572,7 +595,10 @@ class PlaybackService : MediaLibraryService() {
      * what was queued offline. A failed probe leaves the folders stale for the retry loop.
      */
     private suspend fun refreshBrowse() {
-        refreshMutex.withLock {
+        // A probe already running answers for this one too. Capability changes arrive every few
+        // seconds on mobile data, and queued probes would otherwise run back to back.
+        if (!refreshMutex.tryLock()) return
+        try {
             if (!freshness.hasStale()) return
             // Sockets opened on the previous network would hang the probe until its timeout.
             api.resetConnections()
@@ -580,6 +606,11 @@ class PlaybackService : MediaLibraryService() {
                 api.playlists()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: AuthExpiredException) {
+                // Signed out or the login was refused: no list comes back by retrying. The car
+                // already shows "sign in on the phone" on its next browse.
+                freshness.takeStale()
+                return
             } catch (e: Exception) {
                 Log.i(TAG, "Server still unreachable", e)
                 return
@@ -591,6 +622,8 @@ class PlaybackService : MediaLibraryService() {
                 offline.flushScrobbles(api)
                 offline.flushRatings(api)
             }
+        } finally {
+            refreshMutex.unlock()
         }
     }
 
@@ -601,6 +634,8 @@ class PlaybackService : MediaLibraryService() {
     private fun notifyBrowseChanged(parentIds: List<String>) {
         if (parentIds.isEmpty()) return
         mainHandler.post {
+            // A probe still in its HTTP call when the service stops posts after onDestroy.
+            if (destroyed) return@post
             for (id in parentIds) session.notifyChildrenChanged(id, Int.MAX_VALUE, null)
         }
     }
