@@ -4,6 +4,7 @@ import useContextMenu from "@/stores/context";
 import useSettings from "@/stores/settings";
 import { controlOwnsKey, focusCameFromKeyboard, trackFocusOrigin } from "@/utils/keyOwnership";
 import { handleFindShortcut } from "@/utils/pageFind";
+import { isQuickPlayShortcut, openQuickPlay } from "@/stores/quickPlay";
 
 let key_down_fired = "";
 
@@ -21,6 +22,16 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
     // Before the input check: Cmd/Ctrl+F inside the page's own search field
     // selects it again rather than opening the browser's find over it.
     if (handleFindShortcut(e)) return;
+
+    // Quick play (Ctrl/Cmd+P): also before the input check, so it works while a
+    // text field has focus. preventDefault suppresses the browser's print dialog.
+    // Not over a modal (the login after a 401, a dialog mid-edit): the box would
+    // sit on top of it. The print dialog stays suppressed either way.
+    if (isQuickPlayShortcut(e)) {
+      e.preventDefault();
+      if (!modal().visible) openQuickPlay();
+      return;
+    }
 
     if (e.altKey) return;
     const ctrlKey = e.ctrlKey;

@@ -1,6 +1,7 @@
 <template>
     <ContextMenu />
     <Modal />
+    <QuickPlay />
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" :navigation="navigations" />
@@ -69,6 +70,7 @@ import { xl, xxl } from "./composables/useBreakpoints";
 // @small-components
 import ContextMenu from "@/components/ContextMenu.vue";
 import Modal from "@/components/modal.vue";
+import QuickPlay from "@/components/QuickPlay.vue";
 import Notification from "@/components/Notification.vue";
 import SeasonParticles from "@/components/SeasonParticles.vue";
 import SeasonTileEmojis from "@/components/SeasonTileEmojis.vue";

@@ -105,6 +105,8 @@ with upstream.
 - 🆕 **Folder view starts inside the library root** and clamps the breadcrumb to it,
   so you can no longer click above the root into a path the backend rejects.
 - 🔀 **Folder view defaults** — sort by name, and compact list mode, by default.
+- 🆕 **Quick play** — press Ctrl+P (Cmd+P on macOS) anywhere, type part of a song title, and
+  Enter plays the best match (Shift+Enter queues it next).
 - 🔀 **Browse Library** on Home no longer duplicates destinations already in the
   sidebar.
 

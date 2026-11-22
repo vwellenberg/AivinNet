@@ -27,17 +27,28 @@ async function searchTopResults(query: string, limit: number) {
     return await fetchData(url)
 }
 
-async function searchItems(type: 'tracks' | 'albums' | 'artists' | 'folders', index: number, query: string) {
+async function searchItems(
+    type: 'tracks' | 'albums' | 'artists' | 'folders',
+    index: number,
+    query: string,
+    silent = false
+) {
     const { data } = await useAxios({
         url: base + `/?itemtype=${type}&start=${index}&q=${encodeURIComponent(query)}&limit=30`,
         method: 'GET',
+        silent,
     })
 
     return data
 }
 
-async function searchTracks(query: string, start: number = 0): Promise<{ results: Track[]; more: boolean }> {
-    return searchItems('tracks', start, query)
+/** `silent`: no app-wide busy cursor — Quick play searches on every pause in typing. */
+async function searchTracks(
+    query: string,
+    start: number = 0,
+    silent = false
+): Promise<{ results: Track[]; more: boolean }> {
+    return searchItems('tracks', start, query, silent)
 }
 
 async function searchAlbums(query: string, start: number = 0): Promise<{ results: Album[]; more: boolean }> {
