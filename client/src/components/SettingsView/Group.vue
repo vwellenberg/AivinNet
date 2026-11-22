@@ -103,6 +103,7 @@
                 <Pairing v-if="setting.type === SettingType.pairing" />
                 <HomeRows v-if="setting.type === SettingType.home_rows" />
                 <NotInterested v-if="setting.type === SettingType.home_not_interested" />
+                <KeyboardShortcuts v-if="setting.type === SettingType.keyboard_shortcuts" />
                 <BackupRestore
                     v-if="setting.type === SettingType.backup"
                     :title="setting.title"
@@ -136,6 +137,7 @@ import Profile from '../modals/settings/Profile.vue'
 import Accounts from '../modals/settings/custom/Accounts.vue'
 import HomeRows from '../modals/settings/custom/HomeRows.vue'
 import NotInterested from '../modals/settings/custom/NotInterested.vue'
+import KeyboardShortcuts from '../modals/settings/custom/KeyboardShortcuts.vue'
 import Pairing from '../modals/settings/custom/Pairing.vue'
 import About from './About.vue'
 import BackupRestore from './Components/BackupRestore.vue'
@@ -165,6 +167,7 @@ const PANEL_TYPES = [
     SettingType.secretinput,
     SettingType.home_rows,
     SettingType.home_not_interested,
+    SettingType.keyboard_shortcuts,
 ]
 </script>
 

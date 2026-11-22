@@ -449,6 +449,15 @@ GitHub nichts.)
   nicht erkennbar. ⚠️ Eine Testseite als claude.ai-Artifact zuerst in der **Claude-App**
   geöffnet heißt: in deren WebView, nicht im gemeldeten Browser — dort ging alles.
 
+- **⚠️ Ein neuer Tastenkürzel gehört in `utils/shortcuts.ts` — sonst wird der Zensus rot.**
+  Die Liste speist die `?`-Übersicht, Settings → Shortcuts, die Transport-Tooltips und den
+  Quick-play-Hinweis; `helpers/__tests__/shortcutsCensus.test.ts` liest jeden Handler im
+  Quelltext und vergleicht in beide Richtungen. Zwei Dinge, die dabei auffielen:
+  `onStartTyping` (App.vue, Sprung ins Suchfeld) reagiert **nur auf Buchstaben und Ziffern**
+  (vueuse `isTypedCharValid`, keyCodes 48–57/65–90/96–105) — ein Kürzel auf einer Buchstaben-
+  oder Zifferntaste kollidiert dort, `?` oder `/` nicht. Und alles, was über dem Modal liegt
+  (Quick play, die Übersicht, `z-index: 70`), schließt `modal.showModal()` selbst — sonst öffnet
+  der Login nach einem 401 **darunter** und ist nicht klickbar.
 - **⚠️ Die Browser-Suche (Cmd/Strg+F) sieht nur, was im DOM steht.** Jede lange Liste läuft
   durch `vue-virtual-scroller` (nur die sichtbaren Zeilen existieren) und lädt oft seitenweise
   nach — gemeldet als „Cmd+F findet den Song weiter unten nicht“. Playlist, Album, Ordner und

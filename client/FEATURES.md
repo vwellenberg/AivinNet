@@ -107,6 +107,7 @@ with upstream.
 - 🔀 **Folder view defaults** — sort by name, and compact list mode, by default.
 - 🆕 **Quick play** — press Ctrl+P (Cmd+P on macOS) anywhere, type part of a song title, and
   Enter plays the best match (Shift+Enter queues it next).
+- 🆕 **Keyboard shortcuts overview** — press `?` on any page for the list of keys; the same list is under Settings → General → Keyboard shortcuts.
 - 🔀 **Browse Library** on Home no longer duplicates destinations already in the
   sidebar.
 

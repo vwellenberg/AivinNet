@@ -41,6 +41,7 @@ describe("the settings pane list", () => {
     expect(ENTRIES.map((entry) => entry.title)).toEqual([
       "Appearance",
       "Layout",
+      "Shortcuts",
       "Home",
       "Profile",
       "Pair device",

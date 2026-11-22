@@ -2,6 +2,7 @@
     <ContextMenu />
     <Modal />
     <QuickPlay />
+    <ShortcutsHelp />
     <Notification />
     <!-- Snow and Halloween shapes over the page (components/SeasonParticles.vue). -->
     <SeasonParticles :season="season" :navigation="navigations" />
@@ -52,6 +53,7 @@ import useHome from "@/stores/home";
 import { content_height, content_width, isMobile, resizer_width } from "@/stores/content-width";
 import useLyrics from "@/stores/lyrics";
 import useModal from "@/stores/modal";
+import { shortcutsHelpOpen } from "@/stores/shortcutsHelp";
 import usePlaylistPage from "@/stores/pages/playlist";
 import useQueue from "@/stores/queue";
 import useSettings from "@/stores/settings";
@@ -71,6 +73,7 @@ import { xl, xxl } from "./composables/useBreakpoints";
 import ContextMenu from "@/components/ContextMenu.vue";
 import Modal from "@/components/modal.vue";
 import QuickPlay from "@/components/QuickPlay.vue";
+import ShortcutsHelp from "@/components/ShortcutsHelp.vue";
 import Notification from "@/components/Notification.vue";
 import SeasonParticles from "@/components/SeasonParticles.vue";
 import SeasonTileEmojis from "@/components/SeasonTileEmojis.vue";
@@ -208,7 +211,11 @@ router.afterEach(() => {
     (document.getElementById("acontent") as HTMLElement).scrollTo(0, 0);
 });
 
-onStartTyping(() => {
+onStartTyping((e: KeyboardEvent) => {
+    // While the shortcut list is up, typing must not move focus into the search
+    // field behind it. (`?` itself never gets here: vueuse calls back only for
+    // letters and digits.)
+    if (shortcutsHelpOpen.value) return;
     const elem = document.getElementById("globalsearch") as HTMLInputElement;
     elem.focus();
     elem.value = "";

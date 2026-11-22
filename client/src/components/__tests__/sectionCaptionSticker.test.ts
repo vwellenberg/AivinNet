@@ -42,6 +42,10 @@ const NOT_ON_THE_GROUND: Record<string, string> = {
   "components/SettingsView/About.vue": "inside the settings modal",
   "components/modals/RootDirsPrompt.vue": "inside a modal",
   "views/PairView.vue": "on the pairing plate",
+  // The overlay's heading sits on its candy panel (candy-white), not on the ground.
+  "components/ShortcutsHelp.vue": "on the candy panel of the shortcut overlay",
+  // The list is rendered inside the overlay panel or the settings panel, never on the ground.
+  "components/shared/ShortcutList.vue": "inside the shortcut overlay or the settings panel",
 };
 
 /** Every `.scss` under the given root, relative to `src/`. */

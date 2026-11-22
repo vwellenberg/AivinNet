@@ -46,6 +46,7 @@ const REGIONS: Record<string, string> = {
   "components/shared/ArtistName.vue": "an event stopper around router links",
   "components/shared/SongItem/TrackTitle.vue": "the track row itself is the control; these repeat its action",
   "components/QuickPlay.vue": "the backdrop closes the box (as components/modal.vue); the rows inside are real buttons",
+  "components/ShortcutsHelp.vue": "the backdrop closes the overlay (as components/QuickPlay.vue); the close button inside is the real control",
   "components/HomeView/RadioDial.vue": "the radio housing opens and closes on a click (user, 2026-11-15); the toggle <button> in it is the control for keyboards and readers",
 };
 

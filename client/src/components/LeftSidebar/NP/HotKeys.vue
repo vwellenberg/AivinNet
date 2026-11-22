@@ -9,15 +9,15 @@
         >
             <ShuffleSvg />
         </button>
-        <button v-tip="'Previous'" class="skip skip-prev" @click.prevent="queue.playPrev">
+        <button v-tip="withKey('Previous', 'prev')" class="skip skip-prev" @click.prevent="queue.playPrev">
             <PrevSvg />
         </button>
-        <button v-tip="queue.playing ? 'Pause' : 'Play'" class="play mem-glyph-swap" @click.prevent="queue.playPause">
+        <button v-tip="withKey(queue.playing ? 'Pause' : 'Play', 'playPause')" class="play mem-glyph-swap" @click.prevent="queue.playPause">
             <Spinner v-if="buffering && queue.playing" />
             <PauseSvg v-else-if="queue.playing" />
             <PlaySvg v-else class="playsvg" />
         </button>
-        <button v-tip="'Next'" class="skip" @click.prevent="queue.playNext">
+        <button v-tip="withKey('Next', 'next')" class="skip" @click.prevent="queue.playNext">
             <NextSvg />
         </button>
         <button
@@ -46,6 +46,7 @@ import ShuffleSvg from '@/assets/icons/shuffle.svg'
 import RepeatAllSvg from '@/assets/icons/repeat.svg'
 import RepeatOneSvg from '@/assets/icons/repeat-one.svg'
 import Spinner from '@/components/shared/Spinner.vue'
+import { withKey } from '@/utils/shortcuts'
 
 const queue = useQStore()
 const settings = useSettings()
