@@ -130,6 +130,9 @@ dann auch ohne Netz.
 - **Aktualisieren:** Alle 12 Stunden, beim App-Start und nach jeder Änderung wird jede markierte
   Liste frisch abgerufen. Neue Titel werden geladen, entfernte gelöscht. Ein Titel, der noch in einer
   anderen markierten Liste steht, bleibt. **Jetzt aktualisieren** erzwingt den Lauf.
+- **Cover offline:** Der Abgleich holt zusätzlich die Cover der Titel aus den markierten Listen, je
+  Album eines. Im Auto stehen sie dann auch ohne Netz da. Ein Cover, das beim Abgleich fehlt, zeigt das
+  Auto als Platzhalter, bis der nächste Abgleich es holt.
 - **Im Auto:** Der Ordner **Offline** listet die markierten Listen mit ihren heruntergeladenen Titeln
   und braucht kein Netz. Mixes und Playlists fallen bei fehlendem Netz auf ihre Offline-Kopie zurück.
   Dort stehen nur die Titel, die vollständig auf dem Telefon liegen; die übrigen fehlen, statt bei
@@ -186,13 +189,21 @@ gibt und welche Abzeichen.
 - **Mixes:** „Deine Mixes“ (mix1 bis mix4) und „Sender“ (Genre-, Jahrzehnt- und Saisonsender aus
   `MediaIds.STATION_IDS`).
 - **Playlists:** angepinnte zuerst unter „Angepinnt“, dann alle übrigen unter „Alle Playlists“, je in
-  der Reihenfolge des Servers. Ist nichts angepinnt, gibt es keine Überschriften.
+  der Reihenfolge des Servers. Ist nichts angepinnt, gibt es keine Überschriften. Hat eine Playlist ein
+  eigenes Bild auf dem Server, zeigt das Auto dieses Cover; sonst die Kachel.
+- **Cover:** Jeder Titel zeigt das Albumcover, auch in der Titelliste und im Now-Playing-Bildschirm.
+  Das Bild holt die App selbst vom Server (`GET /img/thumbnail/…`, mit dem Login) und reicht es über
+  `CoverProvider` an das Auto weiter. Der Token verlässt die App nie: Er steht in keiner URI, das Auto
+  bekommt nur eine lokale `content://`-Adresse. Die Regeln für die Adressen stehen in `CoverSpec`, der
+  Abruf und der Cache in `CoverCache`. Das Cover wird auf höchstens 512 px verkleinert und als JPEG
+  gespeichert. Kommt es nicht rechtzeitig (4 Sekunden) oder fehlt es auf dem Server, zeigt das Auto
+  seinen Platzhalter. Mixe, Sender, Home-Zeilen und Offline-Ordner behalten ihre Kacheln.
 - **Offline:** die markierten Listen, nur mit den heruntergeladenen Titeln.
 - **Kacheln:** Mixes zeigen ihre Nummer, Home-Zeilen und Sender ein Symbol, Playlists ihren
   Anfangsbuchstaben (zwei, wenn der zweite klein ist: „Ch“), Offline-Listen das Download-Symbol.
   Die Kacheln werden lokal gezeichnet, ohne Netz, und im Cache abgelegt (`TileProvider`, die Regeln
   in `TileSpec`, das Zeichnen in `TileRenderer`). Eine Kachel-URI nennt nur Art und Schlüssel; der
-  Provider liest nie einen Dateipfad aus ihr. Titel haben noch keine Bilder.
+  Provider liest nie einen Dateipfad aus ihr.
 - **Abzeichen:** Eine Playlist oder ein Mix, dessen Offline-Kopie vollständig auf dem Telefon
   liegt, trägt das Download-Abzeichen, ebenso jeder Titel, der dort liegt. Home-Zeilen und Sender
   lassen sich (noch) nicht offline markieren, die Offline-Liste auf dem Telefon bietet nur Mixes

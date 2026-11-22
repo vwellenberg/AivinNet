@@ -18,6 +18,12 @@ data class PlaylistSummary(
     val count: Int,
     /** The user pinned it on the server; the car lists pinned playlists first. Missing in old answers: false. */
     val pinned: Boolean = false,
+    /**
+     * The file name of the playlist's own cover (`<id>.webp`), or null when it has none. The server's
+     * `image` is then the name, and `has_image` says whether the file exists; without an image the
+     * server sends the placeholder text "None", which is not a name.
+     */
+    val coverImage: String? = null,
 )
 
 /** One track of `GET /playlists/<id>?limit=-1`, as serialised by serializers/track.py. */
@@ -84,6 +90,8 @@ object AivinJson {
                 name = playlist.optString("name", ""),
                 count = playlist.optInt("count", 0),
                 pinned = playlist.optBoolean("pinned", false),
+                coverImage = playlist.optString("image", "")
+                    .takeIf { playlist.optBoolean("has_image", false) && it.isNotBlank() && it != "None" },
             )
         }
     }
