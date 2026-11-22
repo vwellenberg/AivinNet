@@ -7,7 +7,7 @@ import { NotifType, useToast } from '@/stores/notification'
 
 // A toast with `onClick` is itself the target ("Playlist created" → open it):
 // a real <button>, so keyboard and screen reader get it for free. A plain toast
-// stays inert, and an action toast never becomes a button around its button.
+// goes away on a tap, and an action toast never becomes a button around its button.
 describe('clickable toast', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
@@ -31,11 +31,11 @@ describe('clickable toast', () => {
         expect(store.notifs).toHaveLength(0)
     })
 
-    it('a plain toast is not a button and ignores clicks', async () => {
+    it('a plain toast is not a button, and a tap dismisses it', async () => {
         const store = useToast()
         const wrapper = mount(Notification)
 
-        store.showNotification('Saved', NotifType.Success)
+        store.showNotification('Song removed', NotifType.Success)
         await wrapper.vm.$nextTick()
 
         const toast = wrapper.get('.new-notif')
@@ -43,7 +43,20 @@ describe('clickable toast', () => {
         expect(toast.classes()).not.toContain('is-link')
 
         await toast.trigger('click')
-        expect(store.notifs).toHaveLength(1)
+        expect(store.notifs).toHaveLength(0)
+    })
+
+    it('a tap on an action toast outside its button dismisses it without the action', async () => {
+        const store = useToast()
+        const handler = vi.fn()
+        const wrapper = mount(Notification)
+
+        store.showNotification('Removed', NotifType.Info, { label: 'Undo', handler })
+        await wrapper.vm.$nextTick()
+
+        await wrapper.get('.notif-text').trigger('click')
+        expect(handler).not.toHaveBeenCalled()
+        expect(store.notifs).toHaveLength(0)
     })
 
     it('an action toast stays a div; its button runs only its own handler', async () => {

@@ -2,19 +2,26 @@
     <div v-if="notifStore.notifs" class="toasts">
         <!-- A toast with onClick is itself the control ("Playlist created" →
              open it), so it renders as a real <button>. Not combined with an
-             action: that would nest a button in a button. -->
+             action: that would nest a button in a button.
+             Every other toast goes away on a tap, and every toast can be
+             swiped aside (utils/swipeDismiss.ts). -->
         <component
             :is="isLink(notif) ? 'button' : 'div'"
             v-for="notif in notifStore.notifs"
             :key="notif.id"
             :type="isLink(notif) ? 'button' : undefined"
             class="new-notif rounded-sm"
-            :class="[notif.type, { 'has-action': notif.action, 'is-link': isLink(notif) }]"
-            @click="openNotif(notif)"
+            :class="[
+                notif.type,
+                { 'has-action': notif.action, 'is-link': isLink(notif), 'is-swiping': swipingId === notif.id },
+            ]"
+            :style="swipeStyle(notif.id)"
+            @click="onToastClick(notif, $event)"
+            @pointerdown="startSwipe($event, notif)"
         >
             <component :is="getSvg(notif.type)" class="notif-icon" />
             <div class="notif-text">{{ notif.text }}</div>
-            <button v-if="notif.action" type="button" class="notif-action rounded-sm" @click="runAction(notif)">
+            <button v-if="notif.action" type="button" class="notif-action rounded-sm" @click.stop="runAction(notif)">
                 {{ notif.action.label }}
             </button>
         </component>
@@ -22,8 +29,11 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount, reactive, ref } from 'vue'
+
 import { Notif } from '../interfaces'
 import { NotifType, useToast } from '../stores/notification'
+import { SWIPE_SLOP_PX, swipeDismisses, swipeOpacity } from '../utils/swipeDismiss'
 
 import BookmarkSvg from '../assets/icons/bookmark.svg'
 import ErrorSvg from '../assets/icons/toast/error.svg'
@@ -42,11 +52,157 @@ function isLink(notif: Notif) {
     return !!notif.onClick && !notif.action
 }
 
-function openNotif(notif: Notif) {
-    if (!isLink(notif)) return
+function onToastClick(notif: Notif, e: MouseEvent) {
+    // The click that ends a swipe is part of the gesture, not a tap: without
+    // this a swiped "Playlist created" would open the playlist on release.
+    // Not tied to a toast id — if the swiped toast timed out under the finger,
+    // the click lands on the one that slid into its place. A keyboard click
+    // (detail 0) is never part of a gesture, so it always counts.
+    if (suppressNextClick) {
+        suppressNextClick = false
+        if (e.detail !== 0) return
+    }
+    if (leaving.has(notif.id)) return
     notifStore.dismiss(notif.id)
-    notif.onClick?.()
+    if (isLink(notif)) notif.onClick?.()
 }
+
+// ---------------------------------------------------------------------------
+// Swipe aside. One finger at a time; the travel per toast lives in `offsets`
+// so the template can follow it.
+// ---------------------------------------------------------------------------
+
+/** How long the thrown-away toast slides out before it is removed.
+ *  Mirrors `$motion-move`, the transition in the styles below. */
+const LEAVE_MS = 200
+
+interface Swipe {
+    id: number
+    pointerId: number
+    el: HTMLElement
+    startX: number
+    startY: number
+    lastX: number
+    lastT: number
+    speed: number
+    active: boolean
+}
+
+let swipe: Swipe | null = null
+let suppressNextClick = false
+const swipingId = ref<number | null>(null)
+const offsets = reactive(new Map<number, number>())
+const leaving = reactive(new Set<number>())
+
+function swipeStyle(id: number) {
+    const dx = offsets.get(id)
+    if (dx === undefined) return undefined
+    const el = swipe?.id === id ? swipe.el : undefined
+    const width = el?.offsetWidth || Math.abs(dx) || 1
+    return {
+        transform: `translateX(${dx}px)`,
+        opacity: leaving.has(id) ? 0 : swipeOpacity(dx, width),
+    }
+}
+
+function startSwipe(e: PointerEvent, notif: Notif) {
+    // A new press clears a suppression a gesture without a click left behind.
+    suppressNextClick = false
+    if (swipe || e.button !== 0 || leaving.has(notif.id)) return
+    // The action button is its own target; a swipe starting on it would turn
+    // every slightly moving tap on "Undo" into a lost undo.
+    if ((e.target as HTMLElement | null)?.closest?.('.notif-action')) return
+
+    swipe = {
+        id: notif.id,
+        pointerId: e.pointerId,
+        el: e.currentTarget as HTMLElement,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastT: e.timeStamp,
+        speed: 0,
+        active: false,
+    }
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
+}
+
+function onPointerMove(e: PointerEvent) {
+    const s = swipe
+    if (!s || e.pointerId !== s.pointerId) return
+    const dx = e.clientX - s.startX
+    const dy = e.clientY - s.startY
+
+    if (!s.active) {
+        if (Math.abs(dx) < SWIPE_SLOP_PX && Math.abs(dy) < SWIPE_SLOP_PX) return
+        // Mostly vertical: not a swipe — and not a tap either, so the click
+        // a mouse fires on release must not dismiss the toast.
+        if (Math.abs(dy) > Math.abs(dx)) {
+            endSwipe(false)
+            suppressNextClick = true
+            return
+        }
+        s.active = true
+        swipingId.value = s.id
+        try {
+            s.el.setPointerCapture?.(s.pointerId)
+        } catch {
+            // No active pointer to capture (a synthetic event) — the window
+            // listeners still see every move.
+        }
+    }
+
+    const dt = e.timeStamp - s.lastT
+    if (dt > 0) s.speed = (e.clientX - s.lastX) / dt
+    s.lastX = e.clientX
+    s.lastT = e.timeStamp
+    offsets.set(s.id, dx)
+}
+
+function onPointerUp(e: PointerEvent) {
+    if (swipe && e.pointerId === swipe.pointerId) endSwipe(true)
+}
+
+function onPointerCancel(e: PointerEvent) {
+    if (swipe && e.pointerId === swipe.pointerId) endSwipe(false)
+}
+
+function removeListeners() {
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointercancel', onPointerCancel)
+}
+
+function endSwipe(release: boolean) {
+    const s = swipe
+    swipe = null
+    swipingId.value = null
+    removeListeners()
+    if (!s?.active) return
+
+    const dx = offsets.get(s.id) ?? 0
+    const width = s.el.offsetWidth
+    if (release) suppressNextClick = true
+
+    if (release && swipeDismisses(dx, width, s.speed)) {
+        // Carry on in the direction of the throw, then drop it from the store.
+        leaving.add(s.id)
+        offsets.set(s.id, Math.sign(dx || 1) * (width + 32))
+        const id = s.id
+        setTimeout(() => {
+            notifStore.dismiss(id)
+            leaving.delete(id)
+            offsets.delete(id)
+        }, LEAVE_MS)
+    } else {
+        // Not far enough: it springs back (the transition in the styles).
+        offsets.delete(s.id)
+    }
+}
+
+onBeforeUnmount(removeListeners)
 
 function getSvg(notif: NotifType) {
     switch (notif) {
@@ -104,6 +260,19 @@ function getSvg(notif: NotifType) {
     grid-template-columns: 2rem 3fr;
     gap: $small;
 
+    // Every toast goes on a tap or a sideways swipe. `pan-y` hands the
+    // horizontal gesture to us and keeps vertical scrolling the browser's;
+    // no text selection, or a mouse drag would highlight instead of throw.
+    cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    // The spring back after a short swipe and the slide out after a long one.
+    // $motion-move: "anything that travels" — LEAVE_MS in the script mirrors it.
+    transition:
+        transform $motion-move ease-out,
+        opacity $motion-move ease-out;
+
     .notif-icon {
         color: $candy-text;
     }
@@ -112,13 +281,17 @@ function getSvg(notif: NotifType) {
         width: 100%;
     }
 
+    // Under the finger it follows exactly — a transition would make it lag.
+    &.is-swiping {
+        transition: none;
+    }
+
     // The whole toast is the target ("Playlist created" → open it).
     // As a <button> it would centre its text and take the button reset's
     // line-height; it must look exactly like every other toast.
     &.is-link {
         text-align: start;
         line-height: inherit;
-        cursor: pointer;
         @include focus-ring;
     }
 
