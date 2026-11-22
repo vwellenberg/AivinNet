@@ -216,3 +216,25 @@ def test_the_last_scrobble_alone_never_reads_the_history(history, monkeypatch):
     last = TrackLog(9, "t000000000000000", 200, 1_790_000_009, "tr:t000000000000000", 1, {})
 
     assert get_recently_played.get_recently_played(15, userid=1, _entries=[last]) == []
+
+
+def test_one_new_song_in_the_library_root_is_a_track_not_the_whole_library(recently_added):
+    """Reported: Home showed the root "music" as NEW MUSIC with 12837 tracks."""
+    recentlyadded, stores = recently_added
+    stores({}, {})
+    loose = [_track("/m/", MONTHS_AGO + n, f"al{n}", [f"ar{n}"]) for n in range(40)]
+    song = _track("/m/", 1000, "fresh", ["someone"])
+
+    item = recentlyadded.check_folder_type({"folder": "/m/", "tracks": [*loose, song], "time": 1000}, {"/m/"})
+
+    assert item == [{"type": "track", "hash": song.trackhash, "timestamp": 1000, "help_text": "NEW TRACK"}]
+
+
+def test_a_new_batch_in_the_library_root_is_still_no_folder_card(recently_added):
+    recentlyadded, stores = recently_added
+    stores({}, {})
+    batch = [_track("/m/", 1000 + n, f"al{n}", [f"ar{n}"]) for n in range(5)]
+
+    item = recentlyadded.check_folder_type({"folder": "/m/", "tracks": batch, "time": 1004}, {"/m/"})
+
+    assert [i["type"] for i in item] == ["track"] * 5
