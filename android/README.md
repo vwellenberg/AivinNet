@@ -224,7 +224,10 @@ Assistenten (Assistant oder Gemini).
 - **Ohne Netz:** Die Suche durchsucht die heruntergeladenen Titel der markierten Listen. Ein Titel trifft,
   wenn Titel, Interpret oder Album den Suchbegriff enthalten (Groß- und Kleinschreibung und Akzente egal).
   Die Reihenfolge: Titel gleich dem Suchbegriff, dann Titel beginnt damit, dann Titel enthält ihn, zuletzt
-  Interpret oder Album. Alben gibt es ohne Netz nicht.
+  Interpret oder Album. Alben gibt es ohne Netz nicht, und ein Album aus der Suche spielt nur mit Netz.
+- **Wo die Sprache greift:** Im Auto. Auf dem Telefon allein öffnet „spiel … auf AivinNet“ nur die App.
+- **Grenze:** Taucht derselbe Titel in mehreren der letzten drei Suchen auf, nimmt ein Tipp die neueste
+  dieser Suchen als Warteschlange.
 - **Zählung:** Ein Play aus der Suche wird als Suche gemeldet, ein Play aus einem Album als Album.
 - **Aufwand:** Eine Suche macht höchstens zwei Anfragen an den Server (Titel und Alben), nacheinander.
 - **Die letzten drei Suchen** bleiben im Speicher. Tippt man einen Titel aus einer älteren Suche an, sagt

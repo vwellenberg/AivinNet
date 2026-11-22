@@ -255,7 +255,8 @@ class AivinApi private constructor(
         when {
             code == 404 -> null
             code !in 200..299 -> throw ServerException(code, "Album nicht abrufbar (HTTP $code)")
-            else -> AivinJson.parseTrackList(text)
+            // The server answers an unknown album with 200 and [] (AlbumStore.get_album_tracks), not 404.
+            else -> AivinJson.parseTrackList(text).ifEmpty { null }
         }
     }
 

@@ -392,7 +392,9 @@ class PlaybackService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             mediaItems: MutableList<MediaItem>,
         ): ListenableFuture<MutableList<MediaItem>> = browseScope.future {
-            val (requests, ids) = mediaItems.partition { isSearchRequest(it) }
+            // Only items that carry search words are voice requests here; a bare blank id is dropped by
+            // resolve as before, so it cannot pull Mix 1 into the queue or fail the valid ids beside it.
+            val (requests, ids) = mediaItems.partition { it.requestMetadata.searchQuery != null }
             (resolve(ids) + requests.flatMap { playFromSearch(it).mediaItems }).toMutableList()
         }
 
@@ -428,22 +430,34 @@ class PlaybackService : MediaLibraryService() {
 
     /**
      * A search for [query]. Without [fresh] a kept answer is reused. Otherwise the server answers with its tracks
-     * and albums, two requests at most, one after the other. A network failure falls back to the offline copies,
-     * so the search still works in a dead spot; a refused login does not, it is passed on.
+     * and albums, two requests at most, one after the other. A network failure of the track search falls back to
+     * the offline copies, so the search still works in a dead spot; an answer from the server that refuses (login,
+     * 4xx/5xx) is passed on. A failed album search keeps the tracks.
      */
     private suspend fun search(query: String, fresh: Boolean): SearchResults {
         val q = SearchRules.normalize(query)
         if (q.isEmpty()) return SearchResults(q, emptyList(), emptyList())
         if (!fresh) searches.get(q)?.let { return it }
-        val results = try {
-            val tracks = api.searchTracks(q, SearchRules.TRACK_LIMIT)
-            SearchResults(q, tracks, api.searchAlbums(q, SearchRules.ALBUM_LIMIT))
-        } catch (e: AuthExpiredException) {
+        val tracks = try {
+            api.searchTracks(q, SearchRules.TRACK_LIMIT)
+        } catch (e: AivinException) {
+            // An answer from the server (a refused login, a 4xx/5xx), not a dead spot: the car shows the
+            // error, and nothing is cached for the query. AivinException is an IOException, so first.
             throw e
         } catch (e: IOException) {
             Log.i(TAG, "Search answered from the offline copies", e)
-            offlineSearch(q)
+            return offlineSearch(q).also { searches.put(it) }
         }
+        // The albums are the second request: if only that one fails, the server's tracks stand.
+        val albums = try {
+            api.searchAlbums(q, SearchRules.ALBUM_LIMIT)
+        } catch (e: AuthExpiredException) {
+            throw e
+        } catch (e: IOException) {
+            Log.i(TAG, "Album search failed, showing the tracks only", e)
+            emptyList()
+        }
+        val results = SearchResults(q, tracks, albums)
         searches.put(results)
         return results
     }
@@ -553,7 +567,10 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    /** Whether [item] is a voice request: no media id, or the words of one in its request metadata. */
+    /**
+     * Whether [item], set alone as the queue, is a voice request: the words in its request metadata, or no
+     * media id at all ("spiel AivinNet" arrives without one).
+     */
     private fun isSearchRequest(item: MediaItem): Boolean =
         item.requestMetadata.searchQuery != null || item.mediaId.isBlank()
 
@@ -818,7 +835,7 @@ class PlaybackService : MediaLibraryService() {
      * refused login is reported as such, and a network failure as an I/O error (the car may ask again).
      */
     private fun <V : Any> errorResult(e: Exception, params: LibraryParams?): LibraryResult<V> {
-        Log.w(TAG, "Browse failed", e)
+        Log.w(TAG, "Library call failed (browse or search)", e)
         val code = when (e) {
             is AuthExpiredException -> SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED
             is IOException -> SessionError.ERROR_IO
