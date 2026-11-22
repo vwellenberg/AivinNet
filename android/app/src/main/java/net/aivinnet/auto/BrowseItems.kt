@@ -4,8 +4,10 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import androidx.annotation.DrawableRes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService.LibraryParams
 
@@ -30,13 +32,14 @@ data class ItemStyle(
  * Artwork and headings are hints. Android Auto may ignore them, so an item must list and play the
  * same without them.
  */
+@UnstableApi
 class BrowseItems(private val context: Context) {
 
     /** The root folder. The car reads its children as tabs. */
     fun root(): MediaItem = folder(MediaIds.ROOT, context.getString(R.string.app_name), artwork = null)
 
-    /** A root tab: a browsable folder with the monochrome icon [icon] (a drawable name). */
-    fun tab(id: String, title: String, icon: String): MediaItem = folder(id, title, drawable(icon))
+    /** A root tab: a browsable folder with the monochrome vector [icon]. */
+    fun tab(id: String, title: String, @DrawableRes icon: Int): MediaItem = folder(id, title, drawable(icon))
 
     /**
      * The default styles of the root's children: browsable items as a grid, playable ones as a list.
@@ -159,11 +162,14 @@ class BrowseItems(private val context: Context) {
         if (!extras.isEmpty) setExtras(extras)
     }
 
-    /** `android.resource://<package>/drawable/<name>`, the URI Android Auto loads a vector from. */
-    private fun drawable(name: String): Uri = Uri.Builder()
+    /**
+     * `android.resource://<package>/drawable/<name>`, the URI Android Auto loads a vector from. The name
+     * comes from the resource id, so a renamed icon cannot silently lose its picture.
+     */
+    private fun drawable(@DrawableRes id: Int): Uri = Uri.Builder()
         .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
         .authority(context.packageName)
-        .appendPath("drawable")
-        .appendPath(name)
+        .appendPath(context.resources.getResourceTypeName(id))
+        .appendPath(context.resources.getResourceEntryName(id))
         .build()
 }

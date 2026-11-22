@@ -1,5 +1,6 @@
 package net.aivinnet.auto
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -22,6 +23,9 @@ object TileRenderer {
 
     private const val CENTRE = 121f
 
+    // UseKtx would have us use core-ktx's createBitmap; this module does not depend on core-ktx, and
+    // the platform call is the same one.
+    @SuppressLint("UseKtx")
     fun render(tile: TileSpec.Tile): Bitmap {
         val bitmap = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -113,10 +117,10 @@ object TileRenderer {
             color = TileSpec.INK
         }
         for (d in paths) {
-            canvas.save()
-            canvas.translate(-6f, -6f)
-            canvas.drawPath(PathParser.createPathFromPathData(d), paint)
-            canvas.restore()
+            // Moved in the path itself, so the canvas state is left alone.
+            val path = PathParser.createPathFromPathData(d)
+            path.offset(-6f, -6f)
+            canvas.drawPath(path, paint)
         }
     }
 

@@ -383,10 +383,10 @@ class PlaybackService : MediaLibraryService() {
      */
     private suspend fun children(parentId: String): List<MediaItem> = when (val ref = MediaIds.parse(parentId)) {
         MediaRef.Root -> listOf(
-            browse.tab(MediaIds.HOME, getString(R.string.browse_home), "ic_tab_home"),
-            browse.tab(MediaIds.MIXES, getString(R.string.browse_mixes), "ic_tab_mixes"),
-            browse.tab(MediaIds.PLAYLISTS, getString(R.string.browse_playlists), "ic_tab_playlists"),
-            browse.tab(MediaIds.OFFLINE, getString(R.string.browse_offline), "ic_tab_offline"),
+            browse.tab(MediaIds.HOME, getString(R.string.browse_home), R.drawable.ic_tab_home),
+            browse.tab(MediaIds.MIXES, getString(R.string.browse_mixes), R.drawable.ic_tab_mixes),
+            browse.tab(MediaIds.PLAYLISTS, getString(R.string.browse_playlists), R.drawable.ic_tab_playlists),
+            browse.tab(MediaIds.OFFLINE, getString(R.string.browse_offline), R.drawable.ic_tab_offline),
         )
         MediaRef.Home -> homeFolder(parentId)
         MediaRef.Mixes -> mixesFolder(parentId)
