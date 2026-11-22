@@ -78,6 +78,9 @@ dann auch ohne Netz.
   und braucht kein Netz. Mixes und Playlists fallen bei fehlendem Netz auf ihre Offline-Kopie zurück.
   Dort stehen nur die Titel, die vollständig auf dem Telefon liegen; die übrigen fehlen, statt bei
   jedem Tipp zu scheitern.
+  Sobald das Netz zurück ist, fordert die App Android Auto auf, Mixes und Playlists neu zu laden; so zeigt
+  das Auto wieder die Listen vom Server statt der Offline-Kopien. Ist der Server dann noch nicht erreichbar,
+  wiederholt die App das alle 30 Sekunden.
 - **Speicher** (alles App-privat, bei der Deinstallation weg):
   - `files/media/`: die Titel (SimpleCache, Schlüssel = Trackhash)
   - `files/offline.json`: welche Listen offline sind, mit dem Stand beim letzten Abgleich

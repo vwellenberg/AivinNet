@@ -154,6 +154,15 @@ class AivinApi private constructor(
 
     fun logout() = store.clear()
 
+    /**
+     * Drops the pooled connections. Sockets opened on the old network point at a route that is gone,
+     * and a request on one hangs until its timeout, so the first call after a network change clears them.
+     */
+    fun resetConnections() {
+        plainClient.connectionPool.evictAll()
+        authedClient.connectionPool.evictAll()
+    }
+
     suspend fun playlists(): List<PlaylistSummary> = withContext(Dispatchers.IO) {
         val (code, text) = authedGet("/playlists?no_images=true")
         if (code !in 200..299) throw ServerException(code, "Playlists nicht abrufbar (HTTP $code)")
