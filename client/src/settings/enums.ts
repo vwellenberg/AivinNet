@@ -24,4 +24,6 @@ export enum SettingType {
   home_rows,
   // Settings → Home: the albums and artists marked "Not interested" (#531).
   home_not_interested,
+  // Settings → General: the keyboard shortcut list (the same one as the ? overlay).
+  keyboard_shortcuts,
 }

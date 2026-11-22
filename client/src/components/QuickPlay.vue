@@ -34,6 +34,7 @@
                     </li>
                 </ul>
                 <div v-else-if="showNoMatch" class="qp-empty">No match</div>
+                <p class="qp-hint">{{ hint }}</p>
             </div>
         </div>
     </Teleport>
@@ -46,6 +47,7 @@ import { createQuickPlay } from '@/helpers/quickPlay'
 import type { Track } from '@/interfaces'
 import { searchTracks } from '@/requests/searchMusic'
 import { closeQuickPlay, focusRequest, isQuickPlayShortcut, open } from '@/stores/quickPlay'
+import { quickPlayHint } from '@/utils/shortcuts'
 import useQueue from '@/stores/queue'
 import useTracklist from '@/stores/queue/tracklist'
 
@@ -65,6 +67,9 @@ const qp = createQuickPlay({
 })
 
 const { query, visible, selected, searching, results } = qp
+
+// The keys of this box, from the same list as the ? overlay.
+const hint = quickPlayHint()
 const showNoMatch = computed(() => !searching.value && query.value.trim() !== '' && results.value.length === 0)
 
 function meta(track: Track) {
@@ -258,6 +263,13 @@ onBeforeUnmount(() => qp.dispose())
 
     .qp-empty {
         padding: 0.5rem 0.25rem;
+        color: $candy-text-muted;
+    }
+
+    // Plain muted text on the panel surface, never on the hatch.
+    .qp-hint {
+        margin: 0;
+        font-size: 13px;
         color: $candy-text-muted;
     }
 }

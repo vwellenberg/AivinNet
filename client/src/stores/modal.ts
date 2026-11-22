@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import type { RouteLocationRaw } from 'vue-router'
 
 import { Track } from '@/interfaces'
+import { closeQuickPlay } from '@/stores/quickPlay'
+import { closeShortcutsHelp } from '@/stores/shortcutsHelp'
 
 export enum ModalOptions {
     newPlaylist,
@@ -38,6 +40,11 @@ export default defineStore('newModal', {
     }),
     actions: {
         showModal(modalOption: ModalOptions, props: any = {}) {
+            // The two keyboard boxes sit above the modal layer (z-index 70 over
+            // 60). A modal that opens while one is up (the login after a 401)
+            // would land underneath it, unclickable: the box gives way.
+            closeQuickPlay()
+            closeShortcutsHelp()
             this.component = modalOption
             this.visible = true
             this.props = props

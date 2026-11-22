@@ -5,6 +5,7 @@ import useSettings from "@/stores/settings";
 import { controlOwnsKey, focusCameFromKeyboard, trackFocusOrigin } from "@/utils/keyOwnership";
 import { handleFindShortcut } from "@/utils/pageFind";
 import { isQuickPlayShortcut, openQuickPlay } from "@/stores/quickPlay";
+import { closeShortcutsHelp, shortcutsHelpOpen, toggleShortcutsHelp } from "@/stores/shortcutsHelp";
 
 let key_down_fired = "";
 
@@ -20,8 +21,9 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
     const target = e.target as HTMLElement;
 
     // Before the input check: Cmd/Ctrl+F inside the page's own search field
-    // selects it again rather than opening the browser's find over it.
-    if (handleFindShortcut(e)) return;
+    // selects it again rather than opening the browser's find over it. Not while
+    // the shortcut list is up: the page's search would take focus behind it.
+    if (!shortcutsHelpOpen.value && handleFindShortcut(e)) return;
 
     // Quick play (Ctrl/Cmd+P): also before the input check, so it works while a
     // text field has focus. preventDefault suppresses the browser's print dialog.
@@ -29,7 +31,7 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
     // sit on top of it. The print dialog stays suppressed either way.
     if (isQuickPlayShortcut(e)) {
       e.preventDefault();
-      if (!modal().visible) openQuickPlay();
+      if (!modal().visible && !shortcutsHelpOpen.value) openQuickPlay();
       return;
     }
 
@@ -58,6 +60,15 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
         target.blur();
       }
 
+      return;
+    }
+
+    // The shortcut list is up. It answers Esc and ? and nothing else, so Space or
+    // an arrow cannot play or seek behind it. Ctrl/Cmd combinations are not taken.
+    if (shortcutsHelpOpen.value) {
+      if (e.key === "Escape" || (e.key === "?" && !ctrlKey && !e.metaKey)) {
+        closeShortcutsHelp();
+      }
       return;
     }
 
@@ -133,6 +144,14 @@ export default function (queue: typeof useQueue, modal: typeof useModal) {
         const { toggleDisableSidebar } = useSettings();
         toggleDisableSidebar();
         setKeyFired();
+        break;
+      }
+
+      case "?": {
+        // Shift is not refused: ? is Shift+/ on a US layout, Shift+ß on a German one.
+        if (ctrlKey || e.metaKey) break;
+        if (modal().visible) break;
+        toggleShortcutsHelp();
         break;
       }
 

@@ -2,12 +2,13 @@ import { SettingType } from "../enums";
 import { Setting } from "@/interfaces/settings";
 
 import useSettingsStore from "@/stores/settings";
+import { shortcutText } from "@/utils/shortcuts";
 
 const settings = useSettingsStore;
 
 const use_sidebar: Setting = {
   title: "Right sidebar",
-  desc: "Show the panel on the right of the page. Shortcut: Ctrl + B",
+  desc: `Show the panel on the right of the page. Shortcut: ${shortcutText("sidebar")}`,
   type: SettingType.binary,
   state: () => settings().use_sidebar,
   action: () => settings().toggleDisableSidebar(),

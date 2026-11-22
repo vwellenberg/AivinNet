@@ -14,6 +14,7 @@ import ratings from './ratings'
 import rootDirSettings from './root-dirs'
 import separators from './separators'
 import sidebarSettings from './sidebar'
+import shortcutSettings from './shortcuts'
 import theme from './theme'
 import tileSize from './tile-size'
 import tracks from './tracks'
@@ -28,6 +29,8 @@ import TrackSvg from '@/assets/icons/note.svg?raw'
 import RatingSvg from '@/assets/icons/star.svg?raw'
 import AppearanceSvg from '@/assets/icons/paintbrush.svg?raw'
 import LayoutSvg from '@/assets/icons/layout.svg?raw'
+// A stacked list of rows: on the chrome grid, and no other settings group wears it.
+import ShortcutsSvg from '@/assets/icons/queue.svg?raw'
 
 const npStrings = strings.nowPlayingStrings
 const rootRootStrings = strings.manageRootDirsStrings
@@ -48,6 +51,12 @@ export const general = {
             desc: 'Tile size, the sidebar, and what pages and Now Playing show.',
             icon: LayoutSvg,
             settings: [...tileSize, ...pageGradient, ...nowPlaying, ...sidebarSettings],
+        },
+        {
+            title: 'Shortcuts',
+            desc: 'Every key the app answers to, and what it does.',
+            icon: ShortcutsSvg,
+            settings: [...shortcutSettings],
         },
     ],
 } as SettingCategory
