@@ -16,6 +16,12 @@ function pointer(type: string, clientX: number, target: EventTarget = window, cl
     return ev
 }
 
+/** A click as the browser sends it: `detail` 1 from a pointer, 0 from the keyboard. */
+async function click(wrapper: { vm: { $nextTick(): Promise<void> } }, el: Element, detail = 1) {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }))
+    await wrapper.vm.$nextTick()
+}
+
 async function showToast(text: string, onClick?: () => void) {
     const store = useToast()
     const wrapper = mount(Notification, { attachTo: document.body })
@@ -89,7 +95,7 @@ describe('swiping a toast', () => {
         pointer('pointermove', 120)
         pointer('pointerup', 120)
         // The browser fires the click after pointerup (a pointer click: detail 1).
-        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+        await click(wrapper, wrapper.get('.new-notif').element, 1)
 
         expect(onClick).not.toHaveBeenCalled()
         expect(store.notifs).toHaveLength(1)
@@ -97,7 +103,7 @@ describe('swiping a toast', () => {
         // A real tap afterwards still works.
         pointer('pointerdown', 100, el)
         pointer('pointerup', 100)
-        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+        await click(wrapper, wrapper.get('.new-notif').element, 1)
         expect(onClick).toHaveBeenCalledOnce()
     })
 
@@ -116,7 +122,7 @@ describe('swiping a toast', () => {
         store.dismiss(goneId) // its timeout fires mid-drag
         await wrapper.vm.$nextTick()
         pointer('pointerup', 125)
-        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+        await click(wrapper, wrapper.get('.new-notif').element, 1)
 
         expect(onClick).not.toHaveBeenCalled()
         expect(store.notifs).toHaveLength(1)
@@ -130,7 +136,7 @@ describe('swiping a toast', () => {
         pointer('pointerdown', 100, el)
         pointer('pointermove', 115)
         pointer('pointerup', 115)
-        await wrapper.get('.new-notif').trigger('click', { detail: 0 })
+        await click(wrapper, wrapper.get('.new-notif').element, 0)
         expect(onClick).toHaveBeenCalledOnce()
     })
 
@@ -140,7 +146,7 @@ describe('swiping a toast', () => {
         pointer('pointerdown', 100, el, 500)
         pointer('pointermove', 101, window, 470)
         pointer('pointerup', 101, window, 470)
-        await wrapper.get('.new-notif').trigger('click', { detail: 1 })
+        await click(wrapper, wrapper.get('.new-notif').element, 1)
         expect(store.notifs).toHaveLength(1)
     })
 
