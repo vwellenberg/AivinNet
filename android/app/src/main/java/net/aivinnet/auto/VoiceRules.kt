@@ -5,6 +5,12 @@ sealed interface VoicePick {
     /** Play [tracks] as the queue, from the first one. */
     data class Tracks(val tracks: List<TrackInfo>) : VoicePick
 
+    /**
+     * A playlist plays as itself (the empty request: a mix, or an offline list): its own track ids, so
+     * the plays count for that playlist and next/previous find the tracks.
+     */
+    data class Playlist(val id: String, val tracks: List<TrackInfo>) : VoicePick
+
     /** No track matched, but this album did: play its tracks. */
     data class Album(val albumhash: String) : VoicePick
 
@@ -33,9 +39,9 @@ object VoiceRules {
      * or the mix is empty for this user), the first offline list that has something playable. [offlineLists]
      * arrives in the order the car lists them.
      */
-    fun pickForEmptyQuery(mix: List<TrackInfo>, offlineLists: List<List<TrackInfo>>): VoicePick {
-        if (mix.isNotEmpty()) return VoicePick.Tracks(mix)
-        val offline = offlineLists.firstOrNull { it.isNotEmpty() } ?: return VoicePick.None
-        return VoicePick.Tracks(offline)
+    fun pickForEmptyQuery(mix: PlaylistDetail?, offlineLists: List<PlaylistDetail>): VoicePick {
+        if (mix != null && mix.tracks.isNotEmpty()) return VoicePick.Playlist(mix.id, mix.tracks)
+        val offline = offlineLists.firstOrNull { it.tracks.isNotEmpty() } ?: return VoicePick.None
+        return VoicePick.Playlist(offline.id, offline.tracks)
     }
 }

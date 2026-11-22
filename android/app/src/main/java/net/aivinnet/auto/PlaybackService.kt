@@ -526,24 +526,26 @@ class PlaybackService : MediaLibraryService() {
                 C.TIME_UNSET,
             )
             is VoicePick.Album -> albumStart(pick.albumhash, trackhash = null)
-            VoicePick.None -> throw AivinException(getString(R.string.search_no_results, query))
+            is VoicePick.Playlist, VoicePick.None -> throw AivinException(getString(R.string.search_no_results, query))
         }
     }
 
     /** The empty voice request: the first mix that has tracks, else the first offline list. */
     private suspend fun playWithoutWords(base: String): MediaSession.MediaItemsWithStartPosition {
         val mix = try {
-            playlist(MediaIds.MIX_IDS.first(), fresh = true)?.tracks.orEmpty()
+            playlist(MediaIds.MIX_IDS.first(), fresh = true)
         } catch (e: AuthExpiredException) {
             throw e
         } catch (e: IOException) {
-            emptyList()
+            null
         }
         val completed = offline.completedTrackhashes()
-        val offlineLists = OfflineBrowse.listed(offlineSnapshots(), completed) { true }.map { it.tracks }
+        val offlineLists = OfflineBrowse.listed(offlineSnapshots(), completed) { true }
         return when (val pick = VoiceRules.pickForEmptyQuery(mix, offlineLists)) {
-            is VoicePick.Tracks -> MediaSession.MediaItemsWithStartPosition(
-                pick.tracks.map { browse.searchPlayable(it, base) },
+            // Played as the playlist it is (`tr:` ids): next/previous and the plays' source follow it,
+            // and a tap later resolves through playlistOrOffline like any playlist track.
+            is VoicePick.Playlist -> MediaSession.MediaItemsWithStartPosition(
+                pick.tracks.map { browse.playable(pick.id, it, base) },
                 0,
                 C.TIME_UNSET,
             )

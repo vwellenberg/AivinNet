@@ -35,22 +35,27 @@ class VoiceRulesTest {
     }
 
     @Test
-    fun `the empty request plays the first mix when it has tracks`() {
-        val mix = listOf(track("m1"))
-        val offline = listOf(listOf(track("o1")))
+    fun `the empty request plays the first mix, as that playlist`() {
+        val mix = PlaylistDetail("mix1", "Mix 1", listOf(track("m1")))
+        val offline = listOf(PlaylistDetail("42", "Chill", listOf(track("o1"))))
 
-        assertEquals(VoicePick.Tracks(mix), VoiceRules.pickForEmptyQuery(mix, offline))
+        assertEquals(VoicePick.Playlist("mix1", mix.tracks), VoiceRules.pickForEmptyQuery(mix, offline))
     }
 
     @Test
-    fun `without a mix the first offline list with tracks plays, skipping empty ones`() {
-        val offline = listOf(emptyList(), listOf(track("o2")), listOf(track("o3")))
+    fun `without a mix the first offline list with tracks plays as itself, skipping empty ones`() {
+        val offline = listOf(
+            PlaylistDetail("1", "Leer", emptyList()),
+            PlaylistDetail("2", "Roadtrip", listOf(track("o2"))),
+            PlaylistDetail("3", "Chill", listOf(track("o3"))),
+        )
 
-        assertEquals(VoicePick.Tracks(listOf(track("o2"))), VoiceRules.pickForEmptyQuery(emptyList(), offline))
+        assertEquals(VoicePick.Playlist("2", listOf(track("o2"))), VoiceRules.pickForEmptyQuery(null, offline))
     }
 
     @Test
-    fun `the empty request with nothing to play is no pick`() {
-        assertEquals(VoicePick.None, VoiceRules.pickForEmptyQuery(emptyList(), listOf(emptyList())))
+    fun `an empty mix does not count`() {
+        val mix = PlaylistDetail("mix1", "Mix 1", emptyList())
+        assertEquals(VoicePick.None, VoiceRules.pickForEmptyQuery(mix, listOf(PlaylistDetail("1", "Leer", emptyList()))))
     }
 }

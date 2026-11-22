@@ -13,8 +13,8 @@ Browse-Baum auf.
 - **Bewertung:** Im Player gibt es einen Knopf (Stern), der den laufenden Titel mit 5 bewertet. Ein
   zweiter Druck auf einen Titel mit 5 entfernt die Bewertung. Der Knopf zeigt den Stand als gefüllten
   Stern („Mit 5 Sternen bewertet“) oder leeren Stern („5 Sterne geben“). Unten: Offline-Verhalten
-- **Noch nicht:** Cover (der Bild-Endpoint braucht den Authorization-Header, den das Auto nicht
-  senden kann)
+- **Cover:** Album- und eigene Playlist-Cover holt die App selbst (mit der Anmeldung) und reicht sie
+  ans Auto weiter; Details unten unter „Was das Auto zeigt“.
 
 ## Bauen
 
