@@ -52,7 +52,7 @@ describe('swiping a toast', () => {
         // It slides out first, then leaves the store.
         expect(el.classList).not.toContain('is-swiping')
         expect(store.notifs).toHaveLength(1)
-        vi.advanceTimersByTime(200)
+        vi.advanceTimersByTime(250)
         expect(store.notifs).toHaveLength(0)
     })
 
@@ -62,7 +62,7 @@ describe('swiping a toast', () => {
         pointer('pointerdown', 300, el)
         for (let x = 290; x >= 180; x -= 10) pointer('pointermove', x)
         pointer('pointerup', 180)
-        vi.advanceTimersByTime(200)
+        vi.advanceTimersByTime(250)
         expect(store.notifs).toHaveLength(0)
     })
 
@@ -74,7 +74,7 @@ describe('swiping a toast', () => {
         pointer('pointermove', 120)
         pointer('pointerup', 120)
         await wrapper.vm.$nextTick()
-        vi.advanceTimersByTime(200)
+        vi.advanceTimersByTime(250)
 
         expect(store.notifs).toHaveLength(1)
         expect(el.style.transform).toBe('')
@@ -109,7 +109,7 @@ describe('swiping a toast', () => {
         pointer('pointermove', 200, window, 440)
         pointer('pointerup', 200, window, 440)
         await wrapper.vm.$nextTick()
-        vi.advanceTimersByTime(200)
+        vi.advanceTimersByTime(250)
 
         expect(el.style.transform).toBe('')
         expect(store.notifs).toHaveLength(1)
@@ -122,7 +122,7 @@ describe('swiping a toast', () => {
         for (let x = 110; x <= 250; x += 10) pointer('pointermove', x)
         pointer('pointercancel', 250)
         await wrapper.vm.$nextTick()
-        vi.advanceTimersByTime(200)
+        vi.advanceTimersByTime(250)
 
         expect(store.notifs).toHaveLength(1)
         expect(el.style.transform).toBe('')

@@ -69,8 +69,9 @@ function onToastClick(notif: Notif) {
 // so the template can follow it.
 // ---------------------------------------------------------------------------
 
-/** How long the thrown-away toast slides out before it is removed. */
-const LEAVE_MS = 180
+/** How long the thrown-away toast slides out before it is removed.
+ *  Mirrors `$motion-move`, the transition in the styles below. */
+const LEAVE_MS = 200
 
 interface Swipe {
     id: number
@@ -263,9 +264,10 @@ function getSvg(notif: NotifType) {
     user-select: none;
     -webkit-user-select: none;
     // The spring back after a short swipe and the slide out after a long one.
+    // $motion-move: "anything that travels" — LEAVE_MS in the script mirrors it.
     transition:
-        transform 180ms ease-out,
-        opacity 180ms ease-out;
+        transform $motion-move ease-out,
+        opacity $motion-move ease-out;
 
     .notif-icon {
         color: $candy-text;
