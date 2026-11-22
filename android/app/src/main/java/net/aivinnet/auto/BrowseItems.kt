@@ -10,12 +10,12 @@ import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService.LibraryParams
 
 /**
- * What the car shows around an item besides its title: the heading of its group, its artwork and its
- * download badge. Android Auto draws the screen itself, so these are the only things it can be told.
+ * What the car shows around an item besides its title: the heading of its group and its download
+ * badge. Android Auto draws the screen itself, so these are the only things it can be told here; the
+ * artwork is picked by [BrowseItems] from the kind of the item.
  */
 data class ItemStyle(
     val heading: BrowseGroups.Heading? = null,
-    val artwork: Uri? = null,
     val downloaded: Boolean = false,
 ) {
     companion object {
@@ -85,6 +85,7 @@ class BrowseItems(private val context: Context) {
             MediaMetadata.Builder()
                 .setTitle(name)
                 .setSubtitle(context.resources.getQuantityString(R.plurals.track_count, count, count))
+                .setArtworkUri(artworkFor(id, name, offline))
                 .setIsBrowsable(true)
                 .setIsPlayable(false)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
@@ -92,6 +93,23 @@ class BrowseItems(private val context: Context) {
                 .build(),
         )
         .build()
+
+    /**
+     * The tile of a playlist: a mix, a home row or a station has its own, an offline copy the download
+     * glyph, and any other playlist its letter. The name is cut to the longest one a tile URI takes.
+     */
+    private fun artworkFor(id: String, name: String, offline: Boolean): Uri = when {
+        offline -> TileProvider.uri(context.packageName, TileSpec.Kind.OFFLINE, id)
+        id in MediaIds.MIX_IDS -> TileProvider.uri(context.packageName, TileSpec.Kind.MIX, id)
+        id in MediaIds.HOME_IDS -> TileProvider.uri(context.packageName, TileSpec.Kind.ROW, id)
+        id in MediaIds.STATION_IDS -> TileProvider.uri(context.packageName, TileSpec.Kind.STATION, id)
+        else -> TileProvider.uri(
+            context.packageName,
+            TileSpec.Kind.PLAYLIST,
+            id,
+            name.take(TileSpec.MAX_NAME),
+        )
+    }
 
     /** Browse entry of a track: no URI yet. The URI is added when the track is chosen. */
     fun track(playlistId: String, track: TrackInfo, style: ItemStyle = ItemStyle.NONE): MediaItem = MediaItem.Builder()
@@ -130,9 +148,8 @@ class BrowseItems(private val context: Context) {
         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
     // TODO(#747): setArtworkUri for tracks once covers can be fetched without the bearer header.
 
-    /** Applies the artwork, the group heading and the download badge; each is set only when present. */
+    /** Applies the group heading and the download badge; each is set only when present. */
     private fun MediaMetadata.Builder.styled(style: ItemStyle): MediaMetadata.Builder = apply {
-        style.artwork?.let { setArtworkUri(it) }
         val extras = Bundle()
         style.heading?.let { extras.putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, heading(it)) }
         if (style.downloaded) {
