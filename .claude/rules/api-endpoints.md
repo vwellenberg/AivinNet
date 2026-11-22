@@ -56,6 +56,33 @@ ID3v2.4 davor (dank `flac_audio_offset`).
 | **FLAC 32 Bit** (seit libFLAC 1.4) | ✗ `DEMUXER_ERR` | ✓ | ✗ | „Can't load" — selten, nicht serverseitig lösbar |
 | **VBR-MP3 ohne Xing-Header** | 30,2 s | 27,1 s | 0,0 s | Browser-Dauer falsch; die Anzeige nimmt die Dauer vom Server (`track.duration`), Spulen geht |
 
+### ⚠️ „decode error“ nur auf einem Gerät: die Datei, nicht die App, und headless nicht zu sehen
+
+Ein `MEDIA_ERR_DECODE` (im Toast „Can't load: … (decode error)“), der bei **einem** Song auf
+**einem** Gerät jedes Mal kommt, kann am Audiostrom der Datei liegen, obwohl jede Prüfung auf dem
+Server sauber ist. So gesehen am 2026-11-22 bei einem alten Rip aus dem Windows Media Player
+(PRIV-Frames `WM/MediaClass…`, kein Xing-Header, durchgehend 320 kbps CBR): Vivaldi am Gerät
+brach ab. Ohne Befund blieben dabei ffmpeg (auch mit `-err_detect explode`), ein
+Frame-für-Frame-Abgleich (gleiche Header, kein Müll, keine Lücken) und headless Chromium/Firefox
+(am Stück, ~38 Sprünge, echter App-Player). Andere Songs derselben CD aus demselben Encoder
+liefen. Am Code lässt sich nichts ändern: `/file/<hash>/legacy` schickt die Datei unverändert.
+
+**Eingrenzen in einer Runde, ohne die Bibliothek anzufassen:** eine Wegwerf-Testseite mit
+Range-fähigem Server (werkzeug `send_from_directory(…, conditional=True)`; `python -m http.server`
+kann kein Range) und je einem `<audio>` mit Statuszeile für **Original**, **ohne Tags**
+(Bytes zwischen ID3v2 und ID3v1 herausgeschnitten, Audiostrom unverändert), **neu kodiert**
+(`ffmpeg -c:a libmp3lame -b:a 320k -map_metadata 0`) und einen **Kontrolltrack**, der dort
+spielt. Der Nutzer öffnet sie auf dem betroffenen Gerät:
+
+- Original ✗, ohne Tags ✓ → die Tags sind schuld: Tags neu schreiben, verlustfrei.
+- Original ✗, ohne Tags ✗, neu kodiert ✓ → der Audiostrom: Datei ersetzen, Original vorher
+  **außerhalb** des Musikordners sichern (sonst indexiert der Scanner die Kopie mit).
+- alles ✓ → nicht die Datei, sondern der Abspielpfad der App.
+
+Vor dem Ersetzen die Tags von Original und Neukodierung vergleichen: Der Trackhash hängt an
+Titel, Album und Interpreten, und bleiben die gleich, bleiben Playlists, Favoriten und Plays
+dran (ffmpeg fügt nur `TSSE` hinzu).
+
 ### ⚠️ FLAC mit ID3-Tag davor: Firefox verweigert die ganze Datei
 
 Manche Tagger schreiben ein ID3v2-Tag **vor** den `fLaC`-Marker, obwohl FLAC kein ID3 kennt.
