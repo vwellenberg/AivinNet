@@ -18,7 +18,7 @@ vi.mock('@/config', () => ({
     paths: { images: { thumb: { medium: '/img/thumbnail/medium/' }, artist: { medium: '/img/artist/medium/' } } },
 }))
 
-import Browse, { __resetBrowseCrates, NEWEST_ALBUMS } from '@/components/HomeView/Browse.vue'
+import Browse, { __resetBrowseCrates, NEW_IN_MIN, NEWEST_ALBUMS } from '@/components/HomeView/Browse.vue'
 
 const RouterLink = { props: ['to'], template: '<a :data-to="to.name"><slot /></a>' }
 
@@ -232,6 +232,60 @@ describe('Browse Library', () => {
         expect(albums.find('.count').text()).toBe(`${(898).toLocaleString()} albums`)
         // One request each: the newest from the top, the most-played beside it.
         expect(getAllItems.mock.calls.filter(c => c[0] === 'albums')).toHaveLength(2)
+    })
+
+    // Regression (2026-11-22): one new album with a cover among coverless ones
+    // put a lone sleeve under NEW IN while 900 albums stood behind it. NEW IN
+    // needs NEW_IN_MIN covers among the newest; below that, MOST PLAYED.
+    describe('NEW IN needs at least three new covers', () => {
+        const TOP = [
+            { image: 'top0.webp?pathhash=1', help_text: '40 plays', has_artwork: true },
+            { image: 'top1.webp?pathhash=2', help_text: '3 plays', has_artwork: true },
+        ]
+        const newestWith = (covers: number) =>
+            many(50).map((it, i) => (i < covers ? it : { ...it, has_artwork: false }))
+
+        function serve(newest: object[], top: object[]) {
+            getAllItems.mockImplementation((type: string, o: { sortby: string }) => {
+                if (type !== 'albums') return Promise.resolve(ARTISTS)
+                const items = o.sortby === 'playcount' ? top : newest
+                return Promise.resolve({ status: 200, data: { total: 900, items } })
+            })
+        }
+
+        it('is three', () => {
+            expect(NEW_IN_MIN).toBe(3)
+        })
+
+        it.each([1, 2])('shows MOST PLAYED with %i new cover(s)', async covers => {
+            serve(newestWith(covers), TOP)
+            const [albums] = mountBrowse().findAll('a')
+            await flushPromises()
+
+            expect(albums.find('.tag').text()).toBe('MOST PLAYED')
+            expect(srcsOf(albums, '.covers img')).toEqual(TOP.map(it => '/img/thumbnail/medium/' + it.image))
+            expect(albums.find('.count').text()).toBe(`${(900).toLocaleString()} albums`)
+        })
+
+        it('shows NEW IN with exactly three new covers', async () => {
+            serve(newestWith(3), TOP)
+            const [albums] = mountBrowse().findAll('a')
+            await flushPromises()
+
+            expect(albums.find('.tag').text()).toBe('NEW IN')
+            expect(srcsOf(albums, '.covers img')).toEqual(
+                many(3).map(it => '/img/thumbnail/medium/' + it.image)
+            )
+        })
+
+        it('keeps the few new covers under NEW IN when no played album has one', async () => {
+            serve(newestWith(2), [{ image: 'u.webp?pathhash=9', help_text: '0 plays', has_artwork: true }])
+            const [albums] = mountBrowse().findAll('a')
+            await flushPromises()
+
+            expect(albums.find('.tag').text()).toBe('NEW IN')
+            expect(albums.findAll('.covers img')).toHaveLength(2)
+        })
     })
 
     it('keeps NEW IN without covers when the most-played albums have none either', async () => {

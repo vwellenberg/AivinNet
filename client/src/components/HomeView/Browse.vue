@@ -54,8 +54,8 @@ import { reactive } from "vue";
 
 type CrateEntity = "album" | "artist";
 // How the shown pictures were chosen. Albums are the newest, or the
-// most-played while none of the newest has a cover; artists are the
-// most-played, or the newest while no played artist has a picture yet.
+// most-played while fewer than NEW_IN_MIN of the newest have a cover; artists
+// are the most-played, or the newest while no played artist has a picture yet.
 type Order = "newest" | "most-played";
 
 interface CrateData {
@@ -70,6 +70,11 @@ const FIRST_ORDER: Record<CrateEntity, Order> = { album: "newest", artist: "most
 // the list endpoint answers `artwork` for (`ARTWORK_LIMIT_MAX` in
 // api/getall/__init__.py; a test holds the two together).
 export const NEWEST_ALBUMS = 50;
+
+// How many of the newest albums need a cover before the crate says NEW IN.
+// One or two new covers in the fan read as an empty crate with a stray
+// sleeve; below this the most-played albums stand in (2026-11-22).
+export const NEW_IN_MIN = 3;
 
 // Module scope (a plain <script>, not <script setup>, which runs per
 // instance): a return to Home shows the crates at once instead of name-only
@@ -176,8 +181,9 @@ type Page = NonNullable<Awaited<ReturnType<typeof fetchShown>>>;
 type Shown = { page: Page | null; order: Order };
 
 // The albums crate reads two lists, and asks for both AT ONCE: the newest
-// NEWEST_ALBUMS albums, and the most-played ones, which stand in when none of
-// the newest has a cover. Sixteen newest were not enough: a batch of newly
+// NEWEST_ALBUMS albums, and the most-played ones, which stand in while fewer
+// than NEW_IN_MIN of the newest have a cover. Sixteen newest were not
+// enough: a batch of newly
 // added albums without covers filled all sixteen places, and the crate stood
 // empty beside its count of 898 albums. Paging further back and only then
 // asking for the most-played took five requests one after the other, each
@@ -190,10 +196,13 @@ async function fetchAlbums(): Promise<Shown> {
     fetchShown("albums", "created_date", NEWEST_ALBUMS),
     fetchShown("albums", "playcount"),
   ]);
-  if (!newest || newest.items.some(withArtwork)) return { page: newest, order: "newest" };
-  // Not one cover among the newest: a large import without artwork (176
-  // episodes of a show, each its own album) leaves nothing to show there.
-  // The most-played albums with a cover stand in, under MOST PLAYED.
+  if (!newest || newest.items.filter(withArtwork).length >= NEW_IN_MIN) {
+    return { page: newest, order: "newest" };
+  }
+  // Too few covers among the newest: a large import without artwork (176
+  // episodes of a show, each its own album) leaves nothing, or a lone sleeve,
+  // to show there. The most-played albums with a cover stand in, under MOST
+  // PLAYED. Only if none of those has a cover either do the few new ones stay.
   const played = top ? top.items.filter((it) => !unplayed(it) && withArtwork(it)) : [];
   if (!played.length) return { page: newest, order: "newest" };
   return { page: { ...newest, items: played }, order: "most-played" };
