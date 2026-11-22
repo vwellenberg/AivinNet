@@ -61,7 +61,19 @@ class TileProvider : ContentProvider() {
             bitmap.recycle()
             part.delete()
         }
+        prune(dir)
         return file
+    }
+
+    /**
+     * Keeps the cache bounded. The provider is exported (the car reads it from its own process), so
+     * any app on the phone can ask for tiles of made-up playlist keys; without a cap each one would
+     * stay on disk. The oldest go first; a pruned tile is simply drawn again when asked for.
+     */
+    private fun prune(dir: File) {
+        val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".png") } ?: return
+        if (files.size <= MAX_CACHED) return
+        files.sortedBy { it.lastModified() }.take(files.size - KEEP_AFTER_PRUNE).forEach { it.delete() }
     }
 
     companion object {
@@ -69,6 +81,10 @@ class TileProvider : ContentProvider() {
         const val NAME_PARAM = "name"
 
         private const val DIR = "tiles"
+
+        /** About 5 KB per tile: a few MB at most. Real use (mixes, rows, stations, playlists) stays far below. */
+        private const val MAX_CACHED = 600
+        private const val KEEP_AFTER_PRUNE = 400
 
         /** The authority, derived from the package like the manifest's `${applicationId}.tiles`. */
         fun authority(packageName: String): String = "$packageName.tiles"

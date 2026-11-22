@@ -64,6 +64,11 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    // Robolectric (TileRendererTest) reads the merged resources and the manifest.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -87,4 +92,5 @@ dependencies {
     // implementation has to come from the test classpath.
     testImplementation(libs.org.json)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 }

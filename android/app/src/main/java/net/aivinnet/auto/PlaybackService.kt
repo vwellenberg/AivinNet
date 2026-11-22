@@ -45,6 +45,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 /**
@@ -81,6 +83,9 @@ class PlaybackService : MediaLibraryService() {
 
     /** Playlists as last shown in the car, so a tap plays exactly that list. */
     private val playlists = PlaylistCache(now = SystemClock::elapsedRealtime)
+
+    /** Bounds the generated playlists fetched at once, see [fetchGenerated]. */
+    private val generatedFetches = Semaphore(GENERATED_PARALLEL)
 
     /** Browse folders answered from the offline copies; they are asked again once the server answers. */
     private val freshness = BrowseFreshness()
@@ -478,12 +483,17 @@ class PlaybackService : MediaLibraryService() {
         OfflineBrowse.Badges(offlineSnapshots(), offline.completedTrackhashes())
 
     /**
-     * The generated playlists [ids] the user has, fetched in parallel and kept in the order of [ids].
-     * A 404 or an empty playlist is skipped. A network failure fails the whole list, so the caller
-     * falls back to the offline copies.
+     * The generated playlists [ids] the user has, kept in the order of [ids]. A 404 or an empty
+     * playlist is skipped. A network failure fails the whole list, so the caller falls back to the
+     * offline copies.
+     *
+     * Android Auto loads every tab at once when it connects: Home, Mixes and Stations are 23
+     * playlists, each with all its tracks. The server answers one request at a time, so at most
+     * [GENERATED_PARALLEL] run together, and a list fetched in the last minutes is taken from
+     * [playlists] (opening a playlist still fetches it fresh, see [playlistTracks]).
      */
     private suspend fun fetchGenerated(ids: List<String>): List<PlaylistDetail> = coroutineScope {
-        ids.map { id -> async { playlist(id, fresh = true) } }
+        ids.map { id -> async { generatedFetches.withPermit { playlist(id, fresh = false) } } }
             .awaitAll()
             .filterNotNull()
             .filter { it.tracks.isNotEmpty() }
@@ -809,6 +819,9 @@ class PlaybackService : MediaLibraryService() {
 
     companion object {
         private const val TAG = "PlaybackService"
+
+        /** Generated playlists fetched at once when a tab loads; the server serves one request at a time. */
+        private const val GENERATED_PARALLEL = 4
 
         /** How often a stale folder is probed while the server is unreachable. */
         private const val RETRY_INTERVAL_MS = 30_000L
