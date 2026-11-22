@@ -47,7 +47,11 @@ class TileProvider : ContentProvider() {
     private fun cached(tile: TileSpec.Tile): File {
         val dir = File(requireNotNull(context).cacheDir, DIR).apply { mkdirs() }
         val file = File(dir, TileSpec.cacheName(tile))
-        if (file.isFile) return file
+        if (file.isFile) {
+            // Marks it as used, so the prune keeps the car's tiles and drops the ones nobody asks for.
+            file.setLastModified(System.currentTimeMillis())
+            return file
+        }
 
         // Written under a temporary name and renamed, so a half-written PNG is never served.
         val bitmap = TileRenderer.render(tile)
@@ -68,7 +72,7 @@ class TileProvider : ContentProvider() {
     /**
      * Keeps the cache bounded. The provider is exported (the car reads it from its own process), so
      * any app on the phone can ask for tiles of made-up playlist keys; without a cap each one would
-     * stay on disk. The oldest go first; a pruned tile is simply drawn again when asked for.
+     * stay on disk. The least recently used go first; a pruned tile is simply drawn again when asked for.
      */
     private fun prune(dir: File) {
         val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".png") } ?: return

@@ -420,7 +420,7 @@ class PlaybackService : MediaLibraryService() {
                 .also { answered(parentId, offline = false) }
         } catch (e: IOException) {
             answeredWithout(parentId, e)
-            offlineListing(badges) { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
+            offlineListing(badges, headingOf = { BrowseGroups.Heading.FOR_YOU }) { it in MediaIds.HOME_IDS }.ifEmpty { throw e }
         }
     }
 
@@ -433,13 +433,13 @@ class PlaybackService : MediaLibraryService() {
         return try {
             fetchGenerated(MediaIds.MIX_IDS + MediaIds.STATION_IDS)
                 .map { detail ->
-                    val heading = if (detail.id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
-                    browse.generated(detail, ItemStyle(heading, downloaded = badges.playlistComplete(detail.id)))
+                    browse.generated(detail, ItemStyle(mixOrStationHeading(detail.id), downloaded = badges.playlistComplete(detail.id)))
                 }
                 .also { answered(parentId, offline = false) }
         } catch (e: IOException) {
             answeredWithout(parentId, e)
-            offlineListing(badges) { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }.ifEmpty { throw e }
+            offlineListing(badges, headingOf = ::mixOrStationHeading) { it in MediaIds.MIX_IDS || it in MediaIds.STATION_IDS }
+                .ifEmpty { throw e }
         }
     }
 
@@ -489,11 +489,15 @@ class PlaybackService : MediaLibraryService() {
      *
      * Android Auto loads every tab at once when it connects: Home, Mixes and Stations are 23
      * playlists, each with all its tracks. The server answers one request at a time, so at most
-     * [GENERATED_PARALLEL] run together, and a list fetched in the last minutes is taken from
-     * [playlists] (opening a playlist still fetches it fresh, see [playlistTracks]).
+     * [GENERATED_PARALLEL] run together, and while the network is up a list fetched in the last
+     * minutes is taken from [playlists] (opening a playlist still fetches it fresh, see
+     * [playlistTracks]).
      */
     private suspend fun fetchGenerated(ids: List<String>): List<PlaylistDetail> = coroutineScope {
-        ids.map { id -> async { generatedFetches.withPermit { playlist(id, fresh = false) } } }
+        // The cache only while a validated network is up: without one a cached list would hide the
+        // offline copies (no IOException, no fallback), and tapping it would stream into a dead spot.
+        val useCache = validatedNetwork != null
+        ids.map { id -> async { generatedFetches.withPermit { playlist(id, fresh = !useCache) } } }
             .awaitAll()
             .filterNotNull()
             .filter { it.tracks.isNotEmpty() }
@@ -557,16 +561,24 @@ class PlaybackService : MediaLibraryService() {
      * Badged when the whole copy is on disk, which the listing alone does not show: it keeps only the
      * downloaded tracks.
      */
-    private fun offlineListing(badges: OfflineBrowse.Badges, include: (String) -> Boolean): List<MediaItem> =
+    private fun offlineListing(
+        badges: OfflineBrowse.Badges,
+        headingOf: (String) -> BrowseGroups.Heading? = { null },
+        include: (String) -> Boolean,
+    ): List<MediaItem> =
         OfflineBrowse.listed(badges.snapshots, badges.completed, include).map {
             browse.playlist(
                 it.id,
                 it.name,
                 it.tracks.size,
-                ItemStyle(downloaded = badges.playlistComplete(it.id)),
+                // The same headings as online, so the layout does not change with the network.
+                ItemStyle(headingOf(it.id), downloaded = badges.playlistComplete(it.id)),
                 offline = true,
             )
         }
+
+    private fun mixOrStationHeading(id: String): BrowseGroups.Heading =
+        if (id in MediaIds.MIX_IDS) BrowseGroups.Heading.MIXES else BrowseGroups.Heading.STATIONS
 
     /** Resolves bare ids to playable items with stream URIs. Unknown items are dropped. */
     private suspend fun resolve(items: List<MediaItem>): List<MediaItem> {

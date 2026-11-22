@@ -130,4 +130,11 @@ class TileSpecTest {
         assertNotEquals(TileSpec.cacheName(playlistA), TileSpec.cacheName(playlistB))
         assertEquals(TileSpec.cacheName(playlistA), TileSpec.cacheName(playlistA))
     }
+
+    @Test
+    fun `a colour change gives a tile a new cache name, so the old picture is not served`() {
+        val tile = requireNotNull(TileSpec.parse(listOf("tile", "mix", "mix1"), null))
+        val recoloured = tile.copy(color = TileSpec.INK)
+        org.junit.Assert.assertNotEquals(TileSpec.cacheName(tile), TileSpec.cacheName(recoloured))
+    }
 }

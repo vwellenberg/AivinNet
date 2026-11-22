@@ -36,8 +36,10 @@ object MediaIds {
     val MIX_IDS: List<String> = listOf("mix1", "mix2", "mix3", "mix4")
 
     /**
-     * The Home rows that are playlists on the server, in the order Home shows them. Mirrors the row
-     * names in `src/aivinnet/lib/home/homerows.py` and the handlers in `lib/home/generated_playlists.py`.
+     * The Home rows that are playlists on the server, in the order the car lists them. This order is
+     * the car's own: the web Home's order is chosen per user (Settings → Home). The ids mirror
+     * `CUSTOM_PLAYLISTS` in `src/aivinnet/lib/home/homerows.py` and the handlers in
+     * `lib/home/generated_playlists.py`.
      */
     val HOME_IDS: List<String> = listOf(
         "becauseyoulistened",

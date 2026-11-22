@@ -193,8 +193,10 @@ gibt und welche Abzeichen.
   Die Kacheln werden lokal gezeichnet, ohne Netz, und im Cache abgelegt (`TileProvider`, die Regeln
   in `TileSpec`, das Zeichnen in `TileRenderer`). Eine Kachel-URI nennt nur Art und Schlüssel; der
   Provider liest nie einen Dateipfad aus ihr. Titel haben noch keine Bilder.
-- **Abzeichen:** Eine Playlist, ein Mix oder ein Sender, dessen Offline-Kopie vollständig auf dem
-  Telefon liegt, trägt das Download-Abzeichen, ebenso jeder Titel, der dort liegt.
+- **Abzeichen:** Eine Playlist oder ein Mix, dessen Offline-Kopie vollständig auf dem Telefon
+  liegt, trägt das Download-Abzeichen, ebenso jeder Titel, der dort liegt. Home-Zeilen und Sender
+  lassen sich (noch) nicht offline markieren, die Offline-Liste auf dem Telefon bietet nur Mixes
+  und Playlists an.
 
 ## Aussehen
 

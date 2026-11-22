@@ -42,6 +42,13 @@ object TileSpec {
 
     const val SPRINKLE_COUNT = 14
 
+    /**
+     * Part of every cached tile's name. Cached PNGs stay on the phone across updates, so a change to
+     * the drawing ([TileRenderer]) must bump this, or the old pictures keep being served. A colour
+     * change needs no bump: the colour is in the name too.
+     */
+    const val RENDER_VERSION = "v1"
+
     private val KEY = Regex("[A-Za-z0-9_-]{1,64}")
 
     // The design's colours. Paper is the ground, ink the outline, the shadow and the text.
@@ -186,7 +193,7 @@ object TileSpec {
             is Content.Label -> "label=${c.text}"
             is Content.Glyph -> "glyph=${c.name}"
         }
-        val identity = "v1|${tile.kind.wire}|${tile.key}|$content"
+        val identity = "$RENDER_VERSION|${tile.kind.wire}|${tile.key}|$content|${tile.color}"
         val digest = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8))
         return digest.take(16).joinToString("") { "%02x".format(it.toInt() and 0xff) } + ".png"
     }
