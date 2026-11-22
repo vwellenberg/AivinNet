@@ -14,6 +14,9 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android.yml"
+  # By hand (Actions → Android → Run workflow, on master): the signed APK right after the
+  # signing secrets were added, without waiting for the next change under android/.
+  workflow_dispatch:
 
 # Read-only, like every other workflow here (see tests/test_packaging_manifests.py).
 permissions:
@@ -51,4 +54,34 @@ jobs:
         with:
           name: aivinnet-auto-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # The APK to install on the phone: signed with the fixed key, so it installs over the
+      # previous one and keeps the login and the offline downloads. Never for pull requests, and
+      # only once the secrets exist; until then this says so and the debug APK stays the only one.
+      # The keystore is written to the runner's temp dir and never uploaded.
+      - name: Build signed APK
+        if: github.event_name != 'pull_request'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          AIVINNET_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AIVINNET_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          AIVINNET_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::notice::No signing key in the secrets (ANDROID_KEYSTORE_BASE64): no signed APK. See android/README.md."
+            exit 0
+          fi
+          export AIVINNET_KEYSTORE_FILE="$RUNNER_TEMP/aivinnet-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$AIVINNET_KEYSTORE_FILE"
+          ./gradlew assembleRelease --no-daemon --console=plain
+          rm -f "$AIVINNET_KEYSTORE_FILE"
+          test -f app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload signed APK
+        if: github.event_name != 'pull_request' && hashFiles('android/app/build/outputs/apk/release/app-release.apk') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aivinnet-auto-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
