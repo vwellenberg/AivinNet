@@ -219,7 +219,7 @@ describe("segmented tabs scroll instead of stretching the page", () => {
     // One scroller per plate, not one around both: the two groups sit at
     // opposite ends of a `space-between` row, and a single scroll port would
     // hide the period tabs behind a scroll instead of letting them wrap.
-    const scrollers = source.match(/<div[^>]*class="seg-scroll"/g) ?? [];
+    const scrollers = source.match(/<div\b[^>]*\bclass="seg-scroll"/g) ?? [];
     const plates = source.match(/class="seg"/g) ?? [];
     expect(plates.length, "no `.seg` plates — the template changed").toBe(2);
     expect(scrollers.length, "each plate scrolls in its own box").toBe(plates.length);
