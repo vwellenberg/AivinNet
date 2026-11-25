@@ -384,6 +384,13 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
         height: $bar-control;
       }
 
+      // The chrome glyph, like the transport buttons next to it: the 28px
+      // phone glyph filled a 44px segment edge to edge (measured, 844x390).
+      .nav-item svg {
+        width: $bar-glyph;
+        height: $bar-glyph;
+      }
+
       .nav-item.active span {
         display: none;
       }
