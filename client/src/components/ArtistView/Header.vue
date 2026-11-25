@@ -94,5 +94,52 @@ const useCircularImage = computed(() => !isSmallPhone.value)
     .dh-art img {
         object-position: top;
     }
+
+    // Phones: the action row leaves the text column and becomes a strip
+    // under the whole plate. On a 390px phone the text side is ~175px wide,
+    // so Play (96px) + Favourite + Overflow wrapped and the overflow button
+    // stood on a line of its own; the text side then outgrew the 120px cell
+    // and stretched the photo into a 120×224 portrait crop (plate 230px, at
+    // 360px with a two-line name 274px). With the strip, the row has the full
+    // plate width and the cell only has to match type, name and meta.
+    @include largePhones {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+
+        // The body's box goes away; its two children (text, actions) become
+        // grid items of the plate. Its type/title/meta sizes still apply —
+        // they are selected by class, not by the box.
+        .artist-info {
+            display: contents;
+        }
+
+        .dh-art {
+            grid-row: 1;
+        }
+
+        // The dividing rule moves with the text: it was `.dh-art + .dh-body`,
+        // and a `display: contents` box paints no border.
+        .artist-info > .text {
+            grid-row: 1;
+            grid-column: 2;
+            min-width: 0;
+            justify-content: center;
+            padding: $medium;
+            border-left: $candy-border;
+        }
+
+        .artist-info > .header-actions {
+            grid-row: 2;
+            grid-column: 1 / -1;
+            flex-wrap: nowrap;
+            padding: $small $medium $medium;
+            border-top: $candy-border;
+
+            // The primary action takes the room the strip gives it.
+            .playbtnrect {
+                flex: 1;
+            }
+        }
+    }
 }
 </style>
