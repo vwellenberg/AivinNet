@@ -350,8 +350,12 @@ onMounted(() => {
     }
 
     // The count wears the bar's pill: ink frame on panel, so it reads on any
-    // entity tint and on the hover plate alike.
+    // entity tint and on the hover plate alike. One line, always: the two
+    // stickers sit side by side, and a count that wrapped made its sticker
+    // taller than its neighbour's ("904 albums" broke at 375px, "544 artists"
+    // did not, 2026-11-25). The phone blocks below size it to fit instead.
     .count {
+      white-space: nowrap;
       font-size: 0.85rem;
       font-weight: 700;
       padding: 0.1rem 0.6rem;
@@ -471,11 +475,22 @@ onMounted(() => {
     .browseitem {
       width: auto;
       height: 9rem;
-      padding: 0.9rem 0.75rem;
+      padding: 0.9rem 0.6rem;
       --board-h: 1.8rem;
+
+      // Sized so "1,234 artists" stays on one line in a 375px-wide phone's
+      // card (measured, 12px to spare).
+      .label {
+        padding: 0.25rem 0.45rem;
+      }
 
       .name {
         font-size: 1.2rem;
+      }
+
+      .count {
+        font-size: 0.75rem;
+        padding: 0.1rem 0.45rem;
       }
 
       .board {
@@ -485,6 +500,23 @@ onMounted(() => {
       .tag {
         font-size: 0.6rem;
         letter-spacing: 0.08em;
+      }
+    }
+  }
+
+  // The narrowest phones (320px: a 123px card): one step tighter still, so
+  // the count keeps its one line there too.
+  @include smallerPhones {
+    .browseitem {
+      padding: 0.9rem 0.45rem;
+
+      .label {
+        padding: 0.2rem 0.35rem;
+      }
+
+      .count {
+        font-size: 0.68rem;
+        padding: 0.1rem 0.35rem;
       }
     }
   }
