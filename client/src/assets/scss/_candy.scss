@@ -1118,6 +1118,60 @@ $mem-seg-reserve: 4px !default;
 }
 
 // ---------------------------------------------------------------------------
+// "More this way" on a sideways scroller: the edge that still has content
+// beyond it fades out, and an arrow sits over it. Driven by `.has-prev` /
+// `.has-next` on the scroller, set by `useScrollEdges` — only where there is
+// something to scroll to.
+//
+// Two hosts on /stats: the stat tiles (`.statshead`) and the chart tab plates
+// (`.seg-scroll`). The tabs had the scroller but neither half of this, so on a
+// phone the last tab was simply cut off at the edge (user, 2026-11-23) while
+// the tiles right below them said "swipe".
+// ---------------------------------------------------------------------------
+@mixin mem-edge-fade($fade: 2.5rem) {
+  $fade-left: linear-gradient(to right, transparent, #000 $fade);
+  $fade-right: linear-gradient(to left, transparent, #000 $fade);
+
+  &.has-prev {
+    mask-image: $fade-left;
+  }
+
+  &.has-next {
+    mask-image: $fade-right;
+  }
+
+  &.has-prev.has-next {
+    mask-image: $fade-left, $fade-right;
+    mask-composite: intersect;
+    -webkit-mask-composite: source-in;
+  }
+}
+
+// The arrow over a faded edge. It sits ON the row (absolute, in a positioned
+// parent), so showing or hiding it never moves what scrolls. The glyph is the
+// right arrow; `.prev` turns it round.
+@mixin mem-edge-arrow($size: 2.75rem, $inset: 0.25rem) {
+  @include btn-action($size: $size);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  z-index: 1;
+
+  &.prev {
+    left: $inset;
+
+    svg {
+      transform: rotate(180deg);
+    }
+  }
+
+  &.next {
+    right: $inset;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The active marker for a list whose rows are already coloured.
 //
 // Once every navigation row carries its own fill, "selected" can no longer BE a

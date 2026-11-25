@@ -149,24 +149,6 @@ function getRouterParams() {
 
     margin-bottom: $medium;
 
-    // A phone has no room for five columns side by side. Measured at 320px:
-    // the track is 258px, and the fixed part alone — 24 + 46 + 46 plus four
-    // 24px gaps — is 212, which left the title and the duration ~46px to
-    // share. They did not share it; they overlapped.
-    //
-    // So the duration drops UNDER the info block rather than out of the row.
-    // Hiding it would have been the easy half of this fix and the wrong one:
-    // "78 hrs, 16 mins" is the number the leaderboard is sorted by.
-    @include smallerPhones {
-        grid-template-columns: 1.5rem 2.9rem max-content 1fr;
-        gap: $small $medium;
-
-        .helptext {
-            grid-column: 4;
-            grid-row: 2;
-        }
-    }
-
     &:hover {
         // `$hatch: false` mirrors the base plate: a row that grew a texture
         // under the pointer would be worse than one that always had it.
@@ -320,24 +302,97 @@ function getRouterParams() {
         font-weight: bold;
     }
 
-    // Narrow phones: the row keeps all five cells, so every fixed width
-    // shrinks a step — measured against 360/390px, where the duration used
-    // to run out of the frame. Sits at the end of the selector on purpose
-    // (styling.md: breakpoint blocks last, or equal-specificity rules above
-    // win by order).
+    // Phones: every row is the same height — title, subline and meter on one
+    // line each, the duration on the meter's line.
+    //
+    // Before (2026-11-23, 390px) the duration had a column of its own. "2 HRS,
+    // 28 MINS" took ~85px of a ~250px info track, so the name and "118 track
+    // plays" wrapped onto two or three lines while a neighbour with "3 HRS"
+    // kept one — rows of 1, 2 and 3 lines in a list that reads as a ranking,
+    // and the duration standing alone in the middle of the tall ones. Moved
+    // under the info block (the earlier fix for 320px) it still made those
+    // rows a line taller. Next to the meter it is the bar's own number: the
+    // meter IS the play-duration share.
+    //
+    // The info block dissolves into the row's grid (`display: contents`), so
+    // its three lines and the duration share one set of tracks. An ellipsis
+    // used to empty the title (46px left at 320px next to the duration); with
+    // the duration off its line the title has the full width, and the full
+    // name stays in the tooltip.
+    //
+    // Sits at the end of the selector on purpose (styling.md: breakpoint
+    // blocks last, or equal-specificity rules above win by order).
     @include allPhones {
         padding: $small 0.9rem $small 0.75rem;
-        grid-template-columns: 1.25rem 2.4rem max-content 1fr auto;
-        gap: 0.75rem;
+        grid-template-columns: 1.25rem 2.4rem max-content minmax(0, 1fr) auto;
+        grid-template-areas:
+            'trend rank image title title'
+            'trend rank image sub sub'
+            'trend rank image meter time';
+        gap: 0 0.75rem;
+
+        .trend {
+            grid-area: trend;
+        }
 
         .rank {
+            grid-area: rank;
             width: 2.2rem;
             height: 2.2rem;
             font-size: 1.05rem;
         }
 
+        .chartimage {
+            grid-area: image;
+        }
+
+        .iteminfo {
+            display: contents;
+
+            .title,
+            .artist {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .title {
+                grid-area: title;
+                overflow-wrap: normal;
+            }
+
+            .artist {
+                grid-area: sub;
+            }
+        }
+
+        .meter {
+            grid-area: meter;
+            align-self: center;
+        }
+
         .helptext {
+            grid-area: time;
+            align-self: center;
+            margin-top: 0.45rem;
+            white-space: nowrap;
             font-size: 0.7rem;
+        }
+    }
+
+    // The smallest phones: the fixed columns give up 24px, or "2 HRS, 28 MINS"
+    // leaves its meter a 4px stub at 320px (measured) and the title ~80px.
+    @include smallerPhones {
+        grid-template-columns: 1rem 2.4rem max-content minmax(0, 1fr) auto;
+        column-gap: 0.5rem;
+
+        // The placeholder states its own width further up, at higher
+        // specificity — named here too, or it stays 48px wide and 40px high.
+        .chartimage,
+        .chartimage.playlist.placeholder {
+            width: 40px;
+            height: 40px;
         }
     }
 }

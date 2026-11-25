@@ -219,7 +219,7 @@ describe("segmented tabs scroll instead of stretching the page", () => {
     // One scroller per plate, not one around both: the two groups sit at
     // opposite ends of a `space-between` row, and a single scroll port would
     // hide the period tabs behind a scroll instead of letting them wrap.
-    const scrollers = source.match(/<div class="seg-scroll">/g) ?? [];
+    const scrollers = source.match(/<div\b[^>]*\bclass="seg-scroll"/g) ?? [];
     const plates = source.match(/class="seg"/g) ?? [];
     expect(plates.length, "no `.seg` plates — the template changed").toBe(2);
     expect(scrollers.length, "each plate scrolls in its own box").toBe(plates.length);
@@ -278,28 +278,41 @@ describe("the chart row fits a phone", () => {
     const [title] = blocks(info, ".title");
     expect(title, "no `.title` block — the parser or the file changed").toBeTruthy();
     // ⚠️ `anywhere`, not `break-word`: only `anywhere` lowers MIN-CONTENT,
-    // which is the number the grid track reads. And not an ellipsis — clamped
-    // to one line in a 320px column the title renders as nothing (measured).
+    // which is the number the grid track reads. And not an ellipsis HERE: on a
+    // wide screen the title may wrap. Phones clamp it to one line in their own
+    // block below, where it no longer shares its line with the duration.
     expect(title, "a long word must break, or it sets the row's width").toMatch(
       /overflow-wrap:\s*anywhere/
     );
-    expect(/text-overflow:/.test(title), "an ellipsis here empties the title on a phone").toBe(false);
+    expect(/text-overflow:/.test(title), "the desktop title wraps, it is not clamped").toBe(false);
   });
 
-  it("drops the duration under the row instead of out of it", () => {
+  it("keeps every phone row the same height, the duration on the meter's line", () => {
     const css = styleBlock(SOURCES[ROW]);
     const [row] = blocks(css, ".chartitem");
     expect(row, "no `.chartitem` block — the parser or the file changed").toBeTruthy();
 
-    const [phones] = blocks(row, "@include smallerPhones");
-    expect(phones, "the row has no phone layout — five columns do not fit 320px").toBeTruthy();
+    const [phones] = blocks(row, "@include allPhones");
+    expect(phones, "the row has no phone layout — five columns do not fit a phone").toBeTruthy();
 
-    // Four columns, not five: the fixed part of the five-column track plus its
-    // gaps was 212px of a 258px row, and the title and the duration overlapped
-    // in what was left.
-    expect(phones, "the phone layout drops a column").toMatch(/grid-template-columns:[^;]*1fr\s*;/);
+    // The duration had a column of its own (and on 320px a row of its own
+    // under the info block). Either way it took width from the title, which
+    // then wrapped onto 2–3 lines next to a one-line neighbour (2026-11-23).
+    // Now it shares the meter's line: the meter is the play-duration share.
+    const [, areas] = /grid-template-areas:([^;]+);/.exec(ownDeclarations(phones)) ?? [];
+    expect(areas, "the phone layout names no grid areas").toBeTruthy();
+    expect(areas, "title and subline span the duration's column").toMatch(/'[^']*title title'/);
+    expect(areas, "the duration sits next to the meter").toMatch(/'[^']*meter time'/);
+
     const [help] = blocks(phones, ".helptext");
     expect(help, "the duration has to land somewhere — hiding it is not it").toBeTruthy();
-    expect(help, "under the info block, second row").toMatch(/grid-row:\s*2/);
+    expect(help).toMatch(/grid-area:\s*time/);
+    expect(help, "a wrapped duration would make its row taller").toMatch(/white-space:\s*nowrap/);
+
+    // One line each, so every row is as tall as the next.
+    const [info] = blocks(phones, ".iteminfo");
+    expect(info, "the info block has to join the row's grid").toMatch(/display:\s*contents/);
+    expect(info, "title and subline stay on one line").toMatch(/white-space:\s*nowrap/);
+    expect(info, "with an ellipsis, not cut off mid-letter").toMatch(/text-overflow:\s*ellipsis/);
   });
 });

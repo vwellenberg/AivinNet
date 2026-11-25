@@ -82,7 +82,15 @@ describe('Stats arrows on touch', () => {
         expect(start, 'the .statsnav block (guard)').toBeGreaterThan(-1)
         // The block up to the next top-level rule.
         const block = style.slice(start, style.indexOf('\n.statshead'))
-        expect(block).toContain('btn-action')
+        // The arrow's anatomy is shared with the chart tabs (mem-edge-arrow).
+        expect(block).toContain('mem-edge-arrow')
         expect(block).not.toMatch(/pointer:\s*coarse/)
+
+        const candy = readFileSync('src/assets/scss/_candy.scss', 'utf8')
+        const at = candy.indexOf('@mixin mem-edge-arrow')
+        expect(at, 'the mem-edge-arrow mixin (guard)').toBeGreaterThan(-1)
+        const mixin = candy.slice(at, candy.indexOf('\n}\n', at))
+        expect(mixin).toContain('btn-action')
+        expect(mixin).not.toMatch(/pointer:\s*coarse/)
     })
 })
