@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 
 import { block, styleBlock } from "./scssBlocks";
@@ -15,14 +16,9 @@ import { block, styleBlock } from "./scssBlocks";
 // `left top`, so there is nothing for the transition to move.
 // ---------------------------------------------------------------------------
 
-const RAW = import.meta.glob(["/src/assets/scss/_candy.scss", "/src/components/LeftSidebar/NavButtons.vue"], {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
-
-const candy = RAW["/src/assets/scss/_candy.scss"] ?? "";
-const nav = styleBlock(RAW["/src/components/LeftSidebar/NavButtons.vue"] ?? "");
+// Read from disk: a raw glob returns `.scss` as an EMPTY string under Vitest.
+const candy = readFileSync("src/assets/scss/_candy.scss", "utf8");
+const nav = styleBlock(readFileSync("src/components/LeftSidebar/NavButtons.vue", "utf8"));
 
 const marker = block(candy, "@mixin mem-row-marker($w: 9px)").body;
 const hover = block(marker, "&:hover").body;
