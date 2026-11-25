@@ -52,8 +52,10 @@
             </template>
             <!-- On a phone the pill sits in the right group instead (the logo column is hidden there). -->
             <NewYearCountdown v-if="season === 'newyear' && isMobile" compact />
-            <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
-            <ThemeToggle v-if="lookHasModes(settings.look)" />
+            <!-- A look with one mode has nothing to flip; it is picked in Settings.
+                 On a phone the toggle stands on Home only: beside the icon, the
+                 title and a page action it crowded the narrow bar (user, 2026-11-25). -->
+            <ThemeToggle v-if="lookHasModes(settings.look) && (!isMobile || route.name === Routes.Home)" />
             <AvatarWithDropdown />
         </div>
     </div>

@@ -38,6 +38,10 @@ describe('NavBar: Seitentitel öffnet die Suche', () => {
         expect(btn![1]).not.toContain('v-if')
     })
 
+    it('der Dark-Mode-Knopf steht auf dem Handy nur auf Home', () => {
+        expect(SOURCE).toMatch(/<ThemeToggle v-if="lookHasModes\(settings\.look\) && \(!isMobile \|\| route\.name === Routes\.Home\)" \/>/)
+    })
+
     it('Playlists bekommen oben nur „New playlist", keinen Smart-Playlist-Knopf', () => {
         const actions = SOURCE.match(/const headerActions = computed\(\(\) => \{([\s\S]*?)\n\}\)/)
         expect(actions, 'headerActions fehlt').not.toBeNull()
