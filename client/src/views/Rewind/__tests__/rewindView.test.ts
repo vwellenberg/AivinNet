@@ -85,6 +85,35 @@ describe('Rewind', () => {
         vi.mocked(getRewind).mockReset()
     })
 
+    it('lays the moments in one band, split evenly however many there are', async () => {
+        // Summer, biggest day and new artists, no first track: three thirds.
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
+
+        const w = page()
+        await flushPromises()
+
+        const moments = w.findAll('.rewind-plate.is-moment')
+        expect(moments).toHaveLength(3)
+        for (const m of moments) {
+            expect(m.attributes('style')).toContain('--moment-span: 4')
+            expect(m.attributes('style')).toContain('--moment-span-mid: 4')
+        }
+        expect(w.findAll('.rewind-plate.is-top')).toHaveLength(3)
+    })
+
+    it('puts four moments two by two in a narrower page', async () => {
+        const first_track = { track: { title: 'First', trackhash: 't0', artists: [] }, timestamp: 1_767_225_600 }
+        vi.mocked(getRewind).mockResolvedValue({ status: 200, data: { ...year2026, first_track } } as any)
+
+        const w = page()
+        await flushPromises()
+
+        const moments = w.findAll('.rewind-plate.is-moment')
+        expect(moments).toHaveLength(4)
+        expect(moments[0].attributes('style')).toContain('--moment-span: 3')
+        expect(moments[0].attributes('style')).toContain('--moment-span-mid: 6')
+    })
+
     it('tells the year in plates', async () => {
         vi.mocked(getRewind).mockResolvedValue({ status: 200, data: year2026 } as any)
 

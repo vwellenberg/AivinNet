@@ -55,7 +55,7 @@
                 </section>
 
                 <template v-if="data.plays">
-                    <section v-if="topArtist" class="rewind-plate">
+                    <section v-if="topArtist" class="rewind-plate is-top">
                         <h2 class="section-title">Your top artist</h2>
                         <div class="rewind-feature">
                             <img
@@ -79,7 +79,7 @@
                         </ol>
                     </section>
 
-                    <section v-if="topAlbum" class="rewind-plate">
+                    <section v-if="topAlbum" class="rewind-plate is-top">
                         <h2 class="section-title">Your top album</h2>
                         <div class="rewind-feature">
                             <img class="rewind-cover" :src="paths.images.thumb.medium + topAlbum.image" alt="" />
@@ -98,7 +98,7 @@
                         </ol>
                     </section>
 
-                    <section v-if="data.top_tracks.length" class="rewind-plate">
+                    <section v-if="data.top_tracks.length" class="rewind-plate is-top is-tracks">
                         <h2 class="section-title">Your top tracks</h2>
                         <ol class="rewind-list is-numbered">
                             <li v-for="t in data.top_tracks" :key="t.trackhash">
@@ -109,25 +109,25 @@
                         </ol>
                     </section>
 
-                    <section v-if="data.summer_track" class="rewind-plate">
+                    <section v-if="data.summer_track" class="rewind-plate is-moment" :style="momentStyle(0)">
                         <h2 class="section-title">Song of your summer</h2>
                         <div class="rewind-name">{{ trackLine(data.summer_track.track) }}</div>
                         <div class="rewind-label">{{ playCount(data.summer_track.plays) }} from June to August</div>
                     </section>
 
-                    <section v-if="data.first_track" class="rewind-plate">
+                    <section v-if="data.first_track" class="rewind-plate is-moment" :style="momentStyle(1)">
                         <h2 class="section-title">Where it started</h2>
                         <div class="rewind-name">{{ trackLine(data.first_track.track) }}</div>
                         <div class="rewind-label">your first play, {{ momentLabel(data.first_track.timestamp) }}</div>
                     </section>
 
-                    <section v-if="data.busiest_day" class="rewind-plate">
+                    <section v-if="data.busiest_day" class="rewind-plate is-moment" :style="momentStyle(2)">
                         <h2 class="section-title">Your biggest day</h2>
                         <div class="rewind-name">{{ dayLabel(data.busiest_day.date) }}</div>
                         <div class="rewind-label">{{ listened(data.busiest_day.seconds) }} of music</div>
                     </section>
 
-                    <section v-if="data.new_artists" class="rewind-plate">
+                    <section v-if="data.new_artists" class="rewind-plate is-moment" :style="momentStyle(3)">
                         <h2 class="section-title">New to you</h2>
                         <div class="rewind-big">{{ data.new_artists }}</div>
                         <div class="rewind-label">
@@ -183,6 +183,7 @@ import {
 } from '@/utils/rewind'
 import { storyFilename } from '@/utils/rewindStory'
 import { canShareImage, renderStory, saveBlob, shareImage } from '@/utils/rewindStoryImage'
+import { accentAt } from '@/utils/statAccents'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 const route = useRoute()
@@ -198,6 +199,20 @@ const shownYear = computed(() => data.value?.year ?? (Number(route.params.year) 
 const topArtist = computed(() => data.value?.top_artists[0])
 const topAlbum = computed(() => data.value?.top_albums[0])
 const listener = computed(() => listenerText(data.value?.listener ?? null))
+
+// The moments share one band, so they fill it however many there are: four
+// tiles a quarter wide, three a third, and so on (2026-11-25).
+const momentCount = computed(() => {
+    const d = data.value
+    if (!d) return 0
+    return [d.summer_track, d.first_track, d.busiest_day, d.new_artists].filter(Boolean).length
+})
+
+function momentStyle(i: number) {
+    const span = 12 / Math.max(momentCount.value, 1)
+    // Mid-width windows: four go two by two, three stay a row of thirds.
+    return { '--moment-span': String(span), '--moment-span-mid': String(span < 4 ? 6 : span), '--moment-accent': accentAt(i) }
+}
 
 // Seen to the end (#572): the sentinel after the last plate, in view for a
 // moment — a short year on a tall screen shows its end on opening, and a
@@ -299,25 +314,61 @@ watch(
 .rewind-page {
     height: 100%;
     overflow: auto;
+    // The bands answer the width the page has, not the window's: beside the
+    // sidebar a 1000-px window leaves the plates a phone's width each.
+    container: rewind-page / inline-size;
 }
 
 .rewind {
     display: grid;
     gap: 1.5rem;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-    align-items: start;
+    // A fixed order of bands (2026-11-25), not plates poured in one after the
+    // other: the year; the three top lists side by side; the moments as equal
+    // tiles; how you listen. Every plate in a band as tall as the band, so no
+    // short plate stands beside a long one over a hole. Twelve columns, so the
+    // moments can split a band evenly in quarters, thirds or halves.
+    grid-template-columns: repeat(12, minmax(0, 1fr));
     max-width: 72rem;
+
+    > * {
+        grid-column: 1 / -1;
+    }
+
+    > .is-top {
+        grid-column: span 4;
+    }
+
+    > .is-moment {
+        grid-column: span var(--moment-span, 3);
+    }
+
+    @container rewind-page (max-width: 60rem) {
+        > .is-top {
+            grid-column: span 6;
+        }
+
+        // Artists and albums side by side, the tracks under them in full.
+        > .is-tracks {
+            grid-column: 1 / -1;
+        }
+
+        > .is-moment {
+            grid-column: span var(--moment-span-mid, 6);
+        }
+    }
+
+    @container rewind-page (max-width: 34rem) {
+        > .is-top,
+        > .is-moment {
+            grid-column: 1 / -1;
+        }
+    }
 
     // The sentinel after the last plate: a full row, no height of its own.
     .rewind-end {
         grid-column: 1 / -1;
         height: 1px;
         margin-top: -1.5rem;
-    }
-
-    .rewind-years,
-    .rewind-hero {
-        grid-column: 1 / -1;
     }
 
     .rewind-retry {
@@ -361,6 +412,29 @@ watch(
         // The large plates' arrival (the modal's) — in the motion policy,
         // unlike a hand-made keyframe.
         animation: mem-plate-rise $motion-settle ease-out;
+    }
+
+    // A moment: one anatomy for each, like the records on Stats — label in its
+    // own accent, value, and the line under it at the foot of the tile.
+    .is-moment {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .section-title {
+            @include mem-sticker($fill: var(--look-stat-label-fill, var(--moment-accent)), $pad: 0.15rem 0.55rem);
+            margin-bottom: 0.75rem;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--look-stat-label-text, #{$mem-ink});
+        }
+
+        .rewind-label {
+            margin-top: auto;
+            padding-top: $small;
+        }
     }
 
     // The year itself: one accent plate, ink on a pastel in both modes.
