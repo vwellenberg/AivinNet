@@ -105,27 +105,36 @@ const useCircularImage = computed(() => !isSmallPhone.value)
     @include largePhones {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
+        // The body's pastel and its dots (`.dh-body::before`, absolutely
+        // positioned) now cover the plate: text and strip are one surface.
+        position: relative;
+        background-color: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
 
         // The body's box goes away; its two children (text, actions) become
-        // grid items of the plate. Its type/title/meta sizes still apply —
-        // they are selected by class, not by the box.
+        // grid items of the plate. Its type/title/meta sizes, `--row-fill`
+        // and the dots still apply — selected by class and inherited, not
+        // painted by the box.
         .artist-info {
             display: contents;
         }
 
+        // Above the dots, which now span the plate. The dividing rule moves to
+        // the cell: it was `.dh-art + .dh-body`, a `display: contents` box
+        // paints no border, and the text block hugs its words (`.dh-text`,
+        // for the veil), so a rule on it would end with the meta line. The
+        // reason the rule normally lives on the body — a round, padded cell —
+        // does not apply here: below 660px the portrait is never a disc.
         .dh-art {
             grid-row: 1;
+            z-index: 1;
+            border-right: $candy-border;
         }
 
-        // The dividing rule moves with the text: it was `.dh-art + .dh-body`,
-        // and a `display: contents` box paints no border.
         .artist-info > .text {
             grid-row: 1;
             grid-column: 2;
-            min-width: 0;
-            justify-content: center;
-            padding: $medium;
-            border-left: $candy-border;
+            align-self: center;
+            margin: $medium;
         }
 
         .artist-info > .header-actions {
