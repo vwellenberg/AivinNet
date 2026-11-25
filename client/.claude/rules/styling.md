@@ -465,7 +465,12 @@ gegatet auf Zeigergeräte) — die Wirte tauschen nur `--label-hatch` und müsse
 `background-position` — Bewegung, keine Farbe, also mit der Schnitt-Regel verträglich. Wer einer
 neuen schraffierten Platte einen Hover gibt, nimmt das Token und die Transition mit; die Sidebar
 hatte beides bis 2026-11-20 nicht und war damit die eine Stelle, an der die Streusel nur
-umsprangen. Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
+umsprangen. ⚠️ **Ausnahme: die aktive Nav-Zeile** (`mem-row-marker`) hat **keine**
+`background-position`-Transition. Ihr Zackenband ist eine zweite Hintergrund-Ebene, und eine
+Transition schiebt alle Ebenen: Beim Klick wird die gehoverte Zeile aktiv, aus einer Position
+(9 × 6 px) werden zwei, und die Zacken glitten 9 px vom Rand herein (2026-11-25, gemessen ab dem
+Klick; eine Messung, die erst 700 ms später anfing, sah es nicht). Die Zeichnung ist ein Schnitt.
+Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 
 Diese Skala hat aber eine **Obergrenze**, und #468 hat sie gefunden: Ab einer gewissen Breite gibt

@@ -43,7 +43,9 @@ function layers(value: string): string[] {
 }
 
 function declaration(body: string, prop: string): string {
-  const m = new RegExp(`(?:^|[;{\\s])${prop}:\\s*([^;]+);`).exec(body);
+  // Comments in the mixin say "transition" in prose; never read them as CSS.
+  const code = body.replace(/\/\/[^\n]*/g, "");
+  const m = new RegExp(`(?:^|[;{\\s])${prop}:\\s*([^;]+);`).exec(code);
   return m ? m[1].trim() : "";
 }
 
@@ -66,6 +68,18 @@ describe("the active entry's zigzag", () => {
     expect(positions, "one position per layer").toHaveLength(2);
     expect(positions[0]).toBe("left top");
     expect(positions[1]).toBe("$mem-hatch-stir");
+  });
+
+  it("does not glide in when the entry becomes active under the pointer", () => {
+    // Hovered as a plain row the entry has ONE layer at `$mem-hatch-stir`; the
+    // click adds the marker layer, and a `background-position` transition
+    // slid the teeth 9px -> 0 (measured from the click on the live build).
+    const transition = declaration(marker, "transition");
+    expect(transition, "mem-row-marker sets no transition of its own").not.toBe("");
+    const props = layers(transition).map((part) => part.split(/\s+/)[0]);
+    expect(props).not.toContain("background-position");
+    expect(props).not.toContain("all");
+    expect(props).toEqual(expect.arrayContaining(["transform", "box-shadow"]));
   });
 
   it("rests at the same spot it hovers at", () => {

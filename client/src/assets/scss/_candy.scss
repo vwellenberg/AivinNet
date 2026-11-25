@@ -1212,6 +1212,18 @@ $mem-row-marker-sprite: var(--look-marker, url('data:image/svg+xml,<svg xmlns="h
   // reported 2026-11-25, "die Zacken bewegen sich nach dem Klick"). Here the
   // marker keeps `left top` in both states, so it has nothing to animate.
   // (0,1,0) more than the plate's hover, wherever the host puts it.
+  //
+  // That alone did not stop the slide AT the click: the entry is hovered as a
+  // plain row first, with ONE position (`$mem-hatch-stir`) for its single
+  // layer, and becoming active adds the marker layer — the transition then
+  // interpolates "9px 6px" -> "left top, …", and the teeth glided 9px -> 0 in
+  // ~270ms with no ink under them (measured from the click, 2026-11-25;
+  // the first probe started sampling 700ms late and missed it). The active
+  // row therefore drops `background-position` from its transition list: the
+  // marker is a cut, like every paint. Only the shadow and press still move;
+  // the price is that this one row's texture jumps instead of sliding.
+  transition: transform $motion-shadow ease-out, box-shadow $motion-shadow ease-out $motion-lag;
+
   &:hover {
     background-image: $mem-row-marker-sprite, var(--mem-hatch-hover);
     background-size: 9px 14px, 38px 38px;
