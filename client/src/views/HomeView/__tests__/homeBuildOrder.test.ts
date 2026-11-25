@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Ref } from 'vue'
 
 // ---------------------------------------------------------------------------
 // Home is laid down in ONE go: nothing that sits under "Continue listening"
@@ -51,7 +52,10 @@ vi.mock('@/components/shared/CardScroller.vue', () => stub('row-stub'))
 
 import HomeView from '@/views/HomeView/main.vue'
 import useHome from '@/stores/home'
-import { isMobile as phone } from '@/stores/content-width'
+import { isMobile } from '@/stores/content-width'
+
+// A computed in the app, a plain ref in the mock above: writable here.
+const phone = isMobile as unknown as Ref<boolean>
 
 // As GET /nothome/ sends it: Continue listening first, then the rows.
 const answer = {
