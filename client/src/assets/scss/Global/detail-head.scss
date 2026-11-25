@@ -247,16 +247,71 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
 // used to carry their own `largePhones` and `shortViewport` blocks with three
 // different cover sizes and three title sizes.
 //
-// One exception, on purpose: the ARTIST head moves its action row out of the
-// text column into a strip under the whole plate (ArtistView/Header.vue). Its
-// text column is ~175px on a 390px phone; Play + Favourite + Overflow wrapped
-// there, the overflow button stood on a line of its own, and the plate grew
-// to 230–274px with the portrait stretched to 120×224. With the strip: 193px,
-// portrait square (user's pick from a three-way preview, 2026-11-25).
+// One change of SHAPE, on purpose: the action row leaves the text column and
+// becomes a strip under the whole plate. The text column is ~175px on a 390px
+// phone; Play + three square actions wrapped there onto two or three lines,
+// the overflow button stood on a line of its own, and the text side outgrew
+// the 120px cell — which then stretched into a 120×240–330 sliver (album
+// covers letterboxed in pink, playlist art cropped). Measured before: album
+// 265–334px, playlist 246–298px, artist 230–274px. The strip was the user's
+// pick from a three-way preview on the artist head (2026-11-25) and holds for
+// every head because they share this anatomy.
+//
+// ⚠️ It relies on the body having exactly TWO children: one text block and the
+// `.header-actions` row. The album wraps its title and meta line in
+// `.album-lead` for that reason.
 // ---------------------------------------------------------------------------
 @include largePhones {
     #{$detail-heads} {
         margin: 0 0 $small;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        // The body's pastel and its dots (`.dh-body::before`, absolutely
+        // positioned) now cover the plate: text and strip are one surface.
+        position: relative;
+        background-color: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
+
+        // The body's box goes away; its two children become grid items of the
+        // plate. Type/title/meta sizes, `--row-fill` and the dots still apply:
+        // selected by class and inherited, not painted by the box.
+        > .dh-body {
+            display: contents;
+        }
+
+        // Above the dots, which now span the plate. The dividing rule moves to
+        // the cell: it was `.dh-art + .dh-body`, a `display: contents` box
+        // paints no border, and the text block hugs its words (`.dh-text`, for
+        // the veil), so a rule on it would end with the meta line. The reason
+        // the rule normally lives on the body — a round, padded cell — does not
+        // apply here: below 660px no head draws its art as a disc.
+        > .dh-art {
+            grid-row: 1;
+            z-index: 1;
+            border-right: $candy-border;
+        }
+
+        > .dh-body > :not(.header-actions) {
+            grid-row: 1;
+            grid-column: 2;
+            align-self: center;
+            margin: $medium;
+            // `.dh-text`'s `max-width: 100%` is the whole grid area; the
+            // margins have to come off it, or a long one-word title overflows.
+            max-width: calc(100% - 2 * #{$medium});
+        }
+
+        > .dh-body > .header-actions {
+            grid-row: 2;
+            grid-column: 1 / -1;
+            flex-wrap: nowrap;
+            padding: $small $medium $medium;
+            border-top: $candy-border;
+
+            // The primary action takes the room the strip gives it.
+            .playbtnrect {
+                flex: 1;
+            }
+        }
     }
 
     .dh-art {
