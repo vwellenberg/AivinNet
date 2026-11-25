@@ -221,12 +221,12 @@ onMounted(() => {
         gap: 1rem;
     }
 
-    // Phone: search and sort share one row above the list. The sort menu gets
-    // a fixed share, so the field keeps room at 320 px; both are capped so a
-    // long label ellipses instead of pushing the row wider than the screen.
+    // Phone: search and sort share one row above the list. The menu takes
+    // 9.5rem, but never more than half the row: at 320 px a fixed 9.5rem left
+    // the field 96px ("Sear…"). A long label ellipses instead of widening it.
     .playlist-search {
         display: grid;
-        grid-template-columns: minmax(6rem, 1fr) minmax(0, 9.5rem);
+        grid-template-columns: minmax(0, 1fr) minmax(0, min(9.5rem, calc(50% - 0.375rem)));
         gap: 0.75rem;
         align-items: center;
         margin-bottom: 1rem;
