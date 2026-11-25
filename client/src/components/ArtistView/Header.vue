@@ -135,6 +135,9 @@ const useCircularImage = computed(() => !isSmallPhone.value)
             grid-column: 2;
             align-self: center;
             margin: $medium;
+            // `.dh-text`'s `max-width: 100%` is the whole grid area; the
+            // margins have to come off it, or a long one-word name overflows.
+            max-width: calc(100% - 2 * #{$medium});
         }
 
         .artist-info > .header-actions {
