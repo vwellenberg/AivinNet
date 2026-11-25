@@ -379,5 +379,17 @@ function getRouterParams() {
             font-size: 0.7rem;
         }
     }
+
+    // The smallest phones: the fixed columns give up 24px, or "2 HRS, 28 MINS"
+    // leaves its meter a 4px stub at 320px (measured) and the title ~80px.
+    @include smallerPhones {
+        grid-template-columns: 1rem 2.4rem max-content minmax(0, 1fr) auto;
+        column-gap: 0.5rem;
+
+        .chartimage {
+            width: 40px;
+            height: 40px;
+        }
+    }
 }
 </style>
