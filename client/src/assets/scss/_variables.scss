@@ -238,7 +238,15 @@ $settings-modal-h: 48rem;
 // pages, which is how the last track of a playlist ended up under the bar.
 $bottombarheight: 5.125rem;
 // The phone bar is taller: it carries the navigation as well as the transport.
-$bottombarheight-phone: 9.5rem;
+// 9.5rem until the navigation became one segmented plate of 56px segments
+// (2026-11-25, +12px over the 44px plates): the reserve follows the bar.
+$bottombarheight-phone: 10.25rem;
+// The phone navigation: one segmented plate (NavButtons.vue). 56px is
+// Google's bottom-navigation target height, 12px over the chrome's 44px floor
+// — the most-used control on the phone gets the bigger target. The glyph
+// grows with it (28px = 2.8px stroke on the 24-unit grid).
+$phone-nav-control: 3.5rem;
+$phone-nav-glyph: 1.75rem;
 // A landscape phone puts all three of them — track, transport, navigation — in
 // ONE row (see the `shortViewport` mixin). The 9.5rem stack was 42% of a 390px
 // screen turned over, and `#acontent` still spans rows 2–4 behind it, so this
