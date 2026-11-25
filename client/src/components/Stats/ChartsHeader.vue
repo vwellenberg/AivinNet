@@ -161,16 +161,29 @@ watch(() => props.period, () => nextTick(() => {
     flex-wrap: wrap;
     gap: $small;
 
-    // One segmented plate per tab group — the anatomy itself lives in
-    // `mem-seg-tabs` (_candy.scss), shared with the discography tabs. The box
-    // it scrolls in is `mem-seg-scroll`, shared with the same page.
-    // The box the arrows sit over. A flex item of the header like the scroller
-    // was, so it shrinks below its plate the same way.
+    // The box the arrows sit over, and the header's flex item: it shrinks
+    // below its plate (min-width: 0) and its scroller scrolls the rest.
     .seg-row {
         position: relative;
         display: flex;
         min-width: 0;
         max-width: 100%;
+        // The shadow reserve lives INSIDE the scroll port, so on a
+        // `space-between` row it would hold the right-hand plate off the row's
+        // right edge — the edge #555 aligned, and the one the trend sticker
+        // below it answers to. Pulled back out of the layout; the reserve
+        // still travels with the scroll.
+        //
+        // On the ROW, not the scroller inside it: there the scroller's
+        // `max-width: 100%` reads the row, which the same margin had already
+        // shrunk — every plate reported 4px of overflow and an arrow it did
+        // not need (measured at 390px).
+        //
+        // Reads the TOKEN, not a literal: this cancels exactly what the mixin
+        // books, and a hand-written `-4px` would keep pointing at the old
+        // number the day the default moves. `leadingEdge.test.ts` watches the
+        // left side only, so the right one is on this file.
+        margin-right: -$mem-seg-reserve;
     }
 
     .segnav {
@@ -180,23 +193,15 @@ watch(() => props.period, () => nextTick(() => {
         bottom: $mem-seg-reserve;
     }
 
+    // One segmented plate per tab group — the anatomy itself lives in
+    // `mem-seg-tabs` (_candy.scss), shared with the discography tabs. The box
+    // it scrolls in is `mem-seg-scroll`, shared with the same page.
     .seg-scroll {
         @include mem-seg-scroll;
         @include mem-edge-fade;
         // `revealActive` scrolls the selected tab clear of the arrow, not
         // under it.
         scroll-padding-inline: 2.75rem;
-        // The shadow reserve lives INSIDE the scroll port, so on a
-        // `space-between` row it would hold the right-hand plate off the row's
-        // right edge — the edge #555 aligned, and the one the trend sticker
-        // below it answers to. Pulled back out of the layout; the reserve
-        // still travels with the scroll.
-        //
-        // Reads the TOKEN, not a literal: this cancels exactly what the mixin
-        // books, and a hand-written `-4px` would keep pointing at the old
-        // number the day the default moves. `leadingEdge.test.ts` watches the
-        // left side only, so the right one is on this file.
-        margin-right: -$mem-seg-reserve;
     }
 
     .seg {
