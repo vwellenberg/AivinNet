@@ -97,26 +97,48 @@ describe('MarqueeText', () => {
         expect(seconds).toBeGreaterThanOrEqual(6)
     })
 
-    it('stays idle under reduced motion, even when the text overflows', async () => {
+    // Regression: on phones battery saver turns reduced motion on, and a marquee
+    // that stopped there was reported as "does not work for title and artist".
+    // It keeps running, at half the speed.
+    it('keeps running under reduced motion, at half the speed', async () => {
+        textWidth = 600
+        const normal = mount(MarqueeText, { props: { text: 'Long title' }, slots: { default: 'Long title' } })
+        await flushPromises()
+        const fast = Number((normal.attributes('style') ?? '').match(/--marquee-duration: ([\d.]+)s/)?.[1])
+
         reduced = true
-        textWidth = 300
         const wrapper = mount(MarqueeText, { props: { text: 'Long title' }, slots: { default: 'Long title' } })
         await flushPromises()
 
-        expect(wrapper.classes()).not.toContain('is-running')
+        expect(wrapper.classes()).toContain('is-running')
+        const slow = Number((wrapper.attributes('style') ?? '').match(/--marquee-duration: ([\d.]+)s/)?.[1])
+        expect(slow).toBeCloseTo(fast * 2, 5)
     })
 
-    it('stops when the reduced-motion setting is switched on while it runs', async () => {
-        textWidth = 300
+    it('never runs faster than a twelve-second pass under reduced motion', async () => {
+        reduced = true
+        textWidth = 130
+        const wrapper = mount(MarqueeText, { props: { text: 'Barely' }, slots: { default: 'Barely' } })
+        await flushPromises()
+
+        const seconds = Number((wrapper.attributes('style') ?? '').match(/--marquee-duration: ([\d.]+)s/)?.[1])
+        expect(seconds).toBeGreaterThanOrEqual(12)
+    })
+
+    it('slows down when the reduced-motion setting is switched on while it runs', async () => {
+        textWidth = 600
         const wrapper = mount(MarqueeText, { props: { text: 'Long title' }, slots: { default: 'Long title' } })
         await flushPromises()
         expect(wrapper.classes()).toContain('is-running')
+        const fast = Number((wrapper.attributes('style') ?? '').match(/--marquee-duration: ([\d.]+)s/)?.[1])
 
         reduced = true
         listeners.forEach(fn => fn())
         await flushPromises()
 
-        expect(wrapper.classes()).not.toContain('is-running')
+        expect(wrapper.classes()).toContain('is-running')
+        const slow = Number((wrapper.attributes('style') ?? '').match(/--marquee-duration: ([\d.]+)s/)?.[1])
+        expect(slow).toBeCloseTo(fast * 2, 5)
     })
 
     it('re-measures when the text prop changes and restarts from rest', async () => {

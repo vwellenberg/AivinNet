@@ -49,15 +49,6 @@
         scroll-behavior: auto !important;
     }
 
-    // Der Laufschrift-Titel (shared/MarqueeText.vue) läuft nur ohne diese
-    // Einstellung, und die Komponente prüft das live. Kippt der Schalter, während
-    // er noch läuft, beendete die Regel oben die Animation an ihrem Endpunkt
-    // (alternate, eine Runde): ein halb über die Fläche gezogener Titel bliebe
-    // stehen. `none` setzt ihn stattdessen in die Ruhelage zurück.
-    .marquee-text {
-        animation: none !important;
-    }
-
     // ------------------------------------------------------------------
     // Begründete Ausnahmen. Jede braucht einen Grund, der über "sieht gut
     // aus" hinausgeht.
@@ -76,6 +67,22 @@
 
     .lauflicht-rim::after {
         animation-duration: 12s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    // Der Lauftext in Player-Leiste und Now Playing (shared/MarqueeText.vue)
+    // läuft weiter, nur halb so schnell — aus demselben Fehlerbild wie das
+    // Lauflicht. Bis 2026-11-25 blieb er hier stehen und endete in „…", und am
+    // Handy kam genau das als „Lauftext für Titel und Artist funktioniert nicht"
+    // zurück: Der Energiesparmodus schaltet die Einstellung ein, ohne dass
+    // jemand weniger Bewegung verlangt hat. Am Handy ist die Leiste schmal, der
+    // Titel also fast immer abgeschnitten — eingefroren blieb dort kein Name
+    // lesbar. Ruhig bleibt er trotzdem: halbe Geschwindigkeit, längere Mindest-
+    // dauer (die Werte rechnet die Komponente), und die Haltepunkte an beiden
+    // Enden bleiben. Er läuft nur, solange der Text nicht passt (`is-running`).
+    .marquee.is-running .marquee-text {
+        animation-duration: var(--marquee-duration) !important;
+        animation-delay: 0s !important;
         animation-iteration-count: infinite !important;
     }
 

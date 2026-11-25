@@ -1645,8 +1645,14 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   lassen Titel und Künstlerzeile über `shared/MarqueeText.vue` laufen, statt sie mit „…" zu enden. Die
   Bewegung ist eine CSS-Animation (`marquee-sway`), JS misst nur Breite und setzt zwei Properties —
   kein Frame wird von Script erzeugt. In Songlisten läuft nichts: eine Zeilenspalte voller Laufschriften
-  wäre zu viel Bewegung. Bei „weniger Bewegung" bleibt es beim „…" (MarqueeText prüft die Einstellung
-  live, `motion-policy.scss` setzt die Animation zusätzlich auf `none`).
+  wäre zu viel Bewegung.
+  ⚠️ **Bei „weniger Bewegung" läuft er weiter, halb so schnell** (mindestens 12 s pro Runde;
+  MarqueeText rechnet die Dauer live, `motion-policy.scss` lässt die Animation als begründete
+  Ausnahme durch). Bis 2026-11-25 blieb er dort beim „…", und das kam vom Handy als „Lauftext
+  für Titel und Artist funktioniert nicht" zurück: Der **Energiesparmodus** schaltet
+  `prefers-reduced-motion` ein, ohne dass jemand weniger Bewegung verlangt hat — dasselbe
+  Fehlerbild wie beim Lauflicht. Headless läuft alles, weil dort niemand Strom spart;
+  reproduzierbar ist es nur mit `reducedMotion: 'reduce'` im Playwright-Kontext.
 - **Ein `view-transition-name` gibt es nur, während der Übergang läuft.** `utils/coverMorph.ts`
   setzt ihn beim Klick auf die Albumkarte und am Kopf erst beim Ankommen, und beides wird danach
   wieder entfernt. Stünde er dauerhaft auf beiden Elementen, trüge das Raster denselben Namen

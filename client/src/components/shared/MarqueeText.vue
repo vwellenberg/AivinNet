@@ -40,6 +40,13 @@ const EDGE = 12;
 const SPEED = 30;
 // A short overflow would otherwise scroll so fast it reads as a blink.
 const MIN_DURATION = 6;
+// Under reduced motion the text still scrolls, at half the speed. Stopping it
+// (the first version) was reported from a phone as "the marquee does not work":
+// battery saver turns the setting on there without anyone asking for less
+// motion, and the narrow phone bar cuts almost every title. Same answer as the
+// Lauflicht (Global/motion-policy.scss, where the animation is let through).
+const REDUCED_SPEED = SPEED / 2;
+const REDUCED_MIN_DURATION = MIN_DURATION * 2;
 
 const runStyle = computed(() =>
   running.value
@@ -82,19 +89,27 @@ function measure() {
   // second. With the slack, a box sized to its text never counts as overflowing.
   const overflows = natural > available + 1;
 
-  if (!overflows || reduced()) {
+  if (!overflows) {
     running.value = false;
     return;
   }
 
+  const calm = reduced();
   shift.value = Math.ceil(natural + EDGE * 2 - available);
-  duration.value = Math.max(MIN_DURATION, shift.value / SPEED / 0.7);
+  duration.value = Math.max(
+    calm ? REDUCED_MIN_DURATION : MIN_DURATION,
+    shift.value / (calm ? REDUCED_SPEED : SPEED) / 0.7,
+  );
   running.value = true;
 }
 
 let resizeObserver: ResizeObserver | null = null;
 
-function onMotionChange() {
+// A new duration mid-pass would jump the text to a different point of the loop,
+// so the setting flipping restarts it from rest, like a new track does.
+async function onMotionChange() {
+  running.value = false;
+  await nextTick();
   measure();
 }
 

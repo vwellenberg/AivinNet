@@ -103,6 +103,19 @@ describe('reduced motion', () => {
         expect(policy).toMatch(/lauflicht-rim::before/)
         expect(policy).toMatch(/animation-duration: 18s !important/)
 
+        // The marquee keeps scrolling too (slower, the component computes the
+        // duration). It used to be `animation: none` here, and on a phone in
+        // battery saver that read as "the marquee does not work".
+        const code = policy
+            .split('\n')
+            .filter(line => !line.trim().startsWith('//'))
+            .join('\n')
+        expect(code).not.toMatch(/\.marquee-text\s*\{\s*animation:\s*none/)
+        const marquee = /\.marquee\.is-running \.marquee-text\s*\{([^}]*)\}/.exec(code)?.[1] ?? ''
+        expect(marquee).toMatch(/animation-duration: var\(--marquee-duration\) !important/)
+        expect(marquee).toMatch(/animation-iteration-count: infinite !important/)
+        expect(marquee).toMatch(/animation-delay: 0s !important/)
+
         // Every exception carries prose. A bare selector list here would be the
         // start of "reduced motion, except the bits I liked".
         const exceptions = policy.slice(policy.indexOf('Begründete Ausnahmen'))
