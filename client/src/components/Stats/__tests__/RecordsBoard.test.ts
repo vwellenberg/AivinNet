@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The records of the whole history (#540), as GET /logger/records sends them.
@@ -38,10 +39,32 @@ describe('RecordsBoard', () => {
         expect(text).toContain('Longest session')
         expect(text).toContain('3 h 12 min')
         expect(text).toContain('17 plays in a day')
-        expect(text).toContain('Blue · The Artist · ')
+        expect(text).toContain('Blue · The Artist')
         expect(text).toContain('Wednesday, March 4')
         expect(text).toContain('Your very first play')
         expect(text).toContain('Play #1,000')
+    })
+
+    it('gives every tile the same anatomy: label, value, the moment at the foot', async () => {
+        const w = await board()
+
+        const tiles = w.findAll('.record')
+        expect(tiles).toHaveLength(4)
+        for (const tile of tiles) {
+            expect(tile.find('.record-label').exists()).toBe(true)
+            expect(tile.find('.record-value').exists()).toBe(true)
+            expect(tile.find('.record-when').text()).not.toBe('')
+        }
+        // A milestone's track is its value, the artists the line under it.
+        const first = tiles[2]
+        expect(first.find('.record-value').text()).toBe('Blue')
+        expect(first.find('.record-text').text()).toBe('The Artist')
+    })
+
+    it('stands the tiles in rows of one height', () => {
+        const source = readFileSync('src/components/Stats/RecordsBoard.vue', 'utf8')
+
+        expect(source).toMatch(/\.records-list\s*\{[^}]*grid-auto-rows:\s*1fr/)
     })
 
     it('names a track that has left the library as such', async () => {

@@ -6,21 +6,23 @@
         <p v-if="failed" class="records-note">The records could not be loaded.</p>
         <p v-else-if="data && !data.plays" class="records-note">Nothing played yet.</p>
         <div v-else-if="data" class="records-plate">
+            <!-- One anatomy for every tile: label, value (two lines of room),
+                 the line under it, the moment at the foot. Every row as tall as
+                 the tallest tile in it, so the tiles are one size. -->
             <ul class="records-list">
                 <li v-if="data.longest_session" class="record" :style="{ '--record-accent': accentAt(0) }">
                     <span class="record-label">Longest session</span>
                     <span class="record-value">{{ listened(data.longest_session.seconds) }}</span>
-                    <span class="record-text">
-                        {{ momentLabel(data.longest_session.start) }} · {{ playCount(data.longest_session.plays) }}
-                    </span>
+                    <span class="record-text">{{ playCount(data.longest_session.plays) }}</span>
+                    <span class="record-when">{{ momentLabel(data.longest_session.start) }}</span>
                 </li>
                 <li v-if="data.obsession" class="record" :style="{ '--record-accent': accentAt(1) }">
                     <span class="record-label">Obsession</span>
                     <span class="record-value">{{ playCount(data.obsession.plays) }} in a day</span>
-                    <span class="record-text">
-                        {{ trackName(data.obsession.track) }} · {{ dayLabel(data.obsession.day) }}
-                    </span>
+                    <span class="record-text">{{ trackName(data.obsession.track) }}</span>
+                    <span class="record-when">{{ dayLabel(data.obsession.day) }}</span>
                 </li>
+                <!-- A milestone has no figure of its own: its track is the news. -->
                 <li
                     v-for="(milestone, i) in data.milestones"
                     :key="milestone.number"
@@ -30,9 +32,9 @@
                     <span class="record-label">
                         {{ milestone.number === 1 ? 'Your very first play' : `Play #${milestone.number.toLocaleString('en')}` }}
                     </span>
-                    <span class="record-text">
-                        {{ trackName(milestone.track) }} · {{ momentLabel(milestone.timestamp) }}
-                    </span>
+                    <span class="record-value" :title="trackTitle(milestone.track)">{{ trackTitle(milestone.track) }}</span>
+                    <span v-if="milestone.track" class="record-text">{{ artistNames(milestone.track) }}</span>
+                    <span class="record-when">{{ momentLabel(milestone.timestamp) }}</span>
                 </li>
             </ul>
         </div>
@@ -63,10 +65,20 @@ const failed = ref(false)
 const loading = ref(false)
 
 // A track that has left the library has no card to name it by.
+const GONE = 'No longer in your library'
+
+function artistNames(track: RecordTrack): string {
+    return track.artists.map(artist => artist.name).join(', ')
+}
+
 function trackName(track: RecordTrack | null): string {
-    if (!track) return 'No longer in your library'
-    const artists = track.artists.map(artist => artist.name).join(', ')
+    if (!track) return GONE
+    const artists = artistNames(track)
     return artists ? `${track.title} · ${artists}` : track.title
+}
+
+function trackTitle(track: RecordTrack | null): string {
+    return track ? track.title : GONE
 }
 
 onMounted(async () => {
@@ -119,7 +131,11 @@ onMounted(async () => {
 
     .records-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+        // Equal tiles (2026-11-25): equal columns, and every row as tall as
+        // its tallest tile. A minimum narrow enough that the usual five
+        // records stand in one row on a desktop, none alone in a second.
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+        grid-auto-rows: 1fr;
         gap: $medium;
         margin: 0;
         padding: 0;
@@ -131,6 +147,7 @@ onMounted(async () => {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.35rem;
+        min-width: 0;
         padding: 0.75rem;
         background-color: $mem-panel;
         border: $candy-border;
@@ -149,8 +166,17 @@ onMounted(async () => {
         color: var(--look-stat-label-text, #{$mem-ink});
     }
 
+    // Two lines of room for every value, so the lines under it start on one
+    // height across a row; a longer title ends in an ellipsis (full in the tooltip).
     .record-value {
-        font-size: 1.5rem;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        min-height: 2lh;
+        overflow-wrap: anywhere;
+        font-size: 1.4rem;
         font-weight: 800;
         line-height: 1.15;
     }
@@ -161,11 +187,13 @@ onMounted(async () => {
         color: $mem-text-muted;
     }
 
-    // A milestone has no figure of its own: its track is the news.
-    .record.is-milestone .record-text {
-        font-size: 1rem;
-        font-weight: 600;
-        color: $mem-text;
+    // The moment sits at the foot of every tile, on one line across a row.
+    .record-when {
+        margin-top: auto;
+        font-size: 0.8rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: $mem-text-muted;
     }
 }
 </style>

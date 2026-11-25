@@ -1319,6 +1319,14 @@ Zwei Dinge, die daran hängen:
   siehe die Regel weiter unten: `#acontent` läuft hinter der Bar, jeder Scroller reserviert sie
   selbst.
 
+⚠️ **Ein Seitenraster neben der Sidebar fragt den Container, nicht das Fenster.** Rewind legt
+seine Platten in Bändern auf zwölf Spalten (2026-11-25). Der erste Wurf schaltete per
+`@media (max-width: 960px)` auf zwei Spalten, und bei einem 1000-px-Fenster kam das nie an:
+Neben der Sidebar blieben dem Raster ~650 px, also standen drei Bestenlisten nebeneinander und
+umbrachen Wort für Wort („Brot / hers / John / son“). Die Seite ist deshalb ein
+`container: rewind-page / inline-size`, die Bänder antworten mit `@container`. Gemessen bei
+1440, 1000 und 390 px.
+
 ⚠️ **Ein `min-height` ist ein Boden und will gelöst werden, nicht gesenkt** — und die Reihenfolge
 im Block entscheidet: der `shortViewport`-Block im Playlist-Header stand zuerst **vor**
 `.sqr_img`. Gleiche Spezifität, früher im Block ⇒ das 16rem-Cover gewann, und der Header stand bei
