@@ -15,9 +15,8 @@
         </div>
         <div v-if="settings.is_alt_layout || !settings.use_sidebar || !xl" class="right">
             <span v-if="isMobile && !onSearchRoute" class="mobile-nav-title">
-                <!-- Phones show the app icon nowhere else; Home is its place. -->
+                <!-- Phones show the app icon nowhere else, so it stands in every view. -->
                 <button
-                    v-if="route.name === Routes.Home"
                     type="button"
                     class="mobile-nav-logo-btn"
                     aria-label="App icon"
@@ -31,16 +30,10 @@
                         @animationend="logoSpinning = false"
                     />
                 </button>
-                <!-- On Home the word is a shortcut into search, focused. -->
-                <button
-                    v-if="route.name === Routes.Home"
-                    type="button"
-                    class="mobile-nav-title-text"
-                    @click="openSearch"
-                >
+                <!-- In every view the word is a shortcut into search, focused. -->
+                <button v-if="mobileTitle" type="button" class="mobile-nav-title-text" @click="openSearch">
                     {{ mobileTitle }}
                 </button>
-                <template v-else>{{ mobileTitle }}</template>
             </span>
             <RouterLink v-if="!isMobile" :to="{ name: Routes.Home }" class="nav-home" title="Home">
                 <HomeSvg />
@@ -59,8 +52,10 @@
             </template>
             <!-- On a phone the pill sits in the right group instead (the logo column is hidden there). -->
             <NewYearCountdown v-if="season === 'newyear' && isMobile" compact />
-            <!-- A look with one mode has nothing to flip; it is picked in Settings. -->
-            <ThemeToggle v-if="lookHasModes(settings.look)" />
+            <!-- A look with one mode has nothing to flip; it is picked in Settings.
+                 On a phone the toggle stands on Home only: beside the icon, the
+                 title and a page action it crowded the narrow bar (user, 2026-11-25). -->
+            <ThemeToggle v-if="lookHasModes(settings.look) && (!isMobile || route.name === Routes.Home)" />
             <AvatarWithDropdown />
         </div>
     </div>
@@ -87,7 +82,6 @@ import { useLogoSignal } from '@/composables/useLogoSignal'
 import { SEASON_KEY, useSeasonLogo } from '@/utils/seasonLogo'
 import HomeSvg from '@/assets/icons/home.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
-import SparklesSvg from '@/assets/icons/sparkles.svg'
 import AvatarWithDropdown from './AvatarWithDropdown.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import NewYearCountdown from './NewYearCountdown.vue'
@@ -139,15 +133,13 @@ function openSearch() {
 const onSearchRoute = computed(() => route.name === Routes.search || route.path.startsWith('/search'))
 
 // Per-route actions shown on the right of the mobile top bar, filling the empty
-// space next to the avatar. Playlists → New Playlist (replaces the old FAB), and
-// the smart playlist beside it (#642).
+// space next to the avatar. Playlists → New Playlist (replaces the old FAB).
+// No smart-playlist button here: a second one took too much of the narrow bar
+// (user, 2026-11-25); the editor stays a desktop action (PlaylistList.vue).
 const headerActions = computed(() => {
     switch (route.name) {
         case Routes.playlists:
-            return [
-                { icon: PlusSvg, title: 'New playlist', handler: () => modal.showNewPlaylistModal() },
-                { icon: SparklesSvg, title: 'New smart playlist', handler: () => modal.showSmartPlaylistEditor() },
-            ]
+            return [{ icon: PlusSvg, title: 'New playlist', handler: () => modal.showNewPlaylistModal() }]
         default:
             return []
     }
@@ -171,7 +163,9 @@ const mobileTitle = computed(() => {
         [Routes.artistDiscography]: 'Discography',
         [Routes.artistTracks]: 'Tracks',
         [Routes.playlist]: 'Playlist',
+        [Routes.smartPlaylist]: 'Playlist',
         [Routes.Lyrics]: 'Lyrics',
+        [Routes.Rewind]: 'Rewind',
     }
     return map[route.name as string] || ''
 })
@@ -278,9 +272,8 @@ const mobileTitle = computed(() => {
         }
 
         // Context action in the mobile top bar (e.g. "New playlist"). Same
-        // action role, same blush fill and same footprint as the theme toggle
-        // it sits beside — they are two controls in one row and used to be two
-        // different buttons.
+        // action role and same footprint as the theme toggle (which on a phone
+        // stands on Home only) — the bar's controls used to be different buttons.
         .mobile-header-action {
             @include btn-action($size: $bar-control);
             @include mem-hatch(28px, $on: accent);

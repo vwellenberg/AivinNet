@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest'
 // ---------------------------------------------------------------------------
 // The signal easter egg (#544) has to be findable on a phone. The desktop
 // logo (Logo.vue) is not rendered there, so the egg first lived only on a
-// screen the phone never shows. The phone's own app icon on Home (NavBar.vue)
+// screen the phone never shows. The phone's own app icon in the top bar (NavBar.vue)
 // counts the taps too and sends the same signal from itself.
 //
-// Source census, like homeTitleSearch.test.ts: mounting NavBar pulls in half the
+// Source census, like phoneTitleSearch.test.ts: mounting NavBar pulls in half the
 // stores. The counting itself is tested through Logo (logoSignal.test.ts),
 // which uses the same composable.
 // ---------------------------------------------------------------------------
