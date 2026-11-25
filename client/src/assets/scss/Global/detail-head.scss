@@ -288,11 +288,6 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
             grid-row: 1;
             z-index: 1;
             border-right: $candy-border;
-            // The cell keeps the panel, as on wide screens: the plate under it
-            // is the pastel now, and art that does not fill the cell (the
-            // smart playlist's square glyph card in a stretched cell) would
-            // otherwise stand on the dots.
-            background-color: var(--look-detail-head-fill, #{$mem-panel});
         }
 
         > .dh-body > :not(.header-actions) {
@@ -317,6 +312,15 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
                 flex: 1;
             }
         }
+    }
+
+    // The cell keeps the panel, as on wide screens: the plate under it is the
+    // pastel now, and art that does not fill the cell (the smart playlist's
+    // square glyph card in a stretched cell) would otherwise stand on the dots.
+    // `:where` keeps this at the specificity of `.dh-art` alone, so a cell with
+    // a ground of its own (`.is-glyph`, `.is-round`) keeps it.
+    :where(#{$detail-heads}) > .dh-art {
+        background-color: var(--look-detail-head-fill, #{$mem-panel});
     }
 
     .dh-art {

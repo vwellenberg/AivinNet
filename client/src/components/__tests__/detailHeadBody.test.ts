@@ -16,6 +16,9 @@ const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "defa
 
 const template = (source: string) => source.slice(source.indexOf("<template"), source.lastIndexOf("</template>"));
 
+// HTML void elements have no closing tag, written with `/>` or not.
+const VOID = new Set(["area", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+
 /** The direct children of the first element carrying `cls`. */
 function childrenOf(tags: Tag[], cls: string): Tag[] {
   const start = tags.findIndex((t) => t.kind === "open" && classesOf(t.attrs).includes(cls));
@@ -29,7 +32,7 @@ function childrenOf(tags: Tag[], cls: string): Tag[] {
       continue;
     }
     if (depth === 0) children.push(tag);
-    if (tag.kind === "open") depth++;
+    if (tag.kind === "open" && !VOID.has(tag.name)) depth++;
   }
   return children;
 }
