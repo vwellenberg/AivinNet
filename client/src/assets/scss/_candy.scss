@@ -1129,6 +1129,8 @@ $mem-seg-reserve: 4px !default;
 // Drawn with `border-left` + a background layer rather than a pseudo-element:
 // both of those are spoken for by the drag/drop markers on these rows.
 // ---------------------------------------------------------------------------
+$mem-row-marker-sprite: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>'));
+
 @mixin mem-row-marker($w: 9px) {
   padding-left: $w;
   // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
@@ -1142,11 +1144,25 @@ $mem-seg-reserve: 4px !default;
   // fill instead. Memphis keeps the row's own tint here (the fallback).
   background-color: var(--look-active-fill, var(--row-fill));
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
-  background-image: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>')),
-    var(--mem-hatch-accent);
+  background-image: $mem-row-marker-sprite, var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
   background-position: left top, left top;
   background-size: 9px 14px, 38px 38px;
+
+  // The zigzag is nailed to the edge — the hover stirs only the texture.
+  // `mem-row-plate-hover` slides the hatch by `$mem-hatch-stir` with a
+  // transition on `background-position`, and it gives ONE position for the
+  // whole list, so the marker layer rode along: on the entry just clicked
+  // (still under the pointer) the teeth were gone, and when the pointer left
+  // they slid 9px back to the edge (measured 9px -> 0 over $motion-move;
+  // reported 2026-11-25, "die Zacken bewegen sich nach dem Klick"). Here the
+  // marker keeps `left top` in both states, so it has nothing to animate.
+  // (0,1,0) more than the plate's hover, wherever the host puts it.
+  &:hover {
+    background-image: $mem-row-marker-sprite, var(--mem-hatch-hover);
+    background-size: 9px 14px, 38px 38px;
+    background-position: left top, $mem-hatch-stir;
+  }
 }
 
 // ---------------------------------------------------------------------------
