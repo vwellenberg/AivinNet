@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -29,13 +29,15 @@ const { getHomePageData, stub } = vi.hoisted(() => ({
 vi.mock('@/requests/home', () => ({ getHomePageData, getSurpriseAlbum: vi.fn() }))
 vi.mock('@/stores/content-width', async () => {
     const { ref } = await import('vue')
-    return { fetchCardCount: ref(6), maxAbumCards: ref(6) }
+    // isMobile: the 900px line, set per test (imported below as `phone`).
+    return { fetchCardCount: ref(6), maxAbumCards: ref(6), isMobile: ref(false) }
 })
 vi.mock('@/utils/updatePageTitle', () => ({ default: vi.fn() }))
 vi.mock('@/helpers/usePlayFrom', () => ({ playFromAlbumCard: vi.fn(), playFromPlaylist: vi.fn() }))
 vi.mock('@/helpers/notInterested', () => ({ notInterestedMenu: vi.fn() }))
 vi.mock('@/assets/icons/shuffle.svg', () => ({ default: {} }))
 vi.mock('@/assets/icons/play.svg', () => ({ default: {} }))
+vi.mock('@/assets/icons/chart.svg', () => ({ default: {} }))
 
 vi.mock('@/components/HomeView/Browse.vue', () => stub('browse-stub'))
 vi.mock('@/components/HomeView/ContinueCard.vue', () => stub('continue-stub'))
@@ -49,6 +51,7 @@ vi.mock('@/components/shared/CardScroller.vue', () => stub('row-stub'))
 
 import HomeView from '@/views/HomeView/main.vue'
 import useHome from '@/stores/home'
+import { isMobile as phone } from '@/stores/content-width'
 
 // As GET /nothome/ sends it: Continue listening first, then the rows.
 const answer = {
@@ -79,11 +82,12 @@ function held() {
     return () => release()
 }
 
-const mountHome = () => mount(HomeView)
+const mountHome = () => mount(HomeView, { global: { stubs: { RouterLink: RouterLinkStub } } })
 
 beforeEach(() => {
     setActivePinia(createPinia())
     getHomePageData.mockReset()
+    phone.value = false
 })
 
 describe('Home build order', () => {
@@ -150,5 +154,45 @@ describe('Home build order', () => {
         releaseNew()
         await second
         expect(home.answered).toBe(true)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Stats on the phone (user, 2026-11-25): the phone's bottom bar has no Stats
+// entry, and until then the only way there was the recap card on Mondays and
+// the 1st — the user landed on Stats once and could not find it again.
+// ---------------------------------------------------------------------------
+describe('The way to Stats at the end of Home', () => {
+    it('stands at the very end of Home on a phone, linking to Stats', async () => {
+        phone.value = true
+        getHomePageData.mockResolvedValueOnce(answer)
+        const w = mountHome()
+        await flushPromises()
+
+        const door = w.find('.home-stats-door')
+        expect(door.exists()).toBe(true)
+        expect(w.find('.homepageview').element.lastElementChild).toBe(door.element)
+        const link = door.findComponent(RouterLinkStub)
+        expect(link.props('to')).toEqual({ name: 'StatsView' })
+        expect(link.text()).toBe('Your listening stats')
+    })
+
+    it('is not there on desktop: the sidebar has Stats', async () => {
+        getHomePageData.mockResolvedValueOnce(answer)
+        const w = mountHome()
+        await flushPromises()
+        expect(w.find('.home-stats-door').exists()).toBe(false)
+    })
+
+    it('waits for Home: before the answer, the end of Home is its top', async () => {
+        phone.value = true
+        const release = held()
+        const w = mountHome()
+        await flushPromises()
+        expect(w.find('.home-stats-door').exists()).toBe(false)
+
+        release()
+        await flushPromises()
+        expect(w.find('.home-stats-door').exists()).toBe(true)
     })
 })

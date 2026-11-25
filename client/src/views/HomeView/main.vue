@@ -93,6 +93,19 @@
                 </div>
             </template>
         </PageItem>
+        <!-- Stats on the phone (user, 2026-11-25): its bottom bar has five
+             places and Stats is not one of them (navitems.ts::phoneMenus), so
+             until now the only way there was the recap card, on Mondays and
+             the 1st. The end of Home is where the browsing stops. Desktop and
+             tablet keep the sidebar entry, so this is phone-only, on the same
+             900px line that swaps the menus. Like Browse, it waits for Home's
+             answer: before that the end of Home is its top. -->
+        <div v-if="isMobile && home.answered" class="home-stats-door">
+            <RouterLink class="home-stats-link" :to="{ name: Routes.Stats }">
+                <ChartSvg aria-hidden="true" />
+                Your listening stats
+            </RouterLink>
+        </div>
     </div>
 </template>
 
@@ -103,7 +116,9 @@ import { useDebounceFn } from '@vueuse/core'
 import { playSources } from '@/enums'
 import useHome from '@/stores/home'
 import { SEASON_KEY } from '@/utils/seasonLogo'
-import { maxAbumCards } from '@/stores/content-width'
+import { isMobile, maxAbumCards } from '@/stores/content-width'
+import { Routes } from '@/router'
+import ChartSvg from '@/assets/icons/chart.svg'
 import updatePageTitle from '@/utils/updatePageTitle'
 
 import Browse from '@/components/HomeView/Browse.vue'
@@ -287,6 +302,25 @@ watch(maxAbumCards, useDebounceFn(() => home.refetchIfWider(), 300))
             color: var(--look-selected-text, #{$mem-ink});
             // Yellow is a static accent: the ink sprite, in both themes.
             --label-hatch: var(--mem-hatch-accent);
+        }
+    }
+
+    // The way to Stats at the end of Home, phone only. A word button, so the
+    // pill role (shadow, press, label ring, 44px); full width under the
+    // thumb, in Stats' own orchid from the sidebar (a static accent: ink
+    // label, ink hatch sprite).
+    .home-stats-door {
+        margin: 0.5rem 0 2rem;
+    }
+
+    .home-stats-link {
+        @include btn-pill($fill: $mem-orchid);
+        width: 100%;
+
+        svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            flex-shrink: 0;
         }
     }
 
