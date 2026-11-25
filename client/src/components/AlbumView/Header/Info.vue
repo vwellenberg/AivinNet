@@ -4,7 +4,7 @@
        under the whole plate (Global/detail-head.scss); `album-lead` keeps the
        title at the top and the meta line at the foot of the text column. -->
   <div class="album-info dh-body">
-    <div class="album-lead dh-stack">
+    <div class="album-lead">
       <div class="top dh-text">
         <!-- <AlbumType :album="album" /> -->
         <div class="albumtype dh-type">{{ album.type }}</div>
@@ -62,9 +62,30 @@ onBeforeRouteUpdate(() => {
 // type and the meta line are gone with them: they existed because the text
 // stood free on the doodle ground, and it now stands on a panel.
 .album-info {
+  // The body's gap used to open only between title and meta line; the action
+  // row sat in `.bottom`, right under the meta line. With the row a child of
+  // the body, that gap would open above it too (measured +16px of head on a
+  // desktop). So the body has none, and the lead carries the old one.
+  &.dh-body {
+    gap: 0;
+  }
+
   .album-lead {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     justify-content: space-between;
+    gap: 1rem;
+
+    // Phones: the lead stands beside the cell, and every pixel it grows
+    // stretches the cell into a letterbox around a square cover.
+    @include largePhones {
+      gap: $small;
+    }
+
+    @include shortViewport {
+      gap: $small;
+    }
   }
 
   .top {
