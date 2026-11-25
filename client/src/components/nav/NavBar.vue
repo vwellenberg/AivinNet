@@ -272,9 +272,8 @@ const mobileTitle = computed(() => {
         }
 
         // Context action in the mobile top bar (e.g. "New playlist"). Same
-        // action role, same blush fill and same footprint as the theme toggle
-        // it sits beside — they are two controls in one row and used to be two
-        // different buttons.
+        // action role and same footprint as the theme toggle (which on a phone
+        // stands on Home only) — the bar's controls used to be different buttons.
         .mobile-header-action {
             @include btn-action($size: $bar-control);
             @include mem-hatch(28px, $on: accent);
