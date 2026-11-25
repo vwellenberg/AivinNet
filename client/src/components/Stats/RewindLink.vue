@@ -82,28 +82,57 @@ watch(
     font-weight: 700;
 }
 
-// The Rewind page's own head plate (lavender, ink in both modes; Boring's tile), here as a
-// door: the whole plate is the link, so it lifts under the pointer and its
-// arrow wears the play colour.
+// The Rewind page's own head plate (lavender, ink in both modes; Boring's
+// tile), here as a door. The whole plate is the link, so it wears what every
+// pressable plate wears (styling.md): the hatch in the accent sprite (ink
+// strokes on a static pastel), cleared softly under the text, and the pointer's
+// flip to the contrast surface with the sprinkles stirring.
 .rewind-door {
+    --row-fill: var(--look-tile-fill, #{mem-pastel($mem-lavender)});
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.25rem;
     padding: 1rem 1.25rem;
     // Boring keeps Stats sober: its tile panel instead of the lavender.
-    background-color: var(--look-tile-fill, #{mem-pastel($mem-lavender)});
+    background-color: var(--row-fill);
+    @include mem-hatch($on: accent);
     border: $candy-border;
     border-radius: $candy-radius;
     @include candy-raised($press: false);
+    // After the mixin: its transition would drop the stir (the colours cut).
+    transition: box-shadow $motion-shadow ease-out $motion-lag, background-position $motion-move $motion-curve;
     color: var(--look-tile-text, #{$mem-ink});
     text-decoration: none;
     @include focus-ring;
+
+    @media (hover: hover) {
+        &:hover {
+            --row-fill: var(--mem-hover);
+            background-image: var(--mem-hatch-hover);
+            background-position: $mem-hatch-stir;
+            color: var(--mem-hover-text);
+
+            .rewind-door-fact span {
+                color: var(--mem-hover-text);
+            }
+        }
+    }
 
     @include allPhones {
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 1rem;
     }
+}
+
+// Each text block as wide as its words, with the hatch faded out under and
+// around them (`mem-text-veil` in `--row-fill`), not a box cut out of it.
+.rewind-door-year,
+.rewind-door-facts {
+    justify-self: start;
+    border-radius: 7px;
+    padding: 0.25rem 1.25rem 0.25rem 0.5rem;
+    @include mem-text-veil($left: 0.5rem, $right: 1.25rem);
 }
 
 .rewind-door-year {
