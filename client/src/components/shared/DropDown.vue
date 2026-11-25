@@ -11,7 +11,7 @@
                         : undefined
                 "
             >
-                <span class="ellip">{{ current.title }}</span>
+                <span class="ellip">{{ prefix }}{{ current.title }}</span>
                 <ArrowSvg :class="{ reverse }" class="dropdown-arrow" v-if="reverse !== 'hide'" />
             </button>
             <div v-if="showDropDown" ref="dropOptionsRef" class="options rounded no-scroll shadow-lg">
@@ -50,6 +50,9 @@ defineProps<{
     current: Item
     component_key: string
     reverse: boolean | 'hide'
+    // Shown before the current title on the opener only (the Playlists page
+    // says "Sort: Name"); the options and the tooltip keep the bare title.
+    prefix?: string
 }>()
 
 const emit = defineEmits<{

@@ -60,7 +60,6 @@ withDefaults(
     width: $glyph-lone;
     height: $glyph-lone;
     flex: none;
-    color: currentColor;
   }
 }
 </style>

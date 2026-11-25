@@ -11,6 +11,7 @@
                         :items="SORT_OPTIONS"
                         :current="sortCurrent"
                         component_key="playlist-sort"
+                        prefix="Sort: "
                         :reverse="sort.reverse"
                         @item-clicked="setSort"
                     />
@@ -39,6 +40,7 @@
                 :items="SORT_OPTIONS"
                 :current="sortCurrent"
                 component_key="playlist-sort"
+                prefix="Sort: "
                 :reverse="sort.reverse"
                 @item-clicked="setSort"
             />
@@ -117,15 +119,15 @@ const route = useRoute()
 const router = useRouter()
 const sort = computed(() => readPlaylistSortQuery(route.query))
 
-// One menu for all seven keys. Its opener says "Sort: <title>"; the options
-// say just the title. The highlight matches by key, so the prefix is cosmetic.
+// One menu for all seven keys. Its opener says "Sort: <title>" (the menu's
+// `prefix`); the options say just the title.
 const SORT_OPTIONS = [...PLAYLIST_SORT_KEYS, ...PLAYLIST_STAT_SORT_KEYS].map(k => ({
   key: k.key,
   title: k.displayName,
 }))
 const sortCurrent = computed(() => ({
   key: sort.value.sortby,
-  title: `Sort: ${SORT_OPTIONS.find(o => o.key === sort.value.sortby)?.title ?? ''}`,
+  title: SORT_OPTIONS.find(o => o.key === sort.value.sortby)?.title ?? '',
 }))
 
 // The sort state lives in the URL, like the album and artist lists.
