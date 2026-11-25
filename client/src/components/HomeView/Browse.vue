@@ -478,8 +478,8 @@ onMounted(() => {
       padding: 0.9rem 0.6rem;
       --board-h: 1.8rem;
 
-      // Sized so "1,234 artists" stays on one line in a 375px-wide phone's
-      // card (measured, 12px to spare).
+      // Sized so a four-digit count ("1,234 albums") stays on one line in a
+      // 375px-wide phone's card (measured, 12px to spare).
       .label {
         padding: 0.25rem 0.45rem;
       }
