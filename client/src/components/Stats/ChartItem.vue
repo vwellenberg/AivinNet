@@ -315,9 +315,10 @@ function getRouterParams() {
     // meter IS the play-duration share.
     //
     // The info block dissolves into the row's grid (`display: contents`), so
-    // its three lines and the duration share one set of tracks. Single lines
-    // with an ellipsis now leave the title the full width, not the 46px the
-    // 320px measurement above found; the full name stays in the tooltip.
+    // its three lines and the duration share one set of tracks. An ellipsis
+    // used to empty the title (46px left at 320px next to the duration); with
+    // the duration off its line the title has the full width, and the full
+    // name stays in the tooltip.
     //
     // Sits at the end of the selector on purpose (styling.md: breakpoint
     // blocks last, or equal-specificity rules above win by order).
@@ -386,7 +387,10 @@ function getRouterParams() {
         grid-template-columns: 1rem 2.4rem max-content minmax(0, 1fr) auto;
         column-gap: 0.5rem;
 
-        .chartimage {
+        // The placeholder states its own width further up, at higher
+        // specificity — named here too, or it stays 48px wide and 40px high.
+        .chartimage,
+        .chartimage.playlist.placeholder {
             width: 40px;
             height: 40px;
         }

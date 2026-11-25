@@ -31,6 +31,9 @@ export default function useScrollEdges(el: Ref<HTMLElement | null>) {
 
     onMounted(() => {
         nextTick(sync)
+        // Tab labels are words: their width changes once the web font is in,
+        // which no resize announces.
+        document.fonts?.ready.then(sync)
         window.addEventListener('resize', sync)
     })
     onUnmounted(() => window.removeEventListener('resize', sync))
