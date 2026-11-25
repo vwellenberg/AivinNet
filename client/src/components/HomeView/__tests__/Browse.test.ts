@@ -439,3 +439,19 @@ describe('Browse Library', () => {
         expect(again.findAll('a')[1].find('.board .tag').text()).toBe('MOST PLAYED')
     })
 })
+
+// On a 375px phone the albums sticker stood taller than the artists one:
+// "904 albums" wrapped inside its pill, "544 artists" did not (user,
+// 2026-11-25). jsdom lays nothing out, so this holds the rule itself; the
+// widths it was sized against (320-430px, up to "1,234 artists") were measured
+// in the running app.
+describe('Browse Library count pill', () => {
+    it('never wraps, so both stickers stay one height', () => {
+        const source = readFileSync('src/components/HomeView/Browse.vue', 'utf8')
+        const style = source.slice(source.indexOf('<style'))
+        const start = style.indexOf('.count {')
+        expect(start, 'the .count block (guard)').toBeGreaterThan(-1)
+        const block = style.slice(start, style.indexOf('}', start))
+        expect(block).toMatch(/white-space:\s*nowrap/)
+    })
+})
