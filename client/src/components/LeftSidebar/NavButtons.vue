@@ -255,16 +255,81 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     }
   }
 
+  // The phone bar is ONE segmented plate, not five loose ones (user pick from
+  // a preview round, 2026-11-25: "E mit Aktivlabel"). Five 44px plates with
+  // 8px gaps were the smallest targets of the most-used control on the phone;
+  // as segments they grow to $phone-nav-control (56px) without needing more
+  // width, because the four gaps go to the targets.
+  //
+  // The rules of a segmented bar (mem-seg-tabs): one frame, one offset shadow
+  // on the WHOLE bar, a divider instead of a gap. The segments keep their
+  // pastel tints and hatch (mem-row-plate), their neighbouring frames overlap
+  // by one border width so a divider is 3px like every other edge, and only
+  // the two outer ends are rounded. The shadow sits on the container: a
+  // segment's own offset would land on its neighbour's frame.
+  //
+  // The active segment says where you are in words: it takes the width its
+  // icon + label need, the other four share what is left. Measured at 320px
+  // (the narrowest width the overflow gate checks) with the longest label
+  // ("Favorites"): the four others stay at the 44px touch floor.
   @include allPhones {
-    justify-content: space-between;
     flex-direction: row;
+    gap: 0;
+    padding: 0;
+    border-radius: $sidebar-row-radius;
+    box-shadow: mem-shadow(3px, 3px);
 
     .nav-item {
+      flex: 1 1 0;
+      min-width: 0;
+      width: auto;
+      height: $phone-nav-control;
+      padding: 0 $smaller;
       justify-content: center;
+      margin-left: -$candy-border-w;
+      border-radius: 0;
+      box-shadow: none;
+
+      &:first-child {
+        margin-left: 0;
+        border-radius: $sidebar-row-radius 0 0 $sidebar-row-radius;
+      }
+
+      &:last-child {
+        border-radius: 0 $sidebar-row-radius $sidebar-row-radius 0;
+      }
+
+      // No press into a shadow the segment does not have: it would slide
+      // 3px over its neighbour. The route change is the feedback.
+      &:active {
+        transform: none;
+      }
+    }
+
+    // Later than the hover rule above and as specific: a segment never grows
+    // an offset of its own, also under a mouse in a narrow desktop window.
+    .nav-item:hover {
+      box-shadow: none;
+    }
+
+    .nav-item.active {
+      flex: 0 0 auto;
+      // With $smaller the label ended 5px from the divider (measured,
+      // "Favorites"). The others still measure >= 44px at 320px.
+      padding-inline: $small;
+      // Above both neighbours, so its full frame shows on the overlaps.
+      z-index: 1;
     }
 
     .nav-item span {
       display: none;
+    }
+
+    .nav-item.active span {
+      display: block;
+      margin-left: $smaller;
+      font-size: 0.8125rem;
+      white-space: nowrap;
     }
 
     // The label is hidden here, so the clear-cover's 26px text buffer has
@@ -283,8 +348,12 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // itself, so the margins have no job on phones.
     // The compound selector is deliberate: the plain `svg` margin rule sits
     // LATER in this file and would win an equal-specificity tie.
+    // The glyph grows with the 56px segment: a real size, not a scale()
+    // (styling.md — scaling makes the optical size depend on the viewBox).
     .nav-item svg {
       margin: 0;
+      width: $phone-nav-glyph;
+      height: $phone-nav-glyph;
     }
 
     .separator {
@@ -307,11 +376,23 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   // Same shape as the top bar's pill, which got this treatment in #445.
   @include allPhones {
     @include shortViewport {
-      justify-content: flex-end;
-      gap: 0;
+      // A landscape bar has neither the height nor the width: the segments
+      // drop back to the chrome size and to glyphs only.
+      .nav-item,
+      .nav-item.active {
+        flex: 0 0 $bar-control;
+        height: $bar-control;
+      }
 
-      .nav-item {
-        width: $bar-control;
+      // The chrome glyph, like the transport buttons next to it: the 28px
+      // phone glyph filled a 44px segment edge to edge (measured, 844x390).
+      .nav-item svg {
+        width: $bar-glyph;
+        height: $bar-glyph;
+      }
+
+      .nav-item.active span {
+        display: none;
       }
     }
   }
@@ -322,13 +403,8 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   // one carried its own `--nav-k * (viewBoxSide / glyphInkHeight)` correction.
   // They are now one set, drawn on one 24x24 grid with the same 18px optical
   // glyph, so there is nothing left to correct: one size for all of them.
-  // `--nav-k` survives only to bump the mobile bottom bar a touch.
-  --nav-k: 1;
-
-  @include allPhones {
-    --nav-k: 1.1; // larger glyphs for the mobile bottom bar
-  }
-
+  // (The phone bar sets its own, larger size above — `$phone-nav-glyph`. It
+  // used to be a `--nav-k: 1.1` scale on top of this one.)
   svg {
     height: 1.5rem;
     width: 1.5rem;
@@ -340,7 +416,6 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // was exactly the reported complaint. The active row already carries the
     // state (blush fill + ink frame) - the glyph does not have to whisper.
     // Measured: ink #17171A at .75 over white lands around #515154.
-    transform: scale(var(--nav-k));
   }
 
   svg.radiosvg {
