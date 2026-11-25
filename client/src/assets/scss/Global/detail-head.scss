@@ -246,6 +246,13 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
 // numbers shrink. That is the point of having one anatomy: the three headers
 // used to carry their own `largePhones` and `shortViewport` blocks with three
 // different cover sizes and three title sizes.
+//
+// One exception, on purpose: the ARTIST head moves its action row out of the
+// text column into a strip under the whole plate (ArtistView/Header.vue). Its
+// text column is ~175px on a 390px phone; Play + Favourite + Overflow wrapped
+// there, the overflow button stood on a line of its own, and the plate grew
+// to 230–274px with the portrait stretched to 120×224. With the strip: 193px,
+// portrait square (user's pick from a three-way preview, 2026-11-25).
 // ---------------------------------------------------------------------------
 @include largePhones {
     #{$detail-heads} {

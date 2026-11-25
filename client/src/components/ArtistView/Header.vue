@@ -94,5 +94,64 @@ const useCircularImage = computed(() => !isSmallPhone.value)
     .dh-art img {
         object-position: top;
     }
+
+    // Phones: the action row leaves the text column and becomes a strip
+    // under the whole plate. On a 390px phone the text side is ~175px wide,
+    // so Play (96px) + Favourite + Overflow wrapped and the overflow button
+    // stood on a line of its own; the text side then outgrew the 120px cell
+    // and stretched the photo into a 120×224 portrait crop (plate 230px, at
+    // 360px with a two-line name 274px). With the strip, the row has the full
+    // plate width and the cell only has to match type, name and meta.
+    @include largePhones {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        // The body's pastel and its dots (`.dh-body::before`, absolutely
+        // positioned) now cover the plate: text and strip are one surface.
+        position: relative;
+        background-color: var(--look-detail-head-fill, var(--dh-fill, #{$mem-panel}));
+
+        // The body's box goes away; its two children (text, actions) become
+        // grid items of the plate. Its type/title/meta sizes, `--row-fill`
+        // and the dots still apply — selected by class and inherited, not
+        // painted by the box.
+        .artist-info {
+            display: contents;
+        }
+
+        // Above the dots, which now span the plate. The dividing rule moves to
+        // the cell: it was `.dh-art + .dh-body`, a `display: contents` box
+        // paints no border, and the text block hugs its words (`.dh-text`,
+        // for the veil), so a rule on it would end with the meta line. The
+        // reason the rule normally lives on the body — a round, padded cell —
+        // does not apply here: below 660px the portrait is never a disc.
+        .dh-art {
+            grid-row: 1;
+            z-index: 1;
+            border-right: $candy-border;
+        }
+
+        .artist-info > .text {
+            grid-row: 1;
+            grid-column: 2;
+            align-self: center;
+            margin: $medium;
+            // `.dh-text`'s `max-width: 100%` is the whole grid area; the
+            // margins have to come off it, or a long one-word name overflows.
+            max-width: calc(100% - 2 * #{$medium});
+        }
+
+        .artist-info > .header-actions {
+            grid-row: 2;
+            grid-column: 1 / -1;
+            flex-wrap: nowrap;
+            padding: $small $medium $medium;
+            border-top: $candy-border;
+
+            // The primary action takes the room the strip gives it.
+            .playbtnrect {
+                flex: 1;
+            }
+        }
+    }
 }
 </style>
