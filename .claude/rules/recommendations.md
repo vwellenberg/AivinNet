@@ -125,9 +125,11 @@ like** → **Deep cuts** → **Forgotten favorites** → **Your top rated** → 
   weniger als vier, sagt die Routine im Log, warum (`MixReport`: Plays im Fenster, Kandidaten,
   Kerne mit zu wenigen Artists, Kerne mit zu kurzem Mix) — „nur zwei Mixes“ ist ohne diese Zeile
   nicht zu klären, weil es an den Hördaten hängt und synthetische Daten immer vier ergeben. Ein Mix nimmt die
-  Artists reihum: ein bekannter Track (der meistgehörte **der 180 Tage** zuerst), dann ein nie
-  gespielter (täglich neu gemischt; „nie“ heißt über die ganze Historie), höchstens 3 pro Album
-  (Album immer aus `track_facts`), 30 Tracks. Die Karte nennt die drei stärksten Artists
+  Artists reihum: ein bekannter Track (aus den **180 Tagen**, täglich neu gezogen, gewichtet nach Plays mit √Plays;
+  Bewertung 4–5 zuerst), dann ein nie gespielter (täglich neu gemischt; „nie“ heißt über die ganze
+  Historie), höchstens 3 pro Album (Album immer aus `track_facts`), 30 Tracks. Warum: Vorher war die
+  Reihenfolge der bekannten Tracks fix — bei durchgehörten Artists blieben 21–23 von 30 Tracks täglich
+  gleich, und das Cover (die ersten vier) nie anders. Die Karte nennt die drei stärksten Artists
   (`help_text`). Platzhalter und Artists ohne Seite sind nie Teil einer Gruppe, Sampler zählen
   für ihre Track-Artists.
   **Ein Mix wird über seinen Platz ausgeliefert** (`mix2` = zweiter Platz, `MixesEntry.mixes`
