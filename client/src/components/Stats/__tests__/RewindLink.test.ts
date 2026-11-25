@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/router', () => ({ Routes: { Rewind: 'RewindView' } }))
@@ -10,7 +11,6 @@ import RewindLink from '@/components/Stats/RewindLink.vue'
 // RouterLink as a plain anchor that shows where it goes.
 const stubs = {
     RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' },
-    ArrowIcon: true,
 }
 
 const link = async (year: number | null | undefined) => {
@@ -19,46 +19,115 @@ const link = async (year: number | null | undefined) => {
     return w
 }
 
-// As GET /logger/rewind sends it (#527), the fields the door reads.
+// As GET /logger/rewind sends it (#527): the fields the tape reads, in the
+// shape the server gives them (every list present, empty or not).
 const YEAR_2025 = {
     year: 2025,
+    years: [2024, 2025],
     plays: 11_384,
-    seconds: 48_210 * 60,
+    seconds: 48_210 * 60 + 20,
+    days: 287,
     top_artists: [{ name: 'The Brothers Johnson', artisthash: 'ar1', image: 'ar1.webp', seconds: 3600 }],
+    top_albums: [],
+    top_tracks: [
+        {
+            title: 'Get The Funk Out Ma Face',
+            trackhash: 't1',
+            artists: [{ name: 'The Brothers Johnson', artisthash: 'ar1' }],
+            seconds: 32_000,
+            plays: 60,
+        },
+    ],
+    summer_track: null,
+    first_track: null,
+    busiest_day: null,
+    new_artists: 0,
+    new_artists_top: [],
+    listener: null,
+    time_of_day: null,
 }
+
+const SOURCE = readFileSync('src/components/Stats/RewindLink.vue', 'utf8')
+const STYLE = SOURCE.slice(SOURCE.indexOf('<style'))
 
 beforeEach(() => {
     getRewind.mockReset().mockResolvedValue({ status: 200, data: YEAR_2025 })
 })
 
 // The stats page hands down the latest finished year: the way to Rewind stays
-// at the foot of the page, seen or not (#572). The whole plate is the door.
+// at the foot of the page, seen or not (#572). The door is a cassette.
 describe('RewindLink', () => {
     it('names the latest finished year and goes there', async () => {
         const a = (await link(2025)).find('a')
 
         expect(a.attributes('aria-label')).toBe('Your 2025 Rewind')
-        expect(a.text()).toContain('2025')
+        expect(a.find('.tape-year').text()).toContain('2025')
         expect(JSON.parse(a.attributes('data-to')!)).toEqual({ name: 'RewindView', params: { year: 2025 } })
     })
 
-    it('gives a taste of the year: minutes, plays, top artist', async () => {
+    it('names the tape by its length in minutes, the way a C-90 is named', async () => {
         const w = await link(2025)
 
         expect(getRewind).toHaveBeenCalledWith(2025)
-        const text = w.find('a').text()
-        expect(text).toContain('48,210')
-        expect(text).toContain('11,384')
-        expect(text).toContain('The Brothers Johnson')
+        // 48,210 minutes and 20 seconds round to 48210, without separators.
+        expect(w.find('.tape-length').text()).toBe('C-48210min')
     })
 
-    it('still opens without its numbers when the year cannot be loaded', async () => {
+    it('writes the year on the label: plays and days, top artist, top track', async () => {
+        const lines = (await link(2025)).findAll('.tape-line').map(line => line.text())
+
+        expect(lines).toEqual([
+            '11,384 plays on 287 days',
+            'Top artist The Brothers Johnson',
+            'Top track Get The Funk Out Ma Face — The Brothers Johnson',
+        ])
+    })
+
+    it('leaves out a line it has nothing for', async () => {
+        getRewind.mockResolvedValue({ status: 200, data: { ...YEAR_2025, top_tracks: [] } })
+
+        const lines = (await link(2025)).findAll('.tape-line').map(line => line.text())
+
+        expect(lines).toHaveLength(2)
+        expect(lines.join(' ')).not.toContain('Top track')
+    })
+
+    it('still opens without its notes when the year cannot be loaded', async () => {
         getRewind.mockResolvedValue({ status: 500, data: null })
 
         const a = (await link(2025)).find('a')
 
         expect(a.exists()).toBe(true)
-        expect(a.text()).toContain('Your year in music')
+        expect(a.find('.tape-length').exists()).toBe(false)
+        expect(a.find('.tape-line').text()).toContain('Played back')
+    })
+
+    it('keeps the drawing away from screen readers: the link says what it opens', async () => {
+        const a = (await link(2025)).find('a')
+
+        for (const part of ['.tape-band', '.tape-window', '.tape-bridge', '.tape-screw']) {
+            expect(a.find(part).attributes('aria-hidden'), part).toBe('true')
+        }
+    })
+
+    it('describes the link with the length and the notes, so a screen reader hears them', async () => {
+        const a = (await link(2025)).find('a')
+
+        const ids = a.attributes('aria-describedby')!.split(' ')
+        expect(ids.map(id => a.find(`[id="${id}"]`).classes())).toEqual([
+            expect.arrayContaining(['tape-length']),
+            expect.arrayContaining(['tape-notes']),
+        ])
+    })
+
+    it('describes it with the line of text alone when the year cannot be loaded', async () => {
+        getRewind.mockResolvedValue({ status: 500, data: null })
+
+        const a = (await link(2025)).find('a')
+
+        const ids = a.attributes('aria-describedby')!.split(' ')
+        expect(ids).toHaveLength(1)
+        expect(a.find(`[id="${ids[0]}"]`).text()).toContain('Played back')
     })
 
     it('stands under a heading of its own, like the sections above it', async () => {
@@ -70,5 +139,33 @@ describe('RewindLink', () => {
         expect((await link(null)).find('a').exists()).toBe(false)
         expect((await link(null)).find('.section-title').exists()).toBe(false)
         expect(getRewind).not.toHaveBeenCalled()
+    })
+})
+
+// The rewind is motion, and motion has rules here (styling.md): the pointer's
+// half is gated to devices that hover, the keyboard gets it on focus, and the
+// reels' turn is no `spin` (the reduced-motion policy keeps those turning).
+describe('RewindLink: the rewind', () => {
+    it('rewinds under the pointer only on devices that hover, and on keyboard focus', () => {
+        const hover = STYLE.indexOf('&:hover {')
+        const gate = STYLE.lastIndexOf('@media (hover: hover)', hover)
+
+        expect(hover).toBeGreaterThan(-1)
+        expect(gate).toBeGreaterThan(-1)
+        expect(STYLE.slice(gate, hover)).not.toContain('}')
+        expect(STYLE.slice(hover, STYLE.indexOf('}', STYLE.indexOf('@include tape-rewinding', hover)))).toContain(
+            '@include tape-rewinding'
+        )
+        expect(STYLE).toMatch(/&:focus-visible\s*\{\s*@include tape-rewinding;/)
+    })
+
+    it('turns the reels a counted number of times, under a name of their own', () => {
+        expect(STYLE).toMatch(/animation: tape-rewind \$motion-spin linear 3;/)
+        expect(STYLE).not.toMatch(/animation:\s*spin\b/)
+        expect(STYLE).not.toMatch(/infinite/)
+    })
+
+    it('winds the tape over the same time the reels turn', () => {
+        expect(STYLE).toMatch(/transition: transform calc\(#\{\$motion-spin\} \* 3\)/)
     })
 })

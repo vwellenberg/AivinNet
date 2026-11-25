@@ -1847,6 +1847,11 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   `.player-spinner` und stand unter „weniger Bewegung" still (Puffern, Cover-Suche). Der Test
   sucht seitdem am Merkmal (`animation: spin`), nicht am Namen. Alle Spinner drehen mit
   `$motion-spin` (vorher 0,4 / 0,45 / 0,8 s).
+  ⚠️ **Umgekehrt heißt das: Was sich dreht, aber kein Spinner ist, heißt NICHT `spin`.** Wer
+  für eine Geste die vorhandenen `spin`-Keyframes nimmt, bekommt unter „weniger Bewegung“ die
+  Spinner-Ausnahme mit, und die Drehung läuft endlos weiter. Die Spulen der Rewind-Kassette
+  (`Stats/RewindLink.vue`) drehen deshalb unter eigenem Namen (`tape-rewind`), genau drei Runden
+  lang, so lange, wie das Band zum Umspulen braucht. Ein Zensus prüft Name und Anzahl.
 - Das Vokabular (Dauern, Kurven, Staffelung) steht in `_motion.scss` — und wird **benutzt, nicht
   nur definiert** (#173). Die Skala existierte monatelang, während daneben die Zahlen weiter von
   Hand geschrieben wurden (66 → 72 Stellen, jede neue Animation brachte eigene Werte mit).
