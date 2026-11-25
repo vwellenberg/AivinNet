@@ -314,6 +314,9 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
 
     .nav-item.active {
       flex: 0 0 auto;
+      // With $smaller the label ended 5px from the divider (measured,
+      // "Favorites"). The others still measure >= 44px at 320px.
+      padding-inline: $small;
       // Above both neighbours, so its full frame shows on the overlaps.
       z-index: 1;
     }
