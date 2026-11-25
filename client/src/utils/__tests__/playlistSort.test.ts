@@ -4,6 +4,7 @@ import type { Playlist, SmartPlaylist } from '@/interfaces'
 import {
   lastUpdatedSeconds,
   matchesPlaylistSearch,
+  nextPlaylistSortQuery,
   normalizeSortKey,
   readPlaylistSortQuery,
   sortPlaylists,
@@ -137,6 +138,30 @@ describe('sort state', () => {
     expect(readPlaylistSortQuery({ sortby: 'count', reverse: '1' })).toEqual({ sortby: 'count', reverse: true })
     expect(readPlaylistSortQuery({ sortby: 'count', reverse: '0' })).toEqual({ sortby: 'count', reverse: false })
     expect(readPlaylistSortQuery({ sortby: 'nope', reverse: '1' })).toEqual({ sortby: 'name', reverse: true })
+  })
+})
+
+describe('nextPlaylistSortQuery: what a click on the sort menu writes', () => {
+  it('the active key flips the direction on screen', () => {
+    // Name ascending is the default, so the first click on Name goes descending.
+    expect(nextPlaylistSortQuery({ sortby: 'name', reverse: false }, 'name')).toEqual({ sortby: 'name', reverse: '1' })
+    expect(nextPlaylistSortQuery({ sortby: 'count', reverse: true }, 'count')).toEqual({ sortby: 'count', reverse: '0' })
+  })
+
+  it('a new name starts ascending', () => {
+    expect(nextPlaylistSortQuery({ sortby: 'count', reverse: true }, 'name')).toEqual({ sortby: 'name', reverse: '0' })
+  })
+
+  it('any other new key starts descending', () => {
+    expect(nextPlaylistSortQuery({ sortby: 'name', reverse: false }, 'playcount')).toEqual({ sortby: 'playcount', reverse: '1' })
+    expect(nextPlaylistSortQuery({ sortby: 'name', reverse: false }, 'count')).toEqual({ sortby: 'count', reverse: '1' })
+  })
+
+  it('the result reads back as the state it was written from', () => {
+    const next = nextPlaylistSortQuery({ sortby: 'name', reverse: false }, 'duration')
+    expect(readPlaylistSortQuery(next)).toEqual({ sortby: 'duration', reverse: true })
+    const flipped = nextPlaylistSortQuery({ sortby: 'duration', reverse: true }, 'duration')
+    expect(readPlaylistSortQuery(flipped)).toEqual({ sortby: 'duration', reverse: false })
   })
 })
 

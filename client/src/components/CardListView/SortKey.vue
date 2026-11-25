@@ -34,28 +34,19 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 
-const props = withDefaults(
-    defineProps<{
-        sortby: string
-        items: readonly {
-            key: string
-            displayName: string
-        }[]
-        reverse: boolean
-        // What the active chip flips. `query` (the album and artist lists):
-        // the URL's `reverse`, as it always did. `shown`: the direction on
-        // screen. The Playlists page needs that one: with no `reverse` in
-        // the URL it shows name ascending, and flipping the URL's missing
-        // value would keep it ascending (#872).
-        flipFrom?: 'query' | 'shown'
-    }>(),
-    { flipFrom: 'query' }
-)
+defineProps<{
+    sortby: string
+    items: readonly {
+        key: string
+        displayName: string
+    }[]
+    reverse: boolean
+}>()
 
 const route = useRoute()
 
+// The active chip flips the URL's `reverse` (the album and artist lists).
 function flipped() {
-    if (props.flipFrom === 'shown') return props.reverse ? '0' : '1'
     return route.query.reverse == '0' ? '1' : '0'
 }
 </script>

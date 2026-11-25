@@ -1,6 +1,6 @@
 <template>
   <div class="playlistcardgroup">
-    <h3>{{ title }}</h3>
+    <h3><component :is="icon" v-if="icon" class="caption-icon" aria-hidden="true" />{{ title }}</h3>
     <div class="grid">
       <!-- The tiles default to the playlists given; a section of another kind
            of tile (smart playlists, #642) passes its own through the slot, and
@@ -14,14 +14,17 @@
 
 <script setup lang="ts">
 import PlaylistCard from "@/components/PlaylistsList/PlaylistCard.vue";
+import type { Component } from "vue";
 import { Playlist } from "@/interfaces";
 
 withDefaults(
   defineProps<{
     playlists?: Playlist[];
     title: string;
+    // A glyph drawn before the title, in the caption's own colour.
+    icon?: Component;
   }>(),
-  { playlists: () => [] }
+  { playlists: () => [], icon: undefined }
 );
 </script>
 
@@ -44,6 +47,20 @@ withDefaults(
     // sectionCaptionSticker.test.ts.
     margin: 0 0 $section-caption-gap;
     font-size: 1.15rem;
+    // Inline-flex keeps the sticker fitted to its content (the icon and the
+    // title share a row); a caption without an icon lays out the same way.
+    display: inline-flex;
+    align-items: center;
+    gap: $small;
+  }
+
+  // Sized like the sidebar's pin (`$glyph-lone`). Coloured by `color`, never
+  // rotated: the pin is drawn on the diagonal already (sidebarPinTilt.test.ts).
+  .caption-icon {
+    width: $glyph-lone;
+    height: $glyph-lone;
+    flex: none;
+    color: currentColor;
   }
 }
 </style>

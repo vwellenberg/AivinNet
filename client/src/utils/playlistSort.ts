@@ -1,6 +1,6 @@
 import type { Playlist, SmartPlaylist } from '@/interfaces'
 
-/** Keys of the left chip group: the name and the columns of a playlist row. */
+/** The name and the columns of a playlist row. */
 export const PLAYLIST_SORT_KEYS = [
     { key: 'name', displayName: 'Name' },
     { key: 'count', displayName: 'No. of tracks' },
@@ -9,7 +9,7 @@ export const PLAYLIST_SORT_KEYS = [
     { key: 'lastplayed', displayName: 'Last played' },
 ] as const
 
-/** Keys of the stats group (the chart icon): play counts from the history. */
+/** Play counts from the listening history. */
 export const PLAYLIST_STAT_SORT_KEYS = [
     { key: 'playcount', displayName: 'Plays' },
     { key: 'playduration', displayName: 'Play duration' },
@@ -44,6 +44,20 @@ export function readPlaylistSortQuery(query: Record<string, unknown>): {
         sortby: hasSort ? normalizeSortKey(query.sortby) : 'name',
         reverse: hasSort && query.reverse === '1',
     }
+}
+
+/**
+ * The URL query for a click on the sort menu. Picking the active key flips the
+ * direction on screen. Picking another key starts it where it reads best: name
+ * ascending (A to Z), every other key descending (most tracks, most recent,
+ * most played first).
+ */
+export function nextPlaylistSortQuery(
+    current: { sortby: PlaylistSortKey; reverse: boolean },
+    key: PlaylistSortKey,
+): Record<string, string> {
+    if (key === current.sortby) return { sortby: key, reverse: current.reverse ? '0' : '1' }
+    return { sortby: key, reverse: key === 'name' ? '0' : '1' }
 }
 
 /** Accent- and case-insensitive: "Café" matches "cafe" and "CAFÉ". */

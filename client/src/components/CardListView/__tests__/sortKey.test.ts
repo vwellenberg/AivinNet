@@ -34,15 +34,8 @@ describe('SortKey: which direction the active chip flips to', () => {
     expect(linkReverse({ sortby: 'name', reverse: false }, 'name')).toBe('1')
   })
 
-  it('flip-from "shown" flips what is on screen: name ascending with a bare URL turns descending', () => {
-    route.query = {}
-    expect(linkReverse({ sortby: 'name', reverse: false, flipFrom: 'shown' }, 'name')).toBe('1')
-    expect(linkReverse({ sortby: 'name', reverse: true, flipFrom: 'shown' }, 'name')).toBe('0')
-  })
-
-  it('a chip that is not active starts descending either way', () => {
+  it('a chip that is not active starts descending', () => {
     route.query = {}
     expect(linkReverse({ sortby: 'name', reverse: false }, 'count')).toBe('1')
-    expect(linkReverse({ sortby: 'name', reverse: false, flipFrom: 'shown' }, 'count')).toBe('1')
   })
 })

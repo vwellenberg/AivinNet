@@ -1,7 +1,5 @@
-// The sort chip bar (`.itemsortby`), shared by every list that sorts by chips:
-// SortBanner (album and artist lists) and PlaylistsList/PlaylistSortBar. Both
-// import it, so the rule is emitted twice with identical text; plain SCSS, not
-// a mixin, so the style census can read it.
+// The sort chip bar (`.itemsortby`) of SortBanner, the album and artist lists.
+// Plain SCSS, not a mixin, so the style census can read it.
 .itemsortby {
     z-index: 200;
     display: grid;
