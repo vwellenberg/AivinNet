@@ -180,8 +180,9 @@ class TestTracks:
 
         tracks = mix_tracks(["rhcp", "fnm", "primus"], known, played, facts, tracks_of, seed=1)
 
-        # Each artist in turn; its most played track first.
-        assert tracks[:3] == ["rhcp1/1", "fnm1/1", "primus1/1"]
+        # Each artist in turn, one known track each (drawn by play count, so not fixed).
+        for artist, track in zip(["rhcp", "fnm", "primus"], tracks[:3], strict=True):
+            assert track in known[artist]
         # Then the never played ones mix in.
         assert tracks[3] not in played
         # Three per album: RHCP's two albums, Faith No More's and Primus' one.
@@ -204,14 +205,27 @@ class TestTracks:
 
         assert Counter(t.split("/")[0] for t in tracks) == {"fnm1": 3}
 
-    def test_the_fresh_tracks_change_with_the_seed_the_known_do_not(self):
+    def test_the_known_tracks_change_with_the_seed_too(self):
+        # Regression: the known tracks were a fixed order, so the first tracks
+        # (and the cover) never changed for artists heard almost completely.
         known, played = known_tracks(_resolved(two_tastes()))
+        artists = ["rhcp", "fnm", "primus"]
 
-        monday = mix_tracks(["rhcp", "fnm", "primus"], known, played, facts, tracks_of, seed=1)
-        tuesday = mix_tracks(["rhcp", "fnm", "primus"], known, played, facts, tracks_of, seed=2)
+        firsts = {mix_tracks(artists, known, played, facts, tracks_of, seed=seed)[0] for seed in range(1, 21)}
 
-        assert monday[:3] == tuesday[:3]
-        assert monday != tuesday
+        assert len(firsts) > 1
+        again = mix_tracks(artists, known, played, facts, tracks_of, seed=7)
+        assert again == mix_tracks(artists, known, played, facts, tracks_of, seed=7)
+
+    def test_a_track_played_more_often_leads_more_often(self):
+        # rhcp1/1 played 20 times, the others once: weight sqrt(20) against 1.
+        plays = [Play("rhcp1/1", NOW - DAY * i) for i in range(20)]
+        plays += [Play(t, NOW - DAY * 30 - i) for i, t in enumerate(["rhcp1/2", "rhcp1/3", "rhcp1/4", "rhcp1/5"])]
+        known, played = known_tracks(_resolved(plays))
+
+        leads = Counter(mix_tracks(["rhcp"], known, played, facts, tracks_of, seed=seed)[0] for seed in range(200))
+
+        assert all(leads["rhcp1/1"] > leads[t] for t in ["rhcp1/2", "rhcp1/3", "rhcp1/4", "rhcp1/5"])
 
 
 class TestBuild:
@@ -300,10 +314,8 @@ class TestRatings:
         plays = [*two_tastes(), Play("rhcp1/5", NOW - 2 * DAY)]
         known, played = known_tracks(_resolved(plays))
 
-        plain = mix_tracks(["rhcp"], known, played, facts, tracks_of, seed=1)
         rated = mix_tracks(["rhcp"], known, played, facts, tracks_of, seed=1, ratings={"rhcp1/5": 5})
 
-        assert plain[0] == "rhcp1/1"
         assert rated[0] == "rhcp1/5"
 
     def test_build_mixes_passes_the_ratings_down(self):
@@ -344,8 +356,9 @@ def _resolved(plays):
     return _resolve(plays, facts)
 
 
-def test_without_ratings_the_mix_is_the_one_from_before_788():
-    """Golden, captured from master before #788: the unrated draw did not change."""
+def test_the_draw_for_seed_777_is_pinned():
+    """Golden of the current draw (known and fresh, weighted by plays). Changes only
+    if the rng order or the weights change on purpose: then re-capture it."""
     from aivinnet.lib.home.discover import TrackFacts
     from aivinnet.lib.home.mixes import mix_tracks
 
@@ -357,8 +370,8 @@ def test_without_ratings_the_mix_is_the_one_from_before_788():
         return TrackFacts(albumhash="alb" + t[0] + str(int(t[1:]) % 3), artists=(t[0],))
 
     assert mix_tracks(["A", "B"], known, played, facts, lambda a: lib[a], seed=777) == [
-        "a3", "b4", "a10", "b8", "a7", "b3", "a12", "b9", "a2", "b2", "a9",
-        "b6", "a8", "b1", "a1", "b5", "a5", "b7",
+        "a7", "b3", "a10", "b6", "a0", "b0", "a12", "b8", "a6", "b2", "a4",
+        "b7", "a8", "b1", "a5", "b4", "a11", "b5",
     ]  # fmt: skip
 
 

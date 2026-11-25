@@ -253,9 +253,13 @@ def mix_tracks(
 
     `known` and `played` come from `known_tracks`; `tracks_of(artisthash)` is
     the artist's trackhashes in the library. The album of every track comes
-    from `facts_of`, known or not, so the cap counts one album one way. The
-    never-played tracks are shuffled with `seed`, so the mix changes from day
-    to day; the known ones stay in order, the ones the user rated high first.
+    from `facts_of`, known or not, so the cap counts one album one way.
+
+    Both kinds are drawn with `seed`, so the mix changes from day to day. The
+    known ones are drawn weighted by their play count (sqrt, so one track with
+    200 plays does not open every day): a fixed order left the same tracks, and
+    so the same cover, for artists heard almost completely (21 to 23 of 30
+    tracks identical from one day to the next). Rated 4 or 5 still come first.
     `ratings` (trackhash -> 1 to 5) leaves out what is rated `RATING_DISLIKED`,
     known or not.
     """
@@ -269,20 +273,21 @@ def mix_tracks(
             for trackhash in sorted(set(tracks_of(artist)))
             if trackhash not in played and rated.get(trackhash) != RATING_DISLIKED
         ]
-        # Rated 4 or 5 but never played (rating needs no play) comes first too. Without
-        # ratings `fresh_liked` is empty and its shuffle draws nothing: the old draw.
+        # Rated 4 or 5 but never played (rating needs no play) comes first too.
         fresh_liked = [t for t in fresh_all if rated.get(t, 0) >= RATING_LIKED]
         fresh_rest = [t for t in fresh_all if rated.get(t, 0) < RATING_LIKED]
         rng.shuffle(fresh_liked)
         rng.shuffle(fresh_rest)
         fresh = [*fresh_liked, *fresh_rest]
-        favourites = [
-            t
-            for t, _ in sorted(
-                ((t, n) for t, n in known[artist].items() if rated.get(t) != RATING_DISLIKED),
-                key=lambda kv: (-(rated.get(kv[0], 0) >= RATING_LIKED), -kv[1], kv[0]),
-            )
+        # Weighted sampling without replacement (Efraimidis-Spirakis): key u ** (1 / w)
+        # with w = sqrt(plays), highest key first. Sorted by hash before the draw, so
+        # the same seed gives the same mix whatever the dict order.
+        keyed = [
+            (rated.get(t, 0) >= RATING_LIKED, rng.random() ** (1 / math.sqrt(n)), t)
+            for t, n in sorted(known[artist].items())
+            if rated.get(t) != RATING_DISLIKED
         ]
+        favourites = [t for _, _, t in sorted(keyed, key=lambda k: (not k[0], -k[1], k[2]))]
 
         queue: deque[str] = deque()
         for i in range(max(len(favourites), len(fresh))):
