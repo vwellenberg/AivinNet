@@ -57,7 +57,8 @@
 
 <script setup lang="ts">
 import { getStats } from '@/requests/stats'
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
+import useScrollEdges from '@/composables/useScrollEdges'
 import StatItem from './StatItem.vue'
 import Discoveries from './Discoveries.vue'
 import CalendarSvg from '@/assets/icons/calendar.svg'
@@ -108,33 +109,12 @@ async function load() {
 
 watch(() => [props.period, props.items], load, { immediate: true })
 
-// The row scrolls natively (wheel, trackpad, touch, scrollbar). The arrows only
-// move it by a page, and only where there is something to scroll to.
+// The row scrolls natively; arrows and fade only where there is more.
 const row = ref<HTMLElement | null>(null)
-const canPrev = ref(false)
-const canNext = ref(false)
+const { canPrev, canNext, sync: syncEdges, page } = useScrollEdges(row)
 
-function syncEdges() {
-    const el = row.value
-    if (!el) return
-    canPrev.value = el.scrollLeft > 1
-    canNext.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
-}
-
-function page(dir: 1 | -1) {
-    const el = row.value
-    if (!el) return
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
-}
-
-// `load` runs during setup, before anything is mounted, so the first
-// measurement waits for mount; later batches of tiles are measured after render.
+// Later batches of tiles are measured after they render.
 watch(statItems, () => nextTick(syncEdges))
-onMounted(() => {
-    syncEdges()
-    window.addEventListener('resize', syncEdges)
-})
-onUnmounted(() => window.removeEventListener('resize', syncEdges))
 
 defineOptions({
     inheritAttrs: false,
@@ -151,24 +131,7 @@ defineOptions({
 // on a phone the cut-off tile at the edge read as a clipped layout rather
 // than as "more this way", and the fade alone is a faint hint for that.
 .statsnav {
-    @include btn-action;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    margin: auto 0;
-    z-index: 1;
-
-    &.prev {
-        left: 0.25rem;
-
-        svg {
-            transform: rotate(180deg);
-        }
-    }
-
-    &.next {
-        right: 0.25rem;
-    }
+    @include mem-edge-arrow;
 }
 
 .statshead {
@@ -181,23 +144,7 @@ defineOptions({
 
     // Fade the edge that still has tiles beyond it, so the cut-off reads as
     // "more this way" rather than as a clipped card.
-    $fade: 2.5rem;
-    $fade-left: linear-gradient(to right, transparent, #000 $fade);
-    $fade-right: linear-gradient(to left, transparent, #000 $fade);
-
-    &.has-prev {
-        mask-image: $fade-left;
-    }
-
-    &.has-next {
-        mask-image: $fade-right;
-    }
-
-    &.has-prev.has-next {
-        mask-image: $fade-left, $fade-right;
-        mask-composite: intersect;
-        -webkit-mask-composite: source-in;
-    }
+    @include mem-edge-fade;
 
     // No left inset — the tiles start where the page's captions, cards and rows
     // start. Measured against the leading edge: 319px here against 303px for

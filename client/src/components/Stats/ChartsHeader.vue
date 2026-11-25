@@ -2,40 +2,95 @@
     <div class="chartheader">
         <!-- Each plate keeps its own size and its own scroller: a tab group is
              its words, and four of them are 308px on a phone. Same box the
-             discography tabs sit in (mem-seg-scroll). -->
-        <div class="seg-scroll">
-            <div ref="groupSeg" class="seg" role="group" aria-label="Chart type">
-                <button
-                    v-for="g in groups"
-                    :key="g"
-                    type="button"
-                    :class="{ active: g === name }"
-                    :aria-pressed="g === name"
-                    @click="$emit('changeGroup', g)"
-                >
-                    {{ g }}
-                </button>
+             discography tabs sit in (mem-seg-scroll). Where a plate is wider
+             than the screen, the cut-off edge fades and carries an arrow, like
+             the stat tiles below (mem-edge-fade). -->
+        <div class="seg-row">
+            <button
+                v-if="groupEdges.canPrev.value"
+                type="button"
+                class="segnav prev"
+                aria-label="Scroll chart types left"
+                @click="groupEdges.page(-1)"
+            >
+                <RightArrowSvg />
+            </button>
+            <div
+                ref="groupScroll"
+                class="seg-scroll"
+                :class="{ 'has-prev': groupEdges.canPrev.value, 'has-next': groupEdges.canNext.value }"
+                @scroll.passive="groupEdges.sync"
+            >
+                <div ref="groupSeg" class="seg" role="group" aria-label="Chart type">
+                    <button
+                        v-for="g in groups"
+                        :key="g"
+                        type="button"
+                        :class="{ active: g === name }"
+                        :aria-pressed="g === name"
+                        @click="$emit('changeGroup', g)"
+                    >
+                        {{ g }}
+                    </button>
+                </div>
             </div>
+            <button
+                v-if="groupEdges.canNext.value"
+                type="button"
+                class="segnav next"
+                aria-label="Scroll chart types right"
+                @click="groupEdges.page(1)"
+            >
+                <RightArrowSvg />
+            </button>
         </div>
-        <div class="seg-scroll">
-            <div ref="periodSeg" class="seg" role="group" aria-label="Chart period">
-                <button
-                    v-for="p in periods"
-                    :key="p"
-                    type="button"
-                    :class="{ active: p === period }"
-                    :aria-pressed="p === period"
-                    @click="$emit('changePeriod', p)"
-                >
-                    {{ statsPeriodLabel(p) }}
-                </button>
+        <div class="seg-row">
+            <button
+                v-if="periodEdges.canPrev.value"
+                type="button"
+                class="segnav prev"
+                aria-label="Scroll periods left"
+                @click="periodEdges.page(-1)"
+            >
+                <RightArrowSvg />
+            </button>
+            <div
+                ref="periodScroll"
+                class="seg-scroll"
+                :class="{ 'has-prev': periodEdges.canPrev.value, 'has-next': periodEdges.canNext.value }"
+                @scroll.passive="periodEdges.sync"
+            >
+                <div ref="periodSeg" class="seg" role="group" aria-label="Chart period">
+                    <button
+                        v-for="p in periods"
+                        :key="p"
+                        type="button"
+                        :class="{ active: p === period }"
+                        :aria-pressed="p === period"
+                        @click="$emit('changePeriod', p)"
+                    >
+                        {{ statsPeriodLabel(p) }}
+                    </button>
+                </div>
             </div>
+            <button
+                v-if="periodEdges.canNext.value"
+                type="button"
+                class="segnav next"
+                aria-label="Scroll periods right"
+                @click="periodEdges.page(1)"
+            >
+                <RightArrowSvg />
+            </button>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+
+import RightArrowSvg from '@/assets/icons/right-arrow.svg'
+import useScrollEdges from '@/composables/useScrollEdges'
 
 import { STATS_TABS, isStatsPeriod, isStatsTab, statsPeriodLabel } from '@/utils/statsPeriod'
 
@@ -59,6 +114,10 @@ const periods = computed<readonly string[]>(() =>
 
 const groupSeg = ref<HTMLElement | null>(null)
 const periodSeg = ref<HTMLElement | null>(null)
+const groupScroll = ref<HTMLElement | null>(null)
+const periodScroll = ref<HTMLElement | null>(null)
+const groupEdges = useScrollEdges(groupScroll)
+const periodEdges = useScrollEdges(periodScroll)
 
 // A plate that scrolls can hold the selected tab off-screen — "playlists" and
 // "alltime" are the last of their plates, so the state the page opens in is
@@ -78,7 +137,11 @@ onMounted(() => nextTick(() => {
 }))
 
 watch(() => props.name, () => nextTick(() => revealActive(groupSeg.value)))
-watch(() => props.period, () => nextTick(() => revealActive(periodSeg.value)))
+// A recap period adds a sixth tab, so the plate's width changes with it.
+watch(() => props.period, () => nextTick(() => {
+    revealActive(periodSeg.value)
+    periodEdges.sync()
+}))
 </script>
 
 <style lang="scss">
@@ -101,8 +164,28 @@ watch(() => props.period, () => nextTick(() => revealActive(periodSeg.value)))
     // One segmented plate per tab group — the anatomy itself lives in
     // `mem-seg-tabs` (_candy.scss), shared with the discography tabs. The box
     // it scrolls in is `mem-seg-scroll`, shared with the same page.
+    // The box the arrows sit over. A flex item of the header like the scroller
+    // was, so it shrinks below its plate the same way.
+    .seg-row {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .segnav {
+        // Smaller than the tiles' arrow: it sits over a 46px plate, not a
+        // 192px tile. Centred on the plate, not on the shadow reserve below it.
+        @include mem-edge-arrow($size: 2.25rem, $inset: 0);
+        bottom: $mem-seg-reserve;
+    }
+
     .seg-scroll {
         @include mem-seg-scroll;
+        @include mem-edge-fade;
+        // `revealActive` scrolls the selected tab clear of the arrow, not
+        // under it.
+        scroll-padding-inline: 2.75rem;
         // The shadow reserve lives INSIDE the scroll port, so on a
         // `space-between` row it would hold the right-hand plate off the row's
         // right edge — the edge #555 aligned, and the one the trend sticker

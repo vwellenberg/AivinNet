@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import ChartsHeader from '@/components/Stats/ChartsHeader.vue'
 
@@ -62,5 +62,61 @@ describe('ChartsHeader period tabs for the recap periods', () => {
 
         expect(tabs.map(t => t.text())).toEqual(['day', 'week', 'month', 'year', 'alltime'])
         expect(tabs.some(t => t.classes('active'))).toBe(false)
+    })
+})
+
+// On a phone the period plate is wider than the screen — always with a sixth
+// recap tab — and its last tab was simply cut off: no fade, no arrow, while the
+// stat tiles below said "swipe" with both (user, 2026-11-23).
+describe('ChartsHeader on a narrow screen', () => {
+    const stubbed: string[] = []
+    const stub = (name: string, value: unknown) => {
+        const descriptor = typeof value === 'function' ? { value } : { get: () => value }
+        Object.defineProperty(Element.prototype, name, { configurable: true, ...descriptor })
+        stubbed.push(name)
+    }
+    afterEach(() => {
+        stubbed.splice(0).forEach(name => delete (Element.prototype as unknown as Record<string, unknown>)[name])
+    })
+
+    it('fades and arrows the edge that has tabs beyond it', async () => {
+        stub('scrollWidth', 400)
+        stub('clientWidth', 300)
+        const w = mountHeader('lastmonth')
+        await flushPromises()
+
+        const scrollers = w.findAll('.seg-scroll')
+        expect(scrollers).toHaveLength(2)
+        for (const box of scrollers) {
+            expect(box.classes()).toContain('has-next')
+            expect(box.classes()).not.toContain('has-prev')
+        }
+        expect(w.findAll('.segnav.next')).toHaveLength(2)
+        expect(w.find('.segnav.prev').exists()).toBe(false)
+        w.unmount()
+    })
+
+    it('moves the plate by a page when its arrow is pressed', async () => {
+        stub('scrollWidth', 400)
+        stub('clientWidth', 300)
+        const scrollBy = vi.fn()
+        stub('scrollBy', scrollBy)
+        const w = mountHeader('week')
+        await flushPromises()
+
+        await w.find('[aria-label="Scroll periods right"]').trigger('click')
+        expect(scrollBy).toHaveBeenCalledWith({ left: 240, behavior: 'smooth' })
+        w.unmount()
+    })
+
+    it('shows neither when the tabs fit', async () => {
+        stub('scrollWidth', 300)
+        stub('clientWidth', 300)
+        const w = mountHeader('week')
+        await flushPromises()
+
+        expect(w.find('.segnav').exists()).toBe(false)
+        expect(w.find('.has-next').exists()).toBe(false)
+        w.unmount()
     })
 })
