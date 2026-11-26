@@ -286,6 +286,10 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
         // apply here: below 660px no head draws its art as a disc.
         > .dh-art {
             grid-row: 1;
+            // Placed, not auto-placed: the album adds a grid item of its own
+            // to this cell (its dividing rule, AlbumView/main.vue), and an
+            // auto-placed cell then skipped to column 2.
+            grid-column: 1;
             z-index: 1;
             border-right: $candy-border;
         }
