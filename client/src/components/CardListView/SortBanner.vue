@@ -53,7 +53,8 @@ const options = [...(isAlbums ? albumItems : artistItems), ...shared]
 // Text keys start A to Z; everything else starts with the most (or newest).
 const TEXT_KEYS = ['title', 'albumartists', 'name']
 
-const current = computed(() => options.find(o => o.key === store.sortby) ?? { key: store.sortby, title: '' })
+// A key the menu does not know (a hand-edited URL) still names something.
+const current = computed(() => options.find(o => o.key === store.sortby) ?? { key: store.sortby, title: store.sortby })
 
 // The sort lives in the URL; AlbumListView's route guard reads it into the
 // store and reloads the list.
