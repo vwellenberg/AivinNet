@@ -262,9 +262,17 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   // History (2026-11-25, two preview rounds): a segmented bar with the active
   // page's name in its segment (#922) was built and taken back the same night —
   // "Buttons, aber einfach größer, kein Text". Loose plates, bigger, no label.
+  // Five EQUAL columns, from a grid rather than flex. As flex items with
+  // `width: 100%` the plates shrank by their inner size, so the active one —
+  // 9px leading padding for the zigzag band (mem-row-marker) against 4px —
+  // came out ~4px wider than its neighbours (measured 67 vs 62.8px at 390px;
+  // 1px before the plates grew, which is why nobody saw it). A `1fr` track
+  // does not care about padding. `minmax(0, …)` so a track never widens to its
+  // content, `grid-auto-flow: column` so the count lives in navitems.ts only.
   @include allPhones {
-    justify-content: space-between;
-    flex-direction: row;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
 
     .nav-item {
       height: $phone-nav-control;
@@ -324,7 +332,8 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   // Same shape as the top bar's pill, which got this treatment in #445.
   @include allPhones {
     @include shortViewport {
-      justify-content: flex-end;
+      justify-content: end;
+      grid-auto-columns: $bar-control;
       gap: 0;
 
       // A landscape bar has no height to spare: the plates drop back to the
