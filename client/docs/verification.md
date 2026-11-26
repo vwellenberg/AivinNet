@@ -227,6 +227,20 @@ einen Schleifendurchlauf.
 
 ## ⚠️ Fallen beim Messen
 
+- **⚠️ Eine feste Wartezeit misst auf einem belasteten Server den Einflug, nicht die Seite.**
+  Die Sticker-Überschriften „klatschen“ herein (`mem-sticker-slap`: `scale(1.2)` und gedreht).
+  Startet das spät, weil der Deploy direkt nach dem Backend-Neustart läuft und andere Jobs die
+  Maschine belasten, ist der Sticker beim festen 3,2-s-Messpunkt noch schräg und zu groß:
+  Seine Box greift 6–24 px über die Kante, je länger der Text, desto mehr (Signatur einer
+  Drehung, nicht von Padding). Fünf Deploys am 2026-11-25 scheiterten so am Kanten-Gate, jedes
+  Mal an anderen Seiten, die bei Ruhe bündig messen. Deshalb warten `edge-audit.js` und
+  `overflow-check.js` nach der Pause auf `scripts/settle.js`: keine endliche Animation mehr,
+  keine neuen DOM-Knoten, 700 ms Ruhe; sonst `finish()` und nochmal warten, mit `WARN`-Zeile.
+  Die DOM-Knoten zählen mit, weil unter Last der Abschnitt erst NACH einer reinen
+  Animations-Prüfung mountet und sein Sticker dann bei Keyframe 0 direkt vor der Messung startet.
+  Eigene Messskripte genauso. Nachstellen: Gate laufen lassen, während auf jedem Kern zwei
+  Endlosschleifen laufen — die alte Fassung war so zweimal rot, die neue zweimal grün.
+
 - **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der
   erste Keyframe ist `scale(0.82)`, und die Rolle setzt `animation-fill-mode: backwards` — läuft
   die Animation nicht los, ist genau das der Zustand, den man misst. Passiert in jedem

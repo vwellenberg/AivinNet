@@ -37,6 +37,8 @@ try {
   console.error(`HARNESS: playwright is not resolvable (${error.message}) — set NODE_PATH`);
   process.exit(2);
 }
+// Measure the page at rest, not mid-entrance (scripts/settle.js says why).
+const { settle } = require("./settle");
 
 const DEFAULT_ROUTES = [
   "/",
@@ -72,6 +74,12 @@ const DEFAULT_ROUTES = [
   for (const route of routes) {
     await page.goto(BASE + "/#" + route, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForTimeout(3200);
+    // The fixed pause alone measured the stickers mid-"slap" on a loaded
+    // server (scaled and turned, 6–24 px off the edge): wait for rest.
+    const rest = await settle(page);
+    if (!rest.settled) {
+      console.log(`WARN ${route} did not come to rest (${rest.running.join(", ")}) — finished the animations left and waited again, then measured`);
+    }
 
     const captions = await page.evaluate(() => {
       const round = (n) => Math.round(n * 10) / 10;
