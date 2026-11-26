@@ -1200,8 +1200,19 @@ $mem-row-marker-sprite: var(--look-marker, url('data:image/svg+xml,<svg xmlns="h
   color: var(--look-active-text, var(--look-tint-text, #{$mem-ink}));
   background-image: $mem-row-marker-sprite, var(--mem-hatch-accent);
   background-repeat: repeat-y, repeat;
-  background-position: left top, left top;
+  // The hatch's position travels as a property so `mem-marker-in` can name it
+  // in its from-frame: a keyframe has to give every layer a position, and a
+  // literal there would yank the texture under the pointer for the length of
+  // the slide.
+  --marker-hatch-at: left top;
+  background-position: left top, var(--marker-hatch-at);
   background-size: 9px 14px, 38px 38px;
+  // The teeth come in from the left, out from under the 3px frame, when the
+  // entry becomes active (user, 2026-11-26: "von links nach rechts
+  // reingleiten"). Same length and curve as the reach-out on the right
+  // (NavButtons.vue), so both ends move as one gesture. Keyframes live in
+  // Global/_button-classes.scss — this file is injected into every component.
+  animation: mem-marker-in $motion-move $motion-curve-settle;
 
   // The zigzag is nailed to the edge — the hover stirs only the texture.
   // `mem-row-plate-hover` slides the hatch by `$mem-hatch-stir` with a
@@ -1227,7 +1238,8 @@ $mem-row-marker-sprite: var(--look-marker, url('data:image/svg+xml,<svg xmlns="h
   &:hover {
     background-image: $mem-row-marker-sprite, var(--mem-hatch-hover);
     background-size: 9px 14px, 38px 38px;
-    background-position: left top, $mem-hatch-stir;
+    --marker-hatch-at: #{$mem-hatch-stir};
+    background-position: left top, var(--marker-hatch-at);
   }
 }
 
