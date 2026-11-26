@@ -5,26 +5,36 @@
            name, harmless while it was an invisible 1px spacer, but the dash is
            visible and was focusable and clickable (a "No match" navigation). -->
       <div v-if="menu.separator" class="nav-item separator" role="separator"></div>
+      <!-- `custom`: the click decides how to navigate. Search on a phone goes
+           through openSearchFocused, so the keyboard opens with the page — a
+           plain link opened it closed (user, 2026-11-26). -->
       <router-link
         v-else
+        v-slot="{ href, navigate, isExactActive }"
+        custom
         :to="{
           name: menu.route_name || '',
           params: menu?.params,
           query: menu.query && menu.query(),
         }"
-        class="nav-item"
-        :class="[
-          menu.tint,
-          {
-            active: $route.name === menu.route_name,
-          },
-        ]"
-        @click="menu.action && menu.action()"
       >
-        <div>
-          <component :is="menu.icon" />
-          <span>{{ menu.name }}</span>
-        </div>
+        <a
+          :href="href"
+          class="nav-item"
+          :class="[
+            menu.tint,
+            {
+              active: $route.name === menu.route_name,
+            },
+          ]"
+          :aria-current="isExactActive ? 'page' : undefined"
+          @click="onNavClick($event, menu, navigate)"
+        >
+          <div>
+            <component :is="menu.icon" />
+            <span>{{ menu.name }}</span>
+          </div>
+        </a>
       </router-link>
     </template>
   </div>
@@ -32,13 +42,29 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useRouter } from "vue-router";
 
 import { isMobile } from "@/stores/content-width";
-import { menus, phoneMenus } from "./navitems";
+import { openSearchFocused } from "@/utils/openSearch";
+import { menus, phoneMenus, type NavItem } from "./navitems";
 
 // The phone bar is a list of its own, not the sidebar with entries hidden:
 // see `phoneMenus`. `isMobile` is the same 900px line as `allPhones` below.
 const items = computed(() => (isMobile.value ? phoneMenus : menus));
+
+const router = useRouter();
+
+function onNavClick(e: MouseEvent, menu: NavItem, navigate: (e?: MouseEvent) => unknown) {
+  menu.action?.();
+  // A modified click (new tab, ...) stays the link's business.
+  const plainClick = !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+  if (menu.focusesSearch && isMobile.value && plainClick) {
+    e.preventDefault();
+    void openSearchFocused(router, menu.query?.());
+    return;
+  }
+  navigate(e);
+}
 </script>
 
 <style lang="scss">

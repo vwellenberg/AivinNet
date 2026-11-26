@@ -18,7 +18,7 @@ import ChartSvg from "@/assets/icons/chart.svg";
 // glyph individually — the icons came from three different sets and filled
 // their viewBox by different amounts. They are one set now, so there is
 // nothing left to correct and the field is gone.
-interface NavItem {
+export interface NavItem {
   name?: string;
   route_name?: string;
   params?: RouteParamsRaw;
@@ -26,6 +26,9 @@ interface NavItem {
   icon?: any;
   separator?: boolean;
   action?: () => void;
+  // Opens search with the field focused and the keyboard up on a phone
+  // (utils/openSearch.ts) instead of navigating as a plain link.
+  focusesSearch?: boolean;
   // The entry's memphis fill. Declared HERE rather than as an `nth-child` rule
   // in the stylesheet: the list contains a separator, so a positional selector
   // would silently re-colour every entry below it the moment one is added or
@@ -89,6 +92,7 @@ const search = {
   route_name: Routes.search,
   params: { page: "top" },
   query: () => ({ q: useSearch().query }),
+  focusesSearch: true,
   icon: SearchSvg,
   tint: "tint-coral",
 };
