@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, Home row "Deep cuts": a hidden gem. -->
+    <path d="M7 4.4h10l4 4.8-9 10.8L3 9.2Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3 9.2h18M12 20 8.6 9.2M12 20l3.4-10.8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

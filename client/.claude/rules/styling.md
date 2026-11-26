@@ -81,7 +81,9 @@ optische Größe am Füllgrad der jeweiligen viewBox (daher kam „Lyrics-Icon z
 Seit #311 sind die Navigations- und Chrome-Glyphen (home, search, folder\*, bookmark\*, playlist\*,
 chart, settings, album, artist, delete, plus, queue, more, expand, arrow\*, volume-\*, pin\*,
 download, pencil, reload, devices, headphones, a, square, check.filled, check.circle.fill,
-heart\*, note, sowie seit der Settings-Runde paintbrush, phone, info, users, profile, cover, backup)
+heart\*, note, sowie seit der Settings-Runde paintbrush, phone, info, users, profile, cover, backup und
+seit den Home-Zeilen-Icons cassette, history, sparkle, artist.plus, gem, heart.dashed, progress,
+calendar.day, tray, layers, moon.outline, sun.outline — `utils/homeRowIcons.ts`)
 **ein** Satz:
 
 - **24×24-Box, ~18 px optisches Glyph** (Ink von 3 bis 21), **2,4 px** Strich, runde Kappen und
@@ -1650,11 +1652,15 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   (`#acontent.page-enter > *`, `utils/pageEnter.ts`); `pageEnter.test.ts` verbietet eine
   Animation auf `#acontent` selbst.
 
-- **Abgeschnittene Titel im Player scrollen, sonst nirgends.** Der Now-Playing-Kopf und die Player-Leiste
-  lassen Titel und Künstlerzeile über `shared/MarqueeText.vue` laufen, statt sie mit „…" zu enden. Die
+- **Abgeschnittene Titel im Player und in den Zeilen-Überschriften scrollen, sonst nirgends.** Der
+  Now-Playing-Kopf und die Player-Leiste lassen Titel und Künstlerzeile über `shared/MarqueeText.vue`
+  laufen, statt sie mit „…" zu enden; seit 2026-11-26 auch Überschrift und Beschreibung jeder
+  Kartenreihe (`CardScroller.vue`, am Handy neben „Play mix“ stand „Because you liste…“). Die
   Bewegung ist eine CSS-Animation (`marquee-sway`), JS misst nur Breite und setzt zwei Properties —
   kein Frame wird von Script erzeugt. In Songlisten läuft nichts: eine Zeilenspalte voller Laufschriften
-  wäre zu viel Bewegung.
+  wäre zu viel Bewegung. ⚠️ **Die Ellipse gehört dann dem Marquee**, nicht dem Sticker drumherum: ein
+  `text-overflow` am Sticker schneidet den Kasten, und der Wirt muss unter seinen Text schrumpfen
+  dürfen (`min-width: 0` bis hinunter zum Link), sonst misst der Marquee nie einen Überlauf.
   ⚠️ **Bei „weniger Bewegung" läuft er weiter, halb so schnell** (mindestens 12 s pro Runde;
   MarqueeText rechnet die Dauer live, `motion-policy.scss` lässt die Animation als begründete
   Ausnahme durch). Bis 2026-11-25 blieb er dort beim „…", und das kam vom Handy als „Lauftext

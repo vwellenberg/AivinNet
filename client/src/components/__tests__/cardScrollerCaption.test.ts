@@ -69,3 +69,44 @@ describe("the caption link carries the hatch", () => {
     expect(Number(ringY![1])).toBeLessThan(Number(padY![1]));
   });
 });
+
+// A caption cut short on a phone ("Because you liste…" next to "Play mix")
+// scrolls instead (user, 2026-11-26), like the player's title. MarqueeText owns
+// the ellipsis for text that fits; a second one on the sticker would cut the
+// box before the marquee can measure it overflowing.
+describe("a caption that does not fit scrolls", () => {
+  const TEMPLATE = SOURCE.slice(0, SOURCE.indexOf("<script"));
+
+  it("runs the title and the description through MarqueeText", () => {
+    expect(TEMPLATE).toMatch(/<MarqueeText :text="title">\{\{ title \}\}<\/MarqueeText>/);
+    expect(TEMPLATE).toMatch(/<MarqueeText :text="description">\{\{ description \}\}<\/MarqueeText>/);
+  });
+
+  it("leaves the ellipsis to the marquee", () => {
+    const caption = block(STYLE, "> b").body;
+    const description = block(STYLE, ".rdesc").body;
+    expect(caption, "the caption block was not found").toMatch(/mem-sticker/);
+    expect(description, "the description block was not found").toMatch(/mem-sticker/);
+    expect(caption).not.toMatch(/text-overflow/);
+    expect(description).not.toMatch(/text-overflow/);
+  });
+
+  it("lets the caption link shrink below its text, so the marquee gets a narrower box", () => {
+    const link = block(STYLE, "> a").body;
+    expect(link).toMatch(/display: flex;/);
+    expect(link).toMatch(/min-width: 0;/);
+  });
+
+  it("lets the running marquee's soft edge stand in for the gap to the glyph", () => {
+    // MarqueeText pads running text by 12px; with the gap on top the words sat
+    // 20px off the glyph (measured at 390px), against 8px at rest.
+    expect(block(STYLE, "&:has(> .marquee.is-running)").body).toMatch(/gap: 0;/);
+  });
+
+  it("draws the row glyph before the words, at the lone-glyph size", () => {
+    expect(TEMPLATE).toMatch(/<component :is="icon" v-if="icon" class="caption-icon" aria-hidden="true" \/>\s*<MarqueeText/);
+    const icon = block(STYLE, ".caption-icon").body;
+    expect(icon).toMatch(/width: \$glyph-lone;/);
+    expect(icon).toMatch(/height: \$glyph-lone;/);
+  });
+});

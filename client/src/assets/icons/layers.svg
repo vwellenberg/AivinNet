@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, Home's collection rows: pages stacked into one collection. -->
+    <path d="M12 3.6 20.4 8 12 12.4 3.6 8Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.6 12 12 16.4 20.4 12M3.6 16 12 20.4 20.4 16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

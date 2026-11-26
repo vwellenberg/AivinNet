@@ -5,9 +5,12 @@
     >
         <div class="rinfo">
             <div class="rtitle">
+                <!-- A caption too long for its row (a phone, next to "Play mix")
+                     scrolls instead of ending in "…" (user, 2026-11-26). -->
                 <b>
                     <RouterLink :to="route || ''">
-                        {{ title }}
+                        <component :is="icon" v-if="icon" class="caption-icon" aria-hidden="true" />
+                        <MarqueeText :text="title">{{ title }}</MarqueeText>
                     </RouterLink>
                 </b>
                 <!-- INFO: This SEE ALL is shown when there's no description. Eg. in favorites page -->
@@ -21,7 +24,7 @@
             </div>
             <div v-if="description" class="rdesc">
                 <RouterLink :to="route || ''">
-                    {{ description }}
+                    <MarqueeText :text="description">{{ description }}</MarqueeText>
                 </RouterLink>
                 <!-- INFO: This SEE ALL is shown when there's a description. Eg. in the home page -->
                 <SeeAll
@@ -52,9 +55,11 @@ import { maxAbumCards } from '@/stores/content-width'
 import useCardGridColumns from '@/helpers/useCardGridColumns'
 
 import { computed, provide, ref } from 'vue'
+import type { Component } from 'vue'
 import { CARD_MENU_EXTRAS, CardMenuExtras } from '@/utils/cardMenu'
 import { cardKeys } from '@/utils/cardKeys'
 import PlaylistCard from '../PlaylistsList/PlaylistCard.vue'
+import MarqueeText from '../shared/MarqueeText.vue'
 import SeeAll from '../shared/SeeAll.vue'
 import AlbumCard from './AlbumCard.vue'
 import ArtistCard from './ArtistCard.vue'
@@ -84,6 +89,9 @@ const props = defineProps<{
     // Entries this row adds to its cards' menus (Home's "Not interested",
     // utils/cardMenu.ts).
     cardMenu?: CardMenuExtras
+    // A glyph before the caption, in the caption's colour (Home's rows,
+    // utils/homeRowIcons.ts).
+    icon?: Component
 }>()
 
 provide(CARD_MENU_EXTRAS, card => props.cardMenu?.(card) ?? [])
@@ -255,8 +263,34 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
                 @include mem-sticker;
                 min-width: 0;
                 overflow: hidden;
-                text-overflow: ellipsis;
                 white-space: nowrap;
+
+                // The glyph and the words share one row. The link may shrink
+                // below its text (min-width 0), so the words' MarqueeText gets a
+                // box narrower than they are and scrolls; the glyph never does.
+                > a {
+                    display: flex;
+                    align-items: center;
+                    gap: $small;
+                    min-width: 0;
+
+                    // A running marquee pads its text by its 12px soft edge, so
+                    // the words stood 20px off the glyph instead of 8 (measured
+                    // at 390px). The edge takes the gap's place.
+                    &:has(> .marquee.is-running) {
+                        gap: 0;
+                    }
+                }
+            }
+
+            // Sized like the pin on "Pinned" (PlaylistCardGroup) and the
+            // sidebar's: `$glyph-lone`, where the chrome stroke reaches the 2px
+            // ring width (loneGlyphStroke.test.ts). Coloured by the caption.
+            .caption-icon {
+                width: $glyph-lone;
+                height: $glyph-lone;
+                flex: none;
+                color: currentColor;
             }
 
             // No anchor pin here, deliberately. The global rule is
@@ -279,7 +313,6 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
                 color: var(--look-sticker-text, #{$candy-text-muted});
                 min-width: 0;
                 overflow: hidden;
-                text-overflow: ellipsis;
                 white-space: nowrap;
             }
         }

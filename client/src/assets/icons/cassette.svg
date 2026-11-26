@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, Home row "Your mixes": a mixtape. Shell, two reels, the tape window's foot. -->
+    <path d="M4.8 5.2h14.4a2 2 0 0 1 2 2v9.6a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2V7.2a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M6.8 10.8a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M13.6 10.8a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M7.2 18.8l1.4-3.2h6.8l1.4 3.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

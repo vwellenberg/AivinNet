@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, Home row "On this day": a calendar sheet with one day marked (calendar.svg is a foreign 28-unit glyph, kept for Stats). -->
+    <path d="M6 5h12a2.4 2.4 0 0 1 2.4 2.4v10.4a2.4 2.4 0 0 1-2.4 2.4H6a2.4 2.4 0 0 1-2.4-2.4V7.4A2.4 2.4 0 0 1 6 5Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M3.6 9.8h16.8M8 3.2v3.6M16 3.2v3.6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M13.8 13.8h2.4v2.4h-2.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+</svg>
