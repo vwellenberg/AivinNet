@@ -97,6 +97,12 @@ describe("a caption that does not fit scrolls", () => {
     expect(link).toMatch(/min-width: 0;/);
   });
 
+  it("lets the running marquee's soft edge stand in for the gap to the glyph", () => {
+    // MarqueeText pads running text by 12px; with the gap on top the words sat
+    // 20px off the glyph (measured at 390px), against 8px at rest.
+    expect(block(STYLE, "&:has(> .marquee.is-running)").body).toMatch(/gap: 0;/);
+  });
+
   it("draws the row glyph before the words, at the lone-glyph size", () => {
     expect(TEMPLATE).toMatch(/<component :is="icon" v-if="icon" class="caption-icon" aria-hidden="true" \/>\s*<MarqueeText/);
     const icon = block(STYLE, ".caption-icon").body;

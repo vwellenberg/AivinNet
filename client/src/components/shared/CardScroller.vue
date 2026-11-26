@@ -273,6 +273,13 @@ function getProps(item: { type: string; item?: any; with_helptext?: boolean }) {
                     align-items: center;
                     gap: $small;
                     min-width: 0;
+
+                    // A running marquee pads its text by its 12px soft edge, so
+                    // the words stood 20px off the glyph instead of 8 (measured
+                    // at 390px). The edge takes the gap's place.
+                    &:has(> .marquee.is-running) {
+                        gap: 0;
+                    }
                 }
             }
 
