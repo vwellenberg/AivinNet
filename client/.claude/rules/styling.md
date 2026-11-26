@@ -54,7 +54,13 @@ Ordner-Platte, jeweils mit Begründung.
 | Icon-Button auf einer Fläche, Header-Aktion | `btn-action` (Wort darauf: `$hatch: label`) |
 | Haupt-CTA (Play, Speichern im Hauptfluss) | `btn-primary` |
 | blanker Glyph ohne Ruhefläche | `btn-quiet` |
+| blanker Glyph, der beim Hover eine **gerahmte** Platte bekommt (✕ der Home-Karten) | `btn-action($rest: bare)` |
 | „An"-Zustand eines Toggles | `btn-toggle-on` |
+
+⚠️ `btn-quiet` hovert mit Fläche und Schraffur, **ohne** Rahmen und Schatten. Auf einer Karte
+liest sich das als Platte, der der Rand fehlt (2026-11-26). Dort `btn-action($rest: bare)` mit
+`animation: none` (nichts auf einer Home-Karte kommt für sich an), und so viel Abstand zur Kante,
+dass die zwei Rahmen nicht aufeinanderliegen. Zensus: `HomeView/__tests__/cardDismiss.test.ts`.
 
 Ausgewählt/gedrückt (`aria-pressed`, aktiver Tab) heißt `var(--look-selected-fill)` +
 `var(--look-selected-text)` **und** `--label-hatch: var(--mem-hatch-accent)` — Gelb ist ein

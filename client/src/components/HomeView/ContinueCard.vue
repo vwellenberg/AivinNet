@@ -7,7 +7,7 @@
          without a `dismiss` key (an older server) has none. -->
     <button
       v-if="entry.dismiss"
-      class="btn-quiet continue-dismiss"
+      class="continue-dismiss"
       type="button"
       aria-label="Remove from Continue listening"
       title="Remove from Continue listening"
@@ -733,28 +733,24 @@ $continue-pad: 0.75rem;
     }
   }
 
-  // The ✕ (#776) in the top right corner. The role gives the 44 px target, the
-  // pointer-only hover and both themes. The title and the info column keep clear
-  // of it, so a long name never runs under the button.
+  // The ✕ (#776) in the top right corner: a bare glyph at rest, a framed plate
+  // under the pointer (`btn-action($rest: bare)`; `btn-quiet` hovers with a fill
+  // and no frame, user 2026-11-26). The role gives the 44 px target and both
+  // themes. The title and the info column keep clear of it, so a long name never
+  // runs under the button.
   .continue-dismiss {
+    @include btn-action($size: $bar-control, $rest: bare, $glyph: 1.1rem);
+    // No pop of its own: the button is printed on the card and arrives with it.
+    animation: none;
     position: absolute;
-    // Centred on the caption line, in a column of its own at the right edge.
-    top: $continue-pad + $continue-caption * 0.5 - $bar-control * 0.5;
+    // In a column of its own at the right edge, the same distance from both
+    // edges: centred on the caption line, the hover frame lay on the card's.
+    top: 0.5rem;
     right: 0.5rem;
-    width: $bar-control;
-    height: $bar-control;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     // Above the text block: every child of the card sits at z-index 1, and the
     // info column comes later in the DOM with its dot veil (72 % card fill), so it
     // painted over the ✕ and turned the ink glyph grey on the lavender card.
     z-index: 2;
-
-    svg {
-      width: 1.1rem;
-      height: 1.1rem;
-    }
   }
 
   // The ✕'s column: nothing on the card runs under it, a long title no more

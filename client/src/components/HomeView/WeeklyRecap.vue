@@ -9,7 +9,7 @@
         <span v-if="lines.detail" class="detail">{{ lines.detail }}</span>
       </span>
     </button>
-    <button class="btn-quiet recap-close" aria-label="Dismiss recap" @click="dismiss">×</button>
+    <button class="recap-close" type="button" aria-label="Dismiss recap" @click="dismiss">×</button>
   </section>
 </template>
 
@@ -122,11 +122,15 @@ function dismiss() {
         font-size: 0.85rem;
     }
 
-    // The glyph's role is `btn-quiet` (Global/_button-classes.scss): no plate
-    // at rest, a 44-px target, the hover from the role.
+    // The Continue card's ✕ (ContinueCard.vue): bare at rest, a framed plate
+    // under the pointer, a 44-px target, clear of the card's own frame.
     .recap-close {
+        @include btn-action($size: $bar-control, $rest: bare);
+        animation: none;
         align-self: flex-start;
+        margin: 0.5rem 0.5rem 0 0;
         font-size: 1.4rem;
+        font-weight: 400;
         line-height: 1;
     }
 }
