@@ -49,13 +49,11 @@ describe('NavBar: Seitentitel öffnet die Suche', () => {
         expect(actions![1]).not.toMatch(/smart/i)
     })
 
-    it('navigiert zur Suche und fokussiert über focusAcrossNavigation (iOS-Tastatur)', () => {
+    it('öffnet die Suche über openSearchFocused, synchron im Klick (iOS-Tastatur)', () => {
         const fn = SOURCE.match(/function openSearch\(\) \{([\s\S]*?)\n\}/)
         expect(fn, 'openSearch fehlt').not.toBeNull()
         // Der Aufruf, nicht nur der Import: synchron im Klick-Handler.
-        expect(fn![1]).toMatch(/^\s*(void )?focusAcrossNavigation\(/)
-        expect(fn![1]).toMatch(/\(\) => router\.push\(\{ name: Routes\.search/)
-        expect(fn![1]).toContain("getElementById('globalsearch')")
+        expect(fn![1]).toMatch(/^\s*(void )?openSearchFocused\(router\)/)
         // Ein später, eigener Fokus nach der Navigation öffnet auf iOS keine Tastatur.
         expect(fn![1]).not.toMatch(/\.then\(/)
     })
