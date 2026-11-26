@@ -258,81 +258,47 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     }
   }
 
-  // The phone bar is ONE segmented plate, not five loose ones (user pick from
-  // a preview round, 2026-11-25: "E mit Aktivlabel"). Five 44px plates with
-  // 8px gaps were the smallest targets of the most-used control on the phone;
-  // as segments they grow to $phone-nav-control (56px) without needing more
-  // width, because the four gaps go to the targets.
+  // The phone bar: five plates, each its own button with its own offset
+  // shadow, glyphs only. 56px high ($phone-nav-control) instead of the
+  // chrome's 44px: they are the most-used targets on the phone.
   //
-  // The rules of a segmented bar (mem-seg-tabs): one frame, one offset shadow
-  // on the WHOLE bar, a divider instead of a gap. The segments keep their
-  // pastel tints and hatch (mem-row-plate), their neighbouring frames overlap
-  // by one border width so a divider is 3px like every other edge, and only
-  // the two outer ends are rounded. The shadow sits on the container: a
-  // segment's own offset would land on its neighbour's frame.
-  //
-  // The active segment says where you are in words: it takes the width its
-  // icon + label need, the other four share what is left. Measured at 320px
-  // (the narrowest width the overflow gate checks) with the longest label
-  // ("Favorites"): the four others stay at the 44px touch floor.
+  // History (2026-11-25, two preview rounds): a segmented bar with the active
+  // page's name in its segment (#922) was built and taken back the same night —
+  // "Buttons, aber einfach größer, kein Text". Loose plates, bigger, no label.
+  // Five EQUAL columns, from a grid rather than flex. As flex items with
+  // `width: 100%` the plates shrank by their inner size, so the active one —
+  // 9px leading padding for the zigzag band (mem-row-marker) against 4px —
+  // came out ~4px wider than its neighbours (measured 67 vs 62.8px at 390px;
+  // 1px before the plates grew, which is why nobody saw it). A `1fr` track
+  // does not care about padding. `minmax(0, …)` so a track never widens to its
+  // content, `grid-auto-flow: column` so the count lives in navitems.ts only.
   @include allPhones {
-    flex-direction: row;
-    gap: 0;
-    padding: 0;
-    border-radius: $sidebar-row-radius;
-    box-shadow: mem-shadow(3px, 3px);
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
 
     .nav-item {
-      flex: 1 1 0;
-      min-width: 0;
-      width: auto;
       height: $phone-nav-control;
-      padding: 0 $smaller;
       justify-content: center;
-      margin-left: -$candy-border-w;
-      border-radius: 0;
-      box-shadow: none;
-
-      &:first-child {
-        margin-left: 0;
-        border-radius: $sidebar-row-radius 0 0 $sidebar-row-radius;
-      }
-
-      &:last-child {
-        border-radius: 0 $sidebar-row-radius $sidebar-row-radius 0;
-      }
-
-      // No press into a shadow the segment does not have: it would slide
-      // 3px over its neighbour. The route change is the feedback.
-      &:active {
-        transform: none;
-      }
+      // The plates stretch to the bar anyway; the inline padding only sets
+      // their minimum. With $small around the 28px glyph that minimum was
+      // 50px a plate and the page ran 3px wider than a 320px screen
+      // (measured, overflow gate). $smaller: 42px minimum, ~50px rendered.
+      padding-inline: $smaller;
     }
 
-    // Later than the hover rule above and as specific: a segment never grows
-    // an offset of its own, also under a mouse in a narrow desktop window.
-    .nav-item:hover {
-      box-shadow: none;
-    }
-
+    // The active plate's zigzag band takes 9px of leading padding, so its
+    // glyph sat 2.5px right of the plate's centre while its neighbours'
+    // glyphs were dead centre (measured). The same padding on the trailing
+    // side centres it on the plate (user, 2026-11-26). At 320px the 28px
+    // glyph is wider than what is left between the paddings and overflows
+    // both sides evenly — `justify-content: center` keeps it centred.
     .nav-item.active {
-      flex: 0 0 auto;
-      // With $smaller the label ended 5px from the divider (measured,
-      // "Favorites"). The others still measure >= 44px at 320px.
-      padding-inline: $small;
-      // Above both neighbours, so its full frame shows on the overlaps.
-      z-index: 1;
+      padding-inline-end: $mem-row-marker-w;
     }
 
     .nav-item span {
       display: none;
-    }
-
-    .nav-item.active span {
-      display: block;
-      margin-left: $smaller;
-      font-size: 0.8125rem;
-      white-space: nowrap;
     }
 
     // The label is hidden here, so the clear-cover's 26px text buffer has
@@ -340,8 +306,12 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // those force the whole page to 533px on a 390px phone: the layout
     // viewport zooms out and nothing is responsive any more. The glyph's own
     // margins already keep the smooth patch around it.
+    // `justify-content: center`: where the glyph is wider than this box (the
+    // active plate at 320px), it overflows both sides evenly instead of only
+    // the right one (measured 1.2px off-centre without it).
     .nav-item > div {
       padding: 2px 0;
+      justify-content: center;
     }
 
     // The glyph margins exist to space a label that is hidden here — but they
@@ -351,12 +321,16 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // itself, so the margins have no job on phones.
     // The compound selector is deliberate: the plain `svg` margin rule sits
     // LATER in this file and would win an equal-specificity tie.
-    // The glyph grows with the 56px segment: a real size, not a scale()
+    // The glyph grows with the 56px plate: a real size, not a scale()
     // (styling.md — scaling makes the optical size depend on the viewBox).
+    // `flex-shrink: 0`: on the active plate at 320px the room between the
+    // paddings is narrower than the glyph, and a shrinkable svg gave way
+    // instead of overflowing evenly (measured 25.6 instead of 28px).
     .nav-item svg {
       margin: 0;
       width: $phone-nav-glyph;
       height: $phone-nav-glyph;
+      flex-shrink: 0;
     }
 
     .separator {
@@ -379,23 +353,22 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
   // Same shape as the top bar's pill, which got this treatment in #445.
   @include allPhones {
     @include shortViewport {
-      // A landscape bar has neither the height nor the width: the segments
-      // drop back to the chrome size and to glyphs only.
-      .nav-item,
-      .nav-item.active {
-        flex: 0 0 $bar-control;
+      justify-content: end;
+      grid-auto-columns: $bar-control;
+      gap: 0;
+
+      // A landscape bar has no height to spare: the plates drop back to the
+      // chrome size.
+      .nav-item {
+        width: $bar-control;
         height: $bar-control;
       }
 
       // The chrome glyph, like the transport buttons next to it: the 28px
-      // phone glyph filled a 44px segment edge to edge (measured, 844x390).
+      // phone glyph filled a 44px plate edge to edge (measured, 844x390).
       .nav-item svg {
         width: $bar-glyph;
         height: $bar-glyph;
-      }
-
-      .nav-item.active span {
-        display: none;
       }
     }
   }

@@ -21,7 +21,7 @@ const candy = readFileSync("src/assets/scss/_candy.scss", "utf8");
 const buttonClasses = readFileSync("src/assets/scss/Global/_button-classes.scss", "utf8");
 const nav = styleBlock(readFileSync("src/components/LeftSidebar/NavButtons.vue", "utf8"));
 
-const marker = block(candy, "@mixin mem-row-marker($w: 9px)").body;
+const marker = block(candy, "@mixin mem-row-marker($w: $mem-row-marker-w)").body;
 const hover = block(marker, "&:hover").body;
 
 /** The layers of a background list: split on top-level commas. */

@@ -1185,7 +1185,11 @@ $mem-seg-reserve: 4px !default;
 // ---------------------------------------------------------------------------
 $mem-row-marker-sprite: var(--look-marker, url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="9" height="14"><path d="M0 0 L9 3.5 L0 7 L9 10.5 L0 14 Z" fill="%2317171A"/></svg>'));
 
-@mixin mem-row-marker($w: 9px) {
+// The band's width, under a name: a row that wants its content centred on the
+// whole plate mirrors it on the trailing side (phone nav, NavButtons.vue).
+$mem-row-marker-w: 9px;
+
+@mixin mem-row-marker($w: $mem-row-marker-w) {
   padding-left: $w;
   // The label's cover (mem-hatch-clear) reads `--row-fill`; without this it
   // kept the resting tint while the row turned the look's active colour —
