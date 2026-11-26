@@ -182,7 +182,9 @@ onMounted(() => {
 
 <style lang="scss">
 #p-view {
-    padding-bottom: $content-padding-bottom;
+    // The bottom padding is `.content-page`'s bar reserve. A value here (ID
+    // specificity) beat it — 32px against an 82/179/60px bar, so the last
+    // playlists stayed under the bar and keyboard focus could not scroll them clear.
     height: 100%;
     overflow: auto;
 

@@ -123,7 +123,6 @@ $songlist-duration-col: 13rem;
 // (SongItem .with-date) and the column-caption header (AfterHeader .with-date)
 // so the caption can never drift from its column.
 $songlist-columns-with-date: $songlist-index-col 2.5fr 1.5fr 8.5rem $songlist-duration-col;
-$content-padding-bottom: 2rem;
 
 // MONOSPACE — pairing codes, backup paths, key lists. Every family here is one
 // the machine already has; nothing is downloaded and nothing is redistributed
@@ -238,9 +237,13 @@ $settings-modal-h: 48rem;
 // pages, which is how the last track of a playlist ended up under the bar.
 $bottombarheight: 5.125rem;
 // The phone bar is taller: it carries the navigation as well as the transport.
-// 9.5rem until the navigation plates grew from 44 to 56px (2026-11-25):
-// measured 167 -> 179px, the reserve follows the bar (+0.75rem).
-$bottombarheight-phone: 10.25rem;
+// The phone grid's bar row is `auto` (app-grid.scss, allPhones), so this token
+// is a MEASUREMENT, not a setting: 179px at every phone width 320–900, idle and
+// playing (measured 2026-11-26). It stood at 164px because the previous bump
+// (9.5rem -> 10.25rem) followed the navigation's +12px, while the token was
+// already 15px short of the bar. Re-measure the bar (`innerHeight - .b-bar top`)
+// whenever its content changes.
+$bottombarheight-phone: 11.1875rem;
 // The phone navigation plates (NavButtons.vue). 56px is
 // Google's bottom-navigation target height, 12px over the chrome's 44px floor
 // — the most-used control on the phone gets the bigger target. The glyph
@@ -252,6 +255,11 @@ $phone-nav-glyph: 1.75rem;
 // screen turned over, and `#acontent` still spans rows 2–4 behind it, so this
 // value has to reach every scroller's reserve as well or the last row hides.
 $bottombarheight-short: 3.75rem;
+// What scroll-padding adds on top of the bar, so a focused element does not
+// stop exactly at the bar's top edge: the focus ring draws 4px outside the box
+// (2px offset + $focus-ring-w) and a raised plate's hard shadow 3px. $small
+// (8px) covers both with a breath.
+$bar-focus-clearance: $small;
 // Same idea for the title bar: the pill does not need 4.5rem of row when the
 // whole viewport is 390.
 $navheight-short: 3.75rem;

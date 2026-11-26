@@ -56,7 +56,7 @@ Wächter: `tests/test_context_index.py`. Jede Datei unter `.claude/rules/`, `cli
     Textfarbe im Dark-Theme unsichtbar. Dunkelmodus: Tönungen gehen mit runter.
   - Icons über `color`, nie `fill`. Touch-Ziele 44 px. Ein `<button>` als Grid-Container
     zentriert seine Spur (`grid-template-columns: minmax(0, 1fr)`).
-  - `:hover` latcht auf Touch. App-Höhe nie aus `vh`. Scroller reservieren die Player-Bar.
+  - `:hover` latcht auf Touch. App-Höhe nie aus `vh`. Scroller reservieren die Player-Bar, auch für den Fokus (`scroll-padding`, aus demselben Token).
     Daueranimationen müssen aufhören können.
 - **`client/.claude/rules/stores-and-state.md`** (`src/stores/**`, Queue-/Playlist-Utils,
   `src/requests/**`): Nie die geladene Tracklist als ganze Liste senden. Optimistisch
