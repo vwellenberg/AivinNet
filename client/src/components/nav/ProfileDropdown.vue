@@ -4,6 +4,14 @@
             <div class="username ellip2">Hi {{ auth.user.firstname || auth.user.username }}</div>
         </div>
         <div class="separator"></div>
+        <!-- Stats on the phone (user, 2026-11-26): the bottom bar has five
+             places and Stats is not one of them (navitems.ts::phoneMenus).
+             It is the user's own listening, so it sits in the user's menu.
+             Desktop and tablet have it in the sidebar; same 900px line. -->
+        <button v-if="isMobile" type="button" class="item stats" @click="onStats">
+            <div class="label">Your stats</div>
+            <ChartSvg />
+        </button>
         <!-- A scan walks the root dirs and can drop tracks from the library, so
              the backend refuses it for non-admins (AivinNet#105). -->
         <button v-if="auth.is_admin" type="button" class="item scan" @click="onScan">
@@ -23,9 +31,14 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+
+import { Routes } from '@/router'
 import useAuth from '@/stores/auth'
+import { isMobile } from '@/stores/content-width'
 import useModal from '@/stores/modal'
 
+import ChartSvg from '@/assets/icons/chart.svg'
 import LogoutSvg from '@/assets/icons/logout.svg'
 import ReloadSvg from '@/assets/icons/reload.svg'
 import SettingsSvg from '@/assets/icons/settings.svg'
@@ -33,6 +46,7 @@ import { triggerScan } from '@/requests/settings/rootdirs'
 
 const auth = useAuth()
 const modal = useModal()
+const router = useRouter()
 
 const emit = defineEmits<{
     (e: 'close'): void
@@ -41,6 +55,11 @@ const emit = defineEmits<{
 // Each action closes the dropdown, so it never lingers on top of the
 // opened modal (z-index 9999 over the modal's 21) — the cause of the
 // settings modal being unclosable on touch devices.
+function onStats() {
+    router.push({ name: Routes.Stats })
+    emit('close')
+}
+
 function onScan() {
     triggerScan()
     emit('close')
