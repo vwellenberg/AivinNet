@@ -207,6 +207,10 @@ describe('RewindLink: the strokes', () => {
         expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(2)
     })
 
+    it('clips the bridge at the inner edge of the shell, so its fill never covers the bottom border', () => {
+        expect(RULES).toMatch(/\.tape-bridge-edge \{[^}]*clip-path: inset\(-4px -4px 0 -4px\);/)
+    })
+
     it('draws plate edges in the frame colour and the lines on the pastel shell in ink', () => {
         // Label, band and window take the frame colour like every plate, so
         // the dark mode does not mix grey frames with ink print. What sits on

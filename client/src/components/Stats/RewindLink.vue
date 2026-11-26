@@ -362,8 +362,10 @@ watch(
     background-color: var(--look-card-inlay-fill, #{$mem-ink});
     overflow: hidden;
 
+    // Smaller hubs on phones, so the empty pack around them keeps a band of
+    // tape wider than a line (1.9rem left 2.5–4 px of brown between two rings).
     @container rewind-tape (max-width: 36rem) {
-        --reel: 1.9rem;
+        --reel: 1.6rem;
         width: 10rem;
         height: 4rem;
     }
@@ -495,8 +497,10 @@ watch(
 // The outline is an SVG path stretched over the box with a stroke that does
 // not stretch (3 px, the plate weight), so its top edge sits exactly at the
 // top. (A border seen in `perspective()` pulled the edge down by ~11 px, onto
-// the holes; the slants run 3 px past the box, under the shell's edge, so
-// their cut ends leave no foot.) Filled with the shell's own fill, so the hatch does not run
+// the holes.) The slants run past the box so their cut ends leave no foot,
+// and the SVG is clipped flush at the box's bottom, which is the shell's
+// inner edge: unclipped, the fill painted over the shell's bottom border and
+// the tape floated on a lavender band again. Filled with the shell's own fill, so the hatch does not run
 // between the holes. The tape runs along the shell's bottom edge, sharing it:
 // a band of its own above that edge left a 3 px sliver that read as a line.
 // ---------------------------------------------------------------------------
@@ -540,6 +544,7 @@ watch(
     width: 100%;
     height: 100%;
     overflow: visible;
+    clip-path: inset(-4px -4px 0 -4px);
 
     path {
         fill: var(--row-fill);
