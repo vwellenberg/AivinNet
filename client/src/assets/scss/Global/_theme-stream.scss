@@ -155,6 +155,9 @@ body.theme-dark.theme-stream {
     --look-stat-badge-fill: transparent;
     --look-stat-badge-text: #ffffff;
     --look-stat-bar: #b3b3b3;
+    // The Rewind cassette's lines on its shell (bridge, holes, tape edge): none,
+    // like every frame in this look, at rest and under the pointer.
+    --look-tape-line: transparent;
     // The crooked rank stickers stand straight (a factor on their tilt).
     --shape-tilt: 0;
 

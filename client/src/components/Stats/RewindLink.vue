@@ -42,7 +42,7 @@
                             <circle class="tape-hub-hole" r="7.5" />
                             <path
                                 class="tape-hub-teeth"
-                                d="M0 -7.5V-3.6M6.5 -3.75L3.1 -1.8M6.5 3.75L3.1 1.8M0 7.5V3.6M-6.5 3.75L-3.1 1.8M-6.5 -3.75L-3.1 -1.8"
+                                d="M0 -7.5V-6M6.5 -3.75L5.2 -3M6.5 3.75L5.2 3M0 7.5V6M-6.5 3.75L-5.2 3M-6.5 -3.75L-5.2 -3"
                             />
                         </svg>
                     </span>
@@ -71,7 +71,7 @@
                  the head, with its two guide holes. -->
             <span class="tape-bridge" aria-hidden="true">
                 <svg class="tape-bridge-edge" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <path d="M0 100 L14 0 L86 0 L100 100" />
+                    <path d="M-1 107 L14 0 L86 0 L101 107" />
                 </svg>
                 <span class="tape-hole"></span>
                 <span class="tape-hole"></span>
@@ -178,9 +178,11 @@ watch(
 // the pointer the flip to the contrast surface with the sprinkles stirring.
 // The label is a sticker on it and does not flip; what sits on the shell
 // itself (the bridge's outline, holes and tape edge) draws in `--tape-line`:
-// the frame colour at rest, like every plate's edge (ink in the light mode,
-// the frame grey in the dark one), and the hover text colour under the
-// pointer, where the shell has flipped.
+// ink at rest, because the shell is a static pastel (the hatch on it is the
+// accent sprite for the same reason; the frame grey measured 1.5:1 on the
+// dark lavender, fainter than the hatch), and the hover text colour under the
+// pointer, where the shell has flipped. Boring draws none of it, like its
+// frames (`--look-tape-line`).
 // ---------------------------------------------------------------------------
 .rewind-tape {
     --row-fill: var(--look-tile-fill, #{mem-pastel($mem-lavender)});
@@ -189,7 +191,7 @@ watch(
     // brown sliver between two ink rings, a hairline in all but name.
     --pack-left: 0.62;
     --pack-right: 1;
-    --tape-line: #{$mem-frame};
+    --tape-line: var(--look-tape-line, #{$mem-ink});
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -217,7 +219,7 @@ watch(
     @media (hover: hover) {
         &:hover {
             --row-fill: var(--mem-hover);
-            --tape-line: var(--mem-hover-text);
+            --tape-line: var(--look-tape-line, var(--mem-hover-text));
             background-image: var(--mem-hatch-hover);
             background-position: $mem-hatch-stir;
             color: var(--mem-hover-text);
@@ -330,7 +332,9 @@ watch(
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--look-tile-muted, #{$mem-text-muted-static});
+        // Ink, not the static grey: on the dusk paper of the dark mode the
+        // grey measured 4.0:1 at this size. Boring keeps its grey.
+        color: var(--look-tile-muted, #{$mem-ink});
     }
 
     @container rewind-tape (max-width: 36rem) {
@@ -361,7 +365,7 @@ watch(
     @container rewind-tape (max-width: 36rem) {
         --reel: 1.9rem;
         width: 10rem;
-        height: 4.25rem;
+        height: 4rem;
     }
 
     @container rewind-tape (max-width: 21rem) {
@@ -373,7 +377,10 @@ watch(
 // pack times `--pack-*`, so the rewind is a change of two numbers, and the
 // ring stays 2 px at every size.
 .tape-pack {
-    --full: 6.25rem;
+    // The full pack keeps 4 px of glass to the side walls (at 6.25rem it touched
+    // the wall and left slivers of ink beside it) and is cut decisively by the
+    // top and bottom.
+    --full: 5.5rem;
     position: absolute;
     z-index: 1;
     top: 50%;
@@ -394,14 +401,15 @@ watch(
     }
 
     @container rewind-tape (max-width: 36rem) {
-        --full: 5.25rem;
+        --full: 4.25rem;
     }
 }
 
-// A reel: a paper hub in a 2 px ring, with a dark hole and six teeth reaching
-// into it. The teeth are strokes of constant 3 px width (wedges from a conic
-// gradient tapered to 2 px at the root and read as a fine asterisk; three
-// broad ones read as a hazard sign). Placed by its corner, not by a
+// A reel: a paper hub in a 2 px ring, with a dark hole and six short teeth
+// reaching into it. The teeth are strokes of constant 3 px width and stop
+// well short of the centre, so the gaps between their tips stay wider than a
+// line (wedges from a conic gradient tapered to 2 px; long teeth left 2 px
+// slits of ink between their tips; three broad ones read as a hazard sign). Placed by its corner, not by a
 // transform, so the spin owns `transform` alone.
 .tape-reel {
     position: absolute;
@@ -479,7 +487,7 @@ watch(
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--look-tile-muted, #{$mem-text-muted-static});
+    color: var(--look-tile-muted, #{$mem-ink});
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +495,8 @@ watch(
 // The outline is an SVG path stretched over the box with a stroke that does
 // not stretch (3 px, the plate weight), so its top edge sits exactly at the
 // top. (A border seen in `perspective()` pulled the edge down by ~11 px, onto
-// the holes.) Filled with the shell's own fill, so the hatch does not run
+// the holes; the slants run 3 px past the box, under the shell's edge, so
+// their cut ends leave no foot.) Filled with the shell's own fill, so the hatch does not run
 // between the holes. The tape runs along the shell's bottom edge, sharing it:
 // a band of its own above that edge left a 3 px sliver that read as a line.
 // ---------------------------------------------------------------------------
@@ -513,6 +522,7 @@ watch(
         left: 18%;
         right: 18%;
         bottom: 0;
+        box-sizing: border-box;
         height: var(--tape-run);
         border: $candy-border-w solid var(--tape-line);
         border-bottom: none;

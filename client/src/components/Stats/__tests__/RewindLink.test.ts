@@ -207,14 +207,25 @@ describe('RewindLink: the strokes', () => {
         expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(2)
     })
 
-    it('draws its lines in the frame colour, so the dark mode keeps one line colour', () => {
-        // Ink edges stay only inside the dark window (the packs' and reels'
-        // rings), where the frame grey would be the lighter line.
+    it('draws plate edges in the frame colour and the lines on the pastel shell in ink', () => {
+        // Label, band and window take the frame colour like every plate, so
+        // the dark mode does not mix grey frames with ink print. What sits on
+        // the shell is ink at rest (a static pastel, like the hatch's accent
+        // sprite: the frame grey measured 1.5:1 there in the dark mode) and
+        // flips with the shell under the pointer. Ink as a border colour stays
+        // only inside the dark window (the packs' and reels' rings).
         const ink = [...RULES.matchAll(/^\s*border[a-z-]*:[^;]*\$mem-ink;/gm)]
         expect(ink).toHaveLength(2)
         expect(RULES).not.toMatch(/border[a-z-]*:[^;]*currentColor/)
-        expect(RULES).toMatch(/--tape-line: #\{\$mem-frame\};/)
-        expect(RULES).toMatch(/--tape-line: var\(--mem-hover-text\);/)
+        expect([...RULES.matchAll(/border[a-z-]*:[^;]*\$mem-frame;/g)]).toHaveLength(2)
+        expect(RULES).toMatch(/--tape-line: var\(--look-tape-line, #\{\$mem-ink\}\);/)
+        expect(RULES).toMatch(/--tape-line: var\(--look-tape-line, var\(--mem-hover-text\)\);/)
+    })
+
+    it('draws no lines on the shell in Boring, at rest or under the pointer', () => {
+        const stream = readFileSync('src/assets/scss/Global/_theme-stream.scss', 'utf8')
+
+        expect(stream).toMatch(/^\s*--look-tape-line: transparent;/m)
     })
 
     it('reaches the Boring look through its tokens, not through the Memphis colours', () => {
