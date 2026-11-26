@@ -15,6 +15,8 @@
 // Playwright is resolved via NODE_PATH (the server keeps it in ~/uitest);
 // scripts/deploy-client.sh wires that up and treats a FAIL as a deploy error.
 const { chromium } = require("playwright");
+// Measure the page at rest, not mid-entrance (scripts/settle.js says why).
+const { settle } = require("./settle");
 
 (async () => {
   const BASE = process.env.BASE || "http://localhost:1970";
@@ -56,6 +58,10 @@ const { chromium } = require("playwright");
     for (const route of routes) {
       await page.goto(BASE + "/#" + route, { waitUntil: "networkidle", timeout: 45000 });
       await page.waitForTimeout(2500);
+      const rest = await settle(page);
+      if (!rest.settled) {
+        console.log(`WARN w=${width} route=${route} did not come to rest (${rest.running.join(", ")}) — finished those animations, then measured`);
+      }
       const m = await page.evaluate((PAGE_BOXES) => {
         const doc = document.documentElement;
         // Report the DEEPEST elements wider than the viewport — everything
