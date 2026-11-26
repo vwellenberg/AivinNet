@@ -140,8 +140,8 @@ export const menus: NavItem[] = [
 // Bibliothek — und stand dort bisher an vierter Stelle. Deshalb direkt hinter
 // Home, mittig unter dem Daumen. Albums, Artists und Stats haben hier keinen
 // Platz; Albums und Artists sind über Homes Browse-Library-Block erreichbar
-// (seit 2026-11-14 auch am Desktop der einzige Weg), Stats über den Knopf am
-// Ende von Home (seit 2026-11-25, nur am Telefon; views/HomeView/main.vue).
+// (seit 2026-11-14 auch am Desktop der einzige Weg), Stats über das
+// Konto-Menü am Avatar (seit 2026-11-26, nur am Telefon; nav/ProfileDropdown.vue).
 //
 // Früher war das keine eigene Liste, sondern `menus` mit per CSS
 // ausgeblendeten Einträgen (`phoneHidden`, `:last-child`). Damit hing die
