@@ -235,7 +235,11 @@ einen Schleifendurchlauf.
   Drehung, nicht von Padding). Fünf Deploys am 2026-11-25 scheiterten so am Kanten-Gate, jedes
   Mal an anderen Seiten, die bei Ruhe bündig messen. Deshalb warten `edge-audit.js` und
   `overflow-check.js` nach der Pause auf `scripts/settle.js`: keine endliche Animation mehr,
-  keine neuen DOM-Knoten, 700 ms Ruhe; sonst `finish()` und nochmal warten, mit `WARN`-Zeile. Unter Last mountet der Abschnitt erst NACH einer reinen Animations-Prüfung, und sein Sticker startet dann bei Keyframe 0 direkt vor der Messung. Eigene Messskripte genauso.
+  keine neuen DOM-Knoten, 700 ms Ruhe; sonst `finish()` und nochmal warten, mit `WARN`-Zeile.
+  Die DOM-Knoten zählen mit, weil unter Last der Abschnitt erst NACH einer reinen
+  Animations-Prüfung mountet und sein Sticker dann bei Keyframe 0 direkt vor der Messung startet.
+  Eigene Messskripte genauso. Nachstellen: Gate laufen lassen, während auf jedem Kern zwei
+  Endlosschleifen laufen — die alte Fassung war so zweimal rot, die neue zweimal grün.
 
 - **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der
   erste Keyframe ist `scale(0.82)`, und die Rolle setzt `animation-fill-mode: backwards` — läuft
