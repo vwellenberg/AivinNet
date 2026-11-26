@@ -303,8 +303,12 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // those force the whole page to 533px on a 390px phone: the layout
     // viewport zooms out and nothing is responsive any more. The glyph's own
     // margins already keep the smooth patch around it.
+    // `justify-content: center`: where the glyph is wider than this box (the
+    // active plate at 320px), it overflows both sides evenly instead of only
+    // the right one (measured 1.2px off-centre without it).
     .nav-item > div {
       padding: 2px 0;
+      justify-content: center;
     }
 
     // The glyph margins exist to space a label that is hidden here — but they
