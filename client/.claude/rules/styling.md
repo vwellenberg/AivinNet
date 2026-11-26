@@ -990,6 +990,19 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   Token; Ausnahme mit Grund ist das Glas-Display des Radios. Die Sidebar-Vorschaubilder nehmen
   dazu `$sidebar-thumb-radius` (Zeilenradius minus Rahmen, 7 px) — mit dem Zeilenradius selbst
   (10 px auf 28 px) wirkte der Rahmen wie ein Klecks.
+- ⚠️ **Eine Illustration hat dieselben zwei Stärken wie die Chrome, und nichts feiner** (Nutzer,
+  2026-11-26, zur Rewind-Kassette: „Strichdicke muss zum Gesamtstil passen, zu viele feine
+  Linien“). Die erste Kassette trug Wickelringe (1 px alle 4 px), eine Skala, gestrichelte
+  Notizlinien, halbtransparente Ringe und Papierfugen zwischen den Streifen — einzeln
+  „Details“, zusammen ein Kupferstich zwischen lauter 3-px-Platten. Jetzt: 3 px für Platte und
+  Aufdruck, `$mem-ring-w` für Ringe, gar kein `$mem-hairline`, kein `mem-alpha()` auf Linien.
+  Zwei Fallen, an denen ein richtiger Wert trotzdem dünn gerendert wird: **`transform: scale()`
+  skaliert den Rahmen mit** (das kleine Bandpaket bei 0,42 trug 0,8 px; jetzt wächst es über
+  seine Breite, animiert per `@property`), und **eine schmale Fläche zwischen zwei Ringen liest
+  sich selbst als Linie** (ein Bandpaket knapp breiter als seine Nabe). Ein Trapez als `border`
+  in `perspective()` verschiebt außerdem seine Kanten (die Oberkante saß ~11 px tiefer, auf den
+  Löchern); gezeichnet wird es als gestreckter SVG-Pfad mit `vector-effect: non-scaling-stroke`.
+  Zensus: `Stats/__tests__/RewindLink.test.ts` („the strokes“).
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben
   bewusst höher. 2 px war Drift an drei Elementen gegen über tausend; `.shadow-sm` gibt es nicht
   mehr, die Nutzer tragen `.shadow-md`.

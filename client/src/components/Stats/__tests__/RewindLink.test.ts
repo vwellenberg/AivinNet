@@ -49,6 +49,10 @@ const YEAR_2025 = {
 
 const SOURCE = readFileSync('src/components/Stats/RewindLink.vue', 'utf8')
 const STYLE = SOURCE.slice(SOURCE.indexOf('<style'))
+// The declarations alone: the comments name what was taken out.
+const RULES = STYLE.split('\n')
+    .filter(line => !line.trim().startsWith('//'))
+    .join('\n')
 
 beforeEach(() => {
     getRewind.mockReset().mockResolvedValue({ status: 200, data: YEAR_2025 })
@@ -166,6 +170,43 @@ describe('RewindLink: the rewind', () => {
     })
 
     it('winds the tape over the same time the reels turn', () => {
-        expect(STYLE).toMatch(/transition: transform calc\(#\{\$motion-spin\} \* 3\)/)
+        expect(STYLE).toMatch(/--pack-left calc\(#\{\$motion-spin\} \* 3\)/)
+        expect(STYLE).toMatch(/--pack-right calc\(#\{\$motion-spin\} \* 3\)/)
+    })
+})
+
+// The tape is drawn in the app's own weights (styling.md: 3 px plates, 2 px
+// rings), and nothing finer: the first cassette carried winding rings, a scale,
+// dashed rules and hairline edges, and read as fussy next to every other plate
+// (user, 2026-11-26: "zu viele feine Linien").
+describe('RewindLink: the strokes', () => {
+    it('draws every edge in the plate weight or the ring weight', () => {
+        const widths = [...RULES.matchAll(/^\s*border(?:-(?:top|right|bottom|left|block|inline))?:\s*([^;]+);/gm)].map(
+            m => m[1]
+        )
+
+        expect(widths.length).toBeGreaterThan(5)
+        for (const width of widths) {
+            expect(width, width).toMatch(/^(\$candy-border|\$candy-border-w|\$mem-ring-w)\b|^none$/)
+        }
+    })
+
+    it('draws the bridge outline at the plate weight, unscaled by its stretched box', () => {
+        const strokes = [...RULES.matchAll(/stroke-width:\s*([^;]+);/g)].map(m => m[1])
+
+        expect(strokes).toEqual(['$candy-border-w'])
+        expect(RULES).toMatch(/vector-effect: non-scaling-stroke;/)
+    })
+
+    it('has no hairlines, no see-through lines and no repeated stripes', () => {
+        expect(RULES).not.toMatch(/\$mem-hairline/)
+        expect(RULES).not.toMatch(/mem-alpha\(/)
+        expect(RULES).not.toMatch(/repeating-(linear|radial)-gradient/)
+        expect(RULES).not.toMatch(/dashed|dotted/)
+    })
+
+    it('sizes the packs by their width, so their ring is not scaled thin', () => {
+        expect(RULES).toMatch(/width: calc\(var\(--full\) \* var\(--pack-left\)\)/)
+        expect(RULES).not.toMatch(/scale\(var\(--pack/)
     })
 })
