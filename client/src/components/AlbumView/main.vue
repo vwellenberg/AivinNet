@@ -88,6 +88,11 @@ useVisibility(albumheaderthing, handleVisibilityState)
         > .dh-art {
             align-self: start;
             border-bottom: $candy-border;
+            // When the text is no taller than the cell (a single: one-line
+            // artist and stats), this rule would sit right on the strip's top
+            // rule and read as one double-thick line. Pulled down by its own
+            // width, the two coincide; with taller text it stands on its own.
+            margin-bottom: -$candy-border-w;
         }
     }
 
