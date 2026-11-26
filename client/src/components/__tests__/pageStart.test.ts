@@ -91,7 +91,6 @@ describe("desktop page start", () => {
   });
 
   it.each([
-    ["components/CardListView/sortbanner-styles.scss", ".itemsortby", "padding-top"],
     ["views/Favorites.vue", ".recent-favs", "padding-top"],
     ["components/Stats/Charts.vue", ".chartitemgroupsgrid", "margin-top"],
   ])("is not topped up by the first element of %s", (file, selector, property) => {

@@ -11,7 +11,7 @@
                         : undefined
                 "
             >
-                <span class="ellip">{{ current.title }}</span>
+                <span class="ellip">{{ prefix }}{{ current.title }}</span>
                 <ArrowSvg :class="{ reverse }" class="dropdown-arrow" v-if="reverse !== 'hide'" />
             </button>
             <div v-if="showDropDown" ref="dropOptionsRef" class="options rounded no-scroll shadow-lg">
@@ -50,6 +50,9 @@ defineProps<{
     current: Item
     component_key: string
     reverse: boolean | 'hide'
+    // Shown before the current title on the opener only (the Playlists page
+    // says "Sort: Name"); the options and the tooltip keep the bare title.
+    prefix?: string
 }>()
 
 const emit = defineEmits<{
@@ -144,27 +147,30 @@ onClickOutside(dropOptionsRef, e => {
             width: 100%;
             text-align: left;
             background-color: transparent;
-            border: none;
             color: inherit;
             font: inherit;
             font-weight: 500;
             cursor: pointer;
             padding: $small;
-            border-radius: $candy-radius-sm;
-            transition: background-color $motion-move ease-out;
+            // A menu row is a row like any other: hovered or marked, it wears
+            // the ink frame (candy-row-base reserves it, so nothing jumps). It
+            // used to paint a bare fill — a frameless pink bar under the
+            // pointer, the one list in the app without the frame (user,
+            // 2026-11-26).
+            @include candy-row-base;
 
-            &:hover {
-                background-color: $candy-pink-soft;
-            }
-
-            &:last-child {
-                border-bottom: none;
+            // Pointer only: a latched tap must not leave a contrast plate (#457).
+            @media (hover: hover) {
+                &:hover:not(.current) {
+                    @include candy-row-hover;
+                }
             }
         }
 
         .current {
-            // Blush accent -> pin static ink for the label.
-            background-color: $candy-pink;
+            // Blush accent -> pin static ink for the label. The frame comes
+            // with it, like a folder row that owns the context menu.
+            @include candy-row-hover($fill: $mem-blush);
             color: $mem-ink;
         }
     }

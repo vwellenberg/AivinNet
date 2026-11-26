@@ -1,11 +1,21 @@
 <template>
     <div id="p-view" class="content-page" :style="{ background: brandGradient() }">
         <Header>
-            <!-- The search field leads the head on the line of the actions;
-                 on a phone the head is empty (actions in the top bar) and the
-                 field stands above the chips instead. -->
+            <!-- The search field and the sort menu lead the head on the line of
+                 the actions; on a phone the head is empty (actions in the top
+                 bar) and both stand in a row above the list instead. -->
             <template v-if="totalCount && !isMobile" #lead>
-                <ListFind v-model="search" field-id="playlists-search" placeholder="Search playlists" />
+                <div class="playlist-head-controls">
+                    <ListFind v-model="search" field-id="playlists-search" placeholder="Search playlists" />
+                    <DropDown
+                        :items="SORT_OPTIONS"
+                        :current="sortCurrent"
+                        component_key="playlist-sort"
+                        prefix="Sort: "
+                        :reverse="sort.reverse"
+                        @item-clicked="setSort"
+                    />
+                </div>
             </template>
             <template #description>
                 You have {{ pStore.playlists.length }} playlists in your library
@@ -26,13 +36,25 @@
 
         <div v-if="totalCount && isMobile" class="playlist-search">
             <ListFind v-model="search" field-id="playlists-search" placeholder="Search playlists" />
+            <DropDown
+                :items="SORT_OPTIONS"
+                :current="sortCurrent"
+                component_key="playlist-sort"
+                prefix="Sort: "
+                :reverse="sort.reverse"
+                @item-clicked="setSort"
+            />
         </div>
-        <PlaylistSortBar v-if="totalCount" />
 
         <PlaylistCardGroup v-if="shownSmart.length" :title="'Smart playlists'">
             <SmartPlaylistCard v-for="p in shownSmart" :key="p.id" :playlist="p" />
         </PlaylistCardGroup>
-        <PlaylistCardGroup v-if="shownPinned.length" :playlists="shownPinned" :title="'Pinned'" />
+        <PlaylistCardGroup
+            v-if="shownPinned.length"
+            :playlists="shownPinned"
+            :title="'Pinned'"
+            :icon="PinnedSvg"
+        />
         <PlaylistCardGroup
             v-if="shownOther.length"
             :playlists="shownOther"
@@ -49,24 +71,29 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import usePStore from '@/stores/pages/playlists'
 import useSmartPlaylistsStore from '@/stores/pages/smartPlaylists'
 import { isMobile } from '@/stores/content-width'
 import updatePageTitle from '@/utils/updatePageTitle'
 import {
+  PLAYLIST_SORT_KEYS,
+  PLAYLIST_STAT_SORT_KEYS,
   matchesPlaylistSearch,
+  nextPlaylistSortQuery,
   readPlaylistSortQuery,
   sortPlaylists,
   sortSmartPlaylists,
+  type PlaylistSortKey,
 } from '@/utils/playlistSort'
 
+import PinnedSvg from '@/assets/icons/pin.fill.svg'
 import PlaylistSvg from '@/assets/icons/playlist-1.svg'
 import PlusSvg from '@/assets/icons/plus.svg'
 import SparklesSvg from '@/assets/icons/sparkles.svg'
 import PlaylistCardGroup from '@/components/PlaylistsList/PlaylistCardGroup.vue'
-import PlaylistSortBar from '@/components/PlaylistsList/PlaylistSortBar.vue'
+import DropDown from '@/components/shared/DropDown.vue'
 import ListFind from '@/components/shared/ListFind.vue'
 import SmartPlaylistCard from '@/components/PlaylistsList/SmartPlaylistCard.vue'
 import Header from '@/components/shared/GenericHeader.vue'
@@ -89,7 +116,27 @@ const description = `You can create a playlist by right clicking on a track and 
 // the URL and read here, so the banner and the lists always agree.
 const search = ref('')
 const route = useRoute()
+const router = useRouter()
 const sort = computed(() => readPlaylistSortQuery(route.query))
+
+// One menu for all seven keys. Its opener says "Sort: <title>" (the menu's
+// `prefix`); the options say just the title.
+const SORT_OPTIONS = [...PLAYLIST_SORT_KEYS, ...PLAYLIST_STAT_SORT_KEYS].map(k => ({
+  key: k.key,
+  title: k.displayName,
+}))
+const sortCurrent = computed(() => ({
+  key: sort.value.sortby,
+  title: SORT_OPTIONS.find(o => o.key === sort.value.sortby)?.title ?? '',
+}))
+
+// The sort state lives in the URL, like the album and artist lists.
+function setSort(item: { key: string }) {
+  router.replace({
+    name: route.name as string,
+    query: nextPlaylistSortQuery(sort.value, item.key as PlaylistSortKey),
+  })
+}
 
 // The library, unfiltered: the group captions and the "no playlists" state
 // depend on it, not on what the search shows.
@@ -167,15 +214,35 @@ onMounted(() => {
         padding-right: $medium;
     }
 
-    // Phone only: the field stands above the chips, full width, with the same
-    // gap below it as between the chip rows.
-    .playlist-search {
+    // Desktop: the search field and the sort menu side by side in the head.
+    .playlist-head-controls {
         display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    // Phone: search and sort share one row above the list. The menu takes
+    // 9.5rem, but never more than half the row: at 320 px a fixed 9.5rem left
+    // the field 96px ("Sear…"). A long label ellipses instead of widening it.
+    .playlist-search {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, min(9.5rem, calc(50% - 0.375rem)));
+        gap: 0.75rem;
+        align-items: center;
         margin-bottom: 1rem;
 
         .list-find {
-            flex: 1 1 auto;
+            min-width: 0;
         }
+    }
+
+    // The opener's width: a fixed column on the desktop, the grid cell on the phone.
+    .smdropdown.playlist-sort {
+        width: 11.5rem;
+    }
+
+    .playlist-search .smdropdown.playlist-sort {
+        width: 100%;
     }
 
     .nothing {

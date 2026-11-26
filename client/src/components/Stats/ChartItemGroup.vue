@@ -279,7 +279,7 @@ onMounted(async () => {
         }
 
         // ON state. Yellow is this design system's "active" signal; blush
-        // would collide with the pointer signal (see SortBanner).
+        // would collide with the pointer signal (styling.md, `--mem-hover`).
         // A look's own "selected" pair (Boring: the white chip) wins.
         .pagesize.active,
         .pagesize.active:hover {

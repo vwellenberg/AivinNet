@@ -217,12 +217,4 @@ describe("label call sites", () => {
     expect(chip).not.toMatch(/^\s*border:/m);
     expect(block(chip, "&[aria-pressed='true']:hover").body).toMatch(/--label-hatch:\s*var\(--mem-hatch-accent\)/);
   });
-
-  it("keeps the non-pressable sort labels smooth", () => {
-    // "Sort By" and the chart glyph share the chips' anatomy but cannot be
-    // pressed; a texture there would promise a press.
-    const banner = readFileSync("src/components/CardListView/sortbanner-styles.scss", "utf8");
-    expect(banner).toMatch(/@include btn-action\([^)]*\$hatch:\s*label/);
-    expect(block(block(banner, ".select.circular").body, "&::before").body).toMatch(/content:\s*none/);
-  });
 });

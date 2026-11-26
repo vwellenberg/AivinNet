@@ -67,7 +67,7 @@ const scrollerItems = computed(() => {
   // Albums/Artists entries (they are reached from Home's Browse Library), so
   // the head carries the title on every layout. It is never empty, so the
   // DynamicScroller measures it like any other row (an empty 0px head was
-  // never counted as measured and pushed the chips 64px down).
+  // never counted as measured and pushed the sort row 64px down).
   items.push({
     id: "header",
     component: ListHeader,
