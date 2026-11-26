@@ -49,6 +49,10 @@ const YEAR_2025 = {
 
 const SOURCE = readFileSync('src/components/Stats/RewindLink.vue', 'utf8')
 const STYLE = SOURCE.slice(SOURCE.indexOf('<style'))
+// The declarations alone: the comments name what was taken out.
+const RULES = STYLE.split('\n')
+    .filter(line => !line.trim().startsWith('//'))
+    .join('\n')
 
 beforeEach(() => {
     getRewind.mockReset().mockResolvedValue({ status: 200, data: YEAR_2025 })
@@ -70,7 +74,7 @@ describe('RewindLink', () => {
 
         expect(getRewind).toHaveBeenCalledWith(2025)
         // 48,210 minutes and 20 seconds round to 48210, without separators.
-        expect(w.find('.tape-length').text()).toBe('C-48210min')
+        expect(w.find('.tape-length').text()).toBe('C-48210 min')
     })
 
     it('writes the year on the label: plays and days, top artist, top track', async () => {
@@ -92,6 +96,19 @@ describe('RewindLink', () => {
         expect(lines.join(' ')).not.toContain('Top track')
     })
 
+    it('stays plain: shell, label and window, no screws, no stickers, no bridge, one stripe', async () => {
+        const a = (await link(2025)).find('a')
+
+        // The bridge at the foot went too (user, 2026-11-26: "nicht dieses
+        // Eckige", "unten das Gedöns kann raus").
+        expect(a.findAll('.tape-screw')).toHaveLength(0)
+        expect(a.findAll('.tape-bridge')).toHaveLength(0)
+        expect(a.findAll('.tape-hole')).toHaveLength(0)
+        expect(a.find('.tape-band').findAll('svg')).toHaveLength(0)
+        expect(a.element.children).toHaveLength(1)
+        expect(a.find('.tape-band').findAll('span').map(span => span.text())).toEqual(['Side A', 'C-48210 min'])
+    })
+
     it('still opens without its notes when the year cannot be loaded', async () => {
         getRewind.mockResolvedValue({ status: 500, data: null })
 
@@ -105,7 +122,7 @@ describe('RewindLink', () => {
     it('keeps the drawing away from screen readers: the link says what it opens', async () => {
         const a = (await link(2025)).find('a')
 
-        for (const part of ['.tape-band', '.tape-window', '.tape-bridge', '.tape-screw']) {
+        for (const part of ['.tape-band', '.tape-window']) {
             expect(a.find(part).attributes('aria-hidden'), part).toBe('true')
         }
     })
@@ -166,6 +183,59 @@ describe('RewindLink: the rewind', () => {
     })
 
     it('winds the tape over the same time the reels turn', () => {
-        expect(STYLE).toMatch(/transition: transform calc\(#\{\$motion-spin\} \* 3\)/)
+        expect(STYLE).toMatch(/--pack-left calc\(#\{\$motion-spin\} \* 3\)/)
+        expect(STYLE).toMatch(/--pack-right calc\(#\{\$motion-spin\} \* 3\)/)
+    })
+})
+
+// The tape is drawn in the app's own weights (styling.md: 3 px plates, 2 px
+// rings), and nothing finer: the first cassette carried winding rings, a scale,
+// dashed rules and hairline edges, and read as fussy next to every other plate
+// (user, 2026-11-26: "zu viele feine Linien").
+describe('RewindLink: the strokes', () => {
+    it('draws every edge in the plate weight or the ring weight', () => {
+        const widths = [...RULES.matchAll(/^\s*border(?:-(?:top|right|bottom|left|block|inline))?:\s*([^;]+);/gm)].map(
+            m => m[1]
+        )
+
+        expect(widths.length).toBeGreaterThan(5)
+        for (const width of widths) {
+            expect(width, width).toMatch(/^(\$candy-border|\$candy-border-w|\$mem-ring-w)\b|^none$/)
+        }
+    })
+
+    it('draws its strokes (the reel teeth) at the plate weight, unscaled by their box', () => {
+        const strokes = [...RULES.matchAll(/stroke-width:\s*([^;]+);/g)].map(m => m[1])
+
+        expect(strokes).toEqual(['$candy-border-w'])
+        expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(1)
+    })
+
+    it('draws plate edges in the frame colour, ink only inside the dark window', () => {
+        // Label, band and window take the frame colour like every plate, so
+        // the dark mode does not mix grey frames with ink print. Ink as a
+        // border colour stays only inside the dark window (the packs' and
+        // reels' rings), where the frame grey would be the lighter line.
+        const ink = [...RULES.matchAll(/^\s*border[a-z-]*:[^;]*\$mem-ink;/gm)]
+        expect(ink).toHaveLength(2)
+        expect(RULES).not.toMatch(/border[a-z-]*:[^;]*currentColor/)
+        expect([...RULES.matchAll(/border[a-z-]*:[^;]*\$mem-frame;/g)]).toHaveLength(2)
+    })
+
+    it('reaches the Boring look through its tokens, not through the Memphis colours', () => {
+        expect(RULES).toMatch(/background-color: var\(--look-card-inlay-fill, #\{\$mem-ink\}\);/)
+        expect(RULES).toMatch(/background-color: var\(--look-stat-label-fill, #\{\$mem-teal\}\);/)
+    })
+
+    it('has no hairlines, no see-through lines and no repeated stripes', () => {
+        expect(RULES).not.toMatch(/\$mem-hairline/)
+        expect(RULES).not.toMatch(/mem-alpha\(/)
+        expect(RULES).not.toMatch(/repeating-(linear|radial)-gradient/)
+        expect(RULES).not.toMatch(/dashed|dotted/)
+    })
+
+    it('sizes the packs by their width, so their ring is not scaled thin', () => {
+        expect(RULES).toMatch(/width: calc\(var\(--full\) \* var\(--pack-left\)\)/)
+        expect(RULES).not.toMatch(/scale\(var\(--pack/)
     })
 })
