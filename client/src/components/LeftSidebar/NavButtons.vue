@@ -284,6 +284,16 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
       padding-inline: $smaller;
     }
 
+    // The active plate's zigzag band takes 9px of leading padding, so its
+    // glyph sat 2.5px right of the plate's centre while its neighbours'
+    // glyphs were dead centre (measured). The same padding on the trailing
+    // side centres it on the plate (user, 2026-11-26). At 320px the 28px
+    // glyph is wider than what is left between the paddings and overflows
+    // both sides evenly — `justify-content: center` keeps it centred.
+    .nav-item.active {
+      padding-inline-end: $mem-row-marker-w;
+    }
+
     .nav-item span {
       display: none;
     }
