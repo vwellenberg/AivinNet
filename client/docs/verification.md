@@ -331,7 +331,17 @@ einen Schleifendurchlauf.
   **veraltetes `dist`** aus; der neue Proxy stirbt still mit `EADDRINUSE`, und man diagnostiziert
   am falschen Build (real passiert: „Button fehlt" an master-CSS gemessen). Immer die Startzeile
   `preview proxy on <port> serving <dist>` im Log prüfen, frischen Port nehmen, mit `kill $PROXY`
-  aufräumen (nicht `pkill -f previewproxy`).
+  aufräumen (nicht `pkill -f previewproxy`). ⚠️ Ein `pkill -f <muster>` innerhalb von
+  `ssh host '…'` erschießt außerdem die **eigene** Sitzung: deren Kommandozeile enthält das Muster
+  ja selbst. Symptom: `ssh` endet sofort mit Exit 255, ohne jede Ausgabe — das sieht aus wie ein
+  Netzproblem (real passiert 2026-11-26 mit `pkill -f "PORT=8097"`).
+- **⚠️ `page.route()` fängt nur Anfragen, die nach ihm ans Netz gehen.** Ein Bild, das die Seite
+  vorher schon geladen hat, kommt beim nächsten Seitenwechsel aus dem Speicher-Cache, und die Route
+  sieht es nie. Wer per `route(…, r => r.abort())` einen Zustand erzwingt (Artist ohne Foto →
+  `.dh-art.is-glyph`), setzt die Route deshalb **vor dem ersten `goto`** und prüft danach, dass der
+  Zustand wirklich da ist (Klasse lesen). Sonst misst man je nach Zufall den Normalfall: derselbe
+  Lauf zeigte einmal `is-glyph` und einmal das Foto, weil die Home-Seite davor das Porträt geladen
+  hatte.
 - **⚠️ Für einen Messlauf einen eigenen Checkout nehmen — und zwar von `~/AivinNet`, nicht von
   `~/preview`.** Früher teilten sich die Sitzungen `~/preview`: eine andere konnte es mitten im Lauf
   auf ihren Branch zurücksetzen und neu bauen, und dann misst man deren Code (real passiert: erste
