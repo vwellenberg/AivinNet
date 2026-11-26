@@ -316,10 +316,14 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     // LATER in this file and would win an equal-specificity tie.
     // The glyph grows with the 56px plate: a real size, not a scale()
     // (styling.md — scaling makes the optical size depend on the viewBox).
+    // `flex-shrink: 0`: on the active plate at 320px the room between the
+    // paddings is narrower than the glyph, and a shrinkable svg gave way
+    // instead of overflowing evenly (measured 25.6 instead of 28px).
     .nav-item svg {
       margin: 0;
       width: $phone-nav-glyph;
       height: $phone-nav-glyph;
+      flex-shrink: 0;
     }
 
     .separator {
