@@ -18,6 +18,7 @@ import { block, styleBlock } from "./scssBlocks";
 
 // Read from disk: a raw glob returns `.scss` as an EMPTY string under Vitest.
 const candy = readFileSync("src/assets/scss/_candy.scss", "utf8");
+const buttonClasses = readFileSync("src/assets/scss/Global/_button-classes.scss", "utf8");
 const nav = styleBlock(readFileSync("src/components/LeftSidebar/NavButtons.vue", "utf8"));
 
 const marker = block(candy, "@mixin mem-row-marker($w: 9px)").body;
@@ -67,7 +68,36 @@ describe("the active entry's zigzag", () => {
     const positions = layers(declaration(hover, "background-position"));
     expect(positions, "one position per layer").toHaveLength(2);
     expect(positions[0]).toBe("left top");
-    expect(positions[1]).toBe("$mem-hatch-stir");
+    // The hatch's spot travels as a property so the slide-in keyframe can name it.
+    expect(positions[1]).toBe("var(--marker-hatch-at)");
+    expect(declaration(hover, "--marker-hatch-at")).toBe("#{$mem-hatch-stir}");
+    expect(declaration(marker, "--marker-hatch-at")).toBe("left top");
+  });
+
+  // User, 2026-11-26: the teeth should come in from the left. The slide is an
+  // ANIMATION on becoming active, never a transition (see the test below).
+  it("slides the teeth in from under the left frame when the entry becomes active", () => {
+    const anim = layers(declaration(marker, "animation")).map((part) => part.split(/\s+/)[0]);
+    expect(anim).toContain("mem-marker-in");
+
+    const keyframes = block(buttonClasses, "@keyframes mem-marker-in").body;
+    expect(keyframes, "@keyframes mem-marker-in not in Global/_button-classes.scss").not.toBe("");
+    const from = layers(declaration(block(keyframes, "from").body, "background-position"));
+    expect(from, "one position per layer").toHaveLength(2);
+    // A whole sprite (9px) left of the padding edge: hidden under the frame.
+    expect(from[0]).toBe("-9px 0");
+    // The hatch stays where it is, at rest and under the pointer.
+    expect(from[1]).toMatch(/^var\(--marker-hatch-at\b/);
+    // No end frame: the layer lands on its declared value.
+    expect(block(keyframes, "to").body).toBe("");
+    expect(keyframes).not.toMatch(/100%\s*\{/);
+  });
+
+  it("keeps the slide where the desktop reach-out replaces the animation shorthand", () => {
+    const desktop = block(nav, ".nav-item.active:not(.separator)").body;
+    expect(desktop, "desktop active block not found").not.toBe("");
+    const anim = layers(declaration(desktop, "animation")).map((part) => part.split(/\s+/)[0]);
+    expect(anim).toEqual(expect.arrayContaining(["nav-reach", "mem-marker-in"]));
   });
 
   it("does not glide in when the entry becomes active under the pointer", () => {

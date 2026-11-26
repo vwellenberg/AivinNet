@@ -470,6 +470,10 @@ umsprangen. ⚠️ **Ausnahme: die aktive Nav-Zeile** (`mem-row-marker`) hat **k
 Transition schiebt alle Ebenen: Beim Klick wird die gehoverte Zeile aktiv, aus einer Position
 (9 × 6 px) werden zwei, und die Zacken glitten 9 px vom Rand herein (2026-11-25, gemessen ab dem
 Klick; eine Messung, die erst 700 ms später anfing, sah es nicht). Die Zeichnung ist ein Schnitt.
+Das gewollte Hereingleiten von links (Nutzer, 2026-11-26) ist deshalb eine **Animation**
+(`mem-marker-in`, nur Startframe, Schraffur über `--marker-hatch-at` festgehalten), keine
+Transition. Die Desktop-Kurzform in `NavButtons.vue` (`nav-reach`) ersetzt sie und nennt sie
+deshalb noch einmal; Zensus: `navMarkerPinned.test.ts`.
 Die Button-Kachel auf einer Zeile liest sich als Textildruck — gemessen an
 der 260×44-Zeile in der Mockup-Runde zu #378.
 

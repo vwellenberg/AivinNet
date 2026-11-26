@@ -160,7 +160,10 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
       padding-right: calc(#{$small} + #{$candy-border-w});
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
-      animation: nav-reach $motion-move $motion-curve-settle;
+      // The shorthand replaces the marker's own `mem-marker-in` (mem-row-marker),
+      // so it is listed again: the plate reaches right while its teeth come in
+      // from the left.
+      animation: nav-reach $motion-move $motion-curve-settle, mem-marker-in $motion-move $motion-curve-settle;
 
       // Glyph and label above the point, which overlaps the plate's last
       // ~22px (only hatch lives there).

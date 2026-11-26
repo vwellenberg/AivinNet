@@ -207,6 +207,18 @@ form .btn-pill[type="submit"] {
   }
 }
 
+// Das Zackenband des aktiven Nav-Eintrags (mem-row-marker) gleitet von links
+// herein: Es startet eine Spritebreite (9 px) links der Innenkante, also ganz
+// unter dem 3-px-Rahmen und außerhalb der Platte, und tritt aus dem Rahmen
+// heraus. Nur ein Startframe — die Ebene landet auf ihrem deklarierten Wert.
+// Die Schraffur steht im Startframe dort, wo sie gerade ist
+// (`--marker-hatch-at`): in Ruhe `left top`, unter dem Zeiger der Stir-Versatz.
+@keyframes mem-marker-in {
+  from {
+    background-position: -9px 0, var(--marker-hatch-at, left top);
+  }
+}
+
 // Die Textur wischt quer herein. Bewusst `translateX` und nicht `opacity`: die
 // Farbe dieser Zeile ist ein Schnitt (styling.md), ein Aufblenden wäre ein
 // Verstoß dagegen — eine Fläche, die durchs Bild fährt, ist es nicht.
