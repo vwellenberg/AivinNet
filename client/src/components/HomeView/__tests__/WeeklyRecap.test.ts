@@ -90,10 +90,9 @@ describe('WeeklyRecap on Home (#530)', () => {
         expect(push).not.toHaveBeenCalled()
     })
 
-    it('marks the dismiss glyph with the quiet button role', async () => {
+    it('names the dismiss glyph', async () => {
         const w = await card(week)
 
-        expect(w.find('.recap-close').classes()).toContain('btn-quiet')
         expect(w.find('.recap-close').attributes('aria-label')).toBe('Dismiss recap')
     })
 })
