@@ -77,6 +77,20 @@ useVisibility(albumheaderthing, handleVisibilityState)
         }
     }
 
+    // Phones: the cover stays a square in the plate's corner instead of
+    // stretching with the text column. Its text (type, title, "Album by …" and
+    // the year/tracks/length line, two lines each on a phone) is taller than
+    // the 120px cell, and the stretched cell showed the square cover with pink
+    // bars above and below (120×159–176). The cell now closes with a rule of
+    // its own; the plate's pastel continues under it. User's pick (A+C) from a
+    // four-way preview, 2026-11-26 — C is the tighter text in Header/Info.vue.
+    @include largePhones {
+        > .dh-art {
+            align-self: start;
+            border-bottom: $candy-border;
+        }
+    }
+
     // The cover recedes as the header scrolls away. Scroll-driven: no script
     // runs on scroll. The timeline belongs to the HEAD, not to the cover: the
     // cover's own nearest scroll container is the `overflow: hidden` cell, which

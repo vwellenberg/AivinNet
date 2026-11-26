@@ -294,7 +294,10 @@ $detail-heads: ".a-header, .artist-page-header, .p-header";
             grid-row: 1;
             grid-column: 2;
             align-self: center;
-            margin: $medium;
+            // A head whose text runs long can tighten the top and bottom (the
+            // album does, so its cover stays square); the sides stay $medium,
+            // which the max-width below depends on.
+            margin: var(--dh-strip-text-block, #{$medium}) $medium;
             // `.dh-text`'s `max-width: 100%` is the whole grid area; the
             // margins have to come off it, or a long one-word title overflows.
             max-width: calc(100% - 2 * #{$medium});
