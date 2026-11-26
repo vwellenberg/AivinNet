@@ -241,6 +241,16 @@ einen Schleifendurchlauf.
   Eigene Messskripte genauso. Nachstellen: Gate laufen lassen, während auf jedem Kern zwei
   Endlosschleifen laufen — die alte Fassung war so zweimal rot, die neue zweimal grün.
 
+- **⚠️ In einer virtualisierten Liste ist die erste Karte im DOM nicht die erste auf dem
+  Schirm.** vue-virtual-scroller hält einen Pool an Karten-Views und parkt die unbenutzten weit
+  außerhalb der Seite (gemessen auf `/albums`: erste `.album-card` bei `top = -999878`).
+  `locator(".album-card").first().click()` traf regelmäßig so eine geparkte Karte, Playwright
+  wartete die vollen 15 s und gab auf. So öffnete `menu-label-fit.js` bei **jedem** Deploy nur
+  6 von 8 Menüs (Album- und Artist-Karte) und meldete trotzdem `MENU_LABEL_FIT_OK`, unabhängig
+  von der Last. Klicks in eine Liste deshalb über `scripts/onscreen.js` (erste Karte, deren
+  Mitte im Viewport liegt). Und ein Gate, das ein Ziel nicht erreicht, meldet das als Exit 2
+  (`MENU_LABEL_FIT_INCOMPLETE`), nie als OK.
+
 - **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der
   erste Keyframe ist `scale(0.82)`, und die Rolle setzt `animation-fill-mode: backwards` — läuft
   die Animation nicht los, ist genau das der Zustand, den man misst. Passiert in jedem
