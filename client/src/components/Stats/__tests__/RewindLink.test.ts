@@ -74,7 +74,7 @@ describe('RewindLink', () => {
 
         expect(getRewind).toHaveBeenCalledWith(2025)
         // 48,210 minutes and 20 seconds round to 48210, without separators.
-        expect(w.find('.tape-length').text()).toBe('C-48210min')
+        expect(w.find('.tape-length').text()).toBe('C-48210 min')
     })
 
     it('writes the year on the label: plays and days, top artist, top track', async () => {
@@ -96,6 +96,15 @@ describe('RewindLink', () => {
         expect(lines.join(' ')).not.toContain('Top track')
     })
 
+    it('stays plain: shell, label, window and bridge, no screws, no stickers, one stripe', async () => {
+        const a = (await link(2025)).find('a')
+
+        expect(a.findAll('.tape-screw')).toHaveLength(0)
+        expect(a.find('.tape-band').findAll('svg')).toHaveLength(0)
+        expect(a.findAll('.tape-hole')).toHaveLength(2)
+        expect(a.find('.tape-band').findAll('span').map(span => span.text())).toEqual(['Side A', 'C-48210 min'])
+    })
+
     it('still opens without its notes when the year cannot be loaded', async () => {
         getRewind.mockResolvedValue({ status: 500, data: null })
 
@@ -109,7 +118,7 @@ describe('RewindLink', () => {
     it('keeps the drawing away from screen readers: the link says what it opens', async () => {
         const a = (await link(2025)).find('a')
 
-        for (const part of ['.tape-band', '.tape-window', '.tape-bridge', '.tape-screw']) {
+        for (const part of ['.tape-band', '.tape-window', '.tape-bridge']) {
             expect(a.find(part).attributes('aria-hidden'), part).toBe('true')
         }
     })
@@ -191,11 +200,26 @@ describe('RewindLink: the strokes', () => {
         }
     })
 
-    it('draws the bridge outline at the plate weight, unscaled by its stretched box', () => {
+    it('draws its strokes (bridge outline, reel teeth) at the plate weight, unscaled by their boxes', () => {
         const strokes = [...RULES.matchAll(/stroke-width:\s*([^;]+);/g)].map(m => m[1])
 
-        expect(strokes).toEqual(['$candy-border-w'])
-        expect(RULES).toMatch(/vector-effect: non-scaling-stroke;/)
+        expect(strokes).toEqual(['$candy-border-w', '$candy-border-w'])
+        expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(2)
+    })
+
+    it('draws its lines in the frame colour, so the dark mode keeps one line colour', () => {
+        // Ink edges stay only inside the dark window (the packs' and reels'
+        // rings), where the frame grey would be the lighter line.
+        const ink = [...RULES.matchAll(/^\s*border[a-z-]*:[^;]*\$mem-ink;/gm)]
+        expect(ink).toHaveLength(2)
+        expect(RULES).not.toMatch(/border[a-z-]*:[^;]*currentColor/)
+        expect(RULES).toMatch(/--tape-line: #\{\$mem-frame\};/)
+        expect(RULES).toMatch(/--tape-line: var\(--mem-hover-text\);/)
+    })
+
+    it('reaches the Boring look through its tokens, not through the Memphis colours', () => {
+        expect([...RULES.matchAll(/background-color: var\(--look-card-inlay-fill, #\{\$mem-ink\}\);/g)]).toHaveLength(2)
+        expect(RULES).toMatch(/background-color: var\(--look-stat-label-fill, #\{\$mem-teal\}\);/)
     })
 
     it('has no hairlines, no see-through lines and no repeated stripes', () => {

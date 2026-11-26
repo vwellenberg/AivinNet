@@ -1002,7 +1002,10 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   sich selbst als Linie** (ein Bandpaket knapp breiter als seine Nabe). Ein Trapez als `border`
   in `perspective()` verschiebt außerdem seine Kanten (die Oberkante saß ~11 px tiefer, auf den
   Löchern); gezeichnet wird es als gestreckter SVG-Pfad mit `vector-effect: non-scaling-stroke`.
-  Zensus: `Stats/__tests__/RewindLink.test.ts` („the strokes“).
+  Und dieselbe Runde endete mit **weniger Teilen**, nicht nur dünneren: Schrauben, Sticker, zwei
+  der drei Streifen und die eckigen Löcher flogen raus („schlichteres Design“). Jedes Teil
+  bringt eigene Kanten mit, und zwölf richtig starke Kanten auf engem Raum lesen sich trotzdem
+  unruhig. Zensus: `Stats/__tests__/RewindLink.test.ts` („the strokes“, „stays plain“).
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben
   bewusst höher. 2 px war Drift an drei Elementen gegen über tausend; `.shadow-sm` gibt es nicht
   mehr, die Nutzer tragen `.shadow-md`.

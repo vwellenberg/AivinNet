@@ -4,9 +4,11 @@
          Rewind is Home's January card; this is where it stays afterwards.
          A section like the others above it, with its own sticker heading.
 
-         The door is a cassette (2026-11-25, chosen from four ideas): the year
-         as a tape that has played to its end. The label carries the year, the
-         tape length in minutes (a C-90 holds ninety of them) and the year's
+         The door is a cassette (2026-11-25, chosen from four ideas; made
+         plainer on 2026-11-26: "schlichteres Design"): the year as a tape that
+         has played to its end. Shell, label, window, bridge, nothing more — no
+         screws, no stickers, one stripe. The label carries the side, the tape
+         length in minutes (a C-90 holds ninety of them), the year and its
          notes; under the pointer the label straightens and the tape rewinds,
          both reels turning back while the tape winds from the full reel onto
          the empty one. Once there are many years, one tape per year on a shelf. -->
@@ -18,21 +20,10 @@
             :aria-label="`Your ${year} Rewind`"
             :aria-describedby="teaser ? `${uid}-length ${uid}-notes` : `${uid}-notes`"
         >
-            <span class="tape-screw is-top-left" aria-hidden="true"></span>
-            <span class="tape-screw is-top-right" aria-hidden="true"></span>
-            <span class="tape-screw is-bottom-left" aria-hidden="true"></span>
-            <span class="tape-screw is-bottom-right" aria-hidden="true"></span>
-
             <span class="tape-label">
                 <span class="tape-band" aria-hidden="true">
-                    <span class="tape-side">A</span>
-                    <span class="tape-brand">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path d="M11.5 5.5v13L2.5 12zM21.5 5.5v13l-9-6.5z" fill="currentColor" />
-                        </svg>
-                        <span class="tape-brand-word">Rewind</span>
-                    </span>
-                    <span v-if="teaser" :id="`${uid}-length`" class="tape-length">C-{{ tapeMinutes }}<small>min</small></span>
+                    <span class="tape-side">Side A</span>
+                    <span v-if="teaser" :id="`${uid}-length`" class="tape-length">C-{{ tapeMinutes }} min</span>
                 </span>
 
                 <span class="tape-year">
@@ -46,8 +37,15 @@
                 <span class="tape-window" aria-hidden="true">
                     <span class="tape-pack is-left"></span>
                     <span class="tape-pack is-right"></span>
-                    <span class="tape-reel is-left"></span>
-                    <span class="tape-reel is-right"></span>
+                    <span v-for="side in ['is-left', 'is-right']" :key="side" class="tape-reel" :class="side">
+                        <svg class="tape-hub" viewBox="-12 -12 24 24">
+                            <circle class="tape-hub-hole" r="7.5" />
+                            <path
+                                class="tape-hub-teeth"
+                                d="M0 -7.5V-3.6M6.5 -3.75L3.1 -1.8M6.5 3.75L3.1 1.8M0 7.5V3.6M-6.5 3.75L-3.1 1.8M-6.5 -3.75L-3.1 -1.8"
+                            />
+                        </svg>
+                    </span>
                 </span>
 
                 <!-- The notes written on the label's lines. The link's name is
@@ -70,16 +68,13 @@
             </span>
 
             <!-- The bridge at the foot of the shell, where the tape runs past
-                 the head: guide holes, capstan holes, the fifth screw. -->
+                 the head, with its two guide holes. -->
             <span class="tape-bridge" aria-hidden="true">
                 <svg class="tape-bridge-edge" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <path d="M0 100 L14 0 L86 0 L100 100" />
                 </svg>
-                <span class="tape-hole is-round"></span>
-                <span class="tape-hole is-square"></span>
-                <span class="tape-screw"></span>
-                <span class="tape-hole is-square"></span>
-                <span class="tape-hole is-round"></span>
+                <span class="tape-hole"></span>
+                <span class="tape-hole"></span>
             </span>
         </RouterLink>
     </section>
@@ -182,8 +177,10 @@ watch(
 // hatch in the accent sprite on the static pastel, the offset shadow, and under
 // the pointer the flip to the contrast surface with the sprinkles stirring.
 // The label is a sticker on it and does not flip; what sits on the shell
-// itself (the bridge's outline and holes) draws in `currentColor`, so it flips
-// with the shell.
+// itself (the bridge's outline, holes and tape edge) draws in `--tape-line`:
+// the frame colour at rest, like every plate's edge (ink in the light mode,
+// the frame grey in the dark one), and the hover text colour under the
+// pointer, where the shell has flipped.
 // ---------------------------------------------------------------------------
 .rewind-tape {
     --row-fill: var(--look-tile-fill, #{mem-pastel($mem-lavender)});
@@ -192,6 +189,7 @@ watch(
     // brown sliver between two ink rings, a hairline in all but name.
     --pack-left: 0.62;
     --pack-right: 1;
+    --tape-line: #{$mem-frame};
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -219,6 +217,7 @@ watch(
     @media (hover: hover) {
         &:hover {
             --row-fill: var(--mem-hover);
+            --tape-line: var(--mem-hover-text);
             background-image: var(--mem-hatch-hover);
             background-position: $mem-hatch-stir;
             color: var(--mem-hover-text);
@@ -233,73 +232,6 @@ watch(
 
     @container rewind-tape (max-width: 36rem) {
         padding: 1rem 1rem 0;
-    }
-}
-
-// Five screws hold a cassette together: one in each corner, one in the bridge.
-// Static paper heads with an ink ring, so they read on the pastel and on
-// either contrast surface.
-.tape-screw {
-    display: block;
-    flex-shrink: 0;
-    width: 1rem;
-    height: 1rem;
-    border: $mem-ring-w solid $mem-ink;
-    border-radius: 50%;
-    background-color: $mem-paper;
-    // The slot is as heavy as a plate's edge (3 px of the 12 px head).
-    background-image: linear-gradient(var(--slot, 35deg), transparent 37.5%, #{$mem-ink} 37.5% 62.5%, transparent 62.5%);
-
-    &.is-top-left,
-    &.is-top-right,
-    &.is-bottom-left,
-    &.is-bottom-right {
-        position: absolute;
-    }
-
-    &.is-top-left {
-        top: 0.25rem;
-        left: 0.25rem;
-    }
-
-    &.is-top-right {
-        --slot: -20deg;
-        top: 0.25rem;
-        right: 0.25rem;
-    }
-
-    &.is-bottom-left {
-        --slot: 80deg;
-        bottom: 0.25rem;
-        left: 0.25rem;
-    }
-
-    &.is-bottom-right {
-        --slot: 10deg;
-        right: 0.25rem;
-        bottom: 0.25rem;
-    }
-
-    @container rewind-tape (max-width: 36rem) {
-        &.is-top-left,
-        &.is-top-right {
-            top: 0.1rem;
-        }
-
-        &.is-top-left,
-        &.is-bottom-left {
-            left: 0.1rem;
-        }
-
-        &.is-top-right,
-        &.is-bottom-right {
-            right: 0.1rem;
-        }
-
-        &.is-bottom-left,
-        &.is-bottom-right {
-            bottom: 0.1rem;
-        }
     }
 }
 
@@ -350,83 +282,35 @@ watch(
     }
 }
 
-// Three stripes across the top, edge to edge (thin paper gaps between them
-// read as hairlines), and on them three stickers printed with the plate's
-// 3 px edge: the side, the name, the length. Boring has no accent stripes
-// (its label fill is transparent), so the band is plain there.
+// One stripe across the top, with the side and the tape's length printed on
+// it: C-90 on a shop tape, C-12014 on this one. Printed, not stuck on (the
+// stickers and the second and third stripe went for a plainer tape). Boring
+// has no accent fill there, so the stripe is plain and the print its grey.
 .tape-band {
     grid-area: band;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    justify-content: space-between;
+    gap: 1rem;
     min-width: 0;
-    padding: 0.45rem 0.75rem;
-    border-bottom: $candy-border-w solid $mem-ink;
-    background-image: linear-gradient(
-        to bottom,
-        var(--look-stat-label-fill, #{$mem-teal}) 0 33.4%,
-        var(--look-stat-label-fill, #{$mem-yellow}) 33.4% 66.7%,
-        var(--look-stat-label-fill, #{$mem-coral}) 66.7% 100%
-    );
-}
-
-.tape-side {
-    display: grid;
-    flex-shrink: 0;
-    place-items: center;
-    width: 1.9rem;
-    height: 1.9rem;
-    border: $candy-border-w solid $mem-ink;
-    border-radius: $candy-radius-xs;
-    background-color: $mem-ink;
-    color: $mem-paper;
-    font-size: 1rem;
-    font-weight: 900;
-}
-
-.tape-brand,
-.tape-length {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.2rem 0.55rem;
-    border: $candy-border-w solid $mem-ink;
-    border-radius: $candy-radius-xs;
-    background-color: $mem-paper;
-    color: $mem-ink;
-    font-size: 0.8rem;
+    padding: 0.45rem 1rem;
+    border-bottom: $candy-border-w solid $mem-frame;
+    background-color: var(--look-stat-label-fill, #{$mem-teal});
+    color: var(--look-stat-label-text, #{$mem-ink});
+    font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     white-space: nowrap;
-}
 
-.tape-brand svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-// The narrowest phones: the band holds the side, the glyph and the length, and
-// the word goes (the heading above says it). Measured at 320 px, where the
-// length sticker ran out of the label otherwise.
-.tape-brand-word {
-    @container rewind-tape (max-width: 18rem) {
-        display: none;
+    @container rewind-tape (max-width: 36rem) {
+        padding-inline: 0.75rem;
     }
 }
 
-// The tape's length: C-90 on a shop tape, C-12014 on this one.
 .tape-length {
-    margin-left: auto;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
     font-variant-numeric: tabular-nums;
-    text-transform: none;
-
-    small {
-        font-size: 0.65rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
 }
 
 .tape-year {
@@ -467,9 +351,11 @@ watch(
     position: relative;
     width: 12.5rem;
     height: 5rem;
-    border: $candy-border-w solid $mem-ink;
+    border: $candy-border-w solid $mem-frame;
     border-radius: $candy-radius-sm;
-    background-color: $mem-ink;
+    // Boring's tile is near black, so the ink glass would vanish into it; the
+    // inlay token gives it a surface of its own there.
+    background-color: var(--look-card-inlay-fill, #{$mem-ink});
     overflow: hidden;
 
     @container rewind-tape (max-width: 36rem) {
@@ -512,10 +398,11 @@ watch(
     }
 }
 
-// A reel: a paper hub whose six teeth reach into its hole, each as wide as the
-// gap beside it, so they read at the app's own weight (16° teeth were
-// hairlines; three broad ones read as a hazard sign). Placed by its corner,
-// not by a transform, so the spin owns `transform` alone.
+// A reel: a paper hub in a 2 px ring, with a dark hole and six teeth reaching
+// into it. The teeth are strokes of constant 3 px width (wedges from a conic
+// gradient tapered to 2 px at the root and read as a fine asterisk; three
+// broad ones read as a hazard sign). Placed by its corner, not by a
+// transform, so the spin owns `transform` alone.
 .tape-reel {
     position: absolute;
     z-index: 2;
@@ -533,24 +420,24 @@ watch(
     &.is-right {
         left: calc(75% - var(--reel) / 2);
     }
+}
 
-    // The teeth: six paper wedges on the dark hole …
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 20%;
-        border-radius: 50%;
-        background-image: repeating-conic-gradient(#{$mem-paper} 0 30deg, #{$mem-ink} 30deg 60deg);
-    }
+.tape-hub {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 
-    // … whose points the spindle hole covers, so only their roots show.
-    &::after {
-        content: '';
-        position: absolute;
-        inset: 38%;
-        border-radius: 50%;
-        background-color: $mem-ink;
-    }
+.tape-hub-hole {
+    fill: $mem-ink;
+}
+
+.tape-hub-teeth {
+    fill: none;
+    stroke: $mem-paper;
+    stroke-width: $candy-border-w;
+    stroke-linecap: butt;
+    vector-effect: non-scaling-stroke;
 }
 
 // ---------------------------------------------------------------------------
@@ -600,35 +487,40 @@ watch(
 // The outline is an SVG path stretched over the box with a stroke that does
 // not stretch (3 px, the plate weight), so its top edge sits exactly at the
 // top. (A border seen in `perspective()` pulled the edge down by ~11 px, onto
-// the holes.) Drawn in `currentColor`, so it flips with the shell. The tape
-// runs across the foot.
+// the holes.) Filled with the shell's own fill, so the hatch does not run
+// between the holes. The tape runs along the shell's bottom edge, sharing it:
+// a band of its own above that edge left a 3 px sliver that read as a line.
 // ---------------------------------------------------------------------------
 .tape-bridge {
+    --tape-run: 0.8rem;
     position: relative;
     display: flex;
-    // The holes sit in the upper part, clear of the tape below them.
-    align-items: flex-start;
-    justify-content: space-evenly;
+    // The two holes centred between the top edge and the tape, and kept in from
+    // the slanted sides (`space-evenly` alone ignores the slant: at 320 px the
+    // outer holes touched it).
+    align-items: center;
+    justify-content: space-between;
     width: min(60%, 24rem);
-    // The holes sit between the top edge and the tape, with room on both sides.
-    height: 2.6rem;
+    height: 2.75rem;
     margin-top: 0.8rem;
-    padding-top: 0.5rem;
+    padding: 0 20% var(--tape-run);
 
-    // The tape, running past the head: a band between two 2 px ink edges.
+    // The tape, running past the head: closed with the plate weight on top and
+    // at both ends, sitting on the shell's bottom edge.
     &::after {
         content: '';
         position: absolute;
-        left: 8%;
-        right: 8%;
-        bottom: 0.2rem;
-        height: 0.6rem;
+        left: 18%;
+        right: 18%;
+        bottom: 0;
+        height: var(--tape-run);
+        border: $candy-border-w solid var(--tape-line);
+        border-bottom: none;
         background-color: var(--look-stat-bar, #{$mem-kraft});
-        border-block: $mem-ring-w solid $mem-ink;
     }
 
     @container rewind-tape (max-width: 36rem) {
-        width: 78%;
+        width: 82%;
     }
 }
 
@@ -640,38 +532,23 @@ watch(
     overflow: visible;
 
     path {
-        fill: none;
-        stroke: currentColor;
+        fill: var(--row-fill);
+        stroke: var(--tape-line);
         stroke-width: $candy-border-w;
         stroke-linejoin: round;
         vector-effect: non-scaling-stroke;
     }
 }
 
+// Openings in the shell: dark, edged with the plate weight like the shell.
 .tape-hole {
     position: relative;
     z-index: 1;
-    // Centred on the screw head (1rem) beside it.
-    margin-top: 0.08rem;
-    border: $mem-ring-w solid currentColor;
-    background-color: $mem-ink;
-
-    &.is-round {
-        width: 0.85rem;
-        height: 0.85rem;
-        border-radius: 50%;
-    }
-
-    &.is-square {
-        width: 0.65rem;
-        height: 0.65rem;
-        border-radius: $candy-radius-xs;
-    }
-}
-
-.tape-bridge .tape-screw {
-    --slot: 60deg;
-    position: relative;
-    z-index: 1;
+    width: 1rem;
+    height: 1rem;
+    border: $candy-border-w solid var(--tape-line);
+    border-radius: 50%;
+    // Dark like the window, and through the same token in Boring.
+    background-color: var(--look-card-inlay-fill, #{$mem-ink});
 }
 </style>
