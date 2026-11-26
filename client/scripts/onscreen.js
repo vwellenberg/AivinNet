@@ -1,4 +1,5 @@
-// Pick the element a person would click: the first match that is ON SCREEN.
+// Pick the element a person would click: the first match ON SCREEN, else the
+// first one below it — never a pooled view the list parked off the page.
 //
 // The list pages render through vue-virtual-scroller, and it keeps a pool of
 // card views. Views it is not using are parked far outside the page
@@ -26,17 +27,31 @@ function firstOnScreen(selector, env) {
 
     for (const old of doc.querySelectorAll("[data-gate-target]")) old.removeAttribute("data-gate-target");
 
-    for (const element of doc.querySelectorAll(selector)) {
+    const sized = [...doc.querySelectorAll(selector)].filter((element) => {
         const box = element.getBoundingClientRect();
-        if (box.width < 1 || box.height < 1) continue;
-        // Its centre must be on the page: that is where Playwright clicks.
-        const x = box.left + box.width / 2;
-        const y = box.top + box.height / 2;
-        if (x < 0 || y < 0 || x >= width || y >= height) continue;
-        element.setAttribute("data-gate-target", "");
-        return true;
-    }
-    return false;
+        return box.width >= 1 && box.height >= 1;
+    });
+    const centre = (element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    };
+
+    // First choice: the centre is on screen, which is where Playwright clicks.
+    // Second: below the fold, which Playwright scrolls to (the track rows on
+    // /favorites start under the album row). Never ABOVE the page: the gates
+    // load each route at the top, so a box up there is a parked view.
+    const pick =
+        sized.find((element) => {
+            const { x, y } = centre(element);
+            return x >= 0 && x < width && y >= 0 && y < height;
+        }) ||
+        sized.find((element) => {
+            const { x, y } = centre(element);
+            return x >= 0 && x < width && y >= height;
+        });
+    if (!pick) return false;
+    pick.setAttribute("data-gate-target", "");
+    return true;
 }
 
 // Node side: wait until a match is on screen (the list mounts after the

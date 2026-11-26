@@ -248,7 +248,7 @@ einen Schleifendurchlauf.
   wartete die vollen 15 s und gab auf. So öffnete `menu-label-fit.js` bei **jedem** Deploy nur
   6 von 8 Menüs (Album- und Artist-Karte) und meldete trotzdem `MENU_LABEL_FIT_OK`, unabhängig
   von der Last. Klicks in eine Liste deshalb über `scripts/onscreen.js` (erste Karte, deren
-  Mitte im Viewport liegt). Und ein Gate, das ein Ziel nicht erreicht, meldet das als Exit 2
+  Mitte im Viewport liegt, sonst die erste darunter, nie eine oberhalb der Seite). Und ein Gate, das ein Ziel nicht erreicht, meldet das als Exit 2
   (`MENU_LABEL_FIT_INCOMPLETE`), nie als OK.
 
 - **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der

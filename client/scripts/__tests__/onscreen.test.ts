@@ -60,15 +60,21 @@ describe('firstOnScreen', () => {
         expect(tagged(cards)).toEqual(['visible'])
     })
 
-    it('skips a card below the fold and one with no size', () => {
+    it('prefers a card on screen to one below the fold, and skips one with no size', () => {
         const cards = [card('below', 2000), new FakeElement('collapsed', { left: 0, top: 10, width: 0, height: 0 }), card('on screen', 600)]
         firstOnScreen('.album-card', page(cards))
         expect(tagged(cards)).toEqual(['on screen'])
     })
 
-    it('needs the centre on screen: that is where the click lands', () => {
-        // Top edge visible, centre (top + 168) under the window's bottom edge.
-        const cards = [card('cut at the bottom', 900)]
+    it('takes one below the fold when none is on screen: Playwright scrolls to it', () => {
+        // The track rows on /favorites start under the album row.
+        const cards = [card('parked', -999878), card('below', 1400)]
+        expect(firstOnScreen('.songlist-item', page(cards))).toBe(true)
+        expect(tagged(cards)).toEqual(['below'])
+    })
+
+    it('never takes one above the page: the gates load each route at the top', () => {
+        const cards = [card('parked', -999878), card('parked too', -9999)]
         expect(firstOnScreen('.album-card', page(cards))).toBe(false)
         expect(tagged(cards)).toEqual([])
     })
@@ -87,7 +93,8 @@ describe('firstOnScreen', () => {
 })
 
 describe('menu-label-fit.js', () => {
-    const gate = readFileSync(new URL('../menu-label-fit.js', import.meta.url), 'utf8')
+    // Run from client/, as settle.test.ts reads the gates.
+    const gate = readFileSync('scripts/menu-label-fit.js', 'utf8')
 
     it('clicks through onScreen, never the first match in the DOM', () => {
         expect(gate).toMatch(/require\("\.\/onscreen"\)/)
