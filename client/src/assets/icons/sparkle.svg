@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+    <!-- Chrome set, Home row "Never played": new to you. Closed shapes, so filled (the old sparkles.svg is a foreign 28-unit glyph). -->
+    <path d="M10.4 3.4Q11.2 9.6 17.4 10.4Q11.2 11.2 10.4 17.4Q9.6 11.2 3.4 10.4Q9.6 9.6 10.4 3.4Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+    <path d="M18 14.6Q18.3 17.7 21.4 18Q18.3 18.3 18 21.4Q17.7 18.3 14.6 18Q17.7 17.7 18 14.6Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+</svg>

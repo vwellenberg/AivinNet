@@ -49,6 +49,7 @@
             :route="item.path"
             :see-all-text="item.seeAllText"
             :card-menu="cardMenuOf(item)"
+            :icon="rowIcon(item)"
         >
             <template v-if="item.key === 'rediscover'" #actions>
                 <button class="btn-action btn-action-label surprise" :disabled="surprising" @click="surprise">
@@ -120,6 +121,7 @@ import { CardMenuExtras } from '@/utils/cardMenu'
 import { getSurpriseAlbum } from '@/requests/home'
 import { pickRowAlbum } from '@/utils/pickRowAlbum'
 import { chipItems, playButtonLabel } from '@/utils/homeRows'
+import { rowIcon } from '@/utils/homeRowIcons'
 import { HomePageItem } from '@/interfaces'
 import PlaySvg from '@/assets/icons/play.svg'
 import GenericHeader from '@/components/shared/GenericHeader.vue'
