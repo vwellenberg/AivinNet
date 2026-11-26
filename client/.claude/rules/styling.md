@@ -293,8 +293,8 @@ laufenden Zeile kollidiert.
 
 `mem-hatch` in [_candy.scss](../../src/assets/scss/_candy.scss) malt die Terrazzo-Striche, und
 sie sind **keine Dekoration, sondern eine Aussage**: Buttons, die Platten der Sidebar-Zeilen und
-Karten tragen sie. Was nur *aussieht* wie eine Platte (Überschriften-Sticker, die Etiketten des
-Sortier-Banners), bleibt **glatt**, und genau dieser Unterschied unterscheidet die beiden.
+Karten tragen sie. Was nur *aussieht* wie eine Platte (Überschriften-Sticker, früher die Etiketten
+des Sortier-Banners), bleibt **glatt**, und genau dieser Unterschied unterscheidet die beiden.
 
 **Präziser seit #468: Die Schraffur markiert einen Bedienpunkt _zwischen_ Nicht-Bedienpunkten.**
 Der Satz hieß hier vorher „jede drückbare Fläche trägt sie", und in dieser Form stimmt er nicht —
@@ -385,7 +385,7 @@ Drei Bedingungen, alle tragend:
      die Textur trägt, liest sich die glatte als *nicht* drückbar. Der damalige Grund (ein Cover
      in `--row-fill` für jeden Zustand nachziehen, sonst ein Rechteck in falscher Farbe) fällt
      mit der Maske weg. Nicht schraffiert bleiben: Zeilen in Menüs und Inhaltslisten (Regel
-     oben), und Etiketten, die nur aussehen wie Chips („Sort By").
+     oben), und Etiketten, die nur aussehen wie Chips.
 
      ⚠️ **Ein drückbarer Sticker ist kein Sticker mehr.** „See all"/„View history" (`SeeAll.vue`)
      sitzt als Sticker-Kapsel direkt neben der glatten Abschnitts-Überschrift und blieb als „nur
@@ -1793,13 +1793,12 @@ Real passiert bei #240 — der ganze Staffel-Effekt aus #279 wäre still gestorb
   **letzten** Frame, und ein Animations-`scale(1)` schlägt jedes deklarierte `transform` — Hover
   und Press wären in allen fünf Rollen still tot. `backwards` gilt nur *während* einer Verzögerung.
 - **Eine Reihe von Buttons trifft von links nach rechts ein** — `@include btn-pop-stagger` auf das
-  Element, dessen **direkte Kinder** die Buttons sind. `.header-actions` bindet es ein, der
-  Sortier-Banner der Alben-/Künstlerliste ebenso. Die fünf `nth-child`-Regeln nicht abschreiben:
-  genau das ließ den Banner als einzige Stelle elf Chips gleichzeitig aufploppen, während die
-  Header-Reihe zwei Klicks weiter staffelte.
+  Element, dessen **direkte Kinder** die Buttons sind. `.header-actions` bindet es ein. Die fünf
+  `nth-child`-Regeln nicht abschreiben: genau das ließ den früheren Sortier-Banner als einzige
+  Stelle elf Chips gleichzeitig aufploppen, während die Header-Reihe zwei Klicks weiter staffelte.
 - **Was man nicht drücken kann, darf nicht wie ein Bedienelement erscheinen.** Der Pop ist die
-  Aussage „hier ist ein Button aufgetaucht". Die beiden Etiketten des Sortier-Banners (`.tt`,
-  `pointer-events: none`) leihen sich `btn-action` nur für die Platte und bekommen deshalb
+  Aussage „hier ist ein Button aufgetaucht". Die Etiketten des früheren Sortier-Banners (`.tt`,
+  `pointer-events: none`) liehen sich `btn-action` nur für die Platte und bekamen deshalb
   `animation: none`. Wer eine Rolle für reine Geometrie borgt, prüft, was er sich an Verhalten
   mitgeholt hat.
 - **⚠️ Bewegung gehört ins Stylesheet, nie in eine JS-Bibliothek.** `motion-policy.scss` erreicht
@@ -1928,7 +1927,9 @@ Und nur unter `@media (hover: hover)`: auf Touch latcht `:hover` nach dem Tippen
 `_candy.scss`. Die Base-Hälfte ist Pflicht (reservierter transparenter Rand in `$candy-border-w`)
 — ohne sie springt der Inhalt beim Hover, und genau deshalb hatten die Folder-Zeilen
 (`border: none`) gar keinen Rahmen. „Flach" heißt bei Sidebar- und Queue-Zeilen **kein
-Offset-Schatten**, nicht „kein Rahmen": gehoverte Zeilen sind überall gerahmt.
+Offset-Schatten**, nicht „kein Rahmen": gehoverte Zeilen sind überall gerahmt — auch die Zeilen
+eines Menüs (`DropDown .option`, bis 2026-11-26 ein rahmenloser rosa Balken, gemeldet als „wieso
+ist da kein Rand drum?").
 
 **Beide Hälften werden als Mixin genommen, nie von Hand ausgeschrieben.** Eine Zeile, die den
 transparenten Rand selbst deklariert, behält zwar die Reservierung, verliert aber den Hinweis,

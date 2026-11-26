@@ -22,8 +22,8 @@ import { ownDeclarations, shorthandParts, styleBlock } from "./scssBlocks";
 // The rule is about the pair, not about either half. A negative margin is a
 // fine tool, and the first cut of this census proved it by failing five rules
 // that all use it correctly: a cover pulled out of a card's padding
-// (`cards.scss`), a border overlapped by -2px (`SortBanner`, `RecentSearches`
-// — those two are vertical margins and not even about the left edge), a popup
+// (`cards.scss`), a border overlapped by -2px (the old sort chips,
+// `RecentSearches` — vertical margins, not even about the left edge), a popup
 // positioned against its anchor (`ContextMenu`, `Settings .head`).
 //
 // What separates those from the bug is that the undo MATCHES the indent — same

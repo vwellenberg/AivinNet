@@ -277,6 +277,10 @@ Kurzfassung: Vue 3 + Pinia + Vite, **Hash-Routing** (Deeplinks brauchen `#`), Wi
   `btn_role` (`quiet` = blanker Glyph, `action` = Header-Platte), und die Korrektur liegt dort, wo
   die Kollision entsteht. Neue Varianten also als **Rollen-Prop an der Komponente**, nicht als
   Regel in der aufrufenden View.
+- **Sortieren ist ein Menü, keine Chip-Reihe** (2026-11-26): `shared/DropDown.vue` mit
+  `prefix="Sort: "`, die Richtung aus `utils/sortMenu.ts` (aktiver Schlüssel dreht um, Text-Schlüssel
+  starten A–Z, alle anderen absteigend). Die Chip-Reihe (`SortKey`/`sortbanner-styles`) brauchte am
+  Handy vier Zeilen für elf Chips, die halbe Bildschirmhöhe vor dem ersten Inhalt.
 - `SearchInput :on_nav="true"` in `NavBar.vue` beibehalten — nie durch Router-Link ersetzen.
 - **Das Logo ist bewusst rahmenlos** (`Logo.vue`): der Pixelplanet steht ohne Kachel, seine Kante
   ist eine harte 2-px-`drop-shadow`-Kontur in `$mem-line`, der Ring (`.logo-orbit`) erscheint nur

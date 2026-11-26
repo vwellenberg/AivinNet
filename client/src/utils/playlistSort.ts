@@ -1,4 +1,5 @@
 import type { Playlist, SmartPlaylist } from '@/interfaces'
+import { nextSortQuery } from '@/utils/sortMenu'
 
 /** The name and the columns of a playlist row. */
 export const PLAYLIST_SORT_KEYS = [
@@ -46,18 +47,12 @@ export function readPlaylistSortQuery(query: Record<string, unknown>): {
     }
 }
 
-/**
- * The URL query for a click on the sort menu. Picking the active key flips the
- * direction on screen. Picking another key starts it where it reads best: name
- * ascending (A to Z), every other key descending (most tracks, most recent,
- * most played first).
- */
+/** The URL query for a pick in the sort menu: name starts A to Z (utils/sortMenu). */
 export function nextPlaylistSortQuery(
     current: { sortby: PlaylistSortKey; reverse: boolean },
     key: PlaylistSortKey,
 ): Record<string, string> {
-    if (key === current.sortby) return { sortby: key, reverse: current.reverse ? '0' : '1' }
-    return { sortby: key, reverse: key === 'name' ? '0' : '1' }
+    return nextSortQuery(current, key, ['name'])
 }
 
 /** Accent- and case-insensitive: "Café" matches "cafe" and "CAFÉ". */

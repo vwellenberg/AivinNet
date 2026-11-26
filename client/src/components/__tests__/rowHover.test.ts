@@ -26,6 +26,9 @@ const SOURCES = import.meta.glob("/src/**/*.vue", { query: "?raw", import: "defa
 const ROWS = [
   { file: "/src/components/FolderView/FolderList.vue", selector: ".f-item" },
   { file: "/src/components/shared/SongItem.vue", selector: ".songlist-item" },
+  // The sort menus (Folders, Playlists, Albums, Artists): its options hovered
+  // as a frameless pink bar (user, 2026-11-26).
+  { file: "/src/components/shared/DropDown.vue", selector: ".option" },
 ];
 
 /**
