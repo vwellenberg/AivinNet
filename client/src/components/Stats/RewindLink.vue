@@ -6,8 +6,8 @@
 
          The door is a cassette (2026-11-25, chosen from four ideas; made
          plainer on 2026-11-26: "schlichteres Design"): the year as a tape that
-         has played to its end. Shell, label, window, bridge, nothing more — no
-         screws, no stickers, one stripe. The label carries the side, the tape
+         has played to its end. Shell, label and window, nothing more — no
+         screws, no stickers, no bridge, one stripe. The label carries the side, the tape
          length in minutes (a C-90 holds ninety of them), the year and its
          notes; under the pointer the label straightens and the tape rewinds,
          both reels turning back while the tape winds from the full reel onto
@@ -67,15 +67,6 @@
                 </span>
             </span>
 
-            <!-- The bridge at the foot of the shell, where the tape runs past
-                 the head, with its two guide holes. -->
-            <span class="tape-bridge" aria-hidden="true">
-                <svg class="tape-bridge-edge" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <path d="M-1 107 L14 0 L86 0 L101 107" />
-                </svg>
-                <span class="tape-hole"></span>
-                <span class="tape-hole"></span>
-            </span>
         </RouterLink>
     </section>
 </template>
@@ -176,13 +167,7 @@ watch(
 // THE SHELL — the plate, and the link. A pressable plate (styling.md): the
 // hatch in the accent sprite on the static pastel, the offset shadow, and under
 // the pointer the flip to the contrast surface with the sprinkles stirring.
-// The label is a sticker on it and does not flip; what sits on the shell
-// itself (the bridge's outline, holes and tape edge) draws in `--tape-line`:
-// ink at rest, because the shell is a static pastel (the hatch on it is the
-// accent sprite for the same reason; the frame grey measured 1.5:1 on the
-// dark lavender, fainter than the hatch), and the hover text colour under the
-// pointer, where the shell has flipped. Boring draws none of it, like its
-// frames (`--look-tape-line`).
+// The label is a sticker on it and does not flip.
 // ---------------------------------------------------------------------------
 .rewind-tape {
     --row-fill: var(--look-tile-fill, #{mem-pastel($mem-lavender)});
@@ -191,7 +176,6 @@ watch(
     // brown sliver between two ink rings, a hairline in all but name.
     --pack-left: 0.62;
     --pack-right: 1;
-    --tape-line: var(--look-tape-line, #{$mem-ink});
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -199,7 +183,7 @@ watch(
     // A tape, not a banner: on a wide page it lies at the left, the size of
     // an object, starting at the edge the heading starts at.
     max-width: 50rem;
-    padding: 1.4rem 1.6rem 0;
+    padding: 1.4rem 1.6rem;
     background-color: var(--row-fill);
     @include mem-hatch($on: accent);
     border: $candy-border;
@@ -219,7 +203,6 @@ watch(
     @media (hover: hover) {
         &:hover {
             --row-fill: var(--mem-hover);
-            --tape-line: var(--look-tape-line, var(--mem-hover-text));
             background-image: var(--mem-hatch-hover);
             background-position: $mem-hatch-stir;
             color: var(--mem-hover-text);
@@ -233,7 +216,7 @@ watch(
     }
 
     @container rewind-tape (max-width: 36rem) {
-        padding: 1rem 1rem 0;
+        padding: 1rem;
     }
 }
 
@@ -490,80 +473,5 @@ watch(
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--look-tile-muted, #{$mem-ink});
-}
-
-// ---------------------------------------------------------------------------
-// THE BRIDGE — the trapezoid at the foot of the shell, narrower at the top.
-// The outline is an SVG path stretched over the box with a stroke that does
-// not stretch (3 px, the plate weight), so its top edge sits exactly at the
-// top. (A border seen in `perspective()` pulled the edge down by ~11 px, onto
-// the holes.) The slants run past the box so their cut ends leave no foot,
-// and the SVG is clipped flush at the box's bottom, which is the shell's
-// inner edge: unclipped, the fill painted over the shell's bottom border and
-// the tape floated on a lavender band again. Filled with the shell's own fill, so the hatch does not run
-// between the holes. The tape runs along the shell's bottom edge, sharing it:
-// a band of its own above that edge left a 3 px sliver that read as a line.
-// ---------------------------------------------------------------------------
-.tape-bridge {
-    --tape-run: 0.8rem;
-    position: relative;
-    display: flex;
-    // The two holes centred between the top edge and the tape, and kept in from
-    // the slanted sides (`space-evenly` alone ignores the slant: at 320 px the
-    // outer holes touched it).
-    align-items: center;
-    justify-content: space-between;
-    width: min(60%, 24rem);
-    height: 2.75rem;
-    margin-top: 0.8rem;
-    padding: 0 20% var(--tape-run);
-
-    // The tape, running past the head: closed with the plate weight on top and
-    // at both ends, sitting on the shell's bottom edge.
-    &::after {
-        content: '';
-        position: absolute;
-        left: 18%;
-        right: 18%;
-        bottom: 0;
-        box-sizing: border-box;
-        height: var(--tape-run);
-        border: $candy-border-w solid var(--tape-line);
-        border-bottom: none;
-        background-color: var(--look-stat-bar, #{$mem-kraft});
-    }
-
-    @container rewind-tape (max-width: 36rem) {
-        width: 82%;
-    }
-}
-
-.tape-bridge-edge {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    clip-path: inset(-4px -4px 0 -4px);
-
-    path {
-        fill: var(--row-fill);
-        stroke: var(--tape-line);
-        stroke-width: $candy-border-w;
-        stroke-linejoin: round;
-        vector-effect: non-scaling-stroke;
-    }
-}
-
-// Openings in the shell: dark, edged with the plate weight like the shell.
-.tape-hole {
-    position: relative;
-    z-index: 1;
-    width: 1rem;
-    height: 1rem;
-    border: $candy-border-w solid var(--tape-line);
-    border-radius: 50%;
-    // Dark like the window, and through the same token in Boring.
-    background-color: var(--look-card-inlay-fill, #{$mem-ink});
 }
 </style>

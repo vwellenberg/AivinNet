@@ -96,12 +96,16 @@ describe('RewindLink', () => {
         expect(lines.join(' ')).not.toContain('Top track')
     })
 
-    it('stays plain: shell, label, window and bridge, no screws, no stickers, one stripe', async () => {
+    it('stays plain: shell, label and window, no screws, no stickers, no bridge, one stripe', async () => {
         const a = (await link(2025)).find('a')
 
+        // The bridge at the foot went too (user, 2026-11-26: "nicht dieses
+        // Eckige", "unten das Gedöns kann raus").
         expect(a.findAll('.tape-screw')).toHaveLength(0)
+        expect(a.findAll('.tape-bridge')).toHaveLength(0)
+        expect(a.findAll('.tape-hole')).toHaveLength(0)
         expect(a.find('.tape-band').findAll('svg')).toHaveLength(0)
-        expect(a.findAll('.tape-hole')).toHaveLength(2)
+        expect(a.element.children).toHaveLength(1)
         expect(a.find('.tape-band').findAll('span').map(span => span.text())).toEqual(['Side A', 'C-48210 min'])
     })
 
@@ -118,7 +122,7 @@ describe('RewindLink', () => {
     it('keeps the drawing away from screen readers: the link says what it opens', async () => {
         const a = (await link(2025)).find('a')
 
-        for (const part of ['.tape-band', '.tape-window', '.tape-bridge']) {
+        for (const part of ['.tape-band', '.tape-window']) {
             expect(a.find(part).attributes('aria-hidden'), part).toBe('true')
         }
     })
@@ -200,40 +204,26 @@ describe('RewindLink: the strokes', () => {
         }
     })
 
-    it('draws its strokes (bridge outline, reel teeth) at the plate weight, unscaled by their boxes', () => {
+    it('draws its strokes (the reel teeth) at the plate weight, unscaled by their box', () => {
         const strokes = [...RULES.matchAll(/stroke-width:\s*([^;]+);/g)].map(m => m[1])
 
-        expect(strokes).toEqual(['$candy-border-w', '$candy-border-w'])
-        expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(2)
+        expect(strokes).toEqual(['$candy-border-w'])
+        expect([...RULES.matchAll(/vector-effect: non-scaling-stroke;/g)]).toHaveLength(1)
     })
 
-    it('clips the bridge at the inner edge of the shell, so its fill never covers the bottom border', () => {
-        expect(RULES).toMatch(/\.tape-bridge-edge \{[^}]*clip-path: inset\(-4px -4px 0 -4px\);/)
-    })
-
-    it('draws plate edges in the frame colour and the lines on the pastel shell in ink', () => {
+    it('draws plate edges in the frame colour, ink only inside the dark window', () => {
         // Label, band and window take the frame colour like every plate, so
-        // the dark mode does not mix grey frames with ink print. What sits on
-        // the shell is ink at rest (a static pastel, like the hatch's accent
-        // sprite: the frame grey measured 1.5:1 there in the dark mode) and
-        // flips with the shell under the pointer. Ink as a border colour stays
-        // only inside the dark window (the packs' and reels' rings).
+        // the dark mode does not mix grey frames with ink print. Ink as a
+        // border colour stays only inside the dark window (the packs' and
+        // reels' rings), where the frame grey would be the lighter line.
         const ink = [...RULES.matchAll(/^\s*border[a-z-]*:[^;]*\$mem-ink;/gm)]
         expect(ink).toHaveLength(2)
         expect(RULES).not.toMatch(/border[a-z-]*:[^;]*currentColor/)
         expect([...RULES.matchAll(/border[a-z-]*:[^;]*\$mem-frame;/g)]).toHaveLength(2)
-        expect(RULES).toMatch(/--tape-line: var\(--look-tape-line, #\{\$mem-ink\}\);/)
-        expect(RULES).toMatch(/--tape-line: var\(--look-tape-line, var\(--mem-hover-text\)\);/)
-    })
-
-    it('draws no lines on the shell in Boring, at rest or under the pointer', () => {
-        const stream = readFileSync('src/assets/scss/Global/_theme-stream.scss', 'utf8')
-
-        expect(stream).toMatch(/^\s*--look-tape-line: transparent;/m)
     })
 
     it('reaches the Boring look through its tokens, not through the Memphis colours', () => {
-        expect([...RULES.matchAll(/background-color: var\(--look-card-inlay-fill, #\{\$mem-ink\}\);/g)]).toHaveLength(2)
+        expect(RULES).toMatch(/background-color: var\(--look-card-inlay-fill, #\{\$mem-ink\}\);/)
         expect(RULES).toMatch(/background-color: var\(--look-stat-label-fill, #\{\$mem-teal\}\);/)
     })
 

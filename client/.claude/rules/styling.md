@@ -999,13 +999,16 @@ Drei Regeln, alle getestet (`shapeTokens.test.ts`):
   Zwei Fallen, an denen ein richtiger Wert trotzdem dünn gerendert wird: **`transform: scale()`
   skaliert den Rahmen mit** (das kleine Bandpaket bei 0,42 trug 0,8 px; jetzt wächst es über
   seine Breite, animiert per `@property`), und **eine schmale Fläche zwischen zwei Ringen liest
-  sich selbst als Linie** (ein Bandpaket knapp breiter als seine Nabe). Ein Trapez als `border`
-  in `perspective()` verschiebt außerdem seine Kanten (die Oberkante saß ~11 px tiefer, auf den
-  Löchern); gezeichnet wird es als gestreckter SVG-Pfad mit `vector-effect: non-scaling-stroke`.
+  sich selbst als Linie** (ein Bandpaket knapp breiter als seine Nabe). Eine Form als `border`
+  in `perspective()` verschiebt außerdem ihre Kanten (die Oberkante eines Trapezes saß ~11 px
+  tiefer als gedacht); eine gestreckte Form zeichnet man als SVG-Pfad mit
+  `vector-effect: non-scaling-stroke`, dann bleibt der Strich 3 px.
   Und dieselbe Runde endete mit **weniger Teilen**, nicht nur dünneren: Schrauben, Sticker, zwei
-  der drei Streifen und die eckigen Löcher flogen raus („schlichteres Design“). Jedes Teil
+  der drei Streifen und am Ende der ganze Steg unten mit Löchern und Band flogen raus
+  („schlichteres Design“, „nicht dieses Eckige“, „unten das Gedöns kann raus“). Jedes Teil
   bringt eigene Kanten mit, und zwölf richtig starke Kanten auf engem Raum lesen sich trotzdem
-  unruhig. Zensus: `Stats/__tests__/RewindLink.test.ts` („the strokes“, „stays plain“).
+  unruhig. Erkannt wird die Kassette auch so: Gehäuse, Etikett, Fenster mit zwei Spulen. Zensus:
+  `Stats/__tests__/RewindLink.test.ts` („the strokes“, „stays plain“).
 - **Schatten-Versätze: 3 px (Ruhe) und 4 px (gehoben).** Modal und Now-Playing-Panel schweben
   bewusst höher. 2 px war Drift an drei Elementen gegen über tausend; `.shadow-sm` gibt es nicht
   mehr, die Nutzer tragen `.shadow-md`.
