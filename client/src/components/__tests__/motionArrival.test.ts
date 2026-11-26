@@ -293,7 +293,9 @@ describe('Home is laid down as cards', () => {
     it('lets nothing ON the Continue card move on its own', () => {
         // One animation in the whole block, and it is the Up next rows': they
         // need a request of their own and arrive after the card, top-down.
-        const animations = card.match(/animation:|@include (mem-arrival|btn-pop|mem-motif-pop)[^;]*;/g) ?? []
+        // `animation: none` switches a role's pop off (the ✕), it moves nothing.
+        const animations =
+            card.match(/animation:(?!\s*none)|@include (mem-arrival|btn-pop|mem-motif-pop)[^;]*;/g) ?? []
         expect(animations).toEqual(['@include mem-arrival;', '@include mem-arrival($beyond: drop);'])
         expect(card).toMatch(/> li \{\s*@include mem-arrival\(\$beyond: drop\);/)
     })

@@ -77,10 +77,13 @@ onBeforeRouteUpdate(() => {
     justify-content: space-between;
     gap: 1rem;
 
-    // Phones: the lead stands beside the cell, and every pixel it grows
-    // stretches the cell into a letterbox around a square cover.
+    // Phones: the lead stands beside the square cover (AlbumView/main.vue);
+    // every pixel it grows is pastel under the cover. So it is tighter than
+    // the other heads' text: less gap, less margin above and below (the
+    // phone strip in Global/detail-head.scss reads the custom property).
     @include largePhones {
-      gap: $small;
+      gap: $smallest;
+      --dh-strip-text-block: #{$small};
     }
 
     @include shortViewport {
@@ -109,6 +112,18 @@ onBeforeRouteUpdate(() => {
     .stats2 {
       text-align: center;
       margin: 0;
+    }
+
+    // Phones: "Album by …" and the year/tracks/length line wrap to two lines
+    // each. Set flush left like the title above them (centred, the second
+    // line drifted under the first), and a little denser.
+    @include largePhones {
+      margin-top: 0;
+      line-height: 1.25;
+
+      .stats2 {
+        text-align: left;
+      }
     }
 
     .versions {
