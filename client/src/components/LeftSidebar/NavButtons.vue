@@ -269,6 +269,11 @@ const items = computed(() => (isMobile.value ? phoneMenus : menus));
     .nav-item {
       height: $phone-nav-control;
       justify-content: center;
+      // The plates stretch to the bar anyway; the inline padding only sets
+      // their minimum. With $small around the 28px glyph that minimum was
+      // 50px a plate and the page ran 3px wider than a 320px screen
+      // (measured, overflow gate). $smaller: 42px minimum, ~50px rendered.
+      padding-inline: $smaller;
     }
 
     .nav-item span {
