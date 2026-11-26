@@ -13,10 +13,15 @@ import { describe, expect, it } from 'vitest'
 // ---------------------------------------------------------------------------
 
 const require = createRequire(import.meta.url)
-const { untilAnimationsRest } = require('../settle.js') as {
-    untilAnimationsRest: (
+const { untilPageRests } = require('../settle.js') as {
+    untilPageRests: (
         options: { timeout: number; quiet: number },
-        env: { getAnimations: () => FakeAnimation[]; now: () => number; sleep: (ms: number) => Promise<void> },
+        env: {
+            getAnimations: () => FakeAnimation[]
+            now: () => number
+            sleep: (ms: number) => Promise<void>
+            lastMutation: () => number
+        },
     ) => Promise<{ settled: boolean; running: string[] }>
 }
 
@@ -28,11 +33,13 @@ type FakeAnimation = {
 }
 
 /** A clock that only moves when the code under test sleeps. */
-function fakeEnv(animations: (t: number) => FakeAnimation[]) {
+function fakeEnv(animations: (t: number) => FakeAnimation[], mutations: number[] = []) {
     let t = 0
     return {
         env: {
             getAnimations: () => animations(t),
+            // The latest mutation that has happened by now (0 = the page as loaded).
+            lastMutation: () => Math.max(0, ...mutations.filter((m) => m <= t)),
             now: () => t,
             sleep: async (ms: number) => {
                 t += ms
@@ -53,15 +60,31 @@ describe('settle: gates measure the resting page', () => {
     it('waits until a running entrance animation has finished, then a quiet window', async () => {
         // The sticker slap runs until t=1200, then the page is still.
         const { env, elapsed } = fakeEnv((t) => (t < 1200 ? [anim('mem-sticker-slap', 600)] : []))
-        const rest = await untilAnimationsRest({ timeout: 15000, quiet: 500 }, env)
+        const rest = await untilPageRests({ timeout: 15000, quiet: 500 }, env)
         expect(rest).toEqual({ settled: true, running: [] })
         // Not before the animation ended, and not before the quiet window passed.
         expect(elapsed()).toBeGreaterThanOrEqual(1200 + 500)
     })
 
+    it('a section mounting late restarts the quiet window (the 2026-11-25 deploys)', async () => {
+        // Nothing animates at first — an animation-only check would measure here.
+        // At t=900 the Favorites sections mount and their stickers slap until t=1500.
+        const { env, elapsed } = fakeEnv((t) => (t >= 900 && t < 1500 ? [anim('mem-sticker-slap', 600)] : []), [900])
+        const rest = await untilPageRests({ timeout: 15000, quiet: 700 }, env)
+        expect(rest.settled).toBe(true)
+        expect(elapsed()).toBeGreaterThanOrEqual(1500 + 700)
+    })
+
+    it('a page whose DOM keeps changing is reported, not passed', async () => {
+        const ticks = Array.from({ length: 100 }, (_, i) => i * 300)
+        const { env } = fakeEnv(() => [], ticks)
+        const rest = await untilPageRests({ timeout: 2000, quiet: 700 }, env)
+        expect(rest).toEqual({ settled: false, running: ['DOM still changing'] })
+    })
+
     it('ignores infinite animations (marquee, season particles) — they never end', async () => {
         const { env, elapsed } = fakeEnv(() => [anim('marquee', Infinity)])
-        const rest = await untilAnimationsRest({ timeout: 15000, quiet: 500 }, env)
+        const rest = await untilPageRests({ timeout: 15000, quiet: 500 }, env)
         expect(rest.settled).toBe(true)
         expect(elapsed()).toBeLessThan(1000)
     })
@@ -72,13 +95,13 @@ describe('settle: gates measure the resting page', () => {
             { ...anim('btn-pop', 300, 'paused'), pending: t < pendingUntil },
             anim('done', 300, 'finished'),
         ])
-        await untilAnimationsRest({ timeout: 15000, quiet: 500 }, env)
+        await untilPageRests({ timeout: 15000, quiet: 500 }, env)
         expect(elapsed()).toBeGreaterThanOrEqual(pendingUntil + 500)
     })
 
     it('gives up at the timeout and names what is still moving', async () => {
         const { env } = fakeEnv(() => [anim('mem-sticker-slap', 600), anim('mem-sticker-slap', 600), anim('btn-pop', 300)])
-        const rest = await untilAnimationsRest({ timeout: 2000, quiet: 500 }, env)
+        const rest = await untilPageRests({ timeout: 2000, quiet: 500 }, env)
         expect(rest).toEqual({ settled: false, running: ['mem-sticker-slap', 'btn-pop'] })
     })
 })

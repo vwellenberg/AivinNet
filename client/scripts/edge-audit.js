@@ -78,7 +78,7 @@ const DEFAULT_ROUTES = [
     // server (scaled and turned, 6–24 px off the edge): wait for rest.
     const rest = await settle(page);
     if (!rest.settled) {
-      console.log(`WARN ${route} did not come to rest (${rest.running.join(", ")}) — finished those animations, then measured`);
+      console.log(`WARN ${route} did not come to rest (${rest.running.join(", ")}) — finished the animations left and waited again, then measured`);
     }
 
     const captions = await page.evaluate(() => {

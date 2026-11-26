@@ -3,33 +3,56 @@
 // The post-deploy gates (edge-audit.js, overflow-check.js) used to measure
 // after a FIXED pause. That only works while the server is idle. A deploy
 // runs right after a backend restart, often while other jobs load the same
-// machine, and then the entrance animations start late: the section stickers
-// "slap" in (`mem-sticker-slap`, scaled 1.2 and turned), and at the fixed
-// 3.2 s mark the edge audit measured that tilted, oversized box. Its left
-// edge sat 6–24 px left of the block it labels — more for a longer caption,
-// the signature of a rotation, not of padding. Five deploys in a row failed
-// on captions that measure flush at rest (2026-11-25: Favorites, Stats,
-// Playlists, Search), and each run named different pages, because which
-// sticker was still in flight depended on the load at that moment.
+// machine, and then the page renders late: the section stickers "slap" in
+// (`mem-sticker-slap`, first keyframe translateY(-16px) rotate(-11deg)
+// scale(1.22)) only once their section arrives, and the edge audit measured
+// that first keyframe — a box 6–24 px left of the block it labels, more for a
+// longer caption, the signature of a rotation and not of padding. Five
+// deploys in a row failed on captions that measure flush at rest (2026-11-25:
+// Favorites, Stats, Playlists, Search), each run naming different pages,
+// because what was still arriving depended on the load at that moment.
 //
-// So a gate measures the RESTING page: after its pause it waits here until no
-// finite animation or transition is running (or about to), and has stayed so
-// for a short quiet window. Infinite animations (the marquee, the season
-// particles) never end and are not what moves a layout into place, so they
-// are ignored. A page that will not settle in time has its remaining finite
-// animations finished (see `settle` below), and the caller says so — a gate
-// that silently skips is how this class of bug ships.
+// "At rest" therefore means BOTH, for a quiet window:
+//   - no finite animation or transition running or about to start, and
+//   - no node added or removed anywhere in the document.
+// The second matters as much as the first: under load the section mounts
+// AFTER an animation-only check has already seen a still page, and its
+// sticker then starts from keyframe 0 right before the measurement.
+// Infinite animations (the marquee, the season particles) never end and do
+// not move a layout into place, so they are ignored.
 //
-// `untilAnimationsRest` runs INSIDE the page (Playwright serialises it), so it
-// may only use its own arguments. The second argument exists for the unit
-// test (scripts/__tests__/settle.test.ts); in the page it is undefined.
+// If the page does not rest in time, the finite animations still in flight
+// are FINISHED and the wait runs again — finishing the page's own entrance
+// can mount content, which starts new arrivals. A throttled renderer can also
+// hold an animation at currentTime 0 for good (docs/verification.md, "Fallen
+// beim Messen": btn-pop made every plated button 8 px narrow), and waiting
+// longer would not help there. The caller prints a WARN line either way — a
+// gate that quietly measures something else is how this class of bug ships.
+//
+// `untilPageRests` runs INSIDE the page (Playwright serialises it), so it may
+// only use its own arguments. The second argument exists for the unit test
+// (scripts/__tests__/settle.test.ts); in the page it is undefined.
 
-async function untilAnimationsRest(options, env) {
+async function untilPageRests(options, env) {
   const timeout = options.timeout;
   const quiet = options.quiet;
-  const getAnimations = env ? env.getAnimations : () => document.getAnimations();
   const now = env ? env.now : () => performance.now();
   const sleep = env ? env.sleep : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const getAnimations = env ? env.getAnimations : () => document.getAnimations();
+
+  // Last time a node was added or removed. childList only: an attribute or a
+  // text node that ticks (a clock, a progress bar) is not content arriving.
+  let lastMutation = now();
+  let observer = null;
+  if (env) {
+    lastMutation = env.lastMutation();
+  } else {
+    observer = new MutationObserver(() => {
+      lastMutation = now();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+  const mutatedAt = () => (env ? env.lastMutation() : lastMutation);
 
   const busyNow = () =>
     getAnimations().filter((animation) => {
@@ -38,45 +61,54 @@ async function untilAnimationsRest(options, env) {
       return finite && (animation.playState === "running" || animation.pending === true);
     });
 
-  const deadline = now() + timeout;
-  let quietSince = null;
-  for (;;) {
-    const busy = busyNow();
-    if (busy.length === 0) {
-      if (quietSince === null) quietSince = now();
-      if (now() - quietSince >= quiet) return { settled: true, running: [] };
-    } else {
-      quietSince = null;
-    }
-    if (now() >= deadline) {
-      if (busy.length === 0) return { settled: true, running: [] };
-      const names = busy.map(
-        (animation) => animation.animationName || animation.transitionProperty || animation.id || "animation"
-      );
-      return { settled: false, running: [...new Set(names)] };
-    }
-    await sleep(50);
-  }
-}
-
-// Node side: the gates call this right before they measure a route.
-//
-// If the page does not come to rest in time, the finite animations still in
-// flight are FINISHED, so the gate measures their end state rather than a
-// frame of them. A throttled renderer can leave an animation "running" at
-// currentTime 0 for good (docs/verification.md, "Fallen beim Messen": btn-pop
-// made every plated button 8 px narrow) — waiting longer would not help there.
-async function settle(page, { timeout = 15000, quiet = 500 } = {}) {
-  const rest = await page.evaluate(untilAnimationsRest, { timeout, quiet });
-  if (!rest.settled) {
-    await page.evaluate(() => {
-      for (const animation of document.getAnimations()) {
-        const timing = animation.effect && animation.effect.getComputedTiming();
-        if (timing && Number.isFinite(timing.endTime)) animation.finish();
+  try {
+    const deadline = now() + timeout;
+    let quietSince = null;
+    for (;;) {
+      const busy = busyNow();
+      const t = now();
+      if (busy.length === 0) {
+        // Quiet runs from whichever came last: the end of the animations or the last mutation.
+        if (quietSince === null) quietSince = t;
+        const since = Math.max(quietSince, mutatedAt());
+        if (t - since >= quiet) return { settled: true, running: [] };
+      } else {
+        quietSince = null;
       }
-    });
+      if (t >= deadline) {
+        const names = busy.map(
+          (animation) => animation.animationName || animation.transitionProperty || animation.id || "animation"
+        );
+        return { settled: false, running: names.length ? [...new Set(names)] : ["DOM still changing"] };
+      }
+      await sleep(50);
+    }
+  } finally {
+    if (observer) observer.disconnect();
   }
-  return rest;
 }
 
-module.exports = { settle, untilAnimationsRest };
+function finishFiniteAnimations() {
+  for (const animation of document.getAnimations()) {
+    const timing = animation.effect && animation.effect.getComputedTiming();
+    if (timing && Number.isFinite(timing.endTime)) animation.finish();
+  }
+}
+
+// Node side: the gates call this right before they measure a route. Returns
+// the FIRST wait's verdict (what the WARN line reports); `forced` says the
+// remaining animations had to be finished, possibly more than once.
+async function settle(page, { timeout = 15000, quiet = 700, retries = 2 } = {}) {
+  const first = await page.evaluate(untilPageRests, { timeout, quiet });
+  let rest = first;
+  let forced = false;
+  for (let attempt = 0; !rest.settled && attempt < retries; attempt++) {
+    forced = true;
+    await page.evaluate(finishFiniteAnimations);
+    rest = await page.evaluate(untilPageRests, { timeout: 5000, quiet });
+  }
+  if (!rest.settled) await page.evaluate(finishFiniteAnimations);
+  return { settled: first.settled, running: first.running, forced };
+}
+
+module.exports = { settle, untilPageRests };

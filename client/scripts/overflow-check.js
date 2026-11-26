@@ -60,7 +60,7 @@ const { settle } = require("./settle");
       await page.waitForTimeout(2500);
       const rest = await settle(page);
       if (!rest.settled) {
-        console.log(`WARN w=${width} route=${route} did not come to rest (${rest.running.join(", ")}) — finished those animations, then measured`);
+        console.log(`WARN w=${width} route=${route} did not come to rest (${rest.running.join(", ")}) — finished the animations left and waited again, then measured`);
       }
       const m = await page.evaluate((PAGE_BOXES) => {
         const doc = document.documentElement;
