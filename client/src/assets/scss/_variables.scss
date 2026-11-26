@@ -238,10 +238,10 @@ $settings-modal-h: 48rem;
 // pages, which is how the last track of a playlist ended up under the bar.
 $bottombarheight: 5.125rem;
 // The phone bar is taller: it carries the navigation as well as the transport.
-// 9.5rem until the navigation became one segmented plate of 56px segments
-// (2026-11-25): measured 167 -> 175px, the reserve follows the bar (+0.5rem).
-$bottombarheight-phone: 10rem;
-// The phone navigation: one segmented plate (NavButtons.vue). 56px is
+// 9.5rem until the navigation plates grew from 44 to 56px (2026-11-25):
+// measured 167 -> 179px, the reserve follows the bar (+0.75rem).
+$bottombarheight-phone: 10.25rem;
+// The phone navigation plates (NavButtons.vue). 56px is
 // Google's bottom-navigation target height, 12px over the chrome's 44px floor
 // — the most-used control on the phone gets the bigger target. The glyph
 // grows with it (28px = 2.8px stroke on the 24-unit grid).
