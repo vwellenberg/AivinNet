@@ -67,12 +67,15 @@ describe('settle: gates measure the resting page', () => {
     })
 
     it('a section mounting late restarts the quiet window (the 2026-11-25 deploys)', async () => {
-        // Nothing animates at first — an animation-only check would measure here.
-        // At t=900 the Favorites sections mount and their stickers slap until t=1500.
-        const { env, elapsed } = fakeEnv((t) => (t >= 900 && t < 1500 ? [anim('mem-sticker-slap', 600)] : []), [900])
+        // The Favorites sections mount at t=600, but on a starved renderer their
+        // stickers' slap only shows up at t=1000 (and runs to 1600). An
+        // animation-only wait saw 700 ms of stillness at t=700 and measured
+        // keyframe 0; the inserted nodes keep the window open until the slap
+        // is visible, so it is waited out.
+        const { env, elapsed } = fakeEnv((t) => (t >= 1000 && t < 1600 ? [anim('mem-sticker-slap', 600)] : []), [600])
         const rest = await untilPageRests({ timeout: 15000, quiet: 700 }, env)
         expect(rest.settled).toBe(true)
-        expect(elapsed()).toBeGreaterThanOrEqual(1500 + 700)
+        expect(elapsed()).toBeGreaterThanOrEqual(1600 + 700)
     })
 
     it('a page whose DOM keeps changing is reported, not passed', async () => {
