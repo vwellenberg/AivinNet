@@ -352,6 +352,8 @@ Freunde installieren per **AppImage** (`install.sh` im Repo-Root), gebaut vom Wo
 (`.github/workflows/build.yml`, `workflow_dispatch`). Vorher `.github/changelog.md` anpassen —
 das ist der Release-Body; dazu die README-Beschreibung
 („What it does“, Hero-Alt-Text) auf den Stand bringen, siehe `.claude/rules/packaging-release.md`.
+Der Ablauf steht als Skill `release` (`.claude/skills/release/SKILL.md`), die Abnahme macht
+`bash scripts/release.sh verify <tag>`.
 
 ⚠️ Dort lauern mehrere Fallen, die schon zugeschlagen haben — zuletzt der AppDir-Name, an dem
 beide AppImage-Jobs des ersten Release-Versuchs starben. Details:

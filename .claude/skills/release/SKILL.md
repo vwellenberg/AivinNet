@@ -45,11 +45,10 @@ Ablauf für einen Release, der auf GitHub erscheinen soll. Die Fallen stehen in
      Das baut auch Docker aus demselben Commit neu. Danach erneut verify. Klappt es tagsüber nicht,
      einen Versuch kurz nach Mitternacht (Europe/Berlin) planen; dann sind die macOS-Runner meist frei.
    - Exit 1: echter Fehler. Ursache in den Job-Logs suchen, nichts schönreden.
+   - Endet der Lauf als `startup_failure` (ohne Jobs, ein GitHub-Problem), hilft kein Rerun:
+     den Workflow einfach noch einmal starten (so bei v2026.11.8).
 8. **Aufräumen.** Ältere Releases entfernt der Workflow selbst, die Tags bleiben. Worktree und
    Branch entfernen.
 9. **Melden.** Dem User kurz Version, Inhalt und das verify-Ergebnis nennen.
 
-## Hinweise
-
-- `verify` braucht nur curl, python3 und sha256sum, kein gh.
-- Ein Tag, den es nicht gibt, ergibt FEHLT und Exit 1. Deshalb die Version vor dem Aufruf prüfen.
+`verify` braucht nur curl, python3 und sha256sum, kein gh, und läuft auch ohne Claude.
