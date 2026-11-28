@@ -101,6 +101,14 @@ Zweite Kleinigkeit, die dort Zeit gespart hat: Ein Helfer, der ein Element **üb
 sucht, muss im Fehlerfall ausgeben, was tatsächlich dastand — sonst sagt der Fehlschlag nur
 „expected 0 to be 1" und man rät.
 
+## ⚠️ `isVisible()` braucht eine eingehängte Komponente
+
+Seit jsdom 31 hat ein Element **außerhalb des Dokuments** wie im Browser keinen Computed Style
+(`display` ist `''`). `isVisible()` liest genau den, ein per `v-show` verstecktes Element meldet
+sich bei einem losen `mount()` also als **sichtbar**: `toBe(false)` wird rot, und `toBe(true)`
+besteht auch dann, wenn das Element versteckt ist. Also `mount(X, { attachTo: document.body })`
+plus `enableAutoUnmount(afterEach)`. Vorbild: `components/BottomBar/__tests__/Volume.test.ts`.
+
 ## Realistische Fixtures
 
 Backend-Formate nachbilden, nicht schönen: `image`-Strings mit `?pathhash=`-Suffix,
