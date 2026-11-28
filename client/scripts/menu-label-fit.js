@@ -69,6 +69,10 @@ const TARGETS = [
     let opened = 0;
 
     for (const target of TARGETS) {
+        // A fresh document per target. A hash-only goto keeps the previous view
+        // on screen until the next route's data arrives, and onScreen would pick
+        // a card there that is gone a moment later.
+        await page.goto("about:blank");
         await page.goto(BASE + "/#" + target.route, { waitUntil: "networkidle", timeout: 45000 });
 
         try {

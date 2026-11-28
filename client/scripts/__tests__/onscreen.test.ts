@@ -102,6 +102,12 @@ describe('menu-label-fit.js', () => {
         expect(gate.match(/await onScreen\(page, target\.(enter|open)\)/g)).toHaveLength(2)
     })
 
+    it('loads every target in a fresh document, so onScreen cannot pick from the previous view', () => {
+        // A hash-only goto left the playlist page up while /favorites loaded: the
+        // picked track row vanished and the click timed out (API delayed 1.5 s).
+        expect(gate).toMatch(/for \(const target of TARGETS\) \{[\s\S]*?goto\("about:blank"\);\s*await page\.goto\(BASE \+ "\/#" \+ target\.route/)
+    })
+
     it('does not exit 0 when a menu could not be opened', () => {
         expect(gate).toMatch(/if \(opened < TARGETS\.length\) \{[\s\S]*?process\.exit\(2\)/)
     })

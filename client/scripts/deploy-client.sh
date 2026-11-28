@@ -156,7 +156,7 @@ PY
                 ;;
             # Not a red deploy (the harness, not the app, failed), but never an
             # OK either: until 2026-11-26 a run that opened 6 of 8 menus printed OK.
-            *) echo "MENU_LABEL_FIT_INCOMPLETE (a menu could not be opened — see the HARNESS lines above)" ;;
+            *) echo "MENU_LABEL_FIT_INCOMPLETE (not every menu was measured — see the HARNESS lines above)" ;;
         esac
 
         if [[ "$gate_failed" -ne 0 ]]; then
