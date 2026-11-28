@@ -73,6 +73,55 @@ Silicon).
 
 ## What's new in this release
 
+Quicker to play, plays that always count, and a tidier phone, on top of
+2026.11.11.
+
+**Playing**
+
+- **Quick play: Ctrl/Cmd+P** anywhere opens a small box. Type part of a song
+  title and Enter plays it; Shift+Enter queues it next.
+- **Press `?` for every keyboard shortcut**, also under Settings → Shortcuts,
+  and the keys show in the tooltips.
+- **Rate the playing song from the player bar:** right-click or long-press the
+  heart.
+- **Every play counts.** A song is in your history once it played 5 seconds
+  (a very short one once it ran to the end), even if you pause and close the
+  page or skip on.
+- **Old plays find their songs again.** Plays left behind by renamed tags
+  follow their file, so Almost complete, Never played and Stats see them.
+
+**Home**
+
+- **Your mixes change from day to day**, still leaning towards the songs you
+  play most.
+- **Every Home row has a little symbol** next to its title, and a title that
+  does not fit scrolls.
+- **Almost complete** keeps up while you listen: a card counts down as one of
+  its missing songs starts, from anywhere, and plays exactly those songs.
+- **Continue listening** shows artist, year and time left on the desktop, and
+  sits as a slim bar on the phone.
+- Browse Library shows your most-played albums when the newest have no covers.
+
+**Phone**
+
+- **The search field comes up with the keyboard**, and the page title in the
+  top bar opens search in every view.
+- **Album, artist and playlist pages** keep their buttons in a strip under the
+  head, and the album cover stays square.
+- **Stats** moved into the account menu.
+
+**Lists and Stats**
+
+- **Playlists, Albums and Artists sort from one menu**; Playlists also sort
+  by plays, length and last played, and have a search field.
+- **The way to Rewind on Stats is a cassette** with your year's numbers, and
+  the Rewind page is laid out in clear bands. Records tiles line up.
+- Toasts go away on a tap or a sideways swipe, and a focused row never hides
+  behind the player bar.
+
+<details>
+<summary>What v2026.11.11 brought</summary>
+
 A better player on phones, on top of 2026.11.10.
 
 - **The song title is readable on phones.** The bar at the bottom gives title
@@ -85,6 +134,8 @@ A better player on phones, on top of 2026.11.10.
 - **Search on phones:** a tap anywhere on the search bar opens the keyboard,
   the idle page no longer moves sideways, and the "in your library" tiles
   fade at the edge and get arrows like the ones in Stats.
+
+</details>
 
 <details>
 <summary>What v2026.11.10 brought</summary>
