@@ -52,6 +52,8 @@ covers, synthetic audio. `scripts/demo/` rebuilds it and takes the pictures.</su
   discography by type and collect guest appearances. A folder browser walks the
   tree as it is on disk, for when the tags are not the truth.
 - Search over tracks, albums and artists, and an A–Z band for browsing.
+  **Quick play** (Ctrl/Cmd+P) starts a song by typing part of its title, and
+  `?` lists every keyboard shortcut.
 - Fix tags in the app, give an album a cover (upload, search online, or write it
   into the files), and give an artist a picture.
 - New music arrives with **Scan for new music** in the profile menu; AivinNet
@@ -71,8 +73,9 @@ covers, synthetic audio. `scripts/demo/` rebuilds it and takes the pictures.</su
   clicks on the logo hand you a find from your own library.
 
 **Ratings**
-- Rate tracks from 1 to 5 stars: in Now Playing, from a song's menu, or by
-  tapping the star in a song list. Each person rates for themselves.
+- Rate tracks from 1 to 5 stars: in Now Playing, from a song's menu, by
+  tapping the star in a song list, or with a long-press on the heart in the
+  player bar. Each person rates for themselves.
 - Your 4- and 5-star songs feed *Your top rated*. Mixes and stations play the
   songs you rated high more often, and never pick the ones you rated 1.
 - A smart playlist rule, *My rating*, fills itself from your stars.
