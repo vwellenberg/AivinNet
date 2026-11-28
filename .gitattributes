@@ -10,3 +10,7 @@
 *.png binary
 *.ico binary
 *.webp binary
+
+# cmd.exe needs CRLF in batch files, and the Gradle wrapper ships them that way.
+# Stored and checked out byte for byte, so a wrapper bump stays a clean tree.
+*.bat -text
