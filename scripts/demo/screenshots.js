@@ -44,18 +44,20 @@ async function open(browser, { phone = false, dark = false, date = PLAIN_DATE } 
     const login = await context.request.post(`${BASE}/auth/login`, { data: { username: 'admin', password: PASSWORD } })
     if (!login.ok()) throw new Error(`login failed: ${login.status()}`)
     // AivinNet FM is off until switched on (Settings → Home, per device); the shots show it,
-    // open on the desktop and folded to its strip on the phone. The settings store is
-    // persisted under "settings" and hydrated by $patch, so these two keys are enough.
-    await context.addInitScript((open) => {
+    // open on the desktop and folded to its strip on the phone. The app keeps its own
+    // light/dark setting (the browser's colour scheme does not reach it), and the phone has
+    // no theme button in its top bar any more, so the theme is set here too. The settings
+    // store is persisted under "settings" and hydrated by $patch, so these keys are enough.
+    await context.addInitScript(({ open, theme }) => {
         try {
             const stored = JSON.parse(localStorage.getItem('settings') || '{}')
             if (stored.show_radio === undefined) {
-                localStorage.setItem('settings', JSON.stringify({ ...stored, show_radio: true, radio_open: open }))
+                localStorage.setItem('settings', JSON.stringify({ ...stored, show_radio: true, radio_open: open, theme }))
             }
         } catch {
-            // no storage: the shots go without the radio
+            // no storage: the shots go without the radio, in light
         }
-    }, !phone)
+    }, { open: !phone, theme: dark ? 'dark' : 'light' })
     const page = await context.newPage()
     await page.clock.setFixedTime(new Date(date))
     return { context, page }
@@ -76,17 +78,12 @@ async function snap(page, name) {
 }
 
 // Start the album from its header, let it play a moment, pause: the bar shows a track.
-async function loadTrack(page, ids, dark) {
+async function loadTrack(page, ids) {
     await go(page, `/albums/${ids.album}`)
     await page.locator('.header-actions button').first().click()
     await page.waitForTimeout(2500)
     await page.keyboard.press('Space')
     await page.waitForTimeout(500)
-    // The app keeps its own light/dark setting; the browser's colour scheme does not reach it.
-    if (dark) {
-        await page.locator('.theme-toggle').first().click()
-        await page.waitForTimeout(400)
-    }
 }
 
 ;(async () => {
@@ -95,7 +92,7 @@ async function loadTrack(page, ids, dark) {
     {
         const { context, page } = await open(browser)
         ids = await lookup(context.request)
-        await loadTrack(page, ids, false)
+        await loadTrack(page, ids)
         await go(page, '/'); await snap(page, 'home')
         await go(page, `/albums/${ids.album}`); await snap(page, 'album')
         await go(page, `/playlist/${ids.playlist}`); await snap(page, 'playlist')
@@ -109,14 +106,14 @@ async function loadTrack(page, ids, dark) {
     }
     {
         const { context, page } = await open(browser, { dark: true })
-        await loadTrack(page, ids, true)
+        await loadTrack(page, ids)
         await go(page, '/'); await snap(page, 'home-dark')
         await go(page, `/albums/${ids.album}`); await snap(page, 'album-dark')
         await context.close()
     }
     for (const dark of [false, true]) {
         const { context, page } = await open(browser, { phone: true, dark })
-        await loadTrack(page, ids, dark)
+        await loadTrack(page, ids)
         const sfx = dark ? '-dark' : ''
         await go(page, '/'); await snap(page, `phone-home${sfx}`)
         if (!dark) {
@@ -127,7 +124,7 @@ async function loadTrack(page, ids, dark) {
     }
     {
         const { context, page } = await open(browser, { date: CHRISTMAS_DATE })
-        await loadTrack(page, ids, false)
+        await loadTrack(page, ids)
         await go(page, '/', 4000); await snap(page, 'christmas')
         await context.close()
     }
