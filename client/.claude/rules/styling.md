@@ -891,6 +891,40 @@ verschiebt — man misst dann eine Zeile, die gar nicht die letzte ist. Und eine
 beweist nichts ohne Gegenprobe: den alten Wert im laufenden Browser zurücksetzen und zeigen, dass
 er verdeckt wird (gemessen: 836 gegen Bar-Oberkante 818, mit Fix 754).
 
+### ⚠️ Der Fokus kennt kein `padding` — nur `scroll-padding`
+
+Die Reserve als `padding-bottom` sorgt dafür, dass die letzte Zeile über die Bar scrollen
+**kann**. Wohin der Browser scrollt, wenn per Tab ein Element den Fokus bekommt (oder jemand
+`scrollIntoView` ruft), entscheidet sie nicht: Er scrollt nur, bis das Element die Unterkante
+des Scrollers berührt, und dort liegt die Bar. Gemessen: Der Rewind-Link auf `/stats` parkte
+82 px unter der Bar (1440×900), 179 px am Handy, also die ganze Brücke der Kassette.
+Deshalb setzt `player-bar-reserve` pro Breakpoint auch `scroll-padding-bottom`, und zwar aus
+**demselben** Token plus `$bar-focus-clearance` (8 px: Fokusring 4 px außerhalb, harter Schatten
+3 px), aber **ohne** `$extra`: `scroll-padding` beschreibt, was verdeckt ist. Mit dem Atemraum
+läge jedes `block: center` (Lyrics, Bearbeiten-Liste) zu hoch. Zensus:
+`scrollPaddingReserve.test.ts`.
+
+Drei Dinge, die daran hängen:
+
+- **Wer `padding-bottom` am Wirt überschreibt, hebelt beides aus.** `scroll-padding` kann nicht
+  über das Scroll-Ende hinaus. `#p-view` (Playlists) setzte 2rem per ID-Selektor gegen die
+  Klassen-Reserve, `#lyricscontent` 4rem: die letzten Karten bzw. Zeilen blieben unter der Bar
+  (Lyrics am Handy: 92 px). Ein `.content-page`-Wirt setzt nur die Seiten.
+- **Die Handy-Bar-Zeile ist `auto`, das Token also eine Messung.** `$bottombarheight-phone` stand
+  bei 164 px, die Bar misst 179 px (jede Breite 320–900, mit und ohne laufenden Titel): Die
+  letzte Erhöhung war der Navigation gefolgt (+12 px), aber das Token lag schon vorher 15 px
+  daneben. Ändert sich der Inhalt der Bar, neu messen: `innerHeight - .b-bar.top`.
+- **In einer Songzeile fokussiert Tab einen Link IN der Zeile**, und der Browser holt nur ihn
+  frei: Der Interpretenlink endet 17 px über dem Zeilenfuß, die Zeile lag 10 px unter der Bar.
+  Links und Buttons der Zeile tragen deshalb `scroll-margin-block` von einer halben Zeilenhöhe
+  (`SongItem.vue`).
+
+Beim Nachmessen per Tab: Eine lange Playlist erst ganz laden (bis zum Ende scrollen, zurück).
+Kommt die nächste Seite **während** des Tabbens, recycelt der Scroller die fokussierte Zeile und
+der Fokus fällt auf `<body>`, ein eigener, älterer Fehler. Und eine Karte, die höher ist als der
+sichtbare Streifen (Playlists quer: 364 px gegen 259 px), richtet der Browser oben aus; dort
+hilft kein `scroll-padding`.
+
 ### ⚠️ Wer den Einzug besitzt, entscheidet, WO abgeschnitten wird (#473)
 
 Ein Scroll-Container clippt an seiner **Padding-Box**. Ein Panel, das seinen Einzug als eigenes

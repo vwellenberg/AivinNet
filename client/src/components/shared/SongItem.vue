@@ -370,6 +370,18 @@ const isFavoritesPage = route.path.startsWith('/favorites')
     .index {
         overflow: unset !important;
     }
+
+    // Keyboard focus lands on a link or button INSIDE the row (artist, album,
+    // options), and focus scrolling only clears that element. The artist link
+    // ends 17px above the row's foot, so with the scroller's scroll-padding the
+    // link stood above the player bar while the row's last 10px stayed under it
+    // (measured at 1440x900 and 390x844). Half a row of scroll margin lets any
+    // target in the row carry the row's edge with it: the row then clears the
+    // bar by 26px. See `player-bar-reserve` for the scroll-padding half.
+    a,
+    button {
+        scroll-margin-block: calc($song-item-height / 2);
+    }
 }
 
 .songlist-item.current {

@@ -199,17 +199,27 @@
 // 12px gutter puts the two on different left edges — measured). Writing the
 // three lines out at the second call site is what left this page 18px short in
 // the first place, so they live here.
+//
+// Focus scrolling and `scrollIntoView` ignore padding and only respect
+// `scroll-padding`. Without it a tabbed-to element stops where it touches the
+// scroller's bottom edge — under the bar. So each block sets scroll-padding to
+// the bar (what is COVERED) plus $bar-focus-clearance. It is deliberately NOT
+// `$extra`: `$extra` is where the list ends, and adding it would push every
+// `block: center` target (lyrics, the playlist edit list) off the visible centre.
 // ---------------------------------------------------------------------------
 @mixin player-bar-reserve($extra: $padbottom) {
   padding-bottom: calc($extra + $bottombarheight);
+  scroll-padding-bottom: calc($bottombarheight + $bar-focus-clearance);
 
   @include allPhones {
     padding-bottom: calc($extra + $bottombarheight-phone);
+    scroll-padding-bottom: calc($bottombarheight-phone + $bar-focus-clearance);
   }
 
   // The reserve follows the bar: a landscape phone gets its 92px back in the
   // one viewport where height is scarce.
   @include shortViewport {
     padding-bottom: calc($extra + $bottombarheight-short);
+    scroll-padding-bottom: calc($bottombarheight-short + $bar-focus-clearance);
   }
 }

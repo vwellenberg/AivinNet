@@ -155,6 +155,8 @@ $app-grid-gap: 8px;
 
         .p-edit-scroller {
             padding-bottom: calc(#{$padbottom} + env(safe-area-inset-bottom, 0px));
+            // No bar here, so nothing to clear but the home indicator.
+            scroll-padding-bottom: env(safe-area-inset-bottom, 0px);
         }
     }
 }

@@ -153,7 +153,11 @@ onMounted(() => {
 }
 
 #lyricscontent {
-  padding: 0 2rem 4rem;
+  // The sides only — the bottom is `.content-page`'s bar reserve (the element
+  // carries that class); 4rem left the last line 92px under the 179px phone bar
+  // at full scroll (measured at 390x844).
+  padding-left: 2rem;
+  padding-right: 2rem;
   height: 100%;
   overflow: hidden scroll;
   scroll-margin-top: 15rem;
@@ -161,7 +165,8 @@ onMounted(() => {
   @include hideScrollbars;
 
   @include allPhones {
-    padding: 0 1rem 4rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   // ---------------------------------------------------------------------
