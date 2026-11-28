@@ -144,9 +144,13 @@ watch(
         font-variant-numeric: tabular-nums;
     }
 
+    // Framed like every other meter on Stats: the ink ring carries the
+    // contrast, the fill the identity.
     .skip-meter,
     .skip-bar {
-        border-radius: 999px;
+        height: 0.65rem;
+        border: $mem-ring-w solid $mem-line;
+        border-radius: $candy-radius-pill;
         background-color: rgba(127, 127, 127, 0.25);
         overflow: hidden;
 
@@ -158,9 +162,6 @@ watch(
     }
 
     .skip-meter {
-        height: 0.6rem;
-        border: $candy-border;
-
         span {
             background-color: var(--look-stat-bar, #{$mem-coral});
         }
@@ -270,7 +271,6 @@ watch(
     }
 
     .skip-bar {
-        height: 0.3rem;
         margin-top: 0.25rem;
 
         span {
