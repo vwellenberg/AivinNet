@@ -30,6 +30,7 @@ Wächter: `tests/test_context_index.py`. Jede Datei unter `.claude/rules/`, `cli
 - **`.claude/rules/packaging-release.md`** (`install.sh`, `appimage/**`, Workflows, `Dockerfile`,
   `settings.py`): AppImage- und Docker-Fallen, Datenordner hängt vom Installationsweg ab,
   Docker bündelt den Client, Release per `scripts/release.sh`, vor `rc` das Delta reviewen.
+  Ablauf als Skill: `.claude/skills/release/SKILL.md`, Abnahme `scripts/release.sh verify <tag>`.
 - **`.claude/rules/playlist-writes.md`** (Playlist-/Favoriten-API und -Lib): Nie „ganze
   Liste ersetzen", nie Client-Indizes vertrauen, anker- oder positions-explizit. `added_at` ist
   eine Parallel-Map mit Trackhash-Keys.
