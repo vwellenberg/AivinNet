@@ -16,7 +16,7 @@
 // truncated label measures as though it fit.
 //
 // Env: TOKEN (required, JWT cookie value) · BASE (default http://localhost:1970)
-// Exit: 0 clean · 1 a label is cut · 2 harness error (nothing measured)
+// Exit: 0 clean · 1 a label is cut · 2 harness error (a menu could not be opened)
 let chromium;
 try {
     ({ chromium } = require("playwright"));
@@ -24,6 +24,8 @@ try {
     console.error(`HARNESS: playwright is not resolvable (${error.message}) — set NODE_PATH`);
     process.exit(2);
 }
+// Click a card that is on screen, not the first one in the DOM (onscreen.js says why).
+const { onScreen } = require("./onscreen");
 
 /**
  * Every context menu the app has, and how to open it.
@@ -67,17 +69,22 @@ const TARGETS = [
     let opened = 0;
 
     for (const target of TARGETS) {
+        // A fresh document per target. A hash-only goto keeps the previous view
+        // on screen until the next route's data arrives, and onScreen would pick
+        // a card there that is gone a moment later.
+        await page.goto("about:blank");
         await page.goto(BASE + "/#" + target.route, { waitUntil: "networkidle", timeout: 45000 });
 
         try {
             if (target.enter) {
-                // Lists render through a virtual scroller, so the first card is
-                // not there when the network goes quiet.
-                await page.locator(target.enter).first().click({ timeout: 15000 });
+                // Lists render through a virtual scroller: the first card is
+                // not there when the network goes quiet, and the first one in
+                // the DOM may be a pooled view parked off the page.
+                await (await onScreen(page, target.enter)).click({ timeout: 15000 });
                 await page.waitForTimeout(2500);
             }
 
-            await page.locator(target.open).first().click({
+            await (await onScreen(page, target.open)).click({
                 button: target.contextmenu ? "right" : "left",
                 timeout: 15000,
             });
@@ -142,11 +149,19 @@ const TARGETS = [
 
     console.log(`\n${measured} label(s) measured across ${opened} of ${TARGETS.length} menu(s)`);
 
+    // A cut label outranks everything: it is a finding, whatever else failed.
+    if (fail) process.exit(1);
     if (!measured) {
         console.error("HARNESS: measured nothing — no menu could be opened");
         process.exit(2);
     }
-    process.exit(fail ? 1 : 0);
+    // A menu left unopened is NOT a pass (see TARGETS). Until 2026-11-26 this
+    // exited 0 here, and every deploy printed MENU_LABEL_FIT_OK for 6 of 8.
+    if (opened < TARGETS.length) {
+        console.error(`HARNESS: only ${opened} of ${TARGETS.length} menus could be opened — see the HARNESS lines above`);
+        process.exit(2);
+    }
+    process.exit(0);
 })().catch(error => {
     console.error(`HARNESS: ${error.message}`);
     process.exit(2);

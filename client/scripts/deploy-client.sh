@@ -154,7 +154,9 @@ PY
                 echo "MENU_LABEL_FIT_FAIL — a menu label is cut off, see FAIL lines above"
                 gate_failed=1
                 ;;
-            *) echo "MENU_LABEL_FIT_SKIPPED (the run measured nothing — see the HARNESS line above)" ;;
+            # Not a red deploy (the harness, not the app, failed), but never an
+            # OK either: until 2026-11-26 a run that opened 6 of 8 menus printed OK.
+            *) echo "MENU_LABEL_FIT_INCOMPLETE (not every menu was measured — see the HARNESS lines above)" ;;
         esac
 
         if [[ "$gate_failed" -ne 0 ]]; then

@@ -241,6 +241,23 @@ einen Schleifendurchlauf.
   Eigene Messskripte genauso. Nachstellen: Gate laufen lassen, während auf jedem Kern zwei
   Endlosschleifen laufen — die alte Fassung war so zweimal rot, die neue zweimal grün.
 
+- **⚠️ In einer virtualisierten Liste ist die erste Karte im DOM nicht die erste auf dem
+  Schirm.** vue-virtual-scroller hält einen Pool an Karten-Views und parkt die unbenutzten weit
+  außerhalb der Seite (gemessen auf `/albums`: erste `.album-card` bei `top = -999878`).
+  `locator(".album-card").first().click()` traf regelmäßig so eine geparkte Karte, Playwright
+  wartete die vollen 15 s und gab auf. So öffnete `menu-label-fit.js` bei **jedem** Deploy nur
+  6 von 8 Menüs (Album- und Artist-Karte) und meldete trotzdem `MENU_LABEL_FIT_OK`, unabhängig
+  von der Last. Klicks in eine Liste deshalb über `scripts/onscreen.js` (erste Karte, deren
+  Mitte im Viewport liegt, sonst die erste darunter, nie eine oberhalb der Seite). Und ein Gate,
+  das ein Ziel nicht erreicht, meldet das als Exit 2 (`MENU_LABEL_FIT_INCOMPLETE`), nie als OK.
+
+- **⚠️ Ein `goto` auf eine andere Hash-Route lädt nichts neu.** Es kehrt nach Millisekunden
+  zurück (`networkidle` wartet dabei auf nichts), und die **alte** Ansicht steht, bis die Daten
+  der neuen Route da sind. Wer dann sofort ein Element auswählt, greift auf der alten Seite zu,
+  und der Klick läuft ins Leere (gemessen mit 1,5 s verzögerten API-Antworten: die Track-Zeile
+  der Playlist-Seite statt der von `/favorites`). `menu-label-fit.js` öffnet deshalb vor jedem
+  Ziel `about:blank`. Nachstellen: `page.route()`, das `xhr`/`fetch` verzögert.
+
 - **⚠️ Eine angehaltene `btn-pop`-Animation macht jeden plattierten Knopf 8 px zu schmal.** Der
   erste Keyframe ist `scale(0.82)`, und die Rolle setzt `animation-fill-mode: backwards` — läuft
   die Animation nicht los, ist genau das der Zustand, den man misst. Passiert in jedem
