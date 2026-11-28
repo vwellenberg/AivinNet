@@ -7,6 +7,7 @@
 #   bash scripts/release.sh final   2026.10.4                 build the final release (latest)
 #   bash scripts/release.sh cleanup 2026.10.4 [--yes]         old release, rc tags, old images (dry run without --yes)
 #   bash scripts/release.sh status                            latest builds and releases
+#   bash scripts/release.sh verify  2026.11.11                checks a published release (curl only, no gh)
 #
 # Guards: rc and final need a checkout that equals origin/master. final needs a
 # passed `test` of the last rc, and only docs or tests may have changed since
@@ -154,11 +155,224 @@ cmd_status() {
     gh release list --repo "$REPO" --limit 4
 }
 
+# Checks a published release without gh (curl, python3, sha256sum only).
+# Exit 0: all OK. Exit 2: only the macOS binary is missing. Exit 1: anything else.
+V_OK=0 V_FAIL=0 V_WAIT=0 V_MAC=0 VFY_WORK="" VFY_PID="" VFY_PORT=""
+v_ok()   { echo "OK    $1"; V_OK=$((V_OK + 1)); }
+v_fail() { echo "FEHLT $1: $2"; V_FAIL=$((V_FAIL + 1)); }
+v_wait() { echo "WARTET $1: $2"; V_WAIT=$((V_WAIT + 1)); }
+jget()   { python3 -I -c "import json,sys; d=json.load(sys.stdin); print($1)" 2>/dev/null; }
+
+verify_cleanup() {
+    if [ -n "$VFY_PID" ]; then kill "$VFY_PID" 2>/dev/null || true; fi
+    if [ -n "$VFY_PORT" ]; then pkill -f "[a]ivinnet_linux_x86_64 --host 127.0.0.1 --port $VFY_PORT" 2>/dev/null || true; fi
+    if [ -n "$VFY_WORK" ]; then rm -rf "$VFY_WORK"; fi
+    return 0
+}
+
+# Starts the Linux binary on a free port and checks what a user sees first.
+verify_smoke() {  # tag, download base
+    local tag=$1 dl=$2 bin cfg log pw base i code lcode hdr h missing expected found seen ver sum_out up
+    bin="$VFY_WORK/aivinnet_linux_x86_64"; cfg="$VFY_WORK/cfg"; log="$VFY_WORK/log"
+    if ! curl -fsSL -o "$bin" "$dl/aivinnet_linux_x86_64" 2>/dev/null; then
+        v_fail "Binary-Download" "aivinnet_linux_x86_64 nicht ladbar"; return 0
+    fi
+    sum_out=$(cd "$VFY_WORK" && sha256sum -c SHA256SUMS --ignore-missing 2>&1) || true
+    case $sum_out in
+        *"aivinnet_linux_x86_64: OK"*) v_ok "Binary-Hash stimmt mit SHA256SUMS" ;;
+        *) v_fail "Binary-Hash" "${sum_out:-keine Ausgabe}" ;;
+    esac
+    chmod +x "$bin"
+    ver=$("$bin" --version 2>&1) || ver=""
+    case $ver in
+        *"v$tag"*) v_ok "Binary --version: $ver" ;;
+        *) v_fail "Binary --version" "erwartet v$tag, ausgegeben: ${ver:-nichts}" ;;
+    esac
+
+    expected=$(curl -fsS "https://raw.githubusercontent.com/$REPO/v$tag/client/package.json" 2>/dev/null | jget 'd["version"]') || expected=""
+    mkdir -p "$VFY_WORK/zip" "$VFY_WORK/clientzip"
+    if ! curl -fsSL -o "$VFY_WORK/zip/client.zip" "$dl/client.zip" 2>/dev/null \
+        || ! python3 -I -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' \
+            "$VFY_WORK/zip/client.zip" "$VFY_WORK/clientzip" 2>/dev/null; then
+        v_fail "Client-Paket" "client.zip von v$tag nicht ladbar oder kaputt"
+    fi
+
+    VFY_PORT=$(python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+    pw=$(python3 -I -c 'import secrets; print(secrets.token_urlsafe(16))')
+    base="http://127.0.0.1:$VFY_PORT"
+    AIVINNET_ADMIN_PASSWORD="$pw" "$bin" --host 127.0.0.1 --port "$VFY_PORT" --config "$cfg" >"$log" 2>&1 &
+    VFY_PID=$!
+
+    up=0
+    for i in $(seq 1 60); do
+        if curl -s -o /dev/null "$base/"; then up=1; break; fi
+        sleep 1
+    done
+    if [ "$up" != 1 ]; then
+        v_fail "Server-Start" "keine Antwort nach 60 s, Log unten"
+        echo "--- Log (Ende) ---"; tail -20 "$log" 2>/dev/null || true
+        return 0
+    fi
+    v_ok "Server antwortet auf Port $VFY_PORT"
+
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$base/") || code=""
+    if [ "$code" = 200 ]; then v_ok "GET / -> 200"; else v_fail "GET /" "HTTP ${code:-keine Antwort}"; fi
+
+    code=$(curl -s -o /dev/null -w '%{http_code}' "$base/auth/user") || code=""
+    if [ "$code" = 401 ]; then v_ok "GET /auth/user ohne Login -> 401"; else v_fail "GET /auth/user ohne Login" "HTTP ${code:-keine Antwort}, erwartet 401"; fi
+
+    lcode=$(curl -s -o /dev/null -c "$VFY_WORK/jar" -w '%{http_code}' -H 'Content-Type: application/json' \
+        -d "{\"username\":\"admin\",\"password\":\"$pw\"}" "$base/auth/login") || lcode=""
+    code=$(curl -s -o /dev/null -w '%{http_code}' -b "$VFY_WORK/jar" "$base/auth/user") || code=""
+    if [ "$code" = 200 ]; then v_ok "Login (HTTP $lcode) und GET /auth/user -> 200"; else v_fail "Login" "Login HTTP ${lcode:-?}, /auth/user HTTP ${code:-keine Antwort}"; fi
+
+    hdr=$(curl -s -D - -o /dev/null "$base/") || hdr=""
+    missing=""
+    for h in X-Frame-Options Content-Security-Policy X-Content-Type-Options Referrer-Policy; do
+        grep -qi "^$h:" <<< "$hdr" || missing="$missing $h"
+    done
+    if [ -z "$missing" ]; then v_ok "Sicherheits-Header auf /"; else v_fail "Sicherheits-Header" "fehlen:$missing"; fi
+
+    if [ -z "$expected" ]; then
+        v_fail "Client-Version" "client/package.json von v$tag nicht lesbar"
+    else
+        # The version sits in a lazily loaded chunk, so grep the whole release client.
+        found=$(grep -rlF --include='*.js' "name:\`aivinnet-client\`,version:\`$expected\`" "$VFY_WORK/clientzip" 2>/dev/null) || found=""
+        if [ -n "$found" ]; then
+            v_ok "Client-Version $expected im client.zip"
+        else
+            seen=$(grep -rhoE --include='*.js' 'name:`aivinnet-client`,version:`[^`]*`' "$VFY_WORK/clientzip" 2>/dev/null | sort -u | tr '\n' ' ') || seen=""
+            v_fail "Client-Version" "erwartet $expected, im client.zip gefunden: ${seen:-nichts}"
+        fi
+    fi
+    if curl -s "$base/" | cmp -s - "$VFY_WORK/clientzip/client/index.html"; then
+        v_ok "Server liefert die index.html aus client.zip"
+    else
+        v_fail "Server-Client" "index.html des Servers weicht von client.zip ab"
+    fi
+
+    kill "$VFY_PID" 2>/dev/null || true
+    pkill -f "[a]ivinnet_linux_x86_64 --host 127.0.0.1 --port $VFY_PORT" 2>/dev/null || true
+    VFY_PID=""
+}
+
+cmd_verify() {  # tag, e.g. 2026.11.11
+    local tag=$1 api dl want a names rel latest flags extra x sums missing tok digest_v digest_l t d
+    [[ $tag =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "verify: '$tag' is no tag like 2026.11.11"
+    api=https://api.github.com/repos/$REPO
+    dl=https://github.com/$REPO/releases/download/v$tag
+    V_OK=0 V_FAIL=0 V_WAIT=0 V_MAC=0
+    VFY_WORK=$(mktemp -d)
+    trap verify_cleanup EXIT
+
+    # 1. Release exists and is published
+    rel=$(curl -fsS "$api/releases/tags/v$tag" 2>/dev/null) || rel=""
+    if [ -z "$rel" ]; then
+        v_fail "Release v$tag" "nicht gefunden ($api/releases/tags/v$tag)"
+    else
+        flags=$(printf '%s' "$rel" | jget 'd["draft"], d["prerelease"]') || flags=""
+        case $flags in
+            "False False") v_ok "Release v$tag ist veröffentlicht" ;;
+            "True "*) v_fail "Release v$tag" "ist noch ein Entwurf" ;;
+            *"True") v_fail "Release v$tag" "ist eine Vorabversion" ;;
+            *) v_fail "Release v$tag" "Antwort unlesbar: ${flags:-leer}" ;;
+        esac
+    fi
+
+    # 2. It is the latest release
+    latest=$(curl -fsS "$api/releases/latest" 2>/dev/null | jget 'd["tag_name"]') || latest=""
+    if [ "$latest" = "v$tag" ]; then v_ok "latest ist v$tag"; else v_fail "latest" "ist '${latest:-unbekannt}', erwartet v$tag"; fi
+
+    # 3. Assets
+    want="aivinnet-$tag-py3-none-any.whl aivinnet-v$tag-aarch64.AppImage aivinnet-v$tag-x86_64.AppImage aivinnet_darwin_arm64 aivinnet_linux_aarch64 aivinnet_linux_x86_64 aivinnet_windows_amd64.exe aivinnet_windows_arm64.exe client.zip SHA256SUMS"
+    names=""
+    if [ -n "$rel" ]; then
+        names=$(printf '%s' "$rel" | jget '"\n".join(a["name"] for a in d["assets"])') || names=""
+    fi
+    if [ -z "$names" ]; then
+        v_fail "Assets" "keine Asset-Liste (Release fehlt?)"
+    else
+        for a in $want; do
+            if grep -qxF "$a" <<< "$names"; then
+                v_ok "Asset $a"
+            elif [ "$a" = aivinnet_darwin_arm64 ]; then
+                v_wait "Asset $a" "fehlt (GitHub hat oft keinen macOS-Runner)"
+                V_MAC=1
+            else
+                v_fail "Asset $a" "fehlt"
+            fi
+        done
+        extra=""
+        while IFS= read -r x; do
+            [ -z "$x" ] && continue
+            case " $want " in *" $x "*) ;; *) extra="$extra $x" ;; esac
+        done <<< "$names"
+        echo "INFO  weitere Assets:${extra:- keine}"
+    fi
+
+    # 4. SHA256SUMS lists every present asset
+    sums="$VFY_WORK/SHA256SUMS"
+    if ! curl -fsSL -o "$sums" "$dl/SHA256SUMS" 2>/dev/null; then
+        v_fail "SHA256SUMS" "Download von $dl/SHA256SUMS fehlgeschlagen"
+    else
+        missing=""
+        while IFS= read -r x; do
+            [ -z "$x" ] && continue
+            [ "$x" = SHA256SUMS ] && continue
+            awk -v n="$x" '{ f=$2; sub(/^\*/, "", f); if (f == n) hit = 1 } END { exit !hit }' "$sums" || missing="$missing $x"
+        done <<< "$names"
+        if [ -z "$missing" ]; then
+            v_ok "SHA256SUMS listet alle Assets"
+        else
+            v_fail "SHA256SUMS" "listet nicht:$missing"
+        fi
+    fi
+
+    # 5. Docker image: v<tag> and latest must be the same image
+    tok=$(curl -fsS "https://ghcr.io/token?scope=repository:${REPO,,}:pull" 2>/dev/null | jget 'd["token"]') || tok=""
+    if [ -z "$tok" ]; then
+        v_fail "Docker" "kein Pull-Token von ghcr.io"
+    else
+        for t in "v$tag" latest; do
+            d=$(curl -fsSI -H "Authorization: Bearer $tok" \
+                -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json" \
+                "https://ghcr.io/v2/${REPO,,}/manifests/$t" 2>/dev/null | tr -d '\r' | awk 'tolower($1) == "docker-content-digest:" { print $2 }') || d=""
+            if [ "$t" = "v$tag" ]; then digest_v=$d; else digest_l=$d; fi
+        done
+        if [ -z "$digest_v" ]; then
+            v_fail "Docker v$tag" "Manifest fehlt"
+        elif [ -z "$digest_l" ]; then
+            v_fail "Docker latest" "Manifest fehlt"
+        elif [ "$digest_v" = "$digest_l" ]; then
+            v_ok "Docker v$tag = latest (${digest_v:0:19})"
+        else
+            v_fail "Docker latest" "${digest_l:0:19} statt v$tag ${digest_v:0:19}"
+        fi
+    fi
+
+    # 6. Smoke test of the Linux binary
+    if [ "$(uname -m)" != x86_64 ]; then
+        v_wait "Binary-Rauchtest" "nur auf x86_64"
+    else
+        verify_smoke "$tag" "$dl"
+    fi
+
+    echo "---"
+    echo "Ergebnis v$tag: $V_OK OK, $V_FAIL FEHLT, $V_WAIT WARTET"
+    if [ "$V_FAIL" -gt 0 ]; then exit 1; fi
+    if [ "$V_MAC" = 1 ]; then
+        echo "macOS fehlt: Lauf mit rerun_failed_jobs neu starten, nachts klappt es meist"
+        exit 2
+    fi
+    exit 0
+}
+
 case ${1:-} in
     rc)      cmd_rc "${2:?usage: rc <base, e.g. 2026.10.4>}" ;;
     test)    cmd_test "${2:?usage: test <old, e.g. 2026.10.3>}" "${3:?usage: test <old> <new rc, e.g. 2026.10.4-rc1>}" ;;
     final)   cmd_final "${2:?usage: final <base, e.g. 2026.10.4>}" ;;
     cleanup) cmd_cleanup "${2:?usage: cleanup <base> [--yes]}" "${3:-}" ;;
     status)  cmd_status ;;
-    *)       sed -n '2,16p' "$0" ;;
+    verify)  cmd_verify "${2:?usage: verify <tag, e.g. 2026.11.11>}" ;;
+    *)       sed -n '2,17p' "$0" ;;
 esac

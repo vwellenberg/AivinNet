@@ -339,7 +339,7 @@ stehen, statt zu sterben.
 
 ## Release in einem Rutsch: `scripts/release.sh` (seit 2026-10-10)
 
-Vier Schritte, je ein Befehl, kurze Ausgabe; die langen Logs bleiben auf dem Testhost.
+Vier Schritte und die Abnahme, je ein Befehl, kurze Ausgabe; die langen Logs bleiben auf dem Testhost.
 Das Skript prüft die Regeln selbst (Guards, siehe Kopf der Datei):
 
 1. `bash scripts/release.sh rc 2026.10.4` baut `2026.10.4-rc1` als Vorabversion mit Docker.
@@ -349,6 +349,7 @@ Das Skript prüft die Regeln selbst (Guards, siehe Kopf der Datei):
    verweigert es, wenn seit dem rc Code gemergt wurde; dann rc und test wiederholen.
 4. `bash scripts/release.sh cleanup 2026.10.4` zeigt nur, was weg soll. Mit `--yes` entfernt es den
    alten Release (Tag bleibt), die rc-Releases samt Tags und die älteren Images in ghcr.io.
+5. `bash scripts/release.sh verify 2026.10.4` prüft ein veröffentlichtes Release ohne gh: Dateien, SHA256SUMS, Docker-Digest, Rauchtest des Linux-Binaries.
 
 Ohne Testhost bricht `test` ab. `status` zeigt die letzten Builds und Releases.
 
